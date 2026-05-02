@@ -1,149 +1,96 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { Order, MenuItem, MenuCategory } from "@/api/entities";
+import { createClient } from "@supabase/supabase-js";
 
-const STATUS_COLORS = {
-  Pending:   "bg-yellow-100 text-yellow-700 border-yellow-200",
-  Confirmed: "bg-blue-100 text-blue-700 border-blue-200",
-  Preparing: "bg-purple-100 text-purple-700 border-purple-200",
-  Ready:     "bg-green-100 text-green-700 border-green-200",
-  Delivered: "bg-gray-100 text-gray-700 border-gray-200",
-  Cancelled: "bg-red-100 text-red-700 border-red-200",
-};
+// Initialize Supabase
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function AdminDashboard() {
-  const [tab, setTab] = useState("orders");
-  const [orders, setOrders] = useState([]);
-  const [menuItems, setMenuItems] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ totalItems: 0, featuredItems: 0 });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Fetches live data from your Supabase tables
-    Promise.all([
-      Order.list(),
-      MenuItem.list(),
-      MenuCategory.list()
-    ]).then(([o, m, c]) => {
-      setOrders(o);
-      setMenuItems(m);
-      setCategories(c);
-      setLoading(false);
-    });
+    async function fetchDashboardStats() {
+      try {
+        setIsLoading(true);
+        
+        // REPLACEMENT: Fetching directly from Supabase to avoid the "MenuItem.list" crash
+        const { data, error: sbError } = await supabase
+          .from("menu_items")
+          .select("is_featured");
+
+        if (sbError) throw sbError;
+
+        if (data) {
+          setStats({
+            totalItems: data.length,
+            featuredItems: data.filter(item => item.is_featured).length
+          });
+        }
+      } catch (err) {
+        console.error("Dashboard Load Error:", err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchDashboardStats();
   }, []);
 
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="w-10 h-10 border-4 border-gray-200 border-t-[#1EBBA3] animate-spin rounded-none"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 bg-red-50 border-l-4 border-red-500 text-red-700 font-bold uppercase tracking-widest text-xs">
+        System Error: {error}
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-brand-light text-brand-dark font-sans">
-      <nav className="fixed top-0 w-full z-50 bg-white border-b border-brand-gray">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-xl font-bold text-brand-teal">Juja Admin</Link>
-          </div>
-          <Link href="/order" className="text-sm px-4 py-2 border border-brand-gray hover:border-brand-teal transition">
-            View Live Store
-          </Link>
-        </div>
-      </nav>
+    <div className="animate-in fade-in duration-500">
+      <header className="mb-8 border-b-4 border-[#1A1A1A] pb-4">
+        <h1 className="text-3xl font-bold uppercase tracking-widest text-[#1A1A1A]">
+          Dashboard <span className="text-[#1EBBA3]">Overview</span>
+        </h1>
+        <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mt-1">
+          Real-time Menu Statistics
+        </p>
+      </header>
 
-      <div className="pt-24 max-w-7xl mx-auto px-6 pb-12">
-        {/* Modern Tab Toggle */}
-        <div className="flex border-b border-brand-gray mb-8">
-          {["orders", "menu", "categories"].map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-8 py-4 text-sm font-bold uppercase tracking-wider transition-all ${
-                tab === t 
-                ? "border-b-2 border-brand-teal text-brand-teal" 
-                : "text-gray-400 hover:text-brand-dark"
-              }`}
-            >
-              {t}
-            </button>
-          ))}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Total Items Card */}
+        <div className="bg-white border border-[#1A1A1A] p-8 shadow-sm rounded-none">
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Total Menu Items</p>
+          <h2 className="text-5xl font-black text-[#1A1A1A]">{stats.totalItems}</h2>
         </div>
 
-        {loading ? (
-          <p className="text-center py-20 text-gray-500">Updating dashboard...</p>
-        ) : (
-          <div className="bg-white border border-brand-gray p-6">
-            {tab === "orders" && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-brand-gray text-xs uppercase text-gray-500">
-                      <th className="py-4 px-2">Order ID</th>
-                      <th className="py-4 px-2">Customer</th>
-                      <th className="py-4 px-2">Items</th>
-                      <th className="py-4 px-2">Total</th>
-                      <th className="py-4 px-2">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-sm">
-                    {orders.map((order) => (
-                      <tr key={order.id} className="border-b border-brand-light hover:bg-brand-light transition">
-                        <td className="py-4 px-2 font-mono text-xs uppercase">{order.id.slice(0, 8)}</td>
-                        <td className="py-4 px-2 font-bold">{order.customer_name}</td>
-                        <td className="py-4 px-2 text-gray-500">{order.items?.length} items</td>
-                        <td className="py-4 px-2 font-bold text-brand-teal">₱{order.total_amount?.toFixed(2)}</td>
-                        <td className="py-4 px-2">
-                          <span className={`px-3 py-1 text-[10px] font-bold uppercase border ${STATUS_COLORS[order.status]}`}>
-                            {order.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            
-            {tab === "menu" && (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {menuItems.map((item) => (
-                  <div key={item.id} className="border border-brand-gray p-4 flex justify-between items-start">
-                    <div>
-                      <h3 className="font-bold">{item.name}</h3>
-                      <p className="text-xs text-gray-500">{item.category}</p>
-                      <p className="text-brand-teal font-bold mt-2">₱{item.price?.toFixed(2)}</p>
-                    </div>
-                    <button className="text-[10px] uppercase font-bold border border-brand-dark px-2 py-1 hover:bg-brand-dark hover:text-white transition">
-                      Edit
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+        {/* Featured Items Card */}
+        <div className="bg-white border border-[#1A1A1A] p-8 shadow-sm rounded-none">
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Featured Items</p>
+          <h2 className="text-5xl font-black text-[#1EBBA3]">{stats.featuredItems}</h2>
+        </div>
+
+        {/* Store Status Card */}
+        <div className="bg-[#1A1A1A] text-white p-8 shadow-sm rounded-none flex flex-col justify-between">
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Store Status</p>
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 bg-[#1EBBA3] animate-pulse"></div>
+            <h2 className="text-xl font-bold uppercase tracking-widest text-[#1EBBA3]">Live & Active</h2>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
-}/* Dashboard Container Styling */
-<div className="min-h-screen bg-[#F9F7F2] text-[#1A1A1A] font-sans">
-  {/* Sidebar with Signature Teal Branding */}
-  <aside className="w-64 bg-[#1A1A1A] text-white p-6 fixed h-full">
-    <h1 className="text-xl font-bold tracking-tighter text-[#1EBBA3] mb-10">
-      JUJA ADMIN
-    </h1>
-    <nav className="space-y-4">
-      <button className="w-full text-left px-4 py-2 bg-[#1EBBA3] text-white">Live Orders</button>
-      <button className="w-full text-left px-4 py-2 hover:bg-gray-800 transition-colors">Menu Manager</button>
-      <button className="w-full text-left px-4 py-2 hover:bg-gray-800 transition-colors">Analytics</button>
-    </nav>
-  </aside>
-
-  {/* Main Content Area */}
-  <main className="ml-64 p-10">
-    <header className="flex justify-between items-center mb-12">
-      <h2 className="text-3xl font-bold">Order Management</h2>
-      <div className="flex gap-4">
-        {/* Strictly Square Buttons */}
-        <button className="px-6 py-2 border-2 border-[#1A1A1A] font-bold">Export CSV</button>
-        <button className="px-6 py-2 bg-[#1EBBA3] text-white font-bold">Refresh Feed</button>
-      </div>
-    </header>
-  </main>
-</div>
+}
