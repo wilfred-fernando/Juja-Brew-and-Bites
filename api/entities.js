@@ -59,3 +59,13 @@ export const getMenuItems = async () => {
     setTimeout(() => resolve(menuItems), 500); 
   });
 };
+
+// --- BACKWARD COMPATIBILITY FOR OLD PAGES ---
+// This prevents older pages from breaking during the build process
+export const MenuItem = {
+  // Simulates the old filter method so your home page doesn't crash
+  filter: async () => menuItems.filter((item) => item.is_featured)
+};
+
+export const Order = {};
+export const MenuCategory = {};
