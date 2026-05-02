@@ -26,7 +26,7 @@ export default function AdminMenuBuilder() {
     if (!error && data) {
       setItems(data);
       
-      // Extract unique categories for the tabs
+      // Extract unique categories for the dropdown
       const uniqueCategories = [...new Set(data.map(item => item.category))];
       setCategories(uniqueCategories);
       
@@ -38,7 +38,7 @@ export default function AdminMenuBuilder() {
     setIsLoading(false);
   }
 
-  // Filter items based on the active tab
+  // Filter items based on the active dropdown selection
   const displayedItems = items.filter(item => item.category === activeCategory);
 
   return (
@@ -76,34 +76,43 @@ export default function AdminMenuBuilder() {
         </div>
       ) : (
         <>
-          {/* Category Tabs Navigation */}
-          <div className="flex overflow-x-auto hide-scrollbar border-b border-gray-200 mb-8 gap-8">
-            {categories.map((category) => (
-              <button
-                key={category}
-                onClick={() => setActiveCategory(category)}
-                className={`pb-4 text-xs font-bold uppercase tracking-[0.15em] transition-all duration-300 whitespace-nowrap relative ${
-                  activeCategory === category
-                    ? "text-[#1A1A1A]"
-                    : "text-gray-400 hover:text-[#1A1A1A]"
-                }`}
-              >
-                {category}
-                {/* Active Tab Underline */}
-                {activeCategory === category && (
-                  <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#1EBBA3] animate-in fade-in slide-in-from-left-4 duration-300"></div>
-                )}
-              </button>
-            ))}
+          {/* Custom Styled Dropdown Filter */}
+          <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-200 animate-in fade-in duration-500">
+            <div className="flex items-center gap-4">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest hidden md:block">
+                Select Category:
+              </label>
+              <div className="relative">
+                <select
+                  value={activeCategory}
+                  onChange={(e) => setActiveCategory(e.target.value)}
+                  className="appearance-none bg-white border border-gray-200 text-[#1A1A1A] text-xs font-bold uppercase tracking-widest py-3 pl-5 pr-12 hover:border-[#1EBBA3] focus:outline-none focus:border-[#1EBBA3] focus:ring-1 focus:ring-[#1EBBA3] transition-all duration-300 cursor-pointer rounded-sm shadow-sm"
+                >
+                  {categories.map((category) => (
+                    <option key={category} value={category}>{category}</option>
+                  ))}
+                </select>
+                {/* Custom Teal Dropdown Arrow */}
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-[#1EBBA3]">
+                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+            
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-100 px-3 py-1 rounded-sm">
+              {displayedItems.length} Items Listed
+            </span>
           </div>
 
           {/* Active Category Item List */}
           <div 
-            key={activeCategory} // Forces re-render animation when tab changes
-            className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out"
+            key={activeCategory} 
+            className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500 ease-out"
           >
             {displayedItems.length === 0 ? (
-              <div className="py-20 text-center text-gray-400 text-xs font-bold uppercase tracking-widest">
+              <div className="py-20 text-center text-gray-400 text-xs font-bold uppercase tracking-widest border-2 border-dashed border-gray-200 rounded-lg">
                 No items in this category.
               </div>
             ) : (
