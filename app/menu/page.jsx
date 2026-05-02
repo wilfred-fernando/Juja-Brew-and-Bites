@@ -17,8 +17,6 @@ export default function Menu() {
   // Modal State
   const [selectedItem, setSelectedItem] = useState(null);
   const [quantity, setQuantity] = useState(1);
-  
-  // Tracks choices. Example: { "Size": {label: "HOT"}, "Add-ons": [{label: "Oat Milk"}, {label: "Extra Shot"}] }
   const [selectedChoices, setSelectedChoices] = useState({});
 
   useEffect(() => {
@@ -58,14 +56,13 @@ export default function Menu() {
     setSelectedItem(item);
     setQuantity(1);
     
-    // Setup initial state: required groups get the first choice, optional groups get an empty array
     const defaultChoices = {};
     if (item.option_groups && Array.isArray(item.option_groups)) {
       item.option_groups.forEach(group => {
         if (group.required && group.choices && group.choices.length > 0) {
           defaultChoices[group.name] = group.choices[0];
         } else {
-          defaultChoices[group.name] = []; // Array for multiple selections
+          defaultChoices[group.name] = []; 
         }
       });
     }
@@ -80,10 +77,8 @@ export default function Menu() {
   const handleOptionSelect = (group, choice) => {
     setSelectedChoices(prev => {
       if (group.required) {
-        // Radio Button Logic: Overwrite the single choice
         return { ...prev, [group.name]: choice };
       } else {
-        // Checkbox Logic: Add or remove from the array
         const currentSelections = prev[group.name] || [];
         const isAlreadySelected = currentSelections.some(c => c.label === choice.label);
         
@@ -96,17 +91,14 @@ export default function Menu() {
     });
   };
 
-  // Calculate final price dynamically
   const calculateTotal = () => {
     if (!selectedItem) return 0;
     let optionsTotal = 0;
     
     Object.values(selectedChoices).forEach(selection => {
       if (Array.isArray(selection)) {
-        // Add up all checked checkboxes
         selection.forEach(c => optionsTotal += Number(c.price_adjustment));
       } else if (selection && selection.price_adjustment) {
-        // Add single radio selection
         optionsTotal += Number(selection.price_adjustment);
       }
     });
@@ -117,13 +109,17 @@ export default function Menu() {
   return (
     <div className="min-h-screen bg-white text-[#1A1A1A] font-sans pb-20 relative">
       
+      {/* Header Section */}
       <header className="bg-[#1A1A1A] text-white py-12 px-6 text-center">
         <h1 className="text-4xl font-bold tracking-tight mb-2">
           Juja <span className="text-[#1EBBA3]">Menu</span>
         </h1>
       </header>
 
+      {/* Main Layout: Sidebar + List */}
       <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col md:flex-row gap-8">
+        
+        {/* Left Sidebar Navigation */}
         <aside className="w-full md:w-56 shrink-0">
           <div className="md:sticky md:top-8 flex md:flex-col overflow-x-auto hide-scrollbar border-b md:border-b-0 md:border-r border-gray-200 md:pr-4 pb-4 md:pb-0">
             {categories.map((category) => (
@@ -142,6 +138,7 @@ export default function Menu() {
           </div>
         </aside>
 
+        {/* Menu List Content */}
         <main className="flex-1">
           {isLoading ? (
              <div className="flex justify-center py-20">
@@ -176,6 +173,7 @@ export default function Menu() {
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white w-full max-w-md flex flex-col rounded-none shadow-2xl overflow-hidden max-h-[90vh]">
             
+            {/* Modal Header / Image Area */}
             <div className="relative h-64 bg-[#334155] flex items-center justify-center">
               <button 
                 onClick={closeModal}
@@ -185,6 +183,7 @@ export default function Menu() {
               </button>
             </div>
 
+            {/* Scrollable Content Area */}
             <div className="flex-1 overflow-y-auto p-6">
               <div className="flex justify-between items-start mb-6">
                 <h2 className="text-xl font-bold uppercase tracking-wide text-[#1A1A1A]">
@@ -195,32 +194,32 @@ export default function Menu() {
                 </span>
               </div>
 
+              {/* DYNAMIC OPTION GROUPS MAPPING (Tight Spacing Applied) */}
               {selectedItem.option_groups && Array.isArray(selectedItem.option_groups) && (
-                <div className="space-y-6">
+                <div className="space-y-4 mt-2">
                   {selectedItem.option_groups.map((group, groupIdx) => (
-                    <div key={groupIdx} className="border-t border-gray-200 pt-4">
+                    <div key={groupIdx} className="border-t border-gray-200 pt-3">
                       
-                      <div className="flex justify-between items-center mb-3">
+                      <div className="flex justify-between items-center mb-1">
                         <div>
                           <h3 className="font-bold text-[#1A1A1A] text-sm tracking-widest uppercase">{group.name}</h3>
-                          <p className="text-xs text-gray-400 uppercase">{group.description}</p>
+                          <p className="text-xs text-gray-400 uppercase leading-none">{group.description}</p>
                         </div>
                         {group.required && (
-                          <span className="bg-[#8B5CF6] text-white text-[10px] font-bold px-2 py-1 rounded-none uppercase tracking-wider">
+                          <span className="bg-[#8B5CF6] text-white text-[10px] font-bold px-2 py-0.5 rounded-none uppercase tracking-wider">
                             Required
                           </span>
                         )}
                       </div>
 
-                      <div className="space-y-3 mt-4">
+                      <div className="space-y-0.5 mt-2">
                         {group.choices.map((choice, choiceIdx) => {
-                          // Determine if this choice is currently selected based on if it's an array or object
                           const isSelected = group.required
                             ? selectedChoices[group.name]?.label === choice.label
                             : selectedChoices[group.name]?.some(c => c.label === choice.label);
 
                           return (
-                            <label key={choiceIdx} className="flex items-center justify-between cursor-pointer group hover:bg-gray-50 p-2 -mx-2 transition-colors">
+                            <label key={choiceIdx} className="flex items-center justify-between cursor-pointer group hover:bg-gray-50 py-1.5 px-2 -mx-2 transition-colors">
                               <div className="flex items-center">
                                 <input 
                                   type={group.required ? "radio" : "checkbox"} 
@@ -247,6 +246,7 @@ export default function Menu() {
               )}
             </div>
 
+            {/* Modal Action Footer */}
             <div className="border-t border-gray-200 p-4 bg-gray-50 flex gap-4 items-center">
               <div className="flex items-center border border-gray-300 bg-white h-12 w-32 justify-between">
                 <button 
