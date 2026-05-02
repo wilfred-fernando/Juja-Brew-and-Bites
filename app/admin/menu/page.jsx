@@ -170,7 +170,6 @@ function AddItemForm({ onClose, onSuccess }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   
-  // New States for "Simple Mode" vs "Variant Mode"
   const [hasVariants, setHasVariants] = useState(false);
   const [basePrice, setBasePrice] = useState("");
   const [variants, setVariants] = useState([]);
@@ -183,7 +182,6 @@ function AddItemForm({ onClose, onSuccess }) {
   const addVariant = () => {
     if (!hasVariants) {
       setHasVariants(true);
-      // Initialize the first variant, optionally carrying over the base price if one was entered
       setVariants([{ id: Date.now().toString(), name: "", price: basePrice, isDefault: true }]);
     } else {
       setVariants([...variants, { id: Date.now().toString(), name: "", price: "", isDefault: false }]);
@@ -193,7 +191,7 @@ function AddItemForm({ onClose, onSuccess }) {
   const removeVariant = (id) => {
     const newVariants = variants.filter(v => v.id !== id);
     if (newVariants.length === 0) {
-      setHasVariants(false); // Revert to simple mode if all variants deleted
+      setHasVariants(false);
     } else {
       if (!newVariants.find(s => s.isDefault)) newVariants[0].isDefault = true;
       setVariants(newVariants);
@@ -211,7 +209,7 @@ function AddItemForm({ onClose, onSuccess }) {
     if (hasVariants) {
       const validVariants = variants.filter(v => v.name.trim() !== "" && v.price !== "");
       if (validVariants.length === 0) {
-        setError("You must add at least one valid variant and price.");
+        setError("YOU MUST ADD AT LEAST ONE VALID VARIANT AND PRICE.");
         setIsSubmitting(false);
         return;
       }
@@ -227,7 +225,7 @@ function AddItemForm({ onClose, onSuccess }) {
       }];
     } else {
       if (!basePrice || isNaN(basePrice)) {
-        setError("Please enter a valid price for this item.");
+        setError("PLEASE ENTER A VALID PRICE FOR THIS ITEM.");
         setIsSubmitting(false);
         return;
       }
@@ -236,6 +234,7 @@ function AddItemForm({ onClose, onSuccess }) {
 
     const newItem = {
       name, 
+      description, // FIX: Description is now properly included
       category, 
       price: finalPrice, 
       is_featured: false, 
@@ -246,7 +245,8 @@ function AddItemForm({ onClose, onSuccess }) {
     const { error: dbError } = await supabase.from("menu_items").insert([newItem]);
 
     if (dbError) {
-      setError("Failed to save item. Check connection.");
+      console.error("Supabase Database Error:", dbError); // This will log the exact issue to your F12 console
+      setError("FAILED TO SAVE ITEM. CHECK CONNECTION.");
       setIsSubmitting(false);
     } else {
       onSuccess();
@@ -277,7 +277,6 @@ function AddItemForm({ onClose, onSuccess }) {
           </div>
         </div>
 
-        {/* Dynamic Top Row: Name and Price */}
         <div className="flex flex-col md:flex-row gap-6 mb-8 transition-all duration-500">
           <div className="relative flex-1">
             <input type="text" id="itemName" required value={name} onChange={(e) => setName(e.target.value)} maxLength={100} className="block w-full px-4 py-4 text-sm text-[#1A1A1A] bg-transparent rounded-md border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-[#1EBBA3] peer font-bold placeholder-transparent" placeholder="Item Name" />
@@ -285,7 +284,6 @@ function AddItemForm({ onClose, onSuccess }) {
             <div className="absolute -bottom-5 right-0 text-[10px] text-gray-400">{name.length}/100</div>
           </div>
 
-          {/* If no variants, show base price input side-by-side */}
           {!hasVariants && (
             <div className="relative w-full md:w-32 shrink-0 animate-in fade-in zoom-in-95 duration-300">
               <span className="absolute left-3 top-4 text-gray-400 text-sm font-bold">₱</span>
@@ -301,7 +299,6 @@ function AddItemForm({ onClose, onSuccess }) {
           <div className="absolute -bottom-5 right-0 text-[10px] text-gray-400">{description.length}/300</div>
         </div>
 
-        {/* Variants Section (Only visible if Add Variant was clicked) */}
         {hasVariants && (
           <div className="mt-12 pt-6 border-t border-gray-100 animate-in fade-in slide-in-from-top-4 duration-300">
             <label className="block text-[10px] font-bold text-[#1EBBA3] uppercase tracking-[0.2em] mb-4">Variations</label>
@@ -332,9 +329,7 @@ function AddItemForm({ onClose, onSuccess }) {
           </div>
         )}
 
-        {/* Form Footer */}
         <div className="mt-10 pt-6 border-t border-gray-100 flex justify-between items-center">
-          {/* Add Variant Button anchors to the left */}
           <button type="button" onClick={addVariant} className="text-[10px] font-bold text-[#1EBBA3] hover:text-[#1A1A1A] uppercase tracking-widest transition-colors flex items-center gap-1">
              <span className="text-lg leading-none">+</span> Add Variant
           </button>
