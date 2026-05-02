@@ -60,12 +60,14 @@ export const getMenuItems = async () => {
   });
 };
 
-// --- BACKWARD COMPATIBILITY FOR OLD PAGES ---
-// This prevents older pages from breaking during the build process
+// --- BACKWARD COMPATIBILITY PATCH ---
 export const MenuItem = {
-  // Simulates the old filter method so your home page doesn't crash
   filter: async () => menuItems.filter((item) => item.is_featured)
 };
 
-export const Order = {};
+// Add the .list() function here so the Admin page stops crashing
+export const Order = {
+  list: async () => [] 
+};
+
 export const MenuCategory = {};
