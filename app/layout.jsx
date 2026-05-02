@@ -1,17 +1,17 @@
-import './globals.css'
-import type { Metadata } from 'next'
+import "./globals.css";
 
-export const metadata: Metadata = {
-  title: 'Juja Brew & Bites | Merchant Admin',
-  description: 'Cafe Management Dashboard',
-}
+// Ensure there is a comma between 'title' and 'description'
+export const metadata = {
+  title: "Juja Brew and Bites",
+  description: "Modern cafe in Pasong Tamo, Quezon City",
+};
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="antialiased">
         {children}
       </body>
     </html>
-  )
+  );
 }
