@@ -30,3 +30,18 @@ export default function AdminLayout({ children }) {
     </div>
   );
 }
+import { Space_Mono } from 'next/font/google';
+
+const spaceMono = Space_Mono({ 
+  subsets: ['latin'], 
+  weight: ['400', '700'],
+  variable: '--font-space-mono' 
+});
+
+export default function AdminLayout({ children }) {
+  return (
+    <div className={`${spaceMono.variable} font-mono flex min-h-screen bg-[#F9F7F2]`}>
+      {/* ... rest of your sidebar code ... */}
+    </div>
+  );
+}
