@@ -18,7 +18,7 @@ export default function Menu() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [quantity, setQuantity] = useState(1);
   
-  // Tracks the user's selected choices { "Size": { label: "HOT (R)", price_adjustment: 10 } }
+  // Tracks choices. Example: { "Size": {label: "HOT"}, "Add-ons": [{label: "Oat Milk"}, {label: "Extra Shot"}] }
   const [selectedChoices, setSelectedChoices] = useState({});
 
   useEffect(() => {
@@ -46,28 +46,26 @@ export default function Menu() {
           setActiveCategory(uniqueCategories[0]);
         }
       }
-      
       setIsLoading(false);
     }
-
     fetchMenuFromSupabase();
   }, [activeCategory]);
 
-  const displayedItems = items.filter(
-    (item) => item.category === activeCategory
-  );
+  const displayedItems = items.filter((item) => item.category === activeCategory);
 
   // --- MODAL & OPTION LOGIC ---
   const openModal = (item) => {
     setSelectedItem(item);
     setQuantity(1);
     
-    // Automatically select the first choice for "Required" groups
+    // Setup initial state: required groups get the first choice, optional groups get an empty array
     const defaultChoices = {};
     if (item.option_groups && Array.isArray(item.option_groups)) {
       item.option_groups.forEach(group => {
         if (group.required && group.choices && group.choices.length > 0) {
           defaultChoices[group.name] = group.choices[0];
+        } else {
+          defaultChoices[group.name] = []; // Array for multiple selections
         }
       });
     }
@@ -79,21 +77,37 @@ export default function Menu() {
     setSelectedChoices({});
   };
 
-  const handleOptionSelect = (groupName, choice) => {
-    setSelectedChoices(prev => ({
-      ...prev,
-      [groupName]: choice
-    }));
+  const handleOptionSelect = (group, choice) => {
+    setSelectedChoices(prev => {
+      if (group.required) {
+        // Radio Button Logic: Overwrite the single choice
+        return { ...prev, [group.name]: choice };
+      } else {
+        // Checkbox Logic: Add or remove from the array
+        const currentSelections = prev[group.name] || [];
+        const isAlreadySelected = currentSelections.some(c => c.label === choice.label);
+        
+        if (isAlreadySelected) {
+          return { ...prev, [group.name]: currentSelections.filter(c => c.label !== choice.label) };
+        } else {
+          return { ...prev, [group.name]: [...currentSelections, choice] };
+        }
+      }
+    });
   };
 
-  // Calculate final price: (Base Price + Sum of Selected Adjustments) * Quantity
+  // Calculate final price dynamically
   const calculateTotal = () => {
     if (!selectedItem) return 0;
     let optionsTotal = 0;
     
-    Object.values(selectedChoices).forEach(choice => {
-      if (choice && choice.price_adjustment) {
-        optionsTotal += Number(choice.price_adjustment);
+    Object.values(selectedChoices).forEach(selection => {
+      if (Array.isArray(selection)) {
+        // Add up all checked checkboxes
+        selection.forEach(c => optionsTotal += Number(c.price_adjustment));
+      } else if (selection && selection.price_adjustment) {
+        // Add single radio selection
+        optionsTotal += Number(selection.price_adjustment);
       }
     });
 
@@ -110,7 +124,6 @@ export default function Menu() {
       </header>
 
       <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col md:flex-row gap-8">
-        {/* Sidebar */}
         <aside className="w-full md:w-56 shrink-0">
           <div className="md:sticky md:top-8 flex md:flex-col overflow-x-auto hide-scrollbar border-b md:border-b-0 md:border-r border-gray-200 md:pr-4 pb-4 md:pb-0">
             {categories.map((category) => (
@@ -129,7 +142,6 @@ export default function Menu() {
           </div>
         </aside>
 
-        {/* Menu Grid */}
         <main className="flex-1">
           {isLoading ? (
              <div className="flex justify-center py-20">
@@ -183,7 +195,6 @@ export default function Menu() {
                 </span>
               </div>
 
-              {/* DYNAMIC OPTION GROUPS MAPPING */}
               {selectedItem.option_groups && Array.isArray(selectedItem.option_groups) && (
                 <div className="space-y-6">
                   {selectedItem.option_groups.map((group, groupIdx) => (
@@ -203,25 +214,26 @@ export default function Menu() {
 
                       <div className="space-y-3 mt-4">
                         {group.choices.map((choice, choiceIdx) => {
-                          // Check if this specific choice is currently selected in state
-                          const isSelected = selectedChoices[group.name]?.label === choice.label;
+                          // Determine if this choice is currently selected based on if it's an array or object
+                          const isSelected = group.required
+                            ? selectedChoices[group.name]?.label === choice.label
+                            : selectedChoices[group.name]?.some(c => c.label === choice.label);
 
                           return (
-                            <label key={choiceIdx} className="flex items-center justify-between cursor-pointer group">
+                            <label key={choiceIdx} className="flex items-center justify-between cursor-pointer group hover:bg-gray-50 p-2 -mx-2 transition-colors">
                               <div className="flex items-center">
-                                {/* Use Radio for required (single select), could adapt for checkboxes if multiple allowed */}
                                 <input 
-                                  type="radio" 
+                                  type={group.required ? "radio" : "checkbox"} 
                                   name={`group-${group.name}`} 
-                                  checked={isSelected}
-                                  onChange={() => handleOptionSelect(group.name, choice)}
-                                  className="w-4 h-4 accent-[#1EBBA3]" 
+                                  checked={isSelected || false}
+                                  onChange={() => handleOptionSelect(group, choice)}
+                                  className="w-4 h-4 accent-[#1EBBA3] cursor-pointer" 
                                 />
-                                <span className={`ml-3 text-sm group-hover:text-black ${isSelected ? 'text-black font-semibold' : 'text-gray-700'}`}>
+                                <span className={`ml-3 text-sm transition-colors ${isSelected ? 'text-[#1A1A1A] font-semibold' : 'text-gray-600'}`}>
                                   {choice.label}
                                 </span>
                               </div>
-                              <span className="text-sm text-gray-500">
+                              <span className="text-sm text-gray-500 font-medium">
                                 {choice.price_adjustment > 0 ? `+ ₱${choice.price_adjustment.toFixed(2)}` : '+ ₱0.00'}
                               </span>
                             </label>
@@ -235,25 +247,24 @@ export default function Menu() {
               )}
             </div>
 
-            {/* Action Footer */}
             <div className="border-t border-gray-200 p-4 bg-gray-50 flex gap-4 items-center">
               <div className="flex items-center border border-gray-300 bg-white h-12 w-32 justify-between">
                 <button 
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="w-10 h-full flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-black transition-colors"
+                  className="w-10 h-full flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-[#1A1A1A] transition-colors"
                 >
                   −
                 </button>
                 <span className="font-bold text-[#1A1A1A] text-sm">{quantity}</span>
                 <button 
                   onClick={() => setQuantity(quantity + 1)}
-                  className="w-10 h-full flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-black transition-colors"
+                  className="w-10 h-full flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-[#1A1A1A] transition-colors"
                 >
                   +
                 </button>
               </div>
 
-              <button className="flex-1 bg-[#1EBBA3] text-white h-12 font-bold text-sm tracking-wider uppercase hover:brightness-110 transition-all active:scale-[0.98] rounded-none">
+              <button className="flex-1 bg-[#1EBBA3] text-white h-12 font-bold text-sm tracking-wider uppercase hover:brightness-110 transition-all active:scale-[0.98] rounded-none shadow-sm">
                 Add to basket • ₱{calculateTotal()}
               </button>
             </div>
