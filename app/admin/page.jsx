@@ -121,4 +121,29 @@ export default function AdminDashboard() {
       </div>
     </div>
   );
-}
+}/* Dashboard Container Styling */
+<div className="min-h-screen bg-[#F9F7F2] text-[#1A1A1A] font-sans">
+  {/* Sidebar with Signature Teal Branding */}
+  <aside className="w-64 bg-[#1A1A1A] text-white p-6 fixed h-full">
+    <h1 className="text-xl font-bold tracking-tighter text-[#1EBBA3] mb-10">
+      JUJA ADMIN
+    </h1>
+    <nav className="space-y-4">
+      <button className="w-full text-left px-4 py-2 bg-[#1EBBA3] text-white">Live Orders</button>
+      <button className="w-full text-left px-4 py-2 hover:bg-gray-800 transition-colors">Menu Manager</button>
+      <button className="w-full text-left px-4 py-2 hover:bg-gray-800 transition-colors">Analytics</button>
+    </nav>
+  </aside>
+
+  {/* Main Content Area */}
+  <main className="ml-64 p-10">
+    <header className="flex justify-between items-center mb-12">
+      <h2 className="text-3xl font-bold">Order Management</h2>
+      <div className="flex gap-4">
+        {/* Strictly Square Buttons */}
+        <button className="px-6 py-2 border-2 border-[#1A1A1A] font-bold">Export CSV</button>
+        <button className="px-6 py-2 bg-[#1EBBA3] text-white font-bold">Refresh Feed</button>
+      </div>
+    </header>
+  </main>
+</div>
