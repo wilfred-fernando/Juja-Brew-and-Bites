@@ -16,26 +16,25 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = async (e) => {
+const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
 
-    // 1. Send credentials to Supabase
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
-      setError("Invalid email or password. Please try again.");
+      setError("Invalid email or password.");
       setIsLoading(false);
     } else if (data.session) {
-      // 2. If successful, set a cookie so the Middleware knows you are logged in
-      document.cookie = "juja-admin-auth=true; path=/; max-age=86400"; // Expires in 1 day
+      // Set the cookie with a more explicit path and SameSite attribute
+      document.cookie = "juja-admin-auth=true; path=/; SameSite=Lax; max-age=86400";
       
-      // 3. Redirect to the protected dashboard
-      router.push("/admin");
+      // Use window.location for a "hard" redirect to ensure the proxy catches the new cookie
+      window.location.href = "/admin";
     }
   };
 
