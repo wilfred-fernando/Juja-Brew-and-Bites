@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { menuCategories, getMenuItems } from "../api/entities";
+import { menuCategories, getMenuItems } from "../../api/entities";
 
 export default function Menu() {
   const [items, setItems] = useState([]);
