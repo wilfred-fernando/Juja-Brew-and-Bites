@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 
 export function proxy(request) {
-  const url = request.nextUrl.pathname;
+  const { pathname } = request.nextUrl;
 
-  if (url.startsWith("/admin")) {
-    const isAuth = request.cookies.get("juja-admin-auth"); 
+  // If the user is trying to access /admin
+  if (pathname.startsWith("/admin")) {
+    const authCookie = request.cookies.get("juja-admin-auth");
 
-    if (!isAuth) {
-      // If no cookie, go to login
+    // If cookie is missing, send them to login
+    if (!authCookie) {
+      console.log("No auth cookie found, redirecting to login");
       return NextResponse.redirect(new URL("/login", request.url));
     }
   }
@@ -16,6 +18,6 @@ export function proxy(request) {
 }
 
 export const config = {
-  // Ensure the matcher covers "/admin" AND all sub-pages like "/admin/menu"
-  matcher: ["/admin", "/admin/:path*"], 
+  // Broaden the matcher to catch all admin sub-routes
+  matcher: ["/admin", "/admin/:path*"],
 };
