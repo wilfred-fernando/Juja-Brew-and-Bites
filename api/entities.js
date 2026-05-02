@@ -1,138 +1,61 @@
-import { supabase } from '@/utils/supabase';
+export const menuCategories = [
+  "Signature", "Chicken", "Rice in a Box", "Rice Meal", "All Day Breakfast", 
+  "Coffee", "Non-Coffee", "Signature Drinks", "Frappe", "Milk Tea", 
+  "Snacks", "Waffle", "Pasta", "Croffle", "Group Tray"
+];
 
-export const MenuCategory = {
-  list: async () => {
-    const { data, error } = await supabase
-      .from('menu_categories')
-      .select('*')
-      .order('sort_order', { ascending: true });
-    
-    if (error) throw error;
-    return data;
-  },
+export const menuItems = [
+  // --- SIGNATURE BAKES ---
+  { id: 1, name: "Dubai Chewy Cookie (Single)", category: "Signature", price: 159, is_featured: true, status: "available" },
+  { id: 2, name: "Dubai Chewy Cookie (Box of 4)", category: "Signature", price: 599, is_featured: true, status: "available" },
+
+  // --- CHICKEN ---
+  { id: 3, name: "Chicken Wings (2 pcs with Rice)", category: "Chicken", price: 139, is_featured: false, status: "available" },
+  { id: 4, name: "Chicken Wings (6 pcs Ala Carte)", category: "Chicken", price: 319, is_featured: true, status: "available" },
+  { id: 5, name: "Boneless Chicken (7 pcs)", category: "Chicken", price: 259, is_featured: false, status: "available" },
+  { id: 6, name: "Taiwan Large Chicken", category: "Chicken", price: 289, is_featured: true, status: "available" },
+
+  // --- RICE IN A BOX ---
+  { id: 7, name: "Tapa Rice", category: "Rice in a Box", price: 99, is_featured: false, status: "available" },
+  { id: 8, name: "Seafood Bagoong", category: "Rice in a Box", price: 99, is_featured: false, status: "available" },
+  { id: 9, name: "Korean Kimchi", category: "Rice in a Box", price: 99, is_featured: false, status: "available" },
+  { id: 10, name: "Beef Pepper", category: "Rice in a Box", price: 149, is_featured: true, status: "available" },
   
-  create: async (payload) => {
-    const { data, error } = await supabase
-      .from('menu_categories')
-      .insert([payload])
-      .select()
-      .single();
-      
-    if (error) throw error;
-    return data;
-  },
+  // --- RICE MEAL & BREAKFAST ---
+  { id: 11, name: "Shawarma Rice", category: "Rice Meal", price: 129, is_featured: false, status: "available" },
+  { id: 12, name: "Majh's Pork Sisig", category: "Rice Meal", price: 139, is_featured: true, status: "available" },
+  { id: 13, name: "Japanese Chicken Curry", category: "Rice Meal", price: 199, is_featured: false, status: "available" },
+  { id: 14, name: "Tapsilog", category: "All Day Breakfast", price: 149, is_featured: false, status: "available" },
 
-  update: async (id, payload) => {
-    const { data, error } = await supabase
-      .from('menu_categories')
-      .update(payload)
-      .eq('id', id)
-      .select()
-      .single();
-      
-    if (error) throw error;
-    return data;
-  },
+  // --- COFFEE & SIGNATURE DRINKS ---
+  { id: 15, name: "Americano (Iced)", category: "Coffee", price: 89, is_featured: false, status: "available" },
+  { id: 16, name: "Spanish Latte (Iced)", category: "Coffee", price: 109, is_featured: false, status: "available" },
+  { id: 17, name: "Salted Caramel Latte (Iced)", category: "Coffee", price: 119, is_featured: true, status: "available" },
+  { id: 18, name: "Matcha Latte (Iced)", category: "Non-Coffee", price: 119, is_featured: false, status: "available" },
+  { id: 19, name: "Taiwan Brown Sugar", category: "Signature Drinks", price: 139, is_featured: true, status: "available" },
+  { id: 20, name: "Biscoff Foam Latte", category: "Signature Drinks", price: 149, is_featured: true, status: "available" },
 
-  delete: async (id) => {
-    const { error } = await supabase
-      .from('menu_categories')
-      .delete()
-      .eq('id', id);
-      
-    if (error) throw error;
-    return true;
-  }
-};
+  // --- MILK TEA ---
+  { id: 21, name: "Black Pearl Milk Tea", category: "Milk Tea", price: 89, is_featured: false, status: "available" },
+  { id: 22, name: "Nutella Milk Tea", category: "Milk Tea", price: 119, is_featured: false, status: "available" },
+  { id: 23, name: "Milk Tea Cheesecake", category: "Milk Tea", price: 109, is_featured: true, status: "available" },
+  { id: 24, name: "JUJA Trio Milk Tea", category: "Milk Tea", price: 119, is_featured: true, status: "available" },
 
-export const MenuItem = {
-  list: async () => {
-    const { data, error } = await supabase
-      .from('menu_items')
-      .select('*');
-      
-    if (error) throw error;
-    return data;
-  },
+  // --- SNACKS, PASTA & CROFFLE ---
+  { id: 25, name: "Torched Cheesy Nachos", category: "Snacks", price: 179, is_featured: true, status: "available" },
+  { id: 26, name: "Chicken Tenders Platter", category: "Snacks", price: 349, is_featured: false, status: "available" },
+  { id: 27, name: "Jumak's Spaghetti", category: "Pasta", price: 149, is_featured: false, status: "available" },
+  { id: 28, name: "Aoi's Truffle Cream", category: "Pasta", price: 199, is_featured: true, status: "available" },
+  { id: 29, name: "Strawberry Cheesecake Croffle", category: "Croffle", price: 199, is_featured: false, status: "available" },
 
-  filter: async (filters) => {
-    let query = supabase.from('menu_items').select('*');
-    
-    // Dynamically apply filters (like { is_available: true, is_featured: true })
-    Object.entries(filters).forEach(([key, value]) => {
-      query = query.eq(key, value);
-    });
+  // --- GROUP TRAY ---
+  { id: 30, name: "Korean BBQ Chicken (Family)", category: "Group Tray", price: 849, is_featured: false, status: "available" },
+  { id: 31, name: "Pork Sisig (Family)", category: "Group Tray", price: 599, is_featured: false, status: "available" },
+  { id: 32, name: "Truffle Cream Pasta (Family)", category: "Group Tray", price: 999, is_featured: true, status: "available" },
+];
 
-    const { data, error } = await query;
-    if (error) throw error;
-    return data;
-  },
-  
-  create: async (payload) => {
-    const { data, error } = await supabase
-      .from('menu_items')
-      .insert([payload])
-      .select()
-      .single();
-      
-    if (error) throw error;
-    return data;
-  },
-
-  update: async (id, payload) => {
-    const { data, error } = await supabase
-      .from('menu_items')
-      .update(payload)
-      .eq('id', id)
-      .select()
-      .single();
-      
-    if (error) throw error;
-    return data;
-  },
-
-  delete: async (id) => {
-    const { error } = await supabase
-      .from('menu_items')
-      .delete()
-      .eq('id', id);
-      
-    if (error) throw error;
-    return true;
-  }
-};
-
-export const Order = {
-  list: async () => {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .order('created_at', { ascending: false });
-      
-    if (error) throw error;
-    return data;
-  },
-
-  create: async (payload) => {
-    const { data, error } = await supabase
-      .from('orders')
-      .insert([payload])
-      .select()
-      .single();
-      
-    if (error) throw error;
-    return data;
-  },
-  
-  update: async (id, payload) => {
-    const { data, error } = await supabase
-      .from('orders')
-      .update(payload)
-      .eq('id', id)
-      .select()
-      .single();
-      
-    if (error) throw error;
-    return data;
-  }
+export const getMenuItems = async () => {
+  return new Promise((resolve) => {
+    setTimeout(() => resolve(menuItems), 500); 
+  });
 };
