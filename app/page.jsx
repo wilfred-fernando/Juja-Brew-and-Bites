@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { MenuItem } from "@/api/entities";
+import { MenuItem } from "..api/entities";
 
 export default function Home() {
   const [featured, setFeatured] = useState([]);
