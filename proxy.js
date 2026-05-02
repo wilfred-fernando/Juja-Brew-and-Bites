@@ -16,5 +16,6 @@ export function proxy(request) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"], // This specifically targets all admin sub-pages
+  // Ensure the matcher covers "/admin" AND all sub-pages like "/admin/menu"
+  matcher: ["/admin", "/admin/:path*"], 
 };
