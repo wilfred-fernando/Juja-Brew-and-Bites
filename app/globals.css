@@ -10,16 +10,9 @@
   }
 }
 
-html {
-  scroll-behavior: smooth;
-}
-
 body {
+  background-color: #FFF5F7; /* The signature Juja soft pink */
+  color: #1e293b; /* Slate-800 for readable text */
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
-}
-
-input, textarea, select {
-  font-family: inherit;
 }
