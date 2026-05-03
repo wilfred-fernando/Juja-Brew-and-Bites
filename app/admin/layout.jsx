@@ -1,43 +1,128 @@
-import { Space_Mono } from 'next/font/google';
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
 
-// 1. Initialize the unique font
-const spaceMono = Space_Mono({ 
-  subsets: ['latin'], 
-  weight: ['400', '700'],
-  variable: '--font-space-mono' 
-});
+// Initialize Supabase
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-// 2. ONLY ONE AdminLayout definition allowed
+const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
+
 export default function AdminLayout({ children }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user) setUserEmail(data.user.email);
+    });
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
+
+  const navItems = [
+    { name: "Home", path: "/admin", icon: "🏠" },
+    { name: "Live Orders", path: "/admin/orders", icon: "📋" },
+    { name: "Menu Builder", path: "/admin/menu", icon: "🧩" },
+    { name: "Promo Code", path: "/admin/promos", icon: "🎁" },
+    { name: "Settings", path: "/admin/settings", icon: "⚙️" },
+    { name: "Accounts", path: "/admin/accounts", icon: "👥" },
+  ];
+
   return (
-    <div className={`${spaceMono.variable} font-mono flex min-h-screen bg-[#F9F7F2] text-[#1A1A1A]`}>
+    <div className="min-h-screen bg-[#FFF5F7] font-sans flex flex-col md:flex-row">
       
-      {/* Side Navigation */}
-      <aside className="w-64 bg-[#1A1A1A] text-white flex flex-col shrink-0">
-        <div className="p-8 border-b border-gray-800">
-          <p className="text-2xl font-bold tracking-tighter uppercase">
-            JUJA <span className="text-[#1EBBA3]">MKT</span>
-          </p>
-          <p className="text-[10px] text-gray-500 font-bold tracking-[0.3em] mt-1">DASHBOARD</p>
+      {/* ─── MOBILE TOP BAR ─── */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-rose-50 shadow-sm">
+        <div className="flex items-center justify-between px-6 py-4">
+          {/* Show the standard logo, not inverted or blacked out */}
+          <img src={LOGO} alt="Juja" className="h-8 object-contain transition-transform hover:scale-105" />
+          <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2 -mr-2">
+            <div className="w-5 space-y-[5px]">
+              <span className={`block h-[2px] bg-slate-800 rounded transition-all duration-300 ${mobileOpen ? "rotate-45 translate-y-[7px]" : ""}`} />
+              <span className={`block h-[2px] bg-slate-800 rounded transition-all duration-300 ${mobileOpen ? "opacity-0" : ""}`} />
+              <span className={`block h-[2px] bg-slate-800 rounded transition-all duration-300 ${mobileOpen ? "-rotate-45 -translate-y-[7px]" : ""}`} />
+            </div>
+          </button>
         </div>
         
-        <nav className="flex-1 p-6 space-y-1">
-          <Link href="/admin" className="block py-3 px-4 text-xs font-bold uppercase tracking-widest hover:text-[#1EBBA3] transition-colors">Home</Link>
-          <Link href="/admin/stores" className="block py-3 px-4 text-xs font-bold uppercase tracking-widest hover:text-[#1EBBA3] transition-colors">Stores</Link>
-          <Link href="/admin/menu" className="block py-3 px-4 text-xs font-bold uppercase tracking-widest text-[#1EBBA3] border-l-2 border-[#1EBBA3]">Menu Builder</Link>
-          <Link href="/admin/promos" className="block py-3 px-4 text-xs font-bold uppercase tracking-widest hover:text-[#1EBBA3] transition-colors">Promo Codes</Link>
-          <Link href="/admin/orders" className="block py-3 px-4 text-xs font-bold uppercase tracking-widest hover:text-[#1EBBA3] transition-colors">Live Orders</Link>
-          <Link href="/admin/settings" className="block py-3 px-4 text-xs font-bold uppercase tracking-widest hover:text-[#1EBBA3] transition-colors">Settings</Link>
+        {/* Mobile Dropdown Menu with pink/white theme */}
+        {mobileOpen && (
+          <div className="bg-white border-t border-rose-50 px-6 py-6 shadow-2xl space-y-2">
+            {navItems.map((item) => {
+              const isActive = item.path === "/admin" ? pathname === "/admin" : pathname?.startsWith(item.path);
+              return (
+                <Link key={item.name} href={item.path} onClick={() => setMobileOpen(false)}
+                  className={`flex items-center gap-4 px-6 py-3.5 rounded-full transition-all duration-300 ${
+                    isActive 
+                      ? "bg-[#FC687D] text-white shadow-[0_8px_20px_rgba(252,104,125,0.3)] shadow-rose-200" 
+                      : "text-slate-500 hover:bg-rose-50 hover:text-[#FC687D]"
+                  }`}>
+                  <span className="text-xl">{item.icon}</span>
+                  <span className="text-sm font-bold tracking-tight">{item.name}</span>
+                </Link>
+              );
+            })}
+            <div className="pt-4 mt-4 border-t border-rose-50">
+              <button onClick={handleLogout} className="w-full text-left px-6 py-3.5 text-sm font-bold text-slate-400 hover:text-rose-500 transition-colors">
+                Sign Out
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ─── DESKTOP SIDEBAR ─── */}
+      <aside className="hidden md:flex w-[260px] bg-[#FFF9FA] border-r border-rose-100 flex-col fixed h-full z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)] rounded-r-3xl">
+        <div className="p-8 pb-6 flex justify-center border-b border-rose-50/50">
+          {/* Show the standard, colored logo, matching the public site */}
+          <img src={LOGO} alt="Juja" className="h-14 object-contain transition-transform hover:scale-105" />
+        </div>
+        
+        <nav className="flex-1 py-8 px-5 space-y-2 overflow-y-auto hide-scrollbar">
+          {navItems.map((item) => {
+            const isActive = item.path === "/admin" ? pathname === "/admin" : pathname?.startsWith(item.path);
+            return (
+              <Link key={item.name} href={item.path}
+                className={`flex items-center gap-4 px-5 py-4 rounded-full transition-all duration-300 ${
+                  isActive 
+                    ? "bg-[#FC687D] text-white shadow-[0_8px_20px_rgba(252,104,125,0.25)] shadow-rose-200 -translate-y-0.5" 
+                    : "text-slate-600 hover:bg-rose-50 hover:text-[#FC687D]"
+                }`}>
+                <span className="text-2xl">{item.icon}</span>
+                <span className="text-sm font-bold tracking-tight mt-0.5">{item.name}</span>
+              </Link>
+            );
+          })}
         </nav>
 
-        <div className="p-6 border-t border-gray-800">
-          <Link href="/admin/account" className="text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-white">Account v1.0.4</Link>
+        {/* Dynamic, seamlessly integrated bottom section for sign out */}
+        <div className="p-8 border-t border-rose-50 bg-[#FFF9FA] rounded-b-3xl">
+          <div className="flex items-center gap-3 px-2 mb-4 bg-white/50 p-3 rounded-xl shadow-inner">
+            <div className="w-10 h-10 rounded-full bg-rose-100 text-[#FC687D] flex items-center justify-center font-bold text-sm shadow-inner">
+              {userEmail ? userEmail.charAt(0).toUpperCase() : "A"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest truncate">{userEmail || "Admin"}</p>
+            </div>
+          </div>
+          <button onClick={handleLogout} className="w-full text-center px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest text-slate-500 border border-slate-200 hover:border-rose-200 hover:text-rose-500 hover:bg-white transition-all shadow-sm">
+            Sign Out
+          </button>
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 p-10 overflow-y-auto">
+      {/* ─── MAIN CONTENT ─── */}
+      <main className="flex-1 md:ml-[260px] pt-20 md:pt-0 p-6 md:p-10 transition-all duration-300 bg-[#FFF5F7]">
         {children}
       </main>
       
