@@ -74,7 +74,19 @@ export default function MenuBuilder() {
   const saveItem = async (e) => {
     e.preventDefault();
     setSavingItem(true);
-    const payload = { ...itemForm, price: parseFloat(itemForm.price) || 0 };
+    
+    // 🚨 THE FIX: Explicitly define the payload. 
+    // This strips out the `id` and `created_at` fields so Supabase allows the update to process.
+    const payload = {
+      name: itemForm.name,
+      price: parseFloat(itemForm.price) || 0,
+      category: itemForm.category,
+      description: itemForm.description,
+      image_url: itemForm.image_url,
+      is_available: itemForm.is_available,
+      is_featured: itemForm.is_featured,
+      option_groups: itemForm.option_groups
+    };
 
     if (editingItem) {
       const { error } = await supabase.from("menu_items").update(payload).eq("id", editingItem.id);
@@ -85,6 +97,7 @@ export default function MenuBuilder() {
       if (error) alert(`Failed to add: ${error.message}`);
       else if (data) setItems([...items, data[0]]);
     }
+    
     setSavingItem(false);
     setItemModalOpen(false);
   };
