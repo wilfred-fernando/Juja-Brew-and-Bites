@@ -1,39 +1,33 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-montserrat-sans);
-  --font-mono: var(--font-montserrat-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* 
+  Custom utility classes for your Juja app 
+*/
+@layer utilities {
+  /* Hides the scrollbar but still allows touch/trackpad scrolling */
+  .hide-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
-@theme {
-  --color-brand-teal: #1EBBA3;
-  --color-brand-dark: #1A1A1A;
-  --color-brand-light: #F9F7F2;
-  --color-brand-gray: #E5E7EB;
+/* Base global adjustments */
+html {
+  scroll-behavior: smooth;
 }
 
-/* Custom utility for your signature square buttons */
-.btn-square {
-  @apply bg-[--color-brand-teal] text-white font-semibold px-6 py-3 
-         transition-all duration-200 hover:brightness-110 active:scale-95;
-  border-radius: 0px !important; /* Explicitly square as requested */
+body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Make inputs and textareas look consistent */
+input, textarea, select {
+  font-family: inherit;
 }
