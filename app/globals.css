@@ -1,22 +1,15 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-/* 
-  Custom utility classes for your Juja app 
-*/
 @layer utilities {
-  /* Hides the scrollbar but still allows touch/trackpad scrolling */
   .hide-scrollbar {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
   .hide-scrollbar::-webkit-scrollbar {
-    display: none; /* Chrome, Safari and Opera */
+    display: none;
   }
 }
 
-/* Base global adjustments */
 html {
   scroll-behavior: smooth;
 }
@@ -27,7 +20,6 @@ body {
   box-sizing: border-box;
 }
 
-/* Make inputs and textareas look consistent */
 input, textarea, select {
   font-family: inherit;
 }
