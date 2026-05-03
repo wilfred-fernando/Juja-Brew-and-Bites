@@ -3,345 +3,358 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+// Initialize Supabase
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-export default function AdminMenuBuilder() {
+const emptyItem = { name: "", price: "", category: "", description: "", image_url: "", is_available: true, is_featured: false, option_groups: [] };
+const emptyCategory = { name: "", icon: "🍽", sort_order: "", is_active: true };
+
+export default function MenuBuilder() {
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [activeCategory, setActiveCategory] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  
+  // UI State
+  const [activeTab, setActiveTab] = useState("items"); // 'items' or 'categories'
+  const [search, setSearch] = useState("");
+  const [catFilter, setCatFilter] = useState("All");
+
+  // Item Modal State
+  const [itemModalOpen, setItemModalOpen] = useState(false);
+  const [itemTab, setItemTab] = useState("details"); // 'details' or 'options'
+  const [editingItem, setEditingItem] = useState(null);
+  const [itemForm, setItemForm] = useState(emptyItem);
+  const [savingItem, setSavingItem] = useState(false);
 
   useEffect(() => {
-    fetchItems();
+    fetchData();
   }, []);
 
-  async function fetchItems() {
-    setIsLoading(true);
-    const { data, error } = await supabase
-      .from("menu_items")
-      .select("*")
-      .order("category", { ascending: true });
+  async function fetchData() {
+    setLoading(true);
+    const [itemsRes, catsRes] = await Promise.all([
+      supabase.from("menu_items").select("*").order("name"),
+      supabase.from("menu_categories").select("*").order("sort_order")
+    ]);
 
-    if (!error && data) {
-      setItems(data);
-      const uniqueCategories = [...new Set(data.map(item => item.category))];
-      setCategories(uniqueCategories);
-      
-      if (uniqueCategories.length > 0 && !activeCategory) {
-        setActiveCategory(uniqueCategories[0]);
-      }
+    if (itemsRes.data) setItems(itemsRes.data);
+    if (catsRes.data && catsRes.data.length > 0) {
+      setCategories(catsRes.data);
+    } else {
+      // Fallback unique categories
+      const uniqueCats = [...new Set(itemsRes.data?.map(i => i.category) || [])];
+      setCategories(uniqueCats.map((name, i) => ({ id: i, name, icon: "☕", sort_order: i, is_active: true })));
     }
-    setIsLoading(false);
+    setLoading(false);
   }
 
-  const displayedItems = items.filter(item => item.category === activeCategory);
-
-  return (
-    <div className="max-w-6xl mx-auto font-mono relative">
-      <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div>
-          <h1 className="text-3xl font-bold uppercase tracking-tighter text-[#1A1A1A]">
-            Menu <span className="text-[#1EBBA3] font-light tracking-widest">System</span>
-          </h1>
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-widest mt-2">
-            Global Control Panel
-          </p>
-        </div>
-
-        <div className="flex gap-4">
-          <button className="px-6 py-3 text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-[#1A1A1A] transition-colors duration-300">
-            Manage Categories
-          </button>
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="group relative px-6 py-3 bg-[#1A1A1A] text-white text-xs font-bold uppercase tracking-widest overflow-hidden transition-all duration-300 hover:shadow-[0_8px_30px_rgb(30,187,163,0.3)] hover:-translate-y-0.5 rounded-sm"
-          >
-            <div className="absolute inset-0 bg-[#1EBBA3] translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out"></div>
-            <span className="relative z-10 flex items-center gap-2">
-              <span>+</span> New Item
-            </span>
-          </button>
-        </div>
-      </header>
-
-      {isLoading ? (
-        <div className="py-32 flex justify-center items-center">
-           <div className="w-8 h-8 border-2 border-gray-200 border-t-[#1EBBA3] animate-spin rounded-full"></div>
-        </div>
-      ) : (
-        <>
-          <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-200 animate-in fade-in duration-500">
-            <div className="flex items-center gap-4">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest hidden md:block">
-                Select Category:
-              </label>
-              <div className="relative">
-                <select
-                  value={activeCategory}
-                  onChange={(e) => setActiveCategory(e.target.value)}
-                  className="appearance-none bg-white border border-gray-200 text-[#1A1A1A] text-xs font-bold uppercase tracking-widest py-3 pl-5 pr-12 hover:border-[#1EBBA3] focus:outline-none focus:border-[#1EBBA3] focus:ring-1 focus:ring-[#1EBBA3] transition-all duration-300 cursor-pointer rounded-sm shadow-sm"
-                >
-                  {categories.map((category) => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-[#1EBBA3]">
-                  ▼
-                </div>
-              </div>
-            </div>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-100 px-3 py-1 rounded-sm">
-              {displayedItems.length} Items Listed
-            </span>
-          </div>
-
-          <div key={activeCategory} className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500 ease-out">
-            {displayedItems.length === 0 ? (
-              <div className="py-20 text-center text-gray-400 text-xs font-bold uppercase tracking-widest border-2 border-dashed border-gray-200 rounded-lg">
-                No items in this category.
-              </div>
-            ) : (
-              displayedItems.map((item) => (
-                <div key={item.id} className="group relative flex items-center justify-between p-5 bg-white border border-gray-100 rounded-lg transition-all duration-300 ease-out hover:border-transparent hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] hover:-translate-y-1 overflow-hidden">
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#1EBBA3] opacity-0 -translate-x-full group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 ease-out"></div>
-                  <div className="flex items-center gap-5 pl-2">
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-sm uppercase tracking-wide text-[#1A1A1A] group-hover:text-[#1EBBA3] transition-colors duration-300">
-                          {item.name}
-                        </span>
-                        {item.is_featured && <span className="w-1.5 h-1.5 rounded-full bg-[#1EBBA3] shadow-[0_0_8px_rgb(30,187,163,0.6)]"></span>}
-                      </div>
-                      <div className="flex gap-2 mt-1.5">
-                        {item.option_groups?.map((og, idx) => (
-                          <span key={idx} className="text-[9px] bg-gray-50 text-gray-500 px-2 py-0.5 rounded-sm uppercase font-semibold tracking-wider border border-gray-100">
-                            {og.name}
-                          </span>
-                        )) || <span className="text-[10px] text-gray-300 font-light italic">Standard Item</span>}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-8">
-                    <span className="text-sm font-bold text-[#1A1A1A]">₱{Number(item.price).toFixed(2)}</span>
-                    <div className="flex gap-3 opacity-0 translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 ease-out">
-                      <button className="px-3 py-1.5 text-[10px] font-bold text-gray-400 hover:text-[#1A1A1A] hover:bg-gray-100 rounded-sm uppercase tracking-widest transition-colors duration-200">Edit</button>
-                      <button className="px-3 py-1.5 text-[10px] font-bold text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-sm uppercase tracking-widest transition-colors duration-200">Remove</button>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </>
-      )}
-
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex justify-center items-start overflow-y-auto bg-[#1A1A1A]/60 backdrop-blur-sm p-4 md:p-8">
-          <div className="bg-white w-full max-w-3xl rounded-xl shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 mt-10 mb-10 overflow-hidden">
-            <button 
-              onClick={() => setIsModalOpen(false)}
-              className="absolute top-6 right-6 text-gray-400 hover:text-[#1A1A1A] transition-colors z-20"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <AddItemForm 
-              onClose={() => setIsModalOpen(false)} 
-              onSuccess={() => {
-                setIsModalOpen(false);
-                fetchItems();
-              }} 
-            />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// --- THE ADD ITEM FORM LOGIC ---
-function AddItemForm({ onClose, onSuccess }) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
-
-  const [category, setCategory] = useState("Cookies");
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  
-  const [hasVariants, setHasVariants] = useState(false);
-  const [basePrice, setBasePrice] = useState("");
-  const [variants, setVariants] = useState([]);
-
-  const categories = ["Signature", "Cookies", "Pastries", "Coffee", "Non-Coffee", "Frappe", "Rice Meal", "Pasta", "Snacks"];
-
-  const handleVariantChange = (id, field, value) => setVariants(variants.map(v => v.id === id ? { ...v, [field]: value } : v));
-  const handleSetDefault = (id) => setVariants(variants.map(v => ({ ...v, isDefault: v.id === id })));
-  
-  const addVariant = () => {
-    if (!hasVariants) {
-      setHasVariants(true);
-      setVariants([{ id: Date.now().toString(), name: "", price: basePrice, isDefault: true }]);
-    } else {
-      setVariants([...variants, { id: Date.now().toString(), name: "", price: "", isDefault: false }]);
-    }
+  // --- ITEM CRUD ---
+  const openAddItem = () => {
+    setEditingItem(null);
+    setItemForm({ ...emptyItem, category: categories[0]?.name || "" });
+    setItemTab("details");
+    setItemModalOpen(true);
   };
 
-  const removeVariant = (id) => {
-    const newVariants = variants.filter(v => v.id !== id);
-    if (newVariants.length === 0) {
-      setHasVariants(false);
-    } else {
-      if (!newVariants.find(s => s.isDefault)) newVariants[0].isDefault = true;
-      setVariants(newVariants);
-    }
+  const openEditItem = (item) => {
+    setEditingItem(item);
+    setItemForm({ ...item, price: item.price.toString() });
+    setItemTab("details");
+    setItemModalOpen(true);
   };
 
-  const handleSubmit = async (e) => {
+  const saveItem = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    setError("");
-
-    let finalPrice = 0;
-    let optionGroups = null;
-
-    if (hasVariants) {
-      const validVariants = variants.filter(v => v.name.trim() !== "" && v.price !== "");
-      if (validVariants.length === 0) {
-        setError("YOU MUST ADD AT LEAST ONE VALID VARIANT AND PRICE.");
-        setIsSubmitting(false);
-        return;
-      }
-      optionGroups = [{
-        name: "Size",
-        description: "Select your variation",
-        required: true,
-        choices: validVariants.map(v => ({
-          label: v.name,
-          price_adjustment: Number(v.price) || 0,
-          isDefault: v.isDefault
-        }))
-      }];
-    } else {
-      if (!basePrice || isNaN(basePrice)) {
-        setError("PLEASE ENTER A VALID PRICE FOR THIS ITEM.");
-        setIsSubmitting(false);
-        return;
-      }
-      finalPrice = Number(basePrice);
-    }
-
-    const newItem = {
-      name, 
-      description, // FIX: Description is now properly included
-      category, 
-      price: finalPrice, 
-      is_featured: false, 
-      status: "available", 
-      option_groups: optionGroups
+    setSavingItem(true);
+    
+    const payload = {
+      ...itemForm,
+      price: parseFloat(itemForm.price) || 0,
     };
 
-    const { error: dbError } = await supabase.from("menu_items").insert([newItem]);
-
-    if (dbError) {
-      console.error("Supabase Database Error:", dbError); // This will log the exact issue to your F12 console
-      setError("FAILED TO SAVE ITEM. CHECK CONNECTION.");
-      setIsSubmitting(false);
+    if (editingItem) {
+      await supabase.from("menu_items").update(payload).eq("id", editingItem.id);
+      setItems(items.map(i => i.id === editingItem.id ? { ...i, ...payload } : i));
     } else {
-      onSuccess();
+      const { data } = await supabase.from("menu_items").insert([payload]).select();
+      if (data) setItems([...items, data[0]]);
     }
+    
+    setSavingItem(false);
+    setItemModalOpen(false);
   };
 
+  const deleteItem = async (id) => {
+    if (!confirm("Permanently delete this item?")) return;
+    await supabase.from("menu_items").delete().eq("id", id);
+    setItems(items.filter(i => i.id !== id));
+  };
+
+  const toggleItemStatus = async (item) => {
+    const newStatus = !item.is_available;
+    await supabase.from("menu_items").update({ is_available: newStatus }).eq("id", item.id);
+    setItems(items.map(i => i.id === item.id ? { ...i, is_available: newStatus } : i));
+  };
+
+  // Option Groups Handlers (simplified for brevity)
+  const addOptionGroup = () => setItemForm(f => ({ ...f, option_groups: [...(f.option_groups || []), { name: "", required: false, multi_select: false, options: [] }] }));
+  const updateGroup = (gIdx, field, val) => { const newGroups = [...itemForm.option_groups]; newGroups[gIdx][field] = val; setItemForm({ ...itemForm, option_groups: newGroups }); };
+  const removeGroup = (gIdx) => setItemForm(f => ({ ...f, option_groups: f.option_groups.filter((_, i) => i !== gIdx) }));
+  const addOption = (gIdx) => { const newGroups = [...itemForm.option_groups]; newGroups[gIdx].options.push({ name: "", price_add: 0 }); setItemForm({ ...itemForm, option_groups: newGroups }); };
+  const updateOption = (gIdx, oIdx, field, val) => { const newGroups = [...itemForm.option_groups]; newGroups[gIdx].options[oIdx][field] = val; setItemForm({ ...itemForm, option_groups: newGroups }); };
+  const removeOption = (gIdx, oIdx) => { const newGroups = [...itemForm.option_groups]; newGroups[gIdx].options = newGroups[gIdx].options.filter((_, i) => i !== oIdx); setItemForm({ ...itemForm, option_groups: newGroups }); };
+
+  const filteredItems = items
+    .filter(i => catFilter === "All" || i.category === catFilter)
+    .filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
+
   return (
-    <div className="p-8 md:p-12">
-      <header className="mb-8">
-        <h2 className="text-2xl font-bold uppercase tracking-tighter text-[#1A1A1A]">
-          Add <span className="text-[#1EBBA3] font-light tracking-widest">Item</span>
-        </h2>
+    <div className="max-w-7xl mx-auto animate-in fade-in duration-300 pb-20">
+      
+      {/* HEADER */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div>
+          <h1 className="text-[32px] font-extrabold text-slate-800 tracking-tight leading-none">Menu Builder</h1>
+          <p className="text-slate-400 text-[13px] font-medium mt-2">
+            {items.length} items • {categories.length} categories
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={openAddItem} className="px-6 py-2.5 bg-[#FC687D] text-white text-sm font-bold rounded-full hover:bg-rose-500 transition-colors shadow-[0_4px_12px_rgba(252,104,125,0.25)]">
+            + Add Item
+          </button>
+          <button className="px-6 py-2.5 bg-white border border-rose-200 text-[#FC687D] text-sm font-bold rounded-full hover:bg-rose-50 transition-colors shadow-sm">
+            + Add Category
+          </button>
+        </div>
       </header>
 
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 text-red-600 text-[10px] font-bold tracking-widest uppercase border-l-4 border-red-500">
-          {error}
-        </div>
-      )}
+      {/* TABS */}
+      <div className="flex gap-4 mb-8">
+        <button onClick={() => setActiveTab("items")} 
+          className={`px-6 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+            activeTab === "items" ? "bg-white text-[#FC687D] shadow-sm border border-rose-100" : "text-slate-500 hover:bg-white/50"
+          }`}>
+          <span>📋</span> Menu Items
+        </button>
+        <button onClick={() => setActiveTab("categories")} 
+          className={`px-6 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+            activeTab === "categories" ? "bg-white text-[#FC687D] shadow-sm border border-rose-100" : "text-slate-500 hover:bg-white/50"
+          }`}>
+          <span>🏷️</span> Categories
+        </button>
+      </div>
 
-      <form onSubmit={handleSubmit}>
-        <div className="mb-8">
-          <div className="relative w-48">
-            <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full appearance-none bg-transparent border-b-2 border-gray-200 text-[#1A1A1A] text-xs font-bold uppercase tracking-widest py-2 hover:border-[#1EBBA3] focus:outline-none focus:border-[#1EBBA3] transition-all duration-300 cursor-pointer">
-              {categories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[#1EBBA3]">▼</div>
-          </div>
-        </div>
-
-        <div className="flex flex-col md:flex-row gap-6 mb-8 transition-all duration-500">
-          <div className="relative flex-1">
-            <input type="text" id="itemName" required value={name} onChange={(e) => setName(e.target.value)} maxLength={100} className="block w-full px-4 py-4 text-sm text-[#1A1A1A] bg-transparent rounded-md border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-[#1EBBA3] peer font-bold placeholder-transparent" placeholder="Item Name" />
-            <label htmlFor="itemName" className="absolute text-xs text-gray-400 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-[#1EBBA3] peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-3 uppercase tracking-widest cursor-text">Name</label>
-            <div className="absolute -bottom-5 right-0 text-[10px] text-gray-400">{name.length}/100</div>
-          </div>
-
-          {!hasVariants && (
-            <div className="relative w-full md:w-32 shrink-0 animate-in fade-in zoom-in-95 duration-300">
-              <span className="absolute left-3 top-4 text-gray-400 text-sm font-bold">₱</span>
-              <input type="number" id="basePrice" required min="0" step="0.01" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} className="block w-full px-4 py-4 pl-8 text-sm text-[#1A1A1A] bg-transparent rounded-md border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-[#1EBBA3] peer font-bold placeholder-transparent" placeholder="Price" />
-              <label htmlFor="basePrice" className="absolute text-xs text-gray-400 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-[#1EBBA3] peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-3 uppercase tracking-widest cursor-text">Price</label>
+      {loading ? (
+        <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full"></div></div>
+      ) : activeTab === "items" ? (
+        <>
+          {/* SEARCH & FILTER PILLS */}
+          <div className="flex flex-col md:flex-row gap-4 mb-8">
+            <div className="relative w-full md:w-64">
+              <span className="absolute left-4 top-2.5 text-slate-400">🔍</span>
+              <input type="text" placeholder="Search items..." value={search} onChange={e => setSearch(e.target.value)} 
+                className="w-full pl-11 pr-4 py-2.5 bg-white border border-rose-100 text-sm rounded-full focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-[#FC687D] shadow-sm" />
             </div>
-          )}
-        </div>
-
-        <div className="relative mb-8">
-          <textarea id="itemDesc" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={300} rows={3} className="block w-full px-4 py-4 text-sm text-[#1A1A1A] bg-transparent rounded-md border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-[#1EBBA3] peer resize-none placeholder-transparent" placeholder="Description" />
-          <label htmlFor="itemDesc" className="absolute text-xs text-gray-400 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-[#1EBBA3] peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-6 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-3 uppercase tracking-widest cursor-text">Description</label>
-          <div className="absolute -bottom-5 right-0 text-[10px] text-gray-400">{description.length}/300</div>
-        </div>
-
-        {hasVariants && (
-          <div className="mt-12 pt-6 border-t border-gray-100 animate-in fade-in slide-in-from-top-4 duration-300">
-            <label className="block text-[10px] font-bold text-[#1EBBA3] uppercase tracking-[0.2em] mb-4">Variations</label>
-            <div className="space-y-4">
-              {variants.map((variant, index) => (
-                <div key={variant.id} className="flex flex-col md:flex-row items-center gap-4 group">
-                  <div className="relative w-full md:flex-1">
-                    <input type="text" required value={variant.name} onChange={(e) => handleVariantChange(variant.id, "name", e.target.value)} maxLength={80} placeholder={index === 0 ? "Smallest size" : "Variant Name"} className="w-full border border-gray-300 p-3 text-sm focus:outline-none focus:border-[#1EBBA3] rounded-md transition-colors placeholder-gray-300" />
-                  </div>
-                  <div className="relative w-full md:w-32 shrink-0">
-                    <span className="absolute left-3 top-3 text-gray-400 text-sm font-bold">₱</span>
-                    <input type="number" required min="0" step="0.01" value={variant.price} onChange={(e) => handleVariantChange(variant.id, "price", e.target.value)} placeholder="Price" className="w-full border border-gray-300 p-3 pl-8 text-sm focus:outline-none focus:border-[#1EBBA3] rounded-md transition-colors placeholder-gray-300 font-bold" />
-                  </div>
-                  <div className="flex items-center justify-between w-full md:w-auto gap-4 shrink-0 pl-2">
-                    <label className="flex items-center cursor-pointer gap-2">
-                      <input type="radio" name="defaultVariant" checked={variant.isDefault} onChange={() => handleSetDefault(variant.id)} className="w-4 h-4 accent-[#1EBBA3] cursor-pointer" />
-                      <span className="text-[10px] uppercase tracking-widest font-bold text-gray-500 whitespace-nowrap">Default</span>
-                    </label>
-                    <button type="button" onClick={() => removeVariant(variant.id)} className="text-gray-300 hover:text-red-500 transition-colors p-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
+            
+            <div className="flex gap-2 overflow-x-auto hide-scrollbar items-center pb-1">
+              <button onClick={() => setCatFilter("All")} 
+                className={`px-6 py-2 text-xs font-bold uppercase tracking-widest rounded-full transition-all border shadow-sm flex-shrink-0 ${
+                  catFilter === "All" ? "bg-white text-slate-700 border-slate-200" : "bg-transparent text-slate-500 border-transparent hover:bg-white/50 hover:border-slate-200"
+                }`}>
+                All
+              </button>
+              {categories.map(cat => (
+                <button key={cat.id || cat.name} onClick={() => setCatFilter(cat.name)} 
+                  className={`px-6 py-2 text-xs font-bold uppercase tracking-widest rounded-full transition-all border shadow-sm flex items-center gap-2 flex-shrink-0 ${
+                    catFilter === cat.name ? "bg-[#FC687D] text-white border-[#FC687D]" : "bg-white text-slate-500 border-rose-100 hover:border-[#FC687D] hover:text-[#FC687D]"
+                  }`}>
+                  <span>{cat.icon || "☕"}</span> <span>{cat.name}</span>
+                </button>
               ))}
             </div>
           </div>
-        )}
 
-        <div className="mt-10 pt-6 border-t border-gray-100 flex justify-between items-center">
-          <button type="button" onClick={addVariant} className="text-[10px] font-bold text-[#1EBBA3] hover:text-[#1A1A1A] uppercase tracking-widest transition-colors flex items-center gap-1">
-             <span className="text-lg leading-none">+</span> Add Variant
-          </button>
-          
-          <div className="flex items-center gap-6">
-            <button type="button" onClick={onClose} className="text-[10px] font-bold text-[#1A1A1A] hover:text-gray-500 uppercase tracking-widest transition-colors underline underline-offset-4">Cancel</button>
-            <button type="submit" disabled={isSubmitting} className="bg-[#1EBBA3] text-white px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-[#159a85] transition-all duration-300 rounded-md shadow-sm disabled:opacity-70 flex items-center gap-2">
-              {isSubmitting ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span> : "Save"}
-            </button>
+          {/* ITEM CARDS GRID */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredItems.map(item => (
+              <div key={item.id} className={`bg-white rounded-[24px] p-3.5 border border-rose-50 shadow-sm flex flex-col hover:shadow-md hover:-translate-y-1 transition-all duration-300 ${!item.is_available ? "opacity-60 grayscale-[0.2]" : ""}`}>
+                
+                {/* Image */}
+                <div className="h-44 bg-slate-50 rounded-[16px] mb-4 overflow-hidden relative border border-slate-100">
+                  {item.image_url ? (
+                    <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-4xl opacity-20">📷</div>
+                  )}
+                </div>
+                
+                {/* Details */}
+                <div className="px-1.5 flex-1 flex flex-col">
+                  <div className="flex justify-between items-start gap-2 mb-1">
+                    <h3 className="font-extrabold text-slate-800 text-[15px] leading-tight tracking-tight">{item.name}</h3>
+                    <span className="font-black text-[#FC687D] text-[15px]">₱{item.price}</span>
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">{item.category}</p>
+                  
+                  {/* Status Pill */}
+                  <div className="mb-5 mt-auto">
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold rounded-full border ${
+                      item.is_available ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-slate-100 text-slate-500 border-slate-200"
+                    }`}>
+                      <span className={`w-2 h-2 rounded-full ${item.is_available ? "bg-emerald-500" : "bg-slate-400"}`}></span>
+                      {item.is_available ? "Available" : "Disabled"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Bottom Action Buttons (pill style) */}
+                <div className="flex gap-2">
+                  <button onClick={() => openEditItem(item)} className="flex-1 py-2.5 bg-slate-50 border border-slate-100 text-slate-700 text-[11px] font-bold rounded-xl hover:bg-[#FC687D] hover:text-white hover:border-[#FC687D] transition-all flex items-center justify-center gap-2">
+                    <span className="text-rose-400">✏️</span> Edit
+                  </button>
+                  <button onClick={() => toggleItemStatus(item)} className="flex-1 py-2.5 bg-slate-50 border border-slate-100 text-slate-700 text-[11px] font-bold rounded-xl hover:bg-slate-200 transition-colors">
+                    {item.is_available ? "Disable" : "Enable"}
+                  </button>
+                  <button onClick={() => deleteItem(item.id)} className="w-12 bg-slate-50 border border-slate-100 text-slate-400 text-sm font-bold rounded-xl hover:bg-rose-50 hover:text-rose-500 hover:border-rose-200 transition-all flex items-center justify-center">
+                    🗑️
+                  </button>
+                </div>
+
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="text-center py-24 bg-white rounded-3xl border border-dashed border-rose-200">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Category management view coming soon.</p>
+        </div>
+      )}
+
+      {/* --- ADD / EDIT ITEM MODAL --- */}
+      {itemModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white shadow-2xl w-full max-w-2xl rounded-3xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200 overflow-hidden">
+            
+            <div className="p-6 border-b border-rose-50 flex justify-between items-center bg-white">
+              <h2 className="text-xl font-extrabold tracking-tight text-slate-800">{editingItem ? "Edit Item" : "Add New Item"}</h2>
+              <button onClick={() => setItemModalOpen(false)} className="text-slate-400 hover:text-slate-800 bg-slate-50 w-8 h-8 rounded-full flex items-center justify-center transition-colors font-bold text-xl pb-1">×</button>
+            </div>
+
+            {/* Modal Tabs */}
+            <div className="flex gap-2 px-8 pt-6 pb-2 border-b border-rose-50 bg-[#FFF9FA]">
+              <button onClick={() => setItemTab("details")} className={`px-5 py-2.5 text-xs font-bold rounded-full transition-colors flex items-center gap-2 ${itemTab === "details" ? "bg-white text-[#FC687D] shadow-sm border border-rose-100" : "text-slate-500 hover:bg-white/50"}`}>
+                <span>📝</span> Details
+              </button>
+              <button onClick={() => setItemTab("options")} className={`px-5 py-2.5 text-xs font-bold rounded-full transition-colors flex items-center gap-2 ${itemTab === "options" ? "bg-white text-[#FC687D] shadow-sm border border-rose-100" : "text-slate-500 hover:bg-white/50"}`}>
+                <span>⚙️</span> Option Groups
+              </button>
+            </div>
+
+            <div className="p-8 overflow-y-auto flex-1 bg-white hide-scrollbar">
+              {itemTab === "details" ? (
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Item Name *</label>
+                    <input required value={itemForm.name} onChange={e => setItemForm({ ...itemForm, name: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm font-bold focus:outline-none focus:border-[#FC687D] focus:bg-white transition-all" placeholder="e.g. Chicken Wings" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Price (₱) *</label>
+                      <input required type="number" step="0.01" value={itemForm.price} onChange={e => setItemForm({ ...itemForm, price: e.target.value })}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm font-bold focus:outline-none focus:border-[#FC687D] focus:bg-white transition-all" placeholder="0.00" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Category *</label>
+                      <select required value={itemForm.category} onChange={e => setItemForm({ ...itemForm, category: e.target.value })}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm font-bold uppercase tracking-widest focus:outline-none focus:border-[#FC687D] focus:bg-white transition-all appearance-none">
+                        <option value="">— Select Category —</option>
+                        {categories.map(c => <option key={c.id || c.name} value={c.name}>{c.name}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Description</label>
+                    <textarea value={itemForm.description} onChange={e => setItemForm({ ...itemForm, description: e.target.value })} rows={3}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm focus:outline-none focus:border-[#FC687D] focus:bg-white transition-all resize-none" placeholder="Short description..." />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Image URL</label>
+                    <input value={itemForm.image_url} onChange={e => setItemForm({ ...itemForm, image_url: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm focus:outline-none focus:border-[#FC687D] focus:bg-white transition-all" placeholder="https://..." />
+                  </div>
+                  <div className="flex gap-8 bg-slate-50 p-4 rounded-2xl border border-slate-100 mt-2">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" checked={itemForm.is_available} onChange={e => setItemForm({ ...itemForm, is_available: e.target.checked })} className="accent-[#FC687D] w-4 h-4 cursor-pointer" />
+                      <span className="text-xs font-bold text-slate-700">Available</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" checked={itemForm.is_featured} onChange={e => setItemForm({ ...itemForm, is_featured: e.target.checked })} className="accent-[#FC687D] w-4 h-4 cursor-pointer" />
+                      <span className="text-xs font-bold text-slate-700">Featured / Must Try</span>
+                    </label>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <p className="text-xs text-slate-500 font-medium">Add option groups like size, flavor, or add-ons that customers can choose from.</p>
+                  
+                  {(itemForm.option_groups || []).map((group, gIdx) => (
+                    <div key={gIdx} className="border border-rose-100 bg-[#FFF9FA] p-6 rounded-3xl space-y-4">
+                      <div className="flex gap-4 items-start">
+                        <div className="flex-1">
+                          <input value={group.name} onChange={e => updateGroup(gIdx, "name", e.target.value)} placeholder="Group Name (e.g. Size)"
+                            className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-sm font-bold uppercase tracking-widest focus:outline-none focus:border-[#FC687D]" />
+                        </div>
+                        <div className="flex gap-4 mt-2">
+                          <label className="flex items-center gap-2 cursor-pointer text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                            <input type="checkbox" checked={group.required} onChange={e => updateGroup(gIdx, "required", e.target.checked)} className="accent-[#FC687D] w-3.5 h-3.5" /> Required
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                            <input type="checkbox" checked={group.multi_select} onChange={e => updateGroup(gIdx, "multi_select", e.target.checked)} className="accent-[#FC687D] w-3.5 h-3.5" /> Multiple
+                          </label>
+                        </div>
+                        <button onClick={() => removeGroup(gIdx)} className="text-rose-300 hover:text-rose-500 font-bold text-xl leading-none bg-white w-8 h-8 rounded-full border border-rose-100 flex items-center justify-center pb-1">×</button>
+                      </div>
+
+                      <div className="space-y-3 pl-2">
+                        {(group.options || []).map((opt, oIdx) => (
+                          <div key={oIdx} className="flex gap-3 items-center">
+                            <span className="text-rose-300">↳</span>
+                            <input value={opt.name} onChange={e => updateOption(gIdx, oIdx, "name", e.target.value)} placeholder="Option name"
+                              className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-[#FC687D]" />
+                            <div className="relative w-28">
+                              <span className="absolute left-3 top-2 text-slate-400 text-sm font-bold">₱</span>
+                              <input type="number" value={opt.price_add || 0} onChange={e => updateOption(gIdx, oIdx, "price_add", parseFloat(e.target.value))}
+                                className="w-full bg-white border border-slate-200 rounded-xl pl-8 py-2 text-sm focus:outline-none focus:border-[#FC687D]" />
+                            </div>
+                            <button onClick={() => removeOption(gIdx, oIdx)} className="text-slate-400 hover:text-rose-500 font-bold px-2 text-lg">×</button>
+                          </div>
+                        ))}
+                        <button onClick={() => addOption(gIdx)} className="ml-6 text-[10px] font-bold text-[#FC687D] uppercase tracking-widest hover:underline mt-2 bg-rose-50 px-3 py-1.5 rounded-full">+ Add Option</button>
+                      </div>
+                    </div>
+                  ))}
+
+                  <button onClick={addOptionGroup} className="w-full py-5 border-2 border-dashed border-rose-200 text-[#FC687D] text-[11px] font-bold uppercase tracking-widest hover:bg-rose-50 hover:border-[#FC687D] transition-colors rounded-3xl">
+                    + Add Option Group
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-rose-50 bg-[#FFF9FA] flex gap-4 rounded-b-3xl">
+              <button onClick={() => setItemModalOpen(false)} className="flex-1 py-3.5 bg-white border border-slate-200 text-slate-500 text-xs font-bold uppercase tracking-widest hover:border-[#FC687D] hover:text-[#FC687D] transition-colors rounded-full shadow-sm">Cancel</button>
+              <button onClick={saveItem} disabled={savingItem} className="flex-1 py-3.5 bg-[#FC687D] text-white text-xs font-bold uppercase tracking-widest hover:bg-rose-500 transition-all rounded-full shadow-[0_8px_20px_rgba(252,104,125,0.3)] hover:-translate-y-0.5 disabled:opacity-50">
+                {savingItem ? "Saving..." : editingItem ? "Save Changes" : "Add Item"}
+              </button>
+            </div>
           </div>
         </div>
-      </form>
+      )}
+
     </div>
   );
 }
