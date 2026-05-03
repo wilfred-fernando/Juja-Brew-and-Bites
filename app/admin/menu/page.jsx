@@ -8,8 +8,16 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const emptyItem = { name: "", price: "", category: "", description: "", image_url: "", is_available: true, is_featured: false, option_groups: [] };
-const emptyCategory = { name: "", icon: "🍽", sort_order: "", is_active: true };
+const emptyItem = { 
+  name: "", 
+  price: "", 
+  category: "", 
+  description: "", 
+  image_url: "", 
+  is_available: true, 
+  is_featured: false, 
+  option_groups: [] 
+};
 
 export default function MenuBuilder() {
   const [items, setItems] = useState([]);
@@ -43,7 +51,7 @@ export default function MenuBuilder() {
     if (catsRes.data && catsRes.data.length > 0) {
       setCategories(catsRes.data);
     } else {
-      // Fallback unique categories
+      // Fallback unique categories if menu_categories table is empty/missing
       const uniqueCats = [...new Set(itemsRes.data?.map(i => i.category) || [])];
       setCategories(uniqueCats.map((name, i) => ({ id: i, name, icon: "☕", sort_order: i, is_active: true })));
     }
@@ -69,36 +77,73 @@ export default function MenuBuilder() {
     e.preventDefault();
     setSavingItem(true);
     
+    // Create the exact payload to send to Supabase
+    // Ensure these keys match your Supabase columns exactly!
     const payload = {
-      ...itemForm,
+      name: itemForm.name,
       price: parseFloat(itemForm.price) || 0,
+      category: itemForm.category,
+      description: itemForm.description,
+      image_url: itemForm.image_url,
+      is_available: itemForm.is_available,
+      is_featured: itemForm.is_featured,
+      option_groups: itemForm.option_groups
     };
 
     if (editingItem) {
-      await supabase.from("menu_items").update(payload).eq("id", editingItem.id);
-      setItems(items.map(i => i.id === editingItem.id ? { ...i, ...payload } : i));
+      // Update existing item
+      const { error } = await supabase
+        .from("menu_items")
+        .update(payload)
+        .eq("id", editingItem.id);
+        
+      if (error) {
+        console.error("Supabase Update Error:", error);
+        alert(`Failed to update: ${error.message}`);
+      } else {
+        setItems(items.map(i => i.id === editingItem.id ? { ...i, ...payload } : i));
+        setItemModalOpen(false);
+      }
     } else {
-      const { data } = await supabase.from("menu_items").insert([payload]).select();
-      if (data) setItems([...items, data[0]]);
+      // Insert new item
+      const { data, error } = await supabase
+        .from("menu_items")
+        .insert([payload])
+        .select();
+        
+      if (error) {
+        console.error("Supabase Insert Error:", error);
+        alert(`Failed to add item: ${error.message}`);
+      } else if (data) {
+        setItems([...items, data[0]]);
+        setItemModalOpen(false);
+      }
     }
     
     setSavingItem(false);
-    setItemModalOpen(false);
   };
 
   const deleteItem = async (id) => {
     if (!confirm("Permanently delete this item?")) return;
-    await supabase.from("menu_items").delete().eq("id", id);
-    setItems(items.filter(i => i.id !== id));
+    const { error } = await supabase.from("menu_items").delete().eq("id", id);
+    if (error) {
+        alert(`Failed to delete: ${error.message}`);
+    } else {
+        setItems(items.filter(i => i.id !== id));
+    }
   };
 
   const toggleItemStatus = async (item) => {
     const newStatus = !item.is_available;
-    await supabase.from("menu_items").update({ is_available: newStatus }).eq("id", item.id);
-    setItems(items.map(i => i.id === item.id ? { ...i, is_available: newStatus } : i));
+    const { error } = await supabase.from("menu_items").update({ is_available: newStatus }).eq("id", item.id);
+    if (error) {
+        alert(`Failed to update status: ${error.message}`);
+    } else {
+        setItems(items.map(i => i.id === item.id ? { ...i, is_available: newStatus } : i));
+    }
   };
 
-  // Option Groups Handlers (simplified for brevity)
+  // --- OPTION GROUPS HANDLERS ---
   const addOptionGroup = () => setItemForm(f => ({ ...f, option_groups: [...(f.option_groups || []), { name: "", required: false, multi_select: false, options: [] }] }));
   const updateGroup = (gIdx, field, val) => { const newGroups = [...itemForm.option_groups]; newGroups[gIdx][field] = val; setItemForm({ ...itemForm, option_groups: newGroups }); };
   const removeGroup = (gIdx) => setItemForm(f => ({ ...f, option_groups: f.option_groups.filter((_, i) => i !== gIdx) }));
@@ -316,7 +361,7 @@ export default function MenuBuilder() {
                             <input type="checkbox" checked={group.multi_select} onChange={e => updateGroup(gIdx, "multi_select", e.target.checked)} className="accent-[#FC687D] w-3.5 h-3.5" /> Multiple
                           </label>
                         </div>
-                        <button onClick={() => removeGroup(gIdx)} className="text-rose-300 hover:text-rose-500 font-bold text-xl leading-none bg-white w-8 h-8 rounded-full border border-rose-100 flex items-center justify-center pb-1">×</button>
+                        <button type="button" onClick={() => removeGroup(gIdx)} className="text-rose-300 hover:text-rose-500 font-bold text-xl leading-none bg-white w-8 h-8 rounded-full border border-rose-100 flex items-center justify-center pb-1">×</button>
                       </div>
 
                       <div className="space-y-3 pl-2">
@@ -330,15 +375,15 @@ export default function MenuBuilder() {
                               <input type="number" value={opt.price_add || 0} onChange={e => updateOption(gIdx, oIdx, "price_add", parseFloat(e.target.value))}
                                 className="w-full bg-white border border-slate-200 rounded-xl pl-8 py-2 text-sm focus:outline-none focus:border-[#FC687D]" />
                             </div>
-                            <button onClick={() => removeOption(gIdx, oIdx)} className="text-slate-400 hover:text-rose-500 font-bold px-2 text-lg">×</button>
+                            <button type="button" onClick={() => removeOption(gIdx, oIdx)} className="text-slate-400 hover:text-rose-500 font-bold px-2 text-lg">×</button>
                           </div>
                         ))}
-                        <button onClick={() => addOption(gIdx)} className="ml-6 text-[10px] font-bold text-[#FC687D] uppercase tracking-widest hover:underline mt-2 bg-rose-50 px-3 py-1.5 rounded-full">+ Add Option</button>
+                        <button type="button" onClick={() => addOption(gIdx)} className="ml-6 text-[10px] font-bold text-[#FC687D] uppercase tracking-widest hover:underline mt-2 bg-rose-50 px-3 py-1.5 rounded-full">+ Add Option</button>
                       </div>
                     </div>
                   ))}
 
-                  <button onClick={addOptionGroup} className="w-full py-5 border-2 border-dashed border-rose-200 text-[#FC687D] text-[11px] font-bold uppercase tracking-widest hover:bg-rose-50 hover:border-[#FC687D] transition-colors rounded-3xl">
+                  <button type="button" onClick={addOptionGroup} className="w-full py-5 border-2 border-dashed border-rose-200 text-[#FC687D] text-[11px] font-bold uppercase tracking-widest hover:bg-rose-50 hover:border-[#FC687D] transition-colors rounded-3xl">
                     + Add Option Group
                   </button>
                 </div>
@@ -346,7 +391,7 @@ export default function MenuBuilder() {
             </div>
 
             <div className="p-6 border-t border-rose-50 bg-[#FFF9FA] flex gap-4 rounded-b-3xl">
-              <button onClick={() => setItemModalOpen(false)} className="flex-1 py-3.5 bg-white border border-slate-200 text-slate-500 text-xs font-bold uppercase tracking-widest hover:border-[#FC687D] hover:text-[#FC687D] transition-colors rounded-full shadow-sm">Cancel</button>
+              <button type="button" onClick={() => setItemModalOpen(false)} className="flex-1 py-3.5 bg-white border border-slate-200 text-slate-500 text-xs font-bold uppercase tracking-widest hover:border-[#FC687D] hover:text-[#FC687D] transition-colors rounded-full shadow-sm">Cancel</button>
               <button onClick={saveItem} disabled={savingItem} className="flex-1 py-3.5 bg-[#FC687D] text-white text-xs font-bold uppercase tracking-widest hover:bg-rose-500 transition-all rounded-full shadow-[0_8px_20px_rgba(252,104,125,0.3)] hover:-translate-y-0.5 disabled:opacity-50">
                 {savingItem ? "Saving..." : editingItem ? "Save Changes" : "Add Item"}
               </button>
