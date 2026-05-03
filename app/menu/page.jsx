@@ -11,8 +11,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const catEmoji = { "Chicken":"🍗","Rice in a Box":"🍚","Rice Meal":"🍱","All Day Breakfast":"🍳","Coffee":"☕","Milk Tea":"🧋","Frappe":"🥤","Snacks":"🍟","Waffles":"🧇","Pasta":"🍝","Group Tray":"🫕", "Cookies":"🍪", "Signature":"✨", "Pastries":"🥐" };
-
 // ─── Shared Nav ───────────────────────────────────────────────────────────────
 function Nav({ active }) {
   const [open, setOpen] = useState(false);
@@ -37,7 +35,6 @@ function Nav({ active }) {
     }`}>
       <div className="max-w-7xl mx-auto px-6 lg:px-12 flex items-center justify-between h-20">
         <Link href="/" className="flex-shrink-0">
-          {/* Note: Removed the white invert filter to match the new light theme */}
           <img src={LOGO} alt="Juja" className="h-14 md:h-16 w-auto object-contain transition-all duration-300 hover:scale-105 drop-shadow-sm" />
         </Link>
 
@@ -94,24 +91,24 @@ function Nav({ active }) {
 // ─── Shared Footer ────────────────────────────────────────────────────────────
 function Footer() {
   return (
-    <footer style={{ background: "#0c0c0c" }} className="text-neutral-500 pt-20 pb-10 px-6">
+    <footer className="bg-slate-900 text-slate-400 pt-20 pb-10 px-6">
       <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-14 mb-14">
         <div>
-          <img src={LOGO} alt="Juja" className="h-16 w-auto object-contain mb-5 brightness-0 invert opacity-50" />
-          <p className="text-neutral-600 text-sm leading-7">Your premier destination for specialty brews and artisan bites in the heart of Quezon City.</p>
+          <img src={LOGO} alt="Juja" className="h-16 w-auto object-contain mb-5 brightness-0 invert opacity-60" />
+          <p className="text-slate-400 text-sm leading-7">Your premier destination for specialty brews and artisan bites in the heart of Quezon City.</p>
         </div>
         <div>
-          <p className="text-white/50 font-bold mb-5 uppercase text-[10px] tracking-[0.3em]">Explore</p>
+          <p className="text-white/60 font-bold mb-5 uppercase text-[10px] tracking-[0.3em]">Explore</p>
           <div className="space-y-3">
-            {[["Home","/"],["Menu","/menu"],["Promos","/promo"],["About Us","/about"],["Order Online","/menu"]].map(([l,h]) => (
+            {[["Home","/"],["Menu","/menu"],["Promos","/promo"],["About Us","/about"],["Order Online","/order"]].map(([l,h]) => (
               <Link key={l} href={h}
-                className="block text-neutral-600 hover:text-[#FC687D] transition-colors duration-200 text-sm tracking-wide">{l}</Link>
+                className="block text-slate-400 hover:text-[#FC687D] transition-colors duration-200 text-sm tracking-wide">{l}</Link>
             ))}
           </div>
         </div>
         <div>
-          <p className="text-white/50 font-bold mb-5 uppercase text-[10px] tracking-[0.3em]">Find Us</p>
-          <div className="space-y-3.5 text-sm text-neutral-600">
+          <p className="text-white/60 font-bold mb-5 uppercase text-[10px] tracking-[0.3em]">Find Us</p>
+          <div className="space-y-3.5 text-sm text-slate-400">
             <p className="flex gap-3 items-start"><span className="text-[#FC687D] mt-0.5 flex-shrink-0">📍</span>36D Visayas Ave., Pasong Tamo, Quezon City</p>
             <p className="flex gap-3"><span className="text-[#FC687D] flex-shrink-0">📞</span>0939-9228383</p>
             <p className="flex gap-3"><span className="text-[#FC687D] flex-shrink-0">🕙</span>Store: 10AM – 12MN daily</p>
@@ -119,9 +116,9 @@ function Footer() {
           </div>
         </div>
       </div>
-      <div className="max-w-6xl mx-auto pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-3">
-        <p className="text-neutral-700 text-[11px] tracking-[0.2em] uppercase">© {new Date().getFullYear()} Juja 주자 Brew & Bites · All rights reserved</p>
-        <p className="text-neutral-700 text-[11px]">Pasong Tamo · Quezon City · Philippines</p>
+      <div className="max-w-6xl mx-auto pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-3">
+        <p className="text-slate-500 text-[11px] tracking-[0.2em] uppercase">© {new Date().getFullYear()} Juja 주자 Brew & Bites · All rights reserved</p>
+        <p className="text-slate-500 text-[11px]">Pasong Tamo · Quezon City · Philippines</p>
       </div>
     </footer>
   );
@@ -139,13 +136,11 @@ function MenuCard({ item, catIcon }) {
         transform: hov ? "translateY(-6px)" : "translateY(0)",
         boxShadow: hov ? "0 20px 40px rgba(252,104,125,0.12)" : "0 4px 15px rgba(0,0,0,0.03)",
       }}>
-      {/* Image */}
       <div className="relative overflow-hidden flex-shrink-0 m-2 rounded-2xl" style={{ height: "160px" }}>
         {item.image_url
           ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover"
               style={{ transform: hov ? "scale(1.08)" : "scale(1)", transition: "transform 0.65s ease" }} />
-          : <div className="w-full h-full flex items-center justify-center bg-rose-50"
-              style={{ transition: "background 0.4s ease" }}>
+          : <div className="w-full h-full flex items-center justify-center bg-rose-50">
               <span style={{ fontSize:"48px", transform: hov ? "scale(1.15)" : "scale(1)", transition:"transform 0.35s ease", display:"block" }}>
                 {catIcon || "☕"}
               </span>
@@ -154,33 +149,20 @@ function MenuCard({ item, catIcon }) {
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"
           style={{ opacity: hov ? 1 : 0, transition: "opacity 0.35s ease" }} />
 
-        {/* Badges */}
         <div className="absolute top-2.5 left-2.5 flex gap-1.5 z-10">
           {item.is_featured && (
             <span className="px-3 py-1 rounded-full text-white text-[9px] font-black uppercase tracking-widest bg-[#FC687D] shadow-md">
               ✦ Must Try
             </span>
           )}
-          {item.is_available === false && (
+          {!item.is_available && (
             <span className="px-3 py-1 rounded-full text-white text-[9px] font-bold bg-slate-700/90 backdrop-blur-sm">
               Unavailable
             </span>
           )}
         </div>
-
-        {/* Hover CTA */}
-        <div className="absolute inset-x-0 bottom-0 flex justify-center pb-3 z-10"
-          style={{ opacity: hov ? 1 : 0, transform: hov ? "translateY(0)" : "translateY(10px)", transition: "all 0.3s ease" }}>
-          <Link href={`/menu/${item.id}`}
-            className="px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest bg-white text-[#FC687D]
-              hover:bg-[#FC687D] hover:text-white transition-colors duration-200 shadow-xl"
-            onClick={e => e.stopPropagation()}>
-            + Add to Order
-          </Link>
-        </div>
       </div>
 
-      {/* Info */}
       <div className="p-5 flex flex-col flex-1">
         <div className="flex items-start justify-between gap-2 mb-2">
           <h3 className="font-extrabold text-slate-800 text-[15px] leading-tight flex-1">{item.name}</h3>
@@ -189,10 +171,7 @@ function MenuCard({ item, catIcon }) {
         {item.description && (
           <p className="text-slate-500 text-xs leading-relaxed line-clamp-2 mb-4 flex-1">{item.description}</p>
         )}
-        {item.option_groups?.length > 0 && (
-          <p className="text-[10px] text-slate-400 mb-3 flex items-center gap-1 font-bold uppercase tracking-widest">⚙ Customizable</p>
-        )}
-        <Link href={`/menu/${item.id}`}
+        <Link href="/order"
           className="mt-auto block text-center py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-300"
           style={{
             background: hov ? "#FC687D" : "#FFF5F7",
@@ -217,19 +196,37 @@ export default function MenuPage() {
   useEffect(() => {
     async function loadMenu() {
       setLoading(true);
-      const { data, error } = await supabase.from("menu_items").select("*");
       
-      if (!error && data) {
-        setItems(data);
-        const uniqueCatNames = [...new Set(data.map(i => i.category))];
-        const builtCategories = uniqueCatNames.map(name => ({
-          id: name,
-          name: name,
-          icon: catEmoji[name] || "🍽"
-        })).sort((a, b) => a.name.localeCompare(b.name));
+      // 1. Fetch Categories directly from the table
+      const { data: catData } = await supabase
+        .from("menu_categories")
+        .select("*")
+        .eq("is_active", true)
+        .order("sort_order");
 
-        setCategories(builtCategories);
-        if (builtCategories.length > 0) setActiveTab(builtCategories[0].name);
+      // 2. Fetch Items
+      const { data: itemData } = await supabase
+        .from("menu_items")
+        .select("*")
+        .eq("is_available", true);
+      
+      if (itemData) {
+        setItems(itemData);
+        
+        if (catData && catData.length > 0) {
+          setCategories(catData);
+          setActiveTab(catData[0].name);
+        } else {
+          // Fallback if categories table is empty (derive from items)
+          const uniqueCatNames = [...new Set(itemData.map(i => i.category))];
+          const fallbackCats = uniqueCatNames.map(name => ({
+            id: name,
+            name: name,
+            icon: "🍽"
+          }));
+          setCategories(fallbackCats);
+          if (fallbackCats.length > 0) setActiveTab(fallbackCats[0].name);
+        }
       }
       setLoading(false);
     }
@@ -246,7 +243,7 @@ export default function MenuPage() {
     <div className="min-h-screen bg-[#FFF5F7]" style={{ fontFamily:"'Inter',system-ui,sans-serif" }}>
       <Nav active="menu" />
 
-      {/* ═══ SOFT HERO HEADER ═══ */}
+      {/* HEADER HERO */}
       <div className="relative overflow-hidden bg-white" style={{ paddingTop:"6.5rem", paddingBottom:"4.5rem", borderBottom: "1px solid #ffe4e6" }}>
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[180px] pointer-events-none"
           style={{ background:"radial-gradient(ellipse,rgba(252,104,125,0.15) 0%,transparent 70%)", filter:"blur(55px)" }} />
@@ -255,7 +252,6 @@ export default function MenuPage() {
 
         <div className="relative z-10 max-w-3xl mx-auto px-6 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
           <img src={LOGO} alt="Juja" className="h-20 md:h-24 w-auto object-contain mx-auto mb-6 drop-shadow-sm" />
-          
           <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.25em] bg-rose-50 text-[#FC687D] border border-rose-100">
             <span className="w-1.5 h-1.5 rounded-full bg-[#FC687D] animate-pulse" />
             Full Menu
@@ -269,111 +265,54 @@ export default function MenuPage() {
         </div>
       </div>
 
-      {/* ═══ STICKY CATEGORY TAB BAR ═══ */}
+      {/* TAB BAR */}
       <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md shadow-[0_4px_20px_rgba(252,104,125,0.05)] border-b border-rose-50">
         <div className="max-w-7xl mx-auto flex items-stretch">
-          <button onClick={() => scroll(-1)}
-            className="flex-shrink-0 w-12 flex items-center justify-center text-xl text-slate-400
-              hover:text-[#FC687D] hover:bg-rose-50 transition-all duration-200 border-r border-rose-50">
-            ‹
-          </button>
-
-          <div ref={tabsRef} className="flex flex-1 overflow-x-auto scroll-smooth py-2"
-            style={{ scrollbarWidth:"none", msOverflowStyle:"none" }}>
-            {loading
-              ? <div className="flex gap-3 px-4 py-2">{[...Array(8)].map((_,i) => <div key={i} className="w-28 h-10 rounded-full bg-slate-100 animate-pulse flex-shrink-0" />)}</div>
-              : categories.map(cat => {
-                  const count = items.filter(i => i.category === cat.name).length;
-                  const isActive = activeTab === cat.name;
-                  return (
-                    <button key={cat.id} onClick={() => setActiveTab(cat.name)}
-                      className={`flex-shrink-0 flex items-center gap-2 px-5 py-2.5 mx-1 rounded-full
-                        text-[11px] font-bold uppercase tracking-widest transition-all duration-300 whitespace-nowrap border
-                        ${isActive
-                          ? "bg-[#FC687D] text-white border-[#FC687D] shadow-md shadow-rose-200"
-                          : "bg-white text-slate-500 border-slate-200 hover:border-[#FC687D] hover:text-[#FC687D]"
-                        }`}>
-                      <span className="text-base">{cat.icon}</span>
-                      <span>{cat.name}</span>
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black ml-1
-                        ${isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400"}`}>
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })
-            }
+          <button onClick={() => scroll(-1)} className="flex-shrink-0 w-12 flex items-center justify-center text-xl text-slate-400 hover:text-[#FC687D] border-r border-rose-50">‹</button>
+          <div ref={tabsRef} className="flex flex-1 overflow-x-auto hide-scrollbar py-2 px-4 scroll-smooth">
+            {loading ? (
+              <div className="flex gap-3">{[...Array(6)].map((_,i) => <div key={i} className="w-28 h-10 rounded-full bg-slate-100 animate-pulse flex-shrink-0" />)}</div>
+            ) : (
+              categories.map(cat => {
+                const count = items.filter(i => i.category === cat.name).length;
+                const isActive = activeTab === cat.name;
+                return (
+                  <button key={cat.id} onClick={() => setActiveTab(cat.name)}
+                    className={`flex-shrink-0 flex items-center gap-2 px-5 py-2.5 mx-1 rounded-full text-[11px] font-bold uppercase tracking-widest transition-all duration-300 border
+                      ${isActive ? "bg-[#FC687D] text-white border-[#FC687D] shadow-md shadow-rose-200" : "bg-white text-slate-500 border-slate-200 hover:border-[#FC687D] hover:text-[#FC687D]"}`}>
+                    <span className="text-base">{cat.icon}</span>
+                    <span>{cat.name}</span>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black ml-1 ${isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400"}`}>{count}</span>
+                  </button>
+                );
+              })
+            )}
           </div>
-
-          <button onClick={() => scroll(1)}
-            className="flex-shrink-0 w-12 flex items-center justify-center text-xl text-slate-400
-              hover:text-[#FC687D] hover:bg-rose-50 transition-all duration-200 border-l border-rose-50">
-            ›
-          </button>
+          <button onClick={() => scroll(1)} className="flex-shrink-0 w-12 flex items-center justify-center text-xl text-slate-400 hover:text-[#FC687D] border-l border-rose-50">›</button>
         </div>
       </div>
 
-      {/* ═══ CATEGORY TITLE ROW ═══ */}
-      {activeCat && !loading && (
-        <div className="bg-[#FFF5F7] pt-10 pb-4">
-          <div className="max-w-7xl mx-auto px-6 lg:px-10 flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full flex items-center justify-center text-3xl bg-white shadow-sm border border-rose-100">
-                {activeCat.icon}
-              </div>
-              <div>
-                <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight">{activeCat.name}</h2>
-                <p className="text-slate-500 text-[11px] mt-0.5 tracking-widest uppercase font-bold">
-                  {filtered.length} item{filtered.length !== 1 ? "s" : ""} available
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ═══ ITEMS GRID ═══ */}
-      <div className="max-w-7xl mx-auto px-6 lg:px-10 pb-24 pt-6">
+      {/* ITEMS GRID */}
+      <div className="max-w-7xl mx-auto px-6 lg:px-10 pb-24 pt-12">
         {loading ? (
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {[...Array(8)].map((_,i) => (
-              <div key={i} className="bg-white rounded-3xl overflow-hidden border border-rose-50 animate-pulse p-2">
-                <div className="h-40 bg-slate-100 rounded-2xl m-2" />
-                <div className="p-4 space-y-3">
-                  <div className="h-4 bg-slate-100 rounded-full w-3/4" />
-                  <div className="h-3 bg-slate-100 rounded-full w-full" />
-                  <div className="h-3 bg-slate-100 rounded-full w-2/3" />
-                </div>
-              </div>
-            ))}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[...Array(8)].map((_,i) => <div key={i} className="h-64 bg-white rounded-3xl border border-rose-50 animate-pulse" />)}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-32 bg-white rounded-3xl border border-dashed border-rose-200 mt-6">
+          <div className="text-center py-32 bg-white rounded-3xl border border-dashed border-rose-200">
             <div className="text-5xl mb-4 opacity-30">{activeCat?.icon || "🍽"}</div>
-            <p className="font-bold text-slate-400">We're updating our menu. Check back soon!</p>
+            <p className="font-bold text-slate-400">Items coming soon!</p>
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {filtered.map((item, index) => (
-              <div key={item.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}>
+              <div key={item.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${index * 50}ms` }}>
                 <MenuCard item={item} catIcon={activeCat?.icon} />
               </div>
             ))}
           </div>
         )}
       </div>
-
-      {/* ═══ ORDER CTA ═══ */}
-      {!loading && filtered.length > 0 && (
-        <div className="py-20 px-6 text-center bg-white border-t border-rose-50">
-          <p className="text-[#FC687D] text-[10px] font-black uppercase tracking-[0.3em] mb-4">Hungry?</p>
-          <h3 className="text-3xl font-extrabold text-slate-800 mb-8">Ready to Place Your Order?</h3>
-          <Link href="/order"
-            className="inline-block px-12 py-4 rounded-full font-black text-sm uppercase tracking-widest text-white transition-all duration-300 hover:-translate-y-1 bg-[#FC687D] shadow-[0_10px_30px_rgba(252,104,125,0.3)]">
-            Start Ordering →
-          </Link>
-        </div>
-      )}
 
       <Footer />
     </div>
