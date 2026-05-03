@@ -1,399 +1,443 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
+import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-
-const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
 
 // Initialize Supabase
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const catEmoji = { "Chicken":"🍗","Rice in a Box":"🍚","Rice Meal":"🍱","All Day Breakfast":"🍳","Coffee":"☕","Milk Tea":"🧋","Frappe":"🥤","Snacks":"🍟","Waffles":"🧇","Pasta":"🍝","Group Tray":"🫕", "Cookies":"🍪", "Signature":"✨", "Pastries":"🥐" };
+const emptyItem = { name: "", price: "", category: "", description: "", image_url: "", is_available: true, is_featured: false, option_groups: [] };
+const emptyCategory = { name: "", icon: "🍽", sort_order: "", is_active: true };
 
-// ─── Shared Nav ───────────────────────────────────────────────────────────────
-function Nav({ active }) {
-  const [open, setOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+export default function AdminMenuBuilder() {
+  const [items, setItems] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
   
+  // View State
+  const [activeView, setActiveView] = useState("items"); // 'items' or 'categories'
+  const [search, setSearch] = useState("");
+  const [catFilter, setCatFilter] = useState("All");
+
+  // Item Modal State
+  const [itemModalOpen, setItemModalOpen] = useState(false);
+  const [itemTab, setItemTab] = useState("details"); // 'details' or 'options'
+  const [editingItem, setEditingItem] = useState(null);
+  const [itemForm, setItemForm] = useState(emptyItem);
+  const [savingItem, setSavingItem] = useState(false);
+
+  // Category Modal State
+  const [catModalOpen, setCatModalOpen] = useState(false);
+  const [editingCat, setEditingCat] = useState(null);
+  const [catForm, setCatForm] = useState(emptyCategory);
+  const [savingCat, setSavingCat] = useState(false);
+
   useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 40);
-    window.addEventListener("scroll", fn);
-    return () => window.removeEventListener("scroll", fn);
+    fetchData();
   }, []);
 
-  const links = [
-    ["home", "Home", "/"],
-    ["menu", "Menu", "/menu"],
-    ["promo", "Promos", "/promo"],
-    ["about", "About Us", "/about"],
-  ];
+  async function fetchData() {
+    setLoading(true);
+    const [itemsRes, catsRes] = await Promise.all([
+      supabase.from("menu_items").select("*").order("name"),
+      supabase.from("menu_categories").select("*").order("sort_order")
+    ]);
+
+    if (itemsRes.data) setItems(itemsRes.data);
+    if (catsRes.data) {
+      setCategories(catsRes.data);
+    } else {
+      // Fallback if menu_categories table doesn't exist yet
+      const uniqueCats = [...new Set(itemsRes.data?.map(i => i.category) || [])];
+      setCategories(uniqueCats.map((name, i) => ({ id: i, name, icon: "🍽", sort_order: i, is_active: true })));
+    }
+    setLoading(false);
+  }
+
+  // --- ITEM CRUD ---
+  const openAddItem = () => {
+    setEditingItem(null);
+    setItemForm({ ...emptyItem, category: categories[0]?.name || "" });
+    setItemTab("details");
+    setItemModalOpen(true);
+  };
+
+  const openEditItem = (item) => {
+    setEditingItem(item);
+    setItemForm({ ...item, price: item.price.toString() });
+    setItemTab("details");
+    setItemModalOpen(true);
+  };
+
+  const saveItem = async (e) => {
+    e.preventDefault();
+    setSavingItem(true);
+    
+    const payload = {
+      ...itemForm,
+      price: parseFloat(itemForm.price) || 0,
+    };
+
+    if (editingItem) {
+      await supabase.from("menu_items").update(payload).eq("id", editingItem.id);
+      setItems(items.map(i => i.id === editingItem.id ? { ...i, ...payload } : i));
+    } else {
+      const { data } = await supabase.from("menu_items").insert([payload]).select();
+      if (data) setItems([...items, data[0]]);
+    }
+    
+    setSavingItem(false);
+    setItemModalOpen(false);
+  };
+
+  const deleteItem = async (id) => {
+    if (!confirm("Permanently delete this item?")) return;
+    await supabase.from("menu_items").delete().eq("id", id);
+    setItems(items.filter(i => i.id !== id));
+  };
+
+  const toggleItemStatus = async (item) => {
+    const newStatus = !item.is_available;
+    await supabase.from("menu_items").update({ is_available: newStatus }).eq("id", item.id);
+    setItems(items.map(i => i.id === item.id ? { ...i, is_available: newStatus } : i));
+  };
+
+  // --- OPTION GROUPS LOGIC ---
+  const addOptionGroup = () => {
+    setItemForm(f => ({
+      ...f, option_groups: [...(f.option_groups || []), { name: "", required: false, multi_select: false, options: [] }]
+    }));
+  };
+  const updateGroup = (gIdx, field, val) => {
+    const newGroups = [...itemForm.option_groups];
+    newGroups[gIdx][field] = val;
+    setItemForm({ ...itemForm, option_groups: newGroups });
+  };
+  const removeGroup = (gIdx) => {
+    setItemForm(f => ({ ...f, option_groups: f.option_groups.filter((_, i) => i !== gIdx) }));
+  };
+  const addOption = (gIdx) => {
+    const newGroups = [...itemForm.option_groups];
+    newGroups[gIdx].options.push({ name: "", price_add: 0 });
+    setItemForm({ ...itemForm, option_groups: newGroups });
+  };
+  const updateOption = (gIdx, oIdx, field, val) => {
+    const newGroups = [...itemForm.option_groups];
+    newGroups[gIdx].options[oIdx][field] = val;
+    setItemForm({ ...itemForm, option_groups: newGroups });
+  };
+  const removeOption = (gIdx, oIdx) => {
+    const newGroups = [...itemForm.option_groups];
+    newGroups[gIdx].options = newGroups[gIdx].options.filter((_, i) => i !== oIdx);
+    setItemForm({ ...itemForm, option_groups: newGroups });
+  };
+
+  // --- CATEGORY CRUD ---
+  const openAddCategory = () => {
+    setEditingCat(null);
+    setCatForm({ ...emptyCategory, sort_order: categories.length + 1 });
+    setCatModalOpen(true);
+  };
+
+  const openEditCategory = (cat) => {
+    setEditingCat(cat);
+    setCatForm(cat);
+    setCatModalOpen(true);
+  };
+
+  const saveCategory = async (e) => {
+    e.preventDefault();
+    setSavingCat(true);
+    const payload = { ...catForm, sort_order: parseInt(catForm.sort_order) || 0 };
+
+    if (editingCat) {
+      await supabase.from("menu_categories").update(payload).eq("id", editingCat.id);
+      setCategories(categories.map(c => c.id === editingCat.id ? { ...c, ...payload } : c));
+    } else {
+      const { data } = await supabase.from("menu_categories").insert([payload]).select();
+      if (data) setCategories([...categories, data[0]]);
+    }
+    setSavingCat(false);
+    setCatModalOpen(false);
+  };
+
+  const deleteCategory = async (id) => {
+    if (!confirm("Delete this category?")) return;
+    await supabase.from("menu_categories").delete().eq("id", id);
+    setCategories(categories.filter(c => c.id !== id));
+  };
+
+
+  const filteredItems = items
+    .filter(i => catFilter === "All" || i.category === catFilter)
+    .filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${
-      scrolled ? "bg-white/96 backdrop-blur-2xl shadow-[0_1px_30px_rgba(0,0,0,0.10)]" : "bg-transparent"
-    }`}>
-      <div className="max-w-7xl mx-auto px-6 lg:px-12 flex items-center justify-between h-20">
-        <Link href="/" className="flex-shrink-0">
-          <img src={LOGO} alt="Juja"
-            className="h-16 md:h-20 w-auto object-contain transition-all duration-300 hover:scale-105 drop-shadow" />
-        </Link>
-
-        <div className="hidden md:flex items-center gap-8">
-          {links.map(([id, label, href]) => (
-            <Link key={id} href={href}
-              className={`relative text-[12px] font-bold uppercase tracking-[0.18em] transition-all duration-300 group pb-1 ${
-                active === id ? "text-[#1EBBA3]" : "text-neutral-600 hover:text-neutral-900"
-              }`}>
-              {label}
-              <span className={`absolute bottom-0 left-0 h-[2px] rounded-full bg-gradient-to-r from-[#1EBBA3] to-[#159a85] transition-all duration-350 ${
-                active === id ? "w-full" : "w-0 group-hover:w-full"
-              }`} />
-            </Link>
-          ))}
+    <div className="max-w-6xl mx-auto font-mono pb-20">
+      
+      {/* HEADER */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8 border-b border-gray-200 pb-6">
+        <div>
+          <h1 className="text-3xl font-bold uppercase tracking-tighter text-[#1A1A1A]">
+            Menu <span className="text-[#1EBBA3] font-light">Builder</span>
+          </h1>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+            {items.length} items • {categories.length} categories
+          </p>
         </div>
-
-        <div className="hidden md:flex items-center gap-3">
-          <Link href="/login"
-            className="text-[11px] font-bold uppercase tracking-widest px-5 py-2.5 rounded-full
-              border border-neutral-200 text-neutral-500
-              hover:border-[#1EBBA3] hover:text-[#1EBBA3] hover:bg-[#1EBBA3]/10
-              transition-all duration-300">
-            Staff Login
-          </Link>
-          <Link href="/menu"
-            className="text-[11px] font-black uppercase tracking-widest px-7 py-3 rounded-full
-              bg-neutral-900 text-white
-              hover:bg-[#1EBBA3] hover:shadow-[0_6px_28px_rgba(30,187,163,0.45)] hover:-translate-y-0.5
-              transition-all duration-300 shadow-md">
-            Order Now →
-          </Link>
+        <div className="flex gap-3">
+          <button onClick={openAddItem} className="px-6 py-3 bg-[#1A1A1A] text-white text-[10px] font-bold uppercase tracking-widest hover:bg-[#1EBBA3] transition-colors rounded-none shadow-sm">+ Add Item</button>
+          <button onClick={openAddCategory} className="px-6 py-3 bg-gray-50 border border-gray-200 text-[#1A1A1A] text-[10px] font-bold uppercase tracking-widest hover:border-[#1A1A1A] transition-colors rounded-none shadow-sm">+ Add Category</button>
         </div>
+      </header>
 
-        <button className="md:hidden p-2" onClick={() => setOpen(!open)}>
-          <div className="w-5 space-y-[5px]">
-            <span className={`block h-[2px] bg-neutral-800 rounded transition-all duration-300 ${open ? "rotate-45 translate-y-[7px]" : ""}`} />
-            <span className={`block h-[2px] bg-neutral-800 rounded transition-all duration-300 ${open ? "opacity-0" : ""}`} />
-            <span className={`block h-[2px] bg-neutral-800 rounded transition-all duration-300 ${open ? "-rotate-45 -translate-y-[7px]" : ""}`} />
-          </div>
+      {/* VIEW TABS */}
+      <div className="flex gap-2 mb-8 border-b border-gray-200 pb-px">
+        <button onClick={() => setActiveView("items")} className={`px-6 py-3 text-[10px] font-bold uppercase tracking-widest transition-all rounded-none ${activeView === "items" ? "bg-[#1A1A1A] text-white" : "bg-gray-50 text-gray-500 hover:bg-gray-100"}`}>
+          📋 Menu Items
+        </button>
+        <button onClick={() => setActiveView("categories")} className={`px-6 py-3 text-[10px] font-bold uppercase tracking-widest transition-all rounded-none ${activeView === "categories" ? "bg-[#1A1A1A] text-white" : "bg-gray-50 text-gray-500 hover:bg-gray-100"}`}>
+          🏷️ Categories
         </button>
       </div>
 
-      {open && (
-        <div className="md:hidden bg-white/98 backdrop-blur-xl border-t border-neutral-100 shadow-2xl px-6 py-6 flex flex-col gap-4">
-          {links.map(([, l, h]) => (
-            <Link key={l} href={h} onClick={() => setOpen(false)}
-              className="text-neutral-800 font-bold uppercase tracking-widest text-xs hover:text-[#1EBBA3] transition py-1">{l}</Link>
-          ))}
-          <Link href="/menu" onClick={() => setOpen(false)}
-            className="mt-2 py-3 rounded-full bg-neutral-900 text-white font-black text-xs text-center uppercase tracking-widest hover:bg-[#1EBBA3] transition-colors">
-            Order Now →
-          </Link>
-        </div>
-      )}
-    </nav>
-  );
-}
-
-// ─── Shared Footer ────────────────────────────────────────────────────────────
-function Footer() {
-  return (
-    <footer style={{ background: "#0c0c0c" }} className="text-neutral-500 pt-20 pb-10 px-6">
-      <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-14 mb-14">
-        <div>
-          <img src={LOGO} alt="Juja" className="h-16 w-auto object-contain mb-5 brightness-0 invert opacity-50" />
-          <p className="text-neutral-600 text-sm leading-7">Your premier destination for specialty brews and artisan bites in the heart of Quezon City.</p>
-        </div>
-        <div>
-          <p className="text-white/50 font-bold mb-5 uppercase text-[10px] tracking-[0.3em]">Explore</p>
-          <div className="space-y-3">
-            {[["Home","/"],["Menu","/menu"],["Promos","/promo"],["About Us","/about"],["Order Online","/menu"]].map(([l,h]) => (
-              <Link key={l} href={h}
-                className="block text-neutral-600 hover:text-[#1EBBA3] transition-colors duration-200 text-sm tracking-wide">{l}</Link>
-            ))}
-          </div>
-        </div>
-        <div>
-          <p className="text-white/50 font-bold mb-5 uppercase text-[10px] tracking-[0.3em]">Find Us</p>
-          <div className="space-y-3.5 text-sm text-neutral-600">
-            <p className="flex gap-3 items-start"><span className="text-[#1EBBA3] mt-0.5 flex-shrink-0">📍</span>36D Visayas Ave., Pasong Tamo, Quezon City</p>
-            <p className="flex gap-3"><span className="text-[#1EBBA3] flex-shrink-0">📞</span>0939-9228383</p>
-            <p className="flex gap-3"><span className="text-[#1EBBA3] flex-shrink-0">🕙</span>Store: 10AM – 12MN daily</p>
-            <p className="flex gap-3"><span className="text-[#1EBBA3] flex-shrink-0">🏠</span>Function Room: 10AM – 2AM</p>
-          </div>
-        </div>
-      </div>
-      <div className="max-w-6xl mx-auto pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-3">
-        <p className="text-neutral-700 text-[11px] tracking-[0.2em] uppercase">© {new Date().getFullYear()} Juja 주자 Brew & Bites · All rights reserved</p>
-        <p className="text-neutral-700 text-[11px]">Pasong Tamo · Quezon City · Philippines</p>
-      </div>
-    </footer>
-  );
-}
-
-// ─── Menu Card Component ──────────────────────────────────────────────────────
-function MenuCard({ item, catIcon }) {
-  const [hov, setHov] = useState(false);
-  return (
-    <div
-      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      className="bg-white rounded-2xl overflow-hidden border border-neutral-100 flex flex-col"
-      style={{
-        transition: "all 0.35s cubic-bezier(0.25,0.46,0.45,0.94)",
-        transform: hov ? "translateY(-8px)" : "translateY(0)",
-        boxShadow: hov ? "0 22px 55px rgba(0,0,0,0.12)" : "0 2px 8px rgba(0,0,0,0.04)",
-      }}>
-      {/* Image */}
-      <div className="relative overflow-hidden flex-shrink-0" style={{ height: "170px" }}>
-        {item.image_url
-          ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover"
-              style={{ transform: hov ? "scale(1.1)" : "scale(1)", transition: "transform 0.65s ease" }} />
-          : <div className="w-full h-full flex items-center justify-center"
-              style={{ background: hov ? "linear-gradient(135deg,#0a1a18,#102a24)" : "linear-gradient(135deg,#f0fdfa,#ccfbf1)", transition: "background 0.4s ease" }}>
-              <span style={{ fontSize:"48px", transform: hov ? "scale(1.15)" : "scale(1)", transition:"transform 0.35s ease", display:"block" }}>
-                {catIcon || "🍽"}
-              </span>
+      {loading ? (
+        <div className="py-20 flex justify-center"><div className="w-8 h-8 border-2 border-gray-200 border-t-[#1EBBA3] animate-spin rounded-none"></div></div>
+      ) : activeView === "items" ? (
+        <>
+          {/* FILTER BAR */}
+          <div className="flex flex-col md:flex-row gap-4 mb-8">
+            <div className="relative flex-1 max-w-sm">
+              <span className="absolute left-3 top-2.5 text-gray-400">🔍</span>
+              <input type="text" placeholder="Search items..." value={search} onChange={e => setSearch(e.target.value)} 
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 text-sm focus:outline-none focus:border-[#1EBBA3] rounded-none" />
             </div>
-        }
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"
-          style={{ opacity: hov ? 1 : 0, transition: "opacity 0.35s ease" }} />
-
-        {/* Badges */}
-        <div className="absolute top-2.5 left-2.5 flex gap-1.5 z-10">
-          {item.is_featured && (
-            <span className="px-2.5 py-0.5 rounded-full text-white text-[9px] font-black uppercase tracking-widest"
-              style={{ background:"linear-gradient(135deg,#159a85,#1EBBA3)", boxShadow:"0 3px 10px rgba(30,187,163,0.5)" }}>
-              ✦ Must Try
-            </span>
-          )}
-          {item.status !== "available" && (
-            <span className="px-2.5 py-0.5 rounded-full text-white text-[9px] font-bold bg-neutral-700/90">
-              Unavailable
-            </span>
-          )}
-        </div>
-
-        {/* Hover CTA */}
-        <div className="absolute inset-x-0 bottom-0 flex justify-center pb-3 z-10"
-          style={{ opacity: hov ? 1 : 0, transform: hov ? "translateY(0)" : "translateY(10px)", transition: "all 0.3s ease" }}>
-          <Link href={`/menu/${item.id}`} // Or wherever your order modal lives
-            className="px-5 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest bg-white text-neutral-900
-              hover:bg-[#1EBBA3] hover:text-white transition-colors duration-200 shadow-xl"
-            onClick={e => e.stopPropagation()}>
-            + Add to Order
-          </Link>
-        </div>
-      </div>
-
-      {/* Info */}
-      <div className="p-4 flex flex-col flex-1">
-        <div className="flex items-start justify-between gap-2 mb-1.5">
-          <h3 className="font-black text-neutral-900 text-sm leading-snug flex-1 uppercase tracking-tight">{item.name}</h3>
-          <span className="font-black text-[#1EBBA3] text-sm flex-shrink-0">₱{item.price}</span>
-        </div>
-        {item.description && (
-          <p className="text-neutral-400 text-[11px] leading-relaxed line-clamp-2 mb-3 flex-1">{item.description}</p>
-        )}
-        {item.option_groups?.length > 0 && (
-          <p className="text-[10px] text-neutral-400 mb-2.5 flex items-center gap-1 font-bold uppercase tracking-widest">⚙ Customizable</p>
-        )}
-        <Link href={`/menu/${item.id}`} // Point this to your actual order flow later
-          className="mt-auto block text-center py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-300"
-          style={{
-            background: hov ? "linear-gradient(135deg,#159a85,#1EBBA3)" : "#f4f4f5",
-            color: hov ? "white" : "#374151",
-            boxShadow: hov ? "0 5px 18px rgba(30,187,163,0.3)" : "none",
-          }}>
-          Order Now →
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-// ─── Menu Page ────────────────────────────────────────────────────────────────
-export default function MenuPage() {
-  const [items, setItems]         = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [activeTab, setActiveTab] = useState(null);
-  const [loading, setLoading]     = useState(true);
-  const tabsRef = useRef(null);
-
-  useEffect(() => {
-    async function loadMenu() {
-      setLoading(true);
-      const { data, error } = await supabase.from("menu_items").select("*");
-      
-      if (!error && data) {
-        setItems(data);
-        
-        // Dynamically build categories from the existing items
-        const uniqueCatNames = [...new Set(data.map(i => i.category))];
-        const builtCategories = uniqueCatNames.map(name => ({
-          id: name,
-          name: name,
-          icon: catEmoji[name] || "🍽"
-        })).sort((a, b) => a.name.localeCompare(b.name));
-
-        setCategories(builtCategories);
-        if (builtCategories.length > 0) setActiveTab(builtCategories[0].name);
-      }
-      setLoading(false);
-    }
-    
-    loadMenu();
-  }, []);
-
-  const activeCat = categories.find(c => c.name === activeTab);
-  const filtered  = items.filter(i => i.category === activeTab);
-
-  const scroll = (dir) => { if (tabsRef.current) tabsRef.current.scrollLeft += dir * 300; };
-
-  return (
-    <div className="min-h-screen" style={{ fontFamily:"'Inter',system-ui,sans-serif", background:"#f7f7f7" }}>
-      <Nav active="menu" />
-
-      {/* ═══ DARK HERO HEADER ═══ */}
-      <div className="relative overflow-hidden" style={{ background:"linear-gradient(160deg,#0c0c0c 0%,#0a1a18 60%,#0c0c0c 100%)", paddingTop:"5.5rem", paddingBottom:"3.5rem" }}>
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[180px] pointer-events-none"
-          style={{ background:"radial-gradient(ellipse,rgba(30,187,163,0.18) 0%,transparent 70%)", filter:"blur(55px)" }} />
-        <div className="absolute inset-0 opacity-[0.05]"
-          style={{ backgroundImage:"radial-gradient(rgba(255,255,255,0.6) 1px,transparent 1px)", backgroundSize:"26px 26px" }} />
-
-        <div className="relative z-10 max-w-3xl mx-auto px-6 text-center">
-          <img src={LOGO} alt="Juja"
-            className="h-28 md:h-36 w-auto object-contain mx-auto mb-5 brightness-0 invert drop-shadow-2xl" />
-          <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.25em]"
-            style={{ border:"1px solid rgba(30,187,163,0.25)", color:"#1EBBA3", background:"rgba(30,187,163,0.06)" }}>
-            <span className="w-1.5 h-1.5 rounded-full bg-[#1EBBA3] animate-pulse" />
-            Full Menu
-          </div>
-          <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">
-            What Are You <span style={{ color:"#1EBBA3" }}>Craving?</span>
-          </h1>
-          <p className="text-neutral-500 text-sm max-w-sm mx-auto">
-            Pick a category and explore — freshly prepared with love every day.
-          </p>
-        </div>
-      </div>
-
-      {/* ═══ STICKY CATEGORY TAB BAR ═══ */}
-      <div className="sticky top-0 z-40 bg-white shadow-[0_3px_20px_rgba(0,0,0,0.07)] border-b border-neutral-100">
-        <div className="max-w-7xl mx-auto flex items-stretch">
-          <button onClick={() => scroll(-1)}
-            className="flex-shrink-0 w-10 flex items-center justify-center text-lg text-neutral-400
-              hover:text-[#1EBBA3] hover:bg-[#1EBBA3]/10 transition-all duration-200 border-r border-neutral-100">
-            ‹
-          </button>
-
-          <div ref={tabsRef} className="flex flex-1 overflow-x-auto scroll-smooth"
-            style={{ scrollbarWidth:"none", msOverflowStyle:"none" }}>
-            {loading
-              ? <div className="flex gap-3 px-4 py-3">{[...Array(8)].map((_,i) => <div key={i} className="w-24 h-8 rounded-lg bg-neutral-100 animate-pulse flex-shrink-0" />)}</div>
-              : categories.map(cat => {
-                  const count = items.filter(i => i.category === cat.name).length;
-                  const isActive = activeTab === cat.name;
-                  return (
-                    <button key={cat.id} onClick={() => setActiveTab(cat.name)}
-                      className={`flex-shrink-0 flex flex-col items-center justify-center gap-0.5 px-5 py-3.5 min-w-[90px]
-                        text-[10px] font-black uppercase tracking-widest border-b-[3px]
-                        transition-all duration-250 whitespace-nowrap
-                        ${isActive
-                          ? "border-[#1EBBA3] text-[#1EBBA3] bg-[#1EBBA3]/10"
-                          : "border-transparent text-neutral-400 hover:text-neutral-800 hover:bg-neutral-50"
-                        }`}>
-                      <span className="text-lg leading-none mb-0.5">{cat.icon}</span>
-                      <span className="leading-none">{cat.name}</span>
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold mt-0.5
-                        ${isActive ? "bg-[#1EBBA3]/20 text-[#159a85]" : "bg-neutral-100 text-neutral-400"}`}>
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })
-            }
-          </div>
-
-          <button onClick={() => scroll(1)}
-            className="flex-shrink-0 w-10 flex items-center justify-center text-lg text-neutral-400
-              hover:text-[#1EBBA3] hover:bg-[#1EBBA3]/10 transition-all duration-200 border-l border-neutral-100">
-            ›
-          </button>
-        </div>
-      </div>
-
-      {/* ═══ CATEGORY TITLE ROW ═══ */}
-      {activeCat && !loading && (
-        <div className="bg-white border-b border-neutral-100">
-          <div className="max-w-7xl mx-auto px-6 lg:px-10 py-6 flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl border border-neutral-100"
-                style={{ background:"linear-gradient(135deg,#f0fdfa,#ccfbf1)", boxShadow:"0 2px 10px rgba(30,187,163,0.1)" }}>
-                {activeCat.icon}
-              </div>
-              <div>
-                <h2 className="text-2xl font-black text-neutral-900 tracking-tight uppercase">{activeCat.name}</h2>
-                <p className="text-neutral-400 text-xs mt-0.5 tracking-widest uppercase font-bold">
-                  {filtered.length} item{filtered.length !== 1 ? "s" : ""} available
-                </p>
-              </div>
+            <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+              <button onClick={() => setCatFilter("All")} className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest whitespace-nowrap rounded-none transition-colors border ${catFilter === "All" ? "bg-[#1A1A1A] text-white border-[#1A1A1A]" : "bg-white text-gray-500 border-gray-200 hover:border-gray-300"}`}>All</button>
+              {categories.map(cat => (
+                <button key={cat.id} onClick={() => setCatFilter(cat.name)} className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest whitespace-nowrap rounded-none transition-colors border flex items-center gap-2 ${catFilter === cat.name ? "bg-[#1EBBA3] text-white border-[#1EBBA3]" : "bg-white text-gray-500 border-gray-200 hover:border-gray-300"}`}>
+                  <span>{cat.icon}</span> {cat.name}
+                </button>
+              ))}
             </div>
-            {/* Note: In Next.js App Router, we keep this as a simple scroll or modal trigger. For now, it stays styled as a button */}
-            <button
-              className="flex items-center gap-2 px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest text-white transition-all duration-300 hover:-translate-y-0.5"
-              style={{ background:"linear-gradient(135deg,#159a85,#1EBBA3)", boxShadow:"0 5px 20px rgba(30,187,163,0.35)" }}>
-              🛒 View Cart
-            </button>
           </div>
-        </div>
-      )}
 
-      {/* ═══ ITEMS GRID ═══ */}
-      <div className="max-w-7xl mx-auto px-6 lg:px-10 py-10 pb-24">
-        {loading ? (
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-            {[...Array(8)].map((_,i) => (
-              <div key={i} className="bg-white rounded-2xl overflow-hidden border border-neutral-100 animate-pulse">
-                <div className="h-44 bg-neutral-100" />
-                <div className="p-4 space-y-2">
-                  <div className="h-4 bg-neutral-100 rounded w-3/4" />
-                  <div className="h-3 bg-neutral-100 rounded w-full" />
-                  <div className="h-3 bg-neutral-100 rounded w-2/3" />
+          {/* ITEM GRID */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredItems.map(item => (
+              <div key={item.id} className={`bg-white border border-gray-200 flex flex-col rounded-none hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all ${!item.is_available ? "opacity-60" : ""}`}>
+                <div className="h-40 bg-gray-50 relative border-b border-gray-100 flex items-center justify-center overflow-hidden">
+                  {item.image_url ? (
+                    <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-4xl opacity-20">📷</span>
+                  )}
+                </div>
+                <div className="p-5 flex-1">
+                  <div className="flex justify-between items-start gap-2 mb-1">
+                    <h3 className="font-bold text-[#1A1A1A] text-sm uppercase tracking-wide leading-tight">{item.name}</h3>
+                    <span className="font-black text-[#1EBBA3] text-sm">₱{item.price}</span>
+                  </div>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-3">{item.category}</p>
+                  <span className={`inline-block px-2 py-1 text-[8px] font-black uppercase tracking-widest rounded-none border ${item.is_available ? "bg-[#1EBBA3]/10 text-[#159a85] border-[#1EBBA3]/20" : "bg-gray-100 text-gray-400 border-gray-200"}`}>
+                    {item.is_available ? "● Available" : "○ Disabled"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 border-t border-gray-100 bg-gray-50">
+                  <button onClick={() => openEditItem(item)} className="p-3 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:bg-white hover:text-[#1EBBA3] transition-colors">✏️ Edit</button>
+                  <button onClick={() => toggleItemStatus(item)} className="p-3 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:bg-white hover:text-[#1A1A1A] border-x border-gray-100 transition-colors">{item.is_available ? "Disable" : "Enable"}</button>
+                  <button onClick={() => deleteItem(item.id)} className="p-3 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors">🗑️</button>
                 </div>
               </div>
             ))}
           </div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-32">
-            <div className="text-5xl mb-4 opacity-20">{activeCat?.icon || "🍽"}</div>
-            <p className="font-bold text-neutral-400">No items in this category yet.</p>
-          </div>
-        ) : (
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-            {filtered.map(item => (
-              <MenuCard key={item.id} item={item} catIcon={activeCat?.icon} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ═══ ORDER CTA ═══ */}
-      {!loading && filtered.length > 0 && (
-        <div className="py-16 px-6 text-center" style={{ background:"#0c0c0c" }}>
-          <p className="text-[#1EBBA3] text-[10px] font-black uppercase tracking-[0.3em] mb-3">Hungry?</p>
-          <h3 className="text-2xl font-black text-white mb-6 uppercase tracking-tighter">Ready to Place Your Order?</h3>
-          {/* Note: Points back to top or opens cart */}
-          <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="inline-block px-12 py-4 rounded-full font-black text-sm uppercase tracking-widest text-white transition-all duration-300 hover:-translate-y-1"
-            style={{ background:"linear-gradient(135deg,#159a85,#1EBBA3)", boxShadow:"0 10px 35px rgba(30,187,163,0.4)" }}>
-            Order Now →
-          </button>
+        </>
+      ) : (
+        /* CATEGORY LIST */
+        <div className="space-y-4 max-w-3xl">
+          {categories.map(cat => (
+            <div key={cat.id} className="bg-white border border-gray-200 p-5 flex items-center justify-between rounded-none hover:border-gray-300 transition-colors">
+              <div className="flex items-center gap-6">
+                <div className="text-3xl w-12 text-center">{cat.icon}</div>
+                <div>
+                  <h3 className="font-bold text-[#1A1A1A] uppercase tracking-widest text-sm">{cat.name}</h3>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Sort Order: {cat.sort_order}</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => openEditCategory(cat)} className="px-4 py-2 border border-gray-200 text-[10px] font-bold uppercase tracking-widest hover:border-[#1EBBA3] hover:text-[#1EBBA3] transition-colors rounded-none">Edit</button>
+                <button onClick={() => deleteCategory(cat.id)} className="px-4 py-2 border border-red-100 bg-red-50 text-red-500 text-[10px] font-bold uppercase tracking-widest hover:bg-red-500 hover:text-white transition-colors rounded-none">Delete</button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
-      <Footer />
+      {/* --- ITEM MODAL --- */}
+      {itemModalOpen && (
+        <div className="fixed inset-0 z-50 bg-[#1A1A1A]/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white shadow-2xl w-full max-w-2xl rounded-none flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+            
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h2 className="text-xl font-bold uppercase tracking-tighter text-[#1A1A1A]">{editingItem ? "Edit Item" : "Add New Item"}</h2>
+              <button onClick={() => setItemModalOpen(false)} className="text-gray-400 hover:text-[#1A1A1A] text-2xl font-light">×</button>
+            </div>
+
+            <div className="flex gap-2 px-6 pt-4 border-b border-gray-100">
+              <button onClick={() => setItemTab("details")} className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest border-b-2 transition-colors ${itemTab === "details" ? "border-[#1EBBA3] text-[#1A1A1A]" : "border-transparent text-gray-400 hover:text-gray-600"}`}>📝 Details</button>
+              <button onClick={() => setItemTab("options")} className={`px-4 py-2 text-[10px] font-bold uppercase tracking-widest border-b-2 transition-colors ${itemTab === "options" ? "border-[#1EBBA3] text-[#1A1A1A]" : "border-transparent text-gray-400 hover:text-gray-600"}`}>⚙️ Option Groups</button>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1">
+              {itemTab === "details" ? (
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Item Name *</label>
+                    <input required value={itemForm.name} onChange={e => setItemForm({ ...itemForm, name: e.target.value })}
+                      className="w-full border border-gray-300 rounded-none px-4 py-3 text-sm font-bold focus:outline-none focus:border-[#1EBBA3]" placeholder="e.g. Chicken Wings" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Price (₱) *</label>
+                      <input required type="number" step="0.01" value={itemForm.price} onChange={e => setItemForm({ ...itemForm, price: e.target.value })}
+                        className="w-full border border-gray-300 rounded-none px-4 py-3 text-sm font-bold focus:outline-none focus:border-[#1EBBA3]" placeholder="0.00" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Category *</label>
+                      <select required value={itemForm.category} onChange={e => setItemForm({ ...itemForm, category: e.target.value })}
+                        className="w-full border border-gray-300 rounded-none px-4 py-3 text-sm font-bold uppercase tracking-widest focus:outline-none focus:border-[#1EBBA3] appearance-none bg-white">
+                        <option value="">— Select Category —</option>
+                        {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Description</label>
+                    <textarea value={itemForm.description} onChange={e => setItemForm({ ...itemForm, description: e.target.value })} rows={3}
+                      className="w-full border border-gray-300 rounded-none px-4 py-3 text-sm resize-none focus:outline-none focus:border-[#1EBBA3]" placeholder="Short description..." />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Image URL</label>
+                    <input value={itemForm.image_url} onChange={e => setItemForm({ ...itemForm, image_url: e.target.value })}
+                      className="w-full border border-gray-300 rounded-none px-4 py-3 text-sm focus:outline-none focus:border-[#1EBBA3]" placeholder="https://..." />
+                  </div>
+                  <div className="flex gap-8">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={itemForm.is_available} onChange={e => setItemForm({ ...itemForm, is_available: e.target.checked })} className="accent-[#1EBBA3] w-4 h-4 rounded-none cursor-pointer" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600">Available</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={itemForm.is_featured} onChange={e => setItemForm({ ...itemForm, is_featured: e.target.checked })} className="accent-[#1EBBA3] w-4 h-4 rounded-none cursor-pointer" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600">Featured / Must Try</span>
+                    </label>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <p className="text-xs text-gray-500 font-medium">Add option groups like size, flavor, or add-ons that customers can choose from.</p>
+                  
+                  {(itemForm.option_groups || []).map((group, gIdx) => (
+                    <div key={gIdx} className="border border-gray-200 bg-gray-50 p-5 rounded-none space-y-4">
+                      <div className="flex gap-4 items-start">
+                        <div className="flex-1">
+                          <input value={group.name} onChange={e => updateGroup(gIdx, "name", e.target.value)} placeholder="Group Name (e.g. Size)"
+                            className="w-full border border-gray-300 rounded-none px-3 py-2 text-sm font-bold uppercase tracking-widest focus:outline-none focus:border-[#1EBBA3]" />
+                        </div>
+                        <div className="flex gap-4 mt-2">
+                          <label className="flex items-center gap-1.5 cursor-pointer text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                            <input type="checkbox" checked={group.required} onChange={e => updateGroup(gIdx, "required", e.target.checked)} className="accent-[#1EBBA3]" /> Required
+                          </label>
+                          <label className="flex items-center gap-1.5 cursor-pointer text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                            <input type="checkbox" checked={group.multi_select} onChange={e => updateGroup(gIdx, "multi_select", e.target.checked)} className="accent-[#1EBBA3]" /> Multiple
+                          </label>
+                        </div>
+                        <button onClick={() => removeGroup(gIdx)} className="text-gray-400 hover:text-red-500 font-bold text-lg leading-none">×</button>
+                      </div>
+
+                      <div className="space-y-2 pl-4 border-l-2 border-gray-200">
+                        {(group.options || []).map((opt, oIdx) => (
+                          <div key={oIdx} className="flex gap-2 items-center">
+                            <input value={opt.name} onChange={e => updateOption(gIdx, oIdx, "name", e.target.value)} placeholder="Option name"
+                              className="flex-1 border border-gray-300 rounded-none px-3 py-2 text-sm focus:outline-none focus:border-[#1EBBA3]" />
+                            <div className="relative w-24">
+                              <span className="absolute left-3 top-2 text-gray-400 text-sm">₱</span>
+                              <input type="number" value={opt.price_add || 0} onChange={e => updateOption(gIdx, oIdx, "price_add", parseFloat(e.target.value))}
+                                className="w-full border border-gray-300 rounded-none pl-7 py-2 text-sm focus:outline-none focus:border-[#1EBBA3]" />
+                            </div>
+                            <button onClick={() => removeOption(gIdx, oIdx)} className="text-gray-400 hover:text-red-500 font-bold px-2">×</button>
+                          </div>
+                        ))}
+                        <button onClick={() => addOption(gIdx)} className="text-[10px] font-bold text-[#1EBBA3] uppercase tracking-widest hover:underline mt-2">+ Add Option</button>
+                      </div>
+                    </div>
+                  ))}
+
+                  <button onClick={addOptionGroup} className="w-full py-4 border-2 border-dashed border-gray-300 text-gray-500 text-[10px] font-bold uppercase tracking-widest hover:border-[#1EBBA3] hover:text-[#1EBBA3] hover:bg-gray-50 transition-colors rounded-none">
+                    + Add Option Group
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-100 bg-gray-50 flex gap-4">
+              <button onClick={() => setItemModalOpen(false)} className="flex-1 py-4 border border-gray-200 bg-white text-gray-500 text-[10px] font-bold uppercase tracking-widest hover:border-[#1A1A1A] hover:text-[#1A1A1A] transition-colors rounded-none">Cancel</button>
+              <button onClick={saveItem} disabled={savingItem} className="flex-1 py-4 bg-[#1A1A1A] text-white text-[10px] font-bold uppercase tracking-widest hover:bg-[#1EBBA3] transition-colors rounded-none disabled:opacity-50">
+                {savingItem ? "Saving..." : editingItem ? "Save Changes" : "Add Item"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- CATEGORY MODAL --- */}
+      {catModalOpen && (
+        <div className="fixed inset-0 z-50 bg-[#1A1A1A]/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white shadow-2xl w-full max-w-sm rounded-none animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h2 className="text-xl font-bold uppercase tracking-tighter text-[#1A1A1A]">{editingCat ? "Edit Category" : "Add Category"}</h2>
+              <button onClick={() => setCatModalOpen(false)} className="text-gray-400 hover:text-[#1A1A1A] text-2xl font-light">×</button>
+            </div>
+            
+            <form onSubmit={saveCategory} className="p-6 space-y-6">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Category Name *</label>
+                <input required value={catForm.name} onChange={e => setCatForm({ ...catForm, name: e.target.value })}
+                  className="w-full border border-gray-300 rounded-none px-4 py-3 text-sm font-bold focus:outline-none focus:border-[#1EBBA3]" placeholder="e.g. Rice Meals" />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Icon (Emoji)</label>
+                  <input value={catForm.icon} onChange={e => setCatForm({ ...catForm, icon: e.target.value })}
+                    className="w-full border border-gray-300 rounded-none px-4 py-3 text-2xl text-center focus:outline-none focus:border-[#1EBBA3]" placeholder="🍽️" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Sort Order</label>
+                  <input type="number" required value={catForm.sort_order} onChange={e => setCatForm({ ...catForm, sort_order: e.target.value })}
+                    className="w-full border border-gray-300 rounded-none px-4 py-3 text-sm focus:outline-none focus:border-[#1EBBA3]" placeholder="1" />
+                </div>
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={catForm.is_active} onChange={e => setCatForm({ ...catForm, is_active: e.target.checked })} className="accent-[#1EBBA3] w-4 h-4 rounded-none cursor-pointer" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600">Active / Visible</span>
+                </label>
+              </div>
+
+              <div className="flex gap-4 pt-2">
+                <button type="button" onClick={() => setCatModalOpen(false)} className="flex-1 py-4 border border-gray-200 bg-gray-50 text-gray-500 text-[10px] font-bold uppercase tracking-widest hover:border-[#1A1A1A] hover:text-[#1A1A1A] transition-colors rounded-none">Cancel</button>
+                <button type="submit" disabled={savingCat} className="flex-1 py-4 bg-[#1A1A1A] text-white text-[10px] font-bold uppercase tracking-widest hover:bg-[#1EBBA3] transition-colors rounded-none disabled:opacity-50">
+                  {savingCat ? "Saving..." : editingCat ? "Save" : "Add Category"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
