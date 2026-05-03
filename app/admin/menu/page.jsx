@@ -71,12 +71,11 @@ export default function MenuBuilder() {
     setItemModalOpen(true);
   };
 
-  const saveItem = async (e) => {
+const saveItem = async (e) => {
     e.preventDefault();
     setSavingItem(true);
     
-    // 🚨 THE FIX: Explicitly define the payload. 
-    // This strips out the `id` and `created_at` fields so Supabase allows the update to process.
+    // 🚨 1. Build a CLEAN payload without the 'id' or 'created_at'
     const payload = {
       name: itemForm.name,
       price: parseFloat(itemForm.price) || 0,
@@ -89,19 +88,38 @@ export default function MenuBuilder() {
     };
 
     if (editingItem) {
-      const { error } = await supabase.from("menu_items").update(payload).eq("id", editingItem.id);
-      if (error) alert(`Failed to update: ${error.message}`);
-      else setItems(items.map(i => i.id === editingItem.id ? { ...i, ...payload } : i));
+      // 🚨 2. Add .select() so we can catch if Supabase silently ignores us
+      const { data, error } = await supabase
+        .from("menu_items")
+        .update(payload)
+        .eq("id", editingItem.id)
+        .select(); 
+
+      if (error) {
+        alert(`Failed to update: ${error.message}`);
+      } else if (!data || data.length === 0) {
+        alert("Silent Failure: The database blocked the update. Check your Supabase UPDATE policies for the menu_items table!");
+      } else {
+        // Success! Update the UI
+        setItems(items.map(i => i.id === editingItem.id ? { ...i, ...payload } : i));
+        setItemModalOpen(false);
+      }
     } else {
-      const { data, error } = await supabase.from("menu_items").insert([payload]).select();
+      const { data, error } = await supabase
+        .from("menu_items")
+        .insert([payload])
+        .select();
+        
       if (error) alert(`Failed to add: ${error.message}`);
-      else if (data) setItems([...items, data[0]]);
+      else if (data) {
+        setItems([...items, data[0]]);
+        setItemModalOpen(false);
+      }
     }
     
     setSavingItem(false);
-    setItemModalOpen(false);
   };
-
+  
   const deleteItem = async (id) => {
     if (!confirm("Permanently delete this item?")) return;
     const { error } = await supabase.from("menu_items").delete().eq("id", id);
