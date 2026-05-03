@@ -417,4 +417,3 @@ function FeaturedCard({ item, catEmoji }) {
     </div>
   );
 }
-```</Link></Link>
