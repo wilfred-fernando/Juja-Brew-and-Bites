@@ -33,13 +33,17 @@ export default function AdminLoyalty() {
       }
       setUser(session.user);
 
-      // 2. Fetch all loyalty members
+      // 2. Fetch all loyalty members using the EXACT CSV column name for sorting
       const { data, error } = await supabase
         .from("loyalty_members")
         .select("*")
-        .order("points_balance", { ascending: false }); // Sort by highest points first
+        .order("Points balance", { ascending: false }); // Sort by highest points first
         
-      if (!error && data) setMembers(data);
+      if (!error && data) {
+        setMembers(data);
+      } else if (error) {
+        console.error("Supabase Error:", error);
+      }
       setLoading(false);
     }
     loadData();
@@ -58,17 +62,17 @@ export default function AdminLoyalty() {
       const { error } = await supabase
         .from("loyalty_members")
         .update({
-          customer_name: editing.customer_name,
-          phone: editing.phone,
-          points_balance: parseFloat(editing.points_balance) || 0,
-          total_visits: parseInt(editing.total_visits) || 0,
-          note: editing.note
+          "Customer name": editing["Customer name"],
+          "Phone": editing["Phone"],
+          "Points balance": parseFloat(editing["Points balance"]) || 0,
+          "Total visits": parseInt(editing["Total visits"]) || 0,
+          "Note": editing["Note"]
         })
         .eq("id", editing.id);
 
       if (error) throw error;
 
-      // Update the local state instantly so we don't have to refresh the page
+      // Update the local state instantly
       setMembers(members.map(m => m.id === editing.id ? editing : m));
       setEditing(null);
     } catch (error) {
@@ -77,11 +81,11 @@ export default function AdminLoyalty() {
     setSaving(false);
   };
 
-  // Filter members based on search bar
+  // Filter members based on search bar using the exact CSV column names
   const filteredMembers = members.filter(m => 
-    (m.customer_name?.toLowerCase().includes(search.toLowerCase())) ||
-    (m.customer_code?.toLowerCase().includes(search.toLowerCase())) ||
-    (m.email?.toLowerCase().includes(search.toLowerCase()))
+    (m["Customer name"]?.toLowerCase().includes(search.toLowerCase())) ||
+    (m["Customer code"]?.toLowerCase().includes(search.toLowerCase())) ||
+    (m["Email"]?.toLowerCase().includes(search.toLowerCase()))
   );
 
   if (loading) {
@@ -141,7 +145,7 @@ export default function AdminLoyalty() {
           <div className="bg-white rounded-[24px] p-6 border border-rose-50 shadow-sm">
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Total Points Active</p>
             <p className="text-3xl font-black text-[#FC687D]">
-              {members.reduce((acc, curr) => acc + (parseFloat(curr.points_balance) || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              {members.reduce((acc, curr) => acc + (parseFloat(curr["Points balance"]) || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </p>
           </div>
         </div>
@@ -152,28 +156,28 @@ export default function AdminLoyalty() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-rose-50 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                  <th className="p-5 font-bold">Customer Info</th>
-                  <th className="p-5 font-bold">Member ID</th>
-                  <th className="p-5 font-bold">Points</th>
-                  <th className="p-5 font-bold">Visits</th>
-                  <th className="p-5 font-bold text-right">Action</th>
+                  <th className="p-5 font-bold whitespace-nowrap">Customer Info</th>
+                  <th className="p-5 font-bold whitespace-nowrap">Member ID</th>
+                  <th className="p-5 font-bold whitespace-nowrap">Points</th>
+                  <th className="p-5 font-bold whitespace-nowrap">Visits</th>
+                  <th className="p-5 font-bold text-right whitespace-nowrap">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-rose-50/50">
                 {filteredMembers.map((member) => (
                   <tr key={member.id} className="hover:bg-[#FFF9FA] transition-colors group">
                     <td className="p-5">
-                      <p className="font-extrabold text-slate-800 text-[13px]">{member.customer_name || "Unknown"}</p>
-                      <p className="text-slate-400 text-[11px] font-medium mt-0.5">{member.phone || member.email || "No contact info"}</p>
+                      <p className="font-extrabold text-slate-800 text-[13px]">{member["Customer name"] || "Unknown"}</p>
+                      <p className="text-slate-400 text-[11px] font-medium mt-0.5">{member["Phone"] || member["Email"] || "No contact info"}</p>
                     </td>
                     <td className="p-5">
-                      <span className="font-mono text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md">{member.customer_code || "—"}</span>
+                      <span className="font-mono text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md">{member["Customer code"] || "—"}</span>
                     </td>
                     <td className="p-5">
-                      <span className="font-black text-[#FC687D] text-lg">{parseFloat(member.points_balance || 0).toFixed(2)}</span>
+                      <span className="font-black text-[#FC687D] text-lg">{parseFloat(member["Points balance"] || 0).toFixed(2)}</span>
                     </td>
                     <td className="p-5">
-                      <span className="font-bold text-slate-700">{member.total_visits || 0}</span>
+                      <span className="font-bold text-slate-700">{member["Total visits"] || 0}</span>
                     </td>
                     <td className="p-5 text-right">
                       <button 
@@ -208,7 +212,7 @@ export default function AdminLoyalty() {
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h3 className="text-xl font-extrabold text-slate-800">Edit Member</h3>
-                <p className="text-slate-400 text-xs font-mono mt-1">{editing.customer_code}</p>
+                <p className="text-slate-400 text-xs font-mono mt-1">{editing["Customer code"]}</p>
               </div>
               <div className="w-12 h-12 bg-rose-50 text-[#FC687D] rounded-full flex items-center justify-center text-xl">⭐</div>
             </div>
@@ -216,37 +220,37 @@ export default function AdminLoyalty() {
             <form onSubmit={handleSaveEdit} className="space-y-4">
               <div>
                 <label className="block text-[11px] font-bold text-slate-800 mb-1.5 ml-1">Full Name</label>
-                <input type="text" value={editing.customer_name || ""}
-                  onChange={e => setEditing({...editing, customer_name: e.target.value})}
+                <input type="text" value={editing["Customer name"] || ""}
+                  onChange={e => setEditing({...editing, "Customer name": e.target.value})}
                   className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-medium text-slate-800 focus:outline-none focus:border-[#FC687D] transition-all" />
               </div>
               
               <div>
                 <label className="block text-[11px] font-bold text-slate-800 mb-1.5 ml-1">Phone Number</label>
-                <input type="text" value={editing.phone || ""}
-                  onChange={e => setEditing({...editing, phone: e.target.value})}
+                <input type="text" value={editing["Phone"] || ""}
+                  onChange={e => setEditing({...editing, "Phone": e.target.value})}
                   className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-medium text-slate-800 focus:outline-none focus:border-[#FC687D] transition-all" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-800 mb-1.5 ml-1">Points Balance</label>
-                  <input type="number" step="0.01" value={editing.points_balance || 0}
-                    onChange={e => setEditing({...editing, points_balance: e.target.value})}
+                  <input type="number" step="0.01" value={editing["Points balance"] || 0}
+                    onChange={e => setEditing({...editing, "Points balance": e.target.value})}
                     className="w-full bg-white border border-rose-200 text-[#FC687D] font-black rounded-2xl px-4 py-3 text-base focus:outline-none focus:ring-1 focus:ring-[#FC687D] transition-all" />
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-slate-800 mb-1.5 ml-1">Total Visits</label>
-                  <input type="number" value={editing.total_visits || 0}
-                    onChange={e => setEditing({...editing, total_visits: e.target.value})}
+                  <input type="number" value={editing["Total visits"] || 0}
+                    onChange={e => setEditing({...editing, "Total visits": e.target.value})}
                     className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-medium text-slate-800 focus:outline-none focus:border-[#FC687D] transition-all" />
                 </div>
               </div>
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-800 mb-1.5 ml-1">Notes (Birthday / Preferences)</label>
-                <input type="text" value={editing.note || ""}
-                  onChange={e => setEditing({...editing, note: e.target.value})}
+                <input type="text" value={editing["Note"] || ""}
+                  onChange={e => setEditing({...editing, "Note": e.target.value})}
                   className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-medium text-slate-800 focus:outline-none focus:border-[#FC687D] transition-all" />
               </div>
 
