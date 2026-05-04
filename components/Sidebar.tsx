@@ -7,6 +7,7 @@ const navItems = [
   { name: 'Stores', path: '/admin/stores', icon: '🛒' },
   { name: 'Menu', path: '/admin/menu', icon: '📋' },
   { name: 'Orders', path: '/admin/orders', icon: '📦' },
+  { name: "Loyalty", icon: "⭐", path: "/admin/loyalty" },
   { name: 'Analytics', path: '/admin/analytics', icon: '📈' },
   { name: 'Settings', path: '/admin/settings', icon: '⚙️' },
 ]
@@ -46,5 +47,3 @@ export default function Sidebar() {
     </aside>
   )
 }
-
-{ name: "Loyalty", icon: "⭐", path: "/admin/loyalty" }
