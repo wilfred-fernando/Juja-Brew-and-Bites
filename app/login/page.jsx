@@ -34,23 +34,37 @@ export default function Login() {
 
     try {
       if (mode === "login") {
-        const { error: authError } = await supabase.auth.signInWithPassword({
+        const { data, error: authError } = await supabase.auth.signInWithPassword({
           email: form.email,
           password: form.password,
         });
         if (authError) throw authError;
+
+        // 🚨 SECURITY CHECK: Block non-admins from the Staff Portal
+        if (portal === "admin") {
+          const userRole = data.user?.user_metadata?.role;
+          
+          if (userRole !== "admin") {
+            await supabase.auth.signOut(); // Immediately log them back out
+            throw new Error("Access Denied: Your account does not have staff privileges.");
+          }
+        }
 
       } else {
         const { error: authError } = await supabase.auth.signUp({
           email: form.email,
           password: form.password,
           options: {
-            data: { full_name: form.full_name }
+            data: { 
+              full_name: form.full_name,
+              role: "customer" // 🚨 FORCE newly signed-up users to be customers
+            }
           }
         });
         if (authError) throw authError;
       }
 
+      // Success! Send them to the right dashboard
       router.push(portal === "admin" ? "/admin" : "/customer");
 
     } catch (err) {
@@ -87,7 +101,7 @@ export default function Login() {
           <div className="flex bg-white rounded-full p-1.5 mb-8 shadow-sm border border-rose-50">
             {[
               { id: "customer", icon: "👤", label: "Customer" },
-              { id: "admin",    icon: "🔐", label: "Admin" },
+              { id: "admin",    icon: "🔐", label: "Admin / Staff" },
             ].map(p => (
               <button key={p.id} onClick={() => switchPortal(p.id)}
                 className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-full transition-all duration-300 ${
@@ -105,14 +119,14 @@ export default function Login() {
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.25em] bg-rose-50 text-[#FC687D] border border-rose-100">
               <span className="w-1.5 h-1.5 rounded-full bg-[#FC687D] animate-pulse" />
-              {isAdmin ? "Admin Portal" : "Customer Portal"}
+              {isAdmin ? "Staff Portal" : "Customer Portal"}
             </div>
             <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight mb-2">
               {mode === "login" ? "Welcome Back" : "Create Account"}
             </h1>
             <p className="text-slate-500 text-sm font-medium">
               {isAdmin
-                ? "Sign in with your admin credentials"
+                ? "Sign in to manage orders & the menu."
                 : mode === "login" ? "Sign in to your Juja account." : "Join the Juja loyalty program."}
             </p>
           </div>
@@ -159,8 +173,8 @@ export default function Login() {
 
               {/* Error Message */}
               {error && (
-                <div className="rounded-2xl px-5 py-3.5 text-xs font-bold flex items-center gap-3 bg-red-50 text-red-500 border border-red-100 animate-in slide-in-from-top-2">
-                  <span className="text-lg">⚠️</span>
+                <div className="rounded-2xl px-5 py-3.5 text-[13px] font-bold flex items-start gap-3 bg-red-50 text-red-500 border border-red-100 animate-in slide-in-from-top-2">
+                  <span className="text-lg leading-none">⚠️</span>
                   <span>{error}</span>
                 </div>
               )}
