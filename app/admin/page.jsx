@@ -16,12 +16,28 @@ export default function AdminDashboard() {
   const router = useRouter();
 
   useEffect(() => {
-    async function checkSession() {
+ async function checkSession() {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session || session.user.user_metadata?.role !== "admin") {
+
+      // 1. Check if they are logged in at all
+      if (!session) {
+        console.log("Bouncer: No session found!");
         router.push("/login");
         return;
       }
+
+      // 2. Check their role safely
+      const role = session.user?.user_metadata?.role;
+      console.log("Bouncer checked ID. Role is:", role);
+
+      if (role !== "admin") {
+        console.log("Bouncer: Access Denied. Kicking back to login.");
+        router.push("/login");
+        return;
+      }
+
+      // 3. Let them in!
+      console.log("Bouncer: Welcome Admin!");
       setUser(session.user);
       setLoading(false);
     }
