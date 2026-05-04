@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
-
 import { supabase } from "@/lib/supabase";
 
 const emptyItem = { name: "", price: "", category: "", description: "", image_url: "", is_available: true, is_featured: false, option_groups: [] };

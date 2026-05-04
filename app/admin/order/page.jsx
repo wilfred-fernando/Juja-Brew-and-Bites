@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
-
 import { supabase } from "@/lib/supabase";
 
 const STATUS_COLORS = {
