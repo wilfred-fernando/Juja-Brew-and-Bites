@@ -246,34 +246,9 @@ const saveItem = async (e) => {
             </div>
           </div>
 
-          {/* ITEM CARDS GRID */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredItems.map(item => (
-              <div key={item.id} className={`bg-white rounded-[24px] p-3.5 border border-rose-50 shadow-sm flex flex-col hover:shadow-md hover:-translate-y-1 transition-all duration-300 ${!item.is_available ? "opacity-60 grayscale-[0.2]" : ""}`}>
-                <div className="h-44 bg-slate-50 rounded-[16px] mb-4 overflow-hidden relative border border-slate-100">
-                  {item.image_url ? (
-                    <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-4xl opacity-20">📷</div>
-                  )}
-                </div>
-                
-                <div className="px-1.5 flex-1 flex flex-col">
-                  <div className="flex justify-between items-start gap-2 mb-1">
-                    <h3 className="font-extrabold text-slate-800 text-[15px] leading-tight tracking-tight">{item.name}</h3>
-                    <span className="font-black text-[#FC687D] text-[15px]">₱{item.price}</span>
-                  </div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">{item.category}</p>
-                  
-                  <div className="mb-5 mt-auto">
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold rounded-full border ${
-                      item.is_available ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-slate-100 text-slate-500 border-slate-200"
-                    }`}>
-                      <span className={`w-2 h-2 rounded-full ${item.is_available ? "bg-emerald-500" : "bg-slate-400"}`}></span>
-                      {item.is_available ? "Available" : "Disabled"}
-                    </span>
-                  </div>
-                </div>
+return (
+  <AdminMenuBuilder />
+);
 
                 <div className="flex gap-2">
                   <button onClick={() => openEditItem(item)} className="flex-1 py-2.5 bg-slate-50 border border-slate-100 text-slate-700 text-[11px] font-bold rounded-xl hover:bg-[#FC687D] hover:text-white hover:border-[#FC687D] transition-all flex items-center justify-center gap-2">
