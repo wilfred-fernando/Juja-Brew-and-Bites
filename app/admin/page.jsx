@@ -48,7 +48,7 @@ export default function AdminDashboard() {
     { name: "Home", icon: "🏠", path: "/admin", active: true },
     { name: "Live Orders", icon: "📋", path: "/admin/orders" },
     { name: "Menu Builder", icon: "🧩", path: "/admin/menu" },
-    { name: "Loyalty", icon: "⭐", path: "/admin/loyalty" }, // <-- ADDED HERE
+    { name: "Loyalty", icon: "⭐", path: "/admin/loyalty" }, 
     { name: "Promo Code", icon: "🎁", path: "/admin/promos" },
     { name: "Settings", icon: "⚙️", path: "/admin/settings" },
     { name: "Accounts", icon: "👥", path: "/admin/accounts" },
@@ -58,7 +58,7 @@ export default function AdminDashboard() {
   const dashboardCards = [
     { title: "Live Orders", icon: "📋", desc: "View and manage incoming orders in real time.", path: "/admin/orders" },
     { title: "Menu Builder", icon: "🧩", desc: "Add, edit, and organize your menu items and categories.", path: "/admin/menu" },
-    { title: "Loyalty Program", icon: "⭐", desc: "Manage customer points, visits, and edit member details.", path: "/admin/loyalty" }, // <-- ADDED HERE
+    { title: "Loyalty Program", icon: "⭐", desc: "Manage customer points, visits, and edit member details.", path: "/admin/loyalty" },
     { title: "Promo Codes", icon: "🎁", desc: "Create and manage discount codes for customers.", path: "/admin/promos" },
     { title: "Settings", icon: "⚙️", desc: "Update store info, hours, delivery fees, and more.", path: "/admin/settings" },
     { title: "Accounts", icon: "👥", desc: "Manage staff access and account settings.", path: "/admin/accounts" },
@@ -67,27 +67,44 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-[#FFF5F7] flex font-sans text-slate-800">
       
-      {/* ── SIDEBAR ── */}
-      <aside className="w-64 bg-white border-r border-rose-50 flex flex-col hidden md:flex sticky top-0 h-screen shadow-[4px_0_24px_rgba(252,104,125,0.02)]">
-        <div className="p-6 pb-8 border-b border-rose-50">
-          <img src={LOGO} alt="Juja" className="h-10 w-auto object-contain" />
+      {/* ── RESTORED ORIGINAL SIDEBAR ── */}
+      <aside className="w-72 bg-white border-r border-rose-50 flex flex-col hidden md:flex sticky top-0 h-screen shadow-[4px_0_24px_rgba(252,104,125,0.02)]">
+        {/* Logo */}
+        <div className="p-8 pb-6">
+          <img src={LOGO} alt="Juja" className="h-10 w-auto object-contain mx-auto" />
         </div>
-        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+        
+        {/* Navigation */}
+        <nav className="flex-1 px-6 py-4 space-y-2 overflow-y-auto">
           {sidebarLinks.map((link) => (
             <Link key={link.name} href={link.path}
-              className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-[13px] font-bold transition-all ${
+              className={`flex items-center gap-4 px-6 py-3.5 rounded-full text-[13px] font-bold transition-all ${
                 link.active 
                   ? "bg-[#FC687D] text-white shadow-md shadow-rose-200" 
-                  : "text-slate-500 hover:bg-rose-50 hover:text-[#FC687D]"
+                  : "text-slate-600 hover:bg-rose-50 hover:text-[#FC687D]"
               }`}>
-              <span className="text-lg">{link.icon}</span>
+              <span className="text-xl">{link.icon}</span>
               {link.name}
             </Link>
           ))}
         </nav>
-        <div className="p-4 border-t border-rose-50">
-          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-[13px] font-bold text-slate-500 hover:bg-rose-50 hover:text-rose-500 transition-all">
-            <span className="text-lg">🚪</span> Sign Out
+
+        {/* User Profile & Sign Out Bottom Section */}
+        <div className="p-6 bg-white">
+          {/* User Pill */}
+          <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-full p-1.5 pr-4 mb-4">
+            <div className="w-8 h-8 rounded-full bg-rose-100 text-[#FC687D] flex items-center justify-center font-black text-sm shrink-0">
+              {user?.email?.charAt(0).toUpperCase() || 'J'}
+            </div>
+            <span className="text-[10px] font-bold text-slate-500 truncate uppercase tracking-widest">
+              {user?.email || "ADMIN@JUJA.COM"}
+            </span>
+          </div>
+          
+          {/* Sign Out Button */}
+          <button onClick={handleLogout} 
+            className="w-full py-3.5 rounded-full border border-slate-200 text-slate-600 font-bold text-[11px] uppercase tracking-widest hover:border-[#FC687D] hover:text-[#FC687D] hover:bg-rose-50 transition-all shadow-sm">
+            Sign Out
           </button>
         </div>
       </aside>
