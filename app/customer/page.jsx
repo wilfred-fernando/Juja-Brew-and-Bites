@@ -14,7 +14,7 @@ const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9d
 
 function genMemberId() {
   const n = String(Math.floor(Math.random() * 999999) + 1).padStart(6, "0");
-  return `JUJAVD${new Date().getFullYear()}${n}`;
+  return `JUJA${new Date().getFullYear()}${n}`; // Matching your JUJA2025... format
 }
 
 // ─── BOTTOM TAB BAR ───────────────────────────────────────────────────────────
@@ -77,21 +77,21 @@ function HomeTab({ member, user, setTab }) {
         <div className="relative z-10">
           <p className="text-[#FC687D] text-[10px] font-black uppercase tracking-[0.25em] mb-1">Welcome back 👋</p>
           <h2 className="text-3xl font-extrabold text-slate-800 leading-tight mb-1 tracking-tight">
-            {member?.full_name || user?.user_metadata?.full_name || "Coffee Lover"}
+            {member?.customer_name || user?.user_metadata?.full_name || "Coffee Lover"}
           </h2>
-          {member?.member_id && (
-            <p className="text-slate-400 text-xs font-mono tracking-wider font-bold">{member.member_id}</p>
+          {member?.customer_code && (
+            <p className="text-slate-400 text-xs font-mono tracking-wider font-bold">{member.customer_code}</p>
           )}
 
           {member && (
             <div className="flex gap-6 mt-6 bg-[#FFF9FA] p-4 rounded-3xl border border-rose-50 inline-flex">
               <div>
-                <p className="text-[#FC687D] font-black text-2xl leading-none">{(member.points || 0).toFixed(0)}</p>
+                <p className="text-[#FC687D] font-black text-2xl leading-none">{parseFloat(member.points_balance || 0).toFixed(0)}</p>
                 <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mt-1">Points</p>
               </div>
               <div className="w-px bg-rose-100" />
               <div>
-                <p className="text-slate-800 font-black text-2xl leading-none">{member.visits || 0}</p>
+                <p className="text-slate-800 font-black text-2xl leading-none">{member.total_visits || 0}</p>
                 <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mt-1">Visits</p>
               </div>
             </div>
@@ -150,18 +150,21 @@ function HomeTab({ member, user, setTab }) {
 function LoyaltyTab({ member, setMember, user }) {
   const [joining, setJoining] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ full_name: "", phone: "", address: "", birthday: "" });
+  const [form, setForm] = useState({ customer_name: "", phone: "", address: "", note: "" });
   const [saving, setSaving] = useState(false);
 
   const join = async () => {
     setJoining(true);
     try {
       const payload = {
-        full_name: user?.user_metadata?.full_name || "",
+        customer_name: user?.user_metadata?.full_name || "",
         email: user?.email || "",
-        phone: "", address: "", birthday: null,
-        member_id: genMemberId(),
-        points: 0, visits: 0,
+        phone: "", 
+        address: "", 
+        note: "", // Used for birthday/notes
+        customer_code: genMemberId(),
+        points_balance: 0, 
+        total_visits: 0,
         last_visit: new Date().toISOString().split("T")[0],
         user_id: user?.id,
       };
@@ -173,7 +176,12 @@ function LoyaltyTab({ member, setMember, user }) {
   };
 
   const startEdit = () => {
-    setForm({ full_name: member.full_name || "", phone: member.phone || "", address: member.address || "", birthday: member.birthday || "" });
+    setForm({ 
+      customer_name: member.customer_name || "", 
+      phone: member.phone || "", 
+      address: member.address || "", 
+      note: member.note || "" 
+    });
     setEditing(true);
   };
 
@@ -227,7 +235,7 @@ function LoyaltyTab({ member, setMember, user }) {
   }
 
   // ── Loyalty Card ──
-  const pts = member.points || 0;
+  const pts = parseFloat(member.points_balance) || 0;
   const progress = (pts % 100) / 100 * 100;
   const nextReward = Math.ceil((pts + 0.01) / 100) * 100;
 
@@ -235,6 +243,7 @@ function LoyaltyTab({ member, setMember, user }) {
     if (!val) return "";
     try {
       const d = new Date(val + "T00:00:00");
+      if (isNaN(d.getTime())) return val; // Fallback if they entered text instead of a date
       return `${d.getFullYear()}-${d.toLocaleString("en", { month: "short" })}-${String(d.getDate()).padStart(2, "0")}`;
     } catch { return val; }
   };
@@ -255,15 +264,15 @@ function LoyaltyTab({ member, setMember, user }) {
           <div className="w-20 h-20 rounded-[24px] mx-auto mb-4 flex items-center justify-center text-4xl bg-white/20 border border-white/30 backdrop-blur-md shadow-inner">
             👤
           </div>
-          <h3 className="text-2xl font-extrabold text-white tracking-tight">{member.full_name || "Juja Member"}</h3>
+          <h3 className="text-2xl font-extrabold text-white tracking-tight">{member.customer_name || "Juja Member"}</h3>
         </div>
 
         <div className="px-6 py-6 space-y-5 border-b border-white/20 bg-black/5">
           {[
             { icon: "📞", value: member.phone || "—" },
             { icon: "📍", value: member.address || "—" },
-            { icon: "▦", value: member.member_id, mono: true },
-            { icon: "🎂", value: fmtBirthday(member.birthday) || "—" },
+            { icon: "▦", value: member.customer_code, mono: true },
+            { icon: "🎂", value: fmtBirthday(member.note) || "—" }, // We use note for birthdays based on CSV
           ].map(({ icon, value, mono }) => (
             <div key={icon} className="flex items-center gap-4">
               <span className="text-xl text-white/60 w-7 text-center">{icon}</span>
@@ -306,10 +315,10 @@ function LoyaltyTab({ member, setMember, user }) {
             <h3 className="text-xl font-extrabold text-slate-800 mb-6">Edit Profile</h3>
             <form onSubmit={saveEdit} className="space-y-5">
               {[
-                ["full_name", "Full Name", "text", "Your full name"],
+                ["customer_name", "Full Name", "text", "Your full name"],
                 ["phone", "Phone Number", "tel", "09XX XXX XXXX"],
                 ["address", "Location / City", "text", "e.g. QC, Metro Manila"],
-                ["birthday", "Birthday", "date", ""],
+                ["note", "Birthday (YYYY-MM-DD)", "text", "1995-12-25"],
               ].map(([key, lbl, type, ph]) => (
                 <div key={key}>
                   <label className="block text-[11px] font-bold text-slate-800 mb-2 ml-1">{lbl}</label>
@@ -392,7 +401,7 @@ function OrderTab({ user }) {
       const payload = {
         ...form,
         customer_email: user?.email || "",
-        items: cartArr, // Saved as JSONB in Supabase
+        items: cartArr, 
         total_amount: total,
         status: "Pending",
         payment_status: "Unpaid",
@@ -610,7 +619,7 @@ function BookingTab({ user, member }) {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [form, setForm] = useState({
-    customer_name: member?.full_name || user?.user_metadata?.full_name || "",
+    customer_name: member?.customer_name || user?.user_metadata?.full_name || "",
     customer_email: user?.email || "",
     customer_phone: member?.phone || "",
     event_type: "", event_date: "", start_time: "", end_time: "",
@@ -815,7 +824,7 @@ function ProfileTab({ user, member, setTab, onLogout }) {
         <div className="flex items-center gap-5 mb-6 pb-6 border-b border-rose-50">
           <div className="w-16 h-16 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-3xl flex-shrink-0">👤</div>
           <div>
-            <p className="font-extrabold text-slate-800 text-lg">{user?.user_metadata?.full_name || member?.full_name || "Customer"}</p>
+            <p className="font-extrabold text-slate-800 text-lg">{user?.user_metadata?.full_name || member?.customer_name || "Customer"}</p>
             <p className="text-slate-500 text-xs font-medium mt-0.5">{user?.email}</p>
             {member && <p className="text-[#FC687D] bg-rose-50 px-3 py-1 inline-block rounded-full border border-rose-100 text-[10px] font-bold uppercase tracking-widest mt-2">⭐ Loyalty Member</p>}
           </div>
@@ -826,8 +835,8 @@ function ProfileTab({ user, member, setTab, onLogout }) {
             ["📧", "Email Address", user?.email],
             ["📞", "Phone Number", member?.phone || "—"],
             ["📍", "Location / City", member?.address || "—"],
-            ["▦",  "Member ID", member?.member_id || "Not enrolled"],
-            ["🎂", "Birthday", member?.birthday || "—"],
+            ["▦",  "Member ID", member?.customer_code || "Not enrolled"],
+            ["🎂", "Birthday", member?.note || "—"],
           ].map(([ic, lbl, val]) => (
             <div key={lbl} className="flex items-center gap-4 bg-slate-50 p-3 rounded-2xl border border-slate-100">
               <span className="text-xl w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm flex-shrink-0">{ic}</span>
@@ -884,7 +893,7 @@ export default function Customer() {
       
       setUser(session.user);
       
-      // Fetch loyalty member data
+      // Fetch loyalty member data using the user's ID
       try {
         const { data } = await supabase.from("loyalty_members").select("*").eq("user_id", session.user.id).single();
         if (data) setMember(data);
