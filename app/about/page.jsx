@@ -49,7 +49,7 @@ function Nav({ active }) {
         <div className="hidden md:flex items-center gap-3">
           <Link href="/login"
             className="text-[11px] font-bold uppercase tracking-widest px-5 py-2.5 rounded-full border border-slate-200 text-slate-500 hover:border-[#FC687D] hover:text-[#FC687D] hover:bg-rose-50 transition-all duration-300">
-            Staff Login
+            Login
           </Link>
           <Link href="/order"
             className="text-[11px] font-black uppercase tracking-widest px-7 py-3 rounded-full bg-[#FC687D] text-white hover:bg-rose-500 hover:shadow-[0_6px_20px_rgba(252,104,125,0.4)] hover:-translate-y-0.5 transition-all duration-300 shadow-md">
