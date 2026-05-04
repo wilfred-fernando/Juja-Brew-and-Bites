@@ -33,7 +33,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // ─── 1. LOGIN FLOW ───
+// ─── 1. LOGIN FLOW ───
       if (mode === "login") {
         const { data, error: authError } = await supabase.auth.signInWithPassword({
           email: form.email,
@@ -43,13 +43,20 @@ export default function Login() {
 
         // SECURITY CHECK: Block non-admins from the Staff Portal
         if (portal === "admin") {
+          // --- NEW TRACKER CONSOLE LOGS ---
+          console.log("🟢 LOGIN SUCCESSFUL!");
+          console.log("🟢 FULL USER DATA:", data.user);
+          console.log("🟢 USER METADATA:", data.user?.user_metadata);
+          
           const userRole = data.user?.user_metadata?.role;
           if (userRole !== "admin") {
             await supabase.auth.signOut();
-            throw new Error("Access Denied: Your account does not have admin privileges.");
+            throw new Error(`Access Denied! Supabase says your role is: ${userRole || "UNDEFINED"}`);
           }
+          
+          console.log("🟢 ADMIN VERIFIED! REDIRECTING TO /ADMIN NOW...");
         }
-      } 
+      }
       
       // ─── 2. SIGNUP FLOW ───
       else if (mode === "signup") {
