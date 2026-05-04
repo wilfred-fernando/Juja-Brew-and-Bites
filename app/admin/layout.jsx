@@ -1,12 +1,128 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { supabase } from '@/lib/supabase'; 
+// (Adjust the path depending on where you saved the file)
+
+const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
+
 export default function AdminLayout({ children }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user) setUserEmail(data.user.email);
+    });
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
+
+  const navItems = [
+    { name: "Home", path: "/admin", icon: "🏠" },
+    { name: "Live Orders", path: "/admin/orders", icon: "📋" },
+    { name: "Menu Builder", path: "/admin/menu", icon: "🧩" },
+    { name: "Loyalty Program", icon: "⭐", path: "/admin/loyalty" },
+    { name: "Promo Code", path: "/admin/promos", icon: "🎁" },
+    { name: "Settings", path: "/admin/settings", icon: "⚙️" },
+    { name: "Accounts", path: "/admin/accounts", icon: "👥" },
+  ];
+
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#f8fafc" }}>
-      <div style={{ background: "yellow", padding: "10px", textAlign: "center", color: "black", fontWeight: "bold" }}>
-        ⚠️ SECURITY BYPASS ACTIVE 
+    <div className="min-h-screen bg-[#FFF5F7] font-sans flex flex-col md:flex-row">
+      
+      {/* ─── MOBILE TOP BAR ─── */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-rose-50 shadow-sm">
+        <div className="flex items-center justify-between px-6 py-4">
+          {/* Show the standard logo, not inverted or blacked out */}
+          <img src={LOGO} alt="Juja" className="h-8 object-contain transition-transform hover:scale-105" />
+          <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2 -mr-2">
+            <div className="w-5 space-y-[5px]">
+              <span className={`block h-[2px] bg-slate-800 rounded transition-all duration-300 ${mobileOpen ? "rotate-45 translate-y-[7px]" : ""}`} />
+              <span className={`block h-[2px] bg-slate-800 rounded transition-all duration-300 ${mobileOpen ? "opacity-0" : ""}`} />
+              <span className={`block h-[2px] bg-slate-800 rounded transition-all duration-300 ${mobileOpen ? "-rotate-45 -translate-y-[7px]" : ""}`} />
+            </div>
+          </button>
+        </div>
+        
+        {/* Mobile Dropdown Menu with pink/white theme */}
+        {mobileOpen && (
+          <div className="bg-white border-t border-rose-50 px-6 py-6 shadow-2xl space-y-2">
+            {navItems.map((item) => {
+              const isActive = item.path === "/admin" ? pathname === "/admin" : pathname?.startsWith(item.path);
+              return (
+                <Link key={item.name} href={item.path} onClick={() => setMobileOpen(false)}
+                  className={`flex items-center gap-4 px-6 py-3.5 rounded-full transition-all duration-300 ${
+                    isActive 
+                      ? "bg-[#FC687D] text-white shadow-[0_8px_20px_rgba(252,104,125,0.3)] shadow-rose-200" 
+                      : "text-slate-500 hover:bg-rose-50 hover:text-[#FC687D]"
+                  }`}>
+                  <span className="text-xl">{item.icon}</span>
+                  <span className="text-sm font-bold tracking-tight">{item.name}</span>
+                </Link>
+              );
+            })}
+            <div className="pt-4 mt-4 border-t border-rose-50">
+              <button onClick={handleLogout} className="w-full text-left px-6 py-3.5 text-sm font-bold text-slate-400 hover:text-rose-500 transition-colors">
+                Sign Out
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-      {children}
+
+      {/* ─── DESKTOP SIDEBAR ─── */}
+      <aside className="hidden md:flex w-[260px] bg-[#FFF9FA] border-r border-rose-100 flex-col fixed h-full z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)] rounded-r-3xl">
+        <div className="p-8 pb-6 flex justify-center border-b border-rose-50/50">
+          {/* Show the standard, colored logo, matching the public site */}
+          <img src={LOGO} alt="Juja" className="h-14 object-contain transition-transform hover:scale-105" />
+        </div>
+        
+        <nav className="flex-1 py-8 px-5 space-y-2 overflow-y-auto hide-scrollbar">
+          {navItems.map((item) => {
+            const isActive = item.path === "/admin" ? pathname === "/admin" : pathname?.startsWith(item.path);
+            return (
+              <Link key={item.name} href={item.path}
+                className={`flex items-center gap-4 px-5 py-4 rounded-full transition-all duration-300 ${
+                  isActive 
+                    ? "bg-[#FC687D] text-white shadow-[0_8px_20px_rgba(252,104,125,0.25)] shadow-rose-200 -translate-y-0.5" 
+                    : "text-slate-600 hover:bg-rose-50 hover:text-[#FC687D]"
+                }`}>
+                <span className="text-2xl">{item.icon}</span>
+                <span className="text-sm font-bold tracking-tight mt-0.5">{item.name}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Dynamic, seamlessly integrated bottom section for sign out */}
+        <div className="p-8 border-t border-rose-50 bg-[#FFF9FA] rounded-b-3xl">
+          <div className="flex items-center gap-3 px-2 mb-4 bg-white/50 p-3 rounded-xl shadow-inner">
+            <div className="w-10 h-10 rounded-full bg-rose-100 text-[#FC687D] flex items-center justify-center font-bold text-sm shadow-inner">
+              {userEmail ? userEmail.charAt(0).toUpperCase() : "A"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest truncate">{userEmail || "Admin"}</p>
+            </div>
+          </div>
+          <button onClick={handleLogout} className="w-full text-center px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest text-slate-500 border border-slate-200 hover:border-rose-200 hover:text-rose-500 hover:bg-white transition-all shadow-sm">
+            Sign Out
+          </button>
+        </div>
+      </aside>
+
+      {/* ─── MAIN CONTENT ─── */}
+      <main className="flex-1 md:ml-[260px] pt-20 md:pt-0 p-6 md:p-10 transition-all duration-300 bg-[#FFF5F7]">
+        {children}
+      </main>
+      
     </div>
   );
 }
