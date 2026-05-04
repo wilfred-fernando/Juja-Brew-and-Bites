@@ -200,24 +200,3 @@ export default function Login() {
               </div>
             </div>
           )}
-
-          {/* Admin info strip */}
-          {isAdmin && (
-            <div className="mt-6 rounded-[24px] p-6 border border-rose-100 bg-[#FFF9FA] shadow-sm">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">Admin Features</p>
-              <div className="space-y-3">
-                {[["📋","Live order management dashboard"],["🧩","Menu & category builder"],["⭐","Loyalty member records"],["🎪","Function room booking management"]].map(([ic,txt]) => (
-                  <div key={txt} className="flex items-center gap-3 text-[13px] font-medium text-slate-600">
-                    <span className="w-6 text-center">{ic}</span>
-                    <span>{txt}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-        </div>
-      </div>
-    </div>
-  );
-}
