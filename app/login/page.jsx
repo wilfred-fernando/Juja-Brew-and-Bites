@@ -37,12 +37,11 @@ export default function Login() {
         });
         if (authError) throw authError;
 
-        if (portal === "admin") {
-          // TEMPORARY BYPASS: Ignore the role check and force the door open!
-          console.log("Forcing entry to Admin page...");
-          router.push("/admin");
-          return; // Stop here
-        }
+if (portal === "admin") {
+    console.log("Forcing entry to Admin page...");
+    window.location.href = "/admin"; // <-- Forces a hard browser jump
+    return;
+  }
       }
       
       // ─── 2. SIGNUP FLOW ───
