@@ -15,7 +15,7 @@ export default function MenuAdminPage() {
   const [modalTab, setModalTab] = useState("Details");
   const [editingItem, setEditingItem] = useState(null);
   
-  // Expanded form state to match your screenshot
+  // Expanded form state
   const [form, setForm] = useState({ 
     name: "", 
     category: "", 
@@ -46,7 +46,7 @@ export default function MenuAdminPage() {
 
   // Open modal to add or edit
   const openModal = (item = null) => {
-    setModalTab("Details"); // Reset tab to Details when opening
+    setModalTab("Details"); 
     if (item) {
       setEditingItem(item);
       setForm({
@@ -55,7 +55,7 @@ export default function MenuAdminPage() {
         price: item.price || "",
         description: item.description || "",
         image_url: item.image_url || "",
-        is_available: item.is_available !== false, // Defaults to true if null
+        is_available: item.is_available !== false,
         is_featured: item.is_featured || false
       });
     } else {
@@ -84,7 +84,7 @@ export default function MenuAdminPage() {
       } else {
         await supabase.from("menu_items").insert([form]);
       }
-      await fetchData(); // Refresh the list
+      await fetchData(); 
       setIsModalOpen(false);
     } catch (error) {
       alert("Error saving item: " + error.message);
@@ -163,58 +163,66 @@ export default function MenuAdminPage() {
         </div>
       </div>
 
-      {/* GRID LAYOUT */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {/* LIST LAYOUT */}
+      <div className="flex flex-col gap-4">
+        {/* Add New Item Button Slot */}
+        <button onClick={() => openModal()} className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[20px] p-4 flex items-center justify-center gap-3 text-slate-400 hover:bg-rose-50 hover:border-rose-200 hover:text-[#FC687D] transition-all group shadow-sm">
+          <span className="text-2xl leading-none group-hover:scale-110 transition-transform">+</span>
+          <span className="font-bold text-sm">Add New Item</span>
+        </button>
+
         {filteredItems.map(item => (
-          <div key={item.id} className="bg-white rounded-[24px] border border-rose-50 shadow-sm overflow-hidden flex flex-col group hover:shadow-md transition-all">
-            {/* Image Placeholder */}
-            <div className="h-48 bg-slate-50 flex items-center justify-center relative overflow-hidden">
-              {item.image_url ? (
-                <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-4xl text-slate-200">📷</span>
-              )}
+          <div key={item.id} className="bg-white rounded-[20px] border border-rose-50 shadow-sm p-4 pr-6 flex items-center justify-between hover:shadow-md transition-all group">
+            
+            {/* Image & Info */}
+            <div className="flex items-center gap-5">
+              <div className="w-16 h-16 rounded-xl bg-slate-50 flex items-center justify-center relative overflow-hidden flex-shrink-0 border border-slate-100">
+                {item.image_url ? (
+                  <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-2xl text-slate-200">📷</span>
+                )}
+              </div>
+              <div>
+                <h3 className="font-extrabold text-slate-800 text-[15px] mb-1">{item.name}</h3>
+                <div className="flex items-center gap-3">
+                  <span className="font-black text-[#FC687D] text-sm">₱{item.price}</span>
+                  <span className="text-slate-300 text-xs">•</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{item.category}</span>
+                </div>
+              </div>
             </div>
             
-            {/* Content */}
-            <div className="p-5 flex-1 flex flex-col">
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="font-extrabold text-slate-800 text-[15px] leading-tight pr-2">{item.name}</h3>
-                <span className="font-black text-[#FC687D]">₱{item.price}</span>
-              </div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">{item.category}</p>
-              
-              {/* Status */}
-              <div className="mb-4">
-                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border inline-flex items-center gap-1.5 ${
-                  item.is_available ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-slate-50 text-slate-400 border-slate-200"
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${item.is_available ? "bg-emerald-500" : "bg-slate-300"}`}></span>
-                  {item.is_available ? "Available" : "Disabled"}
-                </span>
-              </div>
+            {/* Status & Actions */}
+            <div className="flex items-center gap-8">
+              <span className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border flex items-center gap-1.5 ${
+                item.is_available ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-slate-50 text-slate-400 border-slate-200"
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${item.is_available ? "bg-emerald-500" : "bg-slate-300"}`}></span>
+                {item.is_available ? "Available" : "Disabled"}
+              </span>
 
-              {/* Action Buttons */}
-              <div className="mt-auto pt-4 border-t border-slate-100 grid grid-cols-3 gap-2">
-                <button onClick={() => openModal(item)} className="col-span-1 py-2 bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600 hover:text-[#FC687D] hover:border-rose-200 hover:bg-rose-50 rounded-xl transition-all flex items-center justify-center gap-1">
+              {/* Action Buttons (Visible on Hover) */}
+              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => openModal(item)} className="px-4 py-2 bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600 hover:text-[#FC687D] hover:border-rose-200 hover:bg-rose-50 rounded-xl transition-all">
                   ✎ Edit
                 </button>
-                <button className="col-span-1 py-2 bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-all">
+                <button className="px-4 py-2 bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-all">
                   Disable
                 </button>
-                <button onClick={() => handleDelete(item.id)} className="col-span-1 py-2 bg-slate-50 border border-slate-200 text-xs font-bold text-slate-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 rounded-xl transition-all flex items-center justify-center">
+                <button onClick={() => handleDelete(item.id)} className="w-10 h-10 flex items-center justify-center bg-slate-50 border border-slate-200 text-sm text-slate-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 rounded-xl transition-all">
                   🗑
                 </button>
               </div>
             </div>
           </div>
         ))}
-
-        {/* Add New Card Slot */}
-        <button onClick={() => openModal()} className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[24px] h-[360px] flex flex-col items-center justify-center text-slate-400 hover:bg-rose-50 hover:border-rose-200 hover:text-[#FC687D] transition-all group">
-          <span className="text-4xl mb-2 group-hover:scale-110 transition-transform">+</span>
-          <span className="font-bold text-sm">Add New Item</span>
-        </button>
+        
+        {filteredItems.length === 0 && (
+          <div className="text-center py-20 text-slate-400 font-bold uppercase tracking-widest text-sm border-2 border-dashed border-slate-100 rounded-[24px]">
+            No items found
+          </div>
+        )}
       </div>
 
       {/* DETAILED ADD / EDIT MODAL */}
@@ -225,32 +233,32 @@ export default function MenuAdminPage() {
             {/* Modal Header */}
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-2xl font-extrabold text-slate-800">{editingItem ? "Edit Item" : "Add New Item"}</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors text-xl">
                 ✕
               </button>
             </div>
 
             {/* Modal Tabs */}
-            <div className="flex gap-2 mb-6">
+            <div className="flex gap-2 mb-6 bg-rose-50/30 p-1.5 rounded-2xl w-fit border border-rose-50">
               <button 
                 onClick={() => setModalTab("Details")}
-                className={`px-5 py-2 rounded-full text-sm font-bold flex items-center gap-2 transition-colors ${
-                  modalTab === "Details" ? "bg-rose-50 text-[#FC687D]" : "text-slate-500 hover:bg-slate-50"
+                className={`px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${
+                  modalTab === "Details" ? "bg-white text-slate-800 shadow-sm border border-slate-100" : "text-slate-500 hover:text-slate-700"
                 }`}
               >
-                📄 Details
+                <span className="opacity-70">📄</span> Details
               </button>
               <button 
                 onClick={() => setModalTab("Option Groups")}
-                className={`px-5 py-2 rounded-full text-sm font-bold flex items-center gap-2 transition-colors ${
-                  modalTab === "Option Groups" ? "bg-rose-50 text-[#FC687D]" : "text-slate-500 hover:bg-slate-50"
+                className={`px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${
+                  modalTab === "Option Groups" ? "bg-white text-[#FC687D] shadow-sm border border-slate-100" : "text-slate-500 hover:text-slate-700"
                 }`}
               >
-                ⚙️ Option Groups
+                <span className="opacity-70">⚙️</span> Option Groups
               </button>
             </div>
             
-            {/* Modal Form */}
+            {/* Modal Form Content */}
             {modalTab === "Details" ? (
               <form onSubmit={handleSave} className="space-y-5">
                 <div>
@@ -284,17 +292,18 @@ export default function MenuAdminPage() {
 
                 <div className="flex items-center gap-8 pt-2">
                   <div className="flex items-center gap-3">
-                    <input type="checkbox" id="avail" checked={form.is_available} onChange={e => setForm({...form, is_available: e.target.checked})} className="w-5 h-5 rounded accent-[#FC687D]" />
+                    <input type="checkbox" id="avail" checked={form.is_available} onChange={e => setForm({...form, is_available: e.target.checked})} className="w-5 h-5 rounded accent-[#FC687D] cursor-pointer" />
                     <label htmlFor="avail" className="text-sm font-bold text-slate-700 cursor-pointer">Available</label>
                   </div>
                   <div className="flex items-center gap-3">
-                    <input type="checkbox" id="feat" checked={form.is_featured} onChange={e => setForm({...form, is_featured: e.target.checked})} className="w-5 h-5 rounded accent-[#FC687D]" />
+                    <input type="checkbox" id="feat" checked={form.is_featured} onChange={e => setForm({...form, is_featured: e.target.checked})} className="w-5 h-5 rounded accent-[#FC687D] cursor-pointer" />
                     <label htmlFor="feat" className="text-sm font-bold text-slate-700 cursor-pointer">Featured / Must Try</label>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 pt-6 mt-2 border-t border-slate-100">
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-3.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-sm hover:bg-slate-200 transition-colors">
+                {/* Form Buttons */}
+                <div className="grid grid-cols-2 gap-4 pt-6 mt-4 border-t border-slate-100">
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-3.5 rounded-xl bg-slate-50 text-slate-600 font-bold text-sm hover:bg-slate-100 transition-colors border border-slate-200">
                     Cancel
                   </button>
                   <button type="submit" disabled={saving} className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-bold text-sm hover:bg-rose-500 transition-colors shadow-sm disabled:opacity-70">
@@ -303,8 +312,27 @@ export default function MenuAdminPage() {
                 </div>
               </form>
             ) : (
-              <div className="py-12 text-center text-slate-400 font-bold text-sm border-2 border-dashed border-slate-100 rounded-xl">
-                Option Groups feature coming soon!
+              /* Option Groups Tab */
+              <div className="flex flex-col h-full animate-in fade-in duration-300">
+                <p className="text-[14px] text-slate-500 mb-6 font-medium">
+                  Add option groups like size, flavor, or add-ons that customers can choose from.
+                </p>
+                
+                <button 
+                  type="button"
+                  className="w-full py-4 border-2 border-dashed border-rose-300 text-[#FC687D] font-bold text-sm rounded-2xl hover:bg-rose-50 transition-colors mb-6"
+                >
+                  + Add Option Group
+                </button>
+
+                <div className="grid grid-cols-2 gap-4 pt-6 mt-4 border-t border-slate-100">
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-3.5 rounded-xl bg-slate-50 text-slate-600 font-bold text-sm hover:bg-slate-100 transition-colors border border-slate-200">
+                    Cancel
+                  </button>
+                  <button onClick={handleSave} disabled={saving} className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-bold text-sm hover:bg-rose-500 transition-colors shadow-sm disabled:opacity-70">
+                    {saving ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
               </div>
             )}
           </div>
