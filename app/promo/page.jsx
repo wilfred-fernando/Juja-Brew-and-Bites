@@ -9,7 +9,7 @@ const PROMOS = [
   {
     id: 1,
     badge: "🔥 Limited Time",
-    title: "Unli Wings Wednesday",
+    title: "Unli Wings Tuesday",
     subtitle: "Every Wednesday",
     desc: "Unlimited chicken wings — all day, every Wednesday! Choose from 10 flavors. Dine-in only.",
     tag: "Dine-In Only",
