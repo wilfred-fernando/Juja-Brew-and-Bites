@@ -929,3 +929,16 @@ export default function Customer() {
     </div>
   );
 }
+import BookingForm from "@/components/BookingForm";
+
+export default function CustomerPage() {
+  return (
+    <main>
+      {/* Your existing Hero/Header code */}
+      
+      <BookingForm />
+      
+      {/* Your existing Footer code */}
+    </main>
+  );
+}
