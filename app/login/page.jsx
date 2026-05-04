@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from '@/lib/supabase'; 
+// (Adjust the path depending on where you saved the file)
 
 // Initialize Supabase
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
