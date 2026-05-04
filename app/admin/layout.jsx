@@ -6,11 +6,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { supabase } from '@/lib/supabase'; 
 // (Adjust the path depending on where you saved the file)
 
-// Initialize Supabase
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
 
 export default function AdminLayout({ children }) {
