@@ -927,14 +927,7 @@ export default function Customer() {
       </div>
       <TabBar tab={tab} setTab={setTab} />
     </div>
-  );
-}
-import BookingForm from "@/components/BookingForm";
-
-export default function CustomerPage() {
-  return (
-    <main>
-      {/* Your existing Hero/Header code */}
+  {/* Your existing Hero/Header code */}
       
       <BookingForm />
       
