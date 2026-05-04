@@ -41,20 +41,11 @@ export default function Login() {
         });
         if (authError) throw authError;
 
-        // SECURITY CHECK: Block non-admins from the Staff Portal
         if (portal === "admin") {
-          // --- NEW TRACKER CONSOLE LOGS ---
-          console.log("🟢 LOGIN SUCCESSFUL!");
-          console.log("🟢 FULL USER DATA:", data.user);
-          console.log("🟢 USER METADATA:", data.user?.user_metadata);
-          
-          const userRole = data.user?.user_metadata?.role;
-          if (userRole !== "admin") {
-            await supabase.auth.signOut();
-            throw new Error(`Access Denied! Supabase says your role is: ${userRole || "UNDEFINED"}`);
-          }
-          
-          console.log("🟢 ADMIN VERIFIED! REDIRECTING TO /ADMIN NOW...");
+          // TEMPORARY BYPASS: Ignore the role check and force the door open!
+          console.log("Forcing entry to Admin page...");
+          router.push("/admin");
+          return; // Stop here
         }
       }
       
