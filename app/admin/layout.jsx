@@ -33,6 +33,7 @@ export default function AdminLayout({ children }) {
     { name: "Home", path: "/admin", icon: "🏠" },
     { name: "Live Orders", path: "/admin/orders", icon: "📋" },
     { name: "Menu Builder", path: "/admin/menu", icon: "🧩" },
+    { name: "Loyalty", icon: "⭐", path: "/admin/loyalty" }
     { name: "Promo Code", path: "/admin/promos", icon: "🎁" },
     { name: "Settings", path: "/admin/settings", icon: "⚙️" },
     { name: "Accounts", path: "/admin/accounts", icon: "👥" },
