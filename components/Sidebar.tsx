@@ -46,3 +46,5 @@ export default function Sidebar() {
     </aside>
   )
 }
+
+{ name: "Loyalty", icon: "⭐", path: "/admin/loyalty" }
