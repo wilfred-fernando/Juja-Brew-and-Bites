@@ -9,7 +9,6 @@ import { supabase } from "@/lib/supabase";
 import AdminMenuBuilder from "@/components/AdminMenuBuilder";
 
 // Inside your main admin render logic where you check the active tab:
-{activeTab === "menu-builder" && <AdminMenuBuilder />}
 
 // ─── Shared Nav ───────────────────────────────────────────────────────────────
 export function Nav({ active }) {
