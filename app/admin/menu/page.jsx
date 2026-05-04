@@ -109,6 +109,7 @@ export default function MenuAdminPage() {
 
   return (
     <div className="max-w-7xl mx-auto animate-in fade-in duration-300 pb-20">
+      
       {/* HEADER */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
@@ -127,102 +128,123 @@ export default function MenuAdminPage() {
         </div>
       </header>
 
-      {/* FILTER BAR */}
-      <div className="flex flex-col md:flex-row gap-4 mb-8">
-        <div className="relative flex-1 max-w-md">
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
-          <input 
-            type="text" 
-            placeholder="Search items..." 
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-full text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-[#FC687D] transition-all shadow-sm"
-          />
-        </div>
+      {/* MAIN CONTENT: SIDEBAR + LIST */}
+      <div className="flex flex-col lg:flex-row gap-8">
         
-        <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
-          <button 
-            onClick={() => setCatFilter("All")}
-            className={`px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest whitespace-nowrap transition-all shadow-sm border ${
-              catFilter === "All" ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200 hover:border-slate-300"
-            }`}
-          >
-            ALL
-          </button>
-          {categories.map(cat => (
+        {/* LEFT SIDEBAR (Vertical Filters) */}
+        <div className="w-full lg:w-72 flex-shrink-0 space-y-6">
+          
+          {/* Search */}
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+            <input 
+              type="text" 
+              placeholder="Search items..." 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-11 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-[#FC687D] transition-all shadow-sm"
+            />
+          </div>
+          
+          {/* Vertical Categories List */}
+          <div className="bg-white p-3 rounded-[24px] border border-slate-100 shadow-sm flex flex-col gap-1">
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-4 pt-2 pb-3">Categories</h3>
+            
             <button 
-              key={cat.id}
-              onClick={() => setCatFilter(cat.name)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest whitespace-nowrap transition-all shadow-sm border ${
-                catFilter === cat.name ? "bg-[#FC687D] text-white border-[#FC687D]" : "bg-white text-slate-500 border-slate-200 hover:border-slate-300"
+              onClick={() => setCatFilter("All")}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
+                catFilter === "All" ? "bg-slate-800 text-white shadow-sm" : "text-slate-500 hover:bg-slate-50"
               }`}
             >
-              <span className="text-base">{cat.icon}</span> {cat.name}
+              <span>All Items</span>
+              <span className={`px-2 py-0.5 rounded-full text-[9px] ${catFilter === "All" ? "bg-white/20" : "bg-slate-100"}`}>{items.length}</span>
             </button>
-          ))}
-        </div>
-      </div>
-
-      {/* LIST LAYOUT */}
-      <div className="flex flex-col gap-4">
-        {/* Add New Item Button Slot */}
-        <button onClick={() => openModal()} className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[20px] p-4 flex items-center justify-center gap-3 text-slate-400 hover:bg-rose-50 hover:border-rose-200 hover:text-[#FC687D] transition-all group shadow-sm">
-          <span className="text-2xl leading-none group-hover:scale-110 transition-transform">+</span>
-          <span className="font-bold text-sm">Add New Item</span>
-        </button>
-
-        {filteredItems.map(item => (
-          <div key={item.id} className="bg-white rounded-[20px] border border-rose-50 shadow-sm p-4 pr-6 flex items-center justify-between hover:shadow-md transition-all group">
             
-            {/* Image & Info */}
-            <div className="flex items-center gap-5">
-              <div className="w-16 h-16 rounded-xl bg-slate-50 flex items-center justify-center relative overflow-hidden flex-shrink-0 border border-slate-100">
-                {item.image_url ? (
-                  <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-2xl text-slate-200">📷</span>
-                )}
+            {categories.map(cat => {
+              const catCount = items.filter(i => i.category === cat.name).length;
+              return (
+                <button 
+                  key={cat.id}
+                  onClick={() => setCatFilter(cat.name)}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
+                    catFilter === cat.name ? "bg-[#FC687D] text-white shadow-sm" : "text-slate-500 hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-base">{cat.icon}</span> 
+                    <span className="truncate max-w-[130px] text-left">{cat.name}</span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] flex-shrink-0 ${catFilter === cat.name ? "bg-white/20" : "bg-slate-100"}`}>
+                    {catCount}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* RIGHT AREA (Items List) */}
+        <div className="flex-1 flex flex-col gap-4">
+          
+          {/* Add New Item Button Slot */}
+          <button onClick={() => openModal()} className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[20px] p-4 flex items-center justify-center gap-3 text-slate-400 hover:bg-rose-50 hover:border-rose-200 hover:text-[#FC687D] transition-all group shadow-sm">
+            <span className="text-2xl leading-none group-hover:scale-110 transition-transform">+</span>
+            <span className="font-bold text-sm">Add New Item</span>
+          </button>
+
+          {filteredItems.map(item => (
+            <div key={item.id} className="bg-white rounded-[20px] border border-rose-50 shadow-sm p-4 pr-6 flex items-center justify-between hover:shadow-md transition-all group">
+              
+              {/* Image & Info */}
+              <div className="flex items-center gap-5">
+                <div className="w-16 h-16 rounded-xl bg-slate-50 flex items-center justify-center relative overflow-hidden flex-shrink-0 border border-slate-100">
+                  {item.image_url ? (
+                    <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-2xl text-slate-200">📷</span>
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-800 text-[15px] mb-1">{item.name}</h3>
+                  <div className="flex items-center gap-3">
+                    <span className="font-black text-[#FC687D] text-sm">₱{item.price}</span>
+                    <span className="text-slate-300 text-xs">•</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{item.category}</span>
+                  </div>
+                </div>
               </div>
-              <div>
-                <h3 className="font-extrabold text-slate-800 text-[15px] mb-1">{item.name}</h3>
-                <div className="flex items-center gap-3">
-                  <span className="font-black text-[#FC687D] text-sm">₱{item.price}</span>
-                  <span className="text-slate-300 text-xs">•</span>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{item.category}</span>
+              
+              {/* Status & Actions */}
+              <div className="flex items-center gap-8">
+                <span className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border flex items-center gap-1.5 ${
+                  item.is_available ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-slate-50 text-slate-400 border-slate-200"
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${item.is_available ? "bg-emerald-500" : "bg-slate-300"}`}></span>
+                  {item.is_available ? "Available" : "Disabled"}
+                </span>
+
+                {/* Action Buttons (Visible on Hover) */}
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => openModal(item)} className="px-4 py-2 bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600 hover:text-[#FC687D] hover:border-rose-200 hover:bg-rose-50 rounded-xl transition-all">
+                    ✎ Edit
+                  </button>
+                  <button className="px-4 py-2 bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-all">
+                    Disable
+                  </button>
+                  <button onClick={() => handleDelete(item.id)} className="w-10 h-10 flex items-center justify-center bg-slate-50 border border-slate-200 text-sm text-slate-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 rounded-xl transition-all">
+                    🗑
+                  </button>
                 </div>
               </div>
             </div>
-            
-            {/* Status & Actions */}
-            <div className="flex items-center gap-8">
-              <span className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border flex items-center gap-1.5 ${
-                item.is_available ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-slate-50 text-slate-400 border-slate-200"
-              }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${item.is_available ? "bg-emerald-500" : "bg-slate-300"}`}></span>
-                {item.is_available ? "Available" : "Disabled"}
-              </span>
-
-              {/* Action Buttons (Visible on Hover) */}
-              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => openModal(item)} className="px-4 py-2 bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600 hover:text-[#FC687D] hover:border-rose-200 hover:bg-rose-50 rounded-xl transition-all">
-                  ✎ Edit
-                </button>
-                <button className="px-4 py-2 bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-all">
-                  Disable
-                </button>
-                <button onClick={() => handleDelete(item.id)} className="w-10 h-10 flex items-center justify-center bg-slate-50 border border-slate-200 text-sm text-slate-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 rounded-xl transition-all">
-                  🗑
-                </button>
-              </div>
+          ))}
+          
+          {filteredItems.length === 0 && (
+            <div className="text-center py-20 text-slate-400 font-bold uppercase tracking-widest text-sm border-2 border-dashed border-slate-100 rounded-[24px]">
+              No items found
             </div>
-          </div>
-        ))}
-        
-        {filteredItems.length === 0 && (
-          <div className="text-center py-20 text-slate-400 font-bold uppercase tracking-widest text-sm border-2 border-dashed border-slate-100 rounded-[24px]">
-            No items found
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* DETAILED ADD / EDIT MODAL */}
