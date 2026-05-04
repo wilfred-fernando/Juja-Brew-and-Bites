@@ -927,11 +927,69 @@ export default function Customer() {
       </div>
       <TabBar tab={tab} setTab={setTab} />
     </div>
-  {/* Your existing Hero/Header code */}
+// ─── MAIN ─────────────────────────────────────────────────────────────────────
+export default function Customer() {
+  const [user, setUser] = useState(null);
+  const [member, setMember] = useState(null);
+  const [tab, setTab] = useState("home");
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    async function loadData() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push("/login");
+        return;
+      }
       
-      <BookingForm />
+      setUser(session.user);
       
-      {/* Your existing Footer code */}
-    </main>
+      try {
+        const { data } = await supabase.from("loyalty_members").select("*").eq("user_id", session.user.id).single();
+        if (data) setMember(data);
+      } catch (e) { console.warn("No loyalty member found:", e); }
+      
+      setLoading(false);
+    }
+    loadData();
+  }, [router]);
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#FFF5F7]">
+        <div className="text-center animate-in zoom-in-95 duration-500">
+          <img src={LOGO} alt="Juja" className="h-24 w-auto object-contain mx-auto mb-6 animate-pulse" />
+          <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen pb-28 pt-20" style={{ fontFamily: "'Inter',system-ui,sans-serif", background: "#FFF5F7" }}>
+      {/* 1. Header is always visible */}
+      <TopHeader user={user} onLogout={logout} />
+      
+      {/* 2. Main Content Area depends on the selected Tab */}
+      <div className="max-w-md mx-auto px-5 py-4 relative">
+        {tab === "home"    && <HomeTab    member={member} user={user} setTab={setTab} />}
+        {tab === "order"   && <OrderTab   user={user} />}
+        {tab === "loyalty" && <LoyaltyTab member={member} setMember={setMember} user={user} />}
+        
+        {/* We use your built-in BookingTab here which contains the form logic */}
+        {tab === "booking" && <BookingTab user={user} member={member} />}
+        
+        {tab === "profile" && <ProfileTab user={user} member={member} setTab={setTab} onLogout={logout} />}
+      </div>
+
+      {/* 3. Bottom Navigation is always visible */}
+      <TabBar tab={tab} setTab={setTab} />
+    </div>
   );
 }
