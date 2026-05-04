@@ -6,6 +6,10 @@ import Link from "next/link";
 const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
 
 import { supabase } from "@/lib/supabase";
+import AdminMenuBuilder from "@/components/AdminMenuBuilder";
+
+// Inside your main admin render logic where you check the active tab:
+{activeTab === "menu-builder" && <AdminMenuBuilder />}
 
 // ─── Shared Nav ───────────────────────────────────────────────────────────────
 export function Nav({ active }) {
