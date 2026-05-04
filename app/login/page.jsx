@@ -87,7 +87,7 @@ export default function Login() {
           <div className="flex bg-white rounded-full p-1.5 mb-8 shadow-sm border border-rose-50">
             {[
               { id: "customer", icon: "👤", label: "Customer" },
-              { id: "admin",    icon: "🔐", label: "Admin / Staff" },
+              { id: "admin",    icon: "🔐", label: "Admin" },
             ].map(p => (
               <button key={p.id} onClick={() => switchPortal(p.id)}
                 className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-full transition-all duration-300 ${
@@ -105,14 +105,14 @@ export default function Login() {
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.25em] bg-rose-50 text-[#FC687D] border border-rose-100">
               <span className="w-1.5 h-1.5 rounded-full bg-[#FC687D] animate-pulse" />
-              {isAdmin ? "Staff Portal" : "Customer Portal"}
+              {isAdmin ? "Admin Portal" : "Customer Portal"}
             </div>
             <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight mb-2">
               {mode === "login" ? "Welcome Back" : "Create Account"}
             </h1>
             <p className="text-slate-500 text-sm font-medium">
               {isAdmin
-                ? "Sign in to manage orders & the menu."
+                ? "Sign in with your admin credentials"
                 : mode === "login" ? "Sign in to your Juja account." : "Join the Juja loyalty program."}
             </p>
           </div>
