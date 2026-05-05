@@ -327,15 +327,8 @@ export default function POS() {
 
              <div className="border-t border-slate-100 my-6"></div>
 
-             {/* FORMATTED Stats Grid */}
+             {/* FORMATTED Stats Grid - First Visit removed */}
              <div className="grid grid-cols-2 gap-y-7 gap-x-4 px-2">
-                <div className="flex items-start gap-4 text-slate-500">
-                   <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="mt-0.5"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                   <div>
-                      <p className="text-slate-800 font-normal text-sm leading-none">{formatLoyaltyDate(customerProfile["First visit"] || customerProfile.first_visit, false)}</p>
-                      <p className="text-[11px] text-slate-400 font-normal mt-1">First visit</p>
-                   </div>
-                </div>
                 <div className="flex items-start gap-4 text-slate-500">
                    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="mt-0.5"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                    <div>
