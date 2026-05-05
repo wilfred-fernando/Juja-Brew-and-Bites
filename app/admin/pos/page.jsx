@@ -110,23 +110,17 @@ export default function POS() {
   );
 
   return (
-    // Changed to full height of parent to fit neatly inside the admin layout
     <div className="h-full w-full flex flex-col lg:flex-row overflow-hidden bg-slate-50 animate-in fade-in duration-500 rounded-2xl lg:border border-slate-200/60 shadow-sm">
       
       {/* ─── LEFT PANEL: LIST MENU ─── */}
       <div className="flex-1 flex flex-col min-w-0 bg-white relative h-full">
-        
-        {/* Top Header & Search */}
         <div className="flex-shrink-0 flex items-center justify-between px-3 md:px-4 py-2.5 md:py-3 bg-white border-b border-slate-100 z-10">
           <div className="flex items-center gap-2 flex-1">
-            
-            {/* Fluid Category Dropdown */}
             <select value={cat} onChange={e=>setCat(e.target.value)} className="bg-transparent font-bold text-slate-800 text-sm xl:text-base focus:outline-none cursor-pointer max-w-[120px] md:max-w-[180px] xl:max-w-xs truncate">
               <option value="ALL">All items</option>
               {cats.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
             </select>
           </div>
-
           <div className="flex items-center gap-2 w-full max-w-[180px] md:max-w-[240px] xl:max-w-sm">
             <div className="relative w-full">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs md:text-sm">🔍</span>
@@ -136,7 +130,6 @@ export default function POS() {
           </div>
         </div>
 
-        {/* Loyverse List Layout */}
         <div className="flex-1 overflow-y-auto hide-scrollbar pb-20 lg:pb-0">
           <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-none divide-slate-100 p-0 md:p-2 xl:p-3 md:gap-2 xl:gap-3">
             {filtered.map(item=>{
@@ -144,8 +137,7 @@ export default function POS() {
               return (
                 <button key={item.id} onClick={()=>add(item)} 
                   className="flex items-center p-3 xl:p-4 md:rounded-xl md:border md:border-slate-100 hover:bg-slate-50 active:bg-slate-100 transition-colors text-left w-full relative overflow-hidden group">
-                  
-                  <div className="w-10 h-10 md:w-12 md:h-12 xl:w-14 xl:h-14 bg-[#FFF5F7] rounded-lg border border-rose-50 flex items-center justify-center flex-shrink-0 mr-3 xl:mr-4 relative">
+                  <div className="w-10 h-10 md:w-12 md:h-12 xl:w-14 xl:h-14 bg-[#FFF5F7] rounded-lg border border-rose-50 flex items-center justify-center flex-shrink-0 mr-3 xl:mr-4 relative font-normal">
                     {item.image_url ? (
                        <img src={item.image_url} alt={item.name} className="w-full h-full object-cover rounded-lg" />
                     ) : (
@@ -157,13 +149,11 @@ export default function POS() {
                       </div>
                     )}
                   </div>
-                  
                   <div className="flex-1 min-w-0 pr-2 xl:pr-4">
-                    <p className="text-slate-800 font-semibold text-xs md:text-sm xl:text-base truncate leading-tight">{item.name}</p>
-                    <p className="text-slate-400 text-[9px] md:text-[10px] xl:text-xs font-bold uppercase tracking-widest mt-0.5 xl:mt-1">{item.category}</p>
+                    <p className="text-slate-800 font-normal text-xs md:text-sm xl:text-base truncate leading-tight">{item.name}</p>
+                    <p className="text-slate-400 text-[9px] md:text-[10px] xl:text-xs font-normal uppercase tracking-widest mt-0.5 xl:mt-1">{item.category}</p>
                   </div>
-                  
-                  <div className="font-black text-slate-800 text-sm md:text-base">
+                  <div className="font-normal text-slate-800 text-sm md:text-base">
                     ₱{item.price}
                   </div>
                 </button>
@@ -172,7 +162,6 @@ export default function POS() {
           </div>
         </div>
 
-        {/* MOBILE FLOATING BAR */}
         <div className="lg:hidden absolute bottom-0 left-0 right-0 p-3 bg-white/90 backdrop-blur-md border-t border-slate-200 z-20 pb-safe shadow-[0_-10px_20px_rgba(0,0,0,0.03)]">
           <button onClick={() => setShowMobileTicket(true)} 
             className={`w-full py-3.5 rounded-xl font-black text-sm text-white flex items-center justify-between px-5 transition-all shadow-md active:scale-95 ${cart.length ? "bg-emerald-500" : "bg-slate-300"}`}>
@@ -183,24 +172,12 @@ export default function POS() {
       </div>
 
       {/* ─── RIGHT PANEL: THE TICKET ─── */}
-      {/* FLUID WIDTHS: 
-        lg:w-[300px] (Tablets/Small Laptops)
-        xl:w-[360px] (Normal Desktops)
-        2xl:w-[400px] (Large Monitors) 
-      */}
-      <div className={`fixed inset-0 z-50 lg:static lg:z-auto w-full lg:w-[300px] xl:w-[360px] 2xl:w-[400px] flex-shrink-0 flex flex-col bg-slate-50 lg:border-l border-slate-200 shadow-2xl lg:shadow-none transition-transform duration-300 ${showMobileTicket ? "translate-y-0" : "translate-y-full lg:translate-y-0"}`}>
-
+      <div className={`fixed inset-0 z-50 lg:static lg:z-auto w-full lg:w-[300px] xl:w-[360px] flex-shrink-0 flex flex-col bg-slate-50 lg:border-l border-slate-200 shadow-2xl lg:shadow-none transition-transform duration-300 ${showMobileTicket ? "translate-y-0" : "translate-y-full lg:translate-y-0"}`}>
         <div className="flex-shrink-0 flex items-center justify-between px-3 xl:px-4 py-3 xl:py-4 bg-white border-b border-slate-200 pt-safe z-10">
-          <div className="flex items-center gap-2">
-            <button onClick={() => setShowMobileTicket(false)} className="lg:hidden p-1.5 -ml-1 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
-              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-            </button>
-            <h2 className="font-black text-base xl:text-lg text-slate-800 flex items-center gap-2">Ticket <span className="bg-slate-100 border border-slate-200 text-slate-500 rounded-md px-1.5 py-0.5 text-[10px] xl:text-xs">{cart.length}</span></h2>
-          </div>
-          <div className="flex items-center gap-1">
-            <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-full transition-colors"><svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg></button>
-            <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-full transition-colors"><svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg></button>
-          </div>
+          <h2 className="font-black text-base xl:text-lg text-slate-800 flex items-center gap-2">Ticket <span className="bg-slate-100 border border-slate-200 text-slate-500 rounded-md px-1.5 py-0.5 text-[10px] xl:text-xs">{cart.length}</span></h2>
+          <button onClick={clear} className="text-slate-400 hover:text-red-500 font-bold text-[11px] lg:text-xs transition-colors uppercase tracking-widest active:scale-95 bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
+              Trash
+          </button>
         </div>
 
         <div className="flex-shrink-0 flex flex-col p-3 xl:p-4 border-b border-slate-200 bg-white">
@@ -210,13 +187,13 @@ export default function POS() {
               value={custSearch} onFocus={() => setShowCustList(true)} onBlur={() => setTimeout(() => setShowCustList(false), 200)}
               onChange={e => { setCustSearch(e.target.value); setCname(e.target.value); setShowCustList(true); }}
               placeholder="Assign Customer..."
-              className="w-full pl-8 pr-3 py-2 xl:py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] xl:text-xs font-semibold focus:outline-none focus:border-[#FC687D] transition-all" 
+              className="w-full pl-8 pr-3 py-2 xl:py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] xl:text-xs font-normal focus:outline-none focus:border-[#FC687D] transition-all" 
             />
             {showCustList && custSearch && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-100 shadow-xl rounded-lg max-h-48 overflow-y-auto hide-scrollbar z-50">
                 {filteredMembers.length > 0 ? filteredMembers.map(m => (
                   <button key={m.id} onMouseDown={() => { setCustSearch(m["Customer name"]); setCname(m["Customer name"]); setShowCustList(false); }} className="w-full text-left px-3 py-2 hover:bg-slate-50 border-b border-slate-50 transition-colors">
-                    <p className="font-bold text-slate-800 text-xs leading-tight">{m["Customer name"]}</p>
+                    <p className="font-normal text-slate-800 text-xs leading-tight">{m["Customer name"]}</p>
                   </button>
                 )) : (<div className="px-3 py-2 text-[10px] text-slate-400 bg-slate-50 italic">Walk-In: "{custSearch}"</div>)}
               </div>
@@ -226,7 +203,7 @@ export default function POS() {
           <div className="grid grid-cols-2 gap-1.5 xl:gap-2">
             {["Takeout", "Grab | Panda", "VIP Room", "Table"].map(t => (
               <button key={t} onClick={() => setOrderType(t)}
-                className={`py-1.5 xl:py-2 rounded-lg text-[9px] xl:text-[10px] font-bold uppercase tracking-widest transition-all active:scale-95 border ${orderType === t ? "bg-slate-800 text-white border-slate-800 shadow-sm" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"}`}>
+                className={`py-1.5 xl:py-2 rounded-lg text-[9px] xl:text-[10px] font-normal uppercase tracking-widest transition-all active:scale-95 border ${orderType === t ? "bg-slate-800 text-white border-slate-800 shadow-sm" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"}`}>
                 {t}
               </button>
             ))}
@@ -234,7 +211,7 @@ export default function POS() {
 
           {(orderType === "VIP Room" || orderType === "Table") && (
             <input value={tableNum} onChange={e=>setTableNum(e.target.value)} placeholder={`Enter ${orderType} Number...`}
-              className="mt-2 w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 xl:py-2.5 text-[11px] xl:text-xs font-semibold focus:outline-none focus:border-[#FC687D] transition-all text-center" />
+              className="mt-2 w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 xl:py-2.5 text-[11px] xl:text-xs font-normal focus:outline-none focus:border-[#FC687D] transition-all text-center" />
           )}
         </div>
 
@@ -242,24 +219,24 @@ export default function POS() {
           {cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-slate-300">
               <span className="text-4xl xl:text-5xl mb-3 opacity-30">🧾</span>
-              <p className="font-bold text-[10px] xl:text-xs uppercase tracking-widest">Ticket is empty</p>
+              <p className="font-normal text-[10px] xl:text-xs uppercase tracking-widest">Ticket is empty</p>
             </div>
           ) : (
             <div className="divide-y divide-slate-200/50">
               {cart.map(item => (
                 <div key={item.id} className="flex items-center p-3 xl:p-4 bg-slate-50 hover:bg-slate-100 transition-colors">
                   <div className="flex-1 pr-2 xl:pr-4 min-w-0">
-                    <p className="font-semibold text-slate-800 text-[11px] xl:text-xs leading-tight truncate">{item.name}</p>
+                    <p className="font-normal text-slate-800 text-[11px] xl:text-xs leading-tight truncate">{item.name}</p>
                     <div className="flex items-center gap-2 mt-1.5">
                       <div className="flex items-center bg-white rounded border border-slate-200 shadow-sm">
                         <button onClick={()=>upd(item.id,-1)} className="w-6 h-6 xl:w-7 xl:h-7 flex items-center justify-center text-slate-500 font-black hover:text-rose-500 hover:bg-rose-50 rounded-l active:bg-rose-100">−</button>
                         <span className="w-5 xl:w-6 text-center font-black text-slate-800 text-[10px] xl:text-xs">{item.qty}</span>
                         <button onClick={()=>upd(item.id,1)} className="w-6 h-6 xl:w-7 xl:h-7 flex items-center justify-center text-slate-500 font-black hover:text-emerald-500 hover:bg-emerald-50 rounded-r active:bg-emerald-100">+</button>
                       </div>
-                      <span className="text-slate-400 font-semibold text-[9px] xl:text-[10px]">₱{item.price}</span>
+                      <span className="text-slate-400 font-normal text-[9px] xl:text-[10px]">₱{item.price} each</span>
                     </div>
                   </div>
-                  <div className="font-black text-slate-800 text-xs xl:text-sm whitespace-nowrap">
+                  <div className="font-normal text-slate-800 text-xs xl:text-sm whitespace-nowrap">
                     ₱{(item.price*item.qty).toLocaleString()}
                   </div>
                 </div>
@@ -268,42 +245,20 @@ export default function POS() {
           )}
         </div>
 
-        <div className="flex-shrink-0 bg-slate-50 border-t border-slate-200">
-          <button onClick={()=>setShowDisc(!showDisc)} className="w-full flex justify-between items-center px-3 xl:px-4 py-2.5 xl:py-3 hover:bg-slate-100 active:bg-slate-200 transition-colors">
-            <span className="font-bold text-[10px] xl:text-xs text-slate-500 uppercase tracking-widest">Discount {disc>0 ? `(${disc}%)` : ""}</span>
-            <span className="text-rose-500 font-bold text-[11px] xl:text-xs">{damt > 0 ? `-₱${damt.toFixed(0)}` : "Add >"}</span>
-          </button>
-          
-          {showDisc && (
-            <div className="flex gap-1.5 px-3 xl:px-4 pb-3">
-              {[0,5,10,15,20].map(d=>(
-                <button key={d} onClick={()=>{setDisc(d);setShowDisc(false);}} 
-                  className={`flex-1 py-1.5 xl:py-2 rounded-lg font-bold text-[10px] transition-all active:scale-95 border ${
-                    disc===d ? "bg-[#FC687D] text-white border-[#FC687D] shadow-md" : "bg-white text-slate-600 border-slate-300"
-                  }`}>
-                  {d===0?"None":d+"%"}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
         <div className="flex-shrink-0 bg-white p-3 xl:p-4 border-t border-slate-200 pb-safe">
-          <div className="flex justify-between items-end mb-2.5 xl:mb-3">
-            <span className="font-bold text-slate-500 uppercase tracking-widest text-[10px] xl:text-[11px]">Total</span>
-            <span className="font-black text-xl xl:text-2xl text-slate-800 tracking-tight">₱{total.toLocaleString()}</span>
+          <div className="flex justify-between items-end mb-2.5 xl:mb-3 font-normal">
+            <span className="text-slate-500 uppercase tracking-widest text-[10px] xl:text-[11px]">Total</span>
+            <span className="text-xl xl:text-2xl text-slate-800 tracking-tight">₱{total.toLocaleString()}</span>
           </div>
-          
           <div className="flex gap-2">
             <button onClick={() => place(false, "Unpaid")} disabled={!cart.length||busy}
-              className="w-[80px] lg:w-[70px] xl:w-[90px] py-3 rounded-xl font-black text-[9px] xl:text-[10px] uppercase tracking-widest text-[#10b981] bg-[#10b981]/10 hover:bg-[#10b981]/20 transition-all active:scale-95 disabled:opacity-50 border border-[#10b981]/20">
+              className="flex-1 py-4 rounded-xl font-black text-xs uppercase tracking-widest text-[#10b981] bg-[#10b981]/10 hover:bg-[#10b981]/20 transition-all active:scale-95 disabled:opacity-50 border border-[#10b981]/20">
               SAVE
             </button>
-
             <button onClick={handleChargeClick} disabled={!cart.length||busy}
-              className="flex-1 py-3 rounded-xl font-black text-sm xl:text-base text-white transition-all active:scale-95 flex flex-col items-center justify-center shadow-md disabled:opacity-50 disabled:shadow-none"
+              className="flex-[1.5] py-4 rounded-xl font-black text-sm text-white transition-all active:scale-95 flex flex-col items-center justify-center shadow-md disabled:opacity-50"
               style={{ backgroundColor: cart.length ? "#10b981" : "#cbd5e1" }}>
-              <span className="text-[8px] xl:text-[9px] uppercase tracking-widest opacity-90 -mb-0.5">CHARGE</span>
+              <span className="text-[10px] uppercase tracking-widest opacity-90 -mb-0.5 font-normal">CHARGE</span>
               <span>₱{total.toLocaleString()}</span>
             </button>
           </div>
@@ -318,23 +273,22 @@ export default function POS() {
               <button onClick={() => setShowPaymentModal(false)} className="text-white p-2">
                 <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
               </button>
-              <h2 className="absolute left-1/2 -translate-x-1/2 font-bold text-[10px] uppercase tracking-widest text-slate-400">SPLIT</h2>
+              <h2 className="absolute left-1/2 -translate-x-1/2 font-normal text-[10px] uppercase tracking-widest text-slate-400">PAYMENT</h2>
             </div>
             <div className="py-6 xl:py-8 text-center border-b border-slate-800">
-              <h1 className="font-black text-3xl xl:text-4xl text-white tracking-tight mb-1 xl:mb-2">₱{total.toLocaleString()}</h1>
-              <p className="font-semibold text-xs xl:text-sm text-slate-400">Total amount due</p>
+              <h1 className="font-normal text-3xl xl:text-4xl text-white tracking-tight mb-1 xl:mb-2">₱{total.toLocaleString()}</h1>
+              <p className="font-normal text-xs xl:text-sm text-slate-400">Total amount due</p>
             </div>
             <div className="px-5 xl:px-6 py-5 xl:py-6">
-              <label className="block text-[10px] xl:text-xs font-bold text-emerald-500 mb-2">Cash received</label>
+              <label className="block text-[10px] xl:text-xs font-normal text-emerald-500 mb-2">Cash received</label>
               <input type="number" value={amountTendered} onChange={e=>setAmountTendered(e.target.value)}
-                className="w-full bg-transparent border-b border-slate-600 text-white font-black text-lg xl:text-xl py-1.5 focus:outline-none focus:border-emerald-500 transition-colors" />
+                className="w-full bg-transparent border-b border-slate-600 text-white font-normal text-lg xl:text-xl py-1.5 focus:outline-none focus:border-emerald-500 transition-colors" />
             </div>
             <div className="flex-1 overflow-y-auto px-5 xl:px-6 pb-6 space-y-2.5 hide-scrollbar">
               {[{ id: "CASH", icon: "💵" }, { id: "GRABFOOD", icon: "🥡" }, { id: "QRPH", icon: "📱" }, { id: "GRAB DINE OUT", icon: "🍽️" }, { id: "CARD", icon: "💳" }].map(pm => (
                 <button key={pm.id} onClick={() => { setShowPaymentModal(false); place(true, pm.id); }}
                   className="w-full py-3.5 xl:py-4 bg-[#2a2a2a] hover:bg-[#333] active:bg-[#444] rounded-xl flex items-center justify-center gap-3 transition-colors border border-slate-700/50">
-                  <span className="text-base xl:text-lg grayscale opacity-70">{pm.icon}</span>
-                  <span className="font-bold text-xs xl:text-sm text-white tracking-wide">{pm.id}</span>
+                  <span className="font-normal text-xs xl:text-sm text-white tracking-wide uppercase">{pm.id}</span>
                 </button>
               ))}
             </div>
@@ -348,41 +302,36 @@ export default function POS() {
           <div className="bg-white rounded-[24px] w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
             <div className="p-5 xl:p-6 text-center border-b border-slate-100 bg-[#FFF9FA]">
               <div className="w-12 h-12 xl:w-14 xl:h-14 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center text-xl xl:text-2xl mx-auto mb-2 xl:mb-3">✓</div>
-              <h2 className="font-black text-lg xl:text-xl text-slate-800 mb-0.5">
+              <h2 className="font-normal text-lg xl:text-xl text-slate-800 mb-0.5">
                 {receipt.isPaid ? "Transaction Complete" : "Ticket Saved!"}
               </h2>
-              <p className="font-mono text-[9px] xl:text-[10px] font-bold text-slate-400">Order #{receipt.id?.slice(-8).toUpperCase()}</p>
+              <p className="font-mono text-[9px] xl:text-[10px] font-normal text-slate-400">Order #{receipt.id?.slice(-8).toUpperCase()}</p>
             </div>
             <div className="p-4 xl:p-5 max-h-[40vh] overflow-y-auto hide-scrollbar bg-slate-50">
               {receipt.cart.map(item=>(
                 <div key={item.id} className="flex justify-between items-start mb-2.5 text-[11px] xl:text-xs">
-                  <span className="font-semibold text-slate-600 flex-1 pr-3">{item.name} <span className="text-slate-400 text-[9px] xl:text-[10px] ml-1">x{item.qty}</span></span>
-                  <span className="font-black text-slate-800">₱{(item.price*item.qty).toLocaleString()}</span>
+                  <span className="font-normal text-slate-600 flex-1 pr-3">{item.name} <span className="text-slate-400 text-[9px] xl:text-[10px] ml-1">x{item.qty}</span></span>
+                  <span className="font-normal text-slate-800">₱{(item.price*item.qty).toLocaleString()}</span>
                 </div>
               ))}
-              <div className="border-t border-slate-200 pt-3 mt-3 space-y-1.5">
-                <div className="flex justify-between font-black text-base xl:text-lg text-slate-800 pt-1">
+              <div className="border-t border-slate-200 pt-3 mt-3 space-y-1.5 font-normal">
+                <div className="flex justify-between text-base xl:text-lg text-slate-800 pt-1">
                   <span>{receipt.isPaid ? "Total Paid" : "Balance Due"}</span>
                   <span>₱{receipt.total.toLocaleString()}</span>
                 </div>
                 {receipt.isPaid && receipt.method === "CASH" && (
-                  <div className="flex justify-between text-[10px] xl:text-xs font-bold text-emerald-500">
+                  <div className="flex justify-between text-[10px] xl:text-xs font-normal text-emerald-500">
                     <span>Change</span>
                     <span>₱{receipt.change > 0 ? receipt.change.toFixed(2) : "0.00"}</span>
                   </div>
                 )}
               </div>
-              <div className="bg-white rounded-xl p-2.5 mt-3 text-[9px] xl:text-[10px] font-bold text-slate-500 border border-slate-100 space-y-1 shadow-sm">
-                <p className="flex justify-between"><span className="uppercase tracking-widest text-[7px] xl:text-[8px] text-slate-400">Payment</span> <span>{receipt.method}</span></p>
-                <p className="flex justify-between"><span className="uppercase tracking-widest text-[7px] xl:text-[8px] text-slate-400">Type</span> <span>{receipt.type}</span></p>
-                {receipt.table && <p className="flex justify-between"><span className="uppercase tracking-widest text-[7px] xl:text-[8px] text-slate-400">Location</span> <span>{receipt.table}</span></p>}
-              </div>
             </div>
             <div className="flex flex-col gap-2 p-4 xl:p-5 bg-white">
-              <button onClick={()=>window.print()} className="w-full py-2.5 xl:py-3 rounded-xl border border-slate-200 bg-white font-bold text-slate-600 text-[11px] xl:text-xs hover:bg-slate-50 active:scale-95 transition-all">
+              <button onClick={()=>window.print()} className="w-full py-2.5 xl:py-3 rounded-xl border border-slate-200 bg-white font-normal text-slate-600 text-[11px] xl:text-xs hover:bg-slate-50 active:scale-95 transition-all">
                 Print Ticket
               </button>
-              <button onClick={()=>setReceipt(null)} className="w-full py-2.5 xl:py-3 rounded-xl border-none bg-[#FC687D] text-white font-bold text-[11px] xl:text-xs shadow-md hover:bg-rose-500 active:scale-95 transition-all">
+              <button onClick={()=>setReceipt(null)} className="w-full py-2.5 xl:py-3 rounded-xl border-none bg-[#FC687D] text-white font-normal text-[11px] xl:text-xs shadow-md hover:bg-rose-500 active:scale-95 transition-all uppercase tracking-widest">
                 New Order
               </button>
             </div>
