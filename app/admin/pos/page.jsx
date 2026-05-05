@@ -45,28 +45,59 @@ export default function POS() {
       .then(({ data }) => { if (data) setMembers(data); });
   }, []);
 
-  const startScanner = () => {
+  // ─── UPGRADED CAMERA LOGIC (PERMISSIONS & REAR CAMERA) ───
+  const startScanner = async () => {
     setIsScanning(true);
-    const html5QrCode = new Html5Qrcode("reader");
-    scannerRef.current = html5QrCode;
-    html5QrCode.start(
-      { facingMode: "environment" }, 
-      { fps: 10, qrbox: { width: 250, height: 150 } },
-      (decodedText) => { handleBarcodeMatch(decodedText); stopScanner(); },
-      () => {} 
-    ).catch(() => setIsScanning(false));
+    
+    try {
+      // This forces the browser to ask the user for Camera Permission
+      const devices = await Html5Qrcode.getCameras();
+      
+      if (devices && devices.length > 0) {
+        // Find the back camera by checking the label
+        let cameraId = devices[0].id; // Default to first camera if no specific labels
+        for (const device of devices) {
+          if (device.label.toLowerCase().includes("back") || device.label.toLowerCase().includes("rear") || device.label.toLowerCase().includes("environment")) {
+            cameraId = device.id;
+            break;
+          }
+        }
+
+        const html5QrCode = new Html5Qrcode("reader");
+        scannerRef.current = html5QrCode;
+
+        await html5QrCode.start(
+          cameraId,
+          { fps: 10, qrbox: { width: 250, height: 150 } },
+          (decodedText) => { 
+            handleBarcodeMatch(decodedText); 
+            stopScanner(); 
+          },
+          () => {} // Ignore continuous scanning frame errors
+        );
+      } else {
+        alert("No cameras found on this device.");
+        setIsScanning(false);
+      }
+    } catch (err) {
+      console.error("Camera access error:", err);
+      alert("Camera permission denied. Please allow camera access in your browser settings to scan barcodes.");
+      setIsScanning(false);
+    }
   };
 
   const stopScanner = () => {
     if (scannerRef.current) {
-      scannerRef.current.stop().then(() => setIsScanning(false));
+      scannerRef.current.stop().then(() => setIsScanning(false)).catch(err => console.error(err));
+    } else {
+      setIsScanning(false);
     }
   };
 
   const handleBarcodeMatch = (code) => {
     const match = items.find(i => i.sku === code || i.barcode === code);
     if (match) add(match);
-    else alert(`No item found: ${code}`);
+    else alert(`No item found in menu for barcode: ${code}`);
   };
 
   const filtered = items.filter(i => (cat==="ALL"||i.category===cat) && (!search||i.name.toLowerCase().includes(search.toLowerCase())));
@@ -96,14 +127,13 @@ export default function POS() {
   if(loading) return <div className="h-screen w-full flex items-center justify-center bg-white"><div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full"></div></div>;
 
   return (
-    // FIX: Using 100dvh on mobile forces it to respect the exact device screen height
-    <div className="h-[100dvh] lg:h-full w-full flex flex-col lg:flex-row overflow-hidden bg-white lg:rounded-2xl lg:border border-slate-200/60 shadow-sm">
+    <div className="h-[100dvh] lg:h-full w-full flex flex-col lg:flex-row overflow-hidden bg-white lg:rounded-2xl lg:border border-slate-200/60 shadow-sm relative">
       
-      {/* LEFT: MENU SECTION */}
+      {/* ─── LEFT: MENU SECTION ─── */}
       <div className="flex-1 flex flex-col min-w-0 bg-white h-full lg:border-r border-slate-100">
         
         {/* Header - Fixed at top */}
-        <div className="flex-shrink-0 px-4 py-3 border-b border-slate-50 flex items-center justify-between bg-white pt-safe">
+        <div className="flex-shrink-0 px-4 py-3 border-b border-slate-50 flex items-center justify-between bg-white pt-safe z-10">
           <select value={cat} onChange={e=>setCat(e.target.value)} className="bg-transparent font-normal text-slate-800 text-base focus:outline-none cursor-pointer">
             <option value="ALL">All Items</option>
             {cats.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
@@ -115,7 +145,7 @@ export default function POS() {
         </div>
 
         {/* Scrollable List Area */}
-        <div className="flex-1 overflow-y-auto hide-scrollbar p-2">
+        <div className="flex-1 overflow-y-auto hide-scrollbar p-2 pb-24 lg:pb-2">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
             {filtered.map(item => {
               const qty = getQty(item.id);
@@ -135,23 +165,23 @@ export default function POS() {
             })}
           </div>
         </div>
-
-        {/* FIX: Mobile Button is now a fixed structural flex item, NOT absolute! */}
-        <div className="lg:hidden flex-shrink-0 p-3 bg-white border-t border-slate-200 pb-safe shadow-[0_-10px_20px_rgba(0,0,0,0.03)] z-10">
-          <button onClick={() => setShowMobileTicket(true)} 
-            className={`w-full py-3.5 rounded-xl font-black text-sm text-white flex items-center justify-between px-5 transition-all shadow-md active:scale-95 ${cart.length ? "bg-emerald-500" : "bg-slate-300"}`}>
-            <span>{cart.length} Items</span>
-            <span>View Ticket ➔</span>
-          </button>
-        </div>
       </div>
 
-      {/* RIGHT: TICKET SECTION */}
+      {/* ─── FIXED MOBILE BUTTON ─── */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 p-3 bg-white/90 backdrop-blur-md border-t border-slate-200 z-40 shadow-[0_-10px_30px_rgba(0,0,0,0.08)] pb-safe">
+        <button onClick={() => setShowMobileTicket(true)} 
+          className={`w-full py-4 rounded-xl font-black text-sm text-white flex items-center justify-between px-6 transition-all shadow-lg active:scale-95 ${cart.length ? "bg-emerald-500" : "bg-slate-400"}`}>
+          <span>{cart.length} Items</span>
+          <span>View Ticket ➔</span>
+        </button>
+      </div>
+
+      {/* ─── RIGHT: TICKET SECTION ─── */}
       <div className={`fixed inset-0 z-50 lg:static lg:z-auto w-full lg:w-[320px] xl:w-[360px] flex flex-col bg-slate-50/50 transition-transform duration-300 ${showMobileTicket ? "translate-y-0" : "translate-y-full lg:translate-y-0"}`}>
         
         <div className="flex-shrink-0 px-4 py-3 bg-white border-b border-slate-200 flex items-center justify-between pt-safe">
           <h2 className="font-normal text-base text-slate-800 flex items-center gap-2">Ticket <span className="bg-slate-100 text-slate-400 rounded px-1.5 py-0.5 text-[10px]">{cart.length}</span></h2>
-          <button onClick={() => setShowMobileTicket(false)} className="lg:hidden p-1 text-slate-400 text-sm">✕ Close</button>
+          <button onClick={() => setShowMobileTicket(false)} className="lg:hidden p-1 text-slate-400 text-sm font-bold">✕ Close</button>
         </div>
 
         <div className="flex-shrink-0 p-3 bg-white space-y-2 border-b border-slate-100">
@@ -160,7 +190,16 @@ export default function POS() {
             <input value={custSearch} onChange={e=>setCustSearch(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleBarcodeMatch(custSearch)} placeholder="Scan Barcode or Search..." className="flex-1 bg-transparent text-[11px] font-normal focus:outline-none" />
           </div>
 
-          {isScanning && <div id="reader" className="w-full rounded-lg overflow-hidden border border-emerald-400 bg-black aspect-video"></div>}
+          {/* Camera Preview Box */}
+          {isScanning && (
+            <div className="relative w-full rounded-lg overflow-hidden border-2 border-emerald-400 bg-black aspect-video shadow-inner flex items-center justify-center">
+              <div id="reader" className="w-full"></div>
+              {/* Overlay targeting box to help cashiers aim */}
+              <div className="absolute inset-0 pointer-events-none border-[40px] border-black/30 flex items-center justify-center">
+                 <div className="w-full h-full border-2 border-emerald-400/50"></div>
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-1.5">
             <select value={orderType} onChange={e=>setOrderType(e.target.value)} className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-[10px] font-normal text-slate-500 uppercase focus:outline-none">
