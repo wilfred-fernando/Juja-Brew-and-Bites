@@ -233,6 +233,7 @@ export default function POS() {
           </div>
         </div>
 
+        {/* Note the pb-24 here which keeps the bottom items from hiding under the fixed bar */}
         <div className="flex-1 overflow-y-auto hide-scrollbar pb-24 lg:pb-0">
           <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-none divide-slate-100 p-0 md:p-3 md:gap-3">
             {filtered.map(item=>{
@@ -269,9 +270,10 @@ export default function POS() {
           </div>
         </div>
 
-        <div className="lg:hidden absolute bottom-0 left-0 right-0 p-3 bg-white border-t border-slate-200 z-20 pb-safe shadow-[0_-10px_20px_rgba(0,0,0,0.03)]">
+        {/* ─── FIXED MOBILE FLOATING BAR ─── */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-md border-t border-slate-200 z-[100] pb-safe shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
           <button onClick={() => setShowMobileTicket(true)} 
-            className={`w-full py-3.5 rounded-xl font-black text-sm text-white flex items-center justify-between px-5 transition-all shadow-md active:scale-95 ${cart.length ? "bg-slate-800" : "bg-slate-300"}`}>
+            className={`w-full py-4 rounded-xl font-black text-sm text-white flex items-center justify-between px-6 transition-all shadow-lg active:scale-95 ${cart.length ? "bg-slate-800" : "bg-slate-300"}`}>
             <span>{cart.length} Items</span>
             <span>View Ticket ➔</span>
           </button>
@@ -279,7 +281,7 @@ export default function POS() {
       </div>
 
       {/* ─── RIGHT PANEL: THE TICKET ─── */}
-      <div className={`fixed inset-0 z-50 lg:static lg:z-auto w-full lg:w-[400px] flex-shrink-0 flex flex-col bg-slate-50 lg:border-l border-slate-200 shadow-2xl transition-transform duration-300 ${showMobileTicket ? "translate-y-0" : "translate-y-full lg:translate-y-0"}`}>
+      <div className={`fixed inset-0 z-[150] lg:static lg:z-auto w-full lg:w-[400px] flex-shrink-0 flex flex-col bg-slate-50 lg:border-l border-slate-200 shadow-2xl transition-transform duration-300 ${showMobileTicket ? "translate-y-0" : "translate-y-full lg:translate-y-0"}`}>
 
         <div className="flex-shrink-0 flex items-center justify-between px-4 py-4 bg-white border-b border-slate-200 pt-safe z-10">
           <div className="flex items-center gap-3">
@@ -289,7 +291,6 @@ export default function POS() {
             <h2 className="font-black text-lg text-slate-800 flex items-center gap-2">Ticket <span className="bg-slate-100 border border-slate-200 text-slate-500 rounded-md px-2 py-0.5 text-xs">{cart.length}</span></h2>
           </div>
           
-          {/* REMOVED THE HUMAN ICON BUTTON HERE */}
           <div className="flex items-center gap-2">
             <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors"><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg></button>
           </div>
