@@ -5,6 +5,26 @@ import { MenuItem, MenuCategory, Order } from "@/api/entities";
 import { supabase } from "@/lib/supabase"; 
 import { Html5Qrcode } from "html5-qrcode"; 
 
+// --- FORMATTING HELPERS ---
+const formatLoyaltyDate = (dateStr, includeTime = false) => {
+  if (!dateStr || dateStr === "N/A") return "N/A";
+  const d = new Date(dateStr);
+  if (isNaN(d)) return dateStr; // Fallback if the date is invalid
+  
+  const datePart = d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+  if (includeTime) {
+    const timePart = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    return `${datePart} at ${timePart}`;
+  }
+  return datePart;
+};
+
+const formatLoyaltyMoney = (val) => {
+  const num = parseFloat(val);
+  if (isNaN(num)) return "0.00";
+  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 export default function POS() {
   const [items, setItems]     = useState([]);
   const [cats, setCats]       = useState([]);
@@ -24,10 +44,9 @@ export default function POS() {
 
   const [members, setMembers] = useState([]);
   const [custSearch, setCustSearch] = useState("");
-  const [cname, setCname] = useState("");
   const [showCustList, setShowCustList] = useState(false);
+  const [cname, setCname] = useState("");
   
-  // ─── NEW: LOYALTY PROFILE STATE ───
   const [customerProfile, setCustomerProfile] = useState(null);
 
   const [orderType, setOrderType] = useState("TABLE"); 
@@ -89,24 +108,19 @@ export default function POS() {
 
   const handleBarcodeMatch = (rawCode) => {
     const code = rawCode.trim();
-
-    // 1. Check Loyalty Members First
     const memberMatch = members.find(m => m["Customer code"] === code);
     if (memberMatch) {
       setCname(memberMatch["Customer name"]);
       setCustSearch(memberMatch["Customer name"]); 
-      setCustomerProfile(memberMatch); // <-- Triggers the popup
+      setCustomerProfile(memberMatch); 
       return; 
     }
-
-    // 2. Check Menu Items if it wasn't a customer
     const itemMatch = items.find(i => i.sku === code || i.barcode === code);
     if (itemMatch) {
       add(itemMatch);
       setCustSearch(""); 
       return;
     }
-
     alert(`No matching Customer or Item found for barcode: ${code}`);
   };
 
@@ -140,7 +154,6 @@ export default function POS() {
       
       {/* ─── LEFT: MENU SECTION ─── */}
       <div className="flex-1 flex flex-col min-w-0 bg-white h-full lg:border-r border-slate-100">
-        
         <div className="flex-shrink-0 px-4 py-3 border-b border-slate-50 flex items-center justify-between bg-white pt-safe z-10">
           <select value={cat} onChange={e=>setCat(e.target.value)} className="bg-transparent font-normal text-slate-800 text-base focus:outline-none cursor-pointer">
             <option value="ALL">All Items</option>
@@ -214,7 +227,7 @@ export default function POS() {
                       setCustSearch(m["Customer name"]); 
                       setCname(m["Customer name"]); 
                       setShowCustList(false);
-                      setCustomerProfile(m); // <-- Triggers the popup
+                      setCustomerProfile(m);
                     }} className="w-full text-left px-3 py-2 hover:bg-slate-50 border-b border-slate-50 transition-colors">
                     <p className="font-normal text-slate-800 text-xs leading-tight">{m["Customer name"]}</p>
                   </button>
@@ -314,40 +327,40 @@ export default function POS() {
 
              <div className="border-t border-slate-100 my-6"></div>
 
-             {/* Stats Grid */}
+             {/* FORMATTED Stats Grid */}
              <div className="grid grid-cols-2 gap-y-7 gap-x-4 px-2">
                 <div className="flex items-start gap-4 text-slate-500">
                    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="mt-0.5"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                    <div>
-                      <p className="text-slate-800 font-normal text-sm leading-none">{customerProfile["First visit"] || "N/A"}</p>
+                      <p className="text-slate-800 font-normal text-sm leading-none">{formatLoyaltyDate(customerProfile["First visit"] || customerProfile.first_visit, false)}</p>
                       <p className="text-[11px] text-slate-400 font-normal mt-1">First visit</p>
                    </div>
                 </div>
                 <div className="flex items-start gap-4 text-slate-500">
                    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="mt-0.5"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                    <div>
-                      <p className="text-slate-800 font-normal text-sm leading-tight">{customerProfile["Last visit"] || "N/A"}</p>
+                      <p className="text-slate-800 font-normal text-sm leading-tight">{formatLoyaltyDate(customerProfile["Last visit"] || customerProfile.last_visit, true)}</p>
                       <p className="text-[11px] text-slate-400 font-normal mt-1">Last visit</p>
                    </div>
                 </div>
                 <div className="flex items-start gap-4 text-slate-500">
                    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="mt-0.5"><path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
                    <div>
-                      <p className="text-slate-800 font-normal text-sm leading-none">{customerProfile["Total visits"] || customerProfile["Visits"] || "0"}</p>
+                      <p className="text-slate-800 font-normal text-sm leading-none">{customerProfile["Total visits"] || customerProfile["Visits"] || customerProfile.total_visits || "0"}</p>
                       <p className="text-[11px] text-slate-400 font-normal mt-1">Visits</p>
                    </div>
                 </div>
                 <div className="flex items-start gap-4 text-slate-500">
                    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="mt-0.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                    <div>
-                      <p className="text-slate-800 font-normal text-sm leading-none">₱{customerProfile["Total spent"] || "0.00"}</p>
+                      <p className="text-slate-800 font-normal text-sm leading-none">₱{formatLoyaltyMoney(customerProfile["Total spent"] || customerProfile.total_spent)}</p>
                       <p className="text-[11px] text-slate-400 font-normal mt-1">Total spent</p>
                    </div>
                 </div>
                 <div className="flex items-start gap-4 text-slate-500">
                    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="mt-0.5"><path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
                    <div>
-                      <p className="text-slate-800 font-normal text-sm leading-none">{customerProfile["Points"] || customerProfile["Balance"] || "0.00"}</p>
+                      <p className="text-slate-800 font-normal text-sm leading-none">{formatLoyaltyMoney(customerProfile["Points balance"] || customerProfile["Points"] || customerProfile.points_balance)}</p>
                       <p className="text-[11px] text-slate-400 font-normal mt-1">Points</p>
                    </div>
                 </div>
