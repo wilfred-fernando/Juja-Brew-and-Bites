@@ -91,7 +91,7 @@ export default function AdminLayout({ children }) {
         
         {/* Sidebar Header */}
         <div className="p-6 md:p-8 pb-4 md:pb-6 flex justify-between items-center border-b border-rose-50/50">
-          <img src={LOGO} alt="Juja" className="h-10 md:h-14 object-contain transition-transform hover:scale-105" />
+          <img src={LOGO} alt="Juja" className="h-16 md:h-26 object-contain transition-transform hover:scale-105" />
           <button onClick={() => setMobileOpen(false)} className="md:hidden w-8 h-8 flex items-center justify-center bg-rose-50 text-rose-500 rounded-full active:scale-90 transition-all">
             ✕
           </button>
