@@ -45,43 +45,32 @@ export default function POS() {
       .then(({ data }) => { if (data) setMembers(data); });
   }, []);
 
-  // ─── UPGRADED CAMERA LOGIC (PERMISSIONS & REAR CAMERA) ───
   const startScanner = async () => {
     setIsScanning(true);
-    
     try {
-      // This forces the browser to ask the user for Camera Permission
       const devices = await Html5Qrcode.getCameras();
-      
       if (devices && devices.length > 0) {
-        // Find the back camera by checking the label
-        let cameraId = devices[0].id; // Default to first camera if no specific labels
+        let cameraId = devices[0].id; 
         for (const device of devices) {
           if (device.label.toLowerCase().includes("back") || device.label.toLowerCase().includes("rear") || device.label.toLowerCase().includes("environment")) {
             cameraId = device.id;
             break;
           }
         }
-
         const html5QrCode = new Html5Qrcode("reader");
         scannerRef.current = html5QrCode;
-
         await html5QrCode.start(
           cameraId,
           { fps: 10, qrbox: { width: 250, height: 150 } },
-          (decodedText) => { 
-            handleBarcodeMatch(decodedText); 
-            stopScanner(); 
-          },
-          () => {} // Ignore continuous scanning frame errors
+          (decodedText) => { handleBarcodeMatch(decodedText); stopScanner(); },
+          () => {} 
         );
       } else {
-        alert("No cameras found on this device.");
+        alert("No cameras found.");
         setIsScanning(false);
       }
     } catch (err) {
-      console.error("Camera access error:", err);
-      alert("Camera permission denied. Please allow camera access in your browser settings to scan barcodes.");
+      alert("Camera permission denied. Please allow camera access in your browser settings.");
       setIsScanning(false);
     }
   };
@@ -94,16 +83,35 @@ export default function POS() {
     }
   };
 
-  const handleBarcodeMatch = (code) => {
-    const match = items.find(i => i.sku === code || i.barcode === code);
-    if (match) add(match);
-    else alert(`No item found in menu for barcode: ${code}`);
+  // ─── UPGRADED OMNI-SCANNER LOGIC ───
+  const handleBarcodeMatch = (rawCode) => {
+    const code = rawCode.trim();
+
+    // 1. Check Loyalty Members First
+    const memberMatch = members.find(m => m["Customer code"] === code);
+    if (memberMatch) {
+      setCname(memberMatch["Customer name"]);
+      setCustSearch(memberMatch["Customer name"]); // Update UI to show assigned customer
+      return; // Stop here, it was a customer!
+    }
+
+    // 2. Check Menu Items if it wasn't a customer
+    const itemMatch = items.find(i => i.sku === code || i.barcode === code);
+    if (itemMatch) {
+      add(itemMatch);
+      setCustSearch(""); // Clear the search bar so it's ready for the next scan
+      return;
+    }
+
+    // 3. Not Found
+    alert(`No matching Customer or Item found for barcode: ${code}`);
   };
 
   const filtered = items.filter(i => (cat==="ALL"||i.category===cat) && (!search||i.name.toLowerCase().includes(search.toLowerCase())));
   const getQty   = id => (cart.find(e=>e.id===id)||{}).qty || 0;
   const add = item => setCart(c => { const i=c.findIndex(e=>e.id===item.id); if(i>=0){const n=[...c];n[i]={...n[i],qty:n[i].qty+1};return n;} return [...c,{id:item.id,name:item.name,price:item.price,qty:1}]; });
   const upd = (id,d) => setCart(c => c.map(e=>e.id===id?{...e,qty:e.qty+d}:e).filter(e=>e.qty>0));
+  
   const clear = () => { setCart([]); setCname(""); setCustSearch(""); setTableNum(""); setNotes(""); setDisc(0); setShowMobileTicket(false); setOrderType("TABLE"); };
 
   const sub  = cart.reduce((s,e)=>s+e.price*e.qty,0);
@@ -132,7 +140,6 @@ export default function POS() {
       {/* ─── LEFT: MENU SECTION ─── */}
       <div className="flex-1 flex flex-col min-w-0 bg-white h-full lg:border-r border-slate-100">
         
-        {/* Header - Fixed at top */}
         <div className="flex-shrink-0 px-4 py-3 border-b border-slate-50 flex items-center justify-between bg-white pt-safe z-10">
           <select value={cat} onChange={e=>setCat(e.target.value)} className="bg-transparent font-normal text-slate-800 text-base focus:outline-none cursor-pointer">
             <option value="ALL">All Items</option>
@@ -144,7 +151,6 @@ export default function POS() {
           </div>
         </div>
 
-        {/* Scrollable List Area */}
         <div className="flex-1 overflow-y-auto hide-scrollbar p-2 pb-24 lg:pb-2">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
             {filtered.map(item => {
@@ -187,14 +193,12 @@ export default function POS() {
         <div className="flex-shrink-0 p-3 bg-white space-y-2 border-b border-slate-100">
           <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus-within:border-[#FC687D] transition-colors">
             <button onClick={isScanning ? stopScanner : startScanner} className={`text-base leading-none ${isScanning ? 'text-red-500 animate-pulse' : 'text-slate-400'}`}>║▌</button>
-            <input value={custSearch} onChange={e=>setCustSearch(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleBarcodeMatch(custSearch)} placeholder="Scan Barcode or Search..." className="flex-1 bg-transparent text-[11px] font-normal focus:outline-none" />
+            <input value={custSearch} onChange={e=>setCustSearch(e.target.value)} onKeyDown={e=>{if(e.key==='Enter') {handleBarcodeMatch(custSearch); e.preventDefault();}}} placeholder="Scan Loyalty or Item..." className="flex-1 bg-transparent text-[11px] font-normal focus:outline-none" />
           </div>
 
-          {/* Camera Preview Box */}
           {isScanning && (
             <div className="relative w-full rounded-lg overflow-hidden border-2 border-emerald-400 bg-black aspect-video shadow-inner flex items-center justify-center">
               <div id="reader" className="w-full"></div>
-              {/* Overlay targeting box to help cashiers aim */}
               <div className="absolute inset-0 pointer-events-none border-[40px] border-black/30 flex items-center justify-center">
                  <div className="w-full h-full border-2 border-emerald-400/50"></div>
               </div>
