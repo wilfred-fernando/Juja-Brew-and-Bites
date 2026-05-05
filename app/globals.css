@@ -1,7 +1,7 @@
-@import "tailwindcss";
-
 /* Add below @tailwind utilities; */
 @import url('https://fonts.cdnfonts.com/css/abadi');
+
+@import "tailwindcss";
 
 body {
   font-family: 'Abadi', system-ui, sans-serif !important;
