@@ -5,7 +5,6 @@ import { MenuItem, MenuCategory, Order } from "@/api/entities";
 import { supabase } from "@/lib/supabase"; 
 import { Html5Qrcode } from "html5-qrcode"; 
 
-// --- FORMATTING HELPERS ---
 const formatLoyaltyDate = (dateStr, includeTime = false) => {
   if (!dateStr || dateStr === "N/A") return "N/A";
   const d = new Date(dateStr);
@@ -35,7 +34,6 @@ export default function POS() {
   
   const [showMobileTicket, setShowMobileTicket] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [amountTendered, setAmountTendered] = useState("");
 
   const [members, setMembers] = useState([]);
   const [custSearch, setCustSearch] = useState("");
@@ -52,6 +50,10 @@ export default function POS() {
   const [currentOrderId, setCurrentOrderId] = useState(null);
   const [openTickets, setOpenTickets] = useState([]);
   const [showOpenTickets, setShowOpenTickets] = useState(false);
+
+  // ─── NEW: SWIPE TO DELETE STATE ───
+  const [swipeId, setSwipeId] = useState(null);
+  const touchStartX = useRef(0);
 
   useEffect(() => {
     Promise.all([MenuItem.list(), MenuCategory.list()])
@@ -105,26 +107,27 @@ export default function POS() {
   const clear = () => { 
     setCart([]); setCname(""); setCustSearch(""); setTableNum(""); setNotes(""); setDisc(0); 
     setShowMobileTicket(false); setShowPaymentModal(false); setOrderType("Table"); setCurrentOrderId(null); 
+    setCustomerProfile(null); setSwipeId(null);
   };
 
   const handleDeleteTicket = async () => {
-    if (!currentOrderId) {
-      clear();
-      return;
-    }
+    if (!currentOrderId) { clear(); return; }
     if (window.confirm("Are you sure you want to permanently delete this open ticket?")) {
       setBusy(true);
       try {
         const { error } = await supabase.from('orders').delete().eq('id', currentOrderId);
         if (error) throw error;
         clear();
-      } catch (err) {
-        console.error("Delete Error:", err);
-        alert("Failed to delete ticket from database.");
-      } finally {
-        setBusy(false);
-      }
+      } catch (err) { console.error(err); alert("Failed to delete ticket."); } finally { setBusy(false); }
     }
+  };
+
+  // ─── SWIPE EVENT HANDLERS ───
+  const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX; };
+  const handleTouchEnd = (e, id) => {
+    const touchEndX = e.changedTouches[0].clientX;
+    if (touchStartX.current - touchEndX > 40) setSwipeId(id); // Swiped Left
+    else if (touchEndX - touchStartX.current > 40) setSwipeId(null); // Swiped Right
   };
 
   const sub  = cart.reduce((s,e)=>s+e.price*e.qty,0);
@@ -146,11 +149,9 @@ export default function POS() {
     if (Array.isArray(parsedItems)) setCart(parsedItems.map(i => ({id: i.id, name: i.name, price: i.price, qty: i.quantity})));
     else setCart([]);
 
-    // Check for both old 'Walk-in' and new 'Dine-in' to clear the input safely
     const isDefaultCust = ticket.customer_name === "Walk-in" || ticket.customer_name === "Dine-in";
     setCname(isDefaultCust ? "" : ticket.customer_name);
     setCustSearch(isDefaultCust ? "" : ticket.customer_name);
-    
     setOrderType(ticket.order_type || "Table");
     
     let tNum = "";
@@ -172,8 +173,27 @@ export default function POS() {
     if(tableNum) np.push(`${orderType} #: ${tableNum}`); 
     if(disc>0) np.push(`Disc:${disc}%`);
     
+    let earnedPoints = 0;
+    
+    // ─── AUTOMATED LOYALTY POINTS CALCULATION ───
+    if (isPaid && customerProfile && customerProfile.id) {
+       earnedPoints = parseFloat((total / 25).toFixed(2));
+       const currentPoints = parseFloat(customerProfile.Points || customerProfile.points_balance || 0);
+       const currentSpent = parseFloat(customerProfile["Total spent"] || customerProfile.total_spent || 0);
+       const currentVisits = parseInt(customerProfile.Visits || customerProfile.total_visits || 0, 10);
+       
+       const payloadLoyalty = {
+          Points: (currentPoints + earnedPoints).toFixed(2),
+          "Total spent": (currentSpent + total).toFixed(2),
+          Visits: currentVisits + 1,
+          "Last visit": new Date().toISOString()
+       };
+       // Update loyalty seamlessly in the background
+       supabase.from('loyalty_members').update(payloadLoyalty).eq('id', customerProfile.id).then().catch(console.error);
+    }
+    
     const payload = {
-      customer_name: cname || "Dine-in", // Replaced Walk-in with Dine-in
+      customer_name: cname || "Dine-in", 
       customer_email: "",
       customer_phone: "",
       items: cart.map(e => ({ id: e.id, name: e.name, price: e.price, quantity: e.qty, subtotal: e.price * e.qty })),
@@ -200,7 +220,7 @@ export default function POS() {
       
       setReceipt({
         id: orderId, cart: [...cart], sub, damt, total, disc, isPaid, 
-        cname: cname || "Dine-in", type: orderType, method: paymentMethod 
+        cname: cname || "Dine-in", type: orderType, method: paymentMethod, earnedPoints 
       }); 
       
       clear(); 
@@ -262,18 +282,18 @@ export default function POS() {
       <div className={`fixed inset-0 z-50 lg:static lg:z-auto w-full lg:w-[320px] xl:w-[360px] flex flex-col bg-slate-50/50 transition-transform duration-300 ${showMobileTicket ? "translate-y-0" : "translate-y-full lg:translate-y-0"}`}>
         
         <div className="flex-shrink-0 px-4 py-3 bg-white border-b border-slate-200 flex items-center justify-between pt-safe">
-          <h2 className="font-normal text-base text-slate-800 flex items-center gap-2">
-            {currentOrderId ? "Open Ticket" : "Ticket"}
-            <span className="bg-slate-100 text-slate-400 rounded px-1.5 py-0.5 text-[10px]">{cart.length}</span>
+          {/* FIX: Customer Name dynamically replaces Dine-in in the header */}
+          <h2 className="font-normal text-base text-slate-800 flex items-center gap-2 truncate pr-2">
+            Ticket • <span className="font-bold truncate">{cname || "Dine-in"}</span>
           </h2>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {(cart.length > 0 || currentOrderId) && (
               <button onClick={handleDeleteTicket} className="text-slate-400 hover:text-red-500 text-sm mr-1 transition-colors">
                 🗑️
               </button>
             )}
             <button onClick={fetchOpenTickets} className="flex items-center gap-1 text-[9px] xl:text-[10px] uppercase tracking-widest font-normal text-slate-500 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors">
-              📋 Open Tickets
+              📋
             </button>
             <button onClick={() => setShowMobileTicket(false)} className="lg:hidden p-1 text-slate-400 text-sm font-bold">✕</button>
           </div>
@@ -315,7 +335,7 @@ export default function POS() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto hide-scrollbar">
+        <div className="flex-1 overflow-y-auto hide-scrollbar overflow-x-hidden">
           {cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full opacity-20 py-10">
               <span className="text-4xl mb-2">🧾</span>
@@ -323,17 +343,32 @@ export default function POS() {
             </div>
           ) : (
             <div className="divide-y divide-slate-100 px-1">
+              {/* FIX: Interactive Swipe-to-Delete applied to all items */}
               {cart.map(item => (
-                <div key={item.id} className="p-3 flex justify-between items-center hover:bg-white/40 transition-colors">
-                  <div className="flex-1 pr-3">
-                    <p className="font-normal text-slate-800 text-xs truncate">{item.name}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                       <button onClick={()=>upd(item.id,-1)} className="w-5 h-5 rounded bg-white border border-slate-100 flex items-center justify-center text-xs text-slate-400">-</button>
-                       <span className="text-xs font-black text-slate-700">{item.qty}</span>
-                       <button onClick={()=>upd(item.id,1)} className="w-5 h-5 rounded bg-white border border-slate-100 flex items-center justify-center text-xs text-slate-400">+</button>
-                    </div>
+                <div key={item.id} className="relative overflow-hidden group">
+                  {/* Delete Button Background */}
+                  <div className="absolute inset-y-0 right-0 w-20 bg-red-500 flex items-center justify-center z-0 rounded-r-lg my-1">
+                    <button onClick={() => upd(item.id, -item.qty)} className="w-full h-full text-white text-xl flex items-center justify-center active:bg-red-600">
+                      🗑️
+                    </button>
                   </div>
-                  <span className="text-xs font-normal text-slate-800">₱{(item.price*item.qty).toLocaleString()}</span>
+                  
+                  {/* Draggable Foreground */}
+                  <div 
+                    onTouchStart={handleTouchStart} 
+                    onTouchEnd={(e) => handleTouchEnd(e, item.id)}
+                    className={`p-3 flex justify-between items-center bg-white/90 backdrop-blur-sm transition-transform duration-300 relative z-10 my-1 rounded-lg ${swipeId === item.id ? '-translate-x-20 shadow-lg' : 'translate-x-0'}`}
+                  >
+                    <div className="flex-1 pr-3">
+                      <p className="font-normal text-slate-800 text-xs truncate">{item.name}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                         <button onClick={()=>upd(item.id,-1)} className="w-5 h-5 rounded bg-white border border-slate-100 flex items-center justify-center text-xs text-slate-400 shadow-sm">-</button>
+                         <span className="text-xs font-black text-slate-700">{item.qty}</span>
+                         <button onClick={()=>upd(item.id,1)} className="w-5 h-5 rounded bg-white border border-slate-100 flex items-center justify-center text-xs text-slate-400 shadow-sm">+</button>
+                      </div>
+                    </div>
+                    <span className="text-xs font-normal text-slate-800">₱{(item.price*item.qty).toLocaleString()}</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -378,13 +413,11 @@ export default function POS() {
                     {openTickets.map(ticket => (
                       <button key={ticket.id} onClick={() => loadTicket(ticket)} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-[#FC687D]/30 transition-all text-left flex flex-col gap-2 group relative overflow-hidden">
                          
-                         {/* FIX: Notes (Table #) swapped to top */}
                          <div className="flex justify-between items-start">
                            <span className="font-normal text-sm text-slate-800 line-clamp-1">{ticket.notes || ticket.order_type}</span>
                            <span className="text-[10px] font-normal uppercase tracking-widest text-emerald-500 bg-emerald-50 px-2 py-1 rounded-md flex-shrink-0 ml-2">₱{parseFloat(ticket.total_amount || 0).toLocaleString()}</span>
                          </div>
                          
-                         {/* FIX: Customer name swapped to bottom, with legacy support for displaying "Walk-in" as "Dine-in" */}
                          <p className="text-[11px] text-slate-400 font-normal line-clamp-1">
                            {ticket.customer_name === "Walk-in" ? "Dine-in" : ticket.customer_name}
                          </p>
@@ -488,15 +521,24 @@ export default function POS() {
         </div>
       )}
 
+      {/* FIX: Receipt modal now shows automated points earned */}
       {receipt && (
         <div className="fixed inset-0 z-[300] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-sm p-6 text-center animate-in zoom-in duration-300 shadow-2xl">
              <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">✓</div>
              <h2 className="text-xl font-normal text-slate-800">{receipt.isPaid ? "Payment Received" : "Ticket Saved"}</h2>
              <p className="text-xs text-slate-400 font-mono mt-1 uppercase">#{receipt.id?.slice(-8)}</p>
+             
+             {receipt.earnedPoints > 0 && (
+               <div className="mt-4 bg-emerald-50 text-emerald-600 p-3 rounded-xl border border-emerald-100 flex flex-col animate-in slide-in-from-bottom-2">
+                 <span className="text-[10px] uppercase tracking-widest">Points Earned</span>
+                 <span className="font-black text-lg">+{receipt.earnedPoints}</span>
+               </div>
+             )}
+
              <div className="mt-6 space-y-3">
-                <button onClick={()=>window.print()} className="w-full py-3.5 bg-slate-50 text-slate-600 font-normal text-xs rounded-xl uppercase tracking-widest">Print Receipt</button>
-                <button onClick={()=>setReceipt(null)} className="w-full py-3.5 bg-[#FC687D] text-white font-normal text-xs rounded-xl uppercase tracking-widest shadow-lg shadow-rose-200">New Order</button>
+                <button onClick={()=>window.print()} className="w-full py-3.5 bg-slate-50 text-slate-600 font-normal text-xs rounded-xl uppercase tracking-widest hover:bg-slate-100 transition-colors">Print Receipt</button>
+                <button onClick={()=>setReceipt(null)} className="w-full py-3.5 bg-[#FC687D] text-white font-normal text-xs rounded-xl uppercase tracking-widest shadow-lg shadow-rose-200 hover:bg-rose-500 transition-colors">New Order</button>
              </div>
           </div>
         </div>
