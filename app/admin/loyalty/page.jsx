@@ -79,7 +79,7 @@ export default function LoyaltyAdminPage() {
       
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-6 mb-6 md:mb-8 pt-4 md:pt-6">
         <div>
-          <h1 className="text-2xl md:text-4xl font-normal text-slate-800 tracking-tight leading-none">Juja Rewards</h1>
+          <h1 className="text-2xl md:text-4xl font-normal text-slate-800 tracking-tight leading-none">JUJA LOYALTY PROGRAM </h1>
           <p className="text-slate-400 text-xs md:text-sm font-medium mt-1 md:mt-2">
             Managing {members.length} loyal customers
           </p>

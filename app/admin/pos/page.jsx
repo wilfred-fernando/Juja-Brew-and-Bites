@@ -96,11 +96,14 @@ export default function POS() {
   if(loading) return <div className="h-screen w-full flex items-center justify-center bg-white"><div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full"></div></div>;
 
   return (
-    <div className="h-full w-full flex flex-col lg:flex-row overflow-hidden bg-white rounded-2xl lg:border border-slate-200/60 shadow-sm">
+    // FIX: Using 100dvh on mobile forces it to respect the exact device screen height
+    <div className="h-[100dvh] lg:h-full w-full flex flex-col lg:flex-row overflow-hidden bg-white lg:rounded-2xl lg:border border-slate-200/60 shadow-sm">
       
       {/* LEFT: MENU SECTION */}
-      <div className="flex-1 flex flex-col min-w-0 bg-white h-full border-r border-slate-100">
-        <div className="px-4 py-3 border-b border-slate-50 flex items-center justify-between bg-white">
+      <div className="flex-1 flex flex-col min-w-0 bg-white h-full lg:border-r border-slate-100">
+        
+        {/* Header - Fixed at top */}
+        <div className="flex-shrink-0 px-4 py-3 border-b border-slate-50 flex items-center justify-between bg-white pt-safe">
           <select value={cat} onChange={e=>setCat(e.target.value)} className="bg-transparent font-normal text-slate-800 text-base focus:outline-none cursor-pointer">
             <option value="ALL">All Items</option>
             {cats.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
@@ -111,6 +114,7 @@ export default function POS() {
           </div>
         </div>
 
+        {/* Scrollable List Area */}
         <div className="flex-1 overflow-y-auto hide-scrollbar p-2">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
             {filtered.map(item => {
@@ -131,6 +135,15 @@ export default function POS() {
             })}
           </div>
         </div>
+
+        {/* FIX: Mobile Button is now a fixed structural flex item, NOT absolute! */}
+        <div className="lg:hidden flex-shrink-0 p-3 bg-white border-t border-slate-200 pb-safe shadow-[0_-10px_20px_rgba(0,0,0,0.03)] z-10">
+          <button onClick={() => setShowMobileTicket(true)} 
+            className={`w-full py-3.5 rounded-xl font-black text-sm text-white flex items-center justify-between px-5 transition-all shadow-md active:scale-95 ${cart.length ? "bg-emerald-500" : "bg-slate-300"}`}>
+            <span>{cart.length} Items</span>
+            <span>View Ticket ➔</span>
+          </button>
+        </div>
       </div>
 
       {/* RIGHT: TICKET SECTION */}
@@ -142,7 +155,6 @@ export default function POS() {
         </div>
 
         <div className="flex-shrink-0 p-3 bg-white space-y-2 border-b border-slate-100">
-          {/* Barcode/Search Bar */}
           <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus-within:border-[#FC687D] transition-colors">
             <button onClick={isScanning ? stopScanner : startScanner} className={`text-base leading-none ${isScanning ? 'text-red-500 animate-pulse' : 'text-slate-400'}`}>║▌</button>
             <input value={custSearch} onChange={e=>setCustSearch(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleBarcodeMatch(custSearch)} placeholder="Scan Barcode or Search..." className="flex-1 bg-transparent text-[11px] font-normal focus:outline-none" />
@@ -150,7 +162,6 @@ export default function POS() {
 
           {isScanning && <div id="reader" className="w-full rounded-lg overflow-hidden border border-emerald-400 bg-black aspect-video"></div>}
 
-          {/* Table Selector */}
           <div className="flex gap-1.5">
             <select value={orderType} onChange={e=>setOrderType(e.target.value)} className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-[10px] font-normal text-slate-500 uppercase focus:outline-none">
               <option value="TABLE">TABLE</option>
@@ -162,7 +173,6 @@ export default function POS() {
           </div>
         </div>
 
-        {/* Ticket Items */}
         <div className="flex-1 overflow-y-auto hide-scrollbar">
           {cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full opacity-20 py-10">
@@ -188,7 +198,6 @@ export default function POS() {
           )}
         </div>
 
-        {/* Footer Actions */}
         <div className="flex-shrink-0 bg-white border-t border-slate-200">
            <button onClick={()=>setShowDisc(!showDisc)} className="w-full px-4 py-2.5 flex justify-between items-center hover:bg-slate-50 border-b border-slate-50">
               <span className="text-[10px] font-normal uppercase tracking-widest text-slate-400">Discount</span>
@@ -205,7 +214,39 @@ export default function POS() {
         </div>
       </div>
       
-      {/* Payment & Receipt modals would follow here... */}
+      {/* ─── PAYMENT & MODALS ─── */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 z-[200] bg-slate-900/80 backdrop-blur-sm flex flex-col pt-10 pb-safe px-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-sm xl:max-w-md mx-auto bg-[#1a1a1a] rounded-3xl overflow-hidden flex flex-col border border-slate-800">
+             <div className="p-4 border-b border-slate-800 text-center relative">
+                <button onClick={()=>setShowPaymentModal(false)} className="absolute left-4 text-white text-xl">✕</button>
+                <span className="text-[10px] uppercase tracking-widest text-slate-500">Payment</span>
+             </div>
+             <div className="py-8 text-center text-white border-b border-slate-800">
+                <h1 className="text-3xl font-normal tracking-tight">₱{total.toLocaleString()}</h1>
+             </div>
+             <div className="p-6 grid grid-cols-1 gap-2 overflow-y-auto max-h-[400px] hide-scrollbar">
+                {["CASH", "GRABFOOD", "QRPH", "GRAB DINE OUT", "CARD"].map(pm => (
+                   <button key={pm} onClick={()=>{setShowPaymentModal(false); place(true, pm);}} className="w-full py-4 bg-[#2a2a2a] rounded-xl text-white font-normal text-xs uppercase tracking-widest hover:bg-[#333] transition-colors">{pm}</button>
+                ))}
+             </div>
+          </div>
+        </div>
+      )}
+
+      {receipt && (
+        <div className="fixed inset-0 z-[300] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 text-center animate-in zoom-in duration-300 shadow-2xl">
+             <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">✓</div>
+             <h2 className="text-xl font-normal text-slate-800">{receipt.isPaid ? "Payment Received" : "Ticket Saved"}</h2>
+             <p className="text-xs text-slate-400 font-mono mt-1 uppercase">#{receipt.id?.slice(-8)}</p>
+             <div className="mt-6 space-y-3">
+                <button onClick={()=>window.print()} className="w-full py-3.5 bg-slate-50 text-slate-600 font-normal text-xs rounded-xl uppercase tracking-widest">Print Receipt</button>
+                <button onClick={()=>setReceipt(null)} className="w-full py-3.5 bg-[#FC687D] text-white font-normal text-xs rounded-xl uppercase tracking-widest shadow-lg shadow-rose-200">New Order</button>
+             </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
