@@ -1,25 +1,22 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Juja 주자 Brew & Bites",
-  description: "Your premier destination for specialty brews and artisan bites in Quezon City.",
+  title: "Juja Brew and Bites",
+  description: "Premium Coffee, Tea, and Exquisite Bites",
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
-        {/* Load the Inter font to match your design specs */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+        {/* This meta tag is the secret to perfect mobile app scaling! */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
       </head>
-      <body className="antialiased bg-[#FFF5F7] text-slate-800" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <body className="antialiased text-slate-800 min-h-screen flex flex-col selection:bg-rose-200 selection:text-rose-900">
         {/* 
-          Notice there is no Sidebar or Navbar here! 
-          The Root Layout just wraps the app. 
-          The Admin Sidebar is handled in app/admin/layout.jsx 
-          and the public Nav is in the individual public pages. 
+          All your pages (Public, Admin, Customer) will automatically 
+          render inside this 'children' block, inheriting the Abadi font 
+          and responsive scaling automatically! 
         */}
         {children}
       </body>
