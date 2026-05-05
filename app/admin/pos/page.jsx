@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { MenuItem, MenuCategory, Order } from "@/api/entities";
+import { supabase } from "@/lib/supabase"; // Required for pulling loyalty members
 
 const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
 const COLORS = ["#FC687D", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#06b6d4", "#ec4899", "#14b8a6"];
@@ -12,20 +13,26 @@ export default function POS() {
   const [cat, setCat]         = useState("ALL");
   const [search, setSearch]   = useState("");
   const [cart, setCart]       = useState([]);
-  const [type, setType]       = useState("Dine-In");
-  const [cname, setCname]     = useState("");
-  const [table, setTable]     = useState("");
   const [notes, setNotes]     = useState("");
   const [disc, setDisc]       = useState(0);
   const [showDisc, setShowDisc] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy]       = useState(false);
   const [receipt, setReceipt] = useState(null);
-  
-  // NEW: State to control the mobile ticket slider
   const [showMobileTicket, setShowMobileTicket] = useState(false);
 
+  // --- NEW: Loyalty & Customer State ---
+  const [members, setMembers] = useState([]);
+  const [custSearch, setCustSearch] = useState("");
+  const [cname, setCname] = useState("");
+  const [showCustList, setShowCustList] = useState(false);
+
+  // --- NEW: Dining Options State ---
+  const [orderType, setOrderType] = useState("Table"); // Default
+  const [tableNum, setTableNum] = useState("");
+
   useEffect(() => {
+    // 1. Fetch Menu Data
     Promise.all([MenuItem.list(), MenuCategory.list()])
       .then(([mi, mc]) => {
         setCats((mc||[]).filter(c=>c.is_active!==false).sort((a,b)=>(a.sort_order||99)-(b.sort_order||99)));
@@ -33,6 +40,10 @@ export default function POS() {
       })
       .catch(()=>{})
       .finally(()=>setLoading(false));
+
+    // 2. Fetch Loyalty Members for the Customer Dropdown
+    supabase.from("loyalty_members").select("*")
+      .then(({ data }) => { if (data) setMembers(data); });
   }, []);
 
   const filtered = items.filter(i => (cat==="ALL"||i.category===cat) && (!search||i.name.toLowerCase().includes(search.toLowerCase())));
@@ -41,27 +52,54 @@ export default function POS() {
 
   const add = item => setCart(c => { const i=c.findIndex(e=>e.id===item.id); if(i>=0){const n=[...c];n[i]={...n[i],qty:n[i].qty+1};return n;} return [...c,{id:item.id,name:item.name,price:item.price,qty:1}]; });
   const upd = (id,d) => setCart(c => c.map(e=>e.id===id?{...e,qty:e.qty+d}:e).filter(e=>e.qty>0));
-  const clear = () => { setCart([]); setCname(""); setTable(""); setNotes(""); setDisc(0); setShowMobileTicket(false); };
+  
+  const clear = () => { 
+    setCart([]); setCname(""); setCustSearch(""); setTableNum(""); setNotes(""); setDisc(0); setShowMobileTicket(false); setOrderType("Table");
+  };
 
   const sub  = cart.reduce((s,e)=>s+e.price*e.qty,0);
   const damt  = sub*disc/100;
   const total = sub-damt;
 
-  const place = () => {
+  // --- UPDATED: Place Order (Handles both "Save Ticket" and "Charge") ---
+  const place = (isPaid = true) => {
     if(!cart.length||busy) return;
     setBusy(true);
-    const np=[]; if(table) np.push("Table:"+table); if(disc>0) np.push("Disc:"+disc+"%"); if(notes) np.push(notes);
+    
+    const np=[]; 
+    // Format the table/VIP room number into notes
+    if(tableNum && (orderType === "VIP Room" || orderType === "Table")) np.push(`${orderType} #: ${tableNum}`);
+    if(disc>0) np.push("Disc:"+disc+"%"); 
+    if(notes) np.push(notes);
+
     Order.create({
-      customer_name: cname||(type==="Dine-In"&&table?"Table "+table:"Walk-in"),
+      customer_name: cname || "Walk-in",
       customer_email:"", customer_phone:"",
       items: cart.map(e=>({id:e.id,name:e.name,price:e.price,quantity:e.qty,subtotal:e.price*e.qty})),
-      total_amount:total, status:"Confirmed", payment_status:"Paid",
-      order_type:type, notes:np.join(" | "),
+      total_amount: total, 
+      status: isPaid ? "Confirmed" : "Open",          // Open for Saved Tickets
+      payment_status: isPaid ? "Paid" : "Unpaid",     // Unpaid for Saved Tickets
+      order_type: orderType, 
+      notes: np.join(" | "),
     })
-    .then(o => { setReceipt({id:o.id,cart:[...cart],sub,damt,total,disc,cname,table,type}); clear(); })
+    .then(o => { 
+      setReceipt({
+        id: o.id, cart: [...cart], sub, damt, total, disc, isPaid,
+        cname: cname || "Walk-in", 
+        type: orderType,
+        table: tableNum ? `${orderType} ${tableNum}` : orderType
+      }); 
+      clear(); 
+    })
     .catch(()=>alert("Order failed. Try again."))
     .finally(()=>setBusy(false));
   };
+
+  // Filter loyalty members based on search
+  const filteredMembers = members.filter(m => 
+    (m["Customer name"] || "").toLowerCase().includes(custSearch.toLowerCase()) ||
+    (m["Phone"] || "").includes(custSearch)
+  );
 
   if(loading) return (
     <div className="h-screen w-full flex items-center justify-center bg-[#FFF5F7]">
@@ -70,31 +108,18 @@ export default function POS() {
   );
 
   return (
-    // Responsive outer container: Col on mobile, Row on desktop
     <div className="h-[100dvh] w-full flex flex-col lg:flex-row overflow-hidden bg-slate-50 animate-in fade-in duration-500">
       
       {/* LEFT PANEL: MENU GRID */}
       <div className="flex-1 flex flex-col min-w-0 bg-[#FFF5F7] relative h-full">
         
-        {/* Top Actions (Stacks on Mobile) */}
-        <div className="flex-shrink-0 flex flex-col sm:flex-row gap-3 px-3 md:px-4 py-3 bg-white border-b border-rose-50 shadow-sm z-10">
-          <div className="flex gap-2 items-center flex-1">
-            <button className="p-2.5 hover:bg-slate-50 rounded-lg transition-all text-slate-400 active:scale-95">☰</button>
-            <div className="relative flex-1 max-w-md">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
-              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search..."
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-lg text-sm font-semibold focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" />
-            </div>
-          </div>
-          <div className="flex gap-2 bg-slate-50 p-1 rounded-lg border border-slate-100 sm:ml-auto w-full sm:w-auto">
-            {["Dine-In","Take-Out"].map(t=>(
-              <button key={t} onClick={()=>setType(t)} 
-                className={`flex-1 sm:flex-none px-4 py-2.5 sm:py-2 rounded-md font-bold text-xs uppercase tracking-widest transition-all active:scale-95 ${
-                  type===t ? "bg-white text-[#FC687D] shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
-                }`}>
-                {t}
-              </button>
-            ))}
+        {/* Top Search Bar */}
+        <div className="flex-shrink-0 flex items-center gap-3 px-3 md:px-4 py-3 bg-white border-b border-rose-50 shadow-sm z-10">
+          <button className="p-2.5 hover:bg-slate-50 rounded-lg transition-all text-slate-400 active:scale-95">☰</button>
+          <div className="relative flex-1 max-w-md">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search Menu..."
+              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-lg text-sm font-semibold focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" />
           </div>
         </div>
 
@@ -116,7 +141,7 @@ export default function POS() {
           ))}
         </div>
 
-        {/* Loyverse Square Grid (Responsive Columns) */}
+        {/* Loyverse Square Grid */}
         <div className="flex-1 overflow-y-auto p-3 md:p-4 hide-scrollbar pb-28 lg:pb-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-3 md:gap-4">
             {filtered.map(item=>{
@@ -130,7 +155,7 @@ export default function POS() {
                   <div className="absolute top-2.5 right-2.5 w-3 h-3 rounded-full opacity-60" style={{ backgroundColor: hexColor }} />
                   
                   <div className="mt-auto">
-                    <p className="text-slate-800 font-bold text-xs md:text-sm leading-tight mb-0.5 line-clamp-3">{item.name}</p>
+                    <p className="text-slate-800 font-normal text-xs md:text-sm leading-tight mb-0.5 line-clamp-3">{item.name}</p>
                     <p className="font-black text-sm md:text-base" style={{ color: hexColor }}>₱{item.price}</p>
                   </div>
 
@@ -145,7 +170,7 @@ export default function POS() {
           </div>
         </div>
 
-        {/* MOBILE BOTTOM FLOATING BAR (Hidden on Desktop) */}
+        {/* MOBILE BOTTOM FLOATING BAR */}
         <div className="lg:hidden absolute bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-slate-200 shadow-[0_-10px_20px_rgba(0,0,0,0.05)] z-20 pb-safe">
           <button onClick={() => setShowMobileTicket(true)} 
             className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest text-white flex items-center justify-between px-6 shadow-xl active:scale-95 transition-all ${cart.length ? "bg-[#10b981]" : "bg-slate-400"}`}>
@@ -157,28 +182,73 @@ export default function POS() {
         </div>
       </div>
 
-      {/* RIGHT PANEL: THE TICKET (Slide up on Mobile, Fixed on Desktop) */}
+      {/* RIGHT PANEL: THE TICKET */}
       <div className={`fixed inset-0 z-50 lg:static lg:z-auto w-full lg:w-[380px] xl:w-[420px] flex-shrink-0 flex flex-col bg-white lg:border-l border-slate-200 shadow-2xl transition-transform duration-300 ${showMobileTicket ? "translate-y-0" : "translate-y-full lg:translate-y-0"}`}>
 
         {/* Ticket Header */}
-        <div className="flex-shrink-0 flex items-center justify-between px-4 lg:px-6 py-4 lg:py-5 border-b border-slate-100 bg-slate-50/50 pt-safe">
+        <div className="flex-shrink-0 flex items-center justify-between px-4 lg:px-5 py-4 border-b border-slate-100 bg-slate-50/50 pt-safe">
           <div className="flex items-center gap-3">
             <button onClick={() => setShowMobileTicket(false)} className="lg:hidden w-8 h-8 flex items-center justify-center bg-slate-200 text-slate-500 rounded-full font-bold active:scale-90">✕</button>
-            <h2 className="font-black text-xl lg:text-2xl text-slate-800">Ticket</h2>
+            <h2 className="font-black text-xl text-slate-800">Ticket</h2>
           </div>
           {cart.length > 0 && (
-            <button onClick={clear} className="text-slate-400 hover:text-red-500 font-bold text-[11px] lg:text-xs transition-colors uppercase tracking-widest active:scale-95 bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
-              Clear
+            <button onClick={clear} className="text-slate-400 hover:text-red-500 font-bold text-[10px] transition-colors uppercase tracking-widest active:scale-95 bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
+              Trash
             </button>
           )}
         </div>
 
-        {/* Quick Customer Assignment */}
-        <div className="flex-shrink-0 flex gap-2 p-3 lg:p-4 border-b border-slate-100 bg-white">
-          <input value={cname} onChange={e=>setCname(e.target.value)} placeholder="Assign Customer..."
-            className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 lg:px-4 py-2.5 lg:py-3 text-xs lg:text-sm font-semibold focus:outline-none focus:border-[#FC687D] transition-all" />
-          <input value={table} onChange={e=>setTable(e.target.value)} placeholder="Table"
-            className="w-16 lg:w-20 bg-slate-50 border border-slate-200 rounded-lg px-2 lg:px-3 py-2.5 lg:py-3 text-xs lg:text-sm font-semibold focus:outline-none focus:border-[#FC687D] transition-all text-center" />
+        {/* ─── NEW: CUSTOMER LOYALTY & DINING OPTIONS AREA ─── */}
+        <div className="flex-shrink-0 flex flex-col p-4 border-b border-slate-100 bg-white relative z-20">
+          
+          {/* Customer Autocomplete Input */}
+          <div className="relative mb-3">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">👤</span>
+            <input 
+              value={custSearch} 
+              onFocus={() => setShowCustList(true)}
+              onBlur={() => setTimeout(() => setShowCustList(false), 200)}
+              onChange={e => { setCustSearch(e.target.value); setCname(e.target.value); setShowCustList(true); }}
+              placeholder="Search Loyalty Member or Walk-in..."
+              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs lg:text-sm font-semibold focus:outline-none focus:border-[#FC687D] transition-all" 
+            />
+            
+            {/* Loyalty Dropdown Results */}
+            {showCustList && custSearch && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-100 shadow-xl rounded-lg max-h-48 overflow-y-auto hide-scrollbar z-50">
+                {filteredMembers.length > 0 ? filteredMembers.map(m => (
+                  <button key={m.id} onMouseDown={() => { setCustSearch(m["Customer name"]); setCname(m["Customer name"]); setShowCustList(false); }}
+                    className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-colors">
+                    <p className="font-bold text-slate-800 text-sm leading-tight">{m["Customer name"]}</p>
+                    <p className="text-[10px] font-semibold text-slate-400 mt-0.5">{m["Phone"] || "No Phone"} • {m["Customer code"]}</p>
+                  </button>
+                )) : (
+                  <div className="px-4 py-3 text-xs text-slate-400 font-semibold bg-slate-50 italic">Saving as Walk-In: "{custSearch}"</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Dining Option Grid */}
+          <div className="grid grid-cols-2 gap-2">
+            {["Takeout", "Grab | Panda", "VIP Room", "Table"].map(t => (
+              <button key={t} onClick={() => setOrderType(t)}
+                className={`py-2 rounded-lg text-[10px] lg:text-xs font-bold uppercase tracking-widest transition-all active:scale-95 border ${
+                  orderType === t ? "bg-slate-800 text-white border-slate-800 shadow-md" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+                }`}>
+                {t}
+              </button>
+            ))}
+          </div>
+
+          {/* Conditional Input for VIP/Table Number */}
+          {(orderType === "VIP Room" || orderType === "Table") && (
+            <input 
+              value={tableNum} onChange={e=>setTableNum(e.target.value)} 
+              placeholder={`Enter ${orderType} Number...`}
+              className="mt-2 w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-xs lg:text-sm font-semibold focus:outline-none focus:border-[#FC687D] transition-all text-center" 
+            />
+          )}
         </div>
 
         {/* Cart/Ticket Items */}
@@ -186,14 +256,14 @@ export default function POS() {
           {cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-slate-300">
               <span className="text-5xl lg:text-6xl mb-4 opacity-50">🧾</span>
-              <p className="font-bold text-xs lg:text-sm uppercase tracking-widest">No Items</p>
+              <p className="font-bold text-xs uppercase tracking-widest">No Items Added</p>
             </div>
           ) : (
             <div className="p-2 space-y-1 pb-4">
               {cart.map(item => (
                 <div key={item.id} className="flex flex-col p-3 rounded-lg border border-slate-50 hover:bg-slate-50 transition-colors group">
                   <div className="flex justify-between items-start mb-2">
-                    <p className="font-bold text-slate-800 text-xs lg:text-sm leading-tight pr-4">{item.name}</p>
+                    <p className="font-normal text-slate-800 text-xs lg:text-sm leading-tight pr-4">{item.name}</p>
                     <p className="font-black text-slate-800 text-sm">₱{(item.price*item.qty).toLocaleString()}</p>
                   </div>
                   
@@ -213,17 +283,17 @@ export default function POS() {
 
         {/* Discount Bar */}
         <div className="flex-shrink-0 bg-slate-50 border-t border-slate-200">
-          <button onClick={()=>setShowDisc(!showDisc)} className="w-full flex justify-between items-center px-4 lg:px-6 py-3 lg:py-4 hover:bg-slate-100 active:bg-slate-200 transition-colors">
-            <span className="font-bold text-xs lg:text-sm text-slate-500 uppercase tracking-widest">Discount {disc>0 ? `(${disc}%)` : ""}</span>
+          <button onClick={()=>setShowDisc(!showDisc)} className="w-full flex justify-between items-center px-4 lg:px-5 py-3 hover:bg-slate-100 active:bg-slate-200 transition-colors">
+            <span className="font-bold text-xs text-slate-500 uppercase tracking-widest">Discount {disc>0 ? `(${disc}%)` : ""}</span>
             <span className="text-rose-500 font-bold text-sm">{damt > 0 ? `-₱${damt.toFixed(0)}` : "Add >"}</span>
           </button>
           
           {showDisc && (
-            <div className="flex gap-2 px-4 lg:px-6 pb-4">
+            <div className="flex gap-2 px-4 lg:px-5 pb-4">
               {[0,5,10,15,20].map(d=>(
                 <button key={d} onClick={()=>{setDisc(d);setShowDisc(false);}} 
                   className={`flex-1 py-2.5 rounded-lg font-bold text-xs transition-all active:scale-95 border ${
-                    disc===d ? "bg-slate-800 text-white border-slate-800 shadow-md" : "bg-white text-slate-600 border-slate-300"
+                    disc===d ? "bg-[#FC687D] text-white border-[#FC687D] shadow-md" : "bg-white text-slate-600 border-slate-300"
                   }`}>
                   {d===0?"None":d+"%"}
                 </button>
@@ -232,18 +302,25 @@ export default function POS() {
           )}
         </div>
 
-        {/* The Charge Button Area */}
-        <div className="flex-shrink-0 bg-white p-4 lg:p-6 border-t border-slate-200 pb-safe">
-          <div className="flex justify-between items-end mb-3 lg:mb-4">
-            <span className="font-bold text-slate-500 uppercase tracking-widest text-[11px] lg:text-sm">Total</span>
+        {/* ─── NEW: SAVE TICKET vs CHARGE BUTTONS ─── */}
+        <div className="flex-shrink-0 bg-white p-4 lg:p-5 border-t border-slate-200 pb-safe">
+          <div className="flex justify-between items-end mb-3">
+            <span className="font-bold text-slate-500 uppercase tracking-widest text-[11px] lg:text-xs">Total</span>
             <span className="font-black text-2xl lg:text-3xl text-slate-800 tracking-tight">₱{total.toLocaleString()}</span>
           </div>
           
-          <button onClick={place} disabled={!cart.length||busy}
-            className="w-full py-4 lg:py-5 rounded-[16px] lg:rounded-[20px] font-black text-lg lg:text-xl text-white transition-all active:scale-95 flex items-center justify-center gap-2 shadow-xl disabled:opacity-50 disabled:active:scale-100 disabled:shadow-none"
-            style={{ backgroundColor: cart.length ? "#10b981" : "#cbd5e1" }}>
-            {busy ? "Processing..." : `Charge ₱${total.toLocaleString()}`}
-          </button>
+          <div className="flex gap-2 lg:gap-3">
+            <button onClick={() => place(false)} disabled={!cart.length||busy}
+              className="w-[120px] py-4 rounded-[16px] font-black text-[11px] lg:text-xs uppercase tracking-widest text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all active:scale-95 disabled:opacity-50">
+              Save Ticket
+            </button>
+
+            <button onClick={() => place(true)} disabled={!cart.length||busy}
+              className="flex-1 py-4 rounded-[16px] font-black text-lg text-white transition-all active:scale-95 flex items-center justify-center shadow-xl disabled:opacity-50 disabled:shadow-none"
+              style={{ backgroundColor: cart.length ? "#10b981" : "#cbd5e1" }}>
+              {busy ? "Wait..." : `Charge ₱${total.toLocaleString()}`}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -251,13 +328,15 @@ export default function POS() {
       {receipt && (
         <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
           <div className="bg-white rounded-[24px] w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
-            <div className="p-6 lg:p-8 text-center border-b border-slate-100">
-              <div className="w-14 h-14 lg:w-16 lg:h-16 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center text-2xl lg:text-3xl mx-auto mb-3 lg:mb-4">✓</div>
-              <h2 className="font-black text-xl lg:text-2xl text-slate-800 mb-1">Transaction Complete</h2>
-              <p className="font-mono text-[10px] lg:text-xs font-bold text-slate-400">Order #{receipt.id?.slice(-8).toUpperCase()}</p>
+            <div className="p-6 text-center border-b border-slate-100 bg-[#FFF9FA]">
+              <div className="w-14 h-14 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center text-2xl mx-auto mb-3">✓</div>
+              <h2 className="font-black text-xl text-slate-800 mb-1">
+                {receipt.isPaid ? "Transaction Complete" : "Ticket Saved!"}
+              </h2>
+              <p className="font-mono text-[10px] font-bold text-slate-400">Order #{receipt.id?.slice(-8).toUpperCase()}</p>
             </div>
             
-            <div className="p-5 lg:p-6 max-h-[40vh] overflow-y-auto hide-scrollbar bg-slate-50">
+            <div className="p-5 max-h-[40vh] overflow-y-auto hide-scrollbar bg-slate-50">
               {receipt.cart.map(item=>(
                 <div key={item.id} className="flex justify-between items-start mb-3 text-xs lg:text-sm">
                   <span className="font-bold text-slate-600 flex-1 pr-4">{item.name} <span className="text-slate-400 text-[10px] lg:text-xs ml-1">x{item.qty}</span></span>
@@ -272,19 +351,27 @@ export default function POS() {
                     <span>-₱{receipt.damt.toFixed(0)}</span>
                   </div>
                 )}
-                <div className="flex justify-between font-black text-lg lg:text-xl text-slate-800 pt-1 lg:pt-2">
-                  <span>Total Paid</span>
+                <div className="flex justify-between font-black text-lg text-slate-800 pt-1">
+                  <span>{receipt.isPaid ? "Total Paid" : "Balance Due"}</span>
                   <span>₱{receipt.total.toLocaleString()}</span>
                 </div>
               </div>
+
+              <div className="bg-white rounded-xl p-3 mt-4 text-[10px] font-bold text-slate-500 border border-slate-100 space-y-1 shadow-sm">
+                <p className="flex justify-between"><span className="uppercase tracking-widest text-[8px] text-slate-400">Type</span> <span>{receipt.type}</span></p>
+                <p className="flex justify-between"><span className="uppercase tracking-widest text-[8px] text-slate-400">Customer</span> <span>{receipt.cname}</span></p>
+                {receipt.table && receipt.type !== "Takeout" && receipt.type !== "Grab | Panda" && (
+                  <p className="flex justify-between"><span className="uppercase tracking-widest text-[8px] text-slate-400">Location</span> <span>{receipt.table}</span></p>
+                )}
+              </div>
             </div>
             
-            <div className="flex flex-col gap-2 p-5 lg:p-6 bg-white">
-              <button onClick={()=>window.print()} className="w-full py-3 lg:py-4 rounded-xl border border-slate-200 bg-white font-bold text-slate-600 text-xs lg:text-sm hover:bg-slate-50 active:scale-95 transition-all">
-                Print Receipt
+            <div className="flex flex-col gap-2 p-5 bg-white">
+              <button onClick={()=>window.print()} className="w-full py-3 rounded-xl border border-slate-200 bg-white font-bold text-slate-600 text-xs hover:bg-slate-50 active:scale-95 transition-all">
+                Print Ticket
               </button>
-              <button onClick={()=>setReceipt(null)} className="w-full py-3 lg:py-4 rounded-xl border-none bg-slate-800 text-white font-bold text-xs lg:text-sm shadow-md hover:bg-slate-700 active:scale-95 transition-all">
-                New Sale
+              <button onClick={()=>setReceipt(null)} className="w-full py-3 rounded-xl border-none bg-[#FC687D] text-white font-bold text-xs shadow-md hover:bg-rose-500 active:scale-95 transition-all">
+                New Order
               </button>
             </div>
           </div>
