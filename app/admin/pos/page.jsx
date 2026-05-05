@@ -50,36 +50,57 @@ export default function POS() {
       .then(({ data }) => { if (data) setMembers(data); });
   }, []);
 
-  // ─── LIVE CAMERA SCANNER LOGIC ───
+  // ─── ROBUST CAMERA SCANNER LOGIC ───
   useEffect(() => {
     let scanner = null;
+    
     if (isScannerOpen) {
       import("html5-qrcode").then(({ Html5QrcodeScanner }) => {
-        scanner = new Html5QrcodeScanner(
-          "camera-reader", 
-          { fps: 10, qrbox: { width: 250, height: 150 } }, 
-          false
-        );
-        scanner.render(
-          (decodedText) => {
-            if (scanner) scanner.clear();
-            setIsScannerOpen(false);
+        // We use a slight delay to ensure the modal's HTML is fully rendered before attaching the camera
+        setTimeout(() => {
+          try {
+            const readerElement = document.getElementById("camera-reader");
+            if (!readerElement) return;
+
+            scanner = new Html5QrcodeScanner(
+              "camera-reader", 
+              { fps: 10, qrbox: { width: 250, height: 150 } }, 
+              false
+            );
             
-            const exactMatch = members.find(m => (m["Customer code"] || "").toLowerCase() === decodedText.toLowerCase());
-            if (exactMatch) {
-              setCustSearch(exactMatch["Customer name"]);
-              setCname(exactMatch["Customer name"]);
-            } else {
-              setCustSearch(decodedText);
-              setCname(decodedText);
-            }
-          },
-          (error) => { /* Ignore rapid frame scan failures */ }
-        );
+            scanner.render(
+              (decodedText) => {
+                // SUCCESS: Stop camera, close modal, select customer
+                if (scanner) scanner.clear();
+                setIsScannerOpen(false);
+                
+                const exactMatch = members.find(m => (m["Customer code"] || "").toLowerCase() === decodedText.toLowerCase());
+                if (exactMatch) {
+                  setCustSearch(exactMatch["Customer name"]);
+                  setCname(exactMatch["Customer name"]);
+                } else {
+                  setCustSearch(decodedText);
+                  setCname(decodedText);
+                  alert(`Scanned Code: ${decodedText} (Not found in Loyalty DB)`);
+                }
+              },
+              (error) => { /* Ignore constant background frame scanning errors */ }
+            );
+          } catch (err) {
+            console.error("Scanner Error:", err);
+            alert("Camera failed to load. Ensure you have granted camera permissions and are using a secure connection (HTTPS or localhost).");
+          }
+        }, 300);
+      }).catch(err => {
+        alert("Failed to load scanner module. Did you run 'npm install html5-qrcode'?");
       });
     }
+
+    // Cleanup when closing modal
     return () => {
-      if (scanner) scanner.clear().catch(e => console.error("Scanner clear error", e));
+      if (scanner) {
+        scanner.clear().catch(e => console.error("Scanner cleanup error", e));
+      }
     };
   }, [isScannerOpen, members]);
 
@@ -160,7 +181,6 @@ export default function POS() {
       {/* ─── LEFT PANEL: LIST MENU ─── */}
       <div className="flex-1 flex flex-col min-w-0 bg-white relative h-full">
         
-        {/* Top Header & Search */}
         <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 bg-white border-b border-slate-100 shadow-sm z-10">
           <div className="flex items-center gap-3 flex-1">
             <button className="p-2 -ml-2 text-slate-500 hover:bg-slate-50 rounded-lg transition-colors">
@@ -183,7 +203,6 @@ export default function POS() {
           </div>
         </div>
 
-        {/* List Layout */}
         <div className="flex-1 overflow-y-auto hide-scrollbar pb-24 lg:pb-0">
           <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-none divide-slate-100 p-0 md:p-3 md:gap-3">
             {filtered.map(item=>{
@@ -220,7 +239,6 @@ export default function POS() {
           </div>
         </div>
 
-        {/* MOBILE FLOATING BAR */}
         <div className="lg:hidden absolute bottom-0 left-0 right-0 p-3 bg-white border-t border-slate-200 z-20 pb-safe shadow-[0_-10px_20px_rgba(0,0,0,0.03)]">
           <button onClick={() => setShowMobileTicket(true)} 
             className={`w-full py-3.5 rounded-xl font-black text-sm text-white flex items-center justify-between px-5 transition-all shadow-md active:scale-95 ${cart.length ? "bg-slate-800" : "bg-slate-300"}`}>
@@ -233,7 +251,6 @@ export default function POS() {
       {/* ─── RIGHT PANEL: THE TICKET ─── */}
       <div className={`fixed inset-0 z-50 lg:static lg:z-auto w-full lg:w-[400px] flex-shrink-0 flex flex-col bg-slate-50 lg:border-l border-slate-200 shadow-2xl transition-transform duration-300 ${showMobileTicket ? "translate-y-0" : "translate-y-full lg:translate-y-0"}`}>
 
-        {/* Ticket Header */}
         <div className="flex-shrink-0 flex items-center justify-between px-4 py-4 bg-white border-b border-slate-200 pt-safe z-10">
           <div className="flex items-center gap-3">
             <button onClick={() => setShowMobileTicket(false)} className="lg:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
@@ -247,14 +264,17 @@ export default function POS() {
           </div>
         </div>
 
-        {/* Customer & Dining Settings */}
         <div className="flex-shrink-0 flex flex-col p-4 border-b border-slate-200 bg-white">
           <div className="relative mb-3">
             
-            {/* CLICKABLE BARCODE CAMERA BUTTON */}
-            <button onClick={() => setIsScannerOpen(true)} title="Scan Barcode" className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-[#FC687D] bg-slate-100 rounded-md transition-all z-10 active:scale-90">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 5h2v14H3zM7 5h1v14H7zM10 5h2v14h-2zM14 5h1v14h-1zM17 5h2v14h-2zM20 5h1v14h-1z" />
+            {/* ─── NEW: PROMINENT BARCODE ICON BUTTON ─── */}
+            <button 
+              onClick={() => setIsScannerOpen(true)} 
+              title="Open Camera" 
+              className="absolute left-1.5 top-1/2 -translate-y-1/2 p-1.5 text-slate-500 hover:text-white hover:bg-[#FC687D] bg-slate-100 border border-slate-200 rounded-md transition-all z-10 active:scale-90 flex items-center justify-center gap-1 shadow-sm"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 5v14"></path><path d="M8 5v14"></path><path d="M12 5v14"></path><path d="M17 5v14"></path><path d="M21 5v14"></path>
               </svg>
             </button>
             
@@ -276,8 +296,9 @@ export default function POS() {
                 }
               }}
               placeholder="Scan Barcode or Search..."
-              className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-[#FC687D] transition-all" 
+              className="w-full pl-12 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" 
             />
+            
             {showCustList && custSearch && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-100 shadow-xl rounded-lg max-h-48 overflow-y-auto hide-scrollbar z-50">
                 {filteredMembers.length > 0 ? filteredMembers.map(m => (
@@ -290,7 +311,6 @@ export default function POS() {
             )}
           </div>
 
-          {/* Dining Option Dropdown */}
           <div className="flex gap-2">
             <div className="relative flex-1">
               <select 
@@ -313,7 +333,6 @@ export default function POS() {
           </div>
         </div>
 
-        {/* Cart/Ticket Items */}
         <div className="flex-1 overflow-y-auto hide-scrollbar bg-slate-50">
           {cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-slate-300">
@@ -344,7 +363,6 @@ export default function POS() {
           )}
         </div>
 
-        {/* Discount Bar */}
         <div className="flex-shrink-0 bg-slate-50 border-t border-slate-200">
           <button onClick={()=>setShowDisc(!showDisc)} className="w-full flex justify-between items-center px-4 lg:px-5 py-3 hover:bg-slate-100 active:bg-slate-200 transition-colors">
             <span className="font-bold text-xs text-slate-500 uppercase tracking-widest">Discount {disc>0 ? `(${disc}%)` : ""}</span>
@@ -365,7 +383,6 @@ export default function POS() {
           )}
         </div>
 
-        {/* Split Save/Charge Buttons */}
         <div className="flex-shrink-0 bg-white p-3 border-t border-slate-200 pb-safe">
           <div className="flex gap-2">
             <button onClick={() => place(false, "Unpaid")} disabled={!cart.length||busy}
@@ -394,9 +411,9 @@ export default function POS() {
               </h3>
               <button onClick={() => setIsScannerOpen(false)} className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center font-bold text-slate-600 hover:bg-slate-300 transition-colors">✕</button>
             </div>
-            {/* The html5-qrcode library injects the camera view here */}
+            
             <div className="bg-black/5 p-4">
-              <div id="camera-reader" className="w-full rounded-xl overflow-hidden shadow-inner bg-black"></div>
+              <div id="camera-reader" className="w-full rounded-xl overflow-hidden shadow-inner bg-black min-h-[250px]"></div>
             </div>
             <div className="p-4 text-center text-xs font-bold text-slate-500 bg-slate-50 border-t border-slate-100 uppercase tracking-widest">
               Center barcode inside the camera frame
