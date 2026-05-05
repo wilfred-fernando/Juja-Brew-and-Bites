@@ -19,7 +19,6 @@ export default function POS() {
   const [busy, setBusy]       = useState(false);
   const [receipt, setReceipt] = useState(null);
   
-  
   // UI States
   const [showMobileTicket, setShowMobileTicket] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -48,6 +47,13 @@ export default function POS() {
       .then(({ data }) => { if (data) setMembers(data); });
   }, []);
 
+  // UPDATED: Filter now includes scanning for "Customer code"
+  const filteredMembers = members.filter(m => 
+    (m["Customer name"] || "").toLowerCase().includes(custSearch.toLowerCase()) ||
+    (m["Phone"] || "").includes(custSearch) ||
+    (m["Customer code"] || "").toLowerCase().includes(custSearch.toLowerCase())
+  );
+
   const filtered = items.filter(i => (cat==="ALL"||i.category===cat) && (!search||i.name.toLowerCase().includes(search.toLowerCase())));
   const getQty   = id => (cart.find(e=>e.id===id)||{}).qty || 0;
 
@@ -63,7 +69,6 @@ export default function POS() {
   const damt  = sub*disc/100;
   const total = sub-damt;
 
-  // Helper for 2 decimal places
   const formatMoney = (amount) => Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const handleChargeClick = () => {
@@ -88,7 +93,7 @@ export default function POS() {
       customer_phone: "",
       items: cart.map(e=>({id:e.id,name:e.name,price:e.price,quantity:e.qty,subtotal:e.price*e.qty})),
       total_amount: total, 
-      status: isPaid ? "Confirmed" : "Pending", // Changed to "Pending" to avoid database enum rejection
+      status: isPaid ? "Confirmed" : "Pending",
       payment_status: isPaid ? "Paid" : "Unpaid",
       order_type: orderType, 
       notes: np.join(" | "),
@@ -108,11 +113,6 @@ export default function POS() {
     })
     .finally(()=>setBusy(false));
   };
-
-  const filteredMembers = members.filter(m => 
-    (m["Customer name"] || "").toLowerCase().includes(custSearch.toLowerCase()) ||
-    (m["Phone"] || "").includes(custSearch)
-  );
 
   if(loading) return (
     <div className="h-screen w-full flex items-center justify-center bg-[#FFF5F7]">
@@ -216,11 +216,29 @@ export default function POS() {
         {/* Customer & Dining Settings */}
         <div className="flex-shrink-0 flex flex-col p-4 border-b border-slate-200 bg-white">
           <div className="relative mb-3">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">👤</span>
+            {/* UPDATED: Barcode Icon */}
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 5h2v14H3zM7 5h1v14H7zM10 5h2v14h-2zM14 5h1v14h-1zM17 5h2v14h-2zM20 5h1v14h-1z" />
+            </svg>
+            
             <input 
-              value={custSearch} onFocus={() => setShowCustList(true)} onBlur={() => setTimeout(() => setShowCustList(false), 200)}
+              value={custSearch} 
+              onFocus={() => setShowCustList(true)} 
+              onBlur={() => setTimeout(() => setShowCustList(false), 200)}
               onChange={e => { setCustSearch(e.target.value); setCname(e.target.value); setShowCustList(true); }}
-              placeholder="Assign Customer..."
+              // UPDATED: Barcode Scanner "Enter" catch logic
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const exactMatch = members.find(m => (m["Customer code"] || "").toLowerCase() === custSearch.toLowerCase());
+                  if (exactMatch) {
+                    setCustSearch(exactMatch["Customer name"]);
+                    setCname(exactMatch["Customer name"]);
+                    setShowCustList(false);
+                  }
+                }
+              }}
+              placeholder="Scan Barcode or Search Customer..."
               className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-[#FC687D] transition-all" 
             />
             {showCustList && custSearch && (
@@ -228,14 +246,13 @@ export default function POS() {
                 {filteredMembers.length > 0 ? filteredMembers.map(m => (
                   <button key={m.id} onMouseDown={() => { setCustSearch(m["Customer name"]); setCname(m["Customer name"]); setShowCustList(false); }} className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-50 transition-colors">
                     <p className="font-bold text-slate-800 text-sm leading-tight">{m["Customer name"]}</p>
-                    <p className="text-[10px] font-semibold text-slate-400 mt-0.5">{m["Phone"] || "No Phone"}</p>
+                    <p className="text-[10px] font-semibold text-slate-400 mt-0.5">{m["Customer code"]} • {m["Phone"] || "No Phone"}</p>
                   </button>
                 )) : (<div className="px-4 py-3 text-xs text-slate-400 bg-slate-50 italic">Walk-In: "{custSearch}"</div>)}
               </div>
             )}
           </div>
 
-          {/* UPDATED: Dropdown for Dining Options */}
           <div className="flex gap-2">
             <div className="relative flex-1">
               <select 
