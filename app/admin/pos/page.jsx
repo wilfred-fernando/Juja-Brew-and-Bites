@@ -50,22 +50,18 @@ export default function POS() {
       .then(({ data }) => { if (data) setMembers(data); });
   }, []);
 
-  // ─── NEW: CAMERA SCANNER LOGIC ───
+  // ─── LIVE CAMERA SCANNER LOGIC ───
   useEffect(() => {
     let scanner = null;
-    
     if (isScannerOpen) {
-      // Dynamically import to prevent Next.js server-side rendering errors
       import("html5-qrcode").then(({ Html5QrcodeScanner }) => {
         scanner = new Html5QrcodeScanner(
           "camera-reader", 
           { fps: 10, qrbox: { width: 250, height: 150 } }, 
           false
         );
-        
         scanner.render(
           (decodedText) => {
-            // Success Callback: Stop camera, close modal, set customer
             if (scanner) scanner.clear();
             setIsScannerOpen(false);
             
@@ -82,17 +78,13 @@ export default function POS() {
         );
       });
     }
-
     return () => {
-      if (scanner) {
-        scanner.clear().catch(e => console.error("Scanner clear error", e));
-      }
+      if (scanner) scanner.clear().catch(e => console.error("Scanner clear error", e));
     };
   }, [isScannerOpen, members]);
 
   const filteredMembers = members.filter(m => 
     (m["Customer name"] || "").toLowerCase().includes(custSearch.toLowerCase()) ||
-    (m["Phone"] || "").includes(custSearch) ||
     (m["Customer code"] || "").toLowerCase().includes(custSearch.toLowerCase())
   );
 
@@ -258,7 +250,8 @@ export default function POS() {
         {/* Customer & Dining Settings */}
         <div className="flex-shrink-0 flex flex-col p-4 border-b border-slate-200 bg-white">
           <div className="relative mb-3">
-            {/* UPDATED: Barcode Scanner Button */}
+            
+            {/* CLICKABLE BARCODE CAMERA BUTTON */}
             <button onClick={() => setIsScannerOpen(true)} title="Scan Barcode" className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-[#FC687D] bg-slate-100 rounded-md transition-all z-10 active:scale-90">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 5h2v14H3zM7 5h1v14H7zM10 5h2v14h-2zM14 5h1v14h-1zM17 5h2v14h-2zM20 5h1v14h-1z" />
@@ -270,6 +263,7 @@ export default function POS() {
               onFocus={() => setShowCustList(true)} 
               onBlur={() => setTimeout(() => setShowCustList(false), 200)}
               onChange={e => { setCustSearch(e.target.value); setCname(e.target.value); setShowCustList(true); }}
+              // HARDWARE SCANNER "ENTER KEY" SUPPORT
               onKeyDown={e => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -289,13 +283,14 @@ export default function POS() {
                 {filteredMembers.length > 0 ? filteredMembers.map(m => (
                   <button key={m.id} onMouseDown={() => { setCustSearch(m["Customer name"]); setCname(m["Customer name"]); setShowCustList(false); }} className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-50 transition-colors">
                     <p className="font-bold text-slate-800 text-sm leading-tight">{m["Customer name"]}</p>
-                    <p className="text-[10px] font-semibold text-slate-400 mt-0.5">{m["Customer code"]} • {m["Phone"] || "No Phone"}</p>
+                    <p className="text-[10px] font-semibold text-slate-400 mt-0.5">{m["Customer code"]}</p>
                   </button>
                 )) : (<div className="px-4 py-3 text-xs text-slate-400 bg-slate-50 italic">Walk-In: "{custSearch}"</div>)}
               </div>
             )}
           </div>
 
+          {/* Dining Option Dropdown */}
           <div className="flex gap-2">
             <div className="relative flex-1">
               <select 
@@ -399,7 +394,7 @@ export default function POS() {
               </h3>
               <button onClick={() => setIsScannerOpen(false)} className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center font-bold text-slate-600 hover:bg-slate-300 transition-colors">✕</button>
             </div>
-            {/* The html5-qrcode library will automatically inject the camera view into this div */}
+            {/* The html5-qrcode library injects the camera view here */}
             <div className="bg-black/5 p-4">
               <div id="camera-reader" className="w-full rounded-xl overflow-hidden shadow-inner bg-black"></div>
             </div>
