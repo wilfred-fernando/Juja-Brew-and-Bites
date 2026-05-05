@@ -25,6 +25,7 @@ export default function POS() {
   const [members, setMembers] = useState([]);
   const [custSearch, setCustSearch] = useState("");
   const [cname, setCname] = useState("");
+  const [showCustList, setShowCustList] = useState(false);
   
   // ─── NEW: LOYALTY PROFILE STATE ───
   const [customerProfile, setCustomerProfile] = useState(null);
