@@ -23,6 +23,9 @@ export default function POS() {
   const [showMobileTicket, setShowMobileTicket] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [amountTendered, setAmountTendered] = useState("");
+  
+  // NEW: Camera Scanner State
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   // Customer & Loyalty State
   const [members, setMembers] = useState([]);
@@ -47,7 +50,46 @@ export default function POS() {
       .then(({ data }) => { if (data) setMembers(data); });
   }, []);
 
-  // UPDATED: Filter now includes scanning for "Customer code"
+  // ─── NEW: CAMERA SCANNER LOGIC ───
+  useEffect(() => {
+    let scanner = null;
+    
+    if (isScannerOpen) {
+      // Dynamically import to prevent Next.js server-side rendering errors
+      import("html5-qrcode").then(({ Html5QrcodeScanner }) => {
+        scanner = new Html5QrcodeScanner(
+          "camera-reader", 
+          { fps: 10, qrbox: { width: 250, height: 150 } }, 
+          false
+        );
+        
+        scanner.render(
+          (decodedText) => {
+            // Success Callback: Stop camera, close modal, set customer
+            if (scanner) scanner.clear();
+            setIsScannerOpen(false);
+            
+            const exactMatch = members.find(m => (m["Customer code"] || "").toLowerCase() === decodedText.toLowerCase());
+            if (exactMatch) {
+              setCustSearch(exactMatch["Customer name"]);
+              setCname(exactMatch["Customer name"]);
+            } else {
+              setCustSearch(decodedText);
+              setCname(decodedText);
+            }
+          },
+          (error) => { /* Ignore rapid frame scan failures */ }
+        );
+      });
+    }
+
+    return () => {
+      if (scanner) {
+        scanner.clear().catch(e => console.error("Scanner clear error", e));
+      }
+    };
+  }, [isScannerOpen, members]);
+
   const filteredMembers = members.filter(m => 
     (m["Customer name"] || "").toLowerCase().includes(custSearch.toLowerCase()) ||
     (m["Phone"] || "").includes(custSearch) ||
@@ -216,17 +258,18 @@ export default function POS() {
         {/* Customer & Dining Settings */}
         <div className="flex-shrink-0 flex flex-col p-4 border-b border-slate-200 bg-white">
           <div className="relative mb-3">
-            {/* UPDATED: Barcode Icon */}
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 5h2v14H3zM7 5h1v14H7zM10 5h2v14h-2zM14 5h1v14h-1zM17 5h2v14h-2zM20 5h1v14h-1z" />
-            </svg>
+            {/* UPDATED: Barcode Scanner Button */}
+            <button onClick={() => setIsScannerOpen(true)} title="Scan Barcode" className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-[#FC687D] bg-slate-100 rounded-md transition-all z-10 active:scale-90">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 5h2v14H3zM7 5h1v14H7zM10 5h2v14h-2zM14 5h1v14h-1zM17 5h2v14h-2zM20 5h1v14h-1z" />
+              </svg>
+            </button>
             
             <input 
               value={custSearch} 
               onFocus={() => setShowCustList(true)} 
               onBlur={() => setTimeout(() => setShowCustList(false), 200)}
               onChange={e => { setCustSearch(e.target.value); setCname(e.target.value); setShowCustList(true); }}
-              // UPDATED: Barcode Scanner "Enter" catch logic
               onKeyDown={e => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -238,8 +281,8 @@ export default function POS() {
                   }
                 }
               }}
-              placeholder="Scan Barcode or Search Customer..."
-              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-[#FC687D] transition-all" 
+              placeholder="Scan Barcode or Search..."
+              className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-[#FC687D] transition-all" 
             />
             {showCustList && custSearch && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-100 shadow-xl rounded-lg max-h-48 overflow-y-auto hide-scrollbar z-50">
@@ -344,6 +387,28 @@ export default function POS() {
           </div>
         </div>
       </div>
+
+      {/* ─── LIVE CAMERA SCANNER MODAL ─── */}
+      {isScannerOpen && (
+        <div className="fixed inset-0 z-[400] bg-slate-900/90 backdrop-blur-sm flex flex-col items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative flex flex-col">
+            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="font-black text-slate-800 flex items-center gap-2">
+                <svg className="w-5 h-5 text-[#FC687D]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 5h2v14H3zM7 5h1v14H7zM10 5h2v14h-2zM14 5h1v14h-1zM17 5h2v14h-2zM20 5h1v14h-1z" /></svg>
+                Scan Loyalty Card
+              </h3>
+              <button onClick={() => setIsScannerOpen(false)} className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center font-bold text-slate-600 hover:bg-slate-300 transition-colors">✕</button>
+            </div>
+            {/* The html5-qrcode library will automatically inject the camera view into this div */}
+            <div className="bg-black/5 p-4">
+              <div id="camera-reader" className="w-full rounded-xl overflow-hidden shadow-inner bg-black"></div>
+            </div>
+            <div className="p-4 text-center text-xs font-bold text-slate-500 bg-slate-50 border-t border-slate-100 uppercase tracking-widest">
+              Center barcode inside the camera frame
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── PAYMENT MODAL ─── */}
       {showPaymentModal && (
