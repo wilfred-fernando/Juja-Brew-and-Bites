@@ -24,7 +24,7 @@ export default function POS() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [amountTendered, setAmountTendered] = useState("");
   
-  // ─── NEW: ADVANCED CAMERA SCANNER STATES ───
+  // ADVANCED CAMERA SCANNER STATES
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [cameraStatus, setCameraStatus] = useState("idle"); // idle, starting, active, error
   const html5QrCodeRef = useRef(null);
@@ -74,10 +74,9 @@ export default function POS() {
 
   const startCamera = () => {
     setCameraStatus("starting");
-    localStorage.setItem('juja_cam_granted', 'true'); // Remember they clicked "Allow"
+    localStorage.setItem('juja_cam_granted', 'true');
 
     import("html5-qrcode").then(({ Html5Qrcode }) => {
-      // Small delay ensures the modal's DOM is fully painted
       setTimeout(() => {
         try {
           if (!document.getElementById("camera-reader")) return;
@@ -86,10 +85,9 @@ export default function POS() {
           html5QrCodeRef.current = html5QrCode;
 
           html5QrCode.start(
-            { facingMode: "environment" }, // 🔴 STRICTLY FORCES THE BACK CAMERA 🔴
+            { facingMode: "environment" }, 
             { fps: 10, qrbox: { width: 250, height: 150 } },
             (decodedText) => {
-              // On Success
               stopCamera();
               setIsScannerOpen(false);
               
@@ -125,9 +123,9 @@ export default function POS() {
     if (isScannerOpen) {
       const previouslyGranted = localStorage.getItem('juja_cam_granted');
       if (previouslyGranted) {
-        startCamera(); // Skip permission UI if they granted it before
+        startCamera(); 
       } else {
-        setCameraStatus("idle"); // Show custom permission UI
+        setCameraStatus("idle"); 
       }
     } else {
       stopCamera();
@@ -285,10 +283,14 @@ export default function POS() {
 
         <div className="flex-shrink-0 flex items-center justify-between px-4 py-4 bg-white border-b border-slate-200 pt-safe z-10">
           <div className="flex items-center gap-3">
-             <h2 className="font-black text-lg text-slate-800 flex items-center gap-2">Ticket <span className="bg-slate-100 border border-slate-200 text-slate-500 rounded-md px-2 py-0.5 text-xs">{cart.length}</span></h2>
+            <button onClick={() => setShowMobileTicket(false)} className="lg:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
+              <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            </button>
+            <h2 className="font-black text-lg text-slate-800 flex items-center gap-2">Ticket <span className="bg-slate-100 border border-slate-200 text-slate-500 rounded-md px-2 py-0.5 text-xs">{cart.length}</span></h2>
           </div>
+          
+          {/* REMOVED THE HUMAN ICON BUTTON HERE */}
           <div className="flex items-center gap-2">
-            <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors"><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg></button>
             <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors"><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg></button>
           </div>
         </div>
@@ -442,10 +444,8 @@ export default function POS() {
             
             <div className="relative bg-black/5 flex-1 flex flex-col p-4 overflow-hidden">
               
-              {/* THE CAMERA DOM ELEMENT */}
               <div id="camera-reader" className={`w-full rounded-xl overflow-hidden shadow-inner bg-black flex-1 min-h-[250px] ${cameraStatus === "active" ? "opacity-100" : "opacity-0 absolute"}`}></div>
               
-              {/* CUSTOM PERMISSION UI (FIRST TIME USE) */}
               {cameraStatus === "idle" && (
                 <div className="absolute inset-0 bg-white flex flex-col items-center justify-center p-8 text-center z-10">
                   <span className="text-5xl mb-4">📸</span>
@@ -457,7 +457,6 @@ export default function POS() {
                 </div>
               )}
 
-              {/* LOADING UI */}
               {cameraStatus === "starting" && (
                 <div className="absolute inset-0 bg-white flex flex-col items-center justify-center z-10">
                   <div className="w-10 h-10 border-4 border-rose-100 border-t-[#FC687D] animate-spin rounded-full mb-4"></div>
@@ -465,7 +464,6 @@ export default function POS() {
                 </div>
               )}
 
-              {/* ERROR UI */}
               {cameraStatus === "error" && (
                 <div className="absolute inset-0 bg-white flex flex-col items-center justify-center p-8 text-center z-10">
                   <span className="text-5xl mb-4">❌</span>
@@ -583,4 +581,4 @@ export default function POS() {
       )}
     </div>
   );
-}c
+}
