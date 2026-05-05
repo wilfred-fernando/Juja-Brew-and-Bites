@@ -51,7 +51,6 @@ export default function POS() {
   const [openTickets, setOpenTickets] = useState([]);
   const [showOpenTickets, setShowOpenTickets] = useState(false);
 
-  // ─── NEW: SWIPE TO DELETE STATE ───
   const [swipeId, setSwipeId] = useState(null);
   const touchStartX = useRef(0);
 
@@ -64,8 +63,12 @@ export default function POS() {
       .catch(()=>{})
       .finally(()=>setLoading(false));
 
-    supabase.from("loyalty_members").select("*").then(({ data }) => { if (data) setMembers(data); });
+    fetchMembers();
   }, []);
+
+  const fetchMembers = () => {
+    supabase.from("loyalty_members").select("*").then(({ data }) => { if (data) setMembers(data); });
+  };
 
   const startScanner = async () => {
     setIsScanning(true);
@@ -122,12 +125,11 @@ export default function POS() {
     }
   };
 
-  // ─── SWIPE EVENT HANDLERS ───
   const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX; };
   const handleTouchEnd = (e, id) => {
     const touchEndX = e.changedTouches[0].clientX;
-    if (touchStartX.current - touchEndX > 40) setSwipeId(id); // Swiped Left
-    else if (touchEndX - touchStartX.current > 40) setSwipeId(null); // Swiped Right
+    if (touchStartX.current - touchEndX > 40) setSwipeId(id); 
+    else if (touchEndX - touchStartX.current > 40) setSwipeId(null); 
   };
 
   const sub  = cart.reduce((s,e)=>s+e.price*e.qty,0);
@@ -175,21 +177,42 @@ export default function POS() {
     
     let earnedPoints = 0;
     
-    // ─── AUTOMATED LOYALTY POINTS CALCULATION ───
+    // ─── SMART LOYALTY UPDATER (POINTS, SPENT, VISITS) ───
     if (isPaid && customerProfile && customerProfile.id) {
        earnedPoints = parseFloat((total / 25).toFixed(2));
-       const currentPoints = parseFloat(customerProfile.Points || customerProfile.points_balance || 0);
-       const currentSpent = parseFloat(customerProfile["Total spent"] || customerProfile.total_spent || 0);
-       const currentVisits = parseInt(customerProfile.Visits || customerProfile.total_visits || 0, 10);
        
-       const payloadLoyalty = {
-          Points: (currentPoints + earnedPoints).toFixed(2),
-          "Total spent": (currentSpent + total).toFixed(2),
-          Visits: currentVisits + 1,
-          "Last visit": new Date().toISOString()
-       };
-       // Update loyalty seamlessly in the background
-       supabase.from('loyalty_members').update(payloadLoyalty).eq('id', customerProfile.id).then().catch(console.error);
+       const currentPoints = parseFloat(customerProfile["Points balance"] || customerProfile["Points"] || customerProfile.points_balance || 0);
+       const currentSpent = parseFloat(customerProfile["Total spent"] || customerProfile.total_spent || 0);
+       const currentVisits = parseInt(customerProfile["Total visits"] || customerProfile["Visits"] || customerProfile.total_visits || 0, 10);
+       
+       const newPoints = (currentPoints + earnedPoints).toFixed(2);
+       const newSpent = (currentSpent + total).toFixed(2);
+       const newVisits = currentVisits + 1;
+       const newLastVisit = new Date().toISOString();
+
+       // Dynamically map to the correct Supabase columns based on what exists
+       const payloadLoyalty = {};
+       
+       if ("Points balance" in customerProfile) payloadLoyalty["Points balance"] = newPoints;
+       else if ("Points" in customerProfile) payloadLoyalty["Points"] = newPoints;
+       else payloadLoyalty["points_balance"] = newPoints;
+
+       if ("Total spent" in customerProfile) payloadLoyalty["Total spent"] = newSpent;
+       else payloadLoyalty["total_spent"] = newSpent;
+
+       if ("Total visits" in customerProfile) payloadLoyalty["Total visits"] = newVisits;
+       else if ("Visits" in customerProfile) payloadLoyalty["Visits"] = newVisits;
+       else payloadLoyalty["total_visits"] = newVisits;
+
+       if ("Last visit" in customerProfile) payloadLoyalty["Last visit"] = newLastVisit;
+       else payloadLoyalty["last_visit"] = newLastVisit;
+
+       // Push to Database and quietly update local state so next scan is perfectly accurate
+       supabase.from('loyalty_members').update(payloadLoyalty).eq('id', customerProfile.id)
+         .then(({ error }) => {
+            if (!error) fetchMembers();
+         })
+         .catch(console.error);
     }
     
     const payload = {
@@ -282,7 +305,6 @@ export default function POS() {
       <div className={`fixed inset-0 z-50 lg:static lg:z-auto w-full lg:w-[320px] xl:w-[360px] flex flex-col bg-slate-50/50 transition-transform duration-300 ${showMobileTicket ? "translate-y-0" : "translate-y-full lg:translate-y-0"}`}>
         
         <div className="flex-shrink-0 px-4 py-3 bg-white border-b border-slate-200 flex items-center justify-between pt-safe">
-          {/* FIX: Customer Name dynamically replaces Dine-in in the header */}
           <h2 className="font-normal text-base text-slate-800 flex items-center gap-2 truncate pr-2">
             Ticket • <span className="font-bold truncate">{cname || "Dine-in"}</span>
           </h2>
@@ -343,17 +365,14 @@ export default function POS() {
             </div>
           ) : (
             <div className="divide-y divide-slate-100 px-1">
-              {/* FIX: Interactive Swipe-to-Delete applied to all items */}
               {cart.map(item => (
                 <div key={item.id} className="relative overflow-hidden group">
-                  {/* Delete Button Background */}
                   <div className="absolute inset-y-0 right-0 w-20 bg-red-500 flex items-center justify-center z-0 rounded-r-lg my-1">
                     <button onClick={() => upd(item.id, -item.qty)} className="w-full h-full text-white text-xl flex items-center justify-center active:bg-red-600">
                       🗑️
                     </button>
                   </div>
                   
-                  {/* Draggable Foreground */}
                   <div 
                     onTouchStart={handleTouchStart} 
                     onTouchEnd={(e) => handleTouchEnd(e, item.id)}
@@ -393,7 +412,7 @@ export default function POS() {
         </div>
       </div>
 
-      {/* ─── OPEN TICKETS MODAL (ALL TICKETS IN ONE VIEW) ─── */}
+      {/* ─── OPEN TICKETS MODAL ─── */}
       {showOpenTickets && (
         <div className="fixed inset-0 z-[500] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-2xl flex flex-col max-h-[80vh] overflow-hidden shadow-2xl relative animate-in zoom-in duration-200">
@@ -521,7 +540,6 @@ export default function POS() {
         </div>
       )}
 
-      {/* FIX: Receipt modal now shows automated points earned */}
       {receipt && (
         <div className="fixed inset-0 z-[300] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-sm p-6 text-center animate-in zoom-in duration-300 shadow-2xl">
