@@ -14,9 +14,11 @@ export default function POS() {
   const [cart, setCart]       = useState([]);
   const [notes, setNotes]     = useState("");
   const [disc, setDisc]       = useState(0);
+  const [showDisc, setShowDisc] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy]       = useState(false);
   const [receipt, setReceipt] = useState(null);
+  
   
   // UI States
   const [showMobileTicket, setShowMobileTicket] = useState(false);
