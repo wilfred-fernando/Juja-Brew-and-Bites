@@ -52,7 +52,7 @@ function Nav({ active }) {
             Login
           </Link>
           <Link href="/order"
-            className="text-[11px] font-black uppercase tracking-widest px-7 py-3 rounded-full bg-[#FC687D] text-white hover:bg-rose-500 hover:shadow-[0_6px_20px_rgba(252,104,125,0.4)] hover:-translate-y-0.5 transition-all duration-300 shadow-md">
+            className="text-[11px] font-normal uppercase tracking-widest px-7 py-3 rounded-full bg-[#FC687D] text-white hover:bg-rose-500 hover:shadow-[0_6px_20px_rgba(252,104,125,0.4)] hover:-translate-y-0.5 transition-all duration-300 shadow-md">
             Order Now →
           </Link>
         </div>
@@ -73,7 +73,7 @@ function Nav({ active }) {
               className="text-slate-800 font-bold uppercase tracking-widest text-xs hover:text-[#FC687D] transition py-1">{l}</Link>
           ))}
           <Link href="/order" onClick={() => setOpen(false)}
-            className="mt-2 py-3 rounded-full bg-[#FC687D] text-white font-black text-xs text-center uppercase tracking-widest hover:bg-rose-500 transition-colors">
+            className="mt-2 py-3 rounded-full bg-[#FC687D] text-white font-normal text-xs text-center uppercase tracking-widest hover:bg-rose-500 transition-colors">
             Order Now →
           </Link>
         </div>
@@ -133,7 +133,7 @@ export default function About() {
         
         <div className="relative z-10 max-w-3xl mx-auto px-6 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
           <img src={LOGO} alt="Juja" className="h-24 md:h-28 w-auto object-contain mx-auto mb-6 drop-shadow-sm" />
-          <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.25em] bg-white text-[#FC687D] border border-rose-100 shadow-sm">
+          <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full text-[10px] font-normal uppercase tracking-[0.25em] bg-white text-[#FC687D] border border-rose-100 shadow-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-[#FC687D] animate-pulse" />
             Our Story
           </div>
@@ -150,7 +150,7 @@ export default function About() {
       <section className="py-24 px-6 bg-white">
         <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-16 items-center">
           <div className="animate-in fade-in slide-in-from-left-8 duration-700">
-            <p className="text-[#FC687D] uppercase tracking-[0.25em] text-[10px] font-black mb-3">Who We Are</p>
+            <p className="text-[#FC687D] uppercase tracking-[0.25em] text-[10px] font-normal mb-3">Who We Are</p>
             <h2 className="text-3xl md:text-4xl font-extrabold text-slate-800 tracking-tight mb-6 leading-tight">
               Born from a Passion<br />for Good Food
             </h2>
@@ -177,7 +177,7 @@ export default function About() {
                 className="group bg-[#FFF5F7] rounded-3xl p-6 text-center border border-rose-50
                   hover:bg-[#FC687D] hover:shadow-[0_8px_20px_rgba(252,104,125,0.2)] hover:-translate-y-1
                   transition-all duration-300">
-                <div className="text-3xl font-black text-[#FC687D] mb-1 group-hover:text-white transition-colors">{s.num}</div>
+                <div className="text-3xl font-normal text-[#FC687D] mb-1 group-hover:text-white transition-colors">{s.num}</div>
                 <div className="text-slate-400 text-[11px] font-bold group-hover:text-rose-100 transition-colors uppercase tracking-widest">{s.label}</div>
               </div>
             ))}
@@ -189,7 +189,7 @@ export default function About() {
       <section className="py-24 px-6 bg-[#FFF5F7]">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-[#FC687D] uppercase tracking-[0.25em] text-[10px] font-black mb-3">On the Menu</p>
+            <p className="text-[#FC687D] uppercase tracking-[0.25em] text-[10px] font-normal mb-3">On the Menu</p>
             <h2 className="text-3xl md:text-4xl font-extrabold text-slate-800 tracking-tight">Something for Everyone</h2>
             <div className="w-12 h-[3px] rounded-full bg-[#FC687D] mx-auto mt-4" />
           </div>
@@ -230,7 +230,7 @@ export default function About() {
             </div>
           </div>
           <div>
-            <p className="text-[#FC687D] uppercase tracking-[0.2em] text-[10px] font-black mb-3">Host Your Next Event</p>
+            <p className="text-[#FC687D] uppercase tracking-[0.2em] text-[10px] font-normal mb-3">Host Your Next Event</p>
             <h2 className="text-3xl font-extrabold text-slate-800 mb-5 tracking-tight">Make It Memorable at Juja</h2>
             <p className="text-slate-500 mb-4 font-medium leading-relaxed text-sm">
               Our function room is available for advance booking. Space, food, and drinks — all ready for your celebration.
@@ -257,7 +257,7 @@ export default function About() {
       <section className="py-24 px-6 bg-[#FFF5F7]">
         <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-12">
           <div>
-            <p className="text-[#FC687D] uppercase tracking-[0.2em] text-[10px] font-black mb-3">Hours</p>
+            <p className="text-[#FC687D] uppercase tracking-[0.2em] text-[10px] font-normal mb-3">Hours</p>
             <h2 className="text-2xl font-extrabold text-slate-800 mb-7 tracking-tight">When We're Open</h2>
             <div className="space-y-4">
               {[
@@ -267,16 +267,16 @@ export default function About() {
                 <div key={h.label}
                   className="group flex justify-between items-center py-6 px-8 bg-white rounded-3xl border border-rose-50 shadow-sm
                     hover:border-[#FC687D] hover:shadow-md transition-all duration-300">
-                  <span className="text-slate-600 font-bold text-sm flex items-center gap-3 group-hover:text-slate-800 transition-colors">
+                  <span className="text-slate-600 font-normal text-sm flex items-center gap-3 group-hover:text-slate-800 transition-colors">
                     <span className="text-xl">{h.icon}</span> {h.label}
                   </span>
-                  <span className="text-[#FC687D] font-black text-sm">{h.hours}</span>
+                  <span className="text-[#FC687D] font-normal text-sm">{h.hours}</span>
                 </div>
               ))}
             </div>
           </div>
           <div>
-            <p className="text-[#FC687D] uppercase tracking-[0.2em] text-[10px] font-black mb-3">Location</p>
+            <p className="text-[#FC687D] uppercase tracking-[0.2em] text-[10px] font-normal mb-3">Location</p>
             <h2 className="text-2xl font-extrabold text-slate-800 mb-7 tracking-tight">Find Us</h2>
             <div className="bg-white rounded-3xl p-8 border border-rose-50 shadow-sm space-y-6">
               {[
@@ -305,7 +305,7 @@ export default function About() {
         <div className="absolute inset-0 opacity-[0.03]"
           style={{ backgroundImage:"radial-gradient(rgba(252,104,125,0.8) 1px,transparent 1px)", backgroundSize:"28px 28px" }} />
         <div className="relative">
-          <p className="text-[#FC687D] uppercase tracking-[0.3em] text-[10px] font-black mb-3">Let's Eat</p>
+          <p className="text-[#FC687D] uppercase tracking-[0.3em] text-[10px] font-normal mb-3">Let's Eat</p>
           <h2 className="text-4xl md:text-5xl font-extrabold text-slate-800 tracking-tight mb-5">Ready to Order?</h2>
           <p className="text-slate-500 font-medium mb-10 max-w-md mx-auto text-sm leading-relaxed">
             Dine in, take out, or order online — we're always ready to serve you.

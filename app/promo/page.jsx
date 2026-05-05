@@ -130,7 +130,7 @@ function Nav({ active }) {
             Staff Login
           </Link>
           <Link href="/order"
-            className="text-[11px] font-black uppercase tracking-widest px-7 py-3 rounded-full bg-[#1EBBA3] text-white hover:bg-[#159a85] hover:shadow-[0_6px_28px_rgba(30,187,163,0.45)] hover:-translate-y-0.5 transition-all duration-300 shadow-md">
+            className="text-[11px] font-normal uppercase tracking-widest px-7 py-3 rounded-full bg-[#1EBBA3] text-white hover:bg-[#159a85] hover:shadow-[0_6px_28px_rgba(30,187,163,0.45)] hover:-translate-y-0.5 transition-all duration-300 shadow-md">
             Order Now →
           </Link>
         </div>
@@ -151,7 +151,7 @@ function Nav({ active }) {
               className="text-neutral-800 font-bold uppercase tracking-widest text-xs hover:text-[#1EBBA3] transition py-1">{l}</Link>
           ))}
           <Link href="/order" onClick={() => setOpen(false)}
-            className="mt-2 py-3 rounded-full bg-[#1EBBA3] text-white font-black text-xs text-center uppercase tracking-widest hover:bg-[#159a85] transition-colors">
+            className="mt-2 py-3 rounded-full bg-[#1EBBA3] text-white font-normal text-xs text-center uppercase tracking-widest hover:bg-[#159a85] transition-colors">
             Order Now →
           </Link>
         </div>
@@ -217,7 +217,7 @@ export default function PromoPage() {
             <span className="w-1.5 h-1.5 rounded-full bg-[#1EBBA3] animate-pulse" />
             Exclusive Deals
           </div>
-          <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter uppercase mb-4">
+          <h1 className="text-4xl md:text-6xl font-normal text-white tracking-tighter uppercase mb-4">
             Promos &amp; <span className="text-[#1EBBA3] font-light">Deals</span>
           </h1>
           <p className="text-neutral-400 text-sm font-medium tracking-wide max-w-md mx-auto leading-relaxed">
@@ -253,18 +253,18 @@ export default function PromoPage() {
                   style={{ background:"rgba(30,187,163,0.15)", color:"#1EBBA3", border:"1px solid rgba(30,187,163,0.2)" }}>
                   Coming Soon
                 </div>
-                <h3 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter mb-3">Juja Loyalty Program</h3>
+                <h3 className="text-2xl md:text-3xl font-normal text-white uppercase tracking-tighter mb-3">Juja Loyalty Program</h3>
                 <p className="text-neutral-400 text-sm font-medium tracking-wide leading-relaxed mb-6 max-w-md">
                   Earn points with every purchase and unlock exclusive rewards, free drinks, and special member-only deals.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
                   <a href="tel:09399228383"
-                    className="px-8 py-3 rounded-sm font-bold text-xs uppercase tracking-widest text-white transition-all duration-300 hover:-translate-y-0.5"
+                    className="px-8 py-3 rounded-sm font-normal text-xs uppercase tracking-widest text-white transition-all duration-300 hover:-translate-y-0.5"
                     style={{ background:"#1EBBA3", boxShadow:"0 6px 20px rgba(30,187,163,0.3)" }}>
                     📞 Inquire Now
                   </a>
                   <Link href="/order"
-                    className="px-8 py-3 rounded-sm font-bold text-xs uppercase tracking-widest transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/10"
+                    className="px-8 py-3 rounded-sm font-normal text-xs uppercase tracking-widest transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/10"
                     style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.15)", color:"rgba(255,255,255,0.9)" }}>
                     Order While You Wait
                   </Link>
@@ -279,15 +279,15 @@ export default function PromoPage() {
       <section className="py-20 px-6" style={{ background:"#0c0c0c" }}>
         <div className="max-w-3xl mx-auto text-center">
           <p className="text-neutral-500 text-[10px] font-bold uppercase tracking-[0.3em] mb-4">Stay Updated</p>
-          <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-4">Follow Us for More Promos</h3>
+          <h3 className="text-2xl font-normal text-white uppercase tracking-tighter mb-4">Follow Us for More Promos</h3>
           <p className="text-neutral-400 text-sm font-medium tracking-wide mb-10">Tag <span className="text-[#1EBBA3] font-bold">@juja</span> on social media for your ₱20 discount!</p>
           <div className="flex flex-wrap justify-center gap-4">
             <a href="tel:09399228383"
-              className="flex items-center gap-2 px-8 py-3.5 rounded-sm text-xs font-bold uppercase tracking-widest text-white transition-all duration-300 hover:-translate-y-0.5 bg-[#1A1A1A] border border-gray-700 hover:border-[#1EBBA3]">
+              className="flex items-center gap-2 px-8 py-3.5 rounded-sm text-xs font-normal uppercase tracking-widest text-white transition-all duration-300 hover:-translate-y-0.5 bg-[#1A1A1A] border border-gray-700 hover:border-[#1EBBA3]">
               📞 Call Us
             </a>
             <Link href="/order"
-              className="flex items-center gap-2 px-8 py-3.5 rounded-sm text-xs font-bold uppercase tracking-widest text-white transition-all duration-300 hover:-translate-y-0.5 bg-[#1EBBA3] shadow-[0_5px_20px_rgba(30,187,163,0.3)]">
+              className="flex items-center gap-2 px-8 py-3.5 rounded-sm text-xs font-normal uppercase tracking-widest text-white transition-all duration-300 hover:-translate-y-0.5 bg-[#1EBBA3] shadow-[0_5px_20px_rgba(30,187,163,0.3)]">
               🛒 Order Now
             </Link>
           </div>
@@ -330,24 +330,24 @@ function PromoCard({ promo, flipped, onFlip }) {
             {/* Header */}
             <div className="flex items-start justify-between mb-5">
               <div className="text-4xl drop-shadow-sm">{promo.icon}</div>
-              <span className="text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded-sm"
+              <span className="text-[9px] font-normal uppercase tracking-widest px-3 py-1 rounded-sm"
                 style={{ background:`${promo.color}10`, color: promo.color, border:`1px solid ${promo.color}30` }}>
                 {promo.tag}
               </span>
             </div>
             {/* Badge */}
-            <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: promo.color }}>
+            <p className="text-[10px] font-normal uppercase tracking-widest mb-2" style={{ color: promo.color }}>
               {promo.badge}
             </p>
             {/* Title */}
-            <h3 className="text-xl font-black text-[#1A1A1A] uppercase tracking-tighter mb-1 leading-tight">{promo.title}</h3>
-            <p className="text-gray-400 text-[10px] font-bold mb-4 uppercase tracking-widest">{promo.subtitle}</p>
+            <h3 className="text-xl font-normal text-[#1A1A1A] uppercase tracking-tighter mb-1 leading-tight">{promo.title}</h3>
+            <p className="text-gray-400 text-[10px] font-normal mb-4 uppercase tracking-widest">{promo.subtitle}</p>
             {/* Desc */}
             <p className="text-gray-500 text-sm font-medium leading-relaxed flex-1 line-clamp-3">{promo.desc}</p>
             {/* Footer hint */}
             <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-              <p className="text-gray-400 text-[9px] font-bold uppercase tracking-widest">Expires: {promo.validUntil}</p>
-              <p className="text-gray-400 text-[9px] font-bold uppercase tracking-widest flex items-center gap-1 group-hover:text-[#1A1A1A] transition-colors">
+              <p className="text-gray-400 text-[9px] font-normal uppercase tracking-widest">Expires: {promo.validUntil}</p>
+              <p className="text-gray-400 text-[9px] font-normal uppercase tracking-widest flex items-center gap-1 group-hover:text-[#1A1A1A] transition-colors">
                 <span>Terms</span>
                 <span className="text-base leading-none">→</span>
               </p>
@@ -364,18 +364,18 @@ function PromoCard({ promo, flipped, onFlip }) {
           <div className="p-8 h-full flex flex-col justify-between text-white relative">
             <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full blur-2xl"></div>
             <div className="relative z-10">
-              <p className="text-[9px] font-bold uppercase tracking-[0.3em] mb-4 text-white/60">Terms & Conditions</p>
-              <h3 className="text-xl font-black uppercase tracking-tighter mb-4 leading-tight">{promo.title}</h3>
+              <p className="text-[9px] font-normal uppercase tracking-[0.3em] mb-4 text-white/60">Terms & Conditions</p>
+              <h3 className="text-xl font-normal uppercase tracking-tighter mb-4 leading-tight">{promo.title}</h3>
               <p className="text-white/90 text-sm font-medium leading-relaxed">{promo.terms}</p>
             </div>
             <div className="flex flex-col gap-3 relative z-10">
               <Link href="/order"
-                className="block text-center py-3 rounded-sm font-bold text-xs uppercase tracking-widest bg-white text-[#1A1A1A] hover:bg-gray-100 transition-colors duration-200 shadow-lg"
+                className="block text-center py-3 rounded-sm font-normal text-xs uppercase tracking-widest bg-white text-[#1A1A1A] hover:bg-gray-100 transition-colors duration-200 shadow-lg"
                 onClick={e => e.stopPropagation()}>
                 Order & Redeem →
               </Link>
               <button onClick={onFlip}
-                className="text-center py-2 rounded-sm font-bold text-[10px] uppercase tracking-widest text-white/60 hover:text-white transition-colors duration-200">
+                className="text-center py-2 rounded-sm font-normal text-[10px] uppercase tracking-widest text-white/60 hover:text-white transition-colors duration-200">
                 ← Flip Back
               </button>
             </div>

@@ -12,7 +12,7 @@ export default function Accounts() {
       <div className="bg-white rounded-3xl border border-rose-50 shadow-sm p-8 md:p-10">
         <div className="flex items-center justify-between mb-8 border-b border-rose-50 pb-6">
           <h2 className="font-bold text-[#FC687D] text-xs uppercase tracking-[0.2em]">Active Accounts</h2>
-          <span className="px-4 py-1.5 bg-rose-50 text-[#FC687D] rounded-full text-[9px] font-black uppercase tracking-widest">Managed via Supabase</span>
+          <span className="px-4 py-1.5 bg-rose-50 text-[#FC687D] rounded-full text-[9px] font-normal uppercase tracking-widest">Managed via Supabase</span>
         </div>
         
         <div className="space-y-4">

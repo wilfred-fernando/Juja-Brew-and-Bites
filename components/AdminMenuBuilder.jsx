@@ -126,13 +126,14 @@ export default function AdminMenuBuilder() {
                         {/* Item Info */}
                         <div>
                           <p className="font-extrabold text-slate-800 text-sm">{item.name}</p>
-                          <p className="text-[#FC687D] font-black text-sm">₱{parseFloat(item.price).toFixed(2)}</p>
+                          <p className="text-[#FC687D] font-normal text-sm">₱{parseFloat(item.price).toFixed(2)}</p>
                         </div>
                       </div>
 
                       {/* Actions & Status */}
                       <div className="flex items-center gap-6">
-                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
+                        <span className={`px-3 py-1 rounded-full text-[9px] font-normal
+                         uppercase tracking-widest border ${
                           item.is_available ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-slate-100 text-slate-500 border-slate-200"
                         }`}>
                           {item.is_available ? "Available" : "Sold Out"}

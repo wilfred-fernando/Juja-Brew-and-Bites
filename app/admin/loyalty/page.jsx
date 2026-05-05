@@ -75,11 +75,11 @@ export default function LoyaltyAdminPage() {
   if (loading) return <div className="p-8 flex justify-center"><div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full"></div></div>;
 
   return (
-    <div className="max-w-5xl mx-auto animate-in fade-in duration-500 pb-24 px-3 md:px-8" style={{ fontFamily: "'Abadi', sans-serif" }}>
+    <div className="max-w-5xl mx-auto animate-in fade-in duration-500 pb-24 px-3 md:px-8" >
       
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-6 mb-6 md:mb-8 pt-4 md:pt-6">
         <div>
-          <h1 className="text-2xl md:text-4xl font-black text-slate-800 tracking-tight leading-none">Juja Rewards</h1>
+          <h1 className="text-2xl md:text-4xl font-normal text-slate-800 tracking-tight leading-none">Juja Rewards</h1>
           <p className="text-slate-400 text-xs md:text-sm font-medium mt-1 md:mt-2">
             Managing {members.length} loyal customers
           </p>
@@ -104,15 +104,15 @@ export default function LoyaltyAdminPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <h3 className="font-black text-slate-800 text-sm md:text-base leading-tight truncate">{member["Customer name"] || "Unknown Member"}</h3>
+                  <h3 className="font-normal text-slate-800 text-sm md:text-base leading-tight truncate">{member["Customer name"] || "Unknown Member"}</h3>
                   {member["Points balance"] >= 500 && (
-                     <span className="bg-[#FFF9FA] text-[#FC687D] text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border border-rose-100">VIP</span>
+                     <span className="bg-[#FFF9FA] text-[#FC687D] text-[9px] font-normal uppercase tracking-widest px-2 py-0.5 rounded-md border border-rose-100">VIP</span>
                   )}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-mono font-bold text-slate-500 text-[10px] md:text-xs bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">{member["Customer code"]}</span>
+                  <span className="font-mono font-normal text-slate-500 text-[10px] md:text-xs bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">{member["Customer code"]}</span>
                   <span className="text-slate-300 text-[10px]">•</span>
-                  <span className="text-[10px] md:text-xs font-semibold text-slate-500">{member["Phone"] || "No phone"}</span>
+                  <span className="text-[10px] md:text-xs font-normal text-slate-500">{member["Phone"] || "No phone"}</span>
                 </div>
               </div>
             </div>
@@ -120,20 +120,20 @@ export default function LoyaltyAdminPage() {
             <div className="flex items-center justify-between md:justify-end w-full md:w-auto gap-4 md:gap-8 pt-3 md:pt-0 border-t md:border-none border-slate-50">
               <div className="flex gap-4 md:gap-6">
                 <div className="text-center md:text-right">
-                  <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Points</p>
-                  <p className="text-[#FC687D] font-black text-base md:text-lg leading-none">
+                  <p className="text-[9px] md:text-[10px] font-normal uppercase tracking-widest text-slate-400 mb-0.5">Points</p>
+                  <p className="text-[#FC687D] font-normal text-base md:text-lg leading-none">
                     {Number(member["Points balance"] || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                   </p>
                 </div>
                 <div className="w-px bg-slate-100 hidden md:block"></div>
                 <div className="text-center md:text-right">
-                  <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Visits</p>
-                  <p className="text-slate-700 font-black text-base md:text-lg leading-none">{member["Total visits"] || 0}</p>
+                  <p className="text-[9px] md:text-[10px] font-normal uppercase tracking-widest text-slate-400 mb-0.5">Visits</p>
+                  <p className="text-slate-700 font-normal text-base md:text-lg leading-none">{member["Total visits"] || 0}</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-1.5 md:gap-2">
-                <button onClick={() => openModal(member)} className="px-3 md:px-4 py-2 bg-slate-50 border border-slate-100 text-[10px] md:text-xs font-black text-slate-500 hover:text-[#FC687D] hover:bg-rose-50 hover:border-rose-100 rounded-lg md:rounded-xl transition-all active:scale-95">
+                <button onClick={() => openModal(member)} className="px-3 md:px-4 py-2 bg-slate-50 border border-slate-100 text-[10px] md:text-xs font-normal text-slate-500 hover:text-[#FC687D] hover:bg-rose-50 hover:border-rose-100 rounded-lg md:rounded-xl transition-all active:scale-95">
                   Edit
                 </button>
                 <button onClick={() => handleDelete(member.id)} className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center bg-slate-50 border border-slate-100 text-[10px] md:text-xs text-slate-400 hover:text-red-500 hover:bg-red-50 hover:border-red-100 rounded-lg md:rounded-xl transition-all active:scale-90 md:opacity-0 md:group-hover:opacity-100">
@@ -145,7 +145,7 @@ export default function LoyaltyAdminPage() {
         ))}
         
         {filteredMembers.length === 0 && (
-          <div className="text-center py-12 md:py-20 text-slate-400 font-black uppercase tracking-[0.15em] text-[10px] md:text-xs border border-dashed border-slate-200/60 rounded-xl md:rounded-2xl bg-white/50">
+          <div className="text-center py-12 md:py-20 text-slate-400 font-normal uppercase tracking-[0.15em] text-[10px] md:text-xs border border-dashed border-slate-200/60 rounded-xl md:rounded-2xl bg-white/50">
             No members found
           </div>
         )}
@@ -160,8 +160,8 @@ export default function LoyaltyAdminPage() {
 
             <div className="flex justify-between items-start mb-6">
               <div>
-                <h3 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">Edit Member</h3>
-                <p className="font-mono text-[10px] font-bold text-slate-400 mt-1">{editingMember["Customer code"]}</p>
+                <h3 className="text-xl md:text-2xl font-normal text-slate-800 tracking-tight">Edit Member</h3>
+                <p className="font-mono text-[10px] font-normal text-slate-400 mt-1">{editingMember["Customer code"]}</p>
               </div>
               <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90">
                 ✕
@@ -171,48 +171,48 @@ export default function LoyaltyAdminPage() {
             <form onSubmit={handleSave} className="space-y-4 md:space-y-5">
               
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">Full Name</label>
+                <label className="block text-[10px] font-normal uppercase tracking-widest text-slate-400 mb-1.5 ml-1">Full Name</label>
                 <input type="text" required value={form["Customer name"]} onChange={e => setForm({...form, "Customer name": e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs md:text-sm font-semibold focus:bg-white focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" />
               </div>
 
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">Phone Number</label>
+                <label className="block text-[10px] font-normal uppercase tracking-widest text-slate-400 mb-1.5 ml-1">Phone Number</label>
                 <input type="text" value={form["Phone"]} onChange={e => setForm({...form, "Phone": e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs md:text-sm font-semibold focus:bg-white focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" />
               </div>
               
               {/* READ-ONLY VISIT DATES */}
               <div className="grid grid-cols-2 gap-3 md:gap-4">
                 <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100">
-                  <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">First Visit</label>
+                  <label className="block text-[9px] font-normal uppercase tracking-widest text-slate-400 mb-1">First Visit</label>
                   <p className="text-[11px] md:text-xs font-semibold text-slate-600 truncate">{editingMember["First visit"] || "N/A"}</p>
                 </div>
                 <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100">
-                  <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Last Visit</label>
+                  <label className="block text-[9px] font-normal uppercase tracking-widest text-slate-400 mb-1">Last Visit</label>
                   <p className="text-[11px] md:text-xs font-semibold text-slate-600 truncate">{editingMember["Last visit"] || "N/A"}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3 md:gap-4">
                 <div className="bg-[#FFF9FA] p-3 md:p-4 rounded-xl border border-rose-100">
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-[#FC687D] mb-2">Points Balance</label>
-                  <input type="number" step="0.01" required value={form["Points balance"]} onChange={e => setForm({...form, "Points balance": e.target.value})} className="w-full bg-white border border-rose-200 rounded-lg px-3 py-2 text-sm font-black text-slate-800 focus:outline-none focus:border-[#FC687D] transition-all text-center" />
+                  <label className="block text-[10px] font-normal uppercase tracking-widest text-[#FC687D] mb-2">Points Balance</label>
+                  <input type="number" step="0.01" required value={form["Points balance"]} onChange={e => setForm({...form, "Points balance": e.target.value})} className="w-full bg-white border border-rose-200 rounded-lg px-3 py-2 text-sm font-normal text-slate-800 focus:outline-none focus:border-[#FC687D] transition-all text-center" />
                 </div>
                 <div className="bg-slate-50 p-3 md:p-4 rounded-xl border border-slate-100">
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Total Visits</label>
-                  <input type="number" required value={form["Total visits"]} onChange={e => setForm({...form, "Total visits": e.target.value})} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-black text-slate-800 focus:outline-none focus:border-slate-400 transition-all text-center" />
+                  <label className="block text-[10px] font-normal uppercase tracking-widest text-slate-500 mb-2">Total Visits</label>
+                  <input type="number" required value={form["Total visits"]} onChange={e => setForm({...form, "Total visits": e.target.value})} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-normal text-slate-800 focus:outline-none focus:border-slate-400 transition-all text-center" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">Admin Notes / Birthday</label>
-                <textarea rows="2" value={form["Note"]} onChange={e => setForm({...form, "Note": e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs md:text-sm font-semibold focus:bg-white focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all resize-none" placeholder="e.g. Birthday: 1995-12-25" />
+                <label className="block text-[10px] font-normal uppercase tracking-widest text-slate-400 mb-1.5 ml-1">Admin Notes / Birthday</label>
+                <textarea rows="2" value={form["Note"]} onChange={e => setForm({...form, "Note": e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs md:text-sm font-normal focus:bg-white focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all resize-none" placeholder="e.g. Birthday: 1995-12-25" />
               </div>
 
               <div className="grid grid-cols-2 gap-3 pt-2 md:pt-4 mt-2 border-t border-slate-100">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-3.5 rounded-xl bg-white border border-slate-200 text-slate-500 font-black uppercase tracking-widest text-[10px] md:text-xs hover:bg-slate-50 transition-all active:scale-95">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-3.5 rounded-xl bg-white border border-slate-200 text-slate-500 font-normal uppercase tracking-widest text-[10px] md:text-xs hover:bg-slate-50 transition-all active:scale-95">
                   Cancel
                 </button>
-                <button type="submit" disabled={saving} className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-black uppercase tracking-widest text-[10px] md:text-xs hover:bg-rose-500 transition-all shadow-sm disabled:opacity-70 active:scale-95">
+                <button type="submit" disabled={saving} className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-normal uppercase tracking-widest text-[10px] md:text-xs hover:bg-rose-500 transition-all shadow-sm disabled:opacity-70 active:scale-95">
                   {saving ? "Saving..." : "Save Changes"}
                 </button>
               </div>

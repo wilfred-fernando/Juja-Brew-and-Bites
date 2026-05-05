@@ -111,7 +111,7 @@ if (portal === "admin") {
 
           {/* ── HEADER ── */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.25em] bg-rose-50 text-[#FC687D] border border-rose-100">
+            <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full text-[10px] font-normal uppercase tracking-[0.25em] bg-rose-50 text-[#FC687D] border border-rose-100">
               <span className="w-1.5 h-1.5 rounded-full bg-[#FC687D] animate-pulse" />
               {isAdmin ? "Admin Portal" : "Customer Portal"}
             </div>

@@ -53,7 +53,7 @@ function Nav({ active }) {
             Login
           </Link>
           <Link href="/order"
-            className="text-[11px] font-black uppercase tracking-widest px-7 py-3 rounded-full bg-[#FC687D] text-white hover:bg-rose-500 hover:shadow-[0_6px_20px_rgba(252,104,125,0.4)] hover:-translate-y-0.5 transition-all duration-300 shadow-md">
+            className="text-[11px] font-normal  uppercase tracking-widest px-7 py-3 rounded-full bg-[#FC687D] text-white hover:bg-rose-500 hover:shadow-[0_6px_20px_rgba(252,104,125,0.4)] hover:-translate-y-0.5 transition-all duration-300 shadow-md">
             Order Now →
           </Link>
         </div>
@@ -74,7 +74,7 @@ function Nav({ active }) {
               className="text-slate-800 font-bold uppercase tracking-widest text-xs hover:text-[#FC687D] transition py-1">{l}</Link>
           ))}
           <Link href="/order" onClick={() => setOpen(false)}
-            className="mt-2 py-3 rounded-full bg-[#FC687D] text-white font-black text-xs text-center uppercase tracking-widest hover:bg-rose-500 transition-colors">
+            className="mt-2 py-3 rounded-full bg-[#FC687D] text-white font-normal text-xs text-center uppercase tracking-widest hover:bg-rose-500 transition-colors">
             Order Now →
           </Link>
         </div>
@@ -146,12 +146,12 @@ function MenuCard({ item, catIcon }) {
 
         <div className="absolute top-2.5 left-2.5 flex gap-1.5 z-10">
           {item.is_featured && (
-            <span className="px-3 py-1 rounded-full text-white text-[9px] font-black uppercase tracking-widest bg-[#FC687D] shadow-md">
+            <span className="px-3 py-1 rounded-full text-white text-[9px] font-normal uppercase tracking-widest bg-[#FC687D] shadow-md">
               ✦ Must Try
             </span>
           )}
           {!item.is_available && (
-            <span className="px-3 py-1 rounded-full text-white text-[9px] font-bold bg-slate-700/90 backdrop-blur-sm">
+            <span className="px-3 py-1 rounded-full text-white text-[9px] font-normal bg-slate-700/90 backdrop-blur-sm">
               Unavailable
             </span>
           )}
@@ -167,7 +167,7 @@ function MenuCard({ item, catIcon }) {
           <p className="text-slate-500 text-xs leading-relaxed line-clamp-2 mb-4 flex-1">{item.description}</p>
         )}
         <Link href="/order"
-          className="mt-auto block text-center py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-300"
+          className="mt-auto block text-center py-2.5 rounded-xl text-[11px] font-normal uppercase tracking-widest transition-all duration-300"
           style={{
             background: hov ? "#FC687D" : "#FFF5F7",
             color: hov ? "white" : "#FC687D",
@@ -247,7 +247,7 @@ export default function MenuPage() {
 
         <div className="relative z-10 max-w-3xl mx-auto px-6 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
           <img src={LOGO} alt="Juja" className="h-20 md:h-24 w-auto object-contain mx-auto mb-6 drop-shadow-sm" />
-          <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.25em] bg-rose-50 text-[#FC687D] border border-rose-100">
+          <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full text-[10px] font-normal uppercase tracking-[0.25em] bg-rose-50 text-[#FC687D] border border-rose-100">
             <span className="w-1.5 h-1.5 rounded-full bg-[#FC687D] animate-pulse" />
             Full Menu
           </div>
@@ -273,11 +273,11 @@ export default function MenuPage() {
                 const isActive = activeTab === cat.name;
                 return (
                   <button key={cat.id} onClick={() => setActiveTab(cat.name)}
-                    className={`flex-shrink-0 flex items-center gap-2 px-5 py-2.5 mx-1 rounded-full text-[11px] font-bold uppercase tracking-widest transition-all duration-300 border
+                    className={`flex-shrink-0 flex items-center gap-2 px-5 py-2.5 mx-1 rounded-full text-[11px] font-normal uppercase tracking-widest transition-all duration-300 border
                       ${isActive ? "bg-[#FC687D] text-white border-[#FC687D] shadow-md shadow-rose-200" : "bg-white text-slate-500 border-slate-200 hover:border-[#FC687D] hover:text-[#FC687D]"}`}>
                     <span className="text-base">{cat.icon}</span>
                     <span>{cat.name}</span>
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black ml-1 ${isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400"}`}>{count}</span>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-normal ml-1 ${isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400"}`}>{count}</span>
                   </button>
                 );
               })

@@ -88,10 +88,10 @@ export default function LiveOrders() {
               </div>
               
               <div className="flex justify-between items-center border-t border-rose-50 pt-4 bg-gray-50/50 rounded-2xl px-4 pb-4 mt-2">
-                <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">
+                <p className="text-[11px] text-slate-500 font-normal uppercase tracking-widest">
                   {(order.items||[]).length} Item(s) · {order.order_type}
                 </p>
-                <p className="font-black text-[#FC687D] text-lg">₱{(order.total_amount||0).toLocaleString()}</p>
+                <p className="font-normal text-[#FC687D] text-lg">₱{(order.total_amount||0).toLocaleString()}</p>
               </div>
 
               <div className="mt-4 flex gap-2">
@@ -143,7 +143,7 @@ export default function LiveOrders() {
                     </div>
                   ))}
                 </div>
-                <div className="flex justify-between font-black text-xl text-slate-800 mt-6 pt-4 border-t border-rose-50">
+                <div className="flex justify-between font-normal text-xl text-slate-800 mt-6 pt-4 border-t border-rose-50">
                   <span>Total</span>
                   <span className="text-[#FC687D]">₱{(selected.total_amount || 0).toLocaleString()}</span>
                 </div>

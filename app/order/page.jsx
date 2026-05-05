@@ -194,7 +194,7 @@ export default function OrderPage() {
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="font-extrabold text-xl tracking-tight text-slate-800">{optionModal.item.name}</h3>
-                  <p className="text-[#FC687D] font-black text-sm mt-1">₱{Number(optionModal.item.price).toFixed(2)}</p>
+                  <p className="text-[#FC687D] font-normal text-sm mt-1">₱{Number(optionModal.item.price).toFixed(2)}</p>
                 </div>
                 <button onClick={() => setOptionModal(null)} className="text-slate-400 hover:text-slate-800 bg-slate-50 w-8 h-8 rounded-full flex items-center justify-center transition-colors font-bold text-xl pb-1">×</button>
               </div>
@@ -307,11 +307,11 @@ export default function OrderPage() {
                           <div>
                             <div className="flex justify-between items-start mb-3">
                               <h3 className="font-extrabold text-slate-800 text-[15px] tracking-wide leading-tight group-hover:text-[#FC687D] transition-colors">{item.name}</h3>
-                              <span className="text-[#FC687D] font-black text-[15px] ml-3 flex-shrink-0 bg-rose-50 px-2.5 py-1 rounded-full">₱{Number(item.price).toFixed(2)}</span>
+                              <span className="text-[#FC687D] font-normal text-[15px] ml-3 flex-shrink-0 bg-rose-50 px-2.5 py-1 rounded-full">₱{Number(item.price).toFixed(2)}</span>
                             </div>
                             <p className="text-slate-400 text-xs mt-1 mb-4 leading-relaxed line-clamp-2 font-medium">{item.description}</p>
                             {hasOptions && (
-                              <p className="text-[9px] text-slate-400 mb-4 font-bold uppercase tracking-widest flex items-center gap-1">⚙ Customizable</p>
+                              <p className="text-[9px] text-slate-400 mb-4 font-normal uppercase tracking-widest flex items-center gap-1">⚙ Customizable</p>
                             )}
                           </div>
                           
@@ -319,12 +319,12 @@ export default function OrderPage() {
                             {totalQty > 0 && !hasOptions ? (
                               <div className="flex items-center gap-4 bg-[#FFF5F7] rounded-full p-1 border border-rose-100 w-full justify-between">
                                 <button onClick={() => decreaseCart(cartKey(item.id, []))} className="w-9 h-9 bg-white rounded-full text-slate-600 hover:bg-slate-50 transition flex items-center justify-center font-bold shadow-sm">−</button>
-                                <span className="text-[#FC687D] font-black text-sm min-w-[20px] text-center">{totalQty}</span>
+                                <span className="text-[#FC687D] font-normal text-sm min-w-[20px] text-center">{totalQty}</span>
                                 <button onClick={() => increaseCart(cartKey(item.id, []))} className="w-9 h-9 bg-[#FC687D] rounded-full text-white hover:bg-rose-500 transition flex items-center justify-center font-bold shadow-sm">+</button>
                               </div>
                             ) : (
                               <button onClick={() => handleDirectAdd(item)}
-                                className="w-full py-3 bg-white border border-slate-200 text-slate-600 rounded-full text-[10px] font-bold uppercase tracking-widest hover:border-[#FC687D] hover:text-[#FC687D] hover:bg-rose-50 transition-colors shadow-sm">
+                                className="w-full py-3 bg-white border border-slate-200 text-slate-600 rounded-full text-[10px] font-normal uppercase tracking-widest hover:border-[#FC687D] hover:text-[#FC687D] hover:bg-rose-50 transition-colors shadow-sm">
                                 {totalQty > 0 ? `${totalQty} in cart · Add more` : hasOptions ? "Customize +" : "Add to Cart +"}
                               </button>
                             )}
@@ -365,18 +365,18 @@ export default function OrderPage() {
                           <div className="flex-1 pr-4">
                             <p className="text-[14px] text-slate-800 font-extrabold tracking-wide leading-tight">{entry.item.name}</p>
                             {entry.selectedOptions?.length > 0 && (
-                              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-2 leading-relaxed">{entry.selectedOptions.map(o => o.choice).join(", ")}</p>
+                              <p className="text-[9px] text-slate-400 font-normal uppercase tracking-widest mt-2 leading-relaxed">{entry.selectedOptions.map(o => o.choice).join(", ")}</p>
                             )}
-                            <p className="text-xs text-[#FC687D] font-black mt-2">₱{entry.unitPrice?.toFixed(2)}</p>
+                            <p className="text-xs text-[#FC687D] font-normal mt-2">₱{entry.unitPrice?.toFixed(2)}</p>
                           </div>
                         </div>
                         <div className="flex items-center justify-between border-t border-rose-50 pt-3">
                            <div className="flex items-center gap-3 bg-[#FFF5F7] p-1 rounded-full border border-rose-100">
                             <button onClick={() => decreaseCart(entry.key)} className="w-7 h-7 bg-white border border-rose-50 rounded-full text-slate-500 text-xs flex items-center justify-center hover:text-rose-500 hover:border-rose-200 transition-colors shadow-sm">−</button>
-                            <span className="text-slate-800 text-xs font-black w-4 text-center">{entry.qty}</span>
+                            <span className="text-slate-800 text-xs font-normal w-4 text-center">{entry.qty}</span>
                             <button onClick={() => increaseCart(entry.key)} className="w-7 h-7 bg-[#FC687D] rounded-full text-xs text-white flex items-center justify-center hover:bg-rose-500 transition-colors shadow-sm">+</button>
                           </div>
-                          <span className="font-black text-slate-800 text-sm">₱{(entry.unitPrice * entry.qty).toFixed(2)}</span>
+                          <span className="font-normal text-slate-800 text-sm">₱{(entry.unitPrice * entry.qty).toFixed(2)}</span>
                         </div>
                       </div>
                     ))}
@@ -387,15 +387,15 @@ export default function OrderPage() {
               {cartEntries.length > 0 && (
                 <div className="p-8 border-t border-rose-100 bg-white z-10 shadow-[0_-10px_30px_rgba(0,0,0,0.02)]">
                   <div className="space-y-3 mb-6 bg-[#FFF5F7] p-5 rounded-3xl border border-rose-50">
-                    <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-widest"><span>Subtotal</span><span className="text-slate-800">₱{cartTotal.toFixed(2)}</span></div>
-                    <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-widest"><span>Tax (10%)</span><span className="text-slate-800">₱{tax.toFixed(2)}</span></div>
-                    {form.order_type === "Delivery" && <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-widest"><span>Delivery</span><span className="text-slate-800">₱150.00</span></div>}
+                    <div className="flex justify-between text-xs font-normal text-slate-500 uppercase tracking-widest"><span>Subtotal</span><span className="text-slate-800">₱{cartTotal.toFixed(2)}</span></div>
+                    <div className="flex justify-between text-xs font-normal text-slate-500 uppercase tracking-widest"><span>Tax (10%)</span><span className="text-slate-800">₱{tax.toFixed(2)}</span></div>
+                    {form.order_type === "Delivery" && <div className="flex justify-between text-xs font-normal text-slate-500 uppercase tracking-widest"><span>Delivery</span><span className="text-slate-800">₱150.00</span></div>}
                     <div className="flex justify-between items-end pt-4 mt-2 border-t border-rose-100">
-                      <span className="font-black text-sm uppercase tracking-widest text-slate-800">Total</span>
-                      <span className="text-2xl font-black text-[#FC687D]">₱{total.toFixed(2)}</span>
+                      <span className="font-normal text-sm uppercase tracking-widest text-slate-800">Total</span>
+                      <span className="text-2xl font-normal text-[#FC687D]">₱{total.toFixed(2)}</span>
                     </div>
                   </div>
-                  <button onClick={() => setStep("checkout")} className="w-full py-4 bg-[#FC687D] text-white text-xs font-bold uppercase tracking-widest rounded-full hover:bg-rose-500 hover:-translate-y-0.5 transition-all shadow-[0_8px_20px_rgba(252,104,125,0.3)]">
+                  <button onClick={() => setStep("checkout")} className="w-full py-4 bg-[#FC687D] text-white text-xs font-normal uppercase tracking-widest rounded-full hover:bg-rose-500 hover:-translate-y-0.5 transition-all shadow-[0_8px_20px_rgba(252,104,125,0.3)]">
                     Checkout Securely →
                   </button>
                 </div>
@@ -407,9 +407,9 @@ export default function OrderPage() {
         {/* Mobile Cart Button */}
         {step === "menu" && cartCount > 0 && (
           <div className="fixed bottom-6 left-0 right-0 px-6 lg:hidden z-40">
-            <button onClick={() => setStep("checkout")} className="w-full py-4 bg-[#FC687D] text-white font-bold rounded-full hover:bg-rose-500 transition-all shadow-[0_10px_30px_rgba(252,104,125,0.4)] flex items-center justify-between px-8">
-              <span className="text-[11px] uppercase tracking-widest font-black">🛒 {cartCount} items</span>
-              <span className="text-[11px] tracking-widest font-black">Checkout · ₱{total.toFixed(2)}</span>
+            <button onClick={() => setStep("checkout")} className="w-full py-4 bg-[#FC687D] text-white font-normal rounded-full hover:bg-rose-500 transition-all shadow-[0_10px_30px_rgba(252,104,125,0.4)] flex items-center justify-between px-8">
+              <span className="text-[11px] uppercase tracking-widest font-normal">🛒 {cartCount} items</span>
+              <span className="text-[11px] tracking-widest font-normal">Checkout · ₱{total.toFixed(2)}</span>
             </button>
           </div>
         )}
@@ -469,7 +469,7 @@ export default function OrderPage() {
                   
                   <div className="pt-8 mt-4 border-t border-rose-50">
                     <button type="submit" disabled={submitting}
-                      className="w-full py-5 bg-[#FC687D] text-white text-xs font-black uppercase tracking-widest rounded-full hover:bg-rose-500 hover:-translate-y-0.5 transition-all shadow-[0_10px_30px_rgba(252,104,125,0.3)] disabled:opacity-50 disabled:hover:translate-y-0 flex items-center justify-center gap-3">
+                      className="w-full py-5 bg-[#FC687D] text-white text-xs font-normal uppercase tracking-widest rounded-full hover:bg-rose-500 hover:-translate-y-0.5 transition-all shadow-[0_10px_30px_rgba(252,104,125,0.3)] disabled:opacity-50 disabled:hover:translate-y-0 flex items-center justify-center gap-3">
                       {submitting ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span> : `Confirm Order · ₱${total.toFixed(2)}`}
                     </button>
                   </div>
@@ -497,25 +497,25 @@ export default function OrderPage() {
                     <div key={entry.key} className="text-sm border-b border-rose-50 pb-5 last:border-0 last:pb-0">
                       <div className="flex justify-between items-start">
                         <div className="flex gap-3">
-                          <span className="text-[#FC687D] font-black bg-rose-50 px-2 py-0.5 rounded-md">{entry.qty}×</span>
+                          <span className="text-[#FC687D] font-normal bg-rose-50 px-2 py-0.5 rounded-md">{entry.qty}×</span>
                           <span className="font-extrabold text-slate-800 leading-tight">{entry.item.name}</span>
                         </div>
-                        <span className="text-slate-800 font-bold ml-4 text-sm">₱{(entry.unitPrice * entry.qty).toFixed(2)}</span>
+                        <span className="text-slate-800 font-normal ml-4 text-sm">₱{(entry.unitPrice * entry.qty).toFixed(2)}</span>
                       </div>
                       {entry.selectedOptions?.length > 0 && (
-                        <p className="ml-11 text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-2">{entry.selectedOptions.map(o => o.choice).join(", ")}</p>
+                        <p className="ml-11 text-[10px] text-slate-400 font-normal uppercase tracking-widest mt-2">{entry.selectedOptions.map(o => o.choice).join(", ")}</p>
                       )}
                     </div>
                   ))}
                 </div>
                 
                 <div className="border-t border-rose-100 pt-6 space-y-4">
-                  <div className="flex justify-between text-[11px] font-bold text-slate-500 uppercase tracking-widest"><span>Subtotal</span><span className="text-slate-800">₱{cartTotal.toFixed(2)}</span></div>
-                  <div className="flex justify-between text-[11px] font-bold text-slate-500 uppercase tracking-widest"><span>Tax (10%)</span><span className="text-slate-800">₱{tax.toFixed(2)}</span></div>
-                  {form.order_type === "Delivery" && <div className="flex justify-between text-[11px] font-bold text-slate-500 uppercase tracking-widest"><span>Delivery Fee</span><span className="text-slate-800">₱150.00</span></div>}
+                  <div className="flex justify-between text-[11px] font-normal text-slate-500 uppercase tracking-widest"><span>Subtotal</span><span className="text-slate-800">₱{cartTotal.toFixed(2)}</span></div>
+                  <div className="flex justify-between text-[11px] font-normal text-slate-500 uppercase tracking-widest"><span>Tax (10%)</span><span className="text-slate-800">₱{tax.toFixed(2)}</span></div>
+                  {form.order_type === "Delivery" && <div className="flex justify-between text-[11px] font-normal text-slate-500 uppercase tracking-widest"><span>Delivery Fee</span><span className="text-slate-800">₱150.00</span></div>}
                   <div className="flex justify-between items-end pt-4 mt-4 border-t border-rose-100 bg-[#FFF5F7] p-5 rounded-2xl">
-                    <span className="text-sm font-black uppercase tracking-widest text-slate-800">Total</span>
-                    <span className="text-3xl font-black text-[#FC687D]">₱{total.toFixed(2)}</span>
+                    <span className="text-sm font-normal uppercase tracking-widest text-slate-800">Total</span>
+                    <span className="text-3xl font-normal text-[#FC687D]">₱{total.toFixed(2)}</span>
                   </div>
                 </div>
               </div>

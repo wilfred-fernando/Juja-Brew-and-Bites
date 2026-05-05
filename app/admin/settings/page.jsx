@@ -63,7 +63,7 @@ export default function Settings() {
         </div>
 
         <div className="pt-4">
-          <button type="submit" className="px-10 py-4 bg-[#FC687D] text-white text-[11px] font-black uppercase tracking-widest rounded-full hover:bg-rose-500 hover:-translate-y-0.5 transition-all shadow-[0_8px_20px_rgba(252,104,125,0.3)]">
+          <button type="submit" className="px-10 py-4 bg-[#FC687D] text-white text-[11px] font-normal uppercase tracking-widest rounded-full hover:bg-rose-500 hover:-translate-y-0.5 transition-all shadow-[0_8px_20px_rgba(252,104,125,0.3)]">
             Save Settings
           </button>
         </div>

@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Juja Brew and Bites",
+  title: "Juja Brew and Bites®",
   description: "Premium Coffee, Tea, and Exquisite Bites",
 };
 

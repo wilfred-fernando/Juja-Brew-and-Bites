@@ -92,7 +92,7 @@ export default function BookingTab({ user, member }) {
                   <p className="font-extrabold text-slate-800 text-[14px]">{b.event_type}</p>
                   <p className="text-slate-500 text-[11px] font-medium">{b.event_date} · {b.start_time}</p>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${statusStyle[b.status] || statusStyle.Pending}`}>
+                <span className={`px-3 py-1 rounded-full text-[9px] font-normal uppercase tracking-widest border ${statusStyle[b.status] || statusStyle.Pending}`}>
                   {b.status}
                 </span>
               </div>
@@ -105,7 +105,7 @@ export default function BookingTab({ user, member }) {
         <div className="fixed inset-0 z-[70] bg-slate-900/40 backdrop-blur-sm flex items-end" onClick={() => setShowForm(false)}>
           <div className="w-full max-w-md mx-auto bg-white rounded-t-[32px] p-8 shadow-2xl" onClick={e => e.stopPropagation()}>
             <form onSubmit={submit} className="space-y-4">
-              <h3 className="text-xl font-black text-slate-800 mb-4">Reserve Room</h3>
+              <h3 className="text-xl font-normal text-slate-800 mb-4">Reserve Room</h3>
               <input type="text" placeholder="Event (e.g. Birthday)" required value={form.event_type} onChange={e => setForm({...form, event_type: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl text-sm" />
               <input type="date" required value={form.event_date} onChange={e => setForm({...form, event_date: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl text-sm" />
               <div className="grid grid-cols-2 gap-4">
@@ -113,7 +113,7 @@ export default function BookingTab({ user, member }) {
                 <input type="time" required value={form.end_time} onChange={e => setForm({...form, end_time: e.target.value})} className="p-4 bg-slate-50 rounded-2xl text-sm" />
               </div>
               <input type="number" placeholder="Guest Count" required value={form.guest_count} onChange={e => setForm({...form, guest_count: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl text-sm" />
-              <button type="submit" disabled={submitting} className="w-full py-4 bg-[#FC687D] text-white rounded-full font-black uppercase tracking-widest text-xs shadow-lg">
+              <button type="submit" disabled={submitting} className="w-full py-4 bg-[#FC687D] text-white rounded-full font-normal uppercase tracking-widest text-xs shadow-lg">
                 {submitting ? "Sending..." : "Request Booking →"}
               </button>
             </form>

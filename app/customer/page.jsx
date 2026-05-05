@@ -31,7 +31,7 @@ function TabBar({ tab, setTab }) {
               tab === t.id ? "text-[#FC687D]" : "text-slate-400 hover:text-slate-600"
             }`}>
             <span className={`text-[20px] md:text-[22px] leading-none transition-transform duration-300 ${tab === t.id ? "scale-110 -translate-y-1" : ""}`}>{t.icon}</span>
-            <span className={`text-[8px] md:text-[9px] font-black uppercase tracking-widest ${tab === t.id ? "text-[#FC687D]" : "text-slate-400"}`}>{t.label}</span>
+            <span className={`text-[8px] md:text-[9px] font-normal uppercase tracking-widest ${tab === t.id ? "text-[#FC687D]" : "text-slate-400"}`}>{t.label}</span>
             {tab === t.id && <span className="absolute bottom-1 w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-[#FC687D]" />}
           </button>
         ))}
@@ -67,24 +67,24 @@ function HomeTab({ member, user, setTab }) {
           style={{ background: "radial-gradient(circle,#FC687D,transparent 65%)", filter: "blur(40px)" }} />
         
         <div className="relative z-10">
-          <p className="text-[#FC687D] text-[9px] md:text-[10px] font-black uppercase tracking-[0.25em] mb-1">Welcome back 👋</p>
-          <h2 className="text-2xl md:text-3xl font-black text-slate-800 leading-tight mb-1 tracking-tight">
+          <p className="text-[#FC687D] text-[9px] md:text-[10px] font-normal uppercase tracking-[0.25em] mb-1">Welcome back 👋</p>
+          <h2 className="text-2xl md:text-3xl font-normal text-slate-800 leading-tight mb-1 tracking-tight">
             {member?.customer_name || user?.user_metadata?.full_name || "Coffee Lover"}
           </h2>
           {member?.customer_code && (
-            <p className="text-slate-400 text-[10px] md:text-xs font-mono tracking-wider font-bold">{member.customer_code}</p>
+            <p className="text-slate-400 text-[10px] md:text-xs font-mono tracking-wider font-normal">{member.customer_code}</p>
           )}
 
           {member && (
             <div className="flex gap-4 md:gap-6 mt-4 md:mt-6 bg-[#FFF9FA] p-3 md:p-4 rounded-xl md:rounded-2xl border border-rose-50 inline-flex">
               <div>
-                <p className="text-[#FC687D] font-black text-xl md:text-2xl leading-none">{parseFloat(member.points_balance || 0).toFixed(0)}</p>
-                <p className="text-slate-500 text-[9px] md:text-[10px] uppercase font-bold tracking-widest mt-1">Points</p>
+                <p className="text-[#FC687D] font-normal text-xl md:text-2xl leading-none">{parseFloat(member.points_balance || 0).toFixed(0)}</p>
+                <p className="text-slate-500 text-[9px] md:text-[10px] uppercase font-normal tracking-widest mt-1">Points</p>
               </div>
               <div className="w-px bg-rose-100" />
               <div>
-                <p className="text-slate-800 font-black text-xl md:text-2xl leading-none">{member.total_visits || 0}</p>
-                <p className="text-slate-500 text-[9px] md:text-[10px] uppercase font-bold tracking-widest mt-1">Visits</p>
+                <p className="text-slate-800 font-normal text-xl md:text-2xl leading-none">{member.total_visits || 0}</p>
+                <p className="text-slate-500 text-[9px] md:text-[10px] uppercase font-normal tracking-widest mt-1">Visits</p>
               </div>
             </div>
           )}
@@ -103,22 +103,22 @@ function HomeTab({ member, user, setTab }) {
             ? <Link key={c.label} href={c.href}
                 className="bg-white rounded-xl md:rounded-[24px] p-4 md:p-5 border border-rose-50 shadow-sm hover:shadow-md active:scale-95 transition-all duration-300">
                 <div className="text-2xl md:text-3xl mb-2 md:mb-3 bg-rose-50 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center">{c.icon}</div>
-                <p className="font-black text-slate-800 text-[13px] md:text-[15px]">{c.label}</p>
-                <p className="text-slate-400 text-[9px] md:text-[11px] font-bold uppercase tracking-widest mt-0.5">{c.sub}</p>
+                <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">{c.label}</p>
+                <p className="text-slate-400 text-[9px] md:text-[11px] font-normal uppercase tracking-widest mt-0.5">{c.sub}</p>
               </Link>
             : <button key={c.label} onClick={() => setTab(c.tab)}
                 className="bg-white rounded-xl md:rounded-[24px] p-4 md:p-5 border border-rose-50 shadow-sm text-left hover:shadow-md active:scale-95 transition-all duration-300">
                 <div className="text-2xl md:text-3xl mb-2 md:mb-3 bg-rose-50 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-[#FC687D]">{c.icon}</div>
-                <p className="font-black text-slate-800 text-[13px] md:text-[15px]">{c.label}</p>
-                <p className="text-slate-400 text-[9px] md:text-[11px] font-bold uppercase tracking-widest mt-0.5">{c.sub}</p>
+                <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">{c.label}</p>
+                <p className="text-slate-400 text-[9px] md:text-[11px] font-normal uppercase tracking-widest mt-0.5">{c.sub}</p>
               </button>
         ))}
       </div>
 
       {/* Store Info */}
       <div className="bg-white rounded-xl md:rounded-[24px] p-5 border border-rose-50 shadow-sm">
-        <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Visit Us</p>
-        <div className="space-y-2.5 text-[11px] md:text-[13px] text-slate-600 font-bold">
+        <p className="text-[9px] md:text-[10px] font-normal uppercase tracking-widest text-slate-400 mb-3">Visit Us</p>
+        <div className="space-y-2.5 text-[11px] md:text-[13px] text-slate-600 font-normal">
           <p className="flex gap-3"><span>📍</span>36D Visayas Ave., Pasong Tamo, QC</p>
           <p className="flex gap-3"><span>📞</span>0939-9228383</p>
           <p className="flex gap-3 items-start"><span>🕙</span><span>Store: 10AM – 12MN<br/><span className="text-slate-400 text-[10px]">Room: 10AM – 2AM</span></span></p>
@@ -174,7 +174,7 @@ function OrderTab({ user }) {
       <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2 pt-1 -mx-4 px-4 sticky top-[56px] md:top-[64px] z-20 bg-[#FFF5F7]">
         {cats.map(cat => (
           <button key={cat.id} onClick={() => setActiveTab(cat.name)}
-            className={`flex-shrink-0 px-4 md:px-5 py-2 md:py-2.5 rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-widest transition-all duration-300 active:scale-95 shadow-sm border ${
+            className={`flex-shrink-0 px-4 md:px-5 py-2 md:py-2.5 rounded-xl text-[10px] md:text-[11px] font-normal uppercase tracking-widest transition-all duration-300 active:scale-95 shadow-sm border ${
               activeTab === cat.name ? "bg-[#FC687D] text-white border-[#FC687D]" : "bg-white text-slate-500 border-rose-100"
             }`}>
             {cat.name}
@@ -193,18 +193,18 @@ function OrderTab({ user }) {
               </div>
               
               <div className="flex flex-col flex-1 px-1">
-                <p className="font-black text-slate-800 text-[11px] md:text-[13px] leading-tight mb-1">{item.name}</p>
-                <p className="font-black text-[#FC687D] text-[13px] md:text-[15px] mb-3">₱{item.price}</p>
+                <p className="font-normal text-slate-800 text-[11px] md:text-[13px] leading-tight mb-1">{item.name}</p>
+                <p className="font-normal text-[#FC687D] text-[13px] md:text-[15px] mb-3">₱{item.price}</p>
                 
                 <div className="mt-auto">
                   {inCart > 0 ? (
                     <div className="flex items-center justify-between bg-slate-50 p-1 rounded-lg border border-slate-200">
-                      <button onClick={() => remove(item.id)} className="w-7 h-7 md:w-8 md:h-8 rounded-[6px] bg-white flex items-center justify-center text-slate-600 font-black shadow-sm active:scale-90">−</button>
-                      <span className="font-black text-[12px] md:text-[13px] text-slate-700">{inCart}</span>
-                      <button onClick={() => add(item)} className="w-7 h-7 md:w-8 md:h-8 rounded-[6px] bg-[#FC687D] flex items-center justify-center text-white font-black shadow-sm active:scale-90">+</button>
+                      <button onClick={() => remove(item.id)} className="w-7 h-7 md:w-8 md:h-8 rounded-[6px] bg-white flex items-center justify-center text-slate-600 font-normal shadow-sm active:scale-90">−</button>
+                      <span className="font-normal text-[12px] md:text-[13px] text-slate-700">{inCart}</span>
+                      <button onClick={() => add(item)} className="w-7 h-7 md:w-8 md:h-8 rounded-[6px] bg-[#FC687D] flex items-center justify-center text-white font-normal shadow-sm active:scale-90">+</button>
                     </div>
                   ) : (
-                    <button onClick={() => add(item)} className="w-full py-2 md:py-2.5 rounded-lg text-[9px] md:text-[11px] font-black uppercase tracking-widest text-[#FC687D] bg-[#FFF9FA] border border-rose-100 hover:bg-[#FC687D] hover:text-white transition-all active:scale-95">
+                    <button onClick={() => add(item)} className="w-full py-2 md:py-2.5 rounded-lg text-[9px] md:text-[11px] font-normal uppercase tracking-widest text-[#FC687D] bg-[#FFF9FA] border border-rose-100 hover:bg-[#FC687D] hover:text-white transition-all active:scale-95">
                       Add to Cart
                     </button>
                   )}
@@ -281,14 +281,14 @@ function LoyaltyTab({ member, setMember, user }) {
     return (
       <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div>
-          <h2 className="text-2xl md:text-[28px] font-black text-slate-800 tracking-tight">Loyalty Program</h2>
-          <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-medium">Earn points on every purchase</p>
+          <h2 className="text-2xl md:text-[28px] font-normal text-slate-800 tracking-tight">Loyalty Program</h2>
+          <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">Earn points on every purchase</p>
         </div>
         <div className="bg-white rounded-2xl md:rounded-[32px] border border-rose-50 shadow-sm p-6 md:p-8 text-center relative overflow-hidden">
           <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-rose-50 rounded-full blur-3xl" />
           <div className="text-5xl md:text-6xl mb-4 md:mb-6 relative z-10 animate-bounce" style={{ animationDuration: '3s' }}>⭐</div>
-          <h3 className="text-xl md:text-2xl font-black text-slate-800 mb-2 relative z-10">Join Juja Rewards</h3>
-          <p className="text-slate-500 text-[11px] md:text-[13px] leading-relaxed mb-6 md:mb-8 max-w-[250px] md:max-w-xs mx-auto font-medium relative z-10">
+          <h3 className="text-xl md:text-2xl font-normal text-slate-800 mb-2 relative z-10">Join Juja Rewards</h3>
+          <p className="text-slate-500 text-[11px] md:text-[13px] leading-relaxed mb-6 md:mb-8 max-w-[250px] md:max-w-xs mx-auto font-normal relative z-10">
             Earn points with every visit, unlock free items, and celebrate your birthday in style!
           </p>
           <div className="text-left space-y-3 md:space-y-4 mb-6 md:mb-8 bg-[#FFF9FA] p-4 md:p-6 rounded-xl md:rounded-[24px] relative z-10 border border-rose-50">
@@ -298,13 +298,13 @@ function LoyaltyTab({ member, setMember, user }) {
               ["🎂", "Birthday month double points"],
               ["📲", "Show member ID at checkout"],
             ].map(([ic, t]) => (
-              <div key={t} className="flex gap-3 md:gap-4 items-center text-xs md:text-[13px] font-bold text-slate-700">
+              <div key={t} className="flex gap-3 md:gap-4 items-center text-xs md:text-[13px] font-normal text-slate-700">
                 <span className="text-lg md:text-xl">{ic}</span><span>{t}</span>
               </div>
             ))}
           </div>
           <button onClick={join} disabled={joining}
-            className="w-full py-3.5 md:py-4 rounded-xl md:rounded-full font-black text-[11px] md:text-[13px] uppercase tracking-widest text-white transition-all duration-300 bg-[#FC687D] hover:bg-rose-500 shadow-[0_8px_20px_rgba(252,104,125,0.25)] hover:shadow-[0_12px_25px_rgba(252,104,125,0.35)] active:scale-95 disabled:opacity-50 relative z-10">
+            className="w-full py-3.5 md:py-4 rounded-xl md:rounded-full font-normal text-[11px] md:text-[13px] uppercase tracking-widest text-white transition-all duration-300 bg-[#FC687D] hover:bg-rose-500 shadow-[0_8px_20px_rgba(252,104,125,0.25)] hover:shadow-[0_12px_25px_rgba(252,104,125,0.35)] active:scale-95 disabled:opacity-50 relative z-10">
             {joining ? "Creating account…" : "Join For Free →"}
           </button>
         </div>
@@ -320,8 +320,8 @@ function LoyaltyTab({ member, setMember, user }) {
   return (
     <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
-        <h2 className="text-2xl md:text-[28px] font-black text-slate-800 tracking-tight">Juja Card</h2>
-        <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-medium">Digital Rewards Member</p>
+        <h2 className="text-2xl md:text-[28px] font-normal text-slate-800 tracking-tight">Juja Card</h2>
+        <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">Digital Rewards Member</p>
       </div>
 
       {/* ── PREMIUM PINK LOYALTY CARD ── */}
@@ -333,7 +333,7 @@ function LoyaltyTab({ member, setMember, user }) {
           <div className="w-16 h-16 md:w-20 md:h-20 rounded-[20px] md:rounded-[24px] mx-auto mb-3 md:mb-4 flex items-center justify-center text-3xl md:text-4xl bg-white/20 border border-white/30 backdrop-blur-md shadow-inner">
             👤
           </div>
-          <h3 className="text-xl md:text-2xl font-black text-white tracking-tight">{member.customer_name || "Juja Member"}</h3>
+          <h3 className="text-xl md:text-2xl font-normal text-white tracking-tight">{member.customer_name || "Juja Member"}</h3>
         </div>
 
         <div className="px-5 py-5 md:px-6 md:py-6 space-y-4 md:space-y-5 border-b border-white/20 bg-black/5">
@@ -353,12 +353,12 @@ function LoyaltyTab({ member, setMember, user }) {
         </div>
 
         <div className="px-5 py-5 md:px-6 md:pt-6 md:pb-8 flex justify-between items-center bg-black/10">
-          <button onClick={startEdit} className="text-[9px] md:text-[11px] font-black uppercase tracking-[0.25em] text-white/80 hover:text-white transition-all bg-white/10 px-4 py-2 md:px-5 md:py-2.5 rounded-full border border-white/20 active:scale-95">
+          <button onClick={startEdit} className="text-[9px] md:text-[11px] font-normal uppercase tracking-[0.25em] text-white/80 hover:text-white transition-all bg-white/10 px-4 py-2 md:px-5 md:py-2.5 rounded-full border border-white/20 active:scale-95">
             Edit Profile
           </button>
           <div className="text-right">
-            <p className="text-white/80 text-[9px] md:text-[10px] font-black uppercase tracking-widest mb-0.5 md:mb-1">Total Points</p>
-            <p className="text-2xl md:text-3xl font-black text-white">{pts.toFixed(0)}</p>
+            <p className="text-white/80 text-[9px] md:text-[10px] font-normal uppercase tracking-widest mb-0.5 md:mb-1">Total Points</p>
+            <p className="text-2xl md:text-3xl font-normal text-white">{pts.toFixed(0)}</p>
           </div>
         </div>
       </div>
@@ -366,13 +366,13 @@ function LoyaltyTab({ member, setMember, user }) {
       {/* Points progress */}
       <div className="bg-white rounded-xl md:rounded-[24px] p-5 md:p-6 border border-rose-50 shadow-sm">
         <div className="flex justify-between items-end mb-3 md:mb-4">
-          <p className="font-black text-slate-800 text-[13px] md:text-[15px]">Points Progress</p>
-          <p className="text-[10px] md:text-xs font-black text-slate-400">{pts.toFixed(0)} / {nextReward} pts</p>
+          <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">Points Progress</p>
+          <p className="text-[10px] md:text-xs font-normal text-slate-400">{pts.toFixed(0)} / {nextReward} pts</p>
         </div>
         <div className="w-full h-2.5 md:h-3 bg-slate-100 rounded-full overflow-hidden mb-2.5 md:mb-3 border border-slate-200">
           <div className="h-full rounded-full transition-all duration-1000 bg-[#FC687D]" style={{ width: `${progress}%` }} />
         </div>
-        <p className="text-[10px] md:text-[11px] font-black text-slate-500">{(nextReward - pts).toFixed(0)} more points until your next free reward 🎁</p>
+        <p className="text-[10px] md:text-[11px] font-normal text-slate-500">{(nextReward - pts).toFixed(0)} more points until your next free reward 🎁</p>
       </div>
 
       {/* Edit modal (Luxury Slide-in) */}
@@ -383,7 +383,7 @@ function LoyaltyTab({ member, setMember, user }) {
             <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-5 md:hidden" />
             
             <div className="flex justify-between items-center mb-5 md:mb-6">
-              <h3 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">Edit Profile</h3>
+              <h3 className="text-xl md:text-2xl font-normal text-slate-800 tracking-tight">Edit Profile</h3>
               <button onClick={() => setEditing(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90 md:hidden">
                 ✕
               </button>
@@ -397,7 +397,7 @@ function LoyaltyTab({ member, setMember, user }) {
                 ["note", "Birthday (YYYY-MM-DD)", "text", "1995-12-25"],
               ].map(([key, lbl, type, ph]) => (
                 <div key={key}>
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">{lbl}</label>
+                  <label className="block text-[10px] font-normal uppercase tracking-widest text-slate-400 mb-1.5 ml-1">{lbl}</label>
                   <input type={type} value={form[key]} placeholder={ph}
                     onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
                     className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs md:text-sm font-semibold text-slate-800 focus:outline-none focus:border-[#FC687D] focus:bg-white focus:ring-1 focus:ring-rose-100 transition-all" />
@@ -405,11 +405,11 @@ function LoyaltyTab({ member, setMember, user }) {
               ))}
               <div className="grid grid-cols-2 gap-3 pt-4 md:pt-6 mt-4 md:mt-6 border-t border-slate-100">
                 <button type="button" onClick={() => setEditing(false)}
-                  className="w-full py-3.5 md:py-4 rounded-xl bg-white border border-slate-200 text-slate-500 font-black uppercase tracking-widest text-[10px] md:text-xs hover:bg-slate-50 hover:text-slate-800 transition-all active:scale-95">
+                  className="w-full py-3.5 md:py-4 rounded-xl bg-white border border-slate-200 text-slate-500 font-normal uppercase tracking-widest text-[10px] md:text-xs hover:bg-slate-50 hover:text-slate-800 transition-all active:scale-95">
                   Cancel
                 </button>
                 <button type="submit" disabled={saving}
-                  className="w-full py-3.5 md:py-4 rounded-xl bg-[#FC687D] text-white font-black uppercase tracking-widest text-[10px] md:text-xs hover:bg-rose-500 transition-all shadow-[0_4px_15px_rgba(252,104,125,0.25)] disabled:opacity-70 active:scale-95 hover:-translate-y-0.5">
+                  className="w-full py-3.5 md:py-4 rounded-xl bg-[#FC687D] text-white font-normal uppercase tracking-widest text-[10px] md:text-xs hover:bg-rose-500 transition-all shadow-[0_4px_15px_rgba(252,104,125,0.25)] disabled:opacity-70 active:scale-95 hover:-translate-y-0.5">
                   {saving ? "Saving…" : "Save Changes"}
                 </button>
               </div>
@@ -429,11 +429,11 @@ function ProfileTab({ user, onLogout }) {
         <div className="flex items-center gap-4 mb-5">
           <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-rose-50 flex items-center justify-center text-2xl md:text-3xl">👤</div>
           <div>
-            <p className="font-black text-slate-800 text-base md:text-lg">{user?.email}</p>
-            <p className="text-slate-400 text-[9px] md:text-[10px] font-black uppercase tracking-widest">Juja Member</p>
+            <p className="font-normal text-slate-800 text-base md:text-lg">{user?.email}</p>
+            <p className="text-slate-400 text-[9px] md:text-[10px] font-normal uppercase tracking-widest">Juja Member</p>
           </div>
         </div>
-        <button onClick={onLogout} className="w-full py-3.5 rounded-xl bg-slate-50 text-slate-500 font-black text-[10px] md:text-[11px] uppercase tracking-widest hover:bg-rose-50 hover:text-[#FC687D] active:scale-95 transition-all">
+        <button onClick={onLogout} className="w-full py-3.5 rounded-xl bg-slate-50 text-slate-500 font-normal text-[10px] md:text-[11px] uppercase tracking-widest hover:bg-rose-50 hover:text-[#FC687D] active:scale-95 transition-all">
           Sign Out
         </button>
       </div>

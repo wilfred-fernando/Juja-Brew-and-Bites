@@ -68,20 +68,19 @@ export default function POS() {
   );
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-[#FFF5F7] animate-in fade-in duration-500" style={{ fontFamily: "'Abadi', sans-serif" }}>
-
+    <div className="h-screen flex flex-col overflow-hidden bg-[#FFF5F7] animate-in fade-in duration-500" >
       {/* HEADER */}
       <div className="flex-shrink-0 flex items-center justify-between px-6 h-16 bg-white border-b border-rose-50 shadow-sm z-10">
         <div className="flex items-center gap-4">
           <img src={LOGO} alt="Juja" className="h-8 object-contain" />
           <div className="pl-4 border-l border-slate-100">
-            <p className="font-black text-slate-800 text-sm leading-tight">JUJA POS Terminal</p>
-            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Point of Sale</p>
+            <p className="font-normal text-slate-800 text-sm leading-tight">JUJA POS Terminal</p>
+            <p className="text-[10px] text-slate-400 font-normal uppercase tracking-widest">Point of Sale</p>
           </div>
         </div>
         <div className="flex gap-3">
-          <a href="/kds" target="_blank" className="px-5 py-2 rounded-xl bg-slate-50 text-slate-500 text-[11px] font-black uppercase tracking-widest hover:bg-slate-100 hover:text-slate-800 transition-all active:scale-95">KDS</a>
-          <a href="/admin" className="px-5 py-2 rounded-xl bg-slate-50 text-slate-500 text-[11px] font-black uppercase tracking-widest hover:bg-slate-100 hover:text-slate-800 transition-all active:scale-95">Admin</a>
+          <a href="/kds" target="_blank" className="px-5 py-2 rounded-xl bg-slate-50 text-slate-500 text-[11px] font-normal uppercase tracking-widest hover:bg-slate-100 hover:text-slate-800 transition-all active:scale-95">KDS</a>
+          <a href="/admin" className="px-5 py-2 rounded-xl bg-slate-50 text-slate-500 text-[11px] font-normal uppercase tracking-widest hover:bg-slate-100 hover:text-slate-800 transition-all active:scale-95">Admin</a>
         </div>
       </div>
 
@@ -100,7 +99,7 @@ export default function POS() {
             <div className="flex gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-100 overflow-x-auto hide-scrollbar">
               {["Dine-In","Take-Out","Delivery"].map(t=>(
                 <button key={t} onClick={()=>setType(t)} 
-                  className={`px-5 py-2 rounded-lg font-black text-[11px] uppercase tracking-widest transition-all whitespace-nowrap active:scale-95 ${
+                  className={`px-5 py-2 rounded-lg font-normal text-[11px] uppercase tracking-widest transition-all whitespace-nowrap active:scale-95 ${
                     type===t ? "bg-white text-[#FC687D] shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
                   }`}>
                   {t}
@@ -112,14 +111,14 @@ export default function POS() {
           {/* Category tabs */}
           <div className="flex-shrink-0 flex gap-2 px-4 py-3 bg-white border-b border-rose-50 overflow-x-auto hide-scrollbar shadow-sm z-10">
             <button onClick={()=>setCat("ALL")} 
-              className={`flex-shrink-0 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 border ${
+              className={`flex-shrink-0 px-5 py-2.5 rounded-xl font-normal text-xs uppercase tracking-widest transition-all active:scale-95 border ${
                 cat==="ALL" ? "bg-slate-800 text-white border-slate-800 shadow-md" : "bg-white text-slate-500 border-slate-100 hover:bg-slate-50"
               }`}>
               All Items
             </button>
             {cats.map((c,i)=>(
               <button key={c.id} onClick={()=>setCat(c.name)} 
-                className={`flex-shrink-0 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 border flex items-center gap-2 ${
+                className={`flex-shrink-0 px-5 py-2.5 rounded-xl font-normal text-xs uppercase tracking-widest transition-all active:scale-95 border flex items-center gap-2 ${
                   cat===c.name ? "bg-[#FC687D] text-white border-[#FC687D] shadow-md shadow-rose-200" : "bg-white text-slate-500 border-slate-100 hover:bg-slate-50"
                 }`}>
                 <span className="text-base leading-none">{c.icon}</span> {c.name}
@@ -139,10 +138,10 @@ export default function POS() {
                     <div className="w-10 h-10 rounded-full flex items-center justify-center mb-3 opacity-20 group-hover:opacity-100 transition-opacity" style={{ backgroundColor: color }}>
                       <div className="w-3 h-3 rounded-full bg-white shadow-sm" />
                     </div>
-                    <p className="text-slate-800 font-black text-sm mb-1 leading-tight flex-1">{item.name}</p>
-                    <p className="text-[#FC687D] font-black text-base m-0 mt-2">₱{item.price}</p>
+                    <p className="text-slate-800 font-normal text-sm mb-1 leading-tight flex-1">{item.name}</p>
+                    <p className="text-[#FC687D] font-normal text-base m-0 mt-2">₱{item.price}</p>
                     {qty>0 && (
-                      <div className="absolute top-3 right-3 w-7 h-7 rounded-full bg-[#FC687D] flex items-center justify-center text-xs font-black text-white shadow-md animate-in zoom-in duration-200">
+                      <div className="absolute top-3 right-3 w-7 h-7 rounded-full bg-[#FC687D] flex items-center justify-center text-xs font-normal text-white shadow-md animate-in zoom-in duration-200">
                         {qty}
                       </div>
                     )}
@@ -152,7 +151,7 @@ export default function POS() {
               {filtered.length===0 && (
                 <div className="col-span-full flex flex-col items-center justify-center py-20 text-slate-400">
                   <span className="text-4xl mb-4 opacity-50">🔍</span>
-                  <p className="font-black text-xs uppercase tracking-widest">No items found</p>
+                  <p className="font-normal text-xs uppercase tracking-widest">No items found</p>
                 </div>
               )}
             </div>
@@ -165,11 +164,11 @@ export default function POS() {
           {/* Cart header */}
           <div className="flex-shrink-0 flex items-center justify-between p-5 border-b border-rose-50">
             <div>
-              <p className="font-black text-xl text-slate-800 m-0">Current Order</p>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest m-0 mt-1">{cart.length} items</p>
+              <p className="font-normal text-xl text-slate-800 m-0">Current Order</p>
+              <p className="text-[10px] font-normal text-slate-400 uppercase tracking-widest m-0 mt-1">{cart.length} items</p>
             </div>
             {cart.length>0 && (
-              <button onClick={clear} className="text-[10px] font-black uppercase tracking-widest text-rose-400 hover:text-rose-600 bg-rose-50 px-3 py-1.5 rounded-lg active:scale-95 transition-all">
+              <button onClick={clear} className="text-[10px] font-normal uppercase tracking-widest text-rose-400 hover:text-rose-600 bg-rose-50 px-3 py-1.5 rounded-lg active:scale-95 transition-all">
                 Clear
               </button>
             )}
@@ -188,21 +187,21 @@ export default function POS() {
             {cart.length===0 ? (
               <div className="flex flex-col items-center justify-center h-full text-slate-300 opacity-70">
                 <p className="text-5xl mb-4">🛒</p>
-                <p className="font-black text-sm uppercase tracking-widest">Cart is empty</p>
-                <p className="text-[10px] font-bold mt-2">Tap items to add</p>
+                <p className="font-normal text-sm uppercase tracking-widest">Cart is empty</p>
+                <p className="text-[10px] font-normal mt-2">Tap items to add</p>
               </div>
             ) : cart.map(item=>(
               <div key={item.id} className="flex items-center gap-3 bg-white border border-slate-100 shadow-sm rounded-xl p-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-slate-800 text-xs font-black m-0 mb-1 truncate leading-tight">{item.name}</p>
-                  <p className="text-slate-400 text-[10px] font-black m-0">₱{item.price}</p>
+                  <p className="text-slate-800 text-xs font-normal m-0 mb-1 truncate leading-tight">{item.name}</p>
+                  <p className="text-slate-400 text-[10px] font-normal m-0">₱{item.price}</p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0 bg-slate-50 rounded-lg p-1 border border-slate-100">
-                  <button onClick={()=>upd(item.id,-1)} className="w-7 h-7 rounded-md bg-white border border-slate-200 text-slate-600 font-black text-xs hover:bg-slate-100 active:scale-90 transition-all shadow-sm">−</button>
-                  <span className="text-slate-800 font-black text-xs min-w-[20px] text-center">{item.qty}</span>
-                  <button onClick={()=>upd(item.id,1)} className="w-7 h-7 rounded-md bg-[#FC687D] text-white font-black text-xs hover:bg-rose-500 active:scale-90 transition-all shadow-sm">+</button>
+                  <button onClick={()=>upd(item.id,-1)} className="w-7 h-7 rounded-md bg-white border border-slate-200 text-slate-600 font-normal text-xs hover:bg-slate-100 active:scale-90 transition-all shadow-sm">−</button>
+                  <span className="text-slate-800 font-normal text-xs min-w-[20px] text-center">{item.qty}</span>
+                  <button onClick={()=>upd(item.id,1)} className="w-7 h-7 rounded-md bg-[#FC687D] text-white font-normal text-xs hover:bg-rose-500 active:scale-90 transition-all shadow-sm">+</button>
                 </div>
-                <p className="text-slate-800 font-black text-sm min-w-[50px] text-right flex-shrink-0">₱{(item.price*item.qty).toLocaleString()}</p>
+                <p className="text-slate-800 font-normal text-sm min-w-[50px] text-right flex-shrink-0">₱{(item.price*item.qty).toLocaleString()}</p>
               </div>
             ))}
           </div>
@@ -215,22 +214,22 @@ export default function POS() {
 
           {/* Totals + discount */}
           <div className="flex-shrink-0 p-5 bg-white border-t border-rose-50">
-            <div className="flex justify-between text-xs font-black text-slate-500 mb-2">
+            <div className="flex justify-between text-xs font-normal text-slate-500 mb-2">
               <span>Subtotal</span>
               <span className="text-slate-800">₱{sub.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center mb-4">
-              <button onClick={()=>setShowDisc(!showDisc)} className="text-[10px] font-black uppercase tracking-widest text-[#FC687D] bg-rose-50 px-3 py-1.5 rounded-lg active:scale-95 transition-all border border-rose-100">
+              <button onClick={()=>setShowDisc(!showDisc)} className="text-[10px] font-normal uppercase tracking-widest text-[#FC687D] bg-rose-50 px-3 py-1.5 rounded-lg active:scale-95 transition-all border border-rose-100">
                 Discount {disc>0?`(${disc}%)`:""} 🏷
               </button>
-              {damt>0 && <span className="text-rose-500 text-xs font-black">-₱{damt.toFixed(0)}</span>}
+              {damt>0 && <span className="text-rose-500 text-xs font-normal">-₱{damt.toFixed(0)}</span>}
             </div>
             
             {showDisc && (
               <div className="flex gap-2 mb-4 animate-in fade-in slide-in-from-top-2">
                 {[0,5,10,15,20].map(d=>(
                   <button key={d} onClick={()=>{setDisc(d);setShowDisc(false);}} 
-                    className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all active:scale-95 border ${
+                    className={`flex-1 py-2 rounded-lg text-[10px] font-normal transition-all active:scale-95 border ${
                       disc===d ? "bg-[#FC687D] text-white border-[#FC687D] shadow-sm" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
                     }`}>
                     {d===0?"None":d+"%"}
@@ -240,15 +239,15 @@ export default function POS() {
             )}
             
             <div className="flex justify-between items-center border-t border-rose-50 pt-4 mt-2">
-              <span className="font-black text-lg text-slate-800 tracking-tight">TOTAL</span>
-              <span className="font-black text-2xl text-[#FC687D] tracking-tight">₱{total.toLocaleString()}</span>
+              <span className="font-normal text-lg text-slate-800 tracking-tight">TOTAL</span>
+              <span className="font-normal text-2xl text-[#FC687D] tracking-tight">₱{total.toLocaleString()}</span>
             </div>
           </div>
 
           {/* Place Order */}
           <div className="flex-shrink-0 p-4 pt-0 bg-white pb-6">
             <button onClick={place} disabled={!cart.length||busy}
-              className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-white transition-all duration-300 active:scale-95 shadow-[0_8px_20px_rgba(252,104,125,0.25)] hover:shadow-[0_12px_25px_rgba(252,104,125,0.35)] hover:-translate-y-0.5 disabled:opacity-50 disabled:shadow-none disabled:translate-y-0"
+              className="w-full py-4 rounded-2xl font-normal text-xs uppercase tracking-widest text-white transition-all duration-300 active:scale-95 shadow-[0_8px_20px_rgba(252,104,125,0.25)] hover:shadow-[0_12px_25px_rgba(252,104,125,0.35)] hover:-translate-y-0.5 disabled:opacity-50 disabled:shadow-none disabled:translate-y-0"
               style={{ background: cart.length ? "linear-gradient(135deg,#FC687D,#f43f5e)" : "#cbd5e1" }}>
               {busy ? "Processing..." : cart.length ? `Charge ₱${total.toLocaleString()}` : "Select Items"}
             </button>
@@ -264,26 +263,26 @@ export default function POS() {
               <div className="w-16 h-16 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 shadow-sm">
                 ✓
               </div>
-              <h2 className="font-black text-2xl text-slate-800 tracking-tight mb-1">Order Placed!</h2>
+              <h2 className="font-normal text-2xl text-slate-800 tracking-tight mb-1">Order Placed!</h2>
               <p className="font-mono text-[10px] font-bold text-slate-400">#{receipt.id?.slice(-8).toUpperCase()}</p>
             </div>
             
             <div className="p-6 max-h-[40vh] overflow-y-auto hide-scrollbar">
               {receipt.cart.map(item=>(
                 <div key={item.id} className="flex justify-between items-start mb-3 text-sm">
-                  <span className="font-semibold text-slate-600 flex-1 pr-4">{item.name} <span className="text-slate-400 font-black text-[10px] ml-1">x{item.qty}</span></span>
-                  <span className="font-black text-slate-800">₱{(item.price*item.qty).toLocaleString()}</span>
+                  <span className="font-semibold text-slate-600 flex-1 pr-4">{item.name} <span className="text-slate-400 font-normal text-[10px] ml-1">x{item.qty}</span></span>
+                  <span className="font-normal text-slate-800">₱{(item.price*item.qty).toLocaleString()}</span>
                 </div>
               ))}
               
               <div className="border-t border-slate-100 pt-4 mt-4 space-y-2">
                 {receipt.damt>0 && (
-                  <div className="flex justify-between text-xs font-black text-rose-400">
+                  <div className="flex justify-between text-xs font-normal text-rose-400">
                     <span>Discount ({receipt.disc}%)</span>
                     <span>-₱{receipt.damt.toFixed(0)}</span>
                   </div>
                 )}
-                <div className="flex justify-between font-black text-xl text-[#FC687D] pt-2">
+                <div className="flex justify-between font-normal text-xl text-[#FC687D] pt-2">
                   <span>Total</span>
                   <span>₱{receipt.total.toLocaleString()}</span>
                 </div>
@@ -297,10 +296,10 @@ export default function POS() {
             </div>
             
             <div className="flex gap-3 p-6 pt-0">
-              <button onClick={()=>setReceipt(null)} className="flex-1 py-4 rounded-2xl border border-slate-200 bg-white font-black text-slate-500 text-xs uppercase tracking-widest hover:bg-slate-50 active:scale-95 transition-all shadow-sm">
+              <button onClick={()=>setReceipt(null)} className="flex-1 py-4 rounded-2xl border border-slate-200 bg-white font-normal text-slate-500 text-xs uppercase tracking-widest hover:bg-slate-50 active:scale-95 transition-all shadow-sm">
                 New Order
               </button>
-              <button onClick={()=>window.print()} className="flex-1 py-4 rounded-2xl border-none bg-[#FC687D] text-white font-black text-xs uppercase tracking-widest shadow-[0_8px_20px_rgba(252,104,125,0.25)] hover:bg-rose-500 hover:-translate-y-0.5 active:scale-95 transition-all">
+              <button onClick={()=>window.print()} className="flex-1 py-4 rounded-2xl border-none bg-[#FC687D] text-white font-normal text-xs uppercase tracking-widest shadow-[0_8px_20px_rgba(252,104,125,0.25)] hover:bg-rose-500 hover:-translate-y-0.5 active:scale-95 transition-all">
                 Print
               </button>
             </div>
