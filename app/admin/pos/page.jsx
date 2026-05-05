@@ -43,7 +43,6 @@ export default function POS() {
   const [cname, setCname] = useState("");
   const [customerProfile, setCustomerProfile] = useState(null);
 
-  // FIX: Database expects Title Case
   const [orderType, setOrderType] = useState("Table"); 
   const [tableNum, setTableNum] = useState("");
 
@@ -53,9 +52,6 @@ export default function POS() {
   const [currentOrderId, setCurrentOrderId] = useState(null);
   const [openTickets, setOpenTickets] = useState([]);
   const [showOpenTickets, setShowOpenTickets] = useState(false);
-  
-  // FIX: Database expects Title Case
-  const [openTicketsFilter, setOpenTicketsFilter] = useState("Table");
 
   useEffect(() => {
     Promise.all([MenuItem.list(), MenuCategory.list()])
@@ -161,7 +157,7 @@ export default function POS() {
       total_amount: total, 
       status: isPaid ? "Confirmed" : "Open", 
       payment_status: isPaid ? "Paid" : "Unpaid", 
-      order_type: orderType, // This is now sending "Table", "Takeout", etc. safely
+      order_type: orderType, 
       notes: np.join(" | ")
     };
 
@@ -283,7 +279,6 @@ export default function POS() {
 
           <div className="flex gap-1.5">
             <select value={orderType} onChange={e=>setOrderType(e.target.value)} className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-[10px] font-normal text-slate-500 uppercase focus:outline-none">
-              {/* FIX: Values match database exactly, but text is CSS uppercased via utility classes */}
               <option value="Table">TABLE</option>
               <option value="Takeout">TAKEOUT</option>
               <option value="Grab | Panda">GRAB | PANDA</option>
@@ -336,38 +331,37 @@ export default function POS() {
         </div>
       </div>
 
-      {/* ─── OPEN TICKETS MODAL ─── */}
+      {/* ─── OPEN TICKETS MODAL (ALL TICKETS IN ONE VIEW) ─── */}
       {showOpenTickets && (
         <div className="fixed inset-0 z-[500] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-2xl flex flex-col max-h-[80vh] overflow-hidden shadow-2xl relative animate-in zoom-in duration-200">
-             <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-               <h2 className="text-lg font-normal text-slate-800 flex items-center gap-2">📋 Open Tickets</h2>
+             <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50 z-10">
+               <h2 className="text-lg font-normal text-slate-800 flex items-center gap-2">📋 All Open Tickets</h2>
                <button onClick={()=>setShowOpenTickets(false)} className="text-slate-400 hover:text-slate-600 text-xl">✕</button>
              </div>
-             <div className="px-6 pt-4 pb-2 flex gap-2 overflow-x-auto hide-scrollbar border-b border-slate-100">
-               {/* FIX: Added proper Title Case values for database filtering */}
-               {["Table", "VIP Room", "Takeout", "Grab | Panda"].map(t => (
-                  <button key={t} onClick={()=>setOpenTicketsFilter(t)} className={`px-4 py-2 rounded-full text-[10px] font-normal uppercase tracking-widest whitespace-nowrap transition-colors ${openTicketsFilter === t ? 'bg-[#FC687D] text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
-                    {t}
-                  </button>
-               ))}
-             </div>
+             
              <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
-                {openTickets.filter(t => t.order_type === openTicketsFilter).length === 0 ? (
+                {openTickets.length === 0 ? (
                   <div className="text-center py-12 opacity-50">
                     <span className="text-4xl">📭</span>
-                    <p className="mt-3 text-[10px] font-normal uppercase tracking-widest text-slate-500">No open tickets here</p>
+                    <p className="mt-3 text-[10px] font-normal uppercase tracking-widest text-slate-500">No open tickets right now</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {openTickets.filter(t => t.order_type === openTicketsFilter).map(ticket => (
+                    {openTickets.map(ticket => (
                       <button key={ticket.id} onClick={() => loadTicket(ticket)} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-[#FC687D]/30 transition-all text-left flex flex-col gap-2 group relative overflow-hidden">
                          <div className="flex justify-between items-start">
                            <span className="font-normal text-sm text-slate-800">{ticket.customer_name}</span>
                            <span className="text-[10px] font-normal uppercase tracking-widest text-emerald-500 bg-emerald-50 px-2 py-1 rounded-md">₱{parseFloat(ticket.total_amount || 0).toLocaleString()}</span>
                          </div>
                          <p className="text-[11px] text-slate-400 font-normal line-clamp-1">{ticket.notes || "No notes"}</p>
-                         <p className="text-[9px] text-slate-300 font-mono mt-1">{new Date(ticket.created_at).toLocaleTimeString()}</p>
+                         
+                         {/* Badge added here to identify order type */}
+                         <div className="mt-1 flex items-center justify-between">
+                           <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded">{ticket.order_type}</span>
+                           <span className="text-[9px] text-slate-400 font-mono">{new Date(ticket.created_at).toLocaleTimeString()}</span>
+                         </div>
+
                          <div className="absolute inset-0 bg-[#FC687D]/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                       </button>
                     ))}
