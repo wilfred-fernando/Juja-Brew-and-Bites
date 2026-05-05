@@ -43,7 +43,8 @@ export default function POS() {
   const [cname, setCname] = useState("");
   const [customerProfile, setCustomerProfile] = useState(null);
 
-  const [orderType, setOrderType] = useState("TABLE"); 
+  // FIX: Database expects Title Case
+  const [orderType, setOrderType] = useState("Table"); 
   const [tableNum, setTableNum] = useState("");
 
   const [isScanning, setIsScanning] = useState(false);
@@ -52,7 +53,9 @@ export default function POS() {
   const [currentOrderId, setCurrentOrderId] = useState(null);
   const [openTickets, setOpenTickets] = useState([]);
   const [showOpenTickets, setShowOpenTickets] = useState(false);
-  const [openTicketsFilter, setOpenTicketsFilter] = useState("TABLE");
+  
+  // FIX: Database expects Title Case
+  const [openTicketsFilter, setOpenTicketsFilter] = useState("Table");
 
   useEffect(() => {
     Promise.all([MenuItem.list(), MenuCategory.list()])
@@ -105,7 +108,7 @@ export default function POS() {
   
   const clear = () => { 
     setCart([]); setCname(""); setCustSearch(""); setTableNum(""); setNotes(""); setDisc(0); 
-    setShowMobileTicket(false); setShowPaymentModal(false); setOrderType("TABLE"); setCurrentOrderId(null); 
+    setShowMobileTicket(false); setShowPaymentModal(false); setOrderType("Table"); setCurrentOrderId(null); 
   };
 
   const sub  = cart.reduce((s,e)=>s+e.price*e.qty,0);
@@ -129,7 +132,7 @@ export default function POS() {
 
     setCname(ticket.customer_name === "Walk-in" ? "" : ticket.customer_name);
     setCustSearch(ticket.customer_name === "Walk-in" ? "" : ticket.customer_name);
-    setOrderType(ticket.order_type || "TABLE");
+    setOrderType(ticket.order_type || "Table");
     
     let tNum = "";
     if (ticket.notes) {
@@ -142,7 +145,6 @@ export default function POS() {
     setShowOpenTickets(false);
   };
 
-  // ─── STABILIZED SAVE/UPDATE LOGIC ───
   const place = async (isPaid = true, paymentMethod = "Unpaid") => {
     if(!cart.length || busy) return;
     setBusy(true);
@@ -151,7 +153,6 @@ export default function POS() {
     if(tableNum) np.push(`${orderType} #: ${tableNum}`); 
     if(disc>0) np.push(`Disc:${disc}%`);
     
-    // Safely mapping items and including empty fields some APIs require
     const payload = {
       customer_name: cname || "Walk-in",
       customer_email: "",
@@ -160,7 +161,7 @@ export default function POS() {
       total_amount: total, 
       status: isPaid ? "Confirmed" : "Open", 
       payment_status: isPaid ? "Paid" : "Unpaid", 
-      order_type: orderType, 
+      order_type: orderType, // This is now sending "Table", "Takeout", etc. safely
       notes: np.join(" | ")
     };
 
@@ -168,19 +169,12 @@ export default function POS() {
       let orderId = currentOrderId;
 
       if (currentOrderId) {
-        // Direct Supabase Update
         const { error } = await supabase.from('orders').update(payload).eq('id', currentOrderId);
-        
         if (error) {
-           // Fallback: If DB strictly requires items to be a stringified JSON array
-           const { error: retryError } = await supabase
-              .from('orders')
-              .update({ ...payload, items: JSON.stringify(payload.items) })
-              .eq('id', currentOrderId);
+           const { error: retryError } = await supabase.from('orders').update({ ...payload, items: JSON.stringify(payload.items) }).eq('id', currentOrderId);
            if (retryError) throw retryError;
         }
       } else {
-        // Create New Ticket
         const o = await Order.create(payload);
         orderId = o.id;
       }
@@ -193,7 +187,6 @@ export default function POS() {
       clear(); 
     } catch (e) {
       console.error("Save Error:", e);
-      // Alerts the exact error message so we know exactly what failed
       alert(`Failed to save: ${e.message || JSON.stringify(e)}`);
     } finally {
       setBusy(false);
@@ -290,10 +283,11 @@ export default function POS() {
 
           <div className="flex gap-1.5">
             <select value={orderType} onChange={e=>setOrderType(e.target.value)} className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-[10px] font-normal text-slate-500 uppercase focus:outline-none">
-              <option value="TABLE">TABLE</option>
-              <option value="TAKEOUT">TAKEOUT</option>
-              <option value="GRAB | PANDA">GRAB | PANDA</option>
-              <option value="VIP ROOM">VIP ROOM</option>
+              {/* FIX: Values match database exactly, but text is CSS uppercased via utility classes */}
+              <option value="Table">TABLE</option>
+              <option value="Takeout">TAKEOUT</option>
+              <option value="Grab | Panda">GRAB | PANDA</option>
+              <option value="VIP Room">VIP ROOM</option>
             </select>
             <input value={tableNum} onChange={e=>setTableNum(e.target.value)} placeholder="#" className="w-12 bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-xs font-normal text-center focus:outline-none" />
           </div>
@@ -351,7 +345,8 @@ export default function POS() {
                <button onClick={()=>setShowOpenTickets(false)} className="text-slate-400 hover:text-slate-600 text-xl">✕</button>
              </div>
              <div className="px-6 pt-4 pb-2 flex gap-2 overflow-x-auto hide-scrollbar border-b border-slate-100">
-               {["TABLE", "VIP ROOM", "TAKEOUT", "GRAB | PANDA"].map(t => (
+               {/* FIX: Added proper Title Case values for database filtering */}
+               {["Table", "VIP Room", "Takeout", "Grab | Panda"].map(t => (
                   <button key={t} onClick={()=>setOpenTicketsFilter(t)} className={`px-4 py-2 rounded-full text-[10px] font-normal uppercase tracking-widest whitespace-nowrap transition-colors ${openTicketsFilter === t ? 'bg-[#FC687D] text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
                     {t}
                   </button>
