@@ -285,10 +285,7 @@ export default function POS() {
 
         <div className="flex-shrink-0 flex items-center justify-between px-4 py-4 bg-white border-b border-slate-200 pt-safe z-10">
           <div className="flex items-center gap-3">
-            <button onClick={() => setShowMobileTicket(false)} className="lg:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
-              <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-            </button>
-            <h2 className="font-black text-lg text-slate-800 flex items-center gap-2">Ticket <span className="bg-slate-100 border border-slate-200 text-slate-500 rounded-md px-2 py-0.5 text-xs">{cart.length}</span></h2>
+             <h2 className="font-black text-lg text-slate-800 flex items-center gap-2">Ticket <span className="bg-slate-100 border border-slate-200 text-slate-500 rounded-md px-2 py-0.5 text-xs">{cart.length}</span></h2>
           </div>
           <div className="flex items-center gap-2">
             <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors"><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg></button>
@@ -586,4 +583,4 @@ export default function POS() {
       )}
     </div>
   );
-}
+}c
