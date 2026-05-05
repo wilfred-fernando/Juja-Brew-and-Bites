@@ -26,6 +26,9 @@ export default function POS() {
   const [custSearch, setCustSearch] = useState("");
   const [cname, setCname] = useState("");
   
+  // ─── NEW: LOYALTY PROFILE STATE ───
+  const [customerProfile, setCustomerProfile] = useState(null);
+
   const [orderType, setOrderType] = useState("TABLE"); 
   const [tableNum, setTableNum] = useState("");
 
@@ -83,7 +86,6 @@ export default function POS() {
     }
   };
 
-  // ─── UPGRADED OMNI-SCANNER LOGIC ───
   const handleBarcodeMatch = (rawCode) => {
     const code = rawCode.trim();
 
@@ -91,19 +93,19 @@ export default function POS() {
     const memberMatch = members.find(m => m["Customer code"] === code);
     if (memberMatch) {
       setCname(memberMatch["Customer name"]);
-      setCustSearch(memberMatch["Customer name"]); // Update UI to show assigned customer
-      return; // Stop here, it was a customer!
+      setCustSearch(memberMatch["Customer name"]); 
+      setCustomerProfile(memberMatch); // <-- Triggers the popup
+      return; 
     }
 
     // 2. Check Menu Items if it wasn't a customer
     const itemMatch = items.find(i => i.sku === code || i.barcode === code);
     if (itemMatch) {
       add(itemMatch);
-      setCustSearch(""); // Clear the search bar so it's ready for the next scan
+      setCustSearch(""); 
       return;
     }
 
-    // 3. Not Found
     alert(`No matching Customer or Item found for barcode: ${code}`);
   };
 
@@ -131,8 +133,6 @@ export default function POS() {
       clear(); 
     }).finally(()=>setBusy(false));
   };
-
-  if(loading) return <div className="h-screen w-full flex items-center justify-center bg-white"><div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full"></div></div>;
 
   return (
     <div className="h-[100dvh] lg:h-full w-full flex flex-col lg:flex-row overflow-hidden bg-white lg:rounded-2xl lg:border border-slate-200/60 shadow-sm relative">
@@ -173,7 +173,6 @@ export default function POS() {
         </div>
       </div>
 
-      {/* ─── FIXED MOBILE BUTTON ─── */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 p-3 bg-white/90 backdrop-blur-md border-t border-slate-200 z-40 shadow-[0_-10px_30px_rgba(0,0,0,0.08)] pb-safe">
         <button onClick={() => setShowMobileTicket(true)} 
           className={`w-full py-4 rounded-xl font-black text-sm text-white flex items-center justify-between px-6 transition-all shadow-lg active:scale-95 ${cart.length ? "bg-emerald-500" : "bg-slate-400"}`}>
@@ -191,9 +190,36 @@ export default function POS() {
         </div>
 
         <div className="flex-shrink-0 p-3 bg-white space-y-2 border-b border-slate-100">
-          <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus-within:border-[#FC687D] transition-colors">
-            <button onClick={isScanning ? stopScanner : startScanner} className={`text-base leading-none ${isScanning ? 'text-red-500 animate-pulse' : 'text-slate-400'}`}>║▌</button>
-            <input value={custSearch} onChange={e=>setCustSearch(e.target.value)} onKeyDown={e=>{if(e.key==='Enter') {handleBarcodeMatch(custSearch); e.preventDefault();}}} placeholder="Scan Loyalty or Item..." className="flex-1 bg-transparent text-[11px] font-normal focus:outline-none" />
+          <div className="relative">
+            <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus-within:border-[#FC687D] transition-colors">
+              <button onClick={isScanning ? stopScanner : startScanner} className={`text-base leading-none ${isScanning ? 'text-red-500 animate-pulse' : 'text-slate-400'}`}>║▌</button>
+              <input 
+                value={custSearch} 
+                onChange={e=>setCustSearch(e.target.value)} 
+                onFocus={() => setShowCustList(true)} 
+                onBlur={() => setTimeout(() => setShowCustList(false), 200)}
+                onKeyDown={e=>{if(e.key==='Enter') {handleBarcodeMatch(custSearch); e.preventDefault();}}} 
+                placeholder="Scan Loyalty or Item..." 
+                className="flex-1 bg-transparent text-[11px] font-normal focus:outline-none" 
+              />
+            </div>
+
+            {/* Loyalty Search Dropdown */}
+            {showCustList && custSearch && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-100 shadow-xl rounded-lg max-h-48 overflow-y-auto hide-scrollbar z-50">
+                {members.filter(m => (m["Customer name"] || "").toLowerCase().includes(custSearch.toLowerCase()) || (m["Phone"] || "").includes(custSearch)).length > 0 ? 
+                  members.filter(m => (m["Customer name"] || "").toLowerCase().includes(custSearch.toLowerCase()) || (m["Phone"] || "").includes(custSearch)).map(m => (
+                  <button key={m.id} onMouseDown={() => { 
+                      setCustSearch(m["Customer name"]); 
+                      setCname(m["Customer name"]); 
+                      setShowCustList(false);
+                      setCustomerProfile(m); // <-- Triggers the popup
+                    }} className="w-full text-left px-3 py-2 hover:bg-slate-50 border-b border-slate-50 transition-colors">
+                    <p className="font-normal text-slate-800 text-xs leading-tight">{m["Customer name"]}</p>
+                  </button>
+                )) : (<div className="px-3 py-2 text-[10px] text-slate-400 bg-slate-50 italic">Walk-In: "{custSearch}"</div>)}
+              </div>
+            )}
           </div>
 
           {isScanning && (
@@ -257,6 +283,84 @@ export default function POS() {
         </div>
       </div>
       
+      {/* ─── NEW: LOYALTY PROFILE MODAL ─── */}
+      {customerProfile && (
+        <div className="fixed inset-0 z-[400] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md p-8 animate-in zoom-in duration-300 shadow-2xl relative">
+             <button onClick={()=>setCustomerProfile(null)} className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 text-xl">✕</button>
+
+             <h2 className="text-3xl font-normal text-slate-800 text-center mb-8 mt-2">{customerProfile["Customer name"]}</h2>
+
+             {/* Personal Details List */}
+             <div className="space-y-5 mb-8 px-2">
+                <div className="flex items-center gap-5 text-slate-500">
+                   <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                   <span className="font-normal text-sm text-slate-700">{customerProfile["Phone"] || "N/A"}</span>
+                </div>
+                <div className="flex items-center gap-5 text-slate-500">
+                   <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                   <span className="font-normal text-sm text-slate-700">{customerProfile["City"] || customerProfile["Address"] || "Quezon City"}</span>
+                </div>
+                <div className="flex items-center gap-5 text-slate-500">
+                   <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4h2v16H4V4zm4 0h1v16H8V4zm3 0h3v16h-3V4zm5 0h1v16h-1V4zm3 0h1v16h-1V4z"></path></svg>
+                   <span className="font-normal text-sm text-slate-700">{customerProfile["Customer code"] || "N/A"}</span>
+                </div>
+                <div className="flex items-center gap-5 text-slate-500">
+                   <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                   <span className="font-normal text-sm text-slate-700">{customerProfile["Birthday"] || "N/A"}</span>
+                </div>
+             </div>
+
+             <div className="border-t border-slate-100 my-6"></div>
+
+             {/* Stats Grid */}
+             <div className="grid grid-cols-2 gap-y-7 gap-x-4 px-2">
+                <div className="flex items-start gap-4 text-slate-500">
+                   <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="mt-0.5"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                   <div>
+                      <p className="text-slate-800 font-normal text-sm leading-none">{customerProfile["First visit"] || "N/A"}</p>
+                      <p className="text-[11px] text-slate-400 font-normal mt-1">First visit</p>
+                   </div>
+                </div>
+                <div className="flex items-start gap-4 text-slate-500">
+                   <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="mt-0.5"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                   <div>
+                      <p className="text-slate-800 font-normal text-sm leading-tight">{customerProfile["Last visit"] || "N/A"}</p>
+                      <p className="text-[11px] text-slate-400 font-normal mt-1">Last visit</p>
+                   </div>
+                </div>
+                <div className="flex items-start gap-4 text-slate-500">
+                   <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="mt-0.5"><path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                   <div>
+                      <p className="text-slate-800 font-normal text-sm leading-none">{customerProfile["Total visits"] || customerProfile["Visits"] || "0"}</p>
+                      <p className="text-[11px] text-slate-400 font-normal mt-1">Visits</p>
+                   </div>
+                </div>
+                <div className="flex items-start gap-4 text-slate-500">
+                   <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="mt-0.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                   <div>
+                      <p className="text-slate-800 font-normal text-sm leading-none">₱{customerProfile["Total spent"] || "0.00"}</p>
+                      <p className="text-[11px] text-slate-400 font-normal mt-1">Total spent</p>
+                   </div>
+                </div>
+                <div className="flex items-start gap-4 text-slate-500">
+                   <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="mt-0.5"><path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
+                   <div>
+                      <p className="text-slate-800 font-normal text-sm leading-none">{customerProfile["Points"] || customerProfile["Balance"] || "0.00"}</p>
+                      <p className="text-[11px] text-slate-400 font-normal mt-1">Points</p>
+                   </div>
+                </div>
+             </div>
+
+             <div className="mt-8">
+                <button onClick={()=>setCustomerProfile(null)} className="w-full py-4 rounded-[14px] font-normal text-sm text-white bg-slate-800 hover:bg-slate-700 active:scale-95 transition-all shadow-md uppercase tracking-widest">
+                   Assign to Ticket
+                </button>
+             </div>
+          </div>
+        </div>
+      )}
+
       {/* ─── PAYMENT & MODALS ─── */}
       {showPaymentModal && (
         <div className="fixed inset-0 z-[200] bg-slate-900/80 backdrop-blur-sm flex flex-col pt-10 pb-safe px-4 animate-in fade-in duration-200">
