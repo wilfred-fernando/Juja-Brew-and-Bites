@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MenuItem, MenuCategory, Order } from "@/api/entities";
 import { supabase } from "@/lib/supabase"; 
-
-const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
+import { Html5QrcodeScanner, Html5Qrcode } from "html5-qrcode"; // New dependency
 
 export default function POS() {
   const [items, setItems]     = useState([]);
@@ -26,10 +25,13 @@ export default function POS() {
   const [members, setMembers] = useState([]);
   const [custSearch, setCustSearch] = useState("");
   const [cname, setCname] = useState("");
-  const [showCustList, setShowCustList] = useState(false);
-
+  
   const [orderType, setOrderType] = useState("TABLE"); 
   const [tableNum, setTableNum] = useState("");
+
+  // --- CAMERA SCANNER STATE ---
+  const [isScanning, setIsScanning] = useState(false);
+  const scannerRef = useRef(null);
 
   useEffect(() => {
     Promise.all([MenuItem.list(), MenuCategory.list()])
@@ -44,6 +46,44 @@ export default function POS() {
       .then(({ data }) => { if (data) setMembers(data); });
   }, []);
 
+  // --- BARCODE SCANNER LOGIC ---
+  const startScanner = () => {
+    setIsScanning(true);
+    const html5QrCode = new Html5Qrcode("reader");
+    scannerRef.current = html5QrCode;
+
+    html5QrCode.start(
+      { facingMode: "environment" }, 
+      { fps: 10, qrbox: { width: 250, height: 150 } },
+      (decodedText) => {
+        handleBarcodeMatch(decodedText);
+        stopScanner();
+      },
+      () => {} // Ignore errors for smoother experience
+    ).catch(err => {
+      console.error("Camera Error:", err);
+      setIsScanning(false);
+    });
+  };
+
+  const stopScanner = () => {
+    if (scannerRef.current) {
+      scannerRef.current.stop().then(() => {
+        setIsScanning(false);
+      });
+    }
+  };
+
+  const handleBarcodeMatch = (code) => {
+    // Finds item matching the barcode/SKU in your menu
+    const match = items.find(i => i.sku === code || i.barcode === code);
+    if (match) {
+      add(match);
+    } else {
+      alert(`No item found for code: ${code}`);
+    }
+  };
+
   const filtered = items.filter(i => (cat==="ALL"||i.category===cat) && (!search||i.name.toLowerCase().includes(search.toLowerCase())));
   const getQty   = id => (cart.find(e=>e.id===id)||{}).qty || 0;
 
@@ -52,7 +92,7 @@ export default function POS() {
   
   const clear = () => { 
     setCart([]); setCname(""); setCustSearch(""); setTableNum(""); setNotes(""); setDisc(0); 
-    setShowMobileTicket(false); setShowPaymentModal(false); setAmountTendered(""); setOrderType("TABLE");
+    setShowMobileTicket(false); setShowPaymentModal(false); setOrderType("TABLE");
   };
 
   const sub  = cart.reduce((s,e)=>s+e.price*e.qty,0);
@@ -72,11 +112,8 @@ export default function POS() {
     if(tableNum && (orderType === "VIP ROOM" || orderType === "TABLE")) np.push(`${orderType} #: ${tableNum}`);
     if(disc>0) np.push("Disc:"+disc+"%"); 
     if(paymentMethod !== "Unpaid") np.push(`Paid via: ${paymentMethod}`);
-    if(notes) np.push(notes);
-
     Order.create({
       customer_name: cname || "Walk-in",
-      customer_email:"", customer_phone:"",
       items: cart.map(e=>({id:e.id,name:e.name,price:e.price,quantity:e.qty,subtotal:e.price*e.qty})),
       total_amount: total, 
       status: isPaid ? "Confirmed" : "Open",
@@ -85,30 +122,20 @@ export default function POS() {
       notes: np.join(" | "),
     })
     .then(o => { 
-      setReceipt({
-        id: o.id, cart: [...cart], sub, damt, total, disc, isPaid,
-        cname: cname || "Walk-in", type: orderType, method: paymentMethod,
-        table: tableNum ? `${orderType} ${tableNum}` : orderType,
-        change: paymentMethod === "CASH" ? (parseFloat(amountTendered || 0) - total) : 0
-      }); 
+      setReceipt({id: o.id, cart: [...cart], sub, damt, total, disc, isPaid, cname: cname || "Walk-in", type: orderType, method: paymentMethod, change: paymentMethod === "CASH" ? (parseFloat(amountTendered || 0) - total) : 0 }); 
       clear(); 
     })
-    .catch(()=>alert("Order failed. Try again."))
+    .catch(()=>alert("Order failed."))
     .finally(()=>setBusy(false));
   };
 
-  const filteredMembers = members.filter(m => 
-    (m["Customer name"] || "").toLowerCase().includes(custSearch.toLowerCase()) ||
-    (m["Phone"] || "").includes(custSearch)
-  );
-
-  if(loading) return <div className="h-full w-full flex items-center justify-center bg-[#FFF5F7]"><div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full"></div></div>;
+  if(loading) return <div className="h-full w-full flex items-center justify-center bg-white"><div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full"></div></div>;
 
   return (
-    <div className="h-full w-full flex flex-col lg:flex-row overflow-hidden bg-white animate-in fade-in duration-500 rounded-2xl lg:border border-slate-200/60">
+    <div className="h-full w-full flex flex-col lg:flex-row overflow-hidden bg-white rounded-2xl lg:border border-slate-200/60">
       
       {/* ─── LEFT: MENU LIST ─── */}
-      <div className="flex-1 flex flex-col min-w-0 bg-white relative h-full">
+      <div className="flex-1 flex flex-col min-w-0 bg-white h-full">
         <div className="px-4 py-4 border-b border-slate-100 flex items-center justify-between">
           <select value={cat} onChange={e=>setCat(e.target.value)} className="bg-transparent font-normal text-slate-800 text-lg focus:outline-none cursor-pointer">
             <option value="ALL">All items</option>
@@ -129,7 +156,7 @@ export default function POS() {
                 <button key={item.id} onClick={()=>add(item)} className="flex items-center p-3 md:rounded-xl md:border md:border-slate-100 hover:bg-slate-50 text-left w-full transition-all group">
                   <div className="w-12 h-12 md:w-14 md:h-14 bg-slate-50 rounded-lg flex items-center justify-center mr-4 relative flex-shrink-0">
                     {item.image_url ? <img src={item.image_url} className="w-full h-full object-cover rounded-lg" /> : <span className="opacity-30">📷</span>}
-                    {qty>0 && <div className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-[#FC687D] flex items-center justify-center text-xs font-black text-white shadow-sm animate-in zoom-in">{qty}</div>}
+                    {qty>0 && <div className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-[#FC687D] flex items-center justify-center text-xs font-black text-white shadow-sm">{qty}</div>}
                   </div>
                   <div className="flex-1 truncate">
                     <p className="text-slate-800 font-normal text-sm md:text-base truncate">{item.name}</p>
@@ -141,8 +168,6 @@ export default function POS() {
             })}
           </div>
         </div>
-
-        <div className="lg:hidden p-3 bg-white border-t"><button onClick={()=>setShowMobileTicket(true)} className={`w-full py-3.5 rounded-xl font-black text-sm text-white flex items-center justify-between px-5 ${cart.length ? "bg-slate-800" : "bg-slate-300"}`}><span>{cart.length} Items</span><span>View Ticket ➔</span></button></div>
       </div>
 
       {/* ─── RIGHT: TICKET ─── */}
@@ -150,20 +175,31 @@ export default function POS() {
         
         <div className="flex-shrink-0 px-4 py-4 bg-white border-b border-slate-200 flex items-center justify-between pt-safe">
           <h2 className="font-normal text-lg text-slate-800 flex items-center gap-2">Ticket <span className="bg-slate-100 text-slate-500 rounded px-2 py-0.5 text-xs">{cart.length}</span></h2>
-          <div className="flex gap-4">
-             <button onClick={() => setShowCustList(!showCustList)} className="text-slate-400 hover:text-slate-600">👤</button>
-             <button className="text-slate-400">⋮</button>
-          </div>
+          <button onClick={() => setShowMobileTicket(false)} className="lg:hidden p-2 text-slate-400">✕</button>
         </div>
 
         <div className="flex-shrink-0 p-3 bg-white space-y-2">
-          {/* Barcode Search Bar */}
+          {/* Barcode Search Bar with Camera Toggle */}
           <div className="flex items-center gap-2 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-            <span className="text-slate-400 text-lg leading-none">║▌</span>
-            <input value={custSearch} onChange={e=>setCustSearch(e.target.value)} placeholder="Scan Barcode or Search..." className="flex-1 bg-transparent text-xs font-normal focus:outline-none" />
+            <button 
+              onClick={isScanning ? stopScanner : startScanner}
+              className={`text-lg leading-none transition-colors ${isScanning ? 'text-red-500' : 'text-slate-400'}`}>
+              ║▌
+            </button>
+            <input 
+              value={custSearch} 
+              onChange={e=>setCustSearch(e.target.value)} 
+              onKeyDown={e => e.key === 'Enter' && handleBarcodeMatch(custSearch)}
+              placeholder={isScanning ? "Waiting for scan..." : "Scan or Search..."} 
+              className="flex-1 bg-transparent text-xs font-normal focus:outline-none" 
+            />
           </div>
 
-          {/* Table Selector Row */}
+          {/* Live Camera Preview Container */}
+          {isScanning && (
+            <div id="reader" className="w-full rounded-lg overflow-hidden border-2 border-emerald-400 bg-black aspect-video shadow-inner"></div>
+          )}
+
           <div className="flex gap-2">
             <select value={orderType} onChange={e=>setOrderType(e.target.value)} className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[10px] font-normal text-slate-500 uppercase tracking-widest focus:outline-none">
               <option value="TABLE">TABLE</option>
@@ -201,9 +237,9 @@ export default function POS() {
         </div>
 
         <div className="flex-shrink-0 bg-white border-t border-slate-200">
-           <button onClick={()=>setShowDisc(!showDisc)} className="w-full px-4 py-3 flex justify-between items-center hover:bg-slate-50 transition-colors border-b border-slate-100">
+           <button onClick={()=>setShowDisc(!showDisc)} className="w-full px-4 py-3 flex justify-between items-center hover:bg-slate-50 border-b border-slate-100">
               <span className="text-[10px] font-normal uppercase tracking-widest text-slate-400">Discount</span>
-              <span className="text-[11px] font-normal text-red-500">Add &gt;</span>
+              <span className="text-[11px] font-normal text-emerald-500">Add &gt;</span>
            </button>
            
            <div className="p-3 grid grid-cols-2 gap-2 pb-safe">
@@ -230,7 +266,6 @@ export default function POS() {
              </div>
              <div className="py-8 text-center text-white border-b border-slate-800">
                 <h1 className="text-3xl font-normal tracking-tight">₱{total.toLocaleString()}</h1>
-                <p className="text-xs text-slate-500 mt-1">Total amount due</p>
              </div>
              <div className="p-6 grid grid-cols-1 gap-2 overflow-y-auto max-h-[400px] hide-scrollbar">
                 {["CASH", "GRABFOOD", "QRPH", "GRAB DINE OUT", "CARD"].map(pm => (
@@ -243,7 +278,7 @@ export default function POS() {
 
       {receipt && (
         <div className="fixed inset-0 z-[300] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-sm p-6 text-center animate-in zoom-in duration-300">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 text-center animate-in zoom-in duration-300 shadow-2xl">
              <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">✓</div>
              <h2 className="text-xl font-normal text-slate-800">{receipt.isPaid ? "Payment Received" : "Ticket Saved"}</h2>
              <p className="text-xs text-slate-400 font-mono mt-1 uppercase">#{receipt.id?.slice(-8)}</p>
