@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 import { MenuItem, MenuCategory, Order } from "@/api/entities";
 
 const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
-const COLORS = ["#FC687D","#db2777","#9333ea","#2563eb","#0891b2","#059669","#d97706","#ea580c","#7c3aed"];
 
-// Make sure THIS line below exists exactly like this!
+// Distinct Loyverse-style category colors
+const COLORS = ["#FC687D", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#06b6d4", "#ec4899", "#14b8a6"];
+
 export default function POS() {
   const [items, setItems]     = useState([]);
   const [cats, setCats]       = useState([]);
@@ -68,239 +69,209 @@ export default function POS() {
   );
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-[#FFF5F7] animate-in fade-in duration-500" >
-      {/* HEADER */}
-      <div className="flex-shrink-0 flex items-center justify-between px-6 h-16 bg-white border-b border-rose-50 shadow-sm z-10">
-        <div className="flex items-center gap-4">
-          <img src={LOGO} alt="Juja" className="h-8 object-contain" />
-          <div className="pl-4 border-l border-slate-100">
-            <p className="font-normal text-slate-800 text-sm leading-tight">JUJA POS Terminal</p>
-            <p className="text-[10px] text-slate-400 font-normal uppercase tracking-widest">Point of Sale</p>
+    <div className="h-screen w-full flex overflow-hidden bg-slate-50 animate-in fade-in duration-500">
+      
+      {/* LEFT PANEL: MENU GRID (Loyverse Style) */}
+      <div className="flex-1 flex flex-col min-w-0 bg-[#FFF5F7]">
+        
+        {/* Top Actions */}
+        <div className="flex-shrink-0 flex items-center gap-4 px-4 py-3 bg-white border-b border-rose-50 shadow-sm z-10">
+          <button className="p-2 hover:bg-slate-50 rounded-lg transition-all text-slate-400">☰</button>
+          
+          <div className="relative flex-1 max-w-md">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search..."
+              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-lg text-sm font-semibold focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" />
+          </div>
+
+          <div className="flex gap-2 bg-slate-50 p-1 rounded-lg border border-slate-100 ml-auto">
+            {["Dine-In","Take-Out"].map(t=>(
+              <button key={t} onClick={()=>setType(t)} 
+                className={`px-4 py-2 rounded-md font-bold text-xs uppercase tracking-widest transition-all ${
+                  type===t ? "bg-white text-[#FC687D] shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
+                }`}>
+                {t}
+              </button>
+            ))}
           </div>
         </div>
-        <div className="flex gap-3">
-          <a href="/kds" target="_blank" className="px-5 py-2 rounded-xl bg-slate-50 text-slate-500 text-[11px] font-normal uppercase tracking-widest hover:bg-slate-100 hover:text-slate-800 transition-all active:scale-95">KDS</a>
-          <a href="/admin" className="px-5 py-2 rounded-xl bg-slate-50 text-slate-500 text-[11px] font-normal uppercase tracking-widest hover:bg-slate-100 hover:text-slate-800 transition-all active:scale-95">Admin</a>
+
+        {/* Loyverse Tab Categories */}
+        <div className="flex-shrink-0 flex gap-2 px-4 py-3 bg-white border-b border-rose-50 overflow-x-auto hide-scrollbar z-10">
+          <button onClick={()=>setCat("ALL")} 
+            className={`flex-shrink-0 px-5 py-2.5 rounded-full font-bold text-xs uppercase tracking-widest transition-all border ${
+              cat==="ALL" ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+            }`}>
+            All Items
+          </button>
+          {cats.map((c)=>(
+            <button key={c.id} onClick={()=>setCat(c.name)} 
+              className={`flex-shrink-0 px-5 py-2.5 rounded-full font-bold text-xs uppercase tracking-widest transition-all border ${
+                cat===c.name ? "bg-[#FC687D] text-white border-[#FC687D]" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+              }`}>
+              {c.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Loyverse Square Grid */}
+        <div className="flex-1 overflow-y-auto p-4 hide-scrollbar">
+          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 pb-20">
+            {filtered.map(item=>{
+              const qty = getQty(item.id);
+              const hexColor = catColor(item.category);
+              return (
+                <button key={item.id} onClick={()=>add(item)} 
+                  className="relative aspect-square flex flex-col p-3 md:p-4 rounded-[16px] md:rounded-[20px] text-left cursor-pointer active:scale-95 transition-all duration-200 hover:shadow-md border border-white/50"
+                  style={{ backgroundColor: `${hexColor}15` }}> {/* Soft 15% opacity tint */}
+                  
+                  {/* Color Dot top right */}
+                  <div className="absolute top-3 right-3 w-3 h-3 rounded-full opacity-60" style={{ backgroundColor: hexColor }} />
+                  
+                  <div className="mt-auto">
+                    <p className="text-slate-800 font-bold text-sm md:text-base leading-tight mb-1 line-clamp-3">{item.name}</p>
+                    <p className="font-black text-sm" style={{ color: hexColor }}>₱{item.price}</p>
+                  </div>
+
+                  {/* Quantity Badge */}
+                  {qty>0 && (
+                    <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-sm font-black text-white shadow-lg animate-in zoom-in duration-200">
+                      {qty}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
+      {/* RIGHT PANEL: THE TICKET */}
+      <div className="w-[380px] flex-shrink-0 flex flex-col bg-white border-l border-slate-200 shadow-2xl z-20">
 
-        {/* LEFT: MENU */}
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-[#FFF5F7]">
+        {/* Ticket Header */}
+        <div className="flex-shrink-0 flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+          <h2 className="font-black text-2xl text-slate-800">Ticket</h2>
+          {cart.length > 0 && (
+            <button onClick={clear} className="text-slate-400 hover:text-red-500 font-bold text-sm transition-colors uppercase tracking-widest active:scale-95">
+              Clear
+            </button>
+          )}
+        </div>
 
-          {/* Search + type */}
-          <div className="flex-shrink-0 flex flex-col sm:flex-row gap-3 p-4 bg-white border-b border-rose-50">
-            <div className="relative flex-1">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
-              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search items..."
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-semibold focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" />
+        {/* Quick Customer Assignment */}
+        <div className="flex-shrink-0 flex gap-2 p-4 border-b border-slate-100 bg-white">
+          <input value={cname} onChange={e=>setCname(e.target.value)} placeholder="Assign Customer..."
+            className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-sm font-semibold focus:outline-none focus:border-[#FC687D] transition-all" />
+          <input value={table} onChange={e=>setTable(e.target.value)} placeholder="Table"
+            className="w-20 bg-slate-50 border border-slate-200 rounded-lg px-3 py-3 text-sm font-semibold focus:outline-none focus:border-[#FC687D] transition-all text-center" />
+        </div>
+
+        {/* Cart/Ticket Items */}
+        <div className="flex-1 overflow-y-auto hide-scrollbar bg-white">
+          {cart.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-slate-300">
+              <span className="text-6xl mb-4 opacity-50">🧾</span>
+              <p className="font-bold text-sm uppercase tracking-widest">No Items</p>
             </div>
-            <div className="flex gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-100 overflow-x-auto hide-scrollbar">
-              {["Dine-In","Take-Out","Delivery"].map(t=>(
-                <button key={t} onClick={()=>setType(t)} 
-                  className={`px-5 py-2 rounded-lg font-normal text-[11px] uppercase tracking-widest transition-all whitespace-nowrap active:scale-95 ${
-                    type===t ? "bg-white text-[#FC687D] shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
+          ) : (
+            <div className="p-2 space-y-1">
+              {cart.map(item => (
+                <div key={item.id} className="flex flex-col p-3 rounded-lg hover:bg-slate-50 transition-colors group">
+                  <div className="flex justify-between items-start mb-2">
+                    <p className="font-bold text-slate-800 text-sm leading-tight pr-4">{item.name}</p>
+                    <p className="font-black text-slate-800 text-sm">₱{(item.price*item.qty).toLocaleString()}</p>
+                  </div>
+                  
+                  {/* Stepper Control */}
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center bg-slate-100 rounded-md border border-slate-200">
+                      <button onClick={()=>upd(item.id,-1)} className="w-8 h-8 flex items-center justify-center text-slate-500 font-black text-lg hover:text-rose-500 hover:bg-rose-50 rounded-l-md active:bg-rose-100">−</button>
+                      <span className="w-8 text-center font-black text-slate-800 text-sm">{item.qty}</span>
+                      <button onClick={()=>upd(item.id,1)} className="w-8 h-8 flex items-center justify-center text-slate-500 font-black text-lg hover:text-emerald-500 hover:bg-emerald-50 rounded-r-md active:bg-emerald-100">+</button>
+                    </div>
+                    <span className="text-slate-400 font-semibold text-[11px]">₱{item.price} each</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Discount Bar */}
+        <div className="flex-shrink-0 bg-slate-50 border-t border-slate-200">
+          <button onClick={()=>setShowDisc(!showDisc)} className="w-full flex justify-between items-center px-6 py-4 hover:bg-slate-100 active:bg-slate-200 transition-colors">
+            <span className="font-bold text-sm text-slate-500 uppercase tracking-widest">Discount {disc>0 ? `(${disc}%)` : ""}</span>
+            <span className="text-rose-500 font-bold text-sm">{damt > 0 ? `-₱${damt.toFixed(0)}` : "Add >"}</span>
+          </button>
+          
+          {showDisc && (
+            <div className="flex gap-2 px-6 pb-4">
+              {[0,5,10,15,20].map(d=>(
+                <button key={d} onClick={()=>{setDisc(d);setShowDisc(false);}} 
+                  className={`flex-1 py-2.5 rounded-lg font-bold text-xs transition-all active:scale-95 border ${
+                    disc===d ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-600 border-slate-300"
                   }`}>
-                  {t}
+                  {d===0?"None":d+"%"}
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* Category tabs */}
-          <div className="flex-shrink-0 flex gap-2 px-4 py-3 bg-white border-b border-rose-50 overflow-x-auto hide-scrollbar shadow-sm z-10">
-            <button onClick={()=>setCat("ALL")} 
-              className={`flex-shrink-0 px-5 py-2.5 rounded-xl font-normal text-xs uppercase tracking-widest transition-all active:scale-95 border ${
-                cat==="ALL" ? "bg-slate-800 text-white border-slate-800 shadow-md" : "bg-white text-slate-500 border-slate-100 hover:bg-slate-50"
-              }`}>
-              All Items
-            </button>
-            {cats.map((c,i)=>(
-              <button key={c.id} onClick={()=>setCat(c.name)} 
-                className={`flex-shrink-0 px-5 py-2.5 rounded-xl font-normal text-xs uppercase tracking-widest transition-all active:scale-95 border flex items-center gap-2 ${
-                  cat===c.name ? "bg-[#FC687D] text-white border-[#FC687D] shadow-md shadow-rose-200" : "bg-white text-slate-500 border-slate-100 hover:bg-slate-50"
-                }`}>
-                <span className="text-base leading-none">{c.icon}</span> {c.name}
-              </button>
-            ))}
-          </div>
-
-          {/* Items grid */}
-          <div className="flex-1 overflow-y-auto p-4 hide-scrollbar">
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 pb-20">
-              {filtered.map(item=>{
-                const qty=getQty(item.id);
-                const color=catColor(item.category);
-                return (
-                  <button key={item.id} onClick={()=>add(item)} 
-                    className="relative bg-white border border-rose-50 rounded-[20px] p-4 text-left cursor-pointer hover:shadow-[0_8px_20px_rgba(252,104,125,0.08)] hover:-translate-y-1 transition-all duration-300 active:scale-95 group flex flex-col h-full">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center mb-3 opacity-20 group-hover:opacity-100 transition-opacity" style={{ backgroundColor: color }}>
-                      <div className="w-3 h-3 rounded-full bg-white shadow-sm" />
-                    </div>
-                    <p className="text-slate-800 font-normal text-sm mb-1 leading-tight flex-1">{item.name}</p>
-                    <p className="text-[#FC687D] font-normal text-base m-0 mt-2">₱{item.price}</p>
-                    {qty>0 && (
-                      <div className="absolute top-3 right-3 w-7 h-7 rounded-full bg-[#FC687D] flex items-center justify-center text-xs font-normal text-white shadow-md animate-in zoom-in duration-200">
-                        {qty}
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-              {filtered.length===0 && (
-                <div className="col-span-full flex flex-col items-center justify-center py-20 text-slate-400">
-                  <span className="text-4xl mb-4 opacity-50">🔍</span>
-                  <p className="font-normal text-xs uppercase tracking-widest">No items found</p>
-                </div>
-              )}
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* RIGHT: CART */}
-        <div className="w-80 lg:w-96 flex-shrink-0 flex flex-col bg-white border-l border-rose-100 shadow-xl z-20">
-
-          {/* Cart header */}
-          <div className="flex-shrink-0 flex items-center justify-between p-5 border-b border-rose-50">
-            <div>
-              <p className="font-normal text-xl text-slate-800 m-0">Current Order</p>
-              <p className="text-[10px] font-normal text-slate-400 uppercase tracking-widest m-0 mt-1">{cart.length} items</p>
-            </div>
-            {cart.length>0 && (
-              <button onClick={clear} className="text-[10px] font-normal uppercase tracking-widest text-rose-400 hover:text-rose-600 bg-rose-50 px-3 py-1.5 rounded-lg active:scale-95 transition-all">
-                Clear
-              </button>
-            )}
+        {/* The Massive Charge Button Area */}
+        <div className="flex-shrink-0 bg-white p-6 border-t border-slate-200">
+          <div className="flex justify-between items-end mb-4">
+            <span className="font-bold text-slate-500 uppercase tracking-widest text-sm">Total</span>
+            <span className="font-black text-3xl text-slate-800 tracking-tight">₱{total.toLocaleString()}</span>
           </div>
-
-          {/* Name + table */}
-          <div className="flex-shrink-0 flex gap-3 p-4 border-b border-rose-50 bg-slate-50/50">
-            <input value={cname} onChange={e=>setCname(e.target.value)} placeholder="Customer Name"
-              className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all shadow-sm" />
-            <input value={table} onChange={e=>setTable(e.target.value)} placeholder="Table #"
-              className="w-20 bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all shadow-sm text-center" />
-          </div>
-
-          {/* Cart items */}
-          <div className="flex-1 overflow-y-auto p-4 hide-scrollbar space-y-3">
-            {cart.length===0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-slate-300 opacity-70">
-                <p className="text-5xl mb-4">🛒</p>
-                <p className="font-normal text-sm uppercase tracking-widest">Cart is empty</p>
-                <p className="text-[10px] font-normal mt-2">Tap items to add</p>
-              </div>
-            ) : cart.map(item=>(
-              <div key={item.id} className="flex items-center gap-3 bg-white border border-slate-100 shadow-sm rounded-xl p-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-slate-800 text-xs font-normal m-0 mb-1 truncate leading-tight">{item.name}</p>
-                  <p className="text-slate-400 text-[10px] font-normal m-0">₱{item.price}</p>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0 bg-slate-50 rounded-lg p-1 border border-slate-100">
-                  <button onClick={()=>upd(item.id,-1)} className="w-7 h-7 rounded-md bg-white border border-slate-200 text-slate-600 font-normal text-xs hover:bg-slate-100 active:scale-90 transition-all shadow-sm">−</button>
-                  <span className="text-slate-800 font-normal text-xs min-w-[20px] text-center">{item.qty}</span>
-                  <button onClick={()=>upd(item.id,1)} className="w-7 h-7 rounded-md bg-[#FC687D] text-white font-normal text-xs hover:bg-rose-500 active:scale-90 transition-all shadow-sm">+</button>
-                </div>
-                <p className="text-slate-800 font-normal text-sm min-w-[50px] text-right flex-shrink-0">₱{(item.price*item.qty).toLocaleString()}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Notes */}
-          <div className="flex-shrink-0 p-4 border-t border-rose-50 bg-slate-50/50">
-            <input value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Notes / special requests..."
-              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all shadow-sm" />
-          </div>
-
-          {/* Totals + discount */}
-          <div className="flex-shrink-0 p-5 bg-white border-t border-rose-50">
-            <div className="flex justify-between text-xs font-normal text-slate-500 mb-2">
-              <span>Subtotal</span>
-              <span className="text-slate-800">₱{sub.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center mb-4">
-              <button onClick={()=>setShowDisc(!showDisc)} className="text-[10px] font-normal uppercase tracking-widest text-[#FC687D] bg-rose-50 px-3 py-1.5 rounded-lg active:scale-95 transition-all border border-rose-100">
-                Discount {disc>0?`(${disc}%)`:""} 🏷
-              </button>
-              {damt>0 && <span className="text-rose-500 text-xs font-normal">-₱{damt.toFixed(0)}</span>}
-            </div>
-            
-            {showDisc && (
-              <div className="flex gap-2 mb-4 animate-in fade-in slide-in-from-top-2">
-                {[0,5,10,15,20].map(d=>(
-                  <button key={d} onClick={()=>{setDisc(d);setShowDisc(false);}} 
-                    className={`flex-1 py-2 rounded-lg text-[10px] font-normal transition-all active:scale-95 border ${
-                      disc===d ? "bg-[#FC687D] text-white border-[#FC687D] shadow-sm" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
-                    }`}>
-                    {d===0?"None":d+"%"}
-                  </button>
-                ))}
-              </div>
-            )}
-            
-            <div className="flex justify-between items-center border-t border-rose-50 pt-4 mt-2">
-              <span className="font-normal text-lg text-slate-800 tracking-tight">TOTAL</span>
-              <span className="font-normal text-2xl text-[#FC687D] tracking-tight">₱{total.toLocaleString()}</span>
-            </div>
-          </div>
-
-          {/* Place Order */}
-          <div className="flex-shrink-0 p-4 pt-0 bg-white pb-6">
-            <button onClick={place} disabled={!cart.length||busy}
-              className="w-full py-4 rounded-2xl font-normal text-xs uppercase tracking-widest text-white transition-all duration-300 active:scale-95 shadow-[0_8px_20px_rgba(252,104,125,0.25)] hover:shadow-[0_12px_25px_rgba(252,104,125,0.35)] hover:-translate-y-0.5 disabled:opacity-50 disabled:shadow-none disabled:translate-y-0"
-              style={{ background: cart.length ? "linear-gradient(135deg,#FC687D,#f43f5e)" : "#cbd5e1" }}>
-              {busy ? "Processing..." : cart.length ? `Charge ₱${total.toLocaleString()}` : "Select Items"}
-            </button>
-          </div>
+          
+          <button onClick={place} disabled={!cart.length||busy}
+            className="w-full py-5 rounded-[20px] font-black text-xl text-white transition-all active:scale-95 flex items-center justify-center gap-2 shadow-xl disabled:opacity-50 disabled:active:scale-100 disabled:shadow-none"
+            style={{ backgroundColor: cart.length ? "#10b981" : "#cbd5e1" }}> {/* Emerald Green for Charge, like Loyverse */}
+            {busy ? "Processing..." : `Charge ₱${total.toLocaleString()}`}
+          </button>
         </div>
       </div>
 
       {/* RECEIPT MODAL */}
       {receipt && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-white rounded-[32px] w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
-            <div className="p-8 text-center border-b border-rose-50 bg-[#FFF9FA]">
-              <div className="w-16 h-16 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 shadow-sm">
-                ✓
-              </div>
-              <h2 className="font-normal text-2xl text-slate-800 tracking-tight mb-1">Order Placed!</h2>
-              <p className="font-mono text-[10px] font-bold text-slate-400">#{receipt.id?.slice(-8).toUpperCase()}</p>
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-[24px] w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+            <div className="p-8 text-center border-b border-slate-100">
+              <div className="w-16 h-16 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">✓</div>
+              <h2 className="font-black text-2xl text-slate-800 mb-1">Transaction Complete</h2>
+              <p className="font-mono text-xs font-bold text-slate-400">Order #{receipt.id?.slice(-8).toUpperCase()}</p>
             </div>
             
-            <div className="p-6 max-h-[40vh] overflow-y-auto hide-scrollbar">
+            <div className="p-6 max-h-[40vh] overflow-y-auto hide-scrollbar bg-slate-50">
               {receipt.cart.map(item=>(
                 <div key={item.id} className="flex justify-between items-start mb-3 text-sm">
-                  <span className="font-semibold text-slate-600 flex-1 pr-4">{item.name} <span className="text-slate-400 font-normal text-[10px] ml-1">x{item.qty}</span></span>
-                  <span className="font-normal text-slate-800">₱{(item.price*item.qty).toLocaleString()}</span>
+                  <span className="font-bold text-slate-600 flex-1 pr-4">{item.name} <span className="text-slate-400 text-xs ml-1">x{item.qty}</span></span>
+                  <span className="font-black text-slate-800">₱{(item.price*item.qty).toLocaleString()}</span>
                 </div>
               ))}
               
-              <div className="border-t border-slate-100 pt-4 mt-4 space-y-2">
+              <div className="border-t border-slate-200 pt-4 mt-4 space-y-2">
                 {receipt.damt>0 && (
-                  <div className="flex justify-between text-xs font-normal text-rose-400">
+                  <div className="flex justify-between text-xs font-bold text-rose-500">
                     <span>Discount ({receipt.disc}%)</span>
                     <span>-₱{receipt.damt.toFixed(0)}</span>
                   </div>
                 )}
-                <div className="flex justify-between font-normal text-xl text-[#FC687D] pt-2">
-                  <span>Total</span>
+                <div className="flex justify-between font-black text-xl text-slate-800 pt-2">
+                  <span>Total Paid</span>
                   <span>₱{receipt.total.toLocaleString()}</span>
                 </div>
               </div>
-
-              <div className="bg-slate-50 rounded-xl p-4 mt-6 text-[11px] font-bold text-slate-500 border border-slate-100 space-y-1">
-                <p className="flex justify-between"><span className="uppercase tracking-widest text-[9px] text-slate-400">Type</span> <span>{receipt.type}</span></p>
-                {receipt.cname && <p className="flex justify-between"><span className="uppercase tracking-widest text-[9px] text-slate-400">Customer</span> <span>{receipt.cname}</span></p>}
-                {receipt.table && <p className="flex justify-between"><span className="uppercase tracking-widest text-[9px] text-slate-400">Table</span> <span>{receipt.table}</span></p>}
-              </div>
             </div>
             
-            <div className="flex gap-3 p-6 pt-0">
-              <button onClick={()=>setReceipt(null)} className="flex-1 py-4 rounded-2xl border border-slate-200 bg-white font-normal text-slate-500 text-xs uppercase tracking-widest hover:bg-slate-50 active:scale-95 transition-all shadow-sm">
-                New Order
+            <div className="flex flex-col gap-2 p-6 bg-white">
+              <button onClick={()=>window.print()} className="w-full py-4 rounded-xl border border-slate-200 bg-white font-bold text-slate-600 text-sm hover:bg-slate-50 active:scale-95 transition-all">
+                Print Receipt
               </button>
-              <button onClick={()=>window.print()} className="flex-1 py-4 rounded-2xl border-none bg-[#FC687D] text-white font-normal text-xs uppercase tracking-widest shadow-[0_8px_20px_rgba(252,104,125,0.25)] hover:bg-rose-500 hover:-translate-y-0.5 active:scale-95 transition-all">
-                Print
+              <button onClick={()=>setReceipt(null)} className="w-full py-4 rounded-xl border-none bg-slate-800 text-white font-bold text-sm shadow-md hover:bg-slate-700 active:scale-95 transition-all">
+                New Sale
               </button>
             </div>
           </div>
