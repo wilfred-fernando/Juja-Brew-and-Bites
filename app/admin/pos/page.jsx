@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MenuItem, MenuCategory, Order } from "@/api/entities";
 import { supabase } from "@/lib/supabase"; 
 
@@ -24,14 +24,20 @@ export default function POS() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [amountTendered, setAmountTendered] = useState("");
   
-  // NEW: Camera Scanner State
+  // ─── NEW: ADVANCED CAMERA SCANNER STATES ───
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [cameraStatus, setCameraStatus] = useState("idle"); // idle, starting, active, error
+  const html5QrCodeRef = useRef(null);
 
   // Customer & Loyalty State
   const [members, setMembers] = useState([]);
   const [custSearch, setCustSearch] = useState("");
   const [cname, setCname] = useState("");
   const [showCustList, setShowCustList] = useState(false);
+  
+  // Ref to prevent stale data inside the camera callback
+  const membersRef = useRef(members);
+  useEffect(() => { membersRef.current = members; }, [members]);
 
   // Dining Options State
   const [orderType, setOrderType] = useState("Table"); 
@@ -50,60 +56,86 @@ export default function POS() {
       .then(({ data }) => { if (data) setMembers(data); });
   }, []);
 
-  // ─── ROBUST CAMERA SCANNER LOGIC ───
-  useEffect(() => {
-    let scanner = null;
-    
-    if (isScannerOpen) {
-      import("html5-qrcode").then(({ Html5QrcodeScanner }) => {
-        // We use a slight delay to ensure the modal's HTML is fully rendered before attaching the camera
-        setTimeout(() => {
-          try {
-            const readerElement = document.getElementById("camera-reader");
-            if (!readerElement) return;
-
-            scanner = new Html5QrcodeScanner(
-              "camera-reader", 
-              { fps: 10, qrbox: { width: 250, height: 150 } }, 
-              false
-            );
-            
-            scanner.render(
-              (decodedText) => {
-                // SUCCESS: Stop camera, close modal, select customer
-                if (scanner) scanner.clear();
-                setIsScannerOpen(false);
-                
-                const exactMatch = members.find(m => (m["Customer code"] || "").toLowerCase() === decodedText.toLowerCase());
-                if (exactMatch) {
-                  setCustSearch(exactMatch["Customer name"]);
-                  setCname(exactMatch["Customer name"]);
-                } else {
-                  setCustSearch(decodedText);
-                  setCname(decodedText);
-                  alert(`Scanned Code: ${decodedText} (Not found in Loyalty DB)`);
-                }
-              },
-              (error) => { /* Ignore constant background frame scanning errors */ }
-            );
-          } catch (err) {
-            console.error("Scanner Error:", err);
-            alert("Camera failed to load. Ensure you have granted camera permissions and are using a secure connection (HTTPS or localhost).");
-          }
-        }, 300);
-      }).catch(err => {
-        alert("Failed to load scanner module. Did you run 'npm install html5-qrcode'?");
-      });
-    }
-
-    // Cleanup when closing modal
-    return () => {
-      if (scanner) {
-        scanner.clear().catch(e => console.error("Scanner cleanup error", e));
+  // ─── PURE BACK-CAMERA LOGIC W/ PERMISSION UI ───
+  const stopCamera = async () => {
+    if (html5QrCodeRef.current) {
+      try {
+        const state = html5QrCodeRef.current.getState();
+        if (state === 2) { // 2 = SCANNING
+          await html5QrCodeRef.current.stop();
+        }
+        html5QrCodeRef.current.clear();
+      } catch (err) {
+        console.error("Camera stop error:", err);
       }
-    };
-  }, [isScannerOpen, members]);
+      html5QrCodeRef.current = null;
+    }
+  };
 
+  const startCamera = () => {
+    setCameraStatus("starting");
+    localStorage.setItem('juja_cam_granted', 'true'); // Remember they clicked "Allow"
+
+    import("html5-qrcode").then(({ Html5Qrcode }) => {
+      // Small delay ensures the modal's DOM is fully painted
+      setTimeout(() => {
+        try {
+          if (!document.getElementById("camera-reader")) return;
+
+          const html5QrCode = new Html5Qrcode("camera-reader");
+          html5QrCodeRef.current = html5QrCode;
+
+          html5QrCode.start(
+            { facingMode: "environment" }, // 🔴 STRICTLY FORCES THE BACK CAMERA 🔴
+            { fps: 10, qrbox: { width: 250, height: 150 } },
+            (decodedText) => {
+              // On Success
+              stopCamera();
+              setIsScannerOpen(false);
+              
+              const exactMatch = membersRef.current.find(m => (m["Customer code"] || "").toLowerCase() === decodedText.toLowerCase());
+              if (exactMatch) {
+                setCustSearch(exactMatch["Customer name"]);
+                setCname(exactMatch["Customer name"]);
+              } else {
+                setCustSearch(decodedText);
+                setCname(decodedText);
+                alert(`Scanned Code: ${decodedText} (Not found in Loyalty DB)`);
+              }
+            },
+            (error) => { /* Ignore rapid frame errors */ }
+          ).then(() => {
+            setCameraStatus("active");
+          }).catch((err) => {
+            console.error("Camera start failed:", err);
+            setCameraStatus("error");
+          });
+        } catch (e) {
+          console.error("Scanner Init failed:", e);
+          setCameraStatus("error");
+        }
+      }, 150);
+    }).catch(err => {
+      alert("Failed to load camera engine. Ensure 'html5-qrcode' is installed.");
+      setCameraStatus("error");
+    });
+  };
+
+  useEffect(() => {
+    if (isScannerOpen) {
+      const previouslyGranted = localStorage.getItem('juja_cam_granted');
+      if (previouslyGranted) {
+        startCamera(); // Skip permission UI if they granted it before
+      } else {
+        setCameraStatus("idle"); // Show custom permission UI
+      }
+    } else {
+      stopCamera();
+    }
+    return () => { stopCamera(); };
+  }, [isScannerOpen]);
+
+  // ─── POS LOGIC ───
   const filteredMembers = members.filter(m => 
     (m["Customer name"] || "").toLowerCase().includes(custSearch.toLowerCase()) ||
     (m["Customer code"] || "").toLowerCase().includes(custSearch.toLowerCase())
@@ -267,7 +299,6 @@ export default function POS() {
         <div className="flex-shrink-0 flex flex-col p-4 border-b border-slate-200 bg-white">
           <div className="relative mb-3">
             
-            {/* ─── NEW: PROMINENT BARCODE ICON BUTTON ─── */}
             <button 
               onClick={() => setIsScannerOpen(true)} 
               title="Open Camera" 
@@ -283,7 +314,6 @@ export default function POS() {
               onFocus={() => setShowCustList(true)} 
               onBlur={() => setTimeout(() => setShowCustList(false), 200)}
               onChange={e => { setCustSearch(e.target.value); setCname(e.target.value); setShowCustList(true); }}
-              // HARDWARE SCANNER "ENTER KEY" SUPPORT
               onKeyDown={e => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -400,10 +430,11 @@ export default function POS() {
         </div>
       </div>
 
-      {/* ─── LIVE CAMERA SCANNER MODAL ─── */}
+      {/* ─── LIVE CAMERA SCANNER MODAL WITH CUSTOM UI ─── */}
       {isScannerOpen && (
         <div className="fixed inset-0 z-[400] bg-slate-900/90 backdrop-blur-sm flex flex-col items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative flex flex-col">
+          <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative flex flex-col min-h-[400px]">
+            
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <h3 className="font-black text-slate-800 flex items-center gap-2">
                 <svg className="w-5 h-5 text-[#FC687D]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 5h2v14H3zM7 5h1v14H7zM10 5h2v14h-2zM14 5h1v14h-1zM17 5h2v14h-2zM20 5h1v14h-1z" /></svg>
@@ -412,11 +443,47 @@ export default function POS() {
               <button onClick={() => setIsScannerOpen(false)} className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center font-bold text-slate-600 hover:bg-slate-300 transition-colors">✕</button>
             </div>
             
-            <div className="bg-black/5 p-4">
-              <div id="camera-reader" className="w-full rounded-xl overflow-hidden shadow-inner bg-black min-h-[250px]"></div>
+            <div className="relative bg-black/5 flex-1 flex flex-col p-4 overflow-hidden">
+              
+              {/* THE CAMERA DOM ELEMENT */}
+              <div id="camera-reader" className={`w-full rounded-xl overflow-hidden shadow-inner bg-black flex-1 min-h-[250px] ${cameraStatus === "active" ? "opacity-100" : "opacity-0 absolute"}`}></div>
+              
+              {/* CUSTOM PERMISSION UI (FIRST TIME USE) */}
+              {cameraStatus === "idle" && (
+                <div className="absolute inset-0 bg-white flex flex-col items-center justify-center p-8 text-center z-10">
+                  <span className="text-5xl mb-4">📸</span>
+                  <h3 className="font-black text-xl text-slate-800 mb-2">Camera Access Required</h3>
+                  <p className="text-sm font-semibold text-slate-500 mb-6 leading-relaxed">We need permission to use your device's back camera to instantly scan customer loyalty barcodes.</p>
+                  <button onClick={startCamera} className="w-full py-4 bg-[#FC687D] text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-md active:scale-95 transition-all">
+                    Enable Camera
+                  </button>
+                </div>
+              )}
+
+              {/* LOADING UI */}
+              {cameraStatus === "starting" && (
+                <div className="absolute inset-0 bg-white flex flex-col items-center justify-center z-10">
+                  <div className="w-10 h-10 border-4 border-rose-100 border-t-[#FC687D] animate-spin rounded-full mb-4"></div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-slate-400 animate-pulse">Initializing Camera...</p>
+                </div>
+              )}
+
+              {/* ERROR UI */}
+              {cameraStatus === "error" && (
+                <div className="absolute inset-0 bg-white flex flex-col items-center justify-center p-8 text-center z-10">
+                  <span className="text-5xl mb-4">❌</span>
+                  <h3 className="font-black text-xl text-slate-800 mb-2">Camera Blocked</h3>
+                  <p className="text-sm font-semibold text-slate-500 mb-6 leading-relaxed">Access was denied or no back camera was found. Ensure you are on a secure connection (HTTPS).</p>
+                  <button onClick={startCamera} className="w-full py-4 bg-slate-800 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-md active:scale-95 transition-all">
+                    Try Again
+                  </button>
+                </div>
+              )}
+
             </div>
-            <div className="p-4 text-center text-xs font-bold text-slate-500 bg-slate-50 border-t border-slate-100 uppercase tracking-widest">
-              Center barcode inside the camera frame
+            
+            <div className="p-4 text-center text-[10px] font-bold text-slate-400 bg-slate-50 border-t border-slate-100 uppercase tracking-widest">
+              Hold the barcode steady inside the frame
             </div>
           </div>
         </div>
