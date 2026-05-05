@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from '@/lib/supabase'; 
-// (Adjust the path depending on where you saved the file)
 
 const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
 
@@ -29,19 +28,20 @@ export default function Login() {
     setLoading(true);
 
     try {
-// ─── 1. LOGIN FLOW ───
+      // ─── 1. LOGIN FLOW ───
       if (mode === "login") {
         const { data, error: authError } = await supabase.auth.signInWithPassword({
           email: form.email,
           password: form.password,
         });
+        
         if (authError) throw authError;
 
-if (portal === "admin") {
-    console.log("Forcing entry to Admin page...");
-    window.location.href = "/admin"; // <-- Forces a hard browser jump
-    return;
-  }
+        if (portal === "admin") {
+          console.log("Forcing entry to Admin page...");
+          window.location.href = "/admin/pos"; // <-- Forces a hard browser jump to the POS
+          return;
+        }
       }
       
       // ─── 2. SIGNUP FLOW ───
@@ -56,11 +56,12 @@ if (portal === "admin") {
             }
           }
         });
+        
         if (authError) throw authError;
       }
 
-      // Success! Send them to the right dashboard
-      router.push(portal === "admin" ? "/admin" : "/customer");
+      // Success! Send customers to their dashboard
+      router.push("/customer");
 
     } catch (err) {
       setError(err.message || "Something went wrong. Please try again.");
@@ -147,6 +148,7 @@ if (portal === "admin") {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-5 animate-in fade-in duration-300">
+              
               {/* Full Name Field (Signup only) */}
               {!isAdmin && mode === "signup" && (
                 <div>

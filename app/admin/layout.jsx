@@ -4,21 +4,48 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from '@/lib/supabase'; 
-// (Adjust the path depending on where you saved the file)
 
 const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
 
 export default function AdminLayout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
+  
+  // UI States
   const [mobileOpen, setMobileOpen] = useState(false);
+  
+  // Security & Auth States
   const [userEmail, setUserEmail] = useState("");
+  const [isAuthorized, setIsAuthorized] = useState(false); // Blocks UI rendering until verified
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data?.user) setUserEmail(data.user.email);
+    // 1. Initial Security Check
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        // Intruder detected! Kick immediately to login.
+        router.push("/login"); 
+      } else {
+        // Valid session! Allow them in and set email.
+        setUserEmail(session.user.email);
+        setIsAuthorized(true);
+      }
+    };
+
+    checkUser();
+
+    // 2. Active Session Listener (Catches forced logouts)
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" || !session) {
+        router.push("/login");
+      }
     });
-  }, []);
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [router]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -35,13 +62,23 @@ export default function AdminLayout({ children }) {
     { name: "Accounts", path: "/admin/accounts", icon: "👥" },
   ];
 
+  // ─── SECURITY GATE ───
+  // If not verified yet, show the Juja pink spinner instead of the dashboard
+  if (!isAuthorized) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-[#FFF5F7]">
+        <div className="w-10 h-10 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full"></div>
+      </div>
+    );
+  }
+
+  // ─── VERIFIED ADMIN DASHBOARD ───
   return (
     <div className="min-h-screen bg-[#FFF5F7] font-sans flex flex-col md:flex-row">
       
       {/* ─── MOBILE TOP BAR ─── */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-rose-50 shadow-sm">
         <div className="flex items-center justify-between px-6 py-4">
-          {/* Show the standard logo, not inverted or blacked out */}
           <img src={LOGO} alt="Juja" className="h-8 object-contain transition-transform hover:scale-105" />
           <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2 -mr-2">
             <div className="w-5 space-y-[5px]">
@@ -52,7 +89,6 @@ export default function AdminLayout({ children }) {
           </button>
         </div>
         
-        {/* Mobile Dropdown Menu with pink/white theme */}
         {mobileOpen && (
           <div className="bg-white border-t border-rose-50 px-6 py-6 shadow-2xl space-y-2">
             {navItems.map((item) => {
@@ -81,7 +117,6 @@ export default function AdminLayout({ children }) {
       {/* ─── DESKTOP SIDEBAR ─── */}
       <aside className="hidden md:flex w-[260px] bg-[#FFF9FA] border-r border-rose-100 flex-col fixed h-full z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)] rounded-r-3xl">
         <div className="p-8 pb-6 flex justify-center border-b border-rose-50/50">
-          {/* Show the standard, colored logo, matching the public site */}
           <img src={LOGO} alt="Juja" className="h-14 object-contain transition-transform hover:scale-105" />
         </div>
         
@@ -102,7 +137,6 @@ export default function AdminLayout({ children }) {
           })}
         </nav>
 
-        {/* Dynamic, seamlessly integrated bottom section for sign out */}
         <div className="p-8 border-t border-rose-50 bg-[#FFF9FA] rounded-b-3xl">
           <div className="flex items-center gap-3 px-2 mb-4 bg-white/50 p-3 rounded-xl shadow-inner">
             <div className="w-10 h-10 rounded-full bg-rose-100 text-[#FC687D] flex items-center justify-center font-bold text-sm shadow-inner">
