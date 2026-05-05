@@ -154,6 +154,13 @@ export default function POS() {
     const isDefaultCust = ticket.customer_name === "Walk-in" || ticket.customer_name === "Dine-in";
     setCname(isDefaultCust ? "" : ticket.customer_name);
     setCustSearch(isDefaultCust ? "" : ticket.customer_name);
+    
+    // Auto-assign customer profile if it exists in the database
+    if (!isDefaultCust) {
+       const matchedMember = members.find(m => m["Customer name"] === ticket.customer_name);
+       if (matchedMember) setCustomerProfile(matchedMember);
+    }
+
     setOrderType(ticket.order_type || "Table");
     
     let tNum = "";
@@ -175,46 +182,6 @@ export default function POS() {
     if(tableNum) np.push(`${orderType} #: ${tableNum}`); 
     if(disc>0) np.push(`Disc:${disc}%`);
     
-    let earnedPoints = 0;
-    
-    // ─── SMART LOYALTY UPDATER (POINTS, SPENT, VISITS) ───
-    if (isPaid && customerProfile && customerProfile.id) {
-       earnedPoints = parseFloat((total / 25).toFixed(2));
-       
-       const currentPoints = parseFloat(customerProfile["Points balance"] || customerProfile["Points"] || customerProfile.points_balance || 0);
-       const currentSpent = parseFloat(customerProfile["Total spent"] || customerProfile.total_spent || 0);
-       const currentVisits = parseInt(customerProfile["Total visits"] || customerProfile["Visits"] || customerProfile.total_visits || 0, 10);
-       
-       const newPoints = (currentPoints + earnedPoints).toFixed(2);
-       const newSpent = (currentSpent + total).toFixed(2);
-       const newVisits = currentVisits + 1;
-       const newLastVisit = new Date().toISOString();
-
-       // Dynamically map to the correct Supabase columns based on what exists
-       const payloadLoyalty = {};
-       
-       if ("Points balance" in customerProfile) payloadLoyalty["Points balance"] = newPoints;
-       else if ("Points" in customerProfile) payloadLoyalty["Points"] = newPoints;
-       else payloadLoyalty["points_balance"] = newPoints;
-
-       if ("Total spent" in customerProfile) payloadLoyalty["Total spent"] = newSpent;
-       else payloadLoyalty["total_spent"] = newSpent;
-
-       if ("Total visits" in customerProfile) payloadLoyalty["Total visits"] = newVisits;
-       else if ("Visits" in customerProfile) payloadLoyalty["Visits"] = newVisits;
-       else payloadLoyalty["total_visits"] = newVisits;
-
-       if ("Last visit" in customerProfile) payloadLoyalty["Last visit"] = newLastVisit;
-       else payloadLoyalty["last_visit"] = newLastVisit;
-
-       // Push to Database and quietly update local state so next scan is perfectly accurate
-       supabase.from('loyalty_members').update(payloadLoyalty).eq('id', customerProfile.id)
-         .then(({ error }) => {
-            if (!error) fetchMembers();
-         })
-         .catch(console.error);
-    }
-    
     const payload = {
       customer_name: cname || "Dine-in", 
       customer_email: "",
@@ -230,6 +197,7 @@ export default function POS() {
     try {
       let orderId = currentOrderId;
 
+      // 1. SAVE THE TICKET FIRST
       if (currentOrderId) {
         const { error } = await supabase.from('orders').update(payload).eq('id', currentOrderId);
         if (error) {
@@ -239,6 +207,48 @@ export default function POS() {
       } else {
         const o = await Order.create(payload);
         orderId = o.id;
+      }
+      
+      let earnedPoints = 0;
+
+      // 2. UPDATE LOYALTY IF IT IS PAID AND ATTACHED TO A CUSTOMER
+      if (isPaid && customerProfile && customerProfile.id) {
+         earnedPoints = parseFloat((total / 25).toFixed(2));
+         
+         const currentPoints = parseFloat(customerProfile["Points balance"] || customerProfile["Points"] || customerProfile.points_balance || 0);
+         const currentSpent = parseFloat(customerProfile["Total spent"] || customerProfile.total_spent || 0);
+         const currentVisits = parseInt(customerProfile["Total visits"] || customerProfile["Visits"] || customerProfile.total_visits || 0, 10);
+         
+         // Using parseFloat to ensure we send true Numbers to the database, preventing strict-typing crashes
+         const newPoints = parseFloat((currentPoints + earnedPoints).toFixed(2));
+         const newSpent = parseFloat((currentSpent + total).toFixed(2));
+         const newVisits = currentVisits + 1;
+         const newLastVisit = new Date().toISOString();
+
+         const payloadLoyalty = {};
+         
+         if ("Points balance" in customerProfile) payloadLoyalty["Points balance"] = newPoints;
+         else if ("Points" in customerProfile) payloadLoyalty["Points"] = newPoints;
+         else payloadLoyalty["points_balance"] = newPoints;
+
+         if ("Total spent" in customerProfile) payloadLoyalty["Total spent"] = newSpent;
+         else payloadLoyalty["total_spent"] = newSpent;
+
+         if ("Total visits" in customerProfile) payloadLoyalty["Total visits"] = newVisits;
+         else if ("Visits" in customerProfile) payloadLoyalty["Visits"] = newVisits;
+         else payloadLoyalty["total_visits"] = newVisits;
+
+         if ("Last visit" in customerProfile) payloadLoyalty["Last visit"] = newLastVisit;
+         else payloadLoyalty["last_visit"] = newLastVisit;
+
+         const { error: loyaltyError } = await supabase.from('loyalty_members').update(payloadLoyalty).eq('id', customerProfile.id);
+         
+         if (loyaltyError) {
+             console.error("Loyalty update error:", loyaltyError);
+             alert(`Warning: Order saved, but loyalty points failed to update: ${loyaltyError.message}`);
+         } else {
+             fetchMembers(); // Instantly refresh the customer data behind the scenes
+         }
       }
       
       setReceipt({
@@ -412,7 +422,7 @@ export default function POS() {
         </div>
       </div>
 
-      {/* ─── OPEN TICKETS MODAL ─── */}
+      {/* ─── OPEN TICKETS MODAL (ALL TICKETS IN ONE VIEW) ─── */}
       {showOpenTickets && (
         <div className="fixed inset-0 z-[500] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-2xl flex flex-col max-h-[80vh] overflow-hidden shadow-2xl relative animate-in zoom-in duration-200">
