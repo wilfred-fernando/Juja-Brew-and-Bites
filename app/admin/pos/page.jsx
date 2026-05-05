@@ -49,7 +49,6 @@ export default function POS() {
   const [isScanning, setIsScanning] = useState(false);
   const scannerRef = useRef(null);
 
-  // ─── NEW: OPEN TICKETS STATE ───
   const [currentOrderId, setCurrentOrderId] = useState(null);
   const [openTickets, setOpenTickets] = useState([]);
   const [showOpenTickets, setShowOpenTickets] = useState(false);
@@ -67,7 +66,6 @@ export default function POS() {
     supabase.from("loyalty_members").select("*").then(({ data }) => { if (data) setMembers(data); });
   }, []);
 
-  // ─── CAMERA LOGIC ───
   const startScanner = async () => {
     setIsScanning(true);
     try {
@@ -100,7 +98,6 @@ export default function POS() {
     alert(`No match found for: ${code}`);
   };
 
-  // ─── CART LOGIC ───
   const filtered = items.filter(i => (cat==="ALL"||i.category===cat) && (!search||i.name.toLowerCase().includes(search.toLowerCase())));
   const getQty   = id => (cart.find(e=>e.id===id)||{}).qty || 0;
   const add = item => setCart(c => { const i=c.findIndex(e=>e.id===item.id); if(i>=0){const n=[...c];n[i]={...n[i],qty:n[i].qty+1};return n;} return [...c,{id:item.id,name:item.name,price:item.price,qty:1}]; });
@@ -115,7 +112,6 @@ export default function POS() {
   const damt  = sub*disc/100;
   const total = sub-damt;
 
-  // ─── OPEN TICKETS LOGIC ───
   const fetchOpenTickets = async () => {
     try {
       const { data } = await supabase.from('orders').select('*').eq('status', 'Open').order('created_at', { ascending: false });
@@ -126,8 +122,6 @@ export default function POS() {
 
   const loadTicket = (ticket) => {
     setCurrentOrderId(ticket.id);
-    
-    // Safely load items
     let parsedItems = ticket.items;
     if (typeof parsedItems === 'string') { try { parsedItems = JSON.parse(parsedItems); } catch(e) { parsedItems = []; } }
     if (Array.isArray(parsedItems)) setCart(parsedItems.map(i => ({id: i.id, name: i.name, price: i.price, qty: i.quantity})));
@@ -137,7 +131,6 @@ export default function POS() {
     setCustSearch(ticket.customer_name === "Walk-in" ? "" : ticket.customer_name);
     setOrderType(ticket.order_type || "TABLE");
     
-    // Extract Table/VIP Number and Discount from notes
     let tNum = "";
     if (ticket.notes) {
       const match = ticket.notes.match(/#: (.*?)( \||$)/);
@@ -149,31 +142,59 @@ export default function POS() {
     setShowOpenTickets(false);
   };
 
-  // ─── PLACE ORDER (CREATES OR UPDATES) ───
+  // ─── STABILIZED SAVE/UPDATE LOGIC ───
   const place = async (isPaid = true, paymentMethod = "Unpaid") => {
-    if(!cart.length||busy) return;
+    if(!cart.length || busy) return;
     setBusy(true);
-    const np=[]; if(tableNum) np.push(`${orderType} #: ${tableNum}`); if(disc>0) np.push(`Disc:${disc}%`);
     
+    const np = []; 
+    if(tableNum) np.push(`${orderType} #: ${tableNum}`); 
+    if(disc>0) np.push(`Disc:${disc}%`);
+    
+    // Safely mapping items and including empty fields some APIs require
     const payload = {
       customer_name: cname || "Walk-in",
-      items: cart.map(e=>({id:e.id,name:e.name,price:e.price,quantity:e.qty,subtotal:e.price*e.qty})),
-      total_amount: total, status: isPaid ? "Confirmed" : "Open", payment_status: isPaid ? "Paid" : "Unpaid", order_type: orderType, notes: np.join(" | "),
+      customer_email: "",
+      customer_phone: "",
+      items: cart.map(e => ({ id: e.id, name: e.name, price: e.price, quantity: e.qty, subtotal: e.price * e.qty })),
+      total_amount: total, 
+      status: isPaid ? "Confirmed" : "Open", 
+      payment_status: isPaid ? "Paid" : "Unpaid", 
+      order_type: orderType, 
+      notes: np.join(" | ")
     };
 
     try {
-      let o;
+      let orderId = currentOrderId;
+
       if (currentOrderId) {
-        const { data, error } = await supabase.from('orders').update(payload).eq('id', currentOrderId).select().single();
-        o = data || { id: currentOrderId };
+        // Direct Supabase Update
+        const { error } = await supabase.from('orders').update(payload).eq('id', currentOrderId);
+        
+        if (error) {
+           // Fallback: If DB strictly requires items to be a stringified JSON array
+           const { error: retryError } = await supabase
+              .from('orders')
+              .update({ ...payload, items: JSON.stringify(payload.items) })
+              .eq('id', currentOrderId);
+           if (retryError) throw retryError;
+        }
       } else {
-        o = await Order.create(payload);
+        // Create New Ticket
+        const o = await Order.create(payload);
+        orderId = o.id;
       }
-      setReceipt({id: o.id, cart: [...cart], sub, damt, total, disc, isPaid, cname: cname || "Walk-in", type: orderType, method: paymentMethod }); 
+      
+      setReceipt({
+        id: orderId, cart: [...cart], sub, damt, total, disc, isPaid, 
+        cname: cname || "Walk-in", type: orderType, method: paymentMethod 
+      }); 
+      
       clear(); 
     } catch (e) {
-      console.error(e);
-      alert("Failed to save order.");
+      console.error("Save Error:", e);
+      // Alerts the exact error message so we know exactly what failed
+      alert(`Failed to save: ${e.message || JSON.stringify(e)}`);
     } finally {
       setBusy(false);
     }
@@ -228,7 +249,6 @@ export default function POS() {
       {/* ─── RIGHT: TICKET SECTION ─── */}
       <div className={`fixed inset-0 z-50 lg:static lg:z-auto w-full lg:w-[320px] xl:w-[360px] flex flex-col bg-slate-50/50 transition-transform duration-300 ${showMobileTicket ? "translate-y-0" : "translate-y-full lg:translate-y-0"}`}>
         
-        {/* Ticket Header */}
         <div className="flex-shrink-0 px-4 py-3 bg-white border-b border-slate-200 flex items-center justify-between pt-safe">
           <h2 className="font-normal text-base text-slate-800 flex items-center gap-2">
             {currentOrderId ? "Open Ticket" : "Ticket"}
@@ -322,7 +342,7 @@ export default function POS() {
         </div>
       </div>
 
-      {/* ─── NEW: OPEN TICKETS MODAL ─── */}
+      {/* ─── OPEN TICKETS MODAL ─── */}
       {showOpenTickets && (
         <div className="fixed inset-0 z-[500] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-2xl flex flex-col max-h-[80vh] overflow-hidden shadow-2xl relative animate-in zoom-in duration-200">
