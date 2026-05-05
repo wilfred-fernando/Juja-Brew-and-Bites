@@ -107,6 +107,30 @@ export default function POS() {
     setShowMobileTicket(false); setShowPaymentModal(false); setOrderType("Table"); setCurrentOrderId(null); 
   };
 
+  // ─── NEW: DATABASE DELETION LOGIC ───
+  const handleDeleteTicket = async () => {
+    if (!currentOrderId) {
+      // If it's a brand new ticket that hasn't been saved, just clear the screen
+      clear();
+      return;
+    }
+
+    // If it's a saved Open Ticket, confirm and delete from the database
+    if (window.confirm("Are you sure you want to permanently delete this open ticket?")) {
+      setBusy(true);
+      try {
+        const { error } = await supabase.from('orders').delete().eq('id', currentOrderId);
+        if (error) throw error;
+        clear(); // Clear UI after successful database deletion
+      } catch (err) {
+        console.error("Delete Error:", err);
+        alert("Failed to delete ticket from database.");
+      } finally {
+        setBusy(false);
+      }
+    }
+  };
+
   const sub  = cart.reduce((s,e)=>s+e.price*e.qty,0);
   const damt  = sub*disc/100;
   const total = sub-damt;
@@ -244,7 +268,12 @@ export default function POS() {
             <span className="bg-slate-100 text-slate-400 rounded px-1.5 py-0.5 text-[10px]">{cart.length}</span>
           </h2>
           <div className="flex items-center gap-2">
-            {cart.length > 0 && <button onClick={clear} className="text-slate-400 hover:text-red-500 text-sm mr-1">🗑️</button>}
+            {/* FIX: Trash button now triggers database deletion if ticket is saved */}
+            {(cart.length > 0 || currentOrderId) && (
+              <button onClick={handleDeleteTicket} className="text-slate-400 hover:text-red-500 text-sm mr-1 transition-colors">
+                🗑️
+              </button>
+            )}
             <button onClick={fetchOpenTickets} className="flex items-center gap-1 text-[9px] xl:text-[10px] uppercase tracking-widest font-normal text-slate-500 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors">
               📋 Open Tickets
             </button>
@@ -320,10 +349,10 @@ export default function POS() {
            </button>
            
            <div className="p-3 grid grid-cols-2 gap-2 pb-safe">
-              <button onClick={() => place(false, "Unpaid")} disabled={!cart.length} className={`py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 disabled:opacity-30 ${currentOrderId ? 'text-amber-600 bg-amber-50 border border-amber-100' : 'text-emerald-600 bg-emerald-50 border border-emerald-100'}`}>
+              <button onClick={() => place(false, "Unpaid")} disabled={!cart.length || busy} className={`py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 disabled:opacity-30 ${currentOrderId ? 'text-amber-600 bg-amber-50 border border-amber-100' : 'text-emerald-600 bg-emerald-50 border border-emerald-100'}`}>
                 {currentOrderId ? 'UPDATE TICKET' : 'SAVE'}
               </button>
-              <button onClick={()=>setShowPaymentModal(true)} disabled={!cart.length} className={`py-3 rounded-xl font-black transition-all active:scale-95 text-white flex flex-col items-center justify-center leading-tight shadow-md ${cart.length ? "bg-emerald-500" : "bg-slate-300 shadow-none"}`}>
+              <button onClick={()=>setShowPaymentModal(true)} disabled={!cart.length || busy} className={`py-3 rounded-xl font-black transition-all active:scale-95 text-white flex flex-col items-center justify-center leading-tight shadow-md ${cart.length ? "bg-emerald-500" : "bg-slate-300 shadow-none"}`}>
                 <span className="text-[8px] uppercase tracking-widest opacity-80">Charge</span>
                 <span className="text-sm">₱{total.toLocaleString()}</span>
               </button>
@@ -356,7 +385,6 @@ export default function POS() {
                          </div>
                          <p className="text-[11px] text-slate-400 font-normal line-clamp-1">{ticket.notes || "No notes"}</p>
                          
-                         {/* Badge added here to identify order type */}
                          <div className="mt-1 flex items-center justify-between">
                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded">{ticket.order_type}</span>
                            <span className="text-[9px] text-slate-400 font-mono">{new Date(ticket.created_at).toLocaleTimeString()}</span>
