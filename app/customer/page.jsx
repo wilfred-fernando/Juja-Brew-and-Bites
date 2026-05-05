@@ -218,27 +218,203 @@ function OrderTab({ user }) {
   );
 }
 
-// ─── LOYALTY TAB (Skipping internals for brevity, keeping styling structure) ──
+// ─── LOYALTY TAB ─────────────────────────────────────────────────────────────
 function LoyaltyTab({ member, setMember, user }) {
-  // Uses same tight classes: rounded-xl, active:scale-95, tight padding.
+  const [joining, setJoining] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({ customer_name: "", phone: "", address: "", note: "" });
+  const [saving, setSaving] = useState(false);
+
+  const join = async () => {
+    setJoining(true);
+    try {
+      const payload = {
+        customer_name: user?.user_metadata?.full_name || "",
+        email: user?.email || "",
+        phone: "", address: "", note: "", 
+        customer_code: genMemberId(), // Uses the helper function from the top of your file
+        points_balance: 0, total_visits: 0,
+        last_visit: new Date().toISOString().split("T")[0],
+        user_id: user?.id,
+      };
+      
+      const { data, error } = await supabase.from("loyalty_members").insert([payload]).select();
+      if (!error && data) setMember(data[0]);
+    } catch (e) { console.error(e); }
+    setJoining(false);
+  };
+
+  const startEdit = () => {
+    setForm({ 
+      customer_name: member.customer_name || "", 
+      phone: member.phone || "", 
+      address: member.address || "", 
+      note: member.note || "" 
+    });
+    setEditing(true);
+  };
+
+  const saveEdit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("loyalty_members").update(form).eq("id", member.id);
+      if (!error) {
+        setMember(m => ({ ...m, ...form }));
+        setEditing(false);
+      }
+    } catch (e) { console.error(e); }
+    setSaving(false);
+  };
+
+  const fmtBirthday = (val) => {
+    if (!val) return "";
+    try {
+      const d = new Date(val + "T00:00:00");
+      if (isNaN(d.getTime())) return val; 
+      return `${d.getFullYear()}-${d.toLocaleString("en", { month: "short" })}-${String(d.getDate()).padStart(2, "0")}`;
+    } catch { return val; }
+  };
+
+  // ── Not enrolled ──
+  if (!member) {
+    return (
+      <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div>
+          <h2 className="text-2xl md:text-[28px] font-black text-slate-800 tracking-tight">Loyalty Program</h2>
+          <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-medium">Earn points on every purchase</p>
+        </div>
+        <div className="bg-white rounded-2xl md:rounded-[32px] border border-rose-50 shadow-sm p-6 md:p-8 text-center relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-rose-50 rounded-full blur-3xl" />
+          <div className="text-5xl md:text-6xl mb-4 md:mb-6 relative z-10 animate-bounce" style={{ animationDuration: '3s' }}>⭐</div>
+          <h3 className="text-xl md:text-2xl font-black text-slate-800 mb-2 relative z-10">Join Juja Rewards</h3>
+          <p className="text-slate-500 text-[11px] md:text-[13px] leading-relaxed mb-6 md:mb-8 max-w-[250px] md:max-w-xs mx-auto font-medium relative z-10">
+            Earn points with every visit, unlock free items, and celebrate your birthday in style!
+          </p>
+          <div className="text-left space-y-3 md:space-y-4 mb-6 md:mb-8 bg-[#FFF9FA] p-4 md:p-6 rounded-xl md:rounded-[24px] relative z-10 border border-rose-50">
+            {[
+              ["🌟", "1 point per ₱10 spent"],
+              ["🎁", "100 pts = free reward item"],
+              ["🎂", "Birthday month double points"],
+              ["📲", "Show member ID at checkout"],
+            ].map(([ic, t]) => (
+              <div key={t} className="flex gap-3 md:gap-4 items-center text-xs md:text-[13px] font-bold text-slate-700">
+                <span className="text-lg md:text-xl">{ic}</span><span>{t}</span>
+              </div>
+            ))}
+          </div>
+          <button onClick={join} disabled={joining}
+            className="w-full py-3.5 md:py-4 rounded-xl md:rounded-full font-black text-[11px] md:text-[13px] uppercase tracking-widest text-white transition-all duration-300 bg-[#FC687D] hover:bg-rose-500 shadow-[0_8px_20px_rgba(252,104,125,0.25)] hover:shadow-[0_12px_25px_rgba(252,104,125,0.35)] active:scale-95 disabled:opacity-50 relative z-10">
+            {joining ? "Creating account…" : "Join For Free →"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Loyalty Card ──
+  const pts = parseFloat(member.points_balance) || 0;
+  const progress = (pts % 100) / 100 * 100;
+  const nextReward = Math.ceil((pts + 0.01) / 100) * 100;
+
   return (
-    <div className="space-y-4 md:space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
         <h2 className="text-2xl md:text-[28px] font-black text-slate-800 tracking-tight">Juja Card</h2>
         <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-medium">Digital Rewards Member</p>
       </div>
-      {member ? (
-        <div className="rounded-2xl md:rounded-[32px] overflow-hidden shadow-xl" style={{ background: "linear-gradient(135deg, #FC687D 0%, #f43f5e 100%)" }}>
-           <div className="px-5 py-6 md:p-8 text-center border-b border-white/20 relative">
-             <h3 className="text-xl md:text-2xl font-black text-white">{member.customer_name || "Juja Member"}</h3>
-             <p className="text-white/80 font-mono text-sm mt-1">{member.customer_code}</p>
-           </div>
+
+      {/* ── PREMIUM PINK LOYALTY CARD ── */}
+      <div className="rounded-2xl md:rounded-[32px] overflow-hidden shadow-[0_10px_30px_rgba(252,104,125,0.2)] md:shadow-[0_20px_40px_rgba(252,104,125,0.2)]"
+        style={{ background: "linear-gradient(135deg, #FC687D 0%, #f43f5e 100%)" }}>
+        
+        <div className="px-5 py-6 md:px-6 md:pt-8 md:pb-6 text-center border-b border-white/20 relative">
+          <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-white/10 rounded-full blur-2xl" />
+          <div className="w-16 h-16 md:w-20 md:h-20 rounded-[20px] md:rounded-[24px] mx-auto mb-3 md:mb-4 flex items-center justify-center text-3xl md:text-4xl bg-white/20 border border-white/30 backdrop-blur-md shadow-inner">
+            👤
+          </div>
+          <h3 className="text-xl md:text-2xl font-black text-white tracking-tight">{member.customer_name || "Juja Member"}</h3>
         </div>
-      ) : (
-        <div className="bg-white rounded-2xl md:rounded-[32px] p-6 md:p-8 text-center border border-rose-50 shadow-sm">
-           <div className="text-5xl mb-4">⭐</div>
-           <h3 className="text-xl font-black text-slate-800 mb-2">Join Juja Rewards</h3>
-           <button className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-black uppercase tracking-widest text-xs active:scale-95 transition-all">Join Free</button>
+
+        <div className="px-5 py-5 md:px-6 md:py-6 space-y-4 md:space-y-5 border-b border-white/20 bg-black/5">
+          {[
+            { icon: "📞", value: member.phone || "—" },
+            { icon: "📍", value: member.address || "—", truncate: true },
+            { icon: "▦", value: member.customer_code, mono: true },
+            { icon: "🎂", value: fmtBirthday(member.note) || "—" }, 
+          ].map(({ icon, value, mono, truncate }) => (
+            <div key={icon} className="flex items-center gap-3 md:gap-4">
+              <span className="text-lg md:text-xl text-white/60 w-6 md:w-7 text-center">{icon}</span>
+              <span className={`text-white text-[13px] md:text-[15px] ${mono ? "font-mono tracking-widest font-bold" : "font-semibold"} ${truncate ? "truncate pr-4" : ""}`}>
+                {value}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="px-5 py-5 md:px-6 md:pt-6 md:pb-8 flex justify-between items-center bg-black/10">
+          <button onClick={startEdit} className="text-[9px] md:text-[11px] font-black uppercase tracking-[0.25em] text-white/80 hover:text-white transition-all bg-white/10 px-4 py-2 md:px-5 md:py-2.5 rounded-full border border-white/20 active:scale-95">
+            Edit Profile
+          </button>
+          <div className="text-right">
+            <p className="text-white/80 text-[9px] md:text-[10px] font-black uppercase tracking-widest mb-0.5 md:mb-1">Total Points</p>
+            <p className="text-2xl md:text-3xl font-black text-white">{pts.toFixed(0)}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Points progress */}
+      <div className="bg-white rounded-xl md:rounded-[24px] p-5 md:p-6 border border-rose-50 shadow-sm">
+        <div className="flex justify-between items-end mb-3 md:mb-4">
+          <p className="font-black text-slate-800 text-[13px] md:text-[15px]">Points Progress</p>
+          <p className="text-[10px] md:text-xs font-black text-slate-400">{pts.toFixed(0)} / {nextReward} pts</p>
+        </div>
+        <div className="w-full h-2.5 md:h-3 bg-slate-100 rounded-full overflow-hidden mb-2.5 md:mb-3 border border-slate-200">
+          <div className="h-full rounded-full transition-all duration-1000 bg-[#FC687D]" style={{ width: `${progress}%` }} />
+        </div>
+        <p className="text-[10px] md:text-[11px] font-black text-slate-500">{(nextReward - pts).toFixed(0)} more points until your next free reward 🎁</p>
+      </div>
+
+      {/* Edit modal (Luxury Slide-in) */}
+      {editing && (
+        <div className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 transition-all duration-300" onClick={() => setEditing(false)}>
+          <div className="w-full max-w-md mx-auto bg-white rounded-t-[24px] md:rounded-[32px] p-5 md:p-8 pb-8 md:pb-12 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-full md:slide-in-from-bottom-10 md:zoom-in-95 duration-300 shadow-2xl hide-scrollbar"
+            onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-5 md:hidden" />
+            
+            <div className="flex justify-between items-center mb-5 md:mb-6">
+              <h3 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">Edit Profile</h3>
+              <button onClick={() => setEditing(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90 md:hidden">
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={saveEdit} className="space-y-4 md:space-y-5">
+              {[
+                ["customer_name", "Full Name", "text", "Your full name"],
+                ["phone", "Phone Number", "tel", "09XX XXX XXXX"],
+                ["address", "Location / City", "text", "e.g. QC, Metro Manila"],
+                ["note", "Birthday (YYYY-MM-DD)", "text", "1995-12-25"],
+              ].map(([key, lbl, type, ph]) => (
+                <div key={key}>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1">{lbl}</label>
+                  <input type={type} value={form[key]} placeholder={ph}
+                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs md:text-sm font-semibold text-slate-800 focus:outline-none focus:border-[#FC687D] focus:bg-white focus:ring-1 focus:ring-rose-100 transition-all" />
+                </div>
+              ))}
+              <div className="grid grid-cols-2 gap-3 pt-4 md:pt-6 mt-4 md:mt-6 border-t border-slate-100">
+                <button type="button" onClick={() => setEditing(false)}
+                  className="w-full py-3.5 md:py-4 rounded-xl bg-white border border-slate-200 text-slate-500 font-black uppercase tracking-widest text-[10px] md:text-xs hover:bg-slate-50 hover:text-slate-800 transition-all active:scale-95">
+                  Cancel
+                </button>
+                <button type="submit" disabled={saving}
+                  className="w-full py-3.5 md:py-4 rounded-xl bg-[#FC687D] text-white font-black uppercase tracking-widest text-[10px] md:text-xs hover:bg-rose-500 transition-all shadow-[0_4px_15px_rgba(252,104,125,0.25)] disabled:opacity-70 active:scale-95 hover:-translate-y-0.5">
+                  {saving ? "Saving…" : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
