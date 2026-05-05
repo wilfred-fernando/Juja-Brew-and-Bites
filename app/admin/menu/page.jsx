@@ -217,7 +217,7 @@ export default function MenuAdminPage() {
             <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4 md:hidden" />
 
             <div className="flex justify-between items-center mb-5 md:mb-6">
-              <h3 className="text-xl md:text-2xl font-black text-slate-800 >{editingItem ? "Edit Item" : "New Item"}</h3>
+              <h3 className="text-xl md:text-2xl font-black text-slate-800" >{editingItem ? "Edit Item" : "New Item"}</h3>
               <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90">
                 ✕
               </button>
