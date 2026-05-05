@@ -1,13 +1,21 @@
 @import "tailwindcss";
 
-@layer utilities {
-  .hide-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .hide-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
+/* Add below @tailwind utilities; */
+@import url('https://fonts.cdnfonts.com/css/abadi');
+
+body {
+  font-family: 'Abadi', system-ui, sans-serif !important;
+  -webkit-tap-highlight-color: transparent; /* Removes the ugly blue flash on mobile taps */
+}
+
+/* Add at the very bottom of the file */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch; /* Buttery smooth iOS scrolling */
 }
 
 body {
@@ -15,4 +23,14 @@ body {
   color: #1e293b; /* Slate-800 for readable text */
   margin: 0;
   padding: 0;
+}
+
+/* Add this at the bottom of globals.css */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch; /* Smooth iOS scrolling */
 }
