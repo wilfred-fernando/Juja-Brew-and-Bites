@@ -9,20 +9,15 @@ import { Html5Qrcode } from "html5-qrcode";
 const formatLoyaltyDate = (dateStr, includeTime = false) => {
   if (!dateStr || dateStr === "N/A") return "N/A";
   const d = new Date(dateStr);
-  if (isNaN(d)) return dateStr; // Fallback if the date is invalid
-  
+  if (isNaN(d)) return dateStr; 
   const datePart = d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-  if (includeTime) {
-    const timePart = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    return `${datePart} at ${timePart}`;
-  }
+  if (includeTime) return `${datePart} at ${d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
   return datePart;
 };
 
 const formatLoyaltyMoney = (val) => {
   const num = parseFloat(val);
-  if (isNaN(num)) return "0.00";
-  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return isNaN(num) ? "0.00" : num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 export default function POS() {
@@ -46,7 +41,6 @@ export default function POS() {
   const [custSearch, setCustSearch] = useState("");
   const [showCustList, setShowCustList] = useState(false);
   const [cname, setCname] = useState("");
-  
   const [customerProfile, setCustomerProfile] = useState(null);
 
   const [orderType, setOrderType] = useState("TABLE"); 
@@ -54,6 +48,12 @@ export default function POS() {
 
   const [isScanning, setIsScanning] = useState(false);
   const scannerRef = useRef(null);
+
+  // ─── NEW: OPEN TICKETS STATE ───
+  const [currentOrderId, setCurrentOrderId] = useState(null);
+  const [openTickets, setOpenTickets] = useState([]);
+  const [showOpenTickets, setShowOpenTickets] = useState(false);
+  const [openTicketsFilter, setOpenTicketsFilter] = useState("TABLE");
 
   useEffect(() => {
     Promise.all([MenuItem.list(), MenuCategory.list()])
@@ -64,10 +64,10 @@ export default function POS() {
       .catch(()=>{})
       .finally(()=>setLoading(false));
 
-    supabase.from("loyalty_members").select("*")
-      .then(({ data }) => { if (data) setMembers(data); });
+    supabase.from("loyalty_members").select("*").then(({ data }) => { if (data) setMembers(data); });
   }, []);
 
+  // ─── CAMERA LOGIC ───
   const startScanner = async () => {
     setIsScanning(true);
     try {
@@ -76,77 +76,107 @@ export default function POS() {
         let cameraId = devices[0].id; 
         for (const device of devices) {
           if (device.label.toLowerCase().includes("back") || device.label.toLowerCase().includes("rear") || device.label.toLowerCase().includes("environment")) {
-            cameraId = device.id;
-            break;
+            cameraId = device.id; break;
           }
         }
         const html5QrCode = new Html5Qrcode("reader");
         scannerRef.current = html5QrCode;
-        await html5QrCode.start(
-          cameraId,
-          { fps: 10, qrbox: { width: 250, height: 150 } },
-          (decodedText) => { handleBarcodeMatch(decodedText); stopScanner(); },
-          () => {} 
-        );
-      } else {
-        alert("No cameras found.");
-        setIsScanning(false);
-      }
-    } catch (err) {
-      alert("Camera permission denied. Please allow camera access in your browser settings.");
-      setIsScanning(false);
-    }
+        await html5QrCode.start(cameraId, { fps: 10, qrbox: { width: 250, height: 150 } }, (decodedText) => { handleBarcodeMatch(decodedText); stopScanner(); }, () => {});
+      } else { alert("No cameras found."); setIsScanning(false); }
+    } catch (err) { alert("Camera permission denied."); setIsScanning(false); }
   };
 
   const stopScanner = () => {
-    if (scannerRef.current) {
-      scannerRef.current.stop().then(() => setIsScanning(false)).catch(err => console.error(err));
-    } else {
-      setIsScanning(false);
-    }
+    if (scannerRef.current) scannerRef.current.stop().then(() => setIsScanning(false)).catch(e => console.error(e));
+    else setIsScanning(false);
   };
 
   const handleBarcodeMatch = (rawCode) => {
     const code = rawCode.trim();
     const memberMatch = members.find(m => m["Customer code"] === code);
-    if (memberMatch) {
-      setCname(memberMatch["Customer name"]);
-      setCustSearch(memberMatch["Customer name"]); 
-      setCustomerProfile(memberMatch); 
-      return; 
-    }
+    if (memberMatch) { setCname(memberMatch["Customer name"]); setCustSearch(memberMatch["Customer name"]); setCustomerProfile(memberMatch); return; }
     const itemMatch = items.find(i => i.sku === code || i.barcode === code);
-    if (itemMatch) {
-      add(itemMatch);
-      setCustSearch(""); 
-      return;
-    }
-    alert(`No matching Customer or Item found for barcode: ${code}`);
+    if (itemMatch) { add(itemMatch); setCustSearch(""); return; }
+    alert(`No match found for: ${code}`);
   };
 
+  // ─── CART LOGIC ───
   const filtered = items.filter(i => (cat==="ALL"||i.category===cat) && (!search||i.name.toLowerCase().includes(search.toLowerCase())));
   const getQty   = id => (cart.find(e=>e.id===id)||{}).qty || 0;
   const add = item => setCart(c => { const i=c.findIndex(e=>e.id===item.id); if(i>=0){const n=[...c];n[i]={...n[i],qty:n[i].qty+1};return n;} return [...c,{id:item.id,name:item.name,price:item.price,qty:1}]; });
   const upd = (id,d) => setCart(c => c.map(e=>e.id===id?{...e,qty:e.qty+d}:e).filter(e=>e.qty>0));
   
-  const clear = () => { setCart([]); setCname(""); setCustSearch(""); setTableNum(""); setNotes(""); setDisc(0); setShowMobileTicket(false); setOrderType("TABLE"); };
+  const clear = () => { 
+    setCart([]); setCname(""); setCustSearch(""); setTableNum(""); setNotes(""); setDisc(0); 
+    setShowMobileTicket(false); setShowPaymentModal(false); setOrderType("TABLE"); setCurrentOrderId(null); 
+  };
 
   const sub  = cart.reduce((s,e)=>s+e.price*e.qty,0);
   const damt  = sub*disc/100;
   const total = sub-damt;
 
-  const place = (isPaid = true, paymentMethod = "Unpaid") => {
+  // ─── OPEN TICKETS LOGIC ───
+  const fetchOpenTickets = async () => {
+    try {
+      const { data } = await supabase.from('orders').select('*').eq('status', 'Open').order('created_at', { ascending: false });
+      if (data) setOpenTickets(data);
+      setShowOpenTickets(true);
+    } catch (err) { console.error(err); }
+  };
+
+  const loadTicket = (ticket) => {
+    setCurrentOrderId(ticket.id);
+    
+    // Safely load items
+    let parsedItems = ticket.items;
+    if (typeof parsedItems === 'string') { try { parsedItems = JSON.parse(parsedItems); } catch(e) { parsedItems = []; } }
+    if (Array.isArray(parsedItems)) setCart(parsedItems.map(i => ({id: i.id, name: i.name, price: i.price, qty: i.quantity})));
+    else setCart([]);
+
+    setCname(ticket.customer_name === "Walk-in" ? "" : ticket.customer_name);
+    setCustSearch(ticket.customer_name === "Walk-in" ? "" : ticket.customer_name);
+    setOrderType(ticket.order_type || "TABLE");
+    
+    // Extract Table/VIP Number and Discount from notes
+    let tNum = "";
+    if (ticket.notes) {
+      const match = ticket.notes.match(/#: (.*?)( \||$)/);
+      if (match) tNum = match[1];
+      const discMatch = ticket.notes.match(/Disc:(.*?)%/);
+      if (discMatch) setDisc(parseFloat(discMatch[1])); else setDisc(0);
+    }
+    setTableNum(tNum);
+    setShowOpenTickets(false);
+  };
+
+  // ─── PLACE ORDER (CREATES OR UPDATES) ───
+  const place = async (isPaid = true, paymentMethod = "Unpaid") => {
     if(!cart.length||busy) return;
     setBusy(true);
     const np=[]; if(tableNum) np.push(`${orderType} #: ${tableNum}`); if(disc>0) np.push(`Disc:${disc}%`);
-    Order.create({
+    
+    const payload = {
       customer_name: cname || "Walk-in",
       items: cart.map(e=>({id:e.id,name:e.name,price:e.price,quantity:e.qty,subtotal:e.price*e.qty})),
       total_amount: total, status: isPaid ? "Confirmed" : "Open", payment_status: isPaid ? "Paid" : "Unpaid", order_type: orderType, notes: np.join(" | "),
-    }).then(o => { 
+    };
+
+    try {
+      let o;
+      if (currentOrderId) {
+        const { data, error } = await supabase.from('orders').update(payload).eq('id', currentOrderId).select().single();
+        o = data || { id: currentOrderId };
+      } else {
+        o = await Order.create(payload);
+      }
       setReceipt({id: o.id, cart: [...cart], sub, damt, total, disc, isPaid, cname: cname || "Walk-in", type: orderType, method: paymentMethod }); 
       clear(); 
-    }).finally(()=>setBusy(false));
+    } catch (e) {
+      console.error(e);
+      alert("Failed to save order.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -198,37 +228,32 @@ export default function POS() {
       {/* ─── RIGHT: TICKET SECTION ─── */}
       <div className={`fixed inset-0 z-50 lg:static lg:z-auto w-full lg:w-[320px] xl:w-[360px] flex flex-col bg-slate-50/50 transition-transform duration-300 ${showMobileTicket ? "translate-y-0" : "translate-y-full lg:translate-y-0"}`}>
         
+        {/* Ticket Header */}
         <div className="flex-shrink-0 px-4 py-3 bg-white border-b border-slate-200 flex items-center justify-between pt-safe">
-          <h2 className="font-normal text-base text-slate-800 flex items-center gap-2">Ticket <span className="bg-slate-100 text-slate-400 rounded px-1.5 py-0.5 text-[10px]">{cart.length}</span></h2>
-          <button onClick={() => setShowMobileTicket(false)} className="lg:hidden p-1 text-slate-400 text-sm font-bold">✕ Close</button>
+          <h2 className="font-normal text-base text-slate-800 flex items-center gap-2">
+            {currentOrderId ? "Open Ticket" : "Ticket"}
+            <span className="bg-slate-100 text-slate-400 rounded px-1.5 py-0.5 text-[10px]">{cart.length}</span>
+          </h2>
+          <div className="flex items-center gap-2">
+            {cart.length > 0 && <button onClick={clear} className="text-slate-400 hover:text-red-500 text-sm mr-1">🗑️</button>}
+            <button onClick={fetchOpenTickets} className="flex items-center gap-1 text-[9px] xl:text-[10px] uppercase tracking-widest font-normal text-slate-500 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors">
+              📋 Open Tickets
+            </button>
+            <button onClick={() => setShowMobileTicket(false)} className="lg:hidden p-1 text-slate-400 text-sm font-bold">✕</button>
+          </div>
         </div>
 
         <div className="flex-shrink-0 p-3 bg-white space-y-2 border-b border-slate-100">
           <div className="relative">
             <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus-within:border-[#FC687D] transition-colors">
               <button onClick={isScanning ? stopScanner : startScanner} className={`text-base leading-none ${isScanning ? 'text-red-500 animate-pulse' : 'text-slate-400'}`}>║▌</button>
-              <input 
-                value={custSearch} 
-                onChange={e=>setCustSearch(e.target.value)} 
-                onFocus={() => setShowCustList(true)} 
-                onBlur={() => setTimeout(() => setShowCustList(false), 200)}
-                onKeyDown={e=>{if(e.key==='Enter') {handleBarcodeMatch(custSearch); e.preventDefault();}}} 
-                placeholder="Scan Loyalty or Item..." 
-                className="flex-1 bg-transparent text-[11px] font-normal focus:outline-none" 
-              />
+              <input value={custSearch} onChange={e=>setCustSearch(e.target.value)} onFocus={() => setShowCustList(true)} onBlur={() => setTimeout(() => setShowCustList(false), 200)} onKeyDown={e=>{if(e.key==='Enter') {handleBarcodeMatch(custSearch); e.preventDefault();}}} placeholder="Scan Loyalty or Item..." className="flex-1 bg-transparent text-[11px] font-normal focus:outline-none" />
             </div>
-
-            {/* Loyalty Search Dropdown */}
             {showCustList && custSearch && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-100 shadow-xl rounded-lg max-h-48 overflow-y-auto hide-scrollbar z-50">
                 {members.filter(m => (m["Customer name"] || "").toLowerCase().includes(custSearch.toLowerCase()) || (m["Phone"] || "").includes(custSearch)).length > 0 ? 
                   members.filter(m => (m["Customer name"] || "").toLowerCase().includes(custSearch.toLowerCase()) || (m["Phone"] || "").includes(custSearch)).map(m => (
-                  <button key={m.id} onMouseDown={() => { 
-                      setCustSearch(m["Customer name"]); 
-                      setCname(m["Customer name"]); 
-                      setShowCustList(false);
-                      setCustomerProfile(m);
-                    }} className="w-full text-left px-3 py-2 hover:bg-slate-50 border-b border-slate-50 transition-colors">
+                  <button key={m.id} onMouseDown={() => { setCustSearch(m["Customer name"]); setCname(m["Customer name"]); setShowCustList(false); setCustomerProfile(m); }} className="w-full text-left px-3 py-2 hover:bg-slate-50 border-b border-slate-50 transition-colors">
                     <p className="font-normal text-slate-800 text-xs leading-tight">{m["Customer name"]}</p>
                   </button>
                 )) : (<div className="px-3 py-2 text-[10px] text-slate-400 bg-slate-50 italic">Walk-In: "{custSearch}"</div>)}
@@ -239,9 +264,7 @@ export default function POS() {
           {isScanning && (
             <div className="relative w-full rounded-lg overflow-hidden border-2 border-emerald-400 bg-black aspect-video shadow-inner flex items-center justify-center">
               <div id="reader" className="w-full"></div>
-              <div className="absolute inset-0 pointer-events-none border-[40px] border-black/30 flex items-center justify-center">
-                 <div className="w-full h-full border-2 border-emerald-400/50"></div>
-              </div>
+              <div className="absolute inset-0 pointer-events-none border-[40px] border-black/30 flex items-center justify-center"><div className="w-full h-full border-2 border-emerald-400/50"></div></div>
             </div>
           )}
 
@@ -288,7 +311,9 @@ export default function POS() {
            </button>
            
            <div className="p-3 grid grid-cols-2 gap-2 pb-safe">
-              <button onClick={() => place(false, "Unpaid")} disabled={!cart.length} className="py-3 rounded-xl font-black text-[10px] uppercase tracking-widest text-emerald-600 bg-emerald-50 border border-emerald-100 active:scale-95 disabled:opacity-30 transition-all">SAVE</button>
+              <button onClick={() => place(false, "Unpaid")} disabled={!cart.length} className={`py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 disabled:opacity-30 ${currentOrderId ? 'text-amber-600 bg-amber-50 border border-amber-100' : 'text-emerald-600 bg-emerald-50 border border-emerald-100'}`}>
+                {currentOrderId ? 'UPDATE TICKET' : 'SAVE'}
+              </button>
               <button onClick={()=>setShowPaymentModal(true)} disabled={!cart.length} className={`py-3 rounded-xl font-black transition-all active:scale-95 text-white flex flex-col items-center justify-center leading-tight shadow-md ${cart.length ? "bg-emerald-500" : "bg-slate-300 shadow-none"}`}>
                 <span className="text-[8px] uppercase tracking-widest opacity-80">Charge</span>
                 <span className="text-sm">₱{total.toLocaleString()}</span>
@@ -296,16 +321,54 @@ export default function POS() {
            </div>
         </div>
       </div>
+
+      {/* ─── NEW: OPEN TICKETS MODAL ─── */}
+      {showOpenTickets && (
+        <div className="fixed inset-0 z-[500] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-2xl flex flex-col max-h-[80vh] overflow-hidden shadow-2xl relative animate-in zoom-in duration-200">
+             <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+               <h2 className="text-lg font-normal text-slate-800 flex items-center gap-2">📋 Open Tickets</h2>
+               <button onClick={()=>setShowOpenTickets(false)} className="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+             </div>
+             <div className="px-6 pt-4 pb-2 flex gap-2 overflow-x-auto hide-scrollbar border-b border-slate-100">
+               {["TABLE", "VIP ROOM", "TAKEOUT", "GRAB | PANDA"].map(t => (
+                  <button key={t} onClick={()=>setOpenTicketsFilter(t)} className={`px-4 py-2 rounded-full text-[10px] font-normal uppercase tracking-widest whitespace-nowrap transition-colors ${openTicketsFilter === t ? 'bg-[#FC687D] text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                    {t}
+                  </button>
+               ))}
+             </div>
+             <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
+                {openTickets.filter(t => t.order_type === openTicketsFilter).length === 0 ? (
+                  <div className="text-center py-12 opacity-50">
+                    <span className="text-4xl">📭</span>
+                    <p className="mt-3 text-[10px] font-normal uppercase tracking-widest text-slate-500">No open tickets here</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {openTickets.filter(t => t.order_type === openTicketsFilter).map(ticket => (
+                      <button key={ticket.id} onClick={() => loadTicket(ticket)} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-[#FC687D]/30 transition-all text-left flex flex-col gap-2 group relative overflow-hidden">
+                         <div className="flex justify-between items-start">
+                           <span className="font-normal text-sm text-slate-800">{ticket.customer_name}</span>
+                           <span className="text-[10px] font-normal uppercase tracking-widest text-emerald-500 bg-emerald-50 px-2 py-1 rounded-md">₱{parseFloat(ticket.total_amount || 0).toLocaleString()}</span>
+                         </div>
+                         <p className="text-[11px] text-slate-400 font-normal line-clamp-1">{ticket.notes || "No notes"}</p>
+                         <p className="text-[9px] text-slate-300 font-mono mt-1">{new Date(ticket.created_at).toLocaleTimeString()}</p>
+                         <div className="absolute inset-0 bg-[#FC687D]/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+             </div>
+          </div>
+        </div>
+      )}
       
-      {/* ─── NEW: LOYALTY PROFILE MODAL ─── */}
+      {/* ─── LOYALTY PROFILE MODAL ─── */}
       {customerProfile && (
         <div className="fixed inset-0 z-[400] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-md p-8 animate-in zoom-in duration-300 shadow-2xl relative">
              <button onClick={()=>setCustomerProfile(null)} className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 text-xl">✕</button>
-
              <h2 className="text-3xl font-normal text-slate-800 text-center mb-8 mt-2">{customerProfile["Customer name"]}</h2>
-
-             {/* Personal Details List */}
              <div className="space-y-5 mb-8 px-2">
                 <div className="flex items-center gap-5 text-slate-500">
                    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
@@ -324,10 +387,7 @@ export default function POS() {
                    <span className="font-normal text-sm text-slate-700">{customerProfile["Birthday"] || "N/A"}</span>
                 </div>
              </div>
-
              <div className="border-t border-slate-100 my-6"></div>
-
-             {/* FORMATTED Stats Grid - First Visit removed */}
              <div className="grid grid-cols-2 gap-y-7 gap-x-4 px-2">
                 <div className="flex items-start gap-4 text-slate-500">
                    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="mt-0.5"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -358,7 +418,6 @@ export default function POS() {
                    </div>
                 </div>
              </div>
-
              <div className="mt-8">
                 <button onClick={()=>setCustomerProfile(null)} className="w-full py-4 rounded-[14px] font-normal text-sm text-white bg-slate-800 hover:bg-slate-700 active:scale-95 transition-all shadow-md uppercase tracking-widest">
                    Assign to Ticket
