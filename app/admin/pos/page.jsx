@@ -107,21 +107,17 @@ export default function POS() {
     setShowMobileTicket(false); setShowPaymentModal(false); setOrderType("Table"); setCurrentOrderId(null); 
   };
 
-  // ─── NEW: DATABASE DELETION LOGIC ───
   const handleDeleteTicket = async () => {
     if (!currentOrderId) {
-      // If it's a brand new ticket that hasn't been saved, just clear the screen
       clear();
       return;
     }
-
-    // If it's a saved Open Ticket, confirm and delete from the database
     if (window.confirm("Are you sure you want to permanently delete this open ticket?")) {
       setBusy(true);
       try {
         const { error } = await supabase.from('orders').delete().eq('id', currentOrderId);
         if (error) throw error;
-        clear(); // Clear UI after successful database deletion
+        clear();
       } catch (err) {
         console.error("Delete Error:", err);
         alert("Failed to delete ticket from database.");
@@ -150,8 +146,11 @@ export default function POS() {
     if (Array.isArray(parsedItems)) setCart(parsedItems.map(i => ({id: i.id, name: i.name, price: i.price, qty: i.quantity})));
     else setCart([]);
 
-    setCname(ticket.customer_name === "Walk-in" ? "" : ticket.customer_name);
-    setCustSearch(ticket.customer_name === "Walk-in" ? "" : ticket.customer_name);
+    // Check for both old 'Walk-in' and new 'Dine-in' to clear the input safely
+    const isDefaultCust = ticket.customer_name === "Walk-in" || ticket.customer_name === "Dine-in";
+    setCname(isDefaultCust ? "" : ticket.customer_name);
+    setCustSearch(isDefaultCust ? "" : ticket.customer_name);
+    
     setOrderType(ticket.order_type || "Table");
     
     let tNum = "";
@@ -174,7 +173,7 @@ export default function POS() {
     if(disc>0) np.push(`Disc:${disc}%`);
     
     const payload = {
-      customer_name: cname || "Walk-in",
+      customer_name: cname || "Dine-in", // Replaced Walk-in with Dine-in
       customer_email: "",
       customer_phone: "",
       items: cart.map(e => ({ id: e.id, name: e.name, price: e.price, quantity: e.qty, subtotal: e.price * e.qty })),
@@ -201,7 +200,7 @@ export default function POS() {
       
       setReceipt({
         id: orderId, cart: [...cart], sub, damt, total, disc, isPaid, 
-        cname: cname || "Walk-in", type: orderType, method: paymentMethod 
+        cname: cname || "Dine-in", type: orderType, method: paymentMethod 
       }); 
       
       clear(); 
@@ -268,7 +267,6 @@ export default function POS() {
             <span className="bg-slate-100 text-slate-400 rounded px-1.5 py-0.5 text-[10px]">{cart.length}</span>
           </h2>
           <div className="flex items-center gap-2">
-            {/* FIX: Trash button now triggers database deletion if ticket is saved */}
             {(cart.length > 0 || currentOrderId) && (
               <button onClick={handleDeleteTicket} className="text-slate-400 hover:text-red-500 text-sm mr-1 transition-colors">
                 🗑️
@@ -294,7 +292,7 @@ export default function POS() {
                   <button key={m.id} onMouseDown={() => { setCustSearch(m["Customer name"]); setCname(m["Customer name"]); setShowCustList(false); setCustomerProfile(m); }} className="w-full text-left px-3 py-2 hover:bg-slate-50 border-b border-slate-50 transition-colors">
                     <p className="font-normal text-slate-800 text-xs leading-tight">{m["Customer name"]}</p>
                   </button>
-                )) : (<div className="px-3 py-2 text-[10px] text-slate-400 bg-slate-50 italic">Walk-In: "{custSearch}"</div>)}
+                )) : (<div className="px-3 py-2 text-[10px] text-slate-400 bg-slate-50 italic">Dine-in: "{custSearch}"</div>)}
               </div>
             )}
           </div>
@@ -379,11 +377,17 @@ export default function POS() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {openTickets.map(ticket => (
                       <button key={ticket.id} onClick={() => loadTicket(ticket)} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-[#FC687D]/30 transition-all text-left flex flex-col gap-2 group relative overflow-hidden">
+                         
+                         {/* FIX: Notes (Table #) swapped to top */}
                          <div className="flex justify-between items-start">
-                           <span className="font-normal text-sm text-slate-800">{ticket.customer_name}</span>
-                           <span className="text-[10px] font-normal uppercase tracking-widest text-emerald-500 bg-emerald-50 px-2 py-1 rounded-md">₱{parseFloat(ticket.total_amount || 0).toLocaleString()}</span>
+                           <span className="font-normal text-sm text-slate-800 line-clamp-1">{ticket.notes || ticket.order_type}</span>
+                           <span className="text-[10px] font-normal uppercase tracking-widest text-emerald-500 bg-emerald-50 px-2 py-1 rounded-md flex-shrink-0 ml-2">₱{parseFloat(ticket.total_amount || 0).toLocaleString()}</span>
                          </div>
-                         <p className="text-[11px] text-slate-400 font-normal line-clamp-1">{ticket.notes || "No notes"}</p>
+                         
+                         {/* FIX: Customer name swapped to bottom, with legacy support for displaying "Walk-in" as "Dine-in" */}
+                         <p className="text-[11px] text-slate-400 font-normal line-clamp-1">
+                           {ticket.customer_name === "Walk-in" ? "Dine-in" : ticket.customer_name}
+                         </p>
                          
                          <div className="mt-1 flex items-center justify-between">
                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded">{ticket.order_type}</span>
