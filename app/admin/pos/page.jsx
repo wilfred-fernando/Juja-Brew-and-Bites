@@ -61,6 +61,9 @@ export default function POS() {
   const damt  = sub*disc/100;
   const total = sub-damt;
 
+  // Helper for 2 decimal places
+  const formatMoney = (amount) => Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   const handleChargeClick = () => {
     if(!cart.length) return;
     setAmountTendered(total.toString());
@@ -79,10 +82,11 @@ export default function POS() {
 
     Order.create({
       customer_name: cname || "Walk-in",
-      customer_email:"", customer_phone:"",
+      customer_email: "", 
+      customer_phone: "",
       items: cart.map(e=>({id:e.id,name:e.name,price:e.price,quantity:e.qty,subtotal:e.price*e.qty})),
       total_amount: total, 
-      status: isPaid ? "Confirmed" : "Open",
+      status: isPaid ? "Confirmed" : "Pending", // Changed to "Pending" to avoid database enum rejection
       payment_status: isPaid ? "Paid" : "Unpaid",
       order_type: orderType, 
       notes: np.join(" | "),
@@ -96,7 +100,10 @@ export default function POS() {
       }); 
       clear(); 
     })
-    .catch(()=>alert("Order failed. Try again."))
+    .catch((err) => {
+      console.error("Save Error:", err);
+      alert("Order failed. Details: " + (err.message || JSON.stringify(err)));
+    })
     .finally(()=>setBusy(false));
   };
 
@@ -124,7 +131,6 @@ export default function POS() {
               <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"></path></svg>
             </button>
             
-            {/* Category Dropdown (Loyverse Format) */}
             <select value={cat} onChange={e=>setCat(e.target.value)} className="bg-transparent font-bold text-slate-800 text-sm md:text-base focus:outline-none cursor-pointer max-w-[150px] md:max-w-xs truncate">
               <option value="ALL">All items</option>
               {cats.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
@@ -141,7 +147,7 @@ export default function POS() {
           </div>
         </div>
 
-        {/* Loyverse List Layout */}
+        {/* List Layout */}
         <div className="flex-1 overflow-y-auto hide-scrollbar pb-24 lg:pb-0">
           <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-none divide-slate-100 p-0 md:p-3 md:gap-3">
             {filtered.map(item=>{
@@ -150,7 +156,6 @@ export default function POS() {
                 <button key={item.id} onClick={()=>add(item)} 
                   className="flex items-center p-4 md:rounded-xl md:border md:border-slate-100 hover:bg-slate-50 active:bg-slate-100 transition-colors text-left w-full relative overflow-hidden group">
                   
-                  {/* Left Square Image Placeholder */}
                   <div className="w-12 h-12 md:w-14 md:h-14 bg-[#FFF5F7] rounded-lg border border-rose-50 flex items-center justify-center flex-shrink-0 mr-4 relative">
                     {item.image_url ? (
                        <img src={item.image_url} alt={item.name} className="w-full h-full object-cover rounded-lg" />
@@ -158,7 +163,6 @@ export default function POS() {
                        <span className="text-xl opacity-50">📷</span>
                     )}
                     
-                    {/* Badge Overlay */}
                     {qty>0 && (
                       <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#FC687D] flex items-center justify-center text-xs font-black text-white shadow-sm animate-in zoom-in">
                         {qty}
@@ -166,15 +170,13 @@ export default function POS() {
                     )}
                   </div>
                   
-                  {/* Item Details */}
                   <div className="flex-1 min-w-0 pr-4">
                     <p className="text-slate-800 font-semibold text-sm md:text-base truncate leading-tight">{item.name}</p>
                     <p className="text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-widest mt-1">{item.category}</p>
                   </div>
                   
-                  {/* Price */}
                   <div className="font-black text-slate-800 text-sm md:text-base">
-                    ₱{item.price}
+                    ₱{formatMoney(item.price)}
                   </div>
                 </button>
               );
@@ -231,19 +233,27 @@ export default function POS() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            {["Takeout", "Grab | Panda", "VIP Room", "Table"].map(t => (
-              <button key={t} onClick={() => setOrderType(t)}
-                className={`py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all active:scale-95 border ${orderType === t ? "bg-slate-800 text-white border-slate-800 shadow-sm" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"}`}>
-                {t}
-              </button>
-            ))}
-          </div>
+          {/* UPDATED: Dropdown for Dining Options */}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <select 
+                value={orderType} 
+                onChange={e=>setOrderType(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-3 pr-8 py-2.5 text-xs font-bold text-slate-700 uppercase tracking-widest focus:outline-none focus:border-[#FC687D] transition-all appearance-none cursor-pointer"
+              >
+                <option value="Table">Table</option>
+                <option value="VIP Room">VIP Room</option>
+                <option value="Takeout">Takeout</option>
+                <option value="Grab | Panda">Grab | Panda</option>
+              </select>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[10px]">▼</span>
+            </div>
 
-          {(orderType === "VIP Room" || orderType === "Table") && (
-            <input value={tableNum} onChange={e=>setTableNum(e.target.value)} placeholder={`Enter ${orderType} Number...`}
-              className="mt-2 w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-xs font-semibold focus:outline-none focus:border-[#FC687D] transition-all text-center" />
-          )}
+            {(orderType === "VIP Room" || orderType === "Table") && (
+              <input value={tableNum} onChange={e=>setTableNum(e.target.value)} placeholder={`#`}
+                className="w-16 bg-slate-50 border border-slate-200 rounded-lg px-2 py-2.5 text-xs font-bold focus:outline-none focus:border-[#FC687D] transition-all text-center" />
+            )}
+          </div>
         </div>
 
         {/* Cart/Ticket Items */}
@@ -265,13 +275,34 @@ export default function POS() {
                         <span className="w-6 text-center font-black text-slate-800 text-xs">{item.qty}</span>
                         <button onClick={()=>upd(item.id,1)} className="w-8 h-7 flex items-center justify-center text-slate-500 font-black hover:text-emerald-500 hover:bg-emerald-50 rounded-r active:bg-emerald-100">+</button>
                       </div>
-                      <span className="text-slate-400 font-semibold text-[10px]">₱{item.price} each</span>
+                      <span className="text-slate-400 font-semibold text-[10px]">₱{formatMoney(item.price)} each</span>
                     </div>
                   </div>
                   <div className="font-black text-slate-800 text-sm">
-                    ₱{(item.price*item.qty).toLocaleString()}
+                    ₱{formatMoney(item.price * item.qty)}
                   </div>
                 </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Discount Bar */}
+        <div className="flex-shrink-0 bg-slate-50 border-t border-slate-200">
+          <button onClick={()=>setShowDisc(!showDisc)} className="w-full flex justify-between items-center px-4 lg:px-5 py-3 hover:bg-slate-100 active:bg-slate-200 transition-colors">
+            <span className="font-bold text-xs text-slate-500 uppercase tracking-widest">Discount {disc>0 ? `(${disc}%)` : ""}</span>
+            <span className="text-rose-500 font-bold text-sm">{damt > 0 ? `-₱${formatMoney(damt)}` : "Add >"}</span>
+          </button>
+          
+          {showDisc && (
+            <div className="flex gap-2 px-4 lg:px-5 pb-4">
+              {[0,5,10,15,20].map(d=>(
+                <button key={d} onClick={()=>{setDisc(d);setShowDisc(false);}} 
+                  className={`flex-1 py-2.5 rounded-lg font-bold text-xs transition-all active:scale-95 border ${
+                    disc===d ? "bg-[#FC687D] text-white border-[#FC687D] shadow-md" : "bg-white text-slate-600 border-slate-300"
+                  }`}>
+                  {d===0?"None":d+"%"}
+                </button>
               ))}
             </div>
           )}
@@ -289,18 +320,17 @@ export default function POS() {
               className="flex-[1.5] py-4 rounded-xl font-black text-sm text-white transition-all active:scale-95 flex flex-col items-center justify-center shadow-md disabled:opacity-50 disabled:shadow-none"
               style={{ backgroundColor: cart.length ? "#10b981" : "#cbd5e1" }}>
               <span className="text-[10px] uppercase tracking-widest opacity-90 -mb-0.5">CHARGE</span>
-              <span>₱{total.toLocaleString()}</span>
+              <span>₱{formatMoney(total)}</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* ─── PAYMENT MODAL (Screenshot 1005 style) ─── */}
+      {/* ─── PAYMENT MODAL ─── */}
       {showPaymentModal && (
         <div className="fixed inset-0 z-[200] bg-slate-900/80 backdrop-blur-sm flex flex-col pt-10 pb-safe px-4 animate-in fade-in duration-200">
           <div className="w-full max-w-md mx-auto bg-[#1a1a1a] rounded-3xl overflow-hidden flex flex-col flex-1 max-h-[800px] shadow-2xl border border-slate-800">
             
-            {/* Header */}
             <div className="flex items-center px-4 py-4 border-b border-slate-800 relative">
               <button onClick={() => setShowPaymentModal(false)} className="text-white p-2">
                 <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
@@ -308,22 +338,19 @@ export default function POS() {
               <h2 className="absolute left-1/2 -translate-x-1/2 font-bold text-xs uppercase tracking-widest text-slate-400">SPLIT</h2>
             </div>
 
-            {/* Total Display */}
             <div className="py-8 text-center border-b border-slate-800">
-              <h1 className="font-black text-4xl text-white tracking-tight mb-2">₱{total.toLocaleString()}</h1>
+              <h1 className="font-black text-4xl text-white tracking-tight mb-2">₱{formatMoney(total)}</h1>
               <p className="font-semibold text-sm text-slate-400">Total amount due</p>
             </div>
 
-            {/* Cash Input */}
             <div className="px-6 py-6">
               <label className="block text-xs font-bold text-emerald-500 mb-2">Cash received</label>
               <input 
-                type="number" value={amountTendered} onChange={e=>setAmountTendered(e.target.value)}
+                type="number" step="0.01" value={amountTendered} onChange={e=>setAmountTendered(e.target.value)}
                 className="w-full bg-transparent border-b border-slate-600 text-white font-black text-xl py-2 focus:outline-none focus:border-emerald-500 transition-colors"
               />
             </div>
 
-            {/* Stacked Payment Buttons */}
             <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-3 hide-scrollbar">
               {[
                 { id: "CASH", icon: "💵" },
@@ -359,19 +386,19 @@ export default function POS() {
               {receipt.cart.map(item=>(
                 <div key={item.id} className="flex justify-between items-start mb-3 text-xs lg:text-sm">
                   <span className="font-semibold text-slate-600 flex-1 pr-4">{item.name} <span className="text-slate-400 text-[10px] lg:text-xs ml-1">x{item.qty}</span></span>
-                  <span className="font-black text-slate-800">₱{(item.price*item.qty).toLocaleString()}</span>
+                  <span className="font-black text-slate-800">₱{formatMoney(item.price * item.qty)}</span>
                 </div>
               ))}
               
               <div className="border-t border-slate-200 pt-4 mt-4 space-y-2">
                 <div className="flex justify-between font-black text-lg text-slate-800 pt-1">
                   <span>{receipt.isPaid ? "Total Paid" : "Balance Due"}</span>
-                  <span>₱{receipt.total.toLocaleString()}</span>
+                  <span>₱{formatMoney(receipt.total)}</span>
                 </div>
                 {receipt.isPaid && receipt.method === "CASH" && (
                   <div className="flex justify-between text-xs font-bold text-emerald-500">
                     <span>Change</span>
-                    <span>₱{receipt.change > 0 ? receipt.change.toFixed(2) : "0.00"}</span>
+                    <span>₱{formatMoney(receipt.change)}</span>
                   </div>
                 )}
               </div>
