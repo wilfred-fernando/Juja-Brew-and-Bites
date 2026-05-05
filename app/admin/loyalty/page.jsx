@@ -20,14 +20,25 @@ export default function LoyaltyAdminPage() {
     fetchMembers();
   }, []);
 
-  async function fetchMembers() {
+ async function fetchMembers() {
     setLoading(true);
+    
+    // Fetch everything without strict database ordering to prevent column errors
     const { data, error } = await supabase
       .from("loyalty_members")
-      .select("*")
-      .order("points_balance", { ascending: false }); // Show top members first
+      .select("*");
 
-    if (!error && data) setMembers(data);
+    if (error) {
+      console.error("Supabase Error Fetching Members:", error);
+      alert("Supabase Error: " + error.message); // This will pop up if RLS is blocking you!
+    } else if (data) {
+      // Sort the data safely in JavaScript instead
+      const sortedData = data.sort((a, b) => 
+        (parseFloat(b.points_balance) || 0) - (parseFloat(a.points_balance) || 0)
+      );
+      setMembers(sortedData);
+    }
+    
     setLoading(false);
   }
 
