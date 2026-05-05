@@ -121,7 +121,6 @@ export default function LoyaltyAdminPage() {
               <div className="flex gap-4 md:gap-6">
                 <div className="text-center md:text-right">
                   <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Points</p>
-                  {/* Updated: Displays up to 2 decimal places */}
                   <p className="text-[#FC687D] font-black text-base md:text-lg leading-none">
                     {Number(member["Points balance"] || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                   </p>
@@ -134,7 +133,6 @@ export default function LoyaltyAdminPage() {
               </div>
 
               <div className="flex items-center gap-1.5 md:gap-2">
-                {/* Updated: Button now says "Edit" */}
                 <button onClick={() => openModal(member)} className="px-3 md:px-4 py-2 bg-slate-50 border border-slate-100 text-[10px] md:text-xs font-black text-slate-500 hover:text-[#FC687D] hover:bg-rose-50 hover:border-rose-100 rounded-lg md:rounded-xl transition-all active:scale-95">
                   Edit
                 </button>
@@ -162,7 +160,6 @@ export default function LoyaltyAdminPage() {
 
             <div className="flex justify-between items-start mb-6">
               <div>
-                {/* Updated: Header now says "Edit Member" */}
                 <h3 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">Edit Member</h3>
                 <p className="font-mono text-[10px] font-bold text-slate-400 mt-1">{editingMember["Customer code"]}</p>
               </div>
@@ -183,10 +180,21 @@ export default function LoyaltyAdminPage() {
                 <input type="text" value={form["Phone"]} onChange={e => setForm({...form, "Phone": e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs md:text-sm font-semibold focus:bg-white focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" />
               </div>
               
+              {/* READ-ONLY VISIT DATES */}
+              <div className="grid grid-cols-2 gap-3 md:gap-4">
+                <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100">
+                  <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">First Visit</label>
+                  <p className="text-[11px] md:text-xs font-semibold text-slate-600 truncate">{editingMember["First visit"] || "N/A"}</p>
+                </div>
+                <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100">
+                  <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Last Visit</label>
+                  <p className="text-[11px] md:text-xs font-semibold text-slate-600 truncate">{editingMember["Last visit"] || "N/A"}</p>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-3 md:gap-4">
                 <div className="bg-[#FFF9FA] p-3 md:p-4 rounded-xl border border-rose-100">
                   <label className="block text-[10px] font-black uppercase tracking-widest text-[#FC687D] mb-2">Points Balance</label>
-                  {/* Updated: step="0.01" to accept 2 decimal places */}
                   <input type="number" step="0.01" required value={form["Points balance"]} onChange={e => setForm({...form, "Points balance": e.target.value})} className="w-full bg-white border border-rose-200 rounded-lg px-3 py-2 text-sm font-black text-slate-800 focus:outline-none focus:border-[#FC687D] transition-all text-center" />
                 </div>
                 <div className="bg-slate-50 p-3 md:p-4 rounded-xl border border-slate-100">
