@@ -18,6 +18,11 @@ export default function MenuAdminPage() {
     name: "", category: "", price: "", description: "", 
     image_url: "", is_available: true, is_featured: false 
   });
+  
+  // --- NEW: VARIANT STATE ---
+  const [optionGroups, setOptionGroups] = useState([]);
+  const hasVariants = optionGroups.length > 0;
+  
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -44,22 +49,33 @@ export default function MenuAdminPage() {
         description: item.description || "", image_url: item.image_url || "",
         is_available: item.is_available !== false, is_featured: item.is_featured || false
       });
+      // Load existing variants if they exist
+      setOptionGroups(item.variants || []);
     } else {
       setEditingItem(null);
       setForm({ 
         name: "", category: categories.length > 0 ? categories[0].name : "", 
         price: "", description: "", image_url: "", is_available: true, is_featured: false 
       });
+      setOptionGroups([]);
     }
     setIsModalOpen(true);
   };
 
   const handleSave = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     setSaving(true);
     try {
-      if (editingItem) await supabase.from("menu_items").update(form).eq("id", editingItem.id);
-      else await supabase.from("menu_items").insert([form]);
+      // Merge variants into the save payload and force price to 0 if variants exist
+      const finalPayload = {
+        ...form,
+        price: hasVariants ? 0 : form.price,
+        variants: optionGroups
+      };
+
+      if (editingItem) await supabase.from("menu_items").update(finalPayload).eq("id", editingItem.id);
+      else await supabase.from("menu_items").insert([finalPayload]);
+      
       await fetchData(); 
       setIsModalOpen(false);
     } catch (error) { alert("Error saving item: " + error.message); }
@@ -72,6 +88,23 @@ export default function MenuAdminPage() {
     fetchData();
   };
 
+  // --- VARIANT HANDLERS ---
+  const addOptionGroup = () => {
+    setOptionGroups([
+      ...optionGroups,
+      { id: Date.now(), name: "", isRequired: false, isMultiSelect: false, options: [{ id: Date.now() + 1, name: "", priceAdjustment: 0 }] }
+    ]);
+    setModalTab("Option Groups");
+  };
+
+  const removeOptionGroup = (groupId) => setOptionGroups(optionGroups.filter(g => g.id !== groupId));
+  const updateOptionGroup = (groupId, field, value) => setOptionGroups(optionGroups.map(g => g.id === groupId ? { ...g, [field]: value } : g));
+  
+  const addOption = (groupId) => setOptionGroups(optionGroups.map(g => g.id === groupId ? { ...g, options: [...g.options, { id: Date.now(), name: "", priceAdjustment: 0 }] } : g));
+  const removeOption = (groupId, optionId) => setOptionGroups(optionGroups.map(g => g.id === groupId ? { ...g, options: g.options.filter(o => o.id !== optionId) } : g));
+  const updateOption = (groupId, optionId, field, value) => setOptionGroups(optionGroups.map(g => g.id === groupId ? { ...g, options: g.options.map(o => o.id === optionId ? { ...o, [field]: value } : o) } : g));
+
+
   const filteredItems = items
     .filter(i => catFilter === "All" || i.category === catFilter)
     .filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
@@ -81,7 +114,7 @@ export default function MenuAdminPage() {
   return (
     <div 
       className="max-w-7xl mx-auto animate-in fade-in duration-500 pb-24 px-3 md:px-8"
-      style={{ fontFamily: "'Abadi', sans-serif" }} /* Applying Abadi Font Globally */
+      style={{ fontFamily: "'Abadi', sans-serif" }}
     >
       
       {/* HEADER */}
@@ -116,7 +149,6 @@ export default function MenuAdminPage() {
         {/* RESPONSIVE CATEGORY NAVIGATION */}
         <div className="w-full lg:w-72 flex-shrink-0">
           
-          {/* Desktop Search (Hidden on Mobile) */}
           <div className="hidden lg:block relative mb-6">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
             <input 
@@ -125,7 +157,6 @@ export default function MenuAdminPage() {
             />
           </div>
           
-          {/* Categories */}
           <div className="flex lg:flex-col overflow-x-auto lg:overflow-visible hide-scrollbar gap-2 lg:gap-1 pb-2 lg:pb-0 -mx-3 px-3 lg:mx-0 lg:px-0 lg:bg-white lg:p-2 lg:rounded-2xl lg:border lg:border-slate-100 lg:shadow-sm">
             <h3 className="hidden lg:block text-[10px] font-normal uppercase text-slate-400 px-3 pt-2 pb-2">Categories</h3>
             
@@ -172,9 +203,13 @@ export default function MenuAdminPage() {
                   )}
                 </div>
                 <div>
-                  <h3 className="font-normal text-slate-800 text-sm md:text-base mb-0.5 leading-tight">{item.name}</h3>
+                  <h3 className="font-normal text-slate-800 text-sm md:text-base mb-0.5 leading-tight">
+                    {item.name} {item.variants?.length > 0 && <span className="ml-1 text-[10px] text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded uppercase font-bold">Variants</span>}
+                  </h3>
                   <div className="flex items-center gap-2">
-                    <span className="font-normal text-[#FC687D] text-xs md:text-sm">₱{item.price}</span>
+                    <span className="font-normal text-[#FC687D] text-xs md:text-sm">
+                      {item.variants?.length > 0 ? "Variable Price" : `₱${item.price}`}
+                    </span>
                     <span className="text-slate-200 text-[10px]">•</span>
                     <span className="text-[9px] md:text-[10px] font-normal uppercase text-slate-400">{item.category}</span>
                   </div>
@@ -209,108 +244,181 @@ export default function MenuAdminPage() {
         </div>
       </div>
 
-      {/* LUXURY MODAL (Reduced borders & padding for Mobile) */}
+      {/* LUXURY MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 transition-all duration-300" onClick={() => setIsModalOpen(false)}>
-          <div className="bg-white w-full max-w-2xl rounded-t-[20px] md:rounded-[24px] p-5 md:p-8 shadow-2xl animate-in slide-in-from-bottom-full md:slide-in-from-bottom-10 md:zoom-in-95 duration-300 max-h-[85vh] overflow-y-auto hide-scrollbar" onClick={e => e.stopPropagation()}>
+          <div className="bg-white w-full max-w-2xl rounded-t-[20px] md:rounded-[24px] p-5 md:p-8 shadow-2xl animate-in slide-in-from-bottom-full md:slide-in-from-bottom-10 md:zoom-in-95 duration-300 max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
             
-            <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4 md:hidden" />
+            <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4 md:hidden flex-shrink-0" />
 
-            <div className="flex justify-between items-center mb-5 md:mb-6">
-              <h3 className="text-xl md:text-2xl font-normal text-slate-800" >{editingItem ? "Edit Item" : "New Item"}</h3>
-              <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90">
+            <div className="flex justify-between items-center mb-5 md:mb-6 flex-shrink-0">
+              <h3 className="text-xl md:text-2xl font-bold text-slate-800" >{editingItem ? "Edit Item" : "New Item"}</h3>
+              <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90 font-bold">
                 ✕
               </button>
             </div>
 
             {/* Premium Tabs */}
-            <div className="flex gap-1 md:gap-2 mb-5 md:mb-6 bg-slate-50 p-1 rounded-xl w-fit border border-slate-100">
-              <button onClick={() => setModalTab("Details")} className={`px-4 md:px-5 py-2 rounded-lg text-[10px] md:text-xs font-normal uppercase flex items-center gap-1.5 transition-all duration-300 ${modalTab === "Details" ? "bg-white text-slate-800 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"}`}>
-                <span className="text-xs md:text-sm">📄</span> Details
+            <div className="flex gap-1 md:gap-2 mb-5 md:mb-6 bg-slate-50 p-1 rounded-xl w-fit border border-slate-100 flex-shrink-0">
+              <button onClick={() => setModalTab("Details")} className={`px-4 md:px-5 py-2 rounded-lg text-[10px] md:text-xs font-bold flex items-center gap-1.5 transition-all duration-300 ${modalTab === "Details" ? "bg-rose-50 text-[#FC687D] shadow-sm border border-rose-100" : "text-slate-500 hover:bg-slate-100"}`}>
+                <span className="text-xs md:text-sm">📝</span> Details
               </button>
-              <button onClick={() => setModalTab("Option Groups")} className={`px-4 md:px-5 py-2 rounded-lg text-[10px] md:text-xs font-normal uppercase flex items-center gap-1.5 transition-all duration-300 ${modalTab === "Option Groups" ? "bg-white text-[#FC687D] shadow-sm border border-rose-100" : "text-slate-400 hover:text-slate-600"}`}>
-                <span className="text-xs md:text-sm">⚙️</span> Options
+              <button onClick={() => setModalTab("Option Groups")} className={`px-4 md:px-5 py-2 rounded-lg text-[10px] md:text-xs font-bold flex items-center gap-1.5 transition-all duration-300 ${modalTab === "Option Groups" ? "bg-rose-50 text-[#FC687D] shadow-sm border border-rose-100" : "text-slate-500 hover:bg-slate-100"}`}>
+                <span className="text-xs md:text-sm">⚙️</span> Option Groups {hasVariants && `(${optionGroups.length})`}
               </button>
             </div>
             
-            {modalTab === "Details" ? (
-              <form onSubmit={handleSave} className="space-y-4 md:space-y-5">
-                <div>
-                  <label className="block text-[10px] font-normal uppercase text-slate-400 mb-1.5 ml-1">Item Name *</label>
-                  <input type="text" required value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm font-semibold focus:bg-white focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-3 md:gap-5">
+            <div className="flex-1 overflow-y-auto hide-scrollbar -mx-2 px-2 pb-4">
+              {modalTab === "Details" ? (
+                <form id="item-form" onSubmit={handleSave} className="space-y-4 md:space-y-5 animate-in fade-in duration-200">
                   <div>
-                    <label className="block text-[10px] font-normal uppercase text-slate-400 mb-1.5 ml-1">Price (₱) *</label>
-                    <input type="number" step="0.01" required value={form.price} onChange={e => setForm({...form, price: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm font-semibold focus:bg-white focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" />
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Item Name *</label>
+                    <input type="text" required value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" />
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-normal uppercase text-slate-400 mb-1.5 ml-1">Category *</label>
-                    <select required value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm font-semibold focus:bg-white focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all appearance-none">
-                      <option value="">— Select Category —</option>
-                      {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-normal uppercase text-slate-400 mb-1.5 ml-1">Description</label>
-                  <textarea rows="2" value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm font-semibold focus:bg-white focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all resize-none" />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-normal uppercase text-slate-400 mb-1.5 ml-1">Image URL</label>
-                  <input type="url" value={form.image_url} onChange={e => setForm({...form, image_url: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm font-semibold focus:bg-white focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all text-slate-500" />
-                </div>
-
-                <div className="flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-6 bg-slate-50 p-3 md:p-4 rounded-xl border border-slate-100">
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <div className="relative flex items-center justify-center">
-                      <input type="checkbox" checked={form.is_available} onChange={e => setForm({...form, is_available: e.target.checked})} className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-[#FC687D] checked:bg-[#FC687D] transition-all cursor-pointer" />
-                      <span className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xs font-bold">✓</span>
-                    </div>
-                    <span className="text-xs md:text-sm font-normal text-slate-700">Available to Order</span>
-                  </label>
                   
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <div className="relative flex items-center justify-center">
-                      <input type="checkbox" checked={form.is_featured} onChange={e => setForm({...form, is_featured: e.target.checked})} className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-[#FC687D] checked:bg-[#FC687D] transition-all cursor-pointer" />
-                      <span className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xs font-bold">✓</span>
+                  <div className="grid grid-cols-2 gap-3 md:gap-5">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Category *</label>
+                      <select required value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all appearance-none cursor-pointer">
+                        <option value="">— Select Category —</option>
+                        {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      </select>
                     </div>
-                    <span className="text-xs md:text-sm font-normal text-slate-700">Featured Item ⭐️</span>
-                  </label>
-                </div>
 
-                <div className="grid grid-cols-2 gap-3 pt-4 mt-4 border-t border-slate-100">
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-3 md:py-3.5 rounded-xl bg-white border border-slate-200 text-slate-500 font-normal uppercase text-[10px] md:text-xs hover:bg-slate-50 transition-all active:scale-95">
-                    Cancel
-                  </button>
-                  <button type="submit" disabled={saving} className="w-full py-3 md:py-3.5 rounded-xl bg-[#FC687D] text-white font-normal uppercase text-[10px] md:text-xs hover:bg-rose-500 transition-all shadow-sm disabled:opacity-70 active:scale-95">
-                    {saving ? "Saving..." : "Save Changes"}
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div className="flex flex-col h-full animate-in fade-in duration-300 pb-2">
-                <p className="text-xs text-slate-500 mb-4 font-medium leading-relaxed">
-                  Add option groups like size, flavor, or add-ons.
-                </p>
-                
-                <button type="button" className="w-full py-4 border border-dashed border-rose-200 text-[#FC687D] font-normal uppercase text-[10px] md:text-xs rounded-xl hover:bg-rose-50 transition-all mb-6 active:scale-95">
-                  + Add Option Group
-                </button>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Price (₱) *</label>
+                      <input 
+                        type="number" step="0.01" 
+                        required={!hasVariants} 
+                        disabled={hasVariants}
+                        value={hasVariants ? "0" : form.price} 
+                        onChange={e => setForm({...form, price: e.target.value})} 
+                        className={`w-full rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm transition-all ${
+                          hasVariants 
+                            ? "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed" 
+                            : "bg-white border border-slate-200 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100"
+                        }`} 
+                      />
+                      {hasVariants && <p className="text-[10px] text-slate-500 mt-1.5 ml-1 leading-tight">Price derived from variants because Option Groups are added.</p>}
+                    </div>
+                  </div>
 
-                <div className="grid grid-cols-2 gap-3 pt-4 mt-auto border-t border-slate-100">
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-3 md:py-3.5 rounded-xl bg-white border border-slate-200 text-slate-500 font-normal uppercase text-[10px] md:text-xs hover:bg-slate-50 transition-all active:scale-95">
-                    Cancel
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Description</label>
+                    <textarea rows="2" value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all resize-none" />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Product Image</label>
+                    <button type="button" className="w-full py-5 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 font-medium text-xs transition flex flex-col items-center gap-1.5">
+                      <span className="text-lg">↑</span>
+                      Upload Image
+                    </button>
+                    <input type="url" placeholder="Or paste Image URL here" value={form.image_url} onChange={e => setForm({...form, image_url: e.target.value})} className="w-full mt-2 bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-[#FC687D] transition-all text-slate-500" />
+                  </div>
+
+                  <button type="button" onClick={addOptionGroup} className="w-full py-3.5 bg-slate-500 hover:bg-slate-600 text-white rounded-xl font-bold text-xs transition-colors mt-2 active:scale-95 shadow-sm">
+                    Add Variant Option Group
                   </button>
-                  <button onClick={handleSave} disabled={saving} className="w-full py-3 md:py-3.5 rounded-xl bg-[#FC687D] text-white font-normal uppercase text-[10px] md:text-xs hover:bg-rose-500 transition-all shadow-sm disabled:opacity-70 active:scale-95">
-                    {saving ? "Saving..." : "Save Changes"}
+
+                  <div className="flex flex-col md:flex-row items-start md:items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <div className="relative flex items-center justify-center">
+                        <input type="checkbox" checked={form.is_available} onChange={e => setForm({...form, is_available: e.target.checked})} className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-[#FC687D] checked:bg-[#FC687D] transition-all cursor-pointer" />
+                        <span className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xs font-bold">✓</span>
+                      </div>
+                      <span className="text-xs md:text-sm font-medium text-slate-700">Available to Order</span>
+                    </label>
+                    
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <div className="relative flex items-center justify-center">
+                        <input type="checkbox" checked={form.is_featured} onChange={e => setForm({...form, is_featured: e.target.checked})} className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-[#FC687D] checked:bg-[#FC687D] transition-all cursor-pointer" />
+                        <span className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xs font-bold">✓</span>
+                      </div>
+                      <span className="text-xs md:text-sm font-medium text-slate-700">Featured Item ⭐️</span>
+                    </label>
+                  </div>
+                </form>
+              ) : (
+                <div className="flex flex-col h-full animate-in fade-in duration-300 pb-2">
+                  <p className="text-xs text-slate-500 mb-5 font-medium leading-relaxed px-1">
+                    Add option groups like size, flavor, or add-ons that customers can choose from.
+                  </p>
+
+                  <div className="space-y-4 mb-6">
+                    {optionGroups.map((group) => (
+                      <div key={group.id} className="border border-rose-100 rounded-2xl p-4 md:p-5 bg-white shadow-[0_2px_10px_rgba(252,104,125,0.05)]">
+                        
+                        {/* Group Header Row */}
+                        <div className="flex flex-wrap lg:flex-nowrap gap-3 items-center mb-4 pb-4 border-b border-slate-50">
+                          <input
+                            placeholder="Group name (e.g. Size, Flavor)"
+                            value={group.name}
+                            onChange={(e) => updateOptionGroup(group.id, "name", e.target.value)}
+                            className="flex-1 min-w-[140px] border border-slate-200 rounded-xl p-2.5 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] transition"
+                          />
+                          <label className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-600 font-medium cursor-pointer">
+                            <input type="checkbox" checked={group.isRequired} onChange={(e) => updateOptionGroup(group.id, "isRequired", e.target.checked)} className="w-3.5 h-3.5 accent-[#FC687D] cursor-pointer" />
+                            Required
+                          </label>
+                          <label className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-600 font-medium cursor-pointer">
+                            <input type="checkbox" checked={group.isMultiSelect} onChange={(e) => updateOptionGroup(group.id, "isMultiSelect", e.target.checked)} className="w-3.5 h-3.5 accent-[#FC687D] cursor-pointer" />
+                            Multi-select
+                          </label>
+                          <button onClick={() => removeOptionGroup(group.id)} className="text-red-400 hover:text-red-600 px-1 font-bold text-base transition-colors ml-auto lg:ml-2">✕</button>
+                        </div>
+
+                        {/* Options List */}
+                        <div className="space-y-3 pl-2 md:pl-4 border-l-2 border-slate-100 ml-1">
+                          {group.options.map((opt) => (
+                            <div key={opt.id} className="flex gap-2 md:gap-3 items-center">
+                              <input
+                                placeholder="Option name"
+                                value={opt.name}
+                                onChange={(e) => updateOption(group.id, opt.id, "name", e.target.value)}
+                                className="flex-1 border border-slate-200 rounded-xl p-2 md:p-2.5 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] transition"
+                              />
+                              <input
+                                type="number"
+                                placeholder="0"
+                                value={opt.priceAdjustment}
+                                onChange={(e) => updateOption(group.id, opt.id, "priceAdjustment", e.target.value)}
+                                className="w-20 md:w-24 border border-slate-200 rounded-xl p-2 md:p-2.5 text-xs md:text-sm text-center focus:outline-none focus:border-[#FC687D] transition"
+                              />
+                              <button onClick={() => removeOption(group.id, opt.id)} className="text-red-300 hover:text-red-500 font-bold px-1 transition-colors text-base">✕</button>
+                            </div>
+                          ))}
+                          <button onClick={() => addOption(group.id)} className="text-[#FC687D] font-bold text-[10px] md:text-xs mt-2 hover:underline flex items-center gap-1">
+                            + Add Option
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button onClick={addOptionGroup} className="w-full py-3.5 md:py-4 border-2 border-dashed border-slate-200 text-[#FC687D] font-bold text-xs rounded-xl hover:bg-rose-50 hover:border-rose-200 transition-all mt-auto active:scale-95">
+                    + Add Option Group
                   </button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+
+            <div className="pt-4 mt-4 border-t border-slate-100 flex-shrink-0">
+               {hasVariants && modalTab === "Option Groups" && (
+                 <p className="text-center font-bold text-[11px] md:text-xs text-slate-800 mb-3 bg-slate-50 py-2 rounded-lg">
+                   Price derived from Option Groups. Save or Update to reflect.
+                 </p>
+               )}
+               <div className="grid grid-cols-2 gap-3">
+                 <button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-3 md:py-3.5 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs hover:bg-slate-200 transition-all active:scale-95">
+                   Cancel
+                 </button>
+                 <button onClick={handleSave} form="item-form" disabled={saving} className="w-full py-3 md:py-3.5 rounded-xl bg-[#FC687D] text-white font-bold text-xs hover:bg-rose-500 transition-all shadow-md shadow-rose-200 disabled:opacity-70 active:scale-95">
+                   {saving ? "Saving..." : "Save Changes"}
+                 </button>
+               </div>
+            </div>
+
           </div>
         </div>
       )}
