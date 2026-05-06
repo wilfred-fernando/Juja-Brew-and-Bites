@@ -154,21 +154,39 @@ export default function MenuAdminPage() {
         </div>
       </header>
 
-      {/* SEARCH BAR (Mobile Full Width) */}
-      <div className="relative mb-4 lg:hidden">
-        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
-        <input 
-          type="text" placeholder="Search menu..." value={search} onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-100 rounded-xl text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all shadow-sm"
-        />
+      {/* SEARCH BAR & CATEGORY DROPDOWN (Mobile Only) */}
+      <div className="lg:hidden flex flex-col gap-3 mb-6">
+        <div className="relative">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
+          <input 
+            type="text" placeholder="Search menu..." value={search} onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-100 rounded-xl text-xs focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all shadow-sm"
+          />
+        </div>
+        
+        {/* NEW: Mobile Category Dropdown */}
+        <div className="relative">
+          <select
+            value={catFilter}
+            onChange={(e) => setCatFilter(e.target.value)}
+            className="w-full bg-white border border-slate-100 rounded-xl px-4 py-3 text-xs font-semibold text-slate-700 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all shadow-sm"
+          >
+            <option value="All">All Items ({items.length})</option>
+            {categories.map(cat => (
+              <option key={cat.id} value={cat.name}>
+                {cat.name} ({items.filter(i => i.category === cat.name).length})
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 md:gap-8">
         
-        {/* RESPONSIVE CATEGORY NAVIGATION */}
-        <div className="w-full lg:w-72 flex-shrink-0">
+        {/* RESPONSIVE CATEGORY NAVIGATION (Desktop) */}
+        <div className="hidden lg:block w-72 flex-shrink-0">
           
-          <div className="hidden lg:block relative mb-6">
+          <div className="relative mb-6">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
             <input 
               type="text" placeholder="Search menu..." value={search} onChange={(e) => setSearch(e.target.value)}
@@ -176,30 +194,31 @@ export default function MenuAdminPage() {
             />
           </div>
           
-          <div className="flex lg:flex-col overflow-x-auto lg:overflow-visible hide-scrollbar gap-2 lg:gap-1 pb-2 lg:pb-0 -mx-3 px-3 lg:mx-0 lg:px-0 lg:bg-white lg:p-2 lg:rounded-2xl lg:border lg:border-slate-100 lg:shadow-sm">
-            <h3 className="hidden lg:block text-[10px] font-normal uppercase text-slate-400 px-3 pt-2 pb-2">Categories</h3>
+          <div className="flex flex-col bg-white p-2 rounded-2xl border border-slate-100 shadow-sm gap-1">
+            <h3 className="text-[10px] font-normal uppercase text-slate-400 px-3 pt-2 pb-2">Categories</h3>
             
             <button 
               onClick={() => setCatFilter("All")}
-              className={`flex-shrink-0 lg:w-full flex items-center justify-between px-4 lg:px-3 py-2.5 lg:py-2.5 rounded-xl text-[10px] lg:text-xs font-normal uppercase transition-all duration-300 active:scale-95 ${
-                catFilter === "All" ? "bg-slate-800 text-white shadow-sm" : "bg-white lg:bg-transparent text-slate-500 hover:bg-slate-50 border border-slate-100 lg:border-transparent"
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-normal uppercase transition-all duration-300 active:scale-95 ${
+                catFilter === "All" ? "bg-slate-800 text-white shadow-sm" : "bg-transparent text-slate-500 hover:bg-slate-50 border-transparent"
               }`}
             >
-              <span>All Items</span>
-              <span className={`hidden lg:flex px-2 py-0.5 rounded-full text-[9px] ${catFilter === "All" ? "bg-white/20" : "bg-slate-100"}`}>{items.length}</span>
+              <span className="text-left break-words whitespace-normal leading-tight pr-2">All Items</span>
+              <span className={`flex-shrink-0 flex px-2 py-0.5 rounded-full text-[9px] ${catFilter === "All" ? "bg-white/20" : "bg-slate-100"}`}>{items.length}</span>
             </button>
             
             {categories.map(cat => (
               <button 
                 key={cat.id} onClick={() => setCatFilter(cat.name)}
-                className={`flex-shrink-0 lg:w-full flex items-center justify-between px-4 lg:px-3 py-2.5 lg:py-2.5 rounded-xl text-[10px] lg:text-xs font-normal uppercase transition-all duration-300 active:scale-95 ${
-                  catFilter === cat.name ? "bg-[#FC687D] text-white shadow-sm shadow-rose-200" : "bg-white lg:bg-transparent text-slate-500 hover:bg-slate-50 border border-slate-100 lg:border-transparent"
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-normal uppercase transition-all duration-300 active:scale-95 ${
+                  catFilter === cat.name ? "bg-[#FC687D] text-white shadow-sm shadow-rose-200" : "bg-transparent text-slate-500 hover:bg-slate-50 border-transparent"
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <span className="whitespace-nowrap lg:truncate max-w-[130px]">{cat.name}</span>
+                {/* FIX: Removed truncation, added text wrapping for full category names */}
+                <div className="flex items-center gap-2 pr-2">
+                  <span className="text-left break-words whitespace-normal leading-tight">{cat.name}</span>
                 </div>
-                <span className={`hidden lg:flex px-2 py-0.5 rounded-full text-[9px] ${catFilter === cat.name ? "bg-white/20" : "bg-slate-100"}`}>
+                <span className={`flex-shrink-0 flex px-2 py-0.5 rounded-full text-[9px] ${catFilter === cat.name ? "bg-white/20" : "bg-slate-100"}`}>
                   {items.filter(i => i.category === cat.name).length}
                 </span>
               </button>
