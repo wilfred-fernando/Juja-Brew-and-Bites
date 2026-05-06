@@ -10,20 +10,22 @@ export default function MenuAdminPage() {
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("All");
 
+  // Item Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalTab, setModalTab] = useState("Details");
   const [editingItem, setEditingItem] = useState(null);
-  
   const [form, setForm] = useState({ 
     name: "", category: "", price: "", description: "", 
     image_url: "", is_available: true, is_featured: false 
   });
-  
-  // --- NEW: VARIANT STATE ---
   const [optionGroups, setOptionGroups] = useState([]);
   const hasVariants = optionGroups.length > 0;
-  
   const [saving, setSaving] = useState(false);
+
+  // Category Modal State
+  const [isCatModalOpen, setIsCatModalOpen] = useState(false);
+  const [catForm, setCatForm] = useState({ name: "", sort_order: 1, is_active: true });
+  const [catSaving, setCatSaving] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -40,6 +42,7 @@ export default function MenuAdminPage() {
     setLoading(false);
   }
 
+  // --- ITEM HANDLERS ---
   const openModal = (item = null) => {
     setModalTab("Details"); 
     if (item) {
@@ -49,7 +52,6 @@ export default function MenuAdminPage() {
         description: item.description || "", image_url: item.image_url || "",
         is_available: item.is_available !== false, is_featured: item.is_featured || false
       });
-      // Load existing variants if they exist
       setOptionGroups(item.variants || []);
     } else {
       setEditingItem(null);
@@ -66,7 +68,6 @@ export default function MenuAdminPage() {
     if (e && e.preventDefault) e.preventDefault();
     setSaving(true);
     try {
-      // Merge variants into the save payload and force price to 0 if variants exist
       const finalPayload = {
         ...form,
         price: hasVariants ? 0 : form.price,
@@ -99,10 +100,28 @@ export default function MenuAdminPage() {
 
   const removeOptionGroup = (groupId) => setOptionGroups(optionGroups.filter(g => g.id !== groupId));
   const updateOptionGroup = (groupId, field, value) => setOptionGroups(optionGroups.map(g => g.id === groupId ? { ...g, [field]: value } : g));
-  
   const addOption = (groupId) => setOptionGroups(optionGroups.map(g => g.id === groupId ? { ...g, options: [...g.options, { id: Date.now(), name: "", priceAdjustment: 0 }] } : g));
   const removeOption = (groupId, optionId) => setOptionGroups(optionGroups.map(g => g.id === groupId ? { ...g, options: g.options.filter(o => o.id !== optionId) } : g));
   const updateOption = (groupId, optionId, field, value) => setOptionGroups(optionGroups.map(g => g.id === groupId ? { ...g, options: g.options.map(o => o.id === optionId ? { ...o, [field]: value } : o) } : g));
+
+  // --- CATEGORY HANDLERS ---
+  const openCategoryModal = () => {
+    setCatForm({ name: "", sort_order: categories.length + 1, is_active: true });
+    setIsCatModalOpen(true);
+  };
+
+  const handleCategorySave = async (e) => {
+    e.preventDefault();
+    setCatSaving(true);
+    try {
+      await supabase.from("menu_categories").insert([catForm]);
+      await fetchData();
+      setIsCatModalOpen(false);
+    } catch (error) {
+      alert("Error saving category: " + error.message);
+    }
+    setCatSaving(false);
+  };
 
 
   const filteredItems = items
@@ -129,7 +148,7 @@ export default function MenuAdminPage() {
           <button onClick={() => openModal()} className="flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3.5 bg-[#FC687D] text-white text-[11px] md:text-sm font-normal uppercase rounded-xl md:rounded-2xl hover:bg-rose-500 transition-all shadow-[0_4px_15px_rgba(252,104,125,0.25)] hover:-translate-y-0.5 active:scale-95">
             + Add Item
           </button>
-          <button className="flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3.5 bg-white border border-rose-100 text-[#FC687D] text-[11px] md:text-sm font-normal uppercase rounded-xl md:rounded-2xl hover:bg-rose-50 transition-all shadow-sm active:scale-95">
+          <button onClick={openCategoryModal} className="flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3.5 bg-white border border-rose-100 text-[#FC687D] text-[11px] md:text-sm font-normal uppercase rounded-xl md:rounded-2xl hover:bg-rose-50 transition-all shadow-sm active:scale-95">
             + Category
           </button>
         </div>
@@ -178,7 +197,6 @@ export default function MenuAdminPage() {
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-sm lg:text-base">{cat.icon}</span> 
                   <span className="whitespace-nowrap lg:truncate max-w-[130px]">{cat.name}</span>
                 </div>
                 <span className={`hidden lg:flex px-2 py-0.5 rounded-full text-[9px] ${catFilter === cat.name ? "bg-white/20" : "bg-slate-100"}`}>
@@ -244,7 +262,64 @@ export default function MenuAdminPage() {
         </div>
       </div>
 
-      {/* LUXURY MODAL */}
+      {/* ─── ADD CATEGORY MODAL ─── */}
+      {isCatModalOpen && (
+        <div className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 transition-all duration-300" onClick={() => setIsCatModalOpen(false)}>
+          <div className="bg-white w-full max-w-md rounded-[24px] p-6 md:p-8 shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl md:text-2xl font-bold text-slate-800">Add Category</h3>
+              <button onClick={() => setIsCatModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90 font-bold">
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCategorySave} className="space-y-5">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Category Name *</label>
+                <input 
+                  type="text" required placeholder="e.g. Rice Meals" 
+                  value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} 
+                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" 
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Sort Order</label>
+                <input 
+                  type="number" required 
+                  value={catForm.sort_order} onChange={e => setCatForm({...catForm, sort_order: parseInt(e.target.value) || 0})} 
+                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" 
+                />
+              </div>
+
+              <div className="pt-2">
+                <label className="flex items-center gap-3 cursor-pointer group w-fit">
+                  <div className="relative flex items-center justify-center">
+                    <input 
+                      type="checkbox" checked={catForm.is_active} onChange={e => setCatForm({...catForm, is_active: e.target.checked})} 
+                      className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-[#FC687D] checked:bg-[#FC687D] transition-all cursor-pointer" 
+                    />
+                    <span className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xs font-bold">✓</span>
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">Active / Visible</span>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-4 mt-2 border-t border-slate-100">
+                <button type="button" onClick={() => setIsCatModalOpen(false)} className="w-full py-3.5 rounded-xl bg-slate-50 text-slate-600 font-bold text-xs hover:bg-slate-100 transition-all active:scale-95">
+                  Cancel
+                </button>
+                <button type="submit" disabled={catSaving} className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-bold text-xs hover:bg-rose-500 transition-all shadow-md shadow-rose-200 disabled:opacity-70 active:scale-95">
+                  {catSaving ? "Saving..." : "Add Category"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── ADD/EDIT ITEM MODAL ─── */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 transition-all duration-300" onClick={() => setIsModalOpen(false)}>
           <div className="bg-white w-full max-w-2xl rounded-t-[20px] md:rounded-[24px] p-5 md:p-8 shadow-2xl animate-in slide-in-from-bottom-full md:slide-in-from-bottom-10 md:zoom-in-95 duration-300 max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
@@ -365,7 +440,7 @@ export default function MenuAdminPage() {
                             <input type="checkbox" checked={group.isMultiSelect} onChange={(e) => updateOptionGroup(group.id, "isMultiSelect", e.target.checked)} className="w-3.5 h-3.5 accent-[#FC687D] cursor-pointer" />
                             Multi-select
                           </label>
-                          <button onClick={() => removeOptionGroup(group.id)} className="text-red-400 hover:text-red-600 px-1 font-bold text-base transition-colors ml-auto lg:ml-2">✕</button>
+                          <button type="button" onClick={() => removeOptionGroup(group.id)} className="text-red-400 hover:text-red-600 px-1 font-bold text-base transition-colors ml-auto lg:ml-2">✕</button>
                         </div>
 
                         {/* Options List */}
@@ -385,10 +460,10 @@ export default function MenuAdminPage() {
                                 onChange={(e) => updateOption(group.id, opt.id, "priceAdjustment", e.target.value)}
                                 className="w-20 md:w-24 border border-slate-200 rounded-xl p-2 md:p-2.5 text-xs md:text-sm text-center focus:outline-none focus:border-[#FC687D] transition"
                               />
-                              <button onClick={() => removeOption(group.id, opt.id)} className="text-red-300 hover:text-red-500 font-bold px-1 transition-colors text-base">✕</button>
+                              <button type="button" onClick={() => removeOption(group.id, opt.id)} className="text-red-300 hover:text-red-500 font-bold px-1 transition-colors text-base">✕</button>
                             </div>
                           ))}
-                          <button onClick={() => addOption(group.id)} className="text-[#FC687D] font-bold text-[10px] md:text-xs mt-2 hover:underline flex items-center gap-1">
+                          <button type="button" onClick={() => addOption(group.id)} className="text-[#FC687D] font-bold text-[10px] md:text-xs mt-2 hover:underline flex items-center gap-1">
                             + Add Option
                           </button>
                         </div>
@@ -396,7 +471,7 @@ export default function MenuAdminPage() {
                     ))}
                   </div>
 
-                  <button onClick={addOptionGroup} className="w-full py-3.5 md:py-4 border-2 border-dashed border-slate-200 text-[#FC687D] font-bold text-xs rounded-xl hover:bg-rose-50 hover:border-rose-200 transition-all mt-auto active:scale-95">
+                  <button type="button" onClick={addOptionGroup} className="w-full py-3.5 md:py-4 border-2 border-dashed border-slate-200 text-[#FC687D] font-bold text-xs rounded-xl hover:bg-rose-50 hover:border-rose-200 transition-all mt-auto active:scale-95">
                     + Add Option Group
                   </button>
                 </div>
