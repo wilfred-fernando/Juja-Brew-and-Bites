@@ -66,27 +66,50 @@ export default function MenuAdminPage() {
 
   const handleSave = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
+    
+    // 1. Manual Validation (Since tabs hide the native HTML form)
+    if (!form.name.trim() || !form.category || (!hasVariants && form.price === "")) {
+      alert("Please ensure Name, Category, and Price are filled out.");
+      return;
+    }
+
     setSaving(true);
     try {
       const finalPayload = {
         ...form,
-        price: hasVariants ? 0 : form.price,
+        price: hasVariants ? 0 : parseFloat(form.price) || 0,
         variants: optionGroups
       };
 
-      if (editingItem) await supabase.from("menu_items").update(finalPayload).eq("id", editingItem.id);
-      else await supabase.from("menu_items").insert([finalPayload]);
+      let responseError = null;
+
+      // 2. Strict Error Catching from Supabase
+      if (editingItem) {
+        const { error } = await supabase.from("menu_items").update(finalPayload).eq("id", editingItem.id);
+        responseError = error;
+      } else {
+        const { error } = await supabase.from("menu_items").insert([finalPayload]);
+        responseError = error;
+      }
+      
+      // If Supabase rejected the payload, throw it instantly so we can see it
+      if (responseError) throw responseError;
       
       await fetchData(); 
       setIsModalOpen(false);
-    } catch (error) { alert("Error saving item: " + error.message); }
-    setSaving(false);
+    } catch (error) { 
+      console.error("Save Error:", error);
+      alert("Error saving item: " + (error.message || JSON.stringify(error))); 
+    } finally {
+      setSaving(false);
+    }
   }
 
   const handleDelete = async (id) => {
     if (!confirm("Are you sure you want to delete this item?")) return;
-    await supabase.from("menu_items").delete().eq("id", id);
-    fetchData();
+    const { error } = await supabase.from("menu_items").delete().eq("id", id);
+    if (error) alert("Error deleting item: " + error.message);
+    else fetchData();
   };
 
   // --- VARIANT HANDLERS ---
@@ -112,15 +135,25 @@ export default function MenuAdminPage() {
 
   const handleCategorySave = async (e) => {
     e.preventDefault();
+    
+    if (!catForm.name.trim()) {
+      alert("Category name is required.");
+      return;
+    }
+
     setCatSaving(true);
     try {
-      await supabase.from("menu_categories").insert([catForm]);
+      const { error } = await supabase.from("menu_categories").insert([catForm]);
+      if (error) throw error;
+      
       await fetchData();
       setIsCatModalOpen(false);
     } catch (error) {
+      console.error("Category Save Error:", error);
       alert("Error saving category: " + error.message);
+    } finally {
+      setCatSaving(false);
     }
-    setCatSaving(false);
   };
 
 
@@ -362,7 +395,7 @@ export default function MenuAdminPage() {
             
             <div className="flex-1 overflow-y-auto hide-scrollbar -mx-2 px-2 pb-4">
               {modalTab === "Details" ? (
-                <form id="item-form" onSubmit={handleSave} className="space-y-4 md:space-y-5 animate-in fade-in duration-200">
+                <div className="space-y-4 md:space-y-5 animate-in fade-in duration-200">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Item Name *</label>
                     <input type="text" required value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" />
@@ -400,7 +433,6 @@ export default function MenuAdminPage() {
                     <textarea rows="2" value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all resize-none" />
                   </div>
 
-                  {/* FIX: Replaced Upload Button with simple URL input matching the form style */}
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Product Image URL</label>
                     <input 
@@ -433,7 +465,7 @@ export default function MenuAdminPage() {
                       <span className="text-xs md:text-sm font-medium text-slate-700">Featured Item ⭐️</span>
                     </label>
                   </div>
-                </form>
+                </div>
               ) : (
                 <div className="flex flex-col h-full animate-in fade-in duration-300 pb-2">
                   <p className="text-xs text-slate-500 mb-5 font-medium leading-relaxed px-1">
@@ -508,7 +540,7 @@ export default function MenuAdminPage() {
                  <button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-3 md:py-3.5 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs hover:bg-slate-200 transition-all active:scale-95">
                    Cancel
                  </button>
-                 <button onClick={handleSave} form="item-form" disabled={saving} className="w-full py-3 md:py-3.5 rounded-xl bg-[#FC687D] text-white font-bold text-xs hover:bg-rose-500 transition-all shadow-md shadow-rose-200 disabled:opacity-70 active:scale-95">
+                 <button type="button" onClick={handleSave} disabled={saving} className="w-full py-3 md:py-3.5 rounded-xl bg-[#FC687D] text-white font-bold text-xs hover:bg-rose-500 transition-all shadow-md shadow-rose-200 disabled:opacity-70 active:scale-95">
                    {saving ? "Saving..." : "Save Changes"}
                  </button>
                </div>
