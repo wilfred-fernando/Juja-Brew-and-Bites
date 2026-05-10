@@ -28,6 +28,11 @@ export default function MenuAdminPage() {
   const [catForm, setCatForm] = useState({ name: "", sort_order: 1, is_active: true });
   const [catSaving, setCatSaving] = useState(false);
 
+  // --- NEW: Custom Delete Modal State ---
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [categoryToDelete, setCategoryToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -102,11 +107,39 @@ export default function MenuAdminPage() {
     }
   }
 
-  const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to delete this item?")) return;
-    const { error } = await supabase.from("menu_items").delete().eq("id", id);
-    if (error) alert("Error deleting item: " + error.message);
-    else fetchData();
+  // --- NEW: Custom Delete Handlers ---
+  const confirmDeleteItem = (item) => setItemToDelete(item);
+  
+  const executeDeleteItem = async () => {
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.from("menu_items").delete().eq("id", itemToDelete.id);
+      if (error) throw error;
+      await fetchData();
+      setItemToDelete(null);
+    } catch (err) {
+      alert("Error deleting item: " + err.message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const confirmDeleteCategory = (cat) => setCategoryToDelete(cat);
+
+  const executeDeleteCategory = async () => {
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.from("menu_categories").delete().eq("id", categoryToDelete.id);
+      if (error) throw error;
+      
+      if (catFilter === categoryToDelete.name) setCatFilter("All");
+      await fetchData();
+      setCategoryToDelete(null);
+    } catch (err) {
+      alert("Error deleting category: " + err.message);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // --- VARIANT HANDLERS ---
@@ -143,17 +176,14 @@ export default function MenuAdminPage() {
     setCatSaving(true);
     try {
       if (editingCategory) {
-        // Update Category
         const { error } = await supabase.from("menu_categories").update(catForm).eq("id", editingCategory.id);
         if (error) throw error;
         
-        // If name changed, update all linked items so they don't break
         if (editingCategory.name !== catForm.name) {
           await supabase.from("menu_items").update({ category: catForm.name }).eq("category", editingCategory.name);
           if (catFilter === editingCategory.name) setCatFilter(catForm.name);
         }
       } else {
-        // Insert New Category
         const { error } = await supabase.from("menu_categories").insert([catForm]);
         if (error) throw error;
       }
@@ -165,19 +195,6 @@ export default function MenuAdminPage() {
       alert("Error saving category: " + error.message);
     } finally {
       setCatSaving(false);
-    }
-  };
-
-  const handleDeleteCategory = async (cat) => {
-    if (!confirm(`Delete category "${cat.name}"? Items inside this category will NOT be deleted, but they will lose their category filter.`)) return;
-    try {
-      const { error } = await supabase.from("menu_categories").delete().eq("id", cat.id);
-      if (error) throw error;
-      
-      if (catFilter === cat.name) setCatFilter("All");
-      await fetchData();
-    } catch (err) {
-      alert("Error deleting category: " + err.message);
     }
   };
 
@@ -238,13 +255,13 @@ export default function MenuAdminPage() {
             </select>
           </div>
           
-          {/* Mobile Category Edit/Delete (visible when a category is selected) */}
+          {/* Mobile Category Edit/Delete */}
           {catFilter !== "All" && (
             <div className="flex gap-2 flex-shrink-0 animate-in fade-in duration-200">
               <button onClick={() => openCategoryModal(categories.find(c => c.name === catFilter))} className="w-11 h-11 flex items-center justify-center bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-[#FC687D] hover:bg-rose-50 transition-colors shadow-sm text-sm">
                 ✎
               </button>
-              <button onClick={() => handleDeleteCategory(categories.find(c => c.name === catFilter))} className="w-11 h-11 flex items-center justify-center bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors shadow-sm text-sm">
+              <button onClick={() => confirmDeleteCategory(categories.find(c => c.name === catFilter))} className="w-11 h-11 flex items-center justify-center bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors shadow-sm text-sm">
                 🗑
               </button>
             </div>
@@ -297,7 +314,7 @@ export default function MenuAdminPage() {
                 {/* Desktop Category Edit/Delete Hover Menu */}
                 <div className="absolute right-2 opacity-0 group-hover:opacity-100 flex items-center gap-1.5 transition-opacity bg-white/90 backdrop-blur-sm p-1 rounded-lg shadow-sm border border-slate-100 pointer-events-none group-hover:pointer-events-auto">
                   <button onClick={(e) => { e.stopPropagation(); openCategoryModal(cat); }} className="w-6 h-6 flex items-center justify-center bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-[#FC687D] rounded-md text-[11px] transition-colors">✎</button>
-                  <button onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat); }} className="w-6 h-6 flex items-center justify-center bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-md text-[11px] transition-colors">🗑</button>
+                  <button onClick={(e) => { e.stopPropagation(); confirmDeleteCategory(cat); }} className="w-6 h-6 flex items-center justify-center bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-md text-[11px] transition-colors">🗑</button>
                 </div>
               </div>
             ))}
@@ -343,7 +360,8 @@ export default function MenuAdminPage() {
                   <button onClick={() => openModal(item)} className="px-3 md:px-4 py-1.5 md:py-2 bg-slate-50 border border-slate-100 text-[10px] md:text-xs font-normal text-slate-500 hover:text-[#FC687D] hover:bg-rose-50 rounded-lg md:rounded-xl transition-all active:scale-90">
                     ✎
                   </button>
-                  <button onClick={() => handleDelete(item.id)} className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center bg-slate-50 border border-slate-100 text-[10px] md:text-xs text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg md:rounded-xl transition-all active:scale-90">
+                  {/* FIX: Trigger Custom Modal Instead of Browser Alert */}
+                  <button onClick={() => confirmDeleteItem(item)} className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center bg-slate-50 border border-slate-100 text-[10px] md:text-xs text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg md:rounded-xl transition-all active:scale-90">
                     🗑
                   </button>
                 </div>
@@ -358,6 +376,44 @@ export default function MenuAdminPage() {
           )}
         </div>
       </div>
+
+      {/* ─── CUSTOM DELETE MODALS ─── */}
+      {(itemToDelete || categoryToDelete) && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 transition-all duration-300">
+          <div className="bg-white w-full max-w-sm rounded-[24px] p-6 md:p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 shadow-sm border border-red-100">
+              🗑️
+            </div>
+            
+            <h3 className="text-xl font-bold text-slate-800 text-center mb-2">
+              Delete {itemToDelete ? "Item" : "Category"}?
+            </h3>
+            
+            <p className="text-sm text-slate-500 text-center mb-6 leading-relaxed">
+              {itemToDelete 
+                ? `Are you sure you want to permanently delete "${itemToDelete.name}"? This action cannot be undone.`
+                : `Are you sure you want to delete "${categoryToDelete.name}"? Items inside this category will NOT be deleted, but they will lose their category filter.`}
+            </p>
+            
+            <div className="flex gap-3 w-full">
+              <button 
+                onClick={() => { setItemToDelete(null); setCategoryToDelete(null); }} 
+                className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors text-xs uppercase"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={itemToDelete ? executeDeleteItem : executeDeleteCategory}
+                disabled={isDeleting}
+                className="flex-1 py-3.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl shadow-md shadow-red-200 transition-colors disabled:opacity-70 text-xs uppercase active:scale-95"
+              >
+                {isDeleting ? "Deleting..." : "Yes, Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── ADD/EDIT CATEGORY MODAL ─── */}
       {isCatModalOpen && (
