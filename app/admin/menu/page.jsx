@@ -24,6 +24,7 @@ export default function MenuAdminPage() {
 
   // Category Modal State
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
   const [catForm, setCatForm] = useState({ name: "", sort_order: 1, is_active: true });
   const [catSaving, setCatSaving] = useState(false);
 
@@ -67,7 +68,6 @@ export default function MenuAdminPage() {
   const handleSave = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     
-    // 1. Manual Validation (Since tabs hide the native HTML form)
     if (!form.name.trim() || !form.category || (!hasVariants && form.price === "")) {
       alert("Please ensure Name, Category, and Price are filled out.");
       return;
@@ -82,8 +82,6 @@ export default function MenuAdminPage() {
       };
 
       let responseError = null;
-
-      // 2. Strict Error Catching from Supabase
       if (editingItem) {
         const { error } = await supabase.from("menu_items").update(finalPayload).eq("id", editingItem.id);
         responseError = error;
@@ -92,7 +90,6 @@ export default function MenuAdminPage() {
         responseError = error;
       }
       
-      // If Supabase rejected the payload, throw it instantly so we can see it
       if (responseError) throw responseError;
       
       await fetchData(); 
@@ -128,23 +125,38 @@ export default function MenuAdminPage() {
   const updateOption = (groupId, optionId, field, value) => setOptionGroups(optionGroups.map(g => g.id === groupId ? { ...g, options: g.options.map(o => o.id === optionId ? { ...o, [field]: value } : o) } : g));
 
   // --- CATEGORY HANDLERS ---
-  const openCategoryModal = () => {
-    setCatForm({ name: "", sort_order: categories.length + 1, is_active: true });
+  const openCategoryModal = (cat = null) => {
+    if (cat) {
+      setEditingCategory(cat);
+      setCatForm({ name: cat.name, sort_order: cat.sort_order, is_active: cat.is_active });
+    } else {
+      setEditingCategory(null);
+      setCatForm({ name: "", sort_order: categories.length + 1, is_active: true });
+    }
     setIsCatModalOpen(true);
   };
 
   const handleCategorySave = async (e) => {
     e.preventDefault();
+    if (!catForm.name.trim()) return alert("Category name is required.");
     
-    if (!catForm.name.trim()) {
-      alert("Category name is required.");
-      return;
-    }
-
     setCatSaving(true);
     try {
-      const { error } = await supabase.from("menu_categories").insert([catForm]);
-      if (error) throw error;
+      if (editingCategory) {
+        // Update Category
+        const { error } = await supabase.from("menu_categories").update(catForm).eq("id", editingCategory.id);
+        if (error) throw error;
+        
+        // If name changed, update all linked items so they don't break
+        if (editingCategory.name !== catForm.name) {
+          await supabase.from("menu_items").update({ category: catForm.name }).eq("category", editingCategory.name);
+          if (catFilter === editingCategory.name) setCatFilter(catForm.name);
+        }
+      } else {
+        // Insert New Category
+        const { error } = await supabase.from("menu_categories").insert([catForm]);
+        if (error) throw error;
+      }
       
       await fetchData();
       setIsCatModalOpen(false);
@@ -153,6 +165,19 @@ export default function MenuAdminPage() {
       alert("Error saving category: " + error.message);
     } finally {
       setCatSaving(false);
+    }
+  };
+
+  const handleDeleteCategory = async (cat) => {
+    if (!confirm(`Delete category "${cat.name}"? Items inside this category will NOT be deleted, but they will lose their category filter.`)) return;
+    try {
+      const { error } = await supabase.from("menu_categories").delete().eq("id", cat.id);
+      if (error) throw error;
+      
+      if (catFilter === cat.name) setCatFilter("All");
+      await fetchData();
+    } catch (err) {
+      alert("Error deleting category: " + err.message);
     }
   };
 
@@ -181,7 +206,7 @@ export default function MenuAdminPage() {
           <button onClick={() => openModal()} className="flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3.5 bg-[#FC687D] text-white text-[11px] md:text-sm font-normal uppercase rounded-xl md:rounded-2xl hover:bg-rose-500 transition-all shadow-[0_4px_15px_rgba(252,104,125,0.25)] hover:-translate-y-0.5 active:scale-95">
             + Add Item
           </button>
-          <button onClick={openCategoryModal} className="flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3.5 bg-white border border-rose-100 text-[#FC687D] text-[11px] md:text-sm font-normal uppercase rounded-xl md:rounded-2xl hover:bg-rose-50 transition-all shadow-sm active:scale-95">
+          <button onClick={() => openCategoryModal()} className="flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3.5 bg-white border border-rose-100 text-[#FC687D] text-[11px] md:text-sm font-normal uppercase rounded-xl md:rounded-2xl hover:bg-rose-50 transition-all shadow-sm active:scale-95">
             + Category
           </button>
         </div>
@@ -197,19 +222,33 @@ export default function MenuAdminPage() {
           />
         </div>
         
-        <div className="relative">
-          <select
-            value={catFilter}
-            onChange={(e) => setCatFilter(e.target.value)}
-            className="w-full bg-white border border-slate-100 rounded-xl px-4 py-3 text-xs font-semibold text-slate-700 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all shadow-sm"
-          >
-            <option value="All">All Items ({items.length})</option>
-            {categories.map(cat => (
-              <option key={cat.id} value={cat.name}>
-                {cat.name} ({items.filter(i => i.category === cat.name).length})
-              </option>
-            ))}
-          </select>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <select
+              value={catFilter}
+              onChange={(e) => setCatFilter(e.target.value)}
+              className="w-full h-full bg-white border border-slate-100 rounded-xl px-4 py-3 text-xs font-semibold text-slate-700 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all shadow-sm"
+            >
+              <option value="All">All Items ({items.length})</option>
+              {categories.map(cat => (
+                <option key={cat.id} value={cat.name}>
+                  {cat.name} ({items.filter(i => i.category === cat.name).length})
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          {/* Mobile Category Edit/Delete (visible when a category is selected) */}
+          {catFilter !== "All" && (
+            <div className="flex gap-2 flex-shrink-0 animate-in fade-in duration-200">
+              <button onClick={() => openCategoryModal(categories.find(c => c.name === catFilter))} className="w-11 h-11 flex items-center justify-center bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-[#FC687D] hover:bg-rose-50 transition-colors shadow-sm text-sm">
+                ✎
+              </button>
+              <button onClick={() => handleDeleteCategory(categories.find(c => c.name === catFilter))} className="w-11 h-11 flex items-center justify-center bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors shadow-sm text-sm">
+                🗑
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -240,19 +279,27 @@ export default function MenuAdminPage() {
             </button>
             
             {categories.map(cat => (
-              <button 
-                key={cat.id} onClick={() => setCatFilter(cat.name)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-normal uppercase transition-all duration-300 active:scale-95 ${
-                  catFilter === cat.name ? "bg-[#FC687D] text-white shadow-sm shadow-rose-200" : "bg-transparent text-slate-500 hover:bg-slate-50 border-transparent"
-                }`}
-              >
-                <div className="flex items-center gap-2 pr-2">
-                  <span className="text-left break-words whitespace-normal leading-tight">{cat.name}</span>
+              <div key={cat.id} className="relative group w-full flex items-center">
+                <button 
+                  onClick={() => setCatFilter(cat.name)}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-normal uppercase transition-all duration-300 active:scale-95 ${
+                    catFilter === cat.name ? "bg-[#FC687D] text-white shadow-sm shadow-rose-200" : "bg-transparent text-slate-500 hover:bg-slate-50 border-transparent"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 pr-2">
+                    <span className="text-left break-words whitespace-normal leading-tight">{cat.name}</span>
+                  </div>
+                  <span className={`flex-shrink-0 flex px-2 py-0.5 rounded-full text-[9px] ${catFilter === cat.name ? "bg-white/20" : "bg-slate-100"}`}>
+                    {items.filter(i => i.category === cat.name).length}
+                  </span>
+                </button>
+                
+                {/* Desktop Category Edit/Delete Hover Menu */}
+                <div className="absolute right-2 opacity-0 group-hover:opacity-100 flex items-center gap-1.5 transition-opacity bg-white/90 backdrop-blur-sm p-1 rounded-lg shadow-sm border border-slate-100 pointer-events-none group-hover:pointer-events-auto">
+                  <button onClick={(e) => { e.stopPropagation(); openCategoryModal(cat); }} className="w-6 h-6 flex items-center justify-center bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-[#FC687D] rounded-md text-[11px] transition-colors">✎</button>
+                  <button onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat); }} className="w-6 h-6 flex items-center justify-center bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-md text-[11px] transition-colors">🗑</button>
                 </div>
-                <span className={`flex-shrink-0 flex px-2 py-0.5 rounded-full text-[9px] ${catFilter === cat.name ? "bg-white/20" : "bg-slate-100"}`}>
-                  {items.filter(i => i.category === cat.name).length}
-                </span>
-              </button>
+              </div>
             ))}
           </div>
         </div>
@@ -312,13 +359,15 @@ export default function MenuAdminPage() {
         </div>
       </div>
 
-      {/* ─── ADD CATEGORY MODAL ─── */}
+      {/* ─── ADD/EDIT CATEGORY MODAL ─── */}
       {isCatModalOpen && (
         <div className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 transition-all duration-300" onClick={() => setIsCatModalOpen(false)}>
           <div className="bg-white w-full max-w-md rounded-[24px] p-6 md:p-8 shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl md:text-2xl font-bold text-slate-800">Add Category</h3>
+              <h3 className="text-xl md:text-2xl font-bold text-slate-800">
+                {editingCategory ? "Edit Category" : "Add Category"}
+              </h3>
               <button onClick={() => setIsCatModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90 font-bold">
                 ✕
               </button>
@@ -361,7 +410,7 @@ export default function MenuAdminPage() {
                   Cancel
                 </button>
                 <button type="submit" disabled={catSaving} className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-bold text-xs hover:bg-rose-500 transition-all shadow-md shadow-rose-200 disabled:opacity-70 active:scale-95">
-                  {catSaving ? "Saving..." : "Add Category"}
+                  {catSaving ? "Saving..." : (editingCategory ? "Update Category" : "Add Category")}
                 </button>
               </div>
             </form>
@@ -395,7 +444,7 @@ export default function MenuAdminPage() {
             
             <div className="flex-1 overflow-y-auto hide-scrollbar -mx-2 px-2 pb-4">
               {modalTab === "Details" ? (
-                <div className="space-y-4 md:space-y-5 animate-in fade-in duration-200">
+                <form id="item-form" onSubmit={handleSave} className="space-y-4 md:space-y-5 animate-in fade-in duration-200">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Item Name *</label>
                     <input type="text" required value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" />
@@ -465,7 +514,7 @@ export default function MenuAdminPage() {
                       <span className="text-xs md:text-sm font-medium text-slate-700">Featured Item ⭐️</span>
                     </label>
                   </div>
-                </div>
+                </form>
               ) : (
                 <div className="flex flex-col h-full animate-in fade-in duration-300 pb-2">
                   <p className="text-xs text-slate-500 mb-5 font-medium leading-relaxed px-1">
@@ -540,7 +589,7 @@ export default function MenuAdminPage() {
                  <button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-3 md:py-3.5 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs hover:bg-slate-200 transition-all active:scale-95">
                    Cancel
                  </button>
-                 <button type="button" onClick={handleSave} disabled={saving} className="w-full py-3 md:py-3.5 rounded-xl bg-[#FC687D] text-white font-bold text-xs hover:bg-rose-500 transition-all shadow-md shadow-rose-200 disabled:opacity-70 active:scale-95">
+                 <button onClick={handleSave} form="item-form" disabled={saving} className="w-full py-3 md:py-3.5 rounded-xl bg-[#FC687D] text-white font-bold text-xs hover:bg-rose-500 transition-all shadow-md shadow-rose-200 disabled:opacity-70 active:scale-95">
                    {saving ? "Saving..." : "Save Changes"}
                  </button>
                </div>
