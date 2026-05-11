@@ -238,22 +238,30 @@ export default function POSPage() {
                </div>
              )}
            </div>
-           {/* DYNAMIC ORDER TYPE TOGGLE */}
-           <div className="flex flex-wrap gap-2 bg-slate-100 p-2 rounded-xl mb-4">
-             {diningOptions.map((option) => (
-               <button
-                 key={option.id}
-                 onClick={() => setOrderType(option.name)}
-                 className={`flex-1 min-w-[100px] py-2 px-3 text-xs sm:text-sm font-bold rounded-lg transition-all ${
-                   orderType === option.name 
-                     ? "bg-[#FC687D] text-white shadow-sm" 
-                     : "bg-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
-                 }`}
-               >
-                 {option.name}
-               </button>
-             ))}
-           </div>
+
+          {/* DYNAMIC ORDER TYPE DROPDOWN */}
+          <div className="mb-4">
+            <div className="relative">
+              <select
+                value={orderType}
+                onChange={(e) => setOrderType(e.target.value)}
+                className="w-full appearance-none bg-slate-100 border-2 border-transparent text-slate-700 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-[#FC687D] focus:bg-white transition-all cursor-pointer"
+              >
+                {diningOptions.map((option) => (
+                  <option key={option.id} value={option.name}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+              {/* Custom Dropdown Arrow */}
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
+                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                  <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
         <div className="flex-1 overflow-y-auto p-4 space-y-3 hide-scrollbar">
            {cart.length === 0 ? (
              <div className="h-full flex items-center justify-center opacity-10 text-[10px] uppercase font-semibold">Empty Ticket</div>
