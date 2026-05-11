@@ -252,7 +252,7 @@ export default function POSPage() {
       {option.name}
     </button>
   ))}
-
+</div>
         <div className="flex-1 overflow-y-auto p-4 space-y-3 hide-scrollbar">
            {cart.length === 0 ? (
              <div className="h-full flex items-center justify-center opacity-10 text-[10px] uppercase font-semibold">Empty Ticket</div>
@@ -283,5 +283,5 @@ export default function POSPage() {
       {selectedItemForModal && <AddToCartModal item={selectedItemForModal} onClose={() => setSelectedItemForModal(null)} onAddToCart={(d) => { setCart([...cart, d]); setSelectedItemForModal(null); setMobileCartOpen(true); }} />}
       {confirmClear && <ConfirmModal title="Empty Ticket?" message="This will remove all items currently added to this ticket." onConfirm={() => { setCart([]); setAttachedCustomer(null); setConfirmClear(false); }} onCancel={() => setConfirmClear(false)} />}
     </div>
-  );
+   );
 }
