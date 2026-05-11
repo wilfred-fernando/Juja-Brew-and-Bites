@@ -19,7 +19,7 @@ const navItems = [
   },
   { 
     name: 'POS Admin', 
-    path: '/admin/pos', 
+    path: '/pos', 
     icon: '🖥️',
     submenu: [
       { name: 'Terminal Config', path: '/admin/pos/config' },

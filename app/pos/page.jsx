@@ -130,7 +130,7 @@ export default function POSPage() {
 
   async function fetchData() {
     setLoading(true);
-    const [iRes, catRes, cRes] = await Promise.all([
+    const [iRes, catRes, cRes, diningOptionsRes] = await Promise.all([
       supabase.from("menu_items").select("*").eq("is_available", true).order("name"),
       supabase.from("menu_categories").select("*").order("sort_order"),
       supabase.from("loyalty_members").select('id, name:"Customer name", code:"Customer code"'),
@@ -237,22 +237,23 @@ export default function POSPage() {
                   ))}
                </div>
              )}
-        {/* DYNAMIC ORDER TYPE TOGGLE */}
-<div className="flex flex-wrap gap-2 bg-slate-100 p-2 rounded-xl mb-4">
-  {diningOptions.map((option) => (
-    <button
-      key={option.id}
-      onClick={() => setOrderType(option.name)}
-      className={`flex-1 min-w-[100px] py-2 px-3 text-xs sm:text-sm font-bold rounded-lg transition-all ${
-        orderType === option.name 
-          ? "bg-[#FC687D] text-white shadow-sm" 
-          : "bg-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
-      }`}
-    >
-      {option.name}
-    </button>
-  ))}
-</div>
+           </div>
+           {/* DYNAMIC ORDER TYPE TOGGLE */}
+           <div className="flex flex-wrap gap-2 bg-slate-100 p-2 rounded-xl mb-4">
+             {diningOptions.map((option) => (
+               <button
+                 key={option.id}
+                 onClick={() => setOrderType(option.name)}
+                 className={`flex-1 min-w-[100px] py-2 px-3 text-xs sm:text-sm font-bold rounded-lg transition-all ${
+                   orderType === option.name 
+                     ? "bg-[#FC687D] text-white shadow-sm" 
+                     : "bg-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                 }`}
+               >
+                 {option.name}
+               </button>
+             ))}
+           </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-3 hide-scrollbar">
            {cart.length === 0 ? (
              <div className="h-full flex items-center justify-center opacity-10 text-[10px] uppercase font-semibold">Empty Ticket</div>
@@ -283,5 +284,37 @@ export default function POSPage() {
       {selectedItemForModal && <AddToCartModal item={selectedItemForModal} onClose={() => setSelectedItemForModal(null)} onAddToCart={(d) => { setCart([...cart, d]); setSelectedItemForModal(null); setMobileCartOpen(true); }} />}
       {confirmClear && <ConfirmModal title="Empty Ticket?" message="This will remove all items currently added to this ticket." onConfirm={() => { setCart([]); setAttachedCustomer(null); setConfirmClear(false); }} onCancel={() => setConfirmClear(false)} />}
     </div>
-   );
+
+      {/* --- MOBILE CART DRAWER --- */}
+      {mobileCartOpen && (
+        <div className="fixed inset-0 z-[200] bg-slate-900/40 backdrop-blur-sm flex items-end md:hidden">
+          <div className="bg-white w-full rounded-t-3xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
+            <div className="p-4 border-b border-slate-50 flex justify-between items-center">
+              <h2 className="text-lg font-semibold">Order Summary</h2>
+              <button onClick={() => setMobileCartOpen(false)} className="text-slate-300 text-2xl px-2 hover:text-rose-500 transition-colors">&times;</button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 hide-scrollbar">
+              {cart.map((item, idx) => (
+                <div key={item.cartItemId} className="flex justify-between items-start border-b border-slate-50 pb-2">
+                  <div className="flex-1 pr-3">
+                    <p className="text-sm text-slate-800 leading-tight font-medium">{item.name} <span className="text-rose-400">x{item.quantity}</span></p>
+                    {item.variantDetails && <p className="text-[10px] text-slate-400 mt-0.5">{item.variantDetails}</p>}
+                    <button onClick={() => { const n = [...cart]; n.splice(idx,1); setCart(n); }} className="text-[10px] text-slate-300 hover:text-red-500 mt-1 transition-colors underline">Remove</button>
+                  </div>
+                  <p className="text-sm text-slate-800 font-medium">₱{item.unitPrice * item.quantity}</p>
+                </div>
+              ))}
+            </div>
+            <div className="p-4 border-t border-slate-50 bg-white space-y-3">
+              <div className="flex justify-between items-end px-1">
+                <p className="text-[11px] text-slate-400 font-medium uppercase tracking-tight">Total</p>
+                <p className="text-2xl font-semibold text-slate-900">₱{subtotal.toFixed(0)}</p>
+              </div>
+              <button disabled={cart.length === 0} className="w-full py-4 bg-slate-900 text-white rounded-xl text-sm font-medium shadow-xl active:scale-[0.98] disabled:opacity-30 transition-all">Charge Order</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
