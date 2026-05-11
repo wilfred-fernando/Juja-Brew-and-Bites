@@ -10,14 +10,6 @@ const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9d
 
 export default function AdminLayout({ children }) {
   const pathname = usePathname();
-  if (pathname && pathname.includes('login')) return null;
-
-  return (
-    <aside>
-       {/* ... your sidebar code ... */}
-    </aside>
-  )
-}
   const router = useRouter();
   
   // UI States
@@ -60,17 +52,22 @@ export default function AdminLayout({ children }) {
     router.push("/login");
   };
 
-const navItems = [
+  const navItems = [
     { name: "Home", path: "/admin", icon: "🏠" },
     { name: "Live Orders", path: "/admin/orders", icon: "📋" },
     { name: "Menu Builder", path: "/admin/menu", icon: "🧩" },
     { name: "POS System", path: "/admin/pos", icon: "🛒" },
-    { name: "Loyalty Program", path: "/admin/loyalty", icon: "⭐" }, // Added
-    { name: "Promo Codes", path: "/admin/promos", icon: "🎁" },    // Added
+    { name: "Loyalty Program", path: "/admin/loyalty", icon: "⭐" }, 
+    { name: "Promo Codes", path: "/admin/promos", icon: "🎁" },    
     { name: "Settings", path: "/admin/settings", icon: "⚙️" },
   ];
 
-  // 1. Loading State (The Spinner)
+  // 1. THE LOGIN FIX: Hide sidebar entirely if on the login page
+  if (pathname && pathname.includes('login')) {
+    return <>{children}</>;
+  }
+
+  // 2. Loading State (The Spinner)
   if (loading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-[#FFF5F7]">
@@ -79,7 +76,7 @@ const navItems = [
     );
   }
 
-  // 2. Auth Gate: If logged in, show sidebar + content. If not, just show children (the login page)
+  // 3. Auth Gate: If logged in, show sidebar + content. If not, just show children
   if (!isAuthorized) {
     return <>{children}</>;
   }
