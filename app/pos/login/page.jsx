@@ -38,7 +38,7 @@ export default function POSLoginPage() {
   return (
     <div className="flex h-screen items-center justify-center bg-slate-50">
       <div className="w-full max-w-md p-8 bg-white rounded-3xl shadow-xl">
-        <h1 className="text-2xl font-bold text-slate-800 mb-6 text-center">Terminal Login</h1>
+        <h1 className="text-2xl font-bold text-slate-800 mb-6 text-center">Cashier Login</h1>
         
         {error && (
           <div className="mb-4 p-4 bg-rose-50 text-rose-500 rounded-xl text-sm font-medium">

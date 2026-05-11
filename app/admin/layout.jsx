@@ -56,7 +56,7 @@ export default function AdminLayout({ children }) {
     { name: "Home", path: "/admin", icon: "🏠" },
     { name: "Live Orders", path: "/admin/orders", icon: "📋" },
     { name: "Menu Builder", path: "/admin/menu", icon: "🧩" },
-    { name: "POS System", path: "/admin/pos", icon: "🛒" },
+    { name: "POS System", path: "/admin/pos-admin", icon: "🛒" },
     { name: "Loyalty Program", path: "/admin/loyalty", icon: "⭐" }, 
     { name: "Promo Codes", path: "/admin/promos", icon: "🎁" },    
     { name: "Settings", path: "/admin/settings", icon: "⚙️" },
