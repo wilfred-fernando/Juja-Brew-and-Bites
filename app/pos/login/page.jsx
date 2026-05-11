@@ -4,18 +4,15 @@ import { useState } from "react";
 import { createBrowserClient } from "@/lib/supabase/client";
 
 export default function POSLoginPage() {
-  // 1. Initialize Supabase here too!
   const supabase = createBrowserClient();
 
-  // 2. State variables for your login form
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // 3. Your Login Logic goes inside a handler function
   const handleLogin = async (e) => {
-    e.preventDefault(); // Prevents the page from refreshing
+    e.preventDefault();
     setError("");
     setLoading(true);
 
@@ -27,8 +24,9 @@ export default function POSLoginPage() {
 
       if (authError) throw authError;
 
-      // If successful, redirect them back to the main terminal!
-      window.location.href = "/pos";
+      // SUCCESS! Send them to the terminal.
+      // Because of the middleware, "/" on this subdomain maps to "app/pos/page.jsx"
+      window.location.href = "/"; 
 
     } catch (err) {
       setError(err.message);
@@ -42,14 +40,12 @@ export default function POSLoginPage() {
       <div className="w-full max-w-md p-8 bg-white rounded-3xl shadow-xl">
         <h1 className="text-2xl font-bold text-slate-800 mb-6 text-center">Terminal Login</h1>
         
-        {/* Error Message Display */}
         {error && (
           <div className="mb-4 p-4 bg-rose-50 text-rose-500 rounded-xl text-sm font-medium">
             {error}
           </div>
         )}
 
-        {/* 4. Attach the handleLogin function to the form */}
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Email</label>

@@ -117,16 +117,11 @@ export default function POSPage() {
 
   // 1. DATA INITIALIZATION & AUTH GATE
   useEffect(() => {
-  const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    // Redirect to the login folder INSIDE the pos folder
-    if (!session) {
-      window.location.href = "/pos/login"; 
-      return;
-    }
-    fetchData();
-  };
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      // Cleaner URL: pos.jujabrewandbites.com/login
+      if (!session) window.location.href = "/login"; 
+      else fetchData();
+    });
   checkAuth();
 }, []);
 
