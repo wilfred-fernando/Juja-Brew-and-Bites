@@ -198,12 +198,9 @@ export default function POSPage() {
                 onClick={() => setSelectedItemForModal(item)}
                 className="group relative flex items-center p-3 bg-white border border-slate-100 rounded-2xl cursor-pointer transition-all hover:-translate-y-[6px] hover:shadow-[0_20px_40px_rgba(252,104,125,0.12)] text-left"
                 style={{
-                  transitionTimingFunction: "cubic-bezier(0.25,0.46,0.45,0.94)",
-                  transitionDuration: "0.35s",
-                  animation: "fadeInUp 0.5s ease forwards",
-                  animationDelay: `${index * 50}ms`,
-                  opacity: 0, 
-                }}
+                   transitionTimingFunction: "cubic-bezier(0.25,0.46,0.45,0.94)",
+                   transitionDuration: "0.35s",
+                 }}
               >
                 {/* 1. Image Container */}
                 <div className="w-14 h-14 rounded-xl bg-rose-50 flex-shrink-0 overflow-hidden mr-4 flex items-center justify-center">
