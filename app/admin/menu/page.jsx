@@ -1,127 +1,105 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import AdminMenuBuilder from "@/components/AdminMenuBuilder";
 
-export default function MenuBuilderPage() {
-  const [items, setItems] = useState([]);
-  const [categories, setCategories] = useState([]);
+export default function AdminDashboard() {
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState("All");
+  const router = useRouter();
 
   useEffect(() => {
-    fetchMenuData();
-  }, []);
+ async function checkSession() {
+      const { data: { session } } = await supabase.auth.getSession();
 
-  async function fetchMenuData() {
-    setLoading(true);
-    const [itemRes, catRes] = await Promise.all([
-      supabase.from("menu_items").select("*").order("name"),
-      supabase.from("menu_categories").select("*").order("sort_order"),
-    ]);
+      // 1. Check if they are logged in at all
+      if (!session) {
+        console.log("Bouncer: No session found!");
+        router.push("/login");
+        return;
+      }
 
-    if (itemRes.data) setItems(itemRes.data);
-    if (catRes.data) setCategories(catRes.data);
-    setLoading(false);
-  }
+      // 2. Check their role safely
+      const role = session.user?.user_metadata?.role;
+      console.log("Bouncer checked ID. Role is:", role);
 
-  const filteredItems = items.filter((item) => {
-    const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory = activeCategory === "All" || item.category === activeCategory;
-    return matchesSearch && matchesCategory;
-  });
+      if (role !== "admin") {
+        console.log("Bouncer: Access Denied. Kicking back to login.");
+        router.push("/login");
+        return;
+      }
+
+      // 3. Let them in!
+      console.log("Bouncer: Welcome Admin!");
+      setUser(session.user);
+      setLoading(false);
+    }
+    checkSession();
+  }, [router]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="w-8 h-8 border-4 border-rose-100 border-t-[#FC687D] animate-spin rounded-full"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[#FFF5F7]">
+        <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full"></div>
       </div>
     );
   }
 
+  // Cards for the main dashboard grid
+  const dashboardCards = [
+    { title: "Live Orders", icon: "📋", desc: "View and manage incoming orders in real time.", path: "/admin/orders" },
+    { title: "Menu Builder", icon: "🧩", desc: "Add, edit, and organize your menu items and categories.", path: "/admin/menu" },
+    { title: "Loyalty Program", icon: "⭐", desc: "Manage customer points, visits, and edit member details.", path: "/admin/loyalty" },
+    { title: "Promo Codes", icon: "🎁", desc: "Create and manage discount codes for customers.", path: "/admin/promos" },
+    { title: "Settings", icon: "⚙️", desc: "Update store info, hours, delivery fees, and more.", path: "/admin/settings" },
+    { title: "Accounts", icon: "👥", desc: "Manage staff access and account settings.", path: "/admin/accounts" },
+  ];
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Menu Builder</h1>
-          <p className="text-sm text-slate-400 font-medium">Manage your products and pricing</p>
-        </div>
-        <button className="bg-[#FC687D] text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-rose-100 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2">
-          <span>+</span> Add New Item
-        </button>
-      </div>
+    <main className="p-8 md:p-12 overflow-y-auto w-full">
+      <header className="mb-10">
+        <h1 className="text-4xl font-extrabold tracking-tight text-slate-800 mb-2">
+          Welcome Back 👋
+        </h1>
+        <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+          Admin Panel • {user?.email}
+        </p>
+      </header>
 
-      {/* Filters & Search */}
-      <div className="bg-white p-2 rounded-[28px] border border-rose-50 shadow-sm flex flex-col md:flex-row gap-2">
-        <div className="flex-1 flex gap-2 overflow-x-auto p-1 hide-scrollbar">
-          {["All", ...categories.map(c => c.name)].map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
-                activeCategory === cat
-                  ? "bg-slate-900 text-white shadow-md"
-                  : "text-slate-400 hover:bg-slate-50"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-        <div className="md:w-64 relative px-1">
-          <input
-            type="text"
-            placeholder="Search items..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-4 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-rose-100 outline-none transition-all"
-          />
-        </div>
-      </div>
-
-      {/* Items Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredItems.map((item) => (
-          <div
-            key={item.id}
-            className="group bg-white p-6 rounded-[32px] border border-rose-50 hover:border-rose-200 hover:shadow-xl hover:shadow-rose-500/5 transition-all duration-300 relative overflow-hidden"
-          >
-            <div className="flex justify-between items-start mb-4">
-              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg ${item.is_available ? 'bg-emerald-50 text-emerald-500' : 'bg-slate-50 text-slate-300'}`}>
-                {item.is_available ? "✨" : "💤"}
-              </div>
-              <div className="flex gap-1">
-                <button className="p-2 text-slate-300 hover:text-blue-500 transition-colors">✎</button>
-                <button className="p-2 text-slate-300 hover:text-rose-500 transition-colors">✕</button>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#FC687D]">
-                {item.category}
-              </p>
-              <h3 className="text-lg font-bold text-slate-800 truncate">{item.name}</h3>
-              <div className="flex items-center justify-between pt-4">
-                <span className="text-xl font-black text-slate-900">₱{Number(item.price).toFixed(0)}</span>
-                <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${item.is_available ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
-                  {item.is_available ? 'In Stock' : 'Sold Out'}
-                </span>
-              </div>
-            </div>
-            
-            {/* Hover Decor */}
-            <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-rose-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        
+        {/* Loop through standard cards */}
+        {dashboardCards.map((card) => (
+          <Link key={card.title} href={card.path} 
+            className="bg-white rounded-[32px] p-8 border border-rose-50 shadow-[0_8px_30px_rgba(252,104,125,0.04)] hover:shadow-[0_12px_40px_rgba(252,104,125,0.1)] hover:-translate-y-1 transition-all duration-300 flex flex-col">
+            <div className="text-4xl mb-4">{card.icon}</div>
+            <h3 className="font-extrabold text-slate-800 text-xl mb-2">{card.title}</h3>
+            <p className="text-slate-500 text-sm font-medium leading-relaxed flex-1">{card.desc}</p>
+          </Link>
         ))}
-      </div>
 
-      {filteredItems.length === 0 && (
-        <div className="text-center py-20 bg-white rounded-[40px] border border-dashed border-rose-100">
-          <p className="text-slate-400 font-medium">No items found in this category.</p>
+        {/* Special Public Site Card */}
+        <div className="bg-[#FFF9FA] rounded-[32px] p-8 border border-rose-100 shadow-sm flex flex-col relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-rose-50 rounded-full blur-3xl pointer-events-none" />
+          <div className="text-4xl mb-4 text-[#FC687D] relative z-10">🌐</div>
+          <h3 className="font-extrabold text-[#FC687D] text-xl mb-2 relative z-10">Public Site</h3>
+          <p className="text-slate-500 text-sm font-medium leading-relaxed mb-6 flex-1 relative z-10">
+            Preview your public-facing menu and ordering pages.
+          </p>
+          <div className="flex gap-3 relative z-10">
+            <Link href="/" className="px-5 py-2.5 bg-white border border-rose-100 rounded-full text-[11px] font-bold uppercase tracking-widest text-[#FC687D] hover:bg-[#FC687D] hover:text-white transition-all shadow-sm">
+              Home
+            </Link>
+            <Link href="/customer" className="px-5 py-2.5 bg-white border border-rose-100 rounded-full text-[11px] font-bold uppercase tracking-widest text-[#FC687D] hover:bg-[#FC687D] hover:text-white transition-all shadow-sm">
+              Menu
+            </Link>
+          </div>
         </div>
-      )}
-    </div>
+
+      </div>
+    </main>
   );
 }
