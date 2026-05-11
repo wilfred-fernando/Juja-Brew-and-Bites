@@ -2,8 +2,20 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-// 1. Import the exact function name from your client.ts
-import { createBrowserClient } from "@/lib/supabase/client"; 
+// (No need for Supabase here if it's just a landing page!)
+
+function Nav({ active }) { ... }
+function Footer() { ... }
+
+export default function Page() {
+  return (
+    <div className="min-h-screen bg-white">
+      <Nav active="home" />
+      {/* Your Good Food. Great Brews. Hero Section */}
+      <Footer />
+    </div>
+  );
+}
 
 const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
 

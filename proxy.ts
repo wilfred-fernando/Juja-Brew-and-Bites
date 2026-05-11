@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// ─── MUST EXPORT AS 'proxy' TO MATCH NEXT.JS 16 STANDARDS ───
-export function proxy(req: NextRequest) {
+// ─── MUST EXPORT AS 'middleware' ───
+export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const host = req.headers.get("host") || "";
 
