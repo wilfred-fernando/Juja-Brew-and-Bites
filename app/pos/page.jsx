@@ -188,17 +188,46 @@ export default function POSPage() {
             </div>
         </header>
 
+        {/* --- LUXURY PRODUCT GRID --- */}
         <div className="flex-1 overflow-y-auto p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 auto-rows-max hide-scrollbar pb-24">
-          {items.filter(i => (activeCategory === "ALL" || i.category === activeCategory) && i.name.toLowerCase().includes(menuSearch.toLowerCase())).map((i) => (
-            <button key={i.id} onClick={() => setSelectedItemForModal(i)} className="bg-white p-3 rounded-2xl border border-slate-100 flex items-center gap-3 hover:border-rose-100 text-left transition-all h-20 group">
-              <div className="w-12 h-12 rounded-lg bg-rose-50 flex items-center justify-center overflow-hidden flex-shrink-0 group-hover:scale-105 transition-transform">{i.image_url ? <img src={i.image_url} className="w-full h-full object-cover" /> : "☕"}</div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] text-rose-400 mb-0.5">{i.category}</p>
-                <h3 className="text-sm text-slate-800 truncate font-medium">{i.name}</h3>
-                <p className="text-sm text-slate-400">₱{Number(i.price).toFixed(0)}</p>
-              </div>
-            </button>
-          ))}
+          {items
+            .filter(i => (activeCategory === "ALL" || i.category === activeCategory) && i.name.toLowerCase().includes(menuSearch.toLowerCase()))
+            .map((item, index) => (
+              <button
+                key={item.id}
+                onClick={() => setSelectedItemForModal(item)}
+                className="group relative flex items-center p-3 bg-white border border-slate-100 rounded-2xl cursor-pointer transition-all hover:-translate-y-[6px] hover:shadow-[0_20px_40px_rgba(252,104,125,0.12)] text-left"
+                style={{
+                  transitionTimingFunction: "cubic-bezier(0.25,0.46,0.45,0.94)",
+                  transitionDuration: "0.35s",
+                  animation: "fadeInUp 0.5s ease forwards",
+                  animationDelay: `${index * 50}ms`,
+                  opacity: 0, 
+                }}
+              >
+                {/* 1. Image Container (With the Cinematic Zoom) */}
+                <div className="w-14 h-14 rounded-xl bg-rose-50 flex-shrink-0 overflow-hidden mr-4 flex items-center justify-center">
+                  {item.image_url ? (
+                    <img
+                      src={item.image_url}
+                      alt={item.name}
+                      className="w-full h-full object-cover transition-transform duration-[650ms] ease-out group-hover:scale-110"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-[#FC687D] opacity-20 transition-transform duration-[650ms] ease-out group-hover:scale-110"></div>
+                  )}
+                </div>
+
+                {/* 2. Text Details */}
+                <div className="flex flex-col flex-1 min-w-0">
+                  <span className="text-[9px] font-bold text-[#FC687D] uppercase tracking-wider mb-0.5 truncate">
+                    {item.category || "LATTE (COFFEE)"}
+                  </span>
+                  <span className="text-sm font-bold text-slate-800 truncate">{item.name}</span>
+                  <span className="text-xs font-semibold text-slate-400 mt-0.5">₱{Number(item.price).toFixed(0)}</span>
+                </div>
+              </button>
+            ))}
         </div>
       </div>
 
@@ -281,7 +310,7 @@ export default function POSPage() {
 
         <div className="p-4 border-t border-slate-50 bg-white flex-shrink-0">
            <div className="flex justify-between items-end mb-4 px-1">
-              <p className="text-[11px] text-slate-400 font-medium uppercase tracking-tight">Payable</p>
+              <p className="text-[11px] text-slate-400 font-medium uppercase tracking-tight">TOTAL</p>
               <p className="text-2xl font-semibold text-slate-900">₱{subtotal.toFixed(0)}</p>
            </div>
            <button disabled={cart.length === 0} className="w-full py-4 bg-slate-900 text-white rounded-xl text-sm font-medium shadow-xl active:scale-[0.98] disabled:opacity-30 transition-all">Charge Order</button>
@@ -318,7 +347,7 @@ export default function POSPage() {
                 <p className="text-[11px] text-slate-400 font-medium uppercase tracking-tight">Total</p>
                 <p className="text-2xl font-semibold text-slate-900">₱{subtotal.toFixed(0)}</p>
               </div>
-              <button disabled={cart.length === 0} className="w-full py-4 bg-slate-900 text-white rounded-xl text-sm font-medium shadow-xl active:scale-[0.98] disabled:opacity-30 transition-all">Charge Order</button>
+              <button disabled={cart.length === 0} className="w-full py-4 bg-slate-900 text-white rounded-xl text-sm font-medium shadow-xl active:scale-[0.98] disabled:opacity-30 transition-all">CHARGE</button>
             </div>
           </div>
         </div>
