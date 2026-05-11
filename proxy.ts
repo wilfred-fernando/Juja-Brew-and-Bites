@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// 👇 The word "proxy" must match the file name "proxy.ts"
+// ─── MUST EXPORT AS 'proxy' TO MATCH NEXT.JS 16 STANDARDS ───
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const host = req.headers.get("host") || "";
 
-  // 1. IGNORE SYSTEM FILES
+  // 1. IGNORE SYSTEM FILES AND STATIC ASSETS
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
@@ -22,6 +22,7 @@ export function proxy(req: NextRequest) {
     "kitchen.": "/kitchen",
   };
 
+  // Strip out the port number to ensure local testing works seamlessly
   const cleanHost = host.split(":")[0].toLowerCase();
   
   const matchedSubdomain = Object.keys(routes).find((key) =>
@@ -30,8 +31,9 @@ export function proxy(req: NextRequest) {
 
   const targetPath = matchedSubdomain ? routes[matchedSubdomain] : null;
 
-  // 3. APPLY SUBDOMAIN REWRITE
+  // 3. APPLY SILENT REWRITE
   if (targetPath) {
+    // If the path doesn't already contain the hidden folder route, inject it
     if (!pathname.startsWith(targetPath)) {
       const url = req.nextUrl.clone();
       const fullPath = pathname === "/" ? "" : pathname;
@@ -41,9 +43,11 @@ export function proxy(req: NextRequest) {
     }
   }
 
+  // 4. DEFAULT FALLBACK
   return NextResponse.next();
 }
 
+// ─── MATCHER CONFIGURATION ───
 export const config = {
   matcher: ["/((?!api|_next|.*\\..*).*)"],
 };
