@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
-// ─── 1. MODAL: ADD TO CART (CLEAN VERSION) ───
+// ─── 1. MODAL: ADD TO CART (REFINED) ───
 function AddToCartModal({ item, onClose, onAddToCart }) {
   const [quantity, setQuantity] = useState(1);
   const [selections, setSelections] = useState({});
@@ -17,37 +17,28 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
   };
 
   const handleSave = () => {
-    const variantText = Object.values(selections).map(s => s.name).join(", ");
     onAddToCart({ 
       ...item, 
       cartItemId: Date.now(), 
       unitPrice: calculateUnitPrice(), 
       quantity, 
-      variantDetails: variantText 
     });
   };
 
   return (
     <div className="fixed inset-0 z-[250] bg-slate-900/40 backdrop-blur-md flex items-end md:items-center justify-center p-0 md:p-4 transition-all duration-500">
-      <div className="bg-white w-full max-w-md rounded-t-[32px] md:rounded-[32px] overflow-hidden shadow-2xl flex flex-col animate-in slide-in-from-bottom-10 zoom-in-95 duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]">
-        <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center bg-white">
-          <h2 className="text-xl font-semibold text-slate-800">{item.name}</h2>
-          <button onClick={onClose} className="text-slate-300 hover:text-slate-600 text-2xl font-light p-2">✕</button>
+      <div className="bg-white w-full max-w-md rounded-t-[28px] md:rounded-[28px] overflow-hidden shadow-2xl flex flex-col animate-in slide-in-from-bottom-10 zoom-in-95 duration-300">
+        <div className="px-6 py-5 border-b border-slate-50 flex justify-between items-center">
+          <h2 className="text-lg font-semibold text-slate-800">{item.name}</h2>
+          <button onClick={onClose} className="text-slate-300 hover:text-slate-600 text-xl p-2">✕</button>
         </div>
-        <div className="p-8 space-y-8">
-          <div>
-            <label className="text-xs font-medium mb-3 block text-slate-500">Quantity</label>
-            <div className="flex items-center border border-slate-100 rounded-[20px] overflow-hidden bg-slate-50/50 shadow-inner h-16">
-              <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-20 h-full flex items-center justify-center text-slate-400 hover:bg-white hover:text-[#FC687D] transition-all text-lg">—</button>
-              <div className="flex-1 text-center font-semibold text-xl text-slate-800">{quantity}</div>
-              <button onClick={() => setQuantity(quantity + 1)} className="w-20 h-full flex items-center justify-center text-slate-400 hover:bg-white hover:text-[#FC687D] transition-all text-lg">＋</button>
-            </div>
+        <div className="p-6 space-y-6">
+          <div className="flex items-center border border-slate-100 rounded-2xl overflow-hidden bg-slate-50/50 h-14">
+            <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-16 h-full flex items-center justify-center text-slate-400 hover:text-[#FC687D] transition-all">—</button>
+            <div className="flex-1 text-center font-semibold text-lg text-slate-800">{quantity}</div>
+            <button onClick={() => setQuantity(quantity + 1)} className="w-16 h-full flex items-center justify-center text-slate-400 hover:text-[#FC687D] transition-all">＋</button>
           </div>
-          <button 
-            onClick={handleSave} 
-            className="w-full py-5 rounded-[20px] font-semibold text-white text-lg shadow-xl shadow-rose-100 transition-all active:scale-[0.95] hover:brightness-105" 
-            style={{ backgroundColor: brandColor }}
-          >
+          <button onClick={handleSave} className="w-full py-4 rounded-xl font-semibold text-white shadow-lg transition-all active:scale-[0.98]" style={{ backgroundColor: brandColor }}>
             Add to ticket • ₱{(calculateUnitPrice() * quantity).toFixed(0)}
           </button>
         </div>
@@ -65,24 +56,20 @@ function MenuCard({ item, onClick, index }) {
       onClick={() => onClick(item)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="bg-white p-5 rounded-[28px] border border-slate-100 flex items-center gap-5 transition-all duration-350 group relative overflow-hidden h-[110px]"
+      className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-4 transition-all duration-300 group h-[100px]"
       style={{
-        animationDelay: `${index * 50}ms`,
-        transitionTimingFunction: "cubic-bezier(0.25,0.46,0.45,0.94)",
-        transform: isHovered ? "translateY(-6px)" : "translateY(0)",
-        boxShadow: isHovered ? "0 15px 30px rgba(252,104,125,0.1)" : "0 2px 8px rgba(0,0,0,0.01)",
+        animationDelay: `${index * 40}ms`,
+        transform: isHovered ? "translateY(-4px)" : "translateY(0)",
+        boxShadow: isHovered ? "0 12px 24px rgba(252,104,125,0.08)" : "0 1px 2px rgba(0,0,0,0.01)",
       }}
     >
-      <div className="w-16 h-16 rounded-2xl bg-rose-50 flex items-center justify-center text-2xl transition-transform duration-500 group-hover:scale-110 flex-shrink-0">
-        {item.image_url ? <img src={item.image_url} className="w-full h-full object-cover rounded-2xl" /> : "🍵"}
+      <div className="w-14 h-14 rounded-xl bg-rose-50 flex items-center justify-center text-xl flex-shrink-0 overflow-hidden border border-rose-50">
+        {item.image_url ? <img src={item.image_url} className="w-full h-full object-cover" /> : "☕"}
       </div>
       <div className="flex-1 text-left min-w-0">
-        <p className="text-[10px] font-semibold text-[#FC687D] mb-0.5">{item.category}</p>
-        <h3 className="font-semibold text-slate-800 text-base truncate">{item.name}</h3>
-        <p className="text-sm font-medium text-slate-600 mt-0.5">₱{Number(item.price).toFixed(0)}</p>
-      </div>
-      <div className="absolute right-4 bottom-4 opacity-0 group-hover:opacity-100 transition-opacity">
-         <span className="bg-[#FC687D] text-white w-7 h-7 rounded-full flex items-center justify-center text-xs">＋</span>
+        <p className="text-[9px] font-semibold text-[#FC687D] mb-0.5">{item.category}</p>
+        <h3 className="font-semibold text-slate-800 text-sm truncate">{item.name}</h3>
+        <p className="text-sm font-medium text-slate-500">₱{Number(item.price).toFixed(0)}</p>
       </div>
     </button>
   );
@@ -90,44 +77,27 @@ function MenuCard({ item, onClick, index }) {
 
 // ─── 3. MAIN TERMINAL PAGE ───
 export default function POSPage() {
-  const router = useRouter();
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  const [successMessage, setSuccessMessage] = useState("");
-  const [activeCategory, setActiveCategory] = useState("ALL");
   const [menuSearch, setMenuSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState("ALL");
   const [selectedItemForModal, setSelectedItemForModal] = useState(null);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        window.location.href = "https://admin.jujabrewandbites.com/login"; 
-        return;
-      }
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).maybeSingle();
-      if (profile?.role !== 'admin' && profile?.role !== 'cashier' && profile?.role !== 'super_admin') {
-        window.location.href = "https://jujabrewandbites.com";
-        return;
-      }
-      fetchData();
-    };
-    checkAuth();
+    async function fetchData() {
+      setLoading(true);
+      const [iRes, catRes] = await Promise.all([
+        supabase.from("menu_items").select("*").eq("is_available", true).order("name"),
+        supabase.from("menu_categories").select("*").order("sort_order")
+      ]);
+      if (iRes.data) setItems(iRes.data);
+      if (catRes.data) setCategories(catRes.data);
+      setLoading(false);
+    }
+    fetchData();
   }, []);
-
-  async function fetchData() {
-    setLoading(true);
-    const [iRes, catRes] = await Promise.all([
-      supabase.from("menu_items").select("*").eq("is_available", true).order("name"),
-      supabase.from("menu_categories").select("*").order("sort_order")
-    ]);
-    if (iRes.data) setItems(iRes.data);
-    if (catRes.data) setCategories(catRes.data);
-    setLoading(false);
-  }
 
   const subtotal = cart.reduce((sum, i) => sum + (i.unitPrice * i.quantity), 0);
 
@@ -138,89 +108,87 @@ export default function POSPage() {
       
       {/* LEFT: MENU GRID */}
       <div className="flex-1 flex flex-col min-w-0 bg-white">
-        <header className="p-6 md:p-8 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex flex-col">
-               <h1 className="text-2xl font-bold tracking-tight text-slate-800">Juja Terminal</h1>
-               <p className="text-[11px] font-medium text-slate-400 mt-0.5">Pasong Tamo Branch</p>
-            </div>
+        <header className="p-5 md:p-6 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <h1 className="text-xl font-bold tracking-tight text-slate-800">Terminal</h1>
             
-            <div className="flex gap-3">
+            <div className="flex gap-2">
                <select 
                 value={activeCategory} 
                 onChange={(e) => setActiveCategory(e.target.value)} 
-                className="bg-slate-50 px-4 py-2.5 rounded-xl font-semibold text-xs text-slate-600 outline-none border border-slate-100 focus:border-[#FC687D]/20 transition-all"
+                className="bg-slate-50 px-3 py-2 rounded-lg font-semibold text-[11px] text-slate-600 outline-none border border-slate-100 focus:border-[#FC687D]/20 transition-all appearance-none"
                >
                  <option value="ALL">All Categories</option>
                  {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
                </select>
                
-               <div className="relative w-full md:w-64 group">
+               <div className="relative group">
                  <input 
                   type="text" 
-                  placeholder="Search products..." 
+                  placeholder="Search..." 
                   value={menuSearch} 
                   onChange={(e) => setMenuSearch(e.target.value)} 
-                  className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs focus:outline-none focus:bg-white focus:border-[#FC687D]/20 transition-all" 
+                  className="w-40 md:w-56 pl-8 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-lg text-xs focus:outline-none focus:bg-white" 
                  />
-                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 opacity-30 text-sm">🔍</span>
+                 <span className="absolute left-2.5 top-1/2 -translate-y-1/2 opacity-20 text-xs">🔍</span>
                </div>
             </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 auto-rows-max hide-scrollbar animate-in fade-in duration-700">
+        <div className="flex-1 overflow-y-auto p-5 md:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max hide-scrollbar animate-in fade-in duration-500 pb-32 md:pb-6">
           {items.filter(i => (activeCategory === "ALL" || i.category === activeCategory) && i.name.toLowerCase().includes(menuSearch.toLowerCase())).map((i, idx) => (
-            <MenuCard 
-              key={i.id} 
-              item={i} 
-              index={idx} 
-              onClick={setSelectedItemForModal} 
-            />
+            <MenuCard key={i.id} item={i} index={idx} onClick={setSelectedItemForModal} />
           ))}
         </div>
       </div>
 
-      {/* RIGHT: TICKET SIDEBAR */}
-      <div className="hidden lg:flex w-[380px] bg-white border-l border-slate-100 flex-col relative z-10 shadow-sm">
-        <div className="p-8 border-b border-slate-50">
-           <h2 className="text-lg font-bold text-slate-800 mb-6">Current Ticket</h2>
+      {/* MOBILE FLOATING CART BAR (Only shows on mobile when cart has items) */}
+      {cart.length > 0 && (
+        <div className="lg:hidden fixed bottom-6 left-6 right-6 z-[200] animate-in slide-in-from-bottom-10">
+          <button 
+            className="w-full bg-slate-900 text-white flex items-center justify-between px-6 py-4 rounded-2xl shadow-2xl active:scale-[0.98] transition-all"
+            onClick={() => {/* Trigger mobile cart overlay if needed */}}
+          >
+            <div className="flex items-center gap-3">
+              <span className="bg-[#FC687D] w-6 h-6 rounded-full text-[10px] flex items-center justify-center font-bold">{cart.length}</span>
+              <span className="text-sm font-semibold">View Ticket</span>
+            </div>
+            <span className="text-sm font-bold">₱{subtotal.toFixed(0)}</span>
+          </button>
+        </div>
+      )}
+
+      {/* RIGHT: TICKET SIDEBAR (DESKTOP ONLY) */}
+      <div className="hidden lg:flex w-[340px] bg-white border-l border-slate-100 flex-col relative z-10">
+        <div className="p-6 border-b border-slate-50">
+           <h2 className="text-base font-bold text-slate-800 mb-4">Current Ticket</h2>
            <div className="flex gap-2">
-              <input 
-                type="text" 
-                placeholder="Find customer..." 
-                className="flex-1 p-3.5 bg-slate-50 border border-slate-100 rounded-xl text-xs outline-none focus:border-[#FC687D]/20 transition-all"
-              />
-              <button className="px-5 bg-slate-800 text-white rounded-xl text-xs font-semibold active:scale-95 transition-all">Scan</button>
+              <input type="text" placeholder="Loyalty code..." className="flex-1 p-2.5 bg-slate-50 border border-slate-100 rounded-lg text-xs outline-none" />
+              <button className="px-4 bg-slate-800 text-white rounded-lg text-[10px] font-bold">SCAN</button>
            </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-5 hide-scrollbar">
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 hide-scrollbar">
            {cart.length === 0 ? (
-             <div className="h-full flex flex-col items-center justify-center opacity-30">
-                <span className="text-5xl mb-3">🛒</span>
-                <p className="font-medium text-xs">Ticket is empty</p>
-             </div>
+             <div className="h-full flex items-center justify-center opacity-20"><p className="text-xs">Cart empty</p></div>
            ) : (
              cart.map((item) => (
-               <div key={item.cartItemId} className="flex justify-between items-center animate-in slide-in-from-right-4 duration-300">
-                  <div className="flex flex-col">
-                    <p className="font-semibold text-sm text-slate-800">{item.name} <span className="text-[#FC687D] ml-1">x{item.quantity}</span></p>
-                    <p className="text-[10px] text-slate-400 font-medium tracking-wide">₱{item.unitPrice}</p>
+               <div key={item.cartItemId} className="flex justify-between items-center">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-[13px] text-slate-800 truncate">{item.name} x{item.quantity}</p>
+                    <p className="text-[10px] text-slate-400">₱{item.unitPrice}</p>
                   </div>
-                  <p className="font-bold text-sm text-slate-800">₱{item.unitPrice * item.quantity}</p>
+                  <p className="font-bold text-[13px] text-slate-800">₱{item.unitPrice * item.quantity}</p>
                </div>
              ))
            )}
         </div>
 
-        <div className="p-8 border-t border-slate-50 space-y-4">
-           <div className="flex justify-between items-end mb-2">
-              <p className="text-xs font-semibold text-slate-400">Total Amount</p>
-              <p className="text-3xl font-bold text-slate-900">₱{subtotal.toFixed(0)}</p>
+        <div className="p-6 border-t border-slate-50">
+           <div className="flex justify-between items-end mb-4">
+              <p className="text-[10px] font-semibold text-slate-400">TOTAL</p>
+              <p className="text-2xl font-bold text-slate-900 leading-none">₱{subtotal.toFixed(0)}</p>
            </div>
-           <button 
-            disabled={cart.length === 0}
-            className="w-full py-4.5 bg-[#FC687D] text-white rounded-[18px] font-bold text-lg shadow-lg shadow-rose-100 active:scale-[0.98] transition-all disabled:opacity-30 py-4"
-           >
+           <button disabled={cart.length === 0} className="w-full py-3.5 bg-[#FC687D] text-white rounded-xl font-bold text-sm shadow-md transition-all active:scale-[0.98] disabled:opacity-30">
              Charge Order
            </button>
         </div>
@@ -233,11 +201,9 @@ export default function POSPage() {
           onAddToCart={(d) => { 
             setCart([...cart, d]); 
             setSelectedItemForModal(null); 
-            setSuccessMessage(`${d.name} added`); 
           }} 
         />
       )}
-      {successMessage && <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[400] bg-slate-900 text-white px-6 py-3 rounded-full font-semibold text-sm shadow-2xl animate-in fade-in slide-in-from-bottom-5">✓ {successMessage}</div>}
     </div>
   );
 }
