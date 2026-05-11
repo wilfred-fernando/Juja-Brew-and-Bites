@@ -120,6 +120,45 @@ function ConfirmModal({ title, message, onConfirm, onCancel }) {
 }
 
 // ==========================================
+// FUNCTION: CAMERA SCANNER MODAL
+// ==========================================
+import { Html5QrcodeScanner } from "html5-qrcode";
+
+function CameraScannerModal({ onClose, onScanSuccess }) {
+  useEffect(() => {
+    const scanner = new Html5QrcodeScanner("reader", { 
+      fps: 10, 
+      qrbox: { width: 250, height: 250 },
+      aspectRatio: 1.0
+    });
+
+    scanner.render((decodedText) => {
+      onScanSuccess(decodedText);
+      scanner.clear();
+    }, (error) => {
+      // Ignore constant scanning noise
+    });
+
+    return () => scanner.clear();
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[600] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4">
+      <div className="bg-white w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl">
+        <div className="p-6 border-b border-slate-50 flex justify-between items-center">
+          <h3 className="font-semibold text-slate-800">Scan Barcode / QR</h3>
+          <button onClick={onClose} className="text-slate-400 text-2xl">&times;</button>
+        </div>
+        <div id="reader" className="w-full"></div>
+        <div className="p-6 text-center">
+          <p className="text-xs text-slate-400">Position the code within the frame to scan</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
 // MAIN POS TERMINAL COMPONENT
 // ==========================================
 export default function POSPage() {
@@ -183,6 +222,26 @@ export default function POSPage() {
     }]);
     if (!error) { setCart([]); setAttachedCustomer(null); alert("Ticket Saved!"); }
   };
+
+  // 4. SCANNER UI
+<form onSubmit={handleScanSubmit} className="flex gap-2">
+  <button 
+    type="button" 
+    onClick={() => setIsCameraOpen(true)} // 👈 This now launches the camera
+    className="w-10 h-10 flex items-center justify-center bg-slate-50 rounded-lg text-rose-400 hover:bg-rose-50 transition-all"
+    title="Open Camera Scanner"
+  >
+    📷
+  </button>
+  <input 
+    id="scan-in" 
+    type="text" 
+    placeholder="Scan or type..." 
+    value={customerSearch}
+    onChange={(e) => setCustomerSearch(e.target.value)}
+    className="flex-1 px-3 py-2 bg-slate-50 border-none rounded-lg text-sm outline-none" 
+  />
+</form>
 
   const subtotal = cart.reduce((sum, i) => sum + (i.unitPrice * i.quantity), 0);
 
