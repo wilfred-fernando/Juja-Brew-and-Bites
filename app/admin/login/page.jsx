@@ -27,19 +27,23 @@ export default function AdminLoginPage() {
 
       const user = data.user;
 
-      // 2. GET ROLE FROM PROFILES
+      // 2. GET ROLE FROM PROFILES (Safe Version)
+      // .maybeSingle() prevents the "Cannot coerce/force JSON" error 
+      // by returning null instead of crashing if no row is found.
       const { data: profile, error: profileError } =
         await supabase
           .from("profiles")
           .select("role")
           .eq("id", user.id)
-          .single();
+          .maybeSingle();
 
       if (profileError) throw profileError;
 
-      const role = profile?.role;
+      // Default to "customer" if no profile record exists yet
+      const role = profile?.role || "customer";
 
       // 3. ROLE-BASED REDIRECT
+      // Ensure these match the exact strings in your Supabase 'role' column
       if (role === "admin" || role === "super_admin") {
         window.location.href = "https://admin.jujabrewandbites.com";
         return;
@@ -54,8 +58,13 @@ export default function AdminLoginPage() {
       window.location.href = "https://jujabrewandbites.com";
 
     } catch (err) {
-      console.error(err);
-      setError(err.message);
+      console.error("Login Error:", err);
+      // Friendly error mapping
+      const message = err.message === "Invalid login credentials" 
+        ? "Incorrect email or password." 
+        : err.message;
+      
+      setError(message);
       setLoading(false);
     }
   };
@@ -69,11 +78,10 @@ export default function AdminLoginPage() {
         </h1>
 
         <form onSubmit={handleLogin} className="space-y-5">
-
           <input
             type="email"
             placeholder="Email"
-            className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl"
+            className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-[#FC687D]/30 transition-all text-slate-700"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -82,28 +90,28 @@ export default function AdminLoginPage() {
           <input
             type="password"
             placeholder="Password"
-            className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl"
+            className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-[#FC687D]/30 transition-all text-slate-700"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
 
           {error && (
-            <p className="text-red-500 text-xs text-center font-bold">
-              ⚠️ {error}
-            </p>
+            <div className="bg-rose-50 p-4 rounded-2xl border border-rose-100">
+              <p className="text-rose-500 text-xs text-center font-bold">
+                ⚠️ {error}
+              </p>
+            </div>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-4 bg-[#FC687D] text-white rounded-full font-bold shadow-lg active:scale-95 transition-all"
+            className="w-full py-4 bg-[#FC687D] text-white rounded-full font-bold shadow-lg shadow-rose-100 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
           >
             {loading ? "Verifying..." : "Enter Portal →"}
           </button>
-
         </form>
-
       </div>
     </div>
   );
