@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// 👇 The word "middleware" must match the file name "middleware.ts"
-export function middleware(req: NextRequest) {
+// 👇 The word "proxy" must match the file name "proxy.ts"
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const host = req.headers.get("host") || "";
 
