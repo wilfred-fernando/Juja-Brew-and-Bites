@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation"; // 👈 Added router for redirection
 
 // ─── 1. MODAL: ADD TO CART ───
 function AddToCartModal({ item, onClose, onAddToCart }) {
@@ -133,6 +134,7 @@ function SaveTicketModal({ onSave, onClose, autoName }) {
 
 // ─── 5. MAIN TERMINAL PAGE ───
 export default function POSPage() {
+  const router = useRouter(); // 👈 Initialized router
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [customers, setCustomers] = useState([]); 
@@ -155,8 +157,36 @@ export default function POSPage() {
 
   const searchRef = useRef(null);
 
+  // ─── SECURITY EFFECT ───
   useEffect(() => {
-    fetchData();
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      // 1. Kick out if not logged in
+      if (!session) {
+        window.location.href = "https://admin.jujabrewandbites.com/login"; 
+        return;
+      }
+
+      // 2. Check for Staff/Admin Role
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      if (profile?.role !== 'admin' && profile?.role !== 'cashier' && profile?.role !== 'super_admin') {
+        alert("Access Denied: Terminal restricted to staff.");
+        window.location.href = "https://jujabrewandbites.com";
+        return;
+      }
+      
+      // If all checks pass, load the data
+      fetchData();
+    };
+
+    checkAuth();
+
     const close = (e) => { if (searchRef.current && !searchRef.current.contains(e.target)) setIsCustListOpen(false); };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
