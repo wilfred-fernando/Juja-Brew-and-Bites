@@ -1,8 +1,16 @@
-import { createClient } from "@/lib/supabase/client";
+"use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase/client";
+// 1. Import the exact function name from your client.ts
+import { createBrowserClient } from "@/lib/supabase/client"; 
+
+export default function Page() {
+  // 2. Initialize supabase inside the component before you use it
+  const supabase = createBrowserClient();
+
+  // ... the rest of your code
+}
 
 const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
 
