@@ -42,17 +42,18 @@ export default function AdminLoginPage() {
       // Default to "customer" if no profile record exists yet
       const role = profile?.role || "customer";
 
-      // 3. ROLE-BASED REDIRECT
-      // Ensure these match the exact strings in your Supabase 'role' column
-      if (role === "admin" || role === "super_admin") {
-        window.location.href = "https://admin.jujabrewandbites.com";
-        return;
-      }
+      // 3. SMART REDIRECT
+const currentHost = window.location.hostname; // e.g., "pos.jujabrewandbites.com"
 
-      if (role === "cashier") {
-        window.location.href = "https://pos.jujabrewandbites.com";
-        return;
-      }
+if (role === "admin" || role === "super_admin") {
+  // If they are already on a specific subdomain (like pos), don't move them!
+  if (currentHost.startsWith("pos.")) {
+    window.location.href = "https://pos.jujabrewandbites.com";
+  } else {
+    window.location.href = "https://admin.jujabrewandbites.com";
+  }
+  return;
+}
 
       // 4. DEFAULT (CUSTOMER)
       window.location.href = "https://jujabrewandbites.com";
