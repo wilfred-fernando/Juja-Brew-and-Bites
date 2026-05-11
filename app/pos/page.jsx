@@ -205,36 +205,34 @@ export default function POSPage() {
                   opacity: 0, 
                 }}
               >
+                {/* 1. Image Container */}
                 <div className="w-14 h-14 rounded-xl bg-rose-50 flex-shrink-0 overflow-hidden mr-4 flex items-center justify-center">
                   {item.image_url ? (
-                    <img src={item.image_url} alt={item.name} className="w-full h-full object-cover transition-transform duration-[650ms] ease-out group-hover:scale-110" />
+                    <img 
+                      src={item.image_url} 
+                      alt={item.name} 
+                      className="w-full h-full object-cover transition-transform duration-[650ms] ease-out group-hover:scale-110" 
+                    />
                   ) : (
                     <div className="w-8 h-8 rounded-full bg-[#FC687D] opacity-20 transition-transform duration-[650ms] ease-out group-hover:scale-110"></div>
                   )}
                 </div>
 
-                <div className="flex flex-col flex-1 min-w-0">
-                  <span className="text-[9px] font-bold text-[#FC687D] uppercase tracking-wider mb-0.5 truncate">{item.category || "General"}</span>
-                  <span className="text-sm font-bold text-slate-800 truncate">{item.name}</span>
-                  <span className="text-xs font-semibold text-slate-400 mt-0.5">₱{Number(item.price).toFixed(0)}</span>
-                </div>
-              </button>
-            ))}
-        </div>
-      </div> {/* This closes the Menu Section properly after the grid */}
-
                 {/* 2. Text Details */}
                 <div className="flex flex-col flex-1 min-w-0">
                   <span className="text-[9px] font-bold text-[#FC687D] uppercase tracking-wider mb-0.5 truncate">
-                    {item.category || "LATTE (COFFEE)"}
+                    {item.category || "General"}
                   </span>
-                  <span className="text-sm font-bold text-slate-800 truncate">{item.name}</span>
-                  <span className="text-xs font-semibold text-slate-400 mt-0.5">₱{Number(item.price).toFixed(0)}</span>
+                  <span className="text-sm font-bold text-slate-800 truncate">
+                    {item.name}
+                  </span>
+                  <span className="text-xs font-semibold text-slate-400 mt-0.5">
+                    ₱{Number(item.price).toFixed(0)}
+                  </span>
                 </div>
               </button>
             ))}
         </div>
-      </div>
 
       {/* --- MOBILE CART BAR --- */}
       {cart.length > 0 && !mobileCartOpen && (
