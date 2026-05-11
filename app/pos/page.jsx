@@ -100,6 +100,8 @@ function ConfirmModal({ title, message, onConfirm, onCancel }) {
 // MAIN POS TERMINAL COMPONENT
 // ==========================================
 export default function POSPage() {
+  const supabase = createBrowserClient();
+  
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [customers, setCustomers] = useState([]); 
@@ -122,7 +124,6 @@ export default function POSPage() {
       if (!session) window.location.href = "/login"; 
       else fetchData();
     });
-  checkAuth();
 }, []);
 
   async function fetchData() {
