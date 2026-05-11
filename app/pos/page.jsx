@@ -442,8 +442,7 @@ export default function POSPage() {
           onClose={() => setSelectedItemForModal(null)}
           onAddToCart={(d) => {
             setCart([...cart, d]);
-            setSelectedItemForModal(null);
-            setMobileCartOpen(true);
+            setSelectedItemForModal(null);  
           }}
         />
       )}
