@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase/client";
 
 // ==========================================
 // FUNCTION: ADD TO CART MODAL (Variants & Logic)
@@ -116,11 +116,18 @@ export default function POSPage() {
 
   // 1. DATA INITIALIZATION & AUTH GATE
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) window.location.href = "https://admin.jujabrewandbites.com/login";
-      else fetchData();
-    });
-  }, []);
+  const checkAuth = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    // Redirect to the login folder INSIDE the pos folder
+    if (!session) {
+      window.location.href = "/pos/login"; 
+      return;
+    }
+    fetchData();
+  };
+  checkAuth();
+}, []);
 
   async function fetchData() {
     setLoading(true);
