@@ -1,4 +1,4 @@
-"use client";
+import { createClient } from "@/lib/supabase/client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -132,7 +132,7 @@ function Footer() {
 }
 
 // ─── Home Page ────────────────────────────────────────────────────────────────
-export default function Home() {
+export default function POSPage() {
   const [featured, setFeatured] = useState([]);
   const [categories, setCategories] = useState([]);
   const [allItems, setAllItems] = useState([]);
