@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { createBrowserClient } from "@/lib/supabase/client";
 import { supabase } from "@/lib/supabase/client";
 
 // ==========================================
@@ -101,7 +102,7 @@ function ConfirmModal({ title, message, onConfirm, onCancel }) {
 // ==========================================
 export default function POSPage() {
   const supabase = createBrowserClient();
-  
+
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [customers, setCustomers] = useState([]); 
