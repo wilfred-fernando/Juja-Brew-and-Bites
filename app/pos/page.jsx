@@ -170,25 +170,19 @@ export default function POSPage() {
   };
 
   // 3. SAVE TICKET (PARK) LOGIC
- const executeSaveTicket = async (label) => {
-  if (!label.trim()) return;
-  
-  const { error } = await supabase.from("open_tickets").insert([{
-    ticket_name: label,
-    items: cart,
-    total_amount: subtotal,
-    order_type: orderType,
-    customer_id: attachedCustomer?.id || null
-  }]);
-
-  if (!error) {
-    setCart([]); // Clear cart after saving
-    setAttachedCustomer(null);
-    setIsSaveModalOpen(false);
-  } else {
-    alert("Error saving ticket: " + error.message);
-  }
-};
+  const handleSaveTicket = async () => {
+    if (cart.length === 0) return;
+    const label = prompt("Enter Ticket Label:", attachedCustomer?.name || "Quick Order");
+    if (!label) return;
+    const { error } = await supabase.from("open_tickets").insert([{
+      ticket_name: label,
+      customer_id: attachedCustomer?.id,
+      items: cart,
+      total_amount: subtotal,
+      order_type: orderType
+    }]);
+    if (!error) { setCart([]); setAttachedCustomer(null); alert("Ticket Saved!"); }
+  };
 
   const subtotal = cart.reduce((sum, i) => sum + (i.unitPrice * i.quantity), 0);
 
