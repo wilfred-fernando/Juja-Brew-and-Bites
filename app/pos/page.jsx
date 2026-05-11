@@ -9,75 +9,115 @@ import { Html5QrcodeScanner } from "html5-qrcode";
 // ==========================================
 // FUNCTION: ADD TO CART MODAL (Variants & Logic)
 // ==========================================
-function AddToCartModal({ item, onClose, onAddToCart }) {
+function AddToCartModal({
+  item,
+  onClose,
+  onAddToCart,
+  customers = [],
+  onCustomerSelect
+}) {
   const [quantity, setQuantity] = useState(1);
   const [selections, setSelections] = useState({});
   const [instructions, setInstructions] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
 
-
+  // ✅ Scanner logic
   useEffect(() => {
-    if (item.variants) {
-      const defaults = {};
-      item.variants.forEach(g => {
-        if (g.isRequired && g.options.length > 0) defaults[g.id] = [g.options[0]];
-      });
-      setSelections(defaults);
-    }
-  }, [item]);
+    if (!scannerOpen) return;
 
-  useEffect(() => {
-  if (!scannerOpen) return;
+    const scanner = new Html5QrcodeScanner(
+      "reader",
+      { fps: 10, qrbox: 250 },
+      false
+    );
 
-  const scanner = new Html5QrcodeScanner(
-    "reader",
-    {
-      fps: 10,
-      qrbox: 250,
-      rememberLastUsedCamera: true,
-    },
-    false
-  );
+    scanner.render(
+      (decodedText) => {
+        const code = decodedText.trim().toLowerCase();
 
-  scanner.render(
-    (decodedText) => {
-      const code = decodedText.trim().toLowerCase();
+        const match = customers.find(
+          (c) =>
+            c.code?.toLowerCase() === code ||
+            c.name?.toLowerCase().includes(code)
+        );
 
-      const customer = customers.find(
-        (c) =>
-          c.customer_code?.toLowerCase() === code ||
-          c.name?.toLowerCase().includes(code)
-      );
+        if (match) {
+          onCustomerSelect?.(match);
+          setScannerOpen(false);
+        } else {
+          alert("Customer not found");
+        }
 
-      if (customer) {
-        setAttachedCustomer(customer);
-        setScannerOpen(false);
-      } else {
-        alert("Customer not found");
-      }
+        scanner.clear();
+      },
+      () => {}
+    );
 
-      scanner.clear();
-    },
-    () => {}
-  );
+    return () => {
+      scanner.clear().catch(() => {});
+    };
+  }, [scannerOpen, customers]);
 
-  return () => {
-    scanner.clear().catch(() => {});
-  };
-}, [scannerOpen, customers]);
-
+  // ✅ MUST be inside component scope (not JSX)
   const toggleOption = (group, opt) => {
     const current = selections[group.id] || [];
+
     if (!group.isMultiSelect) {
       setSelections({ ...selections, [group.id]: [opt] });
     } else {
       const exists = current.find(o => o.id === opt.id);
-      setSelections({ ...selections, [group.id]: exists ? current.filter(o => o.id !== opt.id) : [...current, opt] });
+
+      setSelections({
+        ...selections,
+        [group.id]: exists
+          ? current.filter(o => o.id !== opt.id)
+          : [...current, opt]
+      });
     }
   };
 
-  const unitPrice = (Number(item.price) || 0) + Object.values(selections).flat().reduce((sum, o) => sum + (Number(o.price) || 0), 0);
+  // ✅ MUST be inside component scope
+  const unitPrice =
+    (Number(item.price) || 0) +
+    Object.values(selections)
+      .flat()
+      .reduce((sum, o) => sum + (Number(o.price) || 0), 0);
 
+  return (
+    <>
+      {/* MODAL UI */}
+      <div className="fixed inset-0 z-[250] bg-black/40 flex items-end md:items-center justify-center">
+        <div className="bg-white w-full max-w-md rounded-3xl p-5">
+
+          <div className="flex justify-between">
+            <h2>{item.name}</h2>
+            <button onClick={onClose}>✕</button>
+          </div>
+
+          <button
+            onClick={() => setScannerOpen(true)}
+            className="bg-black text-white px-3 py-2 rounded mt-3"
+          >
+            Scan Customer
+          </button>
+
+        </div>
+      </div>
+
+      {/* SCANNER */}
+      {scannerOpen && (
+        <div className="fixed inset-0 z-[999] bg-black flex flex-col">
+          <div className="p-4 text-white flex justify-between">
+            <h2>Scan Customer</h2>
+            <button onClick={() => setScannerOpen(false)}>✕</button>
+          </div>
+
+          <div id="reader" className="flex-1" />
+        </div>
+      )}
+    </>
+  );
+}
   return (
     <div className="fixed inset-0 z-[250] bg-slate-900/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-300">
       <div className="bg-white w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
@@ -350,12 +390,10 @@ export default function POSPage() {
 
           {/* SCAN INPUT */}
           <div className="space-y-2">
+
             <form onSubmit={handleScanSubmit} className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => document.getElementById('scan-in').focus()}
-                className="text-slate-300 font-bold text-sm hover:text-rose-400"
-              >
+
+              {/* OPEN CAMERA SCANNER */}
               <button
                 type="button"
                 onClick={() => setScannerOpen(true)}
@@ -364,6 +402,7 @@ export default function POSPage() {
                 Scan
               </button>
 
+              {/* MANUAL INPUT */}
               <input
                 id="scan-in"
                 type="text"
@@ -373,7 +412,10 @@ export default function POSPage() {
                 onChange={(e) => setCustomerSearch(e.target.value)}
                 className="flex-1 px-3 py-2 bg-slate-50 border-none rounded-lg text-sm outline-none"
               />
+
             </form>
+
+          </div>
 
             {isCustListOpen && customerSearch.length > 0 && (
               <div className="absolute top-[135px] left-4 right-4 bg-white border border-slate-100 rounded-xl shadow-2xl z-50 max-h-40 overflow-y-auto divide-y divide-slate-50">
