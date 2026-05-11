@@ -116,7 +116,8 @@ export default function POSPage() {
   const [selectedItemForModal, setSelectedItemForModal] = useState(null);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
-  const [orderType, setOrderType] = useState("Dine In");
+  const [diningOptions, setDiningOptions] = useState([]);
+  const [orderType, setOrderType] = useState("");
 
   // 1. DATA INITIALIZATION & AUTH GATE
   useEffect(() => {
@@ -132,11 +133,13 @@ export default function POSPage() {
     const [iRes, catRes, cRes] = await Promise.all([
       supabase.from("menu_items").select("*").eq("is_available", true).order("name"),
       supabase.from("menu_categories").select("*").order("sort_order"),
-      supabase.from("loyalty_members").select('id, name:"Customer name", code:"Customer code"')
+      supabase.from("loyalty_members").select('id, name:"Customer name", code:"Customer code"'),
+      supabase.from("dining_options").select("*").eq("is_available", true).order("id")
     ]);
     if (iRes.data) setItems(iRes.data);
     if (catRes.data) setCategories(catRes.data);
     if (cRes.data) setCustomers(cRes.data);
+    if (diningOptionsRes.data) setDiningOptions(diningOptionsRes.data);
     setLoading(false);
   }
 
@@ -234,11 +237,22 @@ export default function POSPage() {
                   ))}
                </div>
              )}
-             <select value={orderType} onChange={(e) => setOrderType(e.target.value)} className="w-full bg-slate-50 rounded-lg px-3 py-2 text-[11px] font-medium text-slate-500 outline-none cursor-pointer">
-                <option>Dine In</option><option>Take Out</option><option>Delivery</option>
-             </select>
-           </div>
-        </div>
+        {/* DYNAMIC ORDER TYPE TOGGLE */}
+<div className="flex flex-wrap gap-2 bg-slate-100 p-2 rounded-xl mb-4">
+  {diningOptions.map((option) => (
+    <button
+      key={option.id}
+      onClick={() => setOrderType(option.name)}
+      className={`flex-1 min-w-[100px] py-2 px-3 text-xs sm:text-sm font-bold rounded-lg transition-all ${
+        orderType === option.name 
+          ? "bg-[#FC687D] text-white shadow-sm" 
+          : "bg-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+      }`}
+    >
+      {option.name}
+    </button>
+  ))}
+</div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3 hide-scrollbar">
            {cart.length === 0 ? (
