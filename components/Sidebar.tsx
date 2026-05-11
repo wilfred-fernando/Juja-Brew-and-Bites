@@ -52,7 +52,8 @@ export default function Sidebar() {
     }
   }, [pathname]);
 
-  const toggleSection = (name) => {
+  // 👇 ADDED ": string" HERE TO FIX THE TYPESCRIPT ERROR
+  const toggleSection = (name: string) => {
     setOpenSection(prev => (prev === name ? "" : name));
   };
 
