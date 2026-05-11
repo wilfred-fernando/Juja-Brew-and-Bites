@@ -43,6 +43,7 @@ const navItems = [
 export default function Sidebar() {
   const pathname = usePathname();
   const [openSection, setOpenSection] = useState("");
+  if (pathname.includes('/login')) return null;
 
   // Sync open section with current URL on load
   useEffect(() => {
