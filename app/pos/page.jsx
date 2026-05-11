@@ -8,30 +8,19 @@ import { supabase } from "@/lib/supabase";
 // ==========================================
 function SaveTicketModal({ onSave, onClose, defaultName }) {
   const [name, setName] = useState(defaultName || "");
-
   return (
-    <div className="fixed inset-0 z-[500] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-sm rounded-[32px] p-8 shadow-2xl animate-in zoom-in-95 duration-300">
-        <h3 className="text-xl font-semibold text-slate-800 mb-2">Save Ticket</h3>
-        <p className="text-sm text-slate-500 mb-6">Enter a label to identify this order later.</p>
-        
+    <div className="fixed inset-0 z-[500] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-6">
+      <div className="bg-white w-full max-w-sm rounded-[32px] p-8 shadow-2xl">
+        <h3 className="text-xl font-semibold mb-2">Save Ticket</h3>
         <input 
-          autoFocus
-          type="text" 
+          autoFocus 
+          className="w-full p-4 bg-slate-50 rounded-2xl mb-8 outline-none border border-slate-100 focus:border-rose-300"
           value={name} 
-          onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Table 5 or Customer Name"
-          className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-base outline-none focus:bg-white focus:border-rose-400 transition-all mb-8"
+          onChange={(e) => setName(e.target.value)} 
         />
-
         <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 py-4 bg-slate-100 rounded-2xl text-sm font-medium text-slate-600">Cancel</button>
-          <button 
-            onClick={() => onSave(name)} 
-            className="flex-[2] py-4 bg-[#FC687D] rounded-2xl text-sm font-medium text-white shadow-lg shadow-rose-100 active:scale-95 transition-all"
-          >
-            Confirm Save
-          </button>
+          <button onClick={onClose} className="flex-1 py-4 bg-slate-100 rounded-2xl">Cancel</button>
+          <button onClick={() => onSave(name)} className="flex-[2] py-4 bg-[#FC687D] text-white rounded-2xl shadow-lg">Confirm Save</button>
         </div>
       </div>
     </div>
