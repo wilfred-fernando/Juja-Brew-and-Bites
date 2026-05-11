@@ -10,6 +10,14 @@ const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9d
 
 export default function AdminLayout({ children }) {
   const pathname = usePathname();
+  if (pathname && pathname.includes('login')) return null;
+
+  return (
+    <aside>
+       {/* ... your sidebar code ... */}
+    </aside>
+  )
+}
   const router = useRouter();
   
   // UI States
