@@ -48,7 +48,7 @@ export default function MenuAdminPage() {
     setLoading(false);
   }
 
-  // --- HANDLERS ---
+  // --- ITEM HANDLERS ---
   const openModal = (item = null) => {
     setModalTab("Details"); 
     if (item) {
@@ -72,43 +72,95 @@ export default function MenuAdminPage() {
 
   const handleSave = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
+    
     if (!form.name.trim() || !form.category || (!hasVariants && form.price === "")) {
       alert("Please ensure Name, Category, and Price are filled out.");
       return;
     }
+
     setSaving(true);
     try {
       const finalPayload = {
         ...form,
+        // If variants exist, base price is 0 (the POS will use the variant price)
         price: hasVariants ? 0 : parseFloat(form.price) || 0,
         variants: optionGroups
       };
+
+      let responseError = null;
       if (editingItem) {
-        await supabase.from("menu_items").update(finalPayload).eq("id", editingItem.id);
+        const { error } = await supabase.from("menu_items").update(finalPayload).eq("id", editingItem.id);
+        responseError = error;
       } else {
-        await supabase.from("menu_items").insert([finalPayload]);
+        const { error } = await supabase.from("menu_items").insert([finalPayload]);
+        responseError = error;
       }
+      
+      if (responseError) throw responseError;
+      
       await fetchData(); 
       setIsModalOpen(false);
     } catch (error) { 
-      alert("Error: " + error.message); 
+      console.error("Save Error:", error);
+      alert("Error saving item: " + (error.message || JSON.stringify(error))); 
     } finally {
       setSaving(false);
     }
   }
 
-  // --- VARIANT LOGIC ---
+  // --- DELETE HANDLERS ---
+  const confirmDeleteItem = (item) => setItemToDelete(item);
+  
+  const executeDeleteItem = async () => {
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.from("menu_items").delete().eq("id", itemToDelete.id);
+      if (error) throw error;
+      await fetchData();
+      setItemToDelete(null);
+    } catch (err) {
+      alert("Error deleting item: " + err.message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const confirmDeleteCategory = (cat) => setCategoryToDelete(cat);
+
+  const executeDeleteCategory = async () => {
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.from("menu_categories").delete().eq("id", categoryToDelete.id);
+      if (error) throw error;
+      
+      if (catFilter === categoryToDelete.name) setCatFilter("All");
+      await fetchData();
+      setCategoryToDelete(null);
+    } catch (err) {
+      alert("Error deleting category: " + err.message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // --- VARIANT / OPTION HANDLERS ---
   const addOptionGroup = () => {
-    setOptionGroups([...optionGroups, { id: Date.now(), name: "Variants", isRequired: true, isMultiSelect: false, options: [{ id: Date.now() + 1, name: "", price: "" }] }]);
+    setOptionGroups([
+      ...optionGroups,
+      // Default to required, single select for primary variants like Size or Spicy level
+      { id: Date.now(), name: "Variants", isRequired: true, isMultiSelect: false, options: [{ id: Date.now() + 1, name: "", price: "" }] }
+    ]);
     setModalTab("Option Groups");
   };
+
   const removeOptionGroup = (groupId) => setOptionGroups(optionGroups.filter(g => g.id !== groupId));
   const updateOptionGroup = (groupId, field, value) => setOptionGroups(optionGroups.map(g => g.id === groupId ? { ...g, [field]: value } : g));
+  
   const addOption = (groupId) => setOptionGroups(optionGroups.map(g => g.id === groupId ? { ...g, options: [...g.options, { id: Date.now(), name: "", price: "" }] } : g));
   const removeOption = (groupId, optionId) => setOptionGroups(optionGroups.map(g => g.id === groupId ? { ...g, options: g.options.filter(o => o.id !== optionId) } : g));
   const updateOption = (groupId, optionId, field, value) => setOptionGroups(optionGroups.map(g => g.id === groupId ? { ...g, options: g.options.map(o => o.id === optionId ? { ...o, [field]: value } : o) } : g));
 
-  // --- CATEGORY LOGIC ---
+  // --- CATEGORY HANDLERS ---
   const openCategoryModal = (cat = null) => {
     if (cat) {
       setEditingCategory(cat);
@@ -122,22 +174,33 @@ export default function MenuAdminPage() {
 
   const handleCategorySave = async (e) => {
     e.preventDefault();
+    if (!catForm.name.trim()) return alert("Category name is required.");
+    
     setCatSaving(true);
     try {
       if (editingCategory) {
-        await supabase.from("menu_categories").update(catForm).eq("id", editingCategory.id);
+        const { error } = await supabase.from("menu_categories").update(catForm).eq("id", editingCategory.id);
+        if (error) throw error;
+        
         if (editingCategory.name !== catForm.name) {
           await supabase.from("menu_items").update({ category: catForm.name }).eq("category", editingCategory.name);
+          if (catFilter === editingCategory.name) setCatFilter(catForm.name);
         }
       } else {
-        await supabase.from("menu_categories").insert([catForm]);
+        const { error } = await supabase.from("menu_categories").insert([catForm]);
+        if (error) throw error;
       }
+      
       await fetchData();
       setIsCatModalOpen(false);
+    } catch (error) {
+      console.error("Category Save Error:", error);
+      alert("Error saving category: " + error.message);
     } finally {
       setCatSaving(false);
     }
   };
+
 
   const filteredItems = items
     .filter(i => catFilter === "All" || i.category === catFilter)
@@ -146,217 +209,437 @@ export default function MenuAdminPage() {
   if (loading) return <div className="p-8 flex justify-center"><div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full"></div></div>;
 
   return (
-    <div className="max-w-7xl mx-auto animate-in fade-in duration-700 pb-24 px-4 md:px-8">
+    <div 
+      className="max-w-7xl mx-auto animate-in fade-in duration-500 pb-24 px-3 md:px-8"
+      style={{ fontFamily: "'Arial', sans-serif" }}
+    >
       
-      {/* HEADER: LUXURY TYPOGRAPHY */}
-      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 mb-12 pt-8">
+      {/* HEADER */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-6 mb-4 md:mb-8 pt-4 md:pt-6">
         <div>
-          <h1 className="text-3xl md:text-5xl font-black text-slate-800 leading-tight tracking-tighter">Menu Portfolio</h1>
-          <p className="text-slate-400 text-xs md:text-sm font-bold uppercase tracking-[0.3em] mt-3 flex items-center gap-2">
-            <span className="w-8 h-[1px] bg-rose-200"></span>
-            {items.length} Curated Items
+          <h1 className="text-2xl md:text-4xl font-normal text-slate-800 leading-none">Menu Builder</h1>
+          <p className="text-slate-400 text-xs md:text-sm font-medium mt-1 md:mt-2">
+            {items.length} exquisite items • {categories.length} categories
           </p>
         </div>
-        <div className="flex w-full lg:w-auto gap-3">
-          <button onClick={() => openModal()} className="flex-1 lg:flex-none px-8 py-4 bg-[#FC687D] text-white text-[11px] font-black uppercase tracking-widest rounded-2xl hover:bg-rose-500 transition-all shadow-xl shadow-rose-100 hover:-translate-y-1 active:scale-95">
-            + New Product
+        <div className="flex w-full md:w-auto gap-2 md:gap-3">
+          <button onClick={() => openModal()} className="flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3.5 bg-[#FC687D] text-white text-[11px] md:text-sm font-normal uppercase rounded-xl md:rounded-2xl hover:bg-rose-500 transition-all shadow-[0_4px_15px_rgba(252,104,125,0.25)] hover:-translate-y-0.5 active:scale-95">
+            + Add Item
           </button>
-          <button onClick={() => openCategoryModal()} className="flex-1 lg:flex-none px-8 py-4 bg-white border border-rose-100 text-[#FC687D] text-[11px] font-black uppercase tracking-widest rounded-2xl hover:bg-rose-50 transition-all active:scale-95">
+          <button onClick={() => openCategoryModal()} className="flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3.5 bg-white border border-rose-100 text-[#FC687D] text-[11px] md:text-sm font-normal uppercase rounded-xl md:rounded-2xl hover:bg-rose-50 transition-all shadow-sm active:scale-95">
             + Category
           </button>
         </div>
       </header>
 
-      {/* MOBILE SEARCH/FILTER COMPONENT */}
-      <div className="lg:hidden space-y-4 mb-8">
-        <div className="relative group">
+      {/* SEARCH BAR & CATEGORY DROPDOWN (Mobile Only) */}
+      <div className="lg:hidden flex flex-col gap-3 mb-6">
+        <div className="relative">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
           <input 
             type="text" placeholder="Search menu..." value={search} onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-12 pr-4 py-4 bg-white border border-slate-100 rounded-[22px] text-sm focus:outline-none focus:border-[#FC687D] shadow-sm transition-all"
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-100 rounded-xl text-xs focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all shadow-sm"
           />
-          <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#FC687D] transition-colors">🔍</span>
         </div>
-        <select 
-          value={catFilter} 
-          onChange={(e) => setCatFilter(e.target.value)}
-          className="w-full p-4 bg-white border border-slate-100 rounded-[22px] text-xs font-black uppercase tracking-widest text-slate-700 outline-none"
-        >
-          <option value="All">All Categories</option>
-          {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-        </select>
-      </div>
-
-      <div className="flex flex-col lg:flex-row gap-10">
         
-        {/* DESKTOP CATEGORY SIDEBAR: MINIMALIST & STICKY */}
-        <div className="hidden lg:block w-72 flex-shrink-0 sticky top-10 h-fit">
-          <div className="relative mb-8 group">
-            <input 
-              type="text" placeholder="Search portfolio..." value={search} onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-12 pr-4 py-4 bg-white border border-slate-100 rounded-[24px] text-sm focus:outline-none focus:border-[#FC687D] shadow-sm transition-all"
-            />
-            <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#FC687D] transition-colors">🔍</span>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <select
+              value={catFilter}
+              onChange={(e) => setCatFilter(e.target.value)}
+              className="w-full h-full bg-white border border-slate-100 rounded-xl px-4 py-3 text-xs font-semibold text-slate-700 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all shadow-sm"
+            >
+              <option value="All">All Items ({items.length})</option>
+              {categories.map(cat => (
+                <option key={cat.id} value={cat.name}>
+                  {cat.name} ({items.filter(i => i.category === cat.name).length})
+                </option>
+              ))}
+            </select>
           </div>
           
-          <div className="space-y-1 px-1">
-            <h3 className="text-[10px] font-black uppercase text-slate-300 tracking-[0.2em] mb-4 ml-4">Filter By</h3>
+          {/* Mobile Category Edit/Delete */}
+          {catFilter !== "All" && (
+            <div className="flex gap-2 flex-shrink-0 animate-in fade-in duration-200">
+              <button onClick={() => openCategoryModal(categories.find(c => c.name === catFilter))} className="w-11 h-11 flex items-center justify-center bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-[#FC687D] hover:bg-rose-50 transition-colors shadow-sm text-sm">
+                ✎
+              </button>
+              <button onClick={() => confirmDeleteCategory(categories.find(c => c.name === catFilter))} className="w-11 h-11 flex items-center justify-center bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors shadow-sm text-sm">
+                🗑
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-col lg:flex-row gap-4 md:gap-8">
+        
+        {/* RESPONSIVE CATEGORY NAVIGATION (Desktop) */}
+        <div className="hidden lg:block w-72 flex-shrink-0">
+          <div className="relative mb-6">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+            <input 
+              type="text" placeholder="Search menu..." value={search} onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-white border border-slate-100 rounded-2xl text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all shadow-sm"
+            />
+          </div>
+          
+          <div className="flex flex-col bg-white p-2 rounded-2xl border border-slate-100 shadow-sm gap-1">
+            <h3 className="text-[10px] font-normal uppercase text-slate-400 px-3 pt-2 pb-2">Categories</h3>
+            
             <button 
               onClick={() => setCatFilter("All")}
-              className={`w-full text-left px-5 py-4 rounded-[20px] text-[11px] font-black uppercase tracking-widest transition-all ${catFilter === "All" ? "bg-slate-900 text-white shadow-xl" : "text-slate-400 hover:bg-slate-50"}`}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-normal uppercase transition-all duration-300 active:scale-95 ${
+                catFilter === "All" ? "bg-slate-800 text-white shadow-sm" : "bg-transparent text-slate-500 hover:bg-slate-50 border-transparent"
+              }`}
             >
-              All Items
+              <span className="text-left break-words whitespace-normal leading-tight pr-2">All Items</span>
+              <span className={`flex-shrink-0 flex px-2 py-0.5 rounded-full text-[9px] ${catFilter === "All" ? "bg-white/20" : "bg-slate-100"}`}>{items.length}</span>
             </button>
+            
             {categories.map(cat => (
-              <div key={cat.id} className="group relative">
+              <div key={cat.id} className="relative group w-full flex items-center">
                 <button 
                   onClick={() => setCatFilter(cat.name)}
-                  className={`w-full text-left px-5 py-4 rounded-[20px] text-[11px] font-black uppercase tracking-widest transition-all ${catFilter === cat.name ? "bg-[#FC687D] text-white shadow-xl shadow-rose-100" : "text-slate-400 hover:bg-slate-50"}`}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-normal uppercase transition-all duration-300 active:scale-95 ${
+                    catFilter === cat.name ? "bg-[#FC687D] text-white shadow-sm shadow-rose-200" : "bg-transparent text-slate-500 hover:bg-slate-50 border-transparent"
+                  }`}
                 >
-                  {cat.name}
+                  <div className="flex items-center gap-2 pr-2">
+                    <span className="text-left break-words whitespace-normal leading-tight">{cat.name}</span>
+                  </div>
+                  <span className={`flex-shrink-0 flex px-2 py-0.5 rounded-full text-[9px] ${catFilter === cat.name ? "bg-white/20" : "bg-slate-100"}`}>
+                    {items.filter(i => i.category === cat.name).length}
+                  </span>
                 </button>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex gap-1 transition-all">
-                  <button onClick={() => openCategoryModal(cat)} className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-[10px] hover:bg-white/40">✎</button>
+                
+                {/* Desktop Category Edit/Delete Hover Menu */}
+                <div className="absolute right-2 opacity-0 group-hover:opacity-100 flex items-center gap-1.5 transition-opacity bg-white/90 backdrop-blur-sm p-1 rounded-lg shadow-sm border border-slate-100 pointer-events-none group-hover:pointer-events-auto">
+                  <button onClick={(e) => { e.stopPropagation(); openCategoryModal(cat); }} className="w-6 h-6 flex items-center justify-center bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-[#FC687D] rounded-md text-[11px] transition-colors">✎</button>
+                  <button onClick={(e) => { e.stopPropagation(); confirmDeleteCategory(cat); }} className="w-6 h-6 flex items-center justify-center bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-md text-[11px] transition-colors">🗑</button>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* PRODUCT GRID: LUXURY CARD SYSTEM */}
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {/* LIST AREA */}
+        <div className="flex-1 flex flex-col gap-3 md:gap-4">
           {filteredItems.map(item => (
-            <div key={item.id} className="group bg-white rounded-[32px] border border-rose-50 p-6 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(252,104,125,0.08)] hover:-translate-y-2 relative overflow-hidden flex flex-col h-full">
+            <div key={item.id} className="bg-white rounded-xl md:rounded-2xl border border-rose-50 shadow-sm p-3 md:p-4 pr-3 md:pr-5 flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0 hover:shadow-md transition-all duration-300 group cursor-default">
               
-              {/* IMAGE CONTAINER */}
-              <div className="w-full aspect-square rounded-[24px] bg-rose-50 mb-6 relative overflow-hidden border border-rose-50 flex-shrink-0">
-                {item.image_url ? (
-                  <img src={item.image_url} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-rose-200 text-4xl">🍵</div>
-                )}
-                {item.is_featured && <span className="absolute top-4 left-4 bg-white/90 backdrop-blur-md text-[#FC687D] text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-sm">Featured</span>}
-              </div>
-
-              {/* CONTENT */}
-              <div className="flex-1 flex flex-col">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#FC687D] mb-2">{item.category}</p>
-                <h3 className="text-xl font-bold text-slate-800 leading-tight mb-2 group-hover:text-[#FC687D] transition-colors line-clamp-1">{item.name}</h3>
-                <p className="text-sm text-slate-400 line-clamp-2 mb-6 font-medium leading-relaxed">{item.description || "No description provided."}</p>
-                
-                <div className="mt-auto pt-6 border-t border-rose-50 flex items-center justify-between">
-                  <span className="text-2xl font-black text-slate-900">
-                    {item.variants?.length > 0 ? <span className="text-xs uppercase text-slate-300 tracking-widest">Multi-Price</span> : `₱${item.price}`}
-                  </span>
-                  <div className="flex gap-2">
-                    <button onClick={() => openModal(item)} className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-[#FC687D] hover:text-white transition-all active:scale-90">✎</button>
-                    <button onClick={() => setItemToDelete(item)} className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-red-500 hover:text-white transition-all active:scale-90">✕</button>
+              <div className="flex items-center gap-3 md:gap-4">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-lg md:rounded-xl bg-[#FFF9FA] flex items-center justify-center relative overflow-hidden flex-shrink-0 border border-rose-50">
+                  {item.image_url ? (
+                    <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-xl md:text-2xl text-rose-200/50">📷</span>
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-normal text-slate-800 text-sm md:text-base mb-0.5 leading-tight">
+                    {item.name} {item.variants?.length > 0 && <span className="ml-1 text-[10px] text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded uppercase font-bold">Variants</span>}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <span className="font-normal text-[#FC687D] text-xs md:text-sm">
+                      {item.variants?.length > 0 ? "Variable Price" : `₱${item.price}`}
+                    </span>
+                    <span className="text-slate-200 text-[10px]">•</span>
+                    <span className="text-[9px] md:text-[10px] font-normal uppercase text-slate-400">{item.category}</span>
                   </div>
                 </div>
               </div>
+              
+              <div className="flex items-center justify-between md:justify-end w-full md:w-auto gap-3 md:gap-6 pt-3 md:pt-0 border-t md:border-none border-slate-50">
+                <span className={`px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-[9px] md:text-[10px] font-normal uppercase border flex items-center gap-1.5 ${
+                  item.is_available ? "bg-emerald-50 text-emerald-600 border-emerald-100/50" : "bg-slate-50 text-slate-400 border-slate-100"
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${item.is_available ? "bg-emerald-500 animate-pulse" : "bg-slate-300"}`}></span>
+                  {item.is_available ? "Available" : "Disabled"}
+                </span>
 
-              {!item.is_available && (
-                <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
-                  <span className="bg-slate-800 text-white text-[10px] font-black uppercase tracking-[0.3em] px-5 py-2.5 rounded-full">Unavailable</span>
+                <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300">
+                  <button onClick={() => openModal(item)} className="px-3 md:px-4 py-1.5 md:py-2 bg-slate-50 border border-slate-100 text-[10px] md:text-xs font-normal text-slate-500 hover:text-[#FC687D] hover:bg-rose-50 rounded-lg md:rounded-xl transition-all active:scale-90">
+                    ✎
+                  </button>
+                  <button onClick={() => confirmDeleteItem(item)} className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center bg-slate-50 border border-slate-100 text-[10px] md:text-xs text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg md:rounded-xl transition-all active:scale-90">
+                    🗑
+                  </button>
                 </div>
-              )}
+              </div>
             </div>
           ))}
+          
+          {filteredItems.length === 0 && (
+            <div className="text-center py-12 md:py-20 text-slate-400 font-normal uppercase text-[10px] md:text-xs border border-dashed border-slate-200/60 rounded-xl md:rounded-2xl bg-white/50">
+              No items found
+            </div>
+          )}
         </div>
       </div>
 
-      {/* LUXURY GLASS MODALS */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-md flex items-end md:items-center justify-center p-0 md:p-6 transition-all duration-500 overflow-y-auto">
-          <div className="bg-white w-full max-w-2xl rounded-t-[40px] md:rounded-[40px] p-8 md:p-12 shadow-2xl animate-in slide-in-from-bottom-full md:zoom-in-95 duration-500 flex flex-col my-auto" onClick={e => e.stopPropagation()}>
-            <div className="w-12 h-1.5 bg-slate-100 rounded-full mx-auto mb-8 md:hidden" />
-            
-            <header className="flex justify-between items-start mb-10">
-              <div>
-                <h2 className="text-3xl font-black text-slate-800">{editingItem ? "Refine Item" : "New Creation"}</h2>
-                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">Menu Inventory System</p>
-              </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-3xl text-slate-200 hover:text-slate-800 transition-colors">✕</button>
-            </header>
-
-            <nav className="flex gap-6 mb-10 border-b border-slate-50">
-              {["Details", "Option Groups"].map(tab => (
-                <button 
-                  key={tab} 
-                  onClick={() => setModalTab(tab)}
-                  className={`pb-4 text-[11px] font-black uppercase tracking-widest transition-all relative ${modalTab === tab ? "text-[#FC687D]" : "text-slate-300"}`}
-                >
-                  {tab}
-                  {modalTab === tab && <div className="absolute bottom-0 left-0 w-full h-[3px] bg-[#FC687D] rounded-full animate-in fade-in zoom-in duration-300" />}
-                </button>
-              ))}
-            </nav>
-
-            <div className="space-y-8 mb-12 max-h-[50vh] overflow-y-auto pr-2 hide-scrollbar">
-              {modalTab === "Details" ? (
-                <div className="space-y-6">
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 block">Product Name</label>
-                    <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-rose-100 transition-all" placeholder="e.g. Signature Iced Latte" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 block">Category</label>
-                      <select value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-bold text-slate-700 outline-none">
-                        {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 block">Base Price (₱)</label>
-                      <input disabled={hasVariants} type="number" value={hasVariants ? "" : form.price} onChange={e => setForm({...form, price: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-bold text-slate-700 disabled:opacity-30" placeholder="0.00" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 block">Image URL</label>
-                    <input value={form.image_url} onChange={e => setForm({...form, image_url: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-bold text-slate-700" placeholder="https://..." />
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-8">
-                  {optionGroups.map(group => (
-                    <div key={group.id} className="bg-slate-50 rounded-[32px] p-8 space-y-6">
-                      <div className="flex justify-between items-center border-b border-slate-200 pb-4">
-                        <input value={group.name} onChange={e => updateOptionGroup(group.id, "name", e.target.value)} className="bg-transparent font-black uppercase tracking-[0.2em] text-xs text-slate-800 outline-none" />
-                        <button onClick={() => removeOptionGroup(group.id)} className="text-[10px] font-black text-red-400 uppercase tracking-widest">Remove Group</button>
-                      </div>
-                      {group.options.map(opt => (
-                        <div key={opt.id} className="flex gap-3">
-                          <input placeholder="Option Name" value={opt.name} onChange={e => updateOption(group.id, opt.id, "name", e.target.value)} className="flex-1 bg-white rounded-xl p-4 text-xs font-bold" />
-                          <input placeholder="₱ Price" value={opt.price} onChange={e => updateOption(group.id, opt.id, "price", e.target.value)} className="w-28 bg-white rounded-xl p-4 text-xs font-bold" />
-                          <button onClick={() => removeOption(group.id, opt.id)} className="text-slate-300">✕</button>
-                        </div>
-                      ))}
-                      <button onClick={() => addOption(group.id)} className="text-[10px] font-black uppercase text-[#FC687D] tracking-widest">+ Add Option</button>
-                    </div>
-                  ))}
-                  <button onClick={addOptionGroup} className="w-full py-6 border-2 border-dashed border-slate-100 rounded-[32px] text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all">+ New Option Group</button>
-                </div>
-              )}
+      {/* ─── CUSTOM DELETE MODALS ─── */}
+      {(itemToDelete || categoryToDelete) && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 transition-all duration-300">
+          <div className="bg-white w-full max-w-sm rounded-[24px] p-6 md:p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 shadow-sm border border-red-100">
+              🗑️
             </div>
-
-            <footer className="flex gap-4 pt-10 border-t border-slate-50">
-              <button onClick={() => setIsModalOpen(false)} className="flex-1 py-5 text-[11px] font-black uppercase tracking-widest text-slate-400">Discard</button>
-              <button onClick={handleSave} className="flex-[2] py-5 bg-slate-900 text-white rounded-[24px] text-[11px] font-black uppercase tracking-widest shadow-2xl active:scale-95 transition-all">{saving ? "Saving..." : "Commit Changes"}</button>
-            </footer>
+            <h3 className="text-xl font-bold text-slate-800 text-center mb-2">
+              Delete {itemToDelete ? "Item" : "Category"}?
+            </h3>
+            <p className="text-sm text-slate-500 text-center mb-6 leading-relaxed">
+              {itemToDelete 
+                ? `Are you sure you want to permanently delete "${itemToDelete.name}"? This action cannot be undone.`
+                : `Are you sure you want to delete "${categoryToDelete.name}"? Items inside this category will NOT be deleted, but they will lose their category filter.`}
+            </p>
+            <div className="flex gap-3 w-full">
+              <button 
+                onClick={() => { setItemToDelete(null); setCategoryToDelete(null); }} 
+                className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors text-xs uppercase"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={itemToDelete ? executeDeleteItem : executeDeleteCategory}
+                disabled={isDeleting}
+                className="flex-1 py-3.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl shadow-md shadow-red-200 transition-colors disabled:opacity-70 text-xs uppercase active:scale-95"
+              >
+                {isDeleting ? "Deleting..." : "Yes, Delete"}
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* DELETE DIALOG: SOFT DANGER */}
-      {itemToDelete && (
-        <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-white w-full max-w-sm rounded-[40px] p-10 text-center animate-in zoom-in-95 duration-300 shadow-2xl">
-            <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center text-3xl mx-auto mb-6">🗑️</div>
-            <h3 className="text-2xl font-black text-slate-800 mb-3">Confirm Deletion</h3>
-            <p className="text-slate-400 text-sm font-medium mb-10 leading-relaxed">This will permanently remove <span className="text-slate-900 font-bold">"{itemToDelete.name}"</span> from the database.</p>
-            <div className="flex gap-4">
-              <button onClick={() => setItemToDelete(null)} className="flex-1 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Cancel</button>
-              <button onClick={executeDeleteItem} className="flex-1 py-4 bg-red-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-red-100 active:scale-95 transition-all">Delete</button>
+      {/* ─── ADD/EDIT CATEGORY MODAL ─── */}
+      {isCatModalOpen && (
+        <div className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 transition-all duration-300" onClick={() => setIsCatModalOpen(false)}>
+          <div className="bg-white w-full max-w-md rounded-[24px] p-6 md:p-8 shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl md:text-2xl font-bold text-slate-800">
+                {editingCategory ? "Edit Category" : "Add Category"}
+              </h3>
+              <button onClick={() => setIsCatModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90 font-bold">
+                ✕
+              </button>
             </div>
+            <form onSubmit={handleCategorySave} className="space-y-5">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Category Name *</label>
+                <input 
+                  type="text" required placeholder="e.g. Rice Meals" 
+                  value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} 
+                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" 
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Sort Order</label>
+                <input 
+                  type="number" required 
+                  value={catForm.sort_order} onChange={e => setCatForm({...catForm, sort_order: parseInt(e.target.value) || 0})} 
+                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" 
+                />
+              </div>
+              <div className="pt-2">
+                <label className="flex items-center gap-3 cursor-pointer group w-fit">
+                  <div className="relative flex items-center justify-center">
+                    <input 
+                      type="checkbox" checked={catForm.is_active} onChange={e => setCatForm({...catForm, is_active: e.target.checked})} 
+                      className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-[#FC687D] checked:bg-[#FC687D] transition-all cursor-pointer" 
+                    />
+                    <span className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xs font-bold">✓</span>
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">Active / Visible</span>
+                </label>
+              </div>
+              <div className="grid grid-cols-2 gap-3 pt-4 mt-2 border-t border-slate-100">
+                <button type="button" onClick={() => setIsCatModalOpen(false)} className="w-full py-3.5 rounded-xl bg-slate-50 text-slate-600 font-bold text-xs hover:bg-slate-100 transition-all active:scale-95">
+                  Cancel
+                </button>
+                <button type="submit" disabled={catSaving} className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-bold text-xs hover:bg-rose-500 transition-all shadow-md shadow-rose-200 disabled:opacity-70 active:scale-95">
+                  {catSaving ? "Saving..." : (editingCategory ? "Update Category" : "Add Category")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── ADD/EDIT ITEM MODAL ─── */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 transition-all duration-300" onClick={() => setIsModalOpen(false)}>
+          <div className="bg-white w-full max-w-2xl rounded-t-[20px] md:rounded-[24px] p-5 md:p-8 shadow-2xl animate-in slide-in-from-bottom-full md:slide-in-from-bottom-10 md:zoom-in-95 duration-300 max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            
+            <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4 md:hidden flex-shrink-0" />
+
+            <div className="flex justify-between items-center mb-5 md:mb-6 flex-shrink-0">
+              <h3 className="text-xl md:text-2xl font-bold text-slate-800" >{editingItem ? "Edit Item" : "New Item"}</h3>
+              <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90 font-bold">
+                ✕
+              </button>
+            </div>
+
+            {/* Premium Tabs */}
+            <div className="flex gap-1 md:gap-2 mb-5 md:mb-6 bg-slate-50 p-1 rounded-xl w-fit border border-slate-100 flex-shrink-0">
+              <button onClick={() => setModalTab("Details")} className={`px-4 md:px-5 py-2 rounded-lg text-[10px] md:text-xs font-bold flex items-center gap-1.5 transition-all duration-300 ${modalTab === "Details" ? "bg-rose-50 text-[#FC687D] shadow-sm border border-rose-100" : "text-slate-500 hover:bg-slate-100"}`}>
+                <span className="text-xs md:text-sm">📝</span> Details
+              </button>
+              <button onClick={() => setModalTab("Option Groups")} className={`px-4 md:px-5 py-2 rounded-lg text-[10px] md:text-xs font-bold flex items-center gap-1.5 transition-all duration-300 ${modalTab === "Option Groups" ? "bg-rose-50 text-[#FC687D] shadow-sm border border-rose-100" : "text-slate-500 hover:bg-slate-100"}`}>
+                <span className="text-xs md:text-sm">⚙️</span> Variants & Options {hasVariants && `(${optionGroups.length})`}
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto hide-scrollbar -mx-2 px-2 pb-4">
+              {modalTab === "Details" ? (
+                <form id="item-form" onSubmit={handleSave} className="space-y-4 md:space-y-5 animate-in fade-in duration-200">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Item Name *</label>
+                    <input type="text" required value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 md:gap-5">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Category *</label>
+                      <select required value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all appearance-none cursor-pointer">
+                        <option value="">— Select Category —</option>
+                        {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Base Price (₱) *</label>
+                      <input 
+                        type="number" step="0.01" 
+                        required={!hasVariants} 
+                        disabled={hasVariants}
+                        value={hasVariants ? "" : form.price} 
+                        placeholder={hasVariants ? "Set in Variants tab" : "0.00"}
+                        onChange={e => setForm({...form, price: e.target.value})} 
+                        className={`w-full rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm transition-all ${
+                          hasVariants 
+                            ? "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed" 
+                            : "bg-white border border-slate-200 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100"
+                        }`} 
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Description</label>
+                    <textarea rows="2" value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all resize-none" />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Product Image URL</label>
+                    <input 
+                      type="url" 
+                      placeholder="https://example.com/image.jpg" 
+                      value={form.image_url} 
+                      onChange={e => setForm({...form, image_url: e.target.value})} 
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" 
+                    />
+                  </div>
+
+                  <div className="flex flex-col md:flex-row items-start md:items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 mt-2">
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <div className="relative flex items-center justify-center">
+                        <input type="checkbox" checked={form.is_available} onChange={e => setForm({...form, is_available: e.target.checked})} className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-[#FC687D] checked:bg-[#FC687D] transition-all cursor-pointer" />
+                        <span className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xs font-bold">✓</span>
+                      </div>
+                      <span className="text-xs md:text-sm font-medium text-slate-700">Available to Order</span>
+                    </label>
+                    
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <div className="relative flex items-center justify-center">
+                        <input type="checkbox" checked={form.is_featured} onChange={e => setForm({...form, is_featured: e.target.checked})} className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-[#FC687D] checked:bg-[#FC687D] transition-all cursor-pointer" />
+                        <span className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xs font-bold">✓</span>
+                      </div>
+                      <span className="text-xs md:text-sm font-medium text-slate-700">Featured Item ⭐️</span>
+                    </label>
+                  </div>
+                </form>
+              ) : (
+                <div className="flex flex-col h-full animate-in fade-in duration-300 pb-2">
+                  <p className="text-xs text-slate-500 mb-5 font-medium leading-relaxed px-1">
+                    Group 1 acts as your base <strong className="text-[#FC687D]">Variants</strong> (e.g. Regular/Spicy). Additional groups act as Add-ons.
+                  </p>
+
+                  <div className="space-y-4 mb-6">
+                    {optionGroups.map((group) => (
+                      <div key={group.id} className="border border-rose-100 rounded-2xl p-4 md:p-5 bg-white shadow-[0_2px_10px_rgba(252,104,125,0.05)]">
+                        
+                        {/* Group Header Row */}
+                        <div className="flex flex-wrap lg:flex-nowrap gap-3 items-center mb-4 pb-4 border-b border-slate-50">
+                          <input
+                            placeholder="Group name (e.g. Variants, Add-ons)"
+                            value={group.name}
+                            onChange={(e) => updateOptionGroup(group.id, "name", e.target.value)}
+                            className="flex-1 min-w-[140px] border border-slate-200 rounded-xl p-2.5 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] transition font-bold text-slate-700"
+                          />
+                          <label className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-600 font-medium cursor-pointer">
+                            <input type="checkbox" checked={group.isRequired} onChange={(e) => updateOptionGroup(group.id, "isRequired", e.target.checked)} className="w-3.5 h-3.5 accent-[#FC687D] cursor-pointer" />
+                            Required
+                          </label>
+                          <label className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-600 font-medium cursor-pointer">
+                            <input type="checkbox" checked={group.isMultiSelect} onChange={(e) => updateOptionGroup(group.id, "isMultiSelect", e.target.checked)} className="w-3.5 h-3.5 accent-[#FC687D] cursor-pointer" />
+                            Multi-select
+                          </label>
+                          <button type="button" onClick={() => removeOptionGroup(group.id)} className="text-red-400 hover:text-red-600 px-1 font-bold text-base transition-colors ml-auto lg:ml-2">✕</button>
+                        </div>
+
+                        {/* Options List */}
+                        <div className="space-y-3 pl-2 md:pl-4 border-l-2 border-slate-100 ml-1">
+                          {group.options.map((opt) => (
+                            <div key={opt.id} className="flex gap-2 md:gap-3 items-center">
+                              <input
+                                placeholder="Option name (e.g. Regular)"
+                                value={opt.name}
+                                onChange={(e) => updateOption(group.id, opt.id, "name", e.target.value)}
+                                className="flex-1 border border-slate-200 rounded-xl p-2.5 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] transition"
+                              />
+                              
+                              {/* Clean Price Input matching your screenshot */}
+                              <div className="relative w-28 md:w-32">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₱</span>
+                                <input
+                                  type="number"
+                                  placeholder="129.00"
+                                  value={opt.price}
+                                  onChange={(e) => updateOption(group.id, opt.id, "price", e.target.value)}
+                                  className="w-full pl-7 pr-3 py-2.5 border border-slate-200 rounded-xl text-xs md:text-sm focus:outline-none focus:border-[#FC687D] transition"
+                                />
+                              </div>
+
+                              <button type="button" onClick={() => removeOption(group.id, opt.id)} className="text-red-300 hover:text-red-500 font-bold px-1 transition-colors text-base">✕</button>
+                            </div>
+                          ))}
+                          <button type="button" onClick={() => addOption(group.id)} className="text-[#FC687D] font-bold text-[10px] md:text-xs mt-2 hover:underline flex items-center gap-1">
+                            + Add Option
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button type="button" onClick={addOptionGroup} className="w-full py-3.5 md:py-4 border-2 border-dashed border-slate-200 text-[#FC687D] font-bold text-xs rounded-xl hover:bg-rose-50 hover:border-rose-200 transition-all mt-auto active:scale-95">
+                    + Add New Option Group
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 mt-4 border-t border-slate-100 flex-shrink-0">
+               <div className="grid grid-cols-2 gap-3">
+                 <button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-3 md:py-3.5 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs hover:bg-slate-200 transition-all active:scale-95">
+                   Cancel
+                 </button>
+                 <button onClick={handleSave} form="item-form" disabled={saving} className="w-full py-3 md:py-3.5 rounded-xl bg-[#FC687D] text-white font-bold text-xs hover:bg-rose-500 transition-all shadow-md shadow-rose-200 disabled:opacity-70 active:scale-95">
+                   {saving ? "Saving..." : "Save Menu Item"}
+                 </button>
+               </div>
+            </div>
+
           </div>
         </div>
       )}
