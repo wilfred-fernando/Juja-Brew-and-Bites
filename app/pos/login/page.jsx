@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { createBrowserClient } from "@/lib/supabase/client";
+import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
 
 export default function POSLoginPage() {
   // 1. Initialize Supabase here too!
