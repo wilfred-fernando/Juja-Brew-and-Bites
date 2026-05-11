@@ -14,7 +14,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@supabase/auth-helpers-nextjs": "^0.15.0",
     "@supabase/ssr": "^0.10.3",
-    "@supabase/supabase-js": "^latest",
+    "@supabase/supabase-js": "latest",
     "lucide-react": "latest",
     "csv-parser": "^3.2.0",
     "html5-qrcode": "^2.3.8",
