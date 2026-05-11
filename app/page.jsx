@@ -96,7 +96,7 @@ function Nav({ active }) {
 }
 
 // ─── Shared Footer ────────────────────────────────────────────────────────────
-export function Footer() {
+function Footer() {
   return (
     <footer className="bg-slate-900 text-slate-400 pt-20 pb-10 px-6">
       <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-14 mb-14">
