@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+body {
+  background-color: #FFF5F7;
+  color: #1e293b;
+  /* Arial is built-in, so this will load instantly */
+  font-family: Arial, Helvetica, sans-serif !important;
+  margin: 0;
+  padding: 0;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}

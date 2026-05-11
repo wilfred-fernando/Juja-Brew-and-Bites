@@ -2,20 +2,24 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
-
-import { supabase } from "@/lib/supabase";
-import AdminMenuBuilder from "@/components/AdminMenuBuilder";
-
-// Inside your main admin render logic where you check the active tab:
 
 // ─── Shared Nav ───────────────────────────────────────────────────────────────
 export function Nav({ active }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  
+
+  // Dynamic Login URL: Checks if we are local or in production
+  const [loginUrl, setLoginUrl] = useState("https://customer.jujabrewandbites.com/login");
+
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+      setLoginUrl(isLocal ? "http://customer.localhost:3000/login" : "https://customer.jujabrewandbites.com/login");
+    }
+    
     const fn = () => setScrolled(window.scrollY > 40);
     window.addEventListener("scroll", fn);
     return () => window.removeEventListener("scroll", fn);
@@ -52,8 +56,10 @@ export function Nav({ active }) {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
-          <Link href="/login"
-            className="text-[11px] font-normal uppercase tracking-widest px-5 py-2.5 rounded-full border border-slate-200 text-slate-500 hover:border-[#FC687D] hover:text-[#FC687D] hover:bg-rose-50 transition-all duration-300">
+          <Link 
+            href={loginUrl}
+            className="text-[11px] font-normal uppercase tracking-widest px-5 py-2.5 rounded-full border border-slate-200 text-slate-500 hover:border-[#FC687D] hover:text-[#FC687D] hover:bg-rose-50 transition-all duration-300"
+          >
             Login
           </Link>
           <Link href="/order"
@@ -77,6 +83,8 @@ export function Nav({ active }) {
             <Link key={l} href={h} onClick={() => setOpen(false)}
               className="text-slate-800 font-normal uppercase tracking-widest text-xs hover:text-[#FC687D] transition py-1">{l}</Link>
           ))}
+          <Link href={loginUrl} onClick={() => setOpen(false)}
+              className="text-slate-800 font-normal uppercase tracking-widest text-xs hover:text-[#FC687D] transition py-1">Login</Link>
           <Link href="/order" onClick={() => setOpen(false)}
             className="mt-2 py-3 rounded-full bg-[#FC687D] text-white font-normal text-xs text-center uppercase tracking-widest hover:bg-rose-500 transition-colors">
             Order Now →
@@ -212,10 +220,13 @@ export default function Home() {
                   const count = allItems.filter(i => i.category === cat.name).length;
                   return (
                     <Link key={cat.name} href="/menu"
-                      className="group relative p-8 rounded-3xl bg-[#FFF5F7] border border-rose-50 text-center overflow-hidden hover:bg-[#FC687D] hover:shadow-xl hover:-translate-y-2 transition-all duration-400">
+                      className="group relative p-8 rounded-3xl bg-[#FFF5F7] border border-rose-50 text-center overflow-hidden hover:bg-[#FC687D] hover:shadow-xl hover:-translate-y-2 transition-all duration-400 min-h-[160px] flex flex-col justify-center items-center">
                       <div className="text-5xl mb-4 group-hover:scale-110 transition-transform duration-300">{cat.icon}</div>
-                      <p className="font-extrabold text-slate-800 text-sm group-hover:text-white transition-colors duration-300 tracking-wide">{cat.name}</p>
-                      <p className="text-slate-400 text-[11px] mt-1 font-medium group-hover:text-rose-100 transition-colors">{count} items</p>
+                      {/* FIX: Removed whitespace-nowrap and overflow-hidden to allow wrapping */}
+                      <p className="font-extrabold text-slate-800 text-sm group-hover:text-white transition-colors duration-300 tracking-wide px-2 leading-tight uppercase">
+                        {cat.name}
+                      </p>
+                      <p className="text-slate-400 text-[11px] mt-1 font-medium group-hover:text-rose-100 transition-colors uppercase">{count} items</p>
                     </Link>
                   );
                 })
@@ -333,7 +344,7 @@ function FeaturedCard({ item, catEmoji }) {
       
       <div className="p-6 flex flex-col flex-1">
         <div className="flex justify-between items-start gap-2 mb-2">
-          <h3 className="font-extrabold text-slate-800 text-base leading-tight flex-1">{item.name}</h3>
+          <h3 className="font-extrabold text-slate-800 text-base leading-tight flex-1 uppercase">{item.name}</h3>
           <span className="font-normal text-[#FC687D] text-lg flex-shrink-0">₱{item.price}</span>
         </div>
         {item.description && (

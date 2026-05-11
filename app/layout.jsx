@@ -1,4 +1,4 @@
-import "./globals.css";
+import "./style.css";
 
 export const metadata = {
   title: "Juja Brew and Bites®",
@@ -7,17 +7,18 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    // Add suppressHydrationWarning to both html and body
+    <html lang="en" className="hide-scrollbar" suppressHydrationWarning>
       <head>
-        {/* This meta tag is the secret to perfect mobile app scaling! */}
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+        <meta 
+          name="viewport" 
+          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" 
+        />
       </head>
-      <body className="antialiased text-slate-800 min-h-screen flex flex-col selection:bg-rose-200 selection:text-rose-900">
-        {/* 
-          All your pages (Public, Admin, Customer) will automatically 
-          render inside this 'children' block, inheriting the Abadi font 
-          and responsive scaling automatically! 
-        */}
+      <body 
+        className="antialiased text-slate-800 min-h-screen flex flex-col bg-[#FFF5F7]"
+        suppressHydrationWarning
+      >
         {children}
       </body>
     </html>
