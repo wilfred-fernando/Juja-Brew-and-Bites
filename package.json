@@ -14,10 +14,11 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@supabase/auth-helpers-nextjs": "^0.15.0",
     "@supabase/ssr": "^0.10.3",
-    "@supabase/supabase-js": "^2.105.4",
+    "@supabase/supabase-js": "^latest",
+    "lucide-react": "latest",
     "csv-parser": "^3.2.0",
     "html5-qrcode": "^2.3.8",
-    "next": "^9.3.3",
+    "next": "^15.1.0",
     "qz-tray": "^2.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4"
