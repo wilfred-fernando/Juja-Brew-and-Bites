@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
 
 // ─── Shared Nav ───────────────────────────────────────────────────────────────
-export function Nav({ active }) {
+function Nav({ active }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
