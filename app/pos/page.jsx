@@ -232,15 +232,35 @@ export default function POSPage() {
         </div>
       </div>
 
-      {/* --- MOBILE CART BAR --- */}
-      {cart.length > 0 && !mobileCartOpen && (
-        <div className="lg:hidden fixed bottom-4 left-4 right-4 z-[200]">
-          <button onClick={() => setMobileCartOpen(true)} className="w-full bg-slate-900 text-white flex items-center justify-between px-5 py-4 rounded-xl shadow-xl active:scale-[0.98]">
-            <span className="text-sm font-medium">Ticket ({cart.length})</span>
-            <span className="text-sm font-semibold tracking-tight">₱{subtotal.toFixed(0)}</span>
-          </button>
+{/* --- MOBILE FLOATING CART BUTTON --- */}
+{cart.length > 0 && !mobileCartOpen && (
+  <div className="lg:hidden fixed bottom-4 left-4 right-4 z-[200]">
+    <button
+      onClick={() => setMobileCartOpen(true)}
+      className="w-full bg-slate-900 text-white flex items-center justify-between px-5 py-4 rounded-2xl shadow-2xl active:scale-[0.98] transition-all"
+    >
+      <div className="flex flex-col items-start">
+        <span className="text-xs text-slate-300 uppercase tracking-wider">
+          Current Ticket
+        </span>
+
+        <span className="text-sm font-semibold">
+          {cart.length} item{cart.length > 1 ? "s" : ""}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <span className="text-lg font-bold">
+          ₱{subtotal.toFixed(0)}
+        </span>
+
+        <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-lg">
+          🛒
         </div>
-      )}
+      </div>
+    </button>
+  </div>
+)}
 
       {/* --- TICKET SIDEBAR SECTION --- */}
       <div
