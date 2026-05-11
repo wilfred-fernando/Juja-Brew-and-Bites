@@ -27,10 +27,6 @@ function Nav({ active }) {
 
   const links = [
     ["home", "Home", "/"],
-    ["menu", "Menu", "/menu"],
-    ["promo", "Promos", "/promo"],
-    ["about", "About Us", "/about"],
-  ];
 
   return (
     <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${
