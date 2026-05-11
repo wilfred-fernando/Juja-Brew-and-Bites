@@ -9,49 +9,38 @@ import { Html5QrcodeScanner } from "html5-qrcode";
 // ==========================================
 // FUNCTION: ADD TO CART MODAL (Variants & Logic)
 // ==========================================
-function AddToCartModal({
-  item,
-  onClose,
-  onAddToCart,
-  customers = [],
-  onCustomerSelect
-}) {
+function AddToCartModal(...) {
   const [quantity, setQuantity] = useState(1);
   const [selections, setSelections] = useState({});
-  const [instructions, setInstructions] = useState("");
-  const [scannerOpen, setScannerOpen] = useState(false);
 
-  // ✅ Scanner logic
-  useEffect(() => {
-    if (!scannerOpen) return;
+  const toggleOption = (group, opt) => {
+    const current = selections[group.id] || [];
 
-    const scanner = new Html5QrcodeScanner(
-      "reader",
-      { fps: 10, qrbox: 250 },
-      false
-    );
+    if (!group.isMultiSelect) {
+      setSelections({ ...selections, [group.id]: [opt] });
+    } else {
+      const exists = current.find(o => o.id === opt.id);
+      setSelections({
+        ...selections,
+        [group.id]: exists
+          ? current.filter(o => o.id !== opt.id)
+          : [...current, opt]
+      });
+    }
+  };
 
-    scanner.render(
-      (decodedText) => {
-        const code = decodedText.trim().toLowerCase();
+  const unitPrice =
+    (Number(item.price) || 0) +
+    Object.values(selections)
+      .flat()
+      .reduce((sum, o) => sum + (Number(o.price) || 0), 0);
 
-        const match = customers.find(
-          (c) =>
-            c.code?.toLowerCase() === code ||
-            c.name?.toLowerCase().includes(code)
-        );
-
-        if (match) {
-          onCustomerSelect?.(match);
-          setScannerOpen(false);
-        } else {
-          alert("Customer not found");
-        }
-
-        scanner.clear();
-      },
-      () => {}
-    );
+  return (
+    <div>
+      {/* JSX HERE ONLY */}
+    </div>
+  );
+}
 
     return () => {
       scanner.clear().catch(() => {});
