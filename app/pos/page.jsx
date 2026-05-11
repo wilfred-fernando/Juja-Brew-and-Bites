@@ -173,7 +173,13 @@ export default function POSPage() {
   if (loading) return <div className="h-screen flex items-center justify-center bg-white"><div className="w-6 h-6 border-t-rose-400 animate-spin rounded-full border-2 border-slate-100"></div></div>;
 
   return (
-    <div className="flex h-screen bg-white font-sans overflow-hidden text-slate-800">
+    <div
+  className="flex h-screen bg-white font-sans overflow-hidden text-slate-800 overscroll-none touch-pan-x"
+  style={{
+    overscrollBehavior: "none",
+    WebkitOverflowScrolling: "auto",
+  }}
+>
       
       {/* --- MENU SECTION --- */}
       <div className="flex-1 flex flex-col min-w-0">
