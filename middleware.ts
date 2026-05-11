@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// 👇 THIS MUST BE "middleware" TO MATCH YOUR FILE NAME
+// 👇 The word "middleware" must match the file name "middleware.ts"
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const host = req.headers.get("host") || "";
@@ -22,7 +22,6 @@ export function middleware(req: NextRequest) {
     "kitchen.": "/kitchen",
   };
 
-  // Clean the host to handle local testing
   const cleanHost = host.split(":")[0].toLowerCase();
   
   const matchedSubdomain = Object.keys(routes).find((key) =>
@@ -33,7 +32,6 @@ export function middleware(req: NextRequest) {
 
   // 3. APPLY SUBDOMAIN REWRITE
   if (targetPath) {
-    // If the path doesn't already contain the target folder, silently rewrite it
     if (!pathname.startsWith(targetPath)) {
       const url = req.nextUrl.clone();
       const fullPath = pathname === "/" ? "" : pathname;
