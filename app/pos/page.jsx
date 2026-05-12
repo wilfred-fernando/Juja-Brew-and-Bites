@@ -134,6 +134,7 @@ export default function POSPage() {
   const [confirmClear, setConfirmClear] = useState(false);
   const [diningOptions, setDiningOptions] = useState([]);
   const [orderType, setOrderType] = useState("");
+  const [swipeX, setSwipeX] = useState({});
 
   // 1. DATA INITIALIZATION & AUTH GATE
   useEffect(() => {
@@ -401,17 +402,52 @@ export default function POSPage() {
           ) : (
             cart.map((item, idx) => (
               <div
-                onClick={() => {
-                  setSelectedItemForModal({
-                      ...items.find(i => i.id === item.id),
-                      editData: item,
-                      editIndex: idx
-                    });
-                  setEditingCartIndex(idx);
-                }}
                 key={item.cartItemId}
-                className="flex justify-between items-start border-b border-slate-50 pb-2 cursor-pointer hover:bg-slate-50/50 transition"
+                className="relative overflow-hidden border-b border-slate-50"
+                onTouchStart={(e) => {
+                  const startX = e.touches[0].clientX;
+
+                  setSwipeX((prev) => ({
+                    ...prev,
+                    [item.cartItemId]: { startX, moveX: 0 },
+                  }));
+                }}
+                onTouchMove={(e) => {
+                  const moveX = e.touches[0].clientX;
+                  const startX = swipeX[item.cartItemId]?.startX || 0;
+
+                  const diff = moveX - startX;
+
+                  setSwipeX((prev) => ({
+                    ...prev,
+                    [item.cartItemId]: {
+                      startX,
+                      moveX: diff,
+                    },
+                  }));
+                }}
+                onTouchEnd={() => {
+                  const diff = swipeX[item.cartItemId]?.moveX || 0;
+
+                  // swipe LEFT threshold
+                  if (diff < -80) {
+                    const newCart = cart.filter(
+                      (c) => c.cartItemId !== item.cartItemId
+                    );
+                    setCart(newCart);
+                  }
+
+                  // reset swipe
+                  setSwipeX((prev) => ({
+                    ...prev,
+                    [item.cartItemId]: { startX: 0, moveX: 0 },
+                  }));
+                }}
               >
+               <div className="absolute right-0 top-0 h-full w-20 bg-red-500 flex items-center justify-center text-white text-xs">
+                  Delete
+                </div> 
+
                 <div className="flex-1 pr-3">
                   <p className="text-sm text-slate-800 leading-tight font-medium">
                     {item.name}
