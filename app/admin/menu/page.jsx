@@ -950,7 +950,6 @@ const deleteTemplate = async (id) => {
             </div>
 
           </div>
-        </div>
       )}
     </div>
   );
