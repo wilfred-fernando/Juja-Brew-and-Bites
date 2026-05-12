@@ -47,7 +47,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
           {item.variants?.map(g => (
             <div key={g.id} className="space-y-3">
               <div className="flex justify-between text-[11px] text-slate-400 uppercase tracking-wider"><span>{g.name}</span>{g.isRequired && <span className="text-rose-400">Required</span>}</div>
-              <div className="grid gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">
                 {g.options.map(o => {
                   const sel = selections[g.id]?.find(x => x.id === o.id);
                   return (
