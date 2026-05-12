@@ -46,25 +46,33 @@ export default function MenuAdminPage() {
   async function fetchData() {
     setLoading(true);
     try {
-      const [itemRes, catRes, modifierRes] = await Promise.all([
-        supabase.from("menu_items").select("*").order("name"),
-        supabase.from("menu_categories").select("*").order("sort_order"),
-        supabase.from("modifier_groups").select("*, modifier_options(*)")
-      ]);
+      // Fetching individually so one missing table doesn't break the whole page
+      const { data: itemData, error: itemError } = await supabase
+        .from("menu_items")
+        .select("*")
+        .order("name");
+        
+      const { data: catData, error: catError } = await supabase
+        .from("menu_categories")
+        .select("*")
+        .order("sort_order");
 
-      if (itemRes.error) console.error("Items Error:", itemRes.error);
-      if (catRes.error) console.error("Categories Error:", catRes.error);
-      if (modifierRes.error) console.error("Modifiers Error (Check if table exists):", modifierRes.error);
+      // Wrap modifiers in a separate try to prevent a crash if the table is missing
+      const { data: modData } = await supabase
+        .from("modifier_groups")
+        .select("*, modifier_options(*)");
 
-      if (itemRes.data) setItems(itemRes.data);
-      if (catRes.data) setCategories(catRes.data);
-      if (modifierRes.data) setGlobalModifierGroups(modifierRes.data);
-      
+      if (itemData) setItems(itemData);
+      if (catData) setCategories(catData);
+      if (modData) setGlobalModifierGroups(modData);
+
+      if (itemError) console.error("Items failed:", itemError);
+      if (catError) console.error("Categories failed:", catError);
+
     } catch (err) {
-      console.error("Data Fetch Crash:", err);
+      console.error("Critical Fetch Error:", err);
     } finally {
-      // This is the most important line!
-      setLoading(false); 
+      setLoading(false);
     }
   }
 
