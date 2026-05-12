@@ -13,16 +13,35 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
   const [quantity, setQuantity] = useState(1);
   const [selections, setSelections] = useState({});
   const [instructions, setInstructions] = useState("");
+  const [editingCartIndex, setEditingCartIndex] = useState(null);
 
-  useEffect(() => {
+ useEffect(() => {
+  if (!item) return;
+
+  setQuantity(item.quantity || 1);
+  setInstructions(item.instructions || "");
+
+  if (item.variantDetails) {
+    const selected = {};
+
     if (item.variants) {
-      const defaults = {};
       item.variants.forEach(g => {
-        if (g.isRequired && g.options.length > 0) defaults[g.id] = [g.options[0]];
+        const matched = item.variantDetails
+          .split(", ")
+          .map(name =>
+            g.options.find(o => o.name === name)
+          )
+          .filter(Boolean);
+
+        if (matched.length > 0) {
+          selected[g.id] = matched;
+        }
       });
-      setSelections(defaults);
     }
-  }, [item]);
+
+    setSelections(selected);
+  }
+}, [item]);
 
   const toggleOption = (group, opt) => {
     const current = selections[group.id] || [];
@@ -386,8 +405,12 @@ export default function POSPage() {
           ) : (
             cart.map((item, idx) => (
               <div
+                onClick={() => {
+                  setSelectedItemForModal(item);
+                  setEditingCartIndex(idx);
+                }}
                 key={item.cartItemId}
-                className="flex justify-between items-start border-b border-slate-50 pb-2"
+                className="flex justify-between items-start border-b border-slate-50 pb-2 cursor-pointer hover:bg-slate-50/50 transition"
               >
                 <div className="flex-1 pr-3">
                   <p className="text-sm text-slate-800 leading-tight font-medium">
@@ -446,30 +469,23 @@ export default function POSPage() {
       {selectedItemForModal && (
         <AddToCartModal
           item={selectedItemForModal}
-          onClose={() => setSelectedItemForModal(null)}
+          onClose={() => {
+            setSelectedItemForModal(null);
+            setEditingCartIndex(null);
+          }}
+          
           onAddToCart={(d) => {
             setCart((prev) => {
-              const existingIndex = prev.findIndex((item) =>
-                item.id === d.id &&
-                item.variantDetails === d.variantDetails &&
-                item.instructions === d.instructions
-              );
-
-              if (existingIndex > -1) {
+              if (editingCartIndex !== null) {
                 const updated = [...prev];
-
-                updated[existingIndex] = {
-                  ...updated[existingIndex],
-                  quantity:
-                    updated[existingIndex].quantity + d.quantity
-                };
-
+                updated[editingCartIndex] = d;
                 return updated;
               }
 
               return [...prev, d];
             });
 
+            setEditingCartIndex(null);
             setSelectedItemForModal(null);
           }}
         />
