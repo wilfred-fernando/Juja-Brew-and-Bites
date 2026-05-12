@@ -448,8 +448,29 @@ export default function POSPage() {
           item={selectedItemForModal}
           onClose={() => setSelectedItemForModal(null)}
           onAddToCart={(d) => {
-            setCart([...cart, d]);
-            setSelectedItemForModal(null);  
+            setCart((prev) => {
+              const existingIndex = prev.findIndex((item) =>
+                item.id === d.id &&
+                item.variantDetails === d.variantDetails &&
+                item.instructions === d.instructions
+              );
+
+              if (existingIndex > -1) {
+                const updated = [...prev];
+
+                updated[existingIndex] = {
+                  ...updated[existingIndex],
+                  quantity:
+                    updated[existingIndex].quantity + d.quantity
+                };
+
+                return updated;
+              }
+
+              return [...prev, d];
+            });
+
+            setSelectedItemForModal(null);
           }}
         />
       )}
