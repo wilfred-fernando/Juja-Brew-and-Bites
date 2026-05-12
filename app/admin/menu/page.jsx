@@ -928,15 +928,7 @@ const deleteTemplate = async (id) => {
                                   className="w-full pl-7 pr-3 py-2.5 border border-slate-200 rounded-xl text-xs md:text-sm focus:outline-none focus:border-[#FC687D] transition"
                                 />
                               </div>
-
-                              <button
-                                type="button"
-                                onClick={() => addOption(group.id)}
-                                className="text-[#FC687D] font-bold text-[10px] md:text-xs mt-2 hover:underline flex items-center gap-1"
-                              >
-                                + Add Option
-                              </button>
-
+                       
                               <button type="button" onClick={() => removeOption(group.id, opt.id)} className="text-red-300 hover:text-red-500 font-bold px-1 transition-colors text-base">✕</button>
                             </div>
                           ))}
@@ -945,7 +937,14 @@ const deleteTemplate = async (id) => {
                       </div>
                     ))}
                   </div>
-
+                  
+                          <button
+                          type="button"
+                          onClick={() => addOption(group.id)}
+                          className="text-[#FC687D] font-bold text-[10px] md:text-xs mt-2 hover:underline flex items-center gap-1"
+                        >
+                          + Add Option
+                        </button>
                  
                 </div>
               )}
