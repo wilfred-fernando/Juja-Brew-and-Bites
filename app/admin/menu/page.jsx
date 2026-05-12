@@ -352,61 +352,9 @@ export default function MenuAdminPage() {
                   </div>
                 </div>
               </div>
-              
-) : (
-  <div className="flex flex-col h-full animate-in fade-in duration-300 pb-2">
-    <div className="flex justify-between items-center mb-6 px-1">
-      <div>
-        <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest leading-none">Global Modifiers</h4>
-        <p className="text-[10px] text-slate-400 mt-1">Assign pre-made groups to this item</p>
-      </div>
-      <Link href="/admin/modifiers" className="text-[10px] text-[#FC687D] font-bold hover:underline bg-rose-50 px-3 py-1.5 rounded-lg">
-        Manage Groups →
-      </Link>
-    </div>
-
-    <div className="space-y-3 mb-6">
-      {globalModifierGroups.map((group) => {
-        // Check if this group is already assigned to the item we are editing
-        const isAssigned = optionGroups.some(g => g.id === group.id);
-        
-        return (
-          <div 
-            key={group.id} 
-            onClick={() => {
-              if (isAssigned) {
-                setOptionGroups(optionGroups.filter(g => g.id !== group.id));
-              } else {
-                setOptionGroups([...optionGroups, group]);
-              }
-            }}
-            className={`flex justify-between items-center p-4 border rounded-2xl cursor-pointer transition-all ${
-              isAssigned ? 'border-rose-200 bg-rose-50/20' : 'border-slate-100 bg-white hover:border-slate-200'
-            }`}
-          >
-            <div className="flex-1 pr-4">
-              <p className="text-sm font-bold text-slate-700">{group.name}</p>
-              <p className="text-[10px] text-slate-400 line-clamp-1">
-                {group.modifier_options?.map(o => o.name).join(", ")}
-              </p>
             </div>
-            
-            {/* Custom Juja Pink Toggle */}
-            <div className={`w-11 h-6 rounded-full transition-all relative ${isAssigned ? 'bg-[#FC687D]' : 'bg-slate-200'}`}>
-              <div className={`absolute top-1 bg-white w-4 h-4 rounded-full shadow-sm transition-all ${isAssigned ? 'left-6' : 'left-1'}`} />
-            </div>
-          </div>
-        );
-      })}
-    </div>
-    
-    {globalModifierGroups.length === 0 && (
-      <div className="text-center py-10 border-2 border-dashed border-slate-100 rounded-3xl">
-        <p className="text-xs text-slate-400">No global modifiers found. Go to "Manage Groups" to create one.</p>
-      </div>
-    )}
-  </div>
-)}
+          ))}
+        </div>
 
       {/* ─── CUSTOM DELETE MODALS ─── */}
       {(itemToDelete || categoryToDelete) && (
