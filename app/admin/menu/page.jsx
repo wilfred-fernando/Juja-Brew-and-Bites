@@ -19,6 +19,7 @@ export default function MenuAdminPage() {
     image_url: "", is_available: true, is_featured: false 
   });
   const [optionGroups, setOptionGroups] = useState([]);
+  const [globalModifierGroups, setGlobalModifierGroups] = useState([]);
   const hasVariants = optionGroups.length > 0;
   const [saving, setSaving] = useState(false);
 
@@ -39,12 +40,14 @@ export default function MenuAdminPage() {
 
   async function fetchData() {
     setLoading(true);
-    const [itemRes, catRes] = await Promise.all([
+    const [itemRes, catRes, modifierRes] = await Promise.all([
       supabase.from("menu_items").select("*").order("name"),
-      supabase.from("menu_categories").select("*").order("sort_order")
+      supabase.from("menu_categories").select("*").order("sort_order"),
+      supabase.from("modifier_groups").select("*, modifier_options(*)")
     ]);
     if (itemRes.data) setItems(itemRes.data);
     if (catRes.data) setCategories(catRes.data);
+    if (modifierRes.data) setModifierGroups(modifierRes.data);
     setLoading(false);
   }
 
@@ -350,33 +353,60 @@ export default function MenuAdminPage() {
                 </div>
               </div>
               
-              <div className="flex items-center justify-between md:justify-end w-full md:w-auto gap-3 md:gap-6 pt-3 md:pt-0 border-t md:border-none border-slate-50">
-                <span className={`px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-[9px] md:text-[10px] font-normal uppercase border flex items-center gap-1.5 ${
-                  item.is_available ? "bg-emerald-50 text-emerald-600 border-emerald-100/50" : "bg-slate-50 text-slate-400 border-slate-100"
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${item.is_available ? "bg-emerald-500 animate-pulse" : "bg-slate-300"}`}></span>
-                  {item.is_available ? "Available" : "Disabled"}
-                </span>
-
-                <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300">
-                  <button onClick={() => openModal(item)} className="px-3 md:px-4 py-1.5 md:py-2 bg-slate-50 border border-slate-100 text-[10px] md:text-xs font-normal text-slate-500 hover:text-[#FC687D] hover:bg-rose-50 rounded-lg md:rounded-xl transition-all active:scale-90">
-                    ✎
-                  </button>
-                  <button onClick={() => confirmDeleteItem(item)} className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center bg-slate-50 border border-slate-100 text-[10px] md:text-xs text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg md:rounded-xl transition-all active:scale-90">
-                    🗑
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-          
-          {filteredItems.length === 0 && (
-            <div className="text-center py-12 md:py-20 text-slate-400 font-normal uppercase text-[10px] md:text-xs border border-dashed border-slate-200/60 rounded-xl md:rounded-2xl bg-white/50">
-              No items found
-            </div>
-          )}
-        </div>
+) : (
+  <div className="flex flex-col h-full animate-in fade-in duration-300 pb-2">
+    <div className="flex justify-between items-center mb-6 px-1">
+      <div>
+        <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest leading-none">Global Modifiers</h4>
+        <p className="text-[10px] text-slate-400 mt-1">Assign pre-made groups to this item</p>
       </div>
+      <Link href="/admin/modifiers" className="text-[10px] text-[#FC687D] font-bold hover:underline bg-rose-50 px-3 py-1.5 rounded-lg">
+        Manage Groups →
+      </Link>
+    </div>
+
+    <div className="space-y-3 mb-6">
+      {globalModifierGroups.map((group) => {
+        // Check if this group is already assigned to the item we are editing
+        const isAssigned = optionGroups.some(g => g.id === group.id);
+        
+        return (
+          <div 
+            key={group.id} 
+            onClick={() => {
+              if (isAssigned) {
+                setOptionGroups(optionGroups.filter(g => g.id !== group.id));
+              } else {
+                setOptionGroups([...optionGroups, group]);
+              }
+            }}
+            className={`flex justify-between items-center p-4 border rounded-2xl cursor-pointer transition-all ${
+              isAssigned ? 'border-rose-200 bg-rose-50/20' : 'border-slate-100 bg-white hover:border-slate-200'
+            }`}
+          >
+            <div className="flex-1 pr-4">
+              <p className="text-sm font-bold text-slate-700">{group.name}</p>
+              <p className="text-[10px] text-slate-400 line-clamp-1">
+                {group.modifier_options?.map(o => o.name).join(", ")}
+              </p>
+            </div>
+            
+            {/* Custom Juja Pink Toggle */}
+            <div className={`w-11 h-6 rounded-full transition-all relative ${isAssigned ? 'bg-[#FC687D]' : 'bg-slate-200'}`}>
+              <div className={`absolute top-1 bg-white w-4 h-4 rounded-full shadow-sm transition-all ${isAssigned ? 'left-6' : 'left-1'}`} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+    
+    {globalModifierGroups.length === 0 && (
+      <div className="text-center py-10 border-2 border-dashed border-slate-100 rounded-3xl">
+        <p className="text-xs text-slate-400">No global modifiers found. Go to "Manage Groups" to create one.</p>
+      </div>
+    )}
+  </div>
+)}
 
       {/* ─── CUSTOM DELETE MODALS ─── */}
       {(itemToDelete || categoryToDelete) && (
