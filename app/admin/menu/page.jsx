@@ -45,15 +45,27 @@ export default function MenuAdminPage() {
 
   async function fetchData() {
     setLoading(true);
-    const [itemRes, catRes, modifierRes] = await Promise.all([
-      supabase.from("menu_items").select("*").order("name"),
-      supabase.from("menu_categories").select("*").order("sort_order"),
-      supabase.from("modifier_groups").select("*, modifier_options(*)")
-    ]);
-    if (itemRes.data) setItems(itemRes.data);
-    if (catRes.data) setCategories(catRes.data);
-    if (modifierRes.data) setGlobalModifierGroups(modifierRes.data);
-    setLoading(false);
+    try {
+      const [itemRes, catRes, modifierRes] = await Promise.all([
+        supabase.from("menu_items").select("*").order("name"),
+        supabase.from("menu_categories").select("*").order("sort_order"),
+        supabase.from("modifier_groups").select("*, modifier_options(*)")
+      ]);
+
+      if (itemRes.error) console.error("Items Error:", itemRes.error);
+      if (catRes.error) console.error("Categories Error:", catRes.error);
+      if (modifierRes.error) console.error("Modifiers Error (Check if table exists):", modifierRes.error);
+
+      if (itemRes.data) setItems(itemRes.data);
+      if (catRes.data) setCategories(catRes.data);
+      if (modifierRes.data) setGlobalModifierGroups(modifierRes.data);
+      
+    } catch (err) {
+      console.error("Data Fetch Crash:", err);
+    } finally {
+      // This is the most important line!
+      setLoading(false); 
+    }
   }
 
   // --- ITEM HANDLERS ---
