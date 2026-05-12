@@ -13,34 +13,30 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
   const [quantity, setQuantity] = useState(1);
   const [selections, setSelections] = useState({});
   const [instructions, setInstructions] = useState("");
-  const [editingCartIndex, setEditingCartIndex] = useState(null);
-
+  
  useEffect(() => {
   if (!item) return;
 
-  setQuantity(item.quantity || 1);
-  setInstructions(item.instructions || "");
+  const source = item.editData || item;
 
-  if (item.variantDetails) {
-    const selected = {};
+  setQuantity(source.quantity || 1);
+  setInstructions(source.instructions || "");
 
-    if (item.variants) {
+  const selected = {};
+
+  if (source.variantDetails && item.variants) {
+    source.variantDetails.split(", ").forEach(name => {
       item.variants.forEach(g => {
-        const matched = item.variantDetails
-          .split(", ")
-          .map(name =>
-            g.options.find(o => o.name === name)
-          )
-          .filter(Boolean);
-
-        if (matched.length > 0) {
-          selected[g.id] = matched;
+        const match = g.options.find(o => o.name === name);
+        if (match) {
+          selected[g.id] = selected[g.id] || [];
+          selected[g.id].push(match);
         }
       });
-    }
-
-    setSelections(selected);
+    });
   }
+
+  setSelections(selected);
 }, [item]);
 
   const toggleOption = (group, opt) => {
@@ -406,7 +402,11 @@ export default function POSPage() {
             cart.map((item, idx) => (
               <div
                 onClick={() => {
-                  setSelectedItemForModal(item);
+                  setSelectedItemForModal({
+                      ...items.find(i => i.id === item.id),
+                      editData: item,
+                      editIndex: idx
+                    });
                   setEditingCartIndex(idx);
                 }}
                 key={item.cartItemId}
@@ -473,19 +473,20 @@ export default function POSPage() {
             setSelectedItemForModal(null);
             setEditingCartIndex(null);
           }}
-          
+
           onAddToCart={(d) => {
-            setCart((prev) => {
-              if (editingCartIndex !== null) {
+            setCart(prev => {
+              const editIndex = selectedItemForModal?.editIndex;
+
+              if (editIndex !== undefined && editIndex !== null) {
                 const updated = [...prev];
-                updated[editingCartIndex] = d;
+                updated[editIndex] = d;
                 return updated;
               }
 
               return [...prev, d];
             });
 
-            setEditingCartIndex(null);
             setSelectedItemForModal(null);
           }}
         />
