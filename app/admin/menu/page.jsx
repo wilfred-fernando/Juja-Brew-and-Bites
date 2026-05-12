@@ -19,6 +19,7 @@ export default function MenuAdminPage() {
     image_url: "", is_available: true, is_featured: false 
   });
   const [optionGroups, setOptionGroups] = useState([]);
+  const [groupTemplates, setGroupTemplates] = useState([]);
   const hasVariants = optionGroups.length > 0;
   const [saving, setSaving] = useState(false);
 
@@ -39,12 +40,15 @@ export default function MenuAdminPage() {
 
   async function fetchData() {
     setLoading(true);
-    const [itemRes, catRes] = await Promise.all([
-      supabase.from("menu_items").select("*").order("name"),
-      supabase.from("menu_categories").select("*").order("sort_order")
-    ]);
-    if (itemRes.data) setItems(itemRes.data);
-    if (catRes.data) setCategories(catRes.data);
+    const [itemRes, catRes, templateRes] = await Promise.all([
+  supabase.from("menu_items").select("*").order("name"),
+  supabase.from("menu_categories").select("*").order("sort_order"),
+  supabase.from("option_group_templates").select("*").order("name")
+]);
+
+if (itemRes.data) setItems(itemRes.data);
+if (catRes.data) setCategories(catRes.data);
+if (templateRes.data) setGroupTemplates(templateRes.data);
     setLoading(false);
   }
 
@@ -159,7 +163,29 @@ export default function MenuAdminPage() {
   const addOption = (groupId) => setOptionGroups(optionGroups.map(g => g.id === groupId ? { ...g, options: [...g.options, { id: Date.now(), name: "", price: "" }] } : g));
   const removeOption = (groupId, optionId) => setOptionGroups(optionGroups.map(g => g.id === groupId ? { ...g, options: g.options.filter(o => o.id !== optionId) } : g));
   const updateOption = (groupId, optionId, field, value) => setOptionGroups(optionGroups.map(g => g.id === groupId ? { ...g, options: g.options.map(o => o.id === optionId ? { ...o, [field]: value } : o) } : g));
+  const saveAsTemplate = async (group) => {
+  try {
+    const payload = {
+      name: group.name,
+      is_required: group.isRequired,
+      is_multi_select: group.isMultiSelect,
+      options: group.options
+    };
 
+    const { error } = await supabase
+      .from("option_group_templates")
+      .insert([payload]);
+
+    if (error) throw error;
+
+    alert("Template saved!");
+
+    fetchData();
+  } catch (err) {
+    console.error(err);
+    alert(err.message);
+  }
+};
   // --- CATEGORY HANDLERS ---
   const openCategoryModal = (cat = null) => {
     if (cat) {
@@ -565,6 +591,49 @@ export default function MenuAdminPage() {
                     Group 1 acts as your base <strong className="text-[#FC687D]">Variants</strong> (e.g. Regular/Spicy). Additional groups act as Add-ons.
                   </p>
 
+                  <div className="mb-5">
+                    <label className="block text-[10px] font-bold text-slate-500 mb-2 uppercase tracking-wider">
+                      Add From Template
+                    </label>
+
+                    <select
+                      defaultValue=""
+                      onChange={(e) => {
+                        const selected = groupTemplates.find(
+                          g => g.id === e.target.value
+                        );
+
+                        if (!selected) return;
+
+                        setOptionGroups(prev => [
+                          ...prev,
+                          {
+                            id: Date.now(),
+                            name: selected.name,
+                            isRequired: selected.is_required,
+                            isMultiSelect: selected.is_multi_select,
+                            options: selected.options.map(opt => ({
+                              id: Date.now() + Math.random(),
+                              name: opt.name,
+                              price: opt.price
+                            }))
+                          }
+                        ]);
+
+                        e.target.value = "";
+                      }}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
+                    >
+                      <option value="">Select Option Group Template</option>
+
+                      {groupTemplates.map(group => (
+                        <option key={group.id} value={group.id}>
+                          {group.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   <div className="space-y-4 mb-6">
                     {optionGroups.map((group) => (
                       <div key={group.id} className="border border-rose-100 rounded-2xl p-4 md:p-5 bg-white shadow-[0_2px_10px_rgba(252,104,125,0.05)]">
@@ -585,7 +654,23 @@ export default function MenuAdminPage() {
                             <input type="checkbox" checked={group.isMultiSelect} onChange={(e) => updateOptionGroup(group.id, "isMultiSelect", e.target.checked)} className="w-3.5 h-3.5 accent-[#FC687D] cursor-pointer" />
                             Multi-select
                           </label>
-                          <button type="button" onClick={() => removeOptionGroup(group.id)} className="text-red-400 hover:text-red-600 px-1 font-bold text-base transition-colors ml-auto lg:ml-2">✕</button>
+                          <div className="flex items-center gap-2 ml-auto lg:ml-2">
+                            <button
+                              type="button"
+                              onClick={() => saveAsTemplate(group)}
+                              className="text-[10px] md:text-xs font-bold text-blue-500 hover:text-blue-700 transition-colors"
+                            >
+                              Save Template
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => removeOptionGroup(group.id)}
+                              className="text-red-400 hover:text-red-600 px-1 font-bold text-base transition-colors"
+                            >
+                              ✕
+                            </button>
+                          </div>
                         </div>
 
                         {/* Options List */}
