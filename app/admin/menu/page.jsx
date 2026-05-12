@@ -937,14 +937,7 @@ const deleteTemplate = async (id) => {
                       </div>
                     ))}
                   </div>
-
-                  <button type="button" onClick={addOptionGroup} className="w-full py-3.5 md:py-4 border-2 border-dashed border-slate-200 text-[#FC687D] font-bold text-xs rounded-xl hover:bg-rose-50 hover:border-rose-200 transition-all mt-auto active:scale-95">
-                    + Add New Option Group
-                  </button>
-                </div>
-              )}
-            </div>
-
+                  
             <div className="pt-4 mt-4 border-t border-slate-100 flex-shrink-0">
                <div className="grid grid-cols-2 gap-3">
                  <button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-3 md:py-3.5 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs hover:bg-slate-200 transition-all active:scale-95">
