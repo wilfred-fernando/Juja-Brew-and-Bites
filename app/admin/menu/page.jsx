@@ -937,7 +937,12 @@ const deleteTemplate = async (id) => {
                       </div>
                     ))}
                   </div>
-                  
+
+                 
+                </div>
+              )}
+            </div>
+
             <div className="pt-4 mt-4 border-t border-slate-100 flex-shrink-0">
                <div className="grid grid-cols-2 gap-3">
                  <button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-3 md:py-3.5 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs hover:bg-slate-200 transition-all active:scale-95">
@@ -950,6 +955,7 @@ const deleteTemplate = async (id) => {
             </div>
 
           </div>
+        </div>
       )}
     </div>
   );
