@@ -764,6 +764,13 @@ const deleteTemplate = async (id) => {
                   <p className="text-xs text-slate-500 mb-5 font-medium leading-relaxed px-1">
                     Group 1 acts as your base <strong className="text-[#FC687D]">Variants</strong> (e.g. Regular/Spicy). Additional groups act as Add-ons.
                   </p>
+                  <button
+                    type="button"
+                    onClick={addOptionGroup}
+                    className="w-full py-3.5 md:py-4 border-2 border-dashed border-slate-200 text-[#FC687D] font-bold text-xs rounded-xl hover:bg-rose-50 hover:border-rose-200 transition-all mb-6 active:scale-95"
+                  >
+                    + Add New Option Group
+                  </button>
 
                   <div className="mb-5">
                     <label className="block text-[10px] font-bold text-slate-500 mb-2 uppercase tracking-wider">
@@ -925,9 +932,7 @@ const deleteTemplate = async (id) => {
                               <button type="button" onClick={() => removeOption(group.id, opt.id)} className="text-red-300 hover:text-red-500 font-bold px-1 transition-colors text-base">✕</button>
                             </div>
                           ))}
-                          <button type="button" onClick={() => addOption(group.id)} className="text-[#FC687D] font-bold text-[10px] md:text-xs mt-2 hover:underline flex items-center gap-1">
-                            + Add Option
-                          </button>
+                          
                         </div>
                       </div>
                     ))}
