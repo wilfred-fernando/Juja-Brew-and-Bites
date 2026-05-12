@@ -20,6 +20,8 @@ export default function MenuAdminPage() {
   });
   const [optionGroups, setOptionGroups] = useState([]);
   const [groupTemplates, setGroupTemplates] = useState([]);
+  const [editingTemplate, setEditingTemplate] = useState(null);
+  const [templateForm, setTemplateForm] = useState(null);
   const hasVariants = optionGroups.length > 0;
   const [saving, setSaving] = useState(false);
 
@@ -164,6 +166,7 @@ if (templateRes.data) setGroupTemplates(templateRes.data);
   const removeOption = (groupId, optionId) => setOptionGroups(optionGroups.map(g => g.id === groupId ? { ...g, options: g.options.filter(o => o.id !== optionId) } : g));
   const updateOption = (groupId, optionId, field, value) => setOptionGroups(optionGroups.map(g => g.id === groupId ? { ...g, options: g.options.map(o => o.id === optionId ? { ...o, [field]: value } : o) } : g));
   const saveAsTemplate = async (group) => {
+  
   try {
     const payload = {
       name: group.name,
@@ -186,6 +189,51 @@ if (templateRes.data) setGroupTemplates(templateRes.data);
     alert(err.message);
   }
 };
+
+const updateTemplate = async () => {
+  try {
+    const { error } = await supabase
+      .from("option_group_templates")
+      .update({
+        name: templateForm.name,
+        is_required: templateForm.is_required,
+        is_multi_select: templateForm.is_multi_select,
+        options: templateForm.options
+      })
+      .eq("id", editingTemplate.id);
+
+    if (error) throw error;
+
+    alert("Template updated!");
+
+    setEditingTemplate(null);
+    setTemplateForm(null);
+
+    fetchData();
+  } catch (err) {
+    console.error(err);
+    alert(err.message);
+  }
+};
+
+const deleteTemplate = async (id) => {
+  if (!confirm("Delete this template?")) return;
+
+  try {
+    const { error } = await supabase
+      .from("option_group_templates")
+      .delete()
+      .eq("id", id);
+
+    if (error) throw error;
+
+    fetchData();
+  } catch (err) {
+    console.error(err);
+    alert(err.message);
+  }
+};
+
   // --- CATEGORY HANDLERS ---
   const openCategoryModal = (cat = null) => {
     if (cat) {
@@ -491,7 +539,133 @@ if (templateRes.data) setGroupTemplates(templateRes.data);
           </div>
         </div>
       )}
+      
+      {editingTemplate && templateForm && (
+        <div className="fixed inset-0 z-[70] bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg rounded-2xl p-6">
+            
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-lg font-bold">
+                Edit Template
+              </h3>
 
+              <button
+                onClick={() => {
+                  setEditingTemplate(null);
+                  setTemplateForm(null);
+                }}
+                className="text-slate-400 hover:text-black"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <input
+                value={templateForm.name}
+                onChange={(e) =>
+                  setTemplateForm({
+                    ...templateForm,
+                    name: e.target.value
+                  })
+                }
+                placeholder="Template name"
+                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"
+              />
+
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={templateForm.is_required}
+                  onChange={(e) =>
+                    setTemplateForm({
+                      ...templateForm,
+                      is_required: e.target.checked
+                    })
+                  }
+                />
+                Required
+              </label>
+
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={templateForm.is_multi_select}
+                  onChange={(e) =>
+                    setTemplateForm({
+                      ...templateForm,
+                      is_multi_select: e.target.checked
+                    })
+                  }
+                />
+                Multi Select
+              </label>
+
+              <div className="space-y-3">
+                {templateForm.options.map((opt, idx) => (
+                  <div key={idx} className="flex gap-2">
+                    <input
+                      value={opt.name}
+                      onChange={(e) => {
+                        const updated = [...templateForm.options];
+                        updated[idx].name = e.target.value;
+
+                        setTemplateForm({
+                          ...templateForm,
+                          options: updated
+                        });
+                      }}
+                      placeholder="Option name"
+                      className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                    />
+
+                    <input
+                      type="number"
+                      value={opt.price}
+                      onChange={(e) => {
+                        const updated = [...templateForm.options];
+                        updated[idx].price = e.target.value;
+
+                        setTemplateForm({
+                          ...templateForm,
+                          options: updated
+                        });
+                      }}
+                      placeholder="Price"
+                      className="w-28 border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setTemplateForm({
+                    ...templateForm,
+                    options: [
+                      ...templateForm.options,
+                      { name: "", price: 0 }
+                    ]
+                  })
+                }
+                className="text-xs font-bold text-[#FC687D]"
+              >
+                + Add Option
+              </button>
+
+              <button
+                type="button"
+                onClick={updateTemplate}
+                className="w-full py-3 rounded-xl bg-[#FC687D] text-white font-bold text-sm"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* ─── ADD/EDIT ITEM MODAL ─── */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 transition-all duration-300" onClick={() => setIsModalOpen(false)}>
@@ -632,6 +806,58 @@ if (templateRes.data) setGroupTemplates(templateRes.data);
                         </option>
                       ))}
                     </select>
+                  </div>
+
+                  <div className="mb-6 border border-slate-200 rounded-2xl p-4 bg-slate-50">
+                    <h4 className="text-xs font-bold uppercase text-slate-500 mb-3">
+                      Saved Templates
+                    </h4>
+
+                    <div className="space-y-2">
+                      {groupTemplates.map((template) => (
+                        <div
+                          key={template.id}
+                          className="flex items-center justify-between bg-white border border-slate-100 rounded-xl px-3 py-2"
+                        >
+                          <div>
+                            <p className="text-xs font-bold text-slate-700">
+                              {template.name}
+                            </p>
+
+                            <p className="text-[10px] text-slate-400">
+                              {template.options?.length || 0} options
+                            </p>
+                          </div>
+
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingTemplate(template);
+
+                                setTemplateForm({
+                                  name: template.name,
+                                  is_required: template.is_required,
+                                  is_multi_select: template.is_multi_select,
+                                  options: template.options || []
+                                });
+                              }}
+                              className="text-[10px] font-bold text-blue-500 hover:text-blue-700"
+                            >
+                              Edit
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => deleteTemplate(template.id)}
+                              className="text-[10px] font-bold text-red-500 hover:text-red-700"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="space-y-4 mb-6">
