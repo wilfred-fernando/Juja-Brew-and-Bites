@@ -262,6 +262,19 @@ function LoyaltyTab({ member, setMember, user }) {
     setEditing(true);
   };
 
+  const submitLinkRequest = async () => {
+  const { error } = await supabase.from("loyalty_link_requests").insert({
+      user_id: user.id,
+      full_name: linkRequest.full_name,
+      birthday: linkRequest.birthday,
+      status: "pending"
+    });
+
+    if (!error) {
+      alert("Request sent to admin");
+    }
+  };
+
  const saveEdit = async (e) => {
   e.preventDefault();
   setSaving(true);
@@ -273,6 +286,11 @@ function LoyaltyTab({ member, setMember, user }) {
       address: form.address,
       note: form.note,
     };
+
+     const [linkRequest, setLinkRequest] = useState({
+      full_name: "",
+      birthday: ""
+    });
 
     const { error } = await supabase
       .from("loyalty_members")
@@ -288,19 +306,6 @@ function LoyaltyTab({ member, setMember, user }) {
   }
 
   setSaving(false);
-};
-
-const submitLinkRequest = async () => {
-  const { error } = await supabase.from("loyalty_link_requests").insert({
-    user_id: user.id,
-    full_name: form.customer_name,
-    birthday: form.note, // or separate field
-    status: "pending"
-  });
-
-  if (!error) {
-    alert("Request sent for approval");
-  }
 };
 
   const fmtBirthday = (val) => {
@@ -343,7 +348,15 @@ const submitLinkRequest = async () => {
             className="w-full py-3.5 md:py-4 rounded-xl md:rounded-full font-normal text-[11px] md:text-[13px] uppercase tracking-widest text-white transition-all duration-300 bg-[#FC687D] hover:bg-rose-500 shadow-[0_8px_20px_rgba(252,104,125,0.25)] hover:shadow-[0_12px_25px_rgba(252,104,125,0.35)] active:scale-95 disabled:opacity-50 relative z-10">
             {joining ? "Creating account…" : "Join For Free →"}
           </button>
+
+          <button
+            onClick={submitLinkRequest}
+            className="w-full mt-4 py-3 bg-[#FC687D] text-white rounded-xl"
+          >
+            Request Account Linking
+          </button>
         </div>
+        
       </div>
     );
   }

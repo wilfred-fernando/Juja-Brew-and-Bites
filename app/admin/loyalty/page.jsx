@@ -7,6 +7,7 @@ export default function LoyaltyAdminPage() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
@@ -21,6 +22,33 @@ export default function LoyaltyAdminPage() {
   }, []);
 
   async function fetchMembers() {
+        // SEARCH MEMBER
+    const searchMember = async (name) => {
+      const { data } = await supabase
+        .from("loyalty_members")
+        .select("*")
+        .ilike("customer_name", `%${name}%`);
+
+      return data;
+    };
+
+    // LINK ACCOUNT
+    const linkAccount = async (requestId, memberId, userId) => {
+      await supabase
+        .from("loyalty_members")
+        .update({ user_id: userId })
+        .eq("id", memberId);
+
+      await supabase
+        .from("loyalty_link_requests")
+        .update({
+          status: "approved",
+          matched_member_id: memberId
+        })
+        .eq("id", requestId);
+
+      fetchMembers();
+    };
     setLoading(true);
     const { data, error } = await supabase.from("loyalty_members").select("*");
 
@@ -35,31 +63,7 @@ export default function LoyaltyAdminPage() {
     setLoading(false);
   }
 
-  const searchMember = async (name) => {
-  const { data } = await supabase
-    .from("loyalty_members")
-    .select("*")
-    .ilike("customer_name", `%${name}%`);
-
-  return data;
-};
-
-const linkAccount = async (requestId, memberId, userId) => {
-  await supabase
-    .from("loyalty_members")
-    .update({ user_id: userId })
-    .eq("id", memberId);
-
-  await supabase
-    .from("loyalty_link_requests")
-    .update({
-      status: "approved",
-      matched_member_id: memberId
-    })
-    .eq("id", requestId);
-};
-
-  const openModal = (member) => {
+    const openModal = (member) => {
     setEditingMember(member);
     setForm({
       "customer_name": member["customer_name"] || "",
@@ -137,6 +141,16 @@ const linkAccount = async (requestId, memberId, userId) => {
                   <span className="font-mono font-normal text-slate-500 text-[10px] md:text-xs bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">{member["customer_code"]}</span>
                   <span className="text-slate-300 text-[10px]">•</span>
                   <span className="text-[10px] md:text-xs font-normal text-slate-500">{member["Phone"] || "No phone"}</span>
+                  {member.user_id ? (
+                    <span className="bg-green-50 text-green-600 text-[9px] px-2 py-0.5 rounded-md border border-green-200">
+                      LINKED
+                    </span>
+                  ) : (
+                    <span className="bg-yellow-50 text-yellow-600 text-[9px] px-2 py-0.5 rounded-md border border-yellow-200">
+                      NOT LINKED
+                    </span>
+                  )}
+                
                 </div>
               </div>
             </div>
