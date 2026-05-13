@@ -353,34 +353,47 @@ function LoyaltyTab({ member, setMember, user }) {
         <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">Digital Rewards Member</p>
       </div>
 
-      {/* 1. The Container - Must have 'relative' and 'overflow-hidden' */}
-<div className="relative w-full max-w-[350px] h-[200px] rounded-3xl overflow-hidden p-6 shadow-xl">
+      {/* LOYALTY CARD CONTAINER */}
+<div className="relative w-full max-w-[600px] aspect-[16/9] rounded-3xl overflow-hidden shadow-2xl bg-white group">
   
-  {/* 2. The Background Image */}
+  {/* 1. THE BACKGROUND IMAGE (The 1st image you uploaded) */}
   <img
-    src="/images/loyalty-card-bg.png"
-    alt="Card Background"
+    src="/images/loyalty-card-bg.jpg" 
+    alt="Loyalty Card Background"
     className="absolute inset-0 w-full h-full object-cover"
   />
 
-  {/* 3. Readability Overlay */}
-  <div className="absolute inset-0 bg-white/20 backdrop-blur-[1px]" />
+  {/* 2. THE LAYOUT LAYER (Positioning the Name and Barcode) */}
+  <div className="relative z-10 h-full w-full flex flex-col p-[5%]">
+    
+    {/* CUSTOMER NAME - Positioned to match your 2nd image */}
+    <div className="flex-1 flex items-center justify-center mt-[10%]">
+      <h2 className="text-2xl md:text-4xl font-bold text-[#5C3D2E] tracking-tight text-center uppercase">
+        {member["customer_name"] || "VALUED CUSTOMER"}
+      </h2>
+    </div>
 
-  {/* 4. The Content Layer */}
-  <div className="relative z-10 h-full flex flex-col justify-between">
-    <h2 className="text-slate-800 font-bold text-xl drop-shadow-sm">
-      {member["customer_name"]}
-    </h2>
+    {/* BOTTOM SECTION: Barcode Box + Loyalty Rules */}
+    <div className="flex items-end justify-between w-full h-[35%]">
+      
+      {/* BARCODE BOX - Positioned over the white rectangle in the bg */}
+      <div className="w-[38%] h-full bg-white flex flex-col items-center justify-center rounded-lg shadow-sm p-1">
+        <Barcode 
+          value={member["customer_code"] || "JUJA000000"} 
+          background="transparent"
+          lineColor="#003399" // Matches the blue in your screenshot
+          width={1.4}
+          height={45}
+          displayValue={true}
+          fontSize={14}
+          margin={0}
+        />
+      </div>
 
-    {/* 5. The Barcode - CRITICAL: Added background="transparent" */}
-    <div className="bg-white/60 p-2 rounded-xl backdrop-blur-md inline-block w-fit">
-      <Barcode 
-        value={member["customer_code"] || "JUJA000000"} 
-        background="transparent"
-        lineColor="#1e293b" 
-        width={1.2}
-        height={50}
-      />
+      {/* RULES SECTION (Empty div to maintain the flex layout space) */}
+      <div className="w-[58%] h-full pointer-events-none">
+        {/* The text for the rules is already in your background image! */}
+      </div>
     </div>
   </div>
 </div>
