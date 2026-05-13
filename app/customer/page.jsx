@@ -272,16 +272,21 @@ function LoyaltyTab({ member, setMember, user }) {
       .eq("id", member.id);
 
     if (error) {
-      console.error(error);
-      alert(error.message);
-    } else {
-      setMember((m) => ({
-        ...m,
-        ...updateData,
-      }));
+  console.error(error);
+  alert(error.message);
+} else {
+  const { data: refreshedMember } = await supabase
+    .from("loyalty_members")
+    .select("*")
+    .eq("id", member.id)
+    .single();
 
-      setEditing(false);
-    }
+  if (refreshedMember) {
+    setMember(refreshedMember);
+  }
+
+  setEditing(false);
+}
   } catch (err) {
     console.error(err);
   }
