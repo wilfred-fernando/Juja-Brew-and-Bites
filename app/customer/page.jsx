@@ -358,7 +358,7 @@ function LoyaltyTab({ member, setMember, user }) {
   
   {/* 1. THE BACKGROUND IMAGE (The 1st image you uploaded) */}
   <img
-    src="/images/loyalty-card-bg.jpg" 
+    src="/images/loyalty-card-bg.png" 
     alt="Loyalty Card Background"
     className="absolute inset-0 w-full h-full object-cover"
   />
