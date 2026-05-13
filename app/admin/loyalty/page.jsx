@@ -21,47 +21,56 @@ export default function LoyaltyAdminPage() {
     fetchMembers();
   }, []);
 
-  async function fetchMembers() {
-        // SEARCH MEMBER
-    const searchMember = async (name) => {
-      const { data } = await supabase
-        .from("loyalty_members")
-        .select("*")
-        .ilike("customer_name", `%${name}%`);
+  // FETCH MEMBERS
+async function fetchMembers() {
+  setLoading(true);
 
-      return data;
-    };
+  const { data, error } = await supabase
+    .from("loyalty_members")
+    .select("*");
 
-    // LINK ACCOUNT
-    const linkAccount = async (requestId, memberId, userId) => {
-      await supabase
-        .from("loyalty_members")
-        .update({ user_id: userId })
-        .eq("id", memberId);
+  if (error) {
+    alert("Error: " + error.message);
+  } else if (data) {
+    const sortedData = data.sort(
+      (a, b) =>
+        (parseFloat(b["Points balance"]) || 0) -
+        (parseFloat(a["Points balance"]) || 0)
+    );
 
-      await supabase
-        .from("loyalty_link_requests")
-        .update({
-          status: "approved",
-          matched_member_id: memberId
-        })
-        .eq("id", requestId);
-
-      fetchMembers();
-    };
-    setLoading(true);
-    const { data, error } = await supabase.from("loyalty_members").select("*");
-
-    if (error) {
-      alert("Error: " + error.message);
-    } else if (data) {
-      const sortedData = data.sort((a, b) => 
-        (parseFloat(b["Points balance"]) || 0) - (parseFloat(a["Points balance"]) || 0)
-      );
-      setMembers(sortedData);
-    }
-    setLoading(false);
+    setMembers(sortedData);
   }
+
+  setLoading(false);
+}
+
+// SEARCH MEMBER
+const searchMember = async (name) => {
+  const { data } = await supabase
+    .from("loyalty_members")
+    .select("*")
+    .ilike("customer_name", `%${name}%`);
+
+  return data;
+};
+
+// LINK ACCOUNT
+const linkAccount = async (requestId, memberId, userId) => {
+  await supabase
+    .from("loyalty_members")
+    .update({ user_id: userId })
+    .eq("id", memberId);
+
+  await supabase
+    .from("loyalty_link_requests")
+    .update({
+      status: "approved",
+      matched_member_id: memberId,
+    })
+    .eq("id", requestId);
+
+  fetchMembers();
+};
 
     const openModal = (member) => {
     setEditingMember(member);
