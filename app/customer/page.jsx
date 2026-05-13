@@ -290,6 +290,19 @@ function LoyaltyTab({ member, setMember, user }) {
   setSaving(false);
 };
 
+const submitLinkRequest = async () => {
+  const { error } = await supabase.from("loyalty_link_requests").insert({
+    user_id: user.id,
+    full_name: form.customer_name,
+    birthday: form.note, // or separate field
+    status: "pending"
+  });
+
+  if (!error) {
+    alert("Request sent for approval");
+  }
+};
+
   const fmtBirthday = (val) => {
     if (!val) return "";
     try {

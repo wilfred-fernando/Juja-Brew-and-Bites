@@ -35,6 +35,30 @@ export default function LoyaltyAdminPage() {
     setLoading(false);
   }
 
+  const searchMember = async (name) => {
+  const { data } = await supabase
+    .from("loyalty_members")
+    .select("*")
+    .ilike("customer_name", `%${name}%`);
+
+  return data;
+};
+
+const linkAccount = async (requestId, memberId, userId) => {
+  await supabase
+    .from("loyalty_members")
+    .update({ user_id: userId })
+    .eq("id", memberId);
+
+  await supabase
+    .from("loyalty_link_requests")
+    .update({
+      status: "approved",
+      matched_member_id: memberId
+    })
+    .eq("id", requestId);
+};
+
   const openModal = (member) => {
     setEditingMember(member);
     setForm({
