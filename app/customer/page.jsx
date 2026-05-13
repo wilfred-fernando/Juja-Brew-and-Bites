@@ -280,7 +280,7 @@ function LoyaltyTab({ member, setMember, user }) {
       .eq("id", member.id);
 
     if (!error) {
-      setMember((m) => ({ ...m, ...updateData }));
+      setMember(m => ({ ...m, ...updateData }));
       setEditing(false);
     }
   } catch (err) {
@@ -359,13 +359,10 @@ const { error } = await supabase
             <Image
               src="/images/loyalty-card-bg.png"
               alt="Loyalty Card"
-              width={1000}
-              height={630}
-              className="w-full aspect-[1.58/1] object-cover"
-         
-            alt="Loyalty Card"
-            className="w-full aspect-[1.58/1] object-cover"
-          />
+              width={800}
+              height={500}
+              className="w-full h-auto object-cover"
+            />
 
           {/* MEMBER NAME */}
           <div className="absolute top-[30%] left-0 w-full text-center px-4">
