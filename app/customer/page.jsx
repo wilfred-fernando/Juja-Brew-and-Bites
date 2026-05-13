@@ -348,6 +348,31 @@ function LoyaltyTab({ member, setMember, user }) {
         <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">Digital Rewards Member</p>
       </div>
 
+      <div className="relative rounded-[28px] overflow-hidden">
+
+        {/* background image only */}
+        <img
+          src="/images/loyalty-card-bg.png"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+
+        {/* optional readability layer */}
+        <div className="absolute inset-0 bg-white/10" />
+
+        {/* your EXISTING content (unchanged) */}
+        <div className="relative z-10">
+          
+          {/* THIS IS YOUR ORIGINAL CODE — untouched */}
+          <h2>{member["customer_name"]}</h2>
+
+          <Barcode value={member["customer_code"] || "JUJA000000"} />
+
+        </div>
+      </div>
+
+
+
+
       {/* ── PREMIUM PINK LOYALTY CARD ── */}
       <div className="rounded-2xl md:rounded-[32px] overflow-hidden shadow-[0_10px_30px_rgba(252,104,125,0.2)] md:shadow-[0_20px_40px_rgba(252,104,125,0.2)]"
         style={{ background: "linear-gradient(135deg, #FC687D 0%, #f43f5e 100%)" }}>
@@ -357,7 +382,7 @@ function LoyaltyTab({ member, setMember, user }) {
           <div className="w-16 h-16 md:w-20 md:h-20 rounded-[20px] md:rounded-[24px] mx-auto mb-3 md:mb-4 flex items-center justify-center text-3xl md:text-4xl bg-white/20 border border-white/30 backdrop-blur-md shadow-inner">
             👤
           </div>
-          <h3 className="text-xl md:text-2xl font-normal text-white tracking-tight">{member.customer_name || "Juja Member"}</h3>
+          <h3 className="text-xl md:text-2xl font-normal text-white tracking-tight">{member["customer_name"] || "Juja Member"}</h3>
         </div>
 
         <div className="px-5 py-5 md:px-6 md:py-6 space-y-4 md:space-y-5 border-b border-white/20 bg-black/5">
