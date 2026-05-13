@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import BookingTab from "@/components/BookingForm"; // Keeping your externalized booking form
-import Barcode from "react-barcode";
 
 const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
 
@@ -84,7 +83,7 @@ function HomeTab({ member, user, setTab }) {
               </div>
               <div className="w-px bg-rose-100" />
               <div>
-                <p className="text-slate-800 font-normal text-xl md:text-2xl leading-none">{member["Total visits"] || 0}</p>
+                <p className="text-slate-800 font-normal text-xl md:text-2xl leading-none">{member.total_visits || 0}</p>
                 <p className="text-slate-500 text-[9px] md:text-[10px] uppercase font-normal tracking-widest mt-1">Visits</p>
               </div>
             </div>
@@ -247,7 +246,7 @@ function LoyaltyTab({ member, setMember, user }) {
 
   const startEdit = () => {
     setForm({ 
-      customer_name: member["customer_name"] || "", 
+      customer_name: member.customer_name || "", 
       phone: member.phone || "", 
       address: member.address || "", 
       note: member.note || "" 
@@ -314,7 +313,7 @@ function LoyaltyTab({ member, setMember, user }) {
   }
 
   // ── Loyalty Card ──
-  const pts = parseFloat(member["Points balance"] || 0);
+  const pts = parseFloat(member.points_balance) || 0;
   const progress = (pts % 100) / 100 * 100;
   const nextReward = Math.ceil((pts + 0.01) / 100) * 100;
 
@@ -325,40 +324,44 @@ function LoyaltyTab({ member, setMember, user }) {
         <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">Digital Rewards Member</p>
       </div>
 
-        {/* ── DIGITAL LOYALTY CARD ── */}
-        <div className="relative w-full overflow-hidden rounded-2xl shadow-2xl">
-
-          {/* CARD TEMPLATE */}
-          <img
-            src="/images/loyalty-card-bg.png"
-            alt="Loyalty Card"
-            className="w-full aspect-[1.58/1] object-cover"
-          />
-
-          {/* MEMBER NAME */}
-          <div className="absolute top-[30%] left-0 w-full text-center px-4">
-            <h2 className="text-black font-black tracking-wide text-[24px] md:text-[32px] uppercase">
-              {member["customer_name"] || "JUJA MEMBER"}
-            </h2>
+      {/* ── PREMIUM PINK LOYALTY CARD ── */}
+      <div className="rounded-2xl md:rounded-[32px] overflow-hidden shadow-[0_10px_30px_rgba(252,104,125,0.2)] md:shadow-[0_20px_40px_rgba(252,104,125,0.2)]"
+        style={{ background: "linear-gradient(135deg, #FC687D 0%, #f43f5e 100%)" }}>
+        
+        <div className="px-5 py-6 md:px-6 md:pt-8 md:pb-6 text-center border-b border-white/20 relative">
+          <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-white/10 rounded-full blur-2xl" />
+          <div className="w-16 h-16 md:w-20 md:h-20 rounded-[20px] md:rounded-[24px] mx-auto mb-3 md:mb-4 flex items-center justify-center text-3xl md:text-4xl bg-white/20 border border-white/30 backdrop-blur-md shadow-inner">
+            👤
           </div>
-
-          {/* BARCODE AREA */}
-          <div className="absolute bottom-[6%] left-[3%] bg-white px-2 py-2 rounded-lg shadow-lg">
-
-            <Barcode
-              value={member["customer_code"] || "JUJA000"}
-              width={1.4}
-              height={45}
-              fontSize={16}
-              margin={0}
-              background="white"
-              lineColor="#C026D3"
-              displayValue={true}
-            />
-
-          </div>
-
+          <h3 className="text-xl md:text-2xl font-normal text-white tracking-tight">{member.customer_name || "Juja Member"}</h3>
         </div>
+
+        <div className="px-5 py-5 md:px-6 md:py-6 space-y-4 md:space-y-5 border-b border-white/20 bg-black/5">
+          {[
+            { icon: "📞", value: member.phone || "—" },
+            { icon: "📍", value: member.address || "—", truncate: true },
+            { icon: "▦", value: member.customer_code, mono: true },
+            { icon: "🎂", value: fmtBirthday(member.note) || "—" }, 
+          ].map(({ icon, value, mono, truncate }) => (
+            <div key={icon} className="flex items-center gap-3 md:gap-4">
+              <span className="text-lg md:text-xl text-white/60 w-6 md:w-7 text-center">{icon}</span>
+              <span className={`text-white text-[13px] md:text-[15px] ${mono ? "font-mono tracking-widest font-bold" : "font-semibold"} ${truncate ? "truncate pr-4" : ""}`}>
+                {value}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="px-5 py-5 md:px-6 md:pt-6 md:pb-8 flex justify-between items-center bg-black/10">
+          <button onClick={startEdit} className="text-[9px] md:text-[11px] font-normal uppercase tracking-[0.25em] text-white/80 hover:text-white transition-all bg-white/10 px-4 py-2 md:px-5 md:py-2.5 rounded-full border border-white/20 active:scale-95">
+            Edit Profile
+          </button>
+          <div className="text-right">
+            <p className="text-white/80 text-[9px] md:text-[10px] font-normal uppercase tracking-widest mb-0.5 md:mb-1">Total Points</p>
+            <p className="text-2xl md:text-3xl font-normal text-white">{pts.toFixed(0)}</p>
+          </div>
+        </div>
+      </div>
 
       {/* Points progress */}
       <div className="bg-white rounded-xl md:rounded-[24px] p-5 md:p-6 border border-rose-50 shadow-sm">
@@ -484,4 +487,4 @@ export default function Customer() {
       <TabBar tab={tab} setTab={setTab} />
     </div>
   );
-}check
+}
