@@ -368,7 +368,8 @@ function LoyaltyTab({ member, setMember, user }) {
     
     {/* CUSTOMER NAME - Positioned to match your 2nd image */}
     <div className="flex-1 flex items-center justify-center mt-[10%]">
-      <h2 className="text-2xl md:text-4xl font-bold text-[#5C3D2E] tracking-tight text-center uppercase">
+      <h2 className="text-xl md:text-2xl font-bold text-[#5C3D2E] tracking-tight text-left pl-6 uppercase">
+      
         {member["customer_name"] || "VALUED CUSTOMER"}
       </h2>
     </div>
