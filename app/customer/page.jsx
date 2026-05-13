@@ -79,7 +79,7 @@ function HomeTab({ member, user, setTab }) {
           {member && (
             <div className="flex gap-4 md:gap-6 mt-4 md:mt-6 bg-[#FFF9FA] p-3 md:p-4 rounded-xl md:rounded-2xl border border-rose-50 inline-flex">
               <div>
-                <p className="text-[#FC687D] font-normal text-xl md:text-2xl leading-none">{parseFloat(member.points_balance || 0).toFixed(0)}</p>
+                <p className="text-[#FC687D] font-normal text-xl md:text-2xl leading-none">{parseFloat(member["Points balance"] || 0).toFixed(0)}</p>
                 <p className="text-slate-500 text-[9px] md:text-[10px] uppercase font-normal tracking-widest mt-1">Points</p>
               </div>
               <div className="w-px bg-rose-100" />
@@ -230,14 +230,20 @@ function LoyaltyTab({ member, setMember, user }) {
     setJoining(true);
     try {
       const payload = {
-        customer_name: user?.user_metadata?.full_name || "",
-        email: user?.email || "",
-        phone: "", address: "", note: "", 
-        customer_code: genMemberId(), // Uses the helper function from the top of your file
-        points_balance: 0, total_visits: 0,
-        last_visit: new Date().toISOString().split("T")[0],
-        user_id: user?.id,
-      };
+  customer_name: user?.user_metadata?.full_name || "",
+  Email: user?.email || "",
+  Phone: "",
+  Address: "",
+  Note: "",
+  customer_code: genMemberId(),
+
+  "Points balance": 0,
+  "Total visits": 0,
+
+  "Last visit": new Date().toISOString().split("T")[0],
+
+  user_id: user?.id,
+};
       
       const { data, error } = await supabase.from("loyalty_members").insert([payload]).select();
       if (!error && data) setMember(data[0]);
@@ -248,9 +254,9 @@ function LoyaltyTab({ member, setMember, user }) {
   const startEdit = () => {
     setForm({ 
       customer_name: member["customer_name"] || "", 
-      phone: member.phone || "", 
-      address: member.address || "", 
-      note: member.note || "" 
+      phone: member["Phone"] || "",
+      address: member["Address"] || "",
+      note: member["Note"] || ""
     });
     setEditing(true);
   };
@@ -267,6 +273,18 @@ function LoyaltyTab({ member, setMember, user }) {
     } catch (e) { console.error(e); }
     setSaving(false);
   };
+
+  const updateData = {
+  customer_name: form.customer_name,
+  Phone: form.phone,
+  Address: form.address,
+  Note: form.note,
+};
+
+const { error } = await supabase
+  .from("loyalty_members")
+  .update(updateData)
+  .eq("id", member.id);
 
   const fmtBirthday = (val) => {
     if (!val) return "";
@@ -330,15 +348,22 @@ function LoyaltyTab({ member, setMember, user }) {
 
           {/* CARD TEMPLATE */}
           <img
-            src="/images/loyalty-card-bg.png"
+            import Image from "next/image";
+            <Image
+              src="/images/loyalty-card-bg.png"
+              alt="Loyalty Card"
+              width={1000}
+              height={630}
+              className="w-full aspect-[1.58/1] object-cover"
+          />
             alt="Loyalty Card"
-            className="w-full object-cover"
+            className="w-full aspect-[1.58/1] object-cover"
           />
 
           {/* MEMBER NAME */}
           <div className="absolute top-[30%] left-0 w-full text-center px-4">
             <h2 className="text-black font-black tracking-wide text-[24px] md:text-[32px] uppercase">
-              {member.customer_name || "JUJA MEMBER"}
+              {member["customer_name"] || "JUJA MEMBER"}
             </h2>
           </div>
 
@@ -348,8 +373,8 @@ function LoyaltyTab({ member, setMember, user }) {
             <Barcode
               value={member["customer_code"] || "JUJA000"}
               width={1.4}
-              height={45}
-              fontSize={16}
+              height={38}
+              fontSize={14}
               margin={0}
               background="white"
               lineColor="#C026D3"

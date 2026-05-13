@@ -16,6 +16,7 @@
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "latest",
     "csv-parser": "^3.2.0",
+    "html-to-image": "^1.11.13",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "latest",
     "next": "^15.1.0",
