@@ -247,9 +247,9 @@ function LoyaltyTab({ member, setMember, user }) {
   const startEdit = () => {
   setForm({
     customer_name: member?.customer_name || "",
-    phone: member?.Phone || "",
-    address: member?.Address || "",
-    note: member?.Note || "",
+    phone: member["Phone"] || "",
+    address: member["Address"] || "",
+    note: member["Note"] || "",
   });
 
   setEditing(true);
@@ -362,10 +362,10 @@ function LoyaltyTab({ member, setMember, user }) {
 
         <div className="px-5 py-5 md:px-6 md:py-6 space-y-4 md:space-y-5 border-b border-white/20 bg-black/5">
           {[
-            { icon: "📞", value: member.phone || "—" },
-            { icon: "📍", value: member.address || "—", truncate: true },
-            { icon: "▦", value: member.customer_code, mono: true },
-            { icon: "🎂", value: fmtBirthday(member.note) || "—" }, 
+            { icon: "📞", value: member["Phone"] || "—" },
+            { icon: "📍", value: member["Address"] || "—", truncate: true },
+            { icon: "▦", value: member["customer_code"], mono: true },
+            { icon: "🎂", value: fmtBirthday(member["Note"]) || "—" }, 
           ].map(({ icon, value, mono, truncate }) => (
             <div key={icon} className="flex items-center gap-3 md:gap-4">
               <span className="text-lg md:text-xl text-white/60 w-6 md:w-7 text-center">{icon}</span>
