@@ -255,17 +255,39 @@ function LoyaltyTab({ member, setMember, user }) {
   };
 
   const saveEdit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const { error } = await supabase.from("loyalty_members").update(form).eq("id", member.id);
-      if (!error) {
-        setMember(m => ({ ...m, ...form }));
-        setEditing(false);
-      }
-    } catch (e) { console.error(e); }
-    setSaving(false);
-  };
+  e.preventDefault();
+  setSaving(true);
+
+  try {
+    const updateData = {
+      customer_name: form.customer_name,
+      Phone: form.phone,
+      Address: form.address,
+      Note: form.note,
+    };
+
+    const { error } = await supabase
+      .from("loyalty_members")
+      .update(updateData)
+      .eq("id", member.id);
+
+    if (error) {
+      console.error(error);
+      alert(error.message);
+    } else {
+      setMember((m) => ({
+        ...m,
+        ...updateData,
+      }));
+
+      setEditing(false);
+    }
+  } catch (err) {
+    console.error(err);
+  }
+
+  setSaving(false);
+};
 
   const fmtBirthday = (val) => {
     if (!val) return "";
@@ -320,7 +342,7 @@ function LoyaltyTab({ member, setMember, user }) {
   return (
     <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
-        <h2 className="text-2xl md:text-[28px] font-normal text-slate-800 tracking-tight">Juja Card</h2>
+        <h2 className="text-2xl md:text-[28px] font-normal text-slate-800 tracking-tight">Juja Loyalty Card</h2>
         <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">Digital Rewards Member</p>
       </div>
 
