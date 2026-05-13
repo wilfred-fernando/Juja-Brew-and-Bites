@@ -79,7 +79,7 @@ function HomeTab({ member, user, setTab }) {
           {member && (
             <div className="flex gap-4 md:gap-6 mt-4 md:mt-6 bg-[#FFF9FA] p-3 md:p-4 rounded-xl md:rounded-2xl border border-rose-50 inline-flex">
               <div>
-                <p className="text-[#FC687D] font-normal text-xl md:text-2xl leading-none">{parseFloat(member["Points balance"] || 0).toFixed(0)}</p>
+                <p className="text-[#FC687D] font-normal text-xl md:text-2xl leading-none">{parseFloat(member.points_balance || 0).toFixed(0)}</p>
                 <p className="text-slate-500 text-[9px] md:text-[10px] uppercase font-normal tracking-widest mt-1">Points</p>
               </div>
               <div className="w-px bg-rose-100" />
@@ -225,29 +225,19 @@ function LoyaltyTab({ member, setMember, user }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ customer_name: "", phone: "", address: "", note: "" });
   const [saving, setSaving] = useState(false);
-  const [linkRequest, setLinkRequest] = useState({
-      full_name: "",
-      birthday: ""
-    });
 
   const join = async () => {
     setJoining(true);
     try {
       const payload = {
-  customer_name: user?.user_metadata?.full_name || "",
-  Email: user?.email || "",
-  Phone: "",
-  Address: "",
-  Note: "",
-  customer_code: genMemberId(),
-
-  "Points balance": 0,
-  "Total visits": 0,
-
-  "Last visit": new Date().toISOString().split("T")[0],
-
-  user_id: user?.id,
-};
+        customer_name: user?.user_metadata?.full_name || "",
+        email: user?.email || "",
+        phone: "", address: "", note: "", 
+        customer_code: genMemberId(), // Uses the helper function from the top of your file
+        points_balance: 0, total_visits: 0,
+        last_visit: new Date().toISOString().split("T")[0],
+        user_id: user?.id,
+      };
       
       const { data, error } = await supabase.from("loyalty_members").insert([payload]).select();
       if (!error && data) setMember(data[0]);
@@ -258,67 +248,25 @@ function LoyaltyTab({ member, setMember, user }) {
   const startEdit = () => {
     setForm({ 
       customer_name: member["customer_name"] || "", 
-      phone: member["Phone"] || "",
-      address: member["Address"] || "",
-      note: member["Note"] || ""
+      phone: member.phone || "", 
+      address: member.address || "", 
+      note: member.note || "" 
     });
     setEditing(true);
   };
 
-  const submitLinkRequest = async () => {
-  if (!linkRequest.full_name || !linkRequest.birthday) {
-    alert("Please complete all fields");
-    return;
-  }
-
-  const { error } = await supabase
-    .from("loyalty_link_requests")
-    .insert({
-      user_id: user.id,
-      full_name: linkRequest.full_name,
-      birthday: linkRequest.birthday,
-      status: "pending"
-    });
-
-  if (error) {
-    alert(error.message);
-  } else {
-    alert("Request sent to admin");
-
-    setLinkRequest({
-      full_name: "",
-      birthday: ""
-    });
-  }
-};
-
- const saveEdit = async (e) => {
-  e.preventDefault();
-  setSaving(true);
-
-  try {
-    const updateData = {
-      customer_name: form.customer_name,
-      Phone: form.phone,
-      Address: form.address,
-      Note: form.note,
-    };
-
-     const { error } = await supabase
-      .from("loyalty_members")
-      .update(updateData)
-      .eq("id", member.id);
-
-    if (!error) {
-      setMember(m => ({ ...m, ...updateData }));
-      setEditing(false);
-    }
-  } catch (err) {
-    console.error(err);
-  }
-
-  setSaving(false);
-};
+  const saveEdit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("loyalty_members").update(form).eq("id", member.id);
+      if (!error) {
+        setMember(m => ({ ...m, ...form }));
+        setEditing(false);
+      }
+    } catch (e) { console.error(e); }
+    setSaving(false);
+  };
 
   const fmtBirthday = (val) => {
     if (!val) return "";
@@ -360,42 +308,7 @@ function LoyaltyTab({ member, setMember, user }) {
             className="w-full py-3.5 md:py-4 rounded-xl md:rounded-full font-normal text-[11px] md:text-[13px] uppercase tracking-widest text-white transition-all duration-300 bg-[#FC687D] hover:bg-rose-500 shadow-[0_8px_20px_rgba(252,104,125,0.25)] hover:shadow-[0_12px_25px_rgba(252,104,125,0.35)] active:scale-95 disabled:opacity-50 relative z-10">
             {joining ? "Creating account…" : "Join For Free →"}
           </button>
-
-              <div className="mt-4 space-y-3">
-                <input
-                  type="text"
-                  placeholder="Full Name"
-                  value={linkRequest.full_name}
-                  onChange={(e) =>
-                    setLinkRequest({
-                      ...linkRequest,
-                      full_name: e.target.value
-                    })
-                  }
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200"
-                />
-
-                <input
-                  type="date"
-                  value={linkRequest.birthday}
-                  onChange={(e) =>
-                    setLinkRequest({
-                      ...linkRequest,
-                      birthday: e.target.value
-                    })
-                  }
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200"
-                />
-
-                <button
-                  onClick={submitLinkRequest}
-                  className="w-full py-3 bg-[#FC687D] text-white rounded-xl"
-                >
-                  Request Account Linking
-                </button>
-              </div>
-                  </div>
-        
+        </div>
       </div>
     );
   }
@@ -412,12 +325,40 @@ function LoyaltyTab({ member, setMember, user }) {
         <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">Digital Rewards Member</p>
       </div>
 
-      <button
-        onClick={startEdit}
-        className="w-full py-3 rounded-xl bg-[#FC687D] text-white"
-      >
-        Edit Profile
-      </button>
+        {/* ── DIGITAL LOYALTY CARD ── */}
+        <div className="relative w-full overflow-hidden rounded-2xl shadow-2xl">
+
+          {/* CARD TEMPLATE */}
+          <img
+            src="/images/loyalty-card-bg.png"
+            alt="Loyalty Card"
+            className="w-full aspect-[1.58/1] object-cover"
+          />
+
+          {/* MEMBER NAME */}
+          <div className="absolute top-[30%] left-0 w-full text-center px-4">
+            <h2 className="text-black font-black tracking-wide text-[24px] md:text-[32px] uppercase">
+              {member["customer_name"] || "JUJA MEMBER"}
+            </h2>
+          </div>
+
+          {/* BARCODE AREA */}
+          <div className="absolute bottom-[6%] left-[3%] bg-white px-2 py-2 rounded-lg shadow-lg">
+
+            <Barcode
+              value={member["customer_code"] || "JUJA000"}
+              width={1.4}
+              height={45}
+              fontSize={16}
+              margin={0}
+              background="white"
+              lineColor="#C026D3"
+              displayValue={true}
+            />
+
+          </div>
+
+        </div>
 
       {/* Points progress */}
       <div className="bg-white rounded-xl md:rounded-[24px] p-5 md:p-6 border border-rose-50 shadow-sm">
@@ -433,65 +374,40 @@ function LoyaltyTab({ member, setMember, user }) {
 
       {/* Edit modal (Luxury Slide-in) */}
       {editing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white p-6 rounded-2xl w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Edit Profile</h2>
+        <div className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 transition-all duration-300" onClick={() => setEditing(false)}>
+          <div className="w-full max-w-md mx-auto bg-white rounded-t-[24px] md:rounded-[32px] p-5 md:p-8 pb-8 md:pb-12 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-full md:slide-in-from-bottom-10 md:zoom-in-95 duration-300 shadow-2xl hide-scrollbar"
+            onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-5 md:hidden" />
+            
+            <div className="flex justify-between items-center mb-5 md:mb-6">
+              <h3 className="text-xl md:text-2xl font-normal text-slate-800 tracking-tight">Edit Profile</h3>
+              <button onClick={() => setEditing(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90 md:hidden">
+                ✕
+              </button>
+            </div>
 
-            <form onSubmit={saveEdit} className="space-y-4">
-              <input
-                type="text"
-                placeholder="Full Name"
-                value={form.customer_name}
-                onChange={(e) =>
-                  setForm({ ...form, customer_name: e.target.value })
-                }
-                className="w-full border p-3 rounded-xl"
-              />
-
-              <input
-                type="text"
-                placeholder="Phone"
-                value={form.phone}
-                onChange={(e) =>
-                  setForm({ ...form, phone: e.target.value })
-                }
-                className="w-full border p-3 rounded-xl"
-              />
-
-              <input
-                type="text"
-                placeholder="Address"
-                value={form.address}
-                onChange={(e) =>
-                  setForm({ ...form, address: e.target.value })
-                }
-                className="w-full border p-3 rounded-xl"
-              />
-
-              <input
-                type="text"
-                placeholder="Birthday"
-                value={form.note}
-                onChange={(e) =>
-                  setForm({ ...form, note: e.target.value })
-                }
-                className="w-full border p-3 rounded-xl"
-              />
-
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setEditing(false)}
-                  className="flex-1 py-3 rounded-xl border"
-                >
+            <form onSubmit={saveEdit} className="space-y-4 md:space-y-5">
+              {[
+                ["customer_name", "Full Name", "text", "Your full name"],
+                ["phone", "Phone Number", "tel", "09XX XXX XXXX"],
+                ["address", "Location / City", "text", "e.g. QC, Metro Manila"],
+                ["note", "Birthday (YYYY-MM-DD)", "text", "1995-12-25"],
+              ].map(([key, lbl, type, ph]) => (
+                <div key={key}>
+                  <label className="block text-[10px] font-normal uppercase tracking-widest text-slate-400 mb-1.5 ml-1">{lbl}</label>
+                  <input type={type} value={form[key]} placeholder={ph}
+                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs md:text-sm font-semibold text-slate-800 focus:outline-none focus:border-[#FC687D] focus:bg-white focus:ring-1 focus:ring-rose-100 transition-all" />
+                </div>
+              ))}
+              <div className="grid grid-cols-2 gap-3 pt-4 md:pt-6 mt-4 md:mt-6 border-t border-slate-100">
+                <button type="button" onClick={() => setEditing(false)}
+                  className="w-full py-3.5 md:py-4 rounded-xl bg-white border border-slate-200 text-slate-500 font-normal uppercase tracking-widest text-[10px] md:text-xs hover:bg-slate-50 hover:text-slate-800 transition-all active:scale-95">
                   Cancel
                 </button>
-
-                <button
-                  type="submit"
-                  className="flex-1 py-3 rounded-xl bg-[#FC687D] text-white"
-                >
-                  Save
+                <button type="submit" disabled={saving}
+                  className="w-full py-3.5 md:py-4 rounded-xl bg-[#FC687D] text-white font-normal uppercase tracking-widest text-[10px] md:text-xs hover:bg-rose-500 transition-all shadow-[0_4px_15px_rgba(252,104,125,0.25)] disabled:opacity-70 active:scale-95 hover:-translate-y-0.5">
+                  {saving ? "Saving…" : "Save Changes"}
                 </button>
               </div>
             </form>
@@ -568,4 +484,4 @@ export default function Customer() {
       <TabBar tab={tab} setTab={setTab} />
     </div>
   );
-}
+}check
