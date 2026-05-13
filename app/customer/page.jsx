@@ -412,7 +412,12 @@ function LoyaltyTab({ member, setMember, user }) {
         <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">Digital Rewards Member</p>
       </div>
 
- 
+      <button
+        onClick={startEdit}
+        className="w-full py-3 rounded-xl bg-[#FC687D] text-white"
+      >
+        Edit Profile
+      </button>
 
       {/* Points progress */}
       <div className="bg-white rounded-xl md:rounded-[24px] p-5 md:p-6 border border-rose-50 shadow-sm">
@@ -428,40 +433,65 @@ function LoyaltyTab({ member, setMember, user }) {
 
       {/* Edit modal (Luxury Slide-in) */}
       {editing && (
-        <div className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 transition-all duration-300" onClick={() => setEditing(false)}>
-          <div className="w-full max-w-md mx-auto bg-white rounded-t-[24px] md:rounded-[32px] p-5 md:p-8 pb-8 md:pb-12 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-full md:slide-in-from-bottom-10 md:zoom-in-95 duration-300 shadow-2xl hide-scrollbar"
-            onClick={e => e.stopPropagation()}>
-            <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-5 md:hidden" />
-            
-            <div className="flex justify-between items-center mb-5 md:mb-6">
-              <h3 className="text-xl md:text-2xl font-normal text-slate-800 tracking-tight">Edit Profile</h3>
-              <button onClick={() => setEditing(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90 md:hidden">
-                ✕
-              </button>
-            </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white p-6 rounded-2xl w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Edit Profile</h2>
 
-            <form onSubmit={saveEdit} className="space-y-4 md:space-y-5">
-              {[
-                ["customer_name", "Full Name", "text", "Your full name"],
-                ["phone", "Phone Number", "tel", "09XX XXX XXXX"],
-                ["address", "Location / City", "text", "e.g. QC, Metro Manila"],
-                ["note", "Birthday (YYYY-MM-DD)", "text", "1995-12-25"],
-              ].map(([key, lbl, type, ph]) => (
-                <div key={key}>
-                  <label className="block text-[10px] font-normal uppercase tracking-widest text-slate-400 mb-1.5 ml-1">{lbl}</label>
-                  <input type={type} value={form[key]} placeholder={ph}
-                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs md:text-sm font-semibold text-slate-800 focus:outline-none focus:border-[#FC687D] focus:bg-white focus:ring-1 focus:ring-rose-100 transition-all" />
-                </div>
-              ))}
-              <div className="grid grid-cols-2 gap-3 pt-4 md:pt-6 mt-4 md:mt-6 border-t border-slate-100">
-                <button type="button" onClick={() => setEditing(false)}
-                  className="w-full py-3.5 md:py-4 rounded-xl bg-white border border-slate-200 text-slate-500 font-normal uppercase tracking-widest text-[10px] md:text-xs hover:bg-slate-50 hover:text-slate-800 transition-all active:scale-95">
+            <form onSubmit={saveEdit} className="space-y-4">
+              <input
+                type="text"
+                placeholder="Full Name"
+                value={form.customer_name}
+                onChange={(e) =>
+                  setForm({ ...form, customer_name: e.target.value })
+                }
+                className="w-full border p-3 rounded-xl"
+              />
+
+              <input
+                type="text"
+                placeholder="Phone"
+                value={form.phone}
+                onChange={(e) =>
+                  setForm({ ...form, phone: e.target.value })
+                }
+                className="w-full border p-3 rounded-xl"
+              />
+
+              <input
+                type="text"
+                placeholder="Address"
+                value={form.address}
+                onChange={(e) =>
+                  setForm({ ...form, address: e.target.value })
+                }
+                className="w-full border p-3 rounded-xl"
+              />
+
+              <input
+                type="text"
+                placeholder="Birthday"
+                value={form.note}
+                onChange={(e) =>
+                  setForm({ ...form, note: e.target.value })
+                }
+                className="w-full border p-3 rounded-xl"
+              />
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditing(false)}
+                  className="flex-1 py-3 rounded-xl border"
+                >
                   Cancel
                 </button>
-                <button type="submit" disabled={saving}
-                  className="w-full py-3.5 md:py-4 rounded-xl bg-[#FC687D] text-white font-normal uppercase tracking-widest text-[10px] md:text-xs hover:bg-rose-500 transition-all shadow-[0_4px_15px_rgba(252,104,125,0.25)] disabled:opacity-70 active:scale-95 hover:-translate-y-0.5">
-                  {saving ? "Saving…" : "Save Changes"}
+
+                <button
+                  type="submit"
+                  className="flex-1 py-3 rounded-xl bg-[#FC687D] text-white"
+                >
+                  Save
                 </button>
               </div>
             </form>
