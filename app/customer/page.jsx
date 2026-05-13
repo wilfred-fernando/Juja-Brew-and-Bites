@@ -262,7 +262,7 @@ function LoyaltyTab({ member, setMember, user }) {
     setEditing(true);
   };
 
-  const saveEdit = async (e) => {
+ const saveEdit = async (e) => {
   e.preventDefault();
   setSaving(true);
 
@@ -289,11 +289,6 @@ function LoyaltyTab({ member, setMember, user }) {
 
   setSaving(false);
 };
-
-const { error } = await supabase
-  .from("loyalty_members")
-  .update(updateData)
-  .eq("id", member.id);
 
   const fmtBirthday = (val) => {
     if (!val) return "";
