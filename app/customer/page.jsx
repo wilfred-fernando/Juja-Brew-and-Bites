@@ -358,7 +358,7 @@ function LoyaltyTab({ member, setMember, user }) {
   
   {/* 1. THE BACKGROUND IMAGE (The 1st image you uploaded) */}
   <img
-    src="/images/loyalty-card-bg.png" 
+    src="/images/loyalty-card-bg.jpg" 
     alt="Loyalty Card Background"
     className="absolute inset-0 w-full h-full object-cover"
   />
@@ -407,9 +407,7 @@ function LoyaltyTab({ member, setMember, user }) {
         
         <div className="px-5 py-6 md:px-6 md:pt-8 md:pb-6 text-center border-b border-white/20 relative">
           <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-white/10 rounded-full blur-2xl" />
-          <div className="w-16 h-16 md:w-20 md:h-20 rounded-[20px] md:rounded-[24px] mx-auto mb-3 md:mb-4 flex items-center justify-center text-3xl md:text-4xl bg-white/20 border border-white/30 backdrop-blur-md shadow-inner">
-            👤
-          </div>
+        
           <h3 className="text-xl md:text-2xl font-normal text-white tracking-tight">{member["customer_name"] || "Juja Member"}</h3>
         </div>
 
