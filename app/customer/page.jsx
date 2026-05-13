@@ -353,27 +353,37 @@ function LoyaltyTab({ member, setMember, user }) {
         <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">Digital Rewards Member</p>
       </div>
 
-      <div className="relative rounded-[28px] overflow-hidden">
+      {/* 1. The Container - Must have 'relative' and 'overflow-hidden' */}
+<div className="relative w-full max-w-[350px] h-[200px] rounded-3xl overflow-hidden p-6 shadow-xl">
+  
+  {/* 2. The Background Image */}
+  <img
+    src="/images/loyalty-card-bg.png"
+    alt="Card Background"
+    className="absolute inset-0 w-full h-full object-cover"
+  />
 
-        {/* background image only */}
-        <img
-          src="/public/images/loyalty-card-bg.png"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
+  {/* 3. Readability Overlay */}
+  <div className="absolute inset-0 bg-white/20 backdrop-blur-[1px]" />
 
-        {/* optional readability layer */}
-        <div className="absolute inset-0 bg-white/10" />
+  {/* 4. The Content Layer */}
+  <div className="relative z-10 h-full flex flex-col justify-between">
+    <h2 className="text-slate-800 font-bold text-xl drop-shadow-sm">
+      {member["customer_name"]}
+    </h2>
 
-        {/* your EXISTING content (unchanged) */}
-        <div className="relative z-10">
-          
-          {/* THIS IS YOUR ORIGINAL CODE — untouched */}
-          <h2>{member["customer_name"]}</h2>
-
-          <Barcode value={member["customer_code"] || "JUJA000000"} />
-
-        </div>
-      </div>
+    {/* 5. The Barcode - CRITICAL: Added background="transparent" */}
+    <div className="bg-white/60 p-2 rounded-xl backdrop-blur-md inline-block w-fit">
+      <Barcode 
+        value={member["customer_code"] || "JUJA000000"} 
+        background="transparent"
+        lineColor="#1e293b" 
+        width={1.2}
+        height={50}
+      />
+    </div>
+  </div>
+</div>
 
 
 
