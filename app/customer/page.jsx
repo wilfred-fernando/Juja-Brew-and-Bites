@@ -225,6 +225,10 @@ function LoyaltyTab({ member, setMember, user }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ customer_name: "", phone: "", address: "", note: "" });
   const [saving, setSaving] = useState(false);
+  const [linkRequest, setLinkRequest] = useState({
+      full_name: "",
+      birthday: ""
+    });
 
   const join = async () => {
     setJoining(true);
@@ -262,17 +266,31 @@ function LoyaltyTab({ member, setMember, user }) {
   };
 
   const submitLinkRequest = async () => {
-  const { error } = await supabase.from("loyalty_link_requests").insert({
+  if (!linkRequest.full_name || !linkRequest.birthday) {
+    alert("Please complete all fields");
+    return;
+  }
+
+  const { error } = await supabase
+    .from("loyalty_link_requests")
+    .insert({
       user_id: user.id,
       full_name: linkRequest.full_name,
       birthday: linkRequest.birthday,
       status: "pending"
     });
 
-    if (!error) {
-      alert("Request sent to admin");
-    }
-  };
+  if (error) {
+    alert(error.message);
+  } else {
+    alert("Request sent to admin");
+
+    setLinkRequest({
+      full_name: "",
+      birthday: ""
+    });
+  }
+};
 
  const saveEdit = async (e) => {
   e.preventDefault();
@@ -286,12 +304,7 @@ function LoyaltyTab({ member, setMember, user }) {
       note: form.note,
     };
 
-     const [linkRequest, setLinkRequest] = useState({
-      full_name: "",
-      birthday: ""
-    });
-
-    const { error } = await supabase
+     const { error } = await supabase
       .from("loyalty_members")
       .update(updateData)
       .eq("id", member.id);
@@ -348,13 +361,40 @@ function LoyaltyTab({ member, setMember, user }) {
             {joining ? "Creating account…" : "Join For Free →"}
           </button>
 
-          <button
-            onClick={submitLinkRequest}
-            className="w-full mt-4 py-3 bg-[#FC687D] text-white rounded-xl"
-          >
-            Request Account Linking
-          </button>
-        </div>
+              <div className="mt-4 space-y-3">
+                <input
+                  type="text"
+                  placeholder="Full Name"
+                  value={linkRequest.full_name}
+                  onChange={(e) =>
+                    setLinkRequest({
+                      ...linkRequest,
+                      full_name: e.target.value
+                    })
+                  }
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200"
+                />
+
+                <input
+                  type="date"
+                  value={linkRequest.birthday}
+                  onChange={(e) =>
+                    setLinkRequest({
+                      ...linkRequest,
+                      birthday: e.target.value
+                    })
+                  }
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200"
+                />
+
+                <button
+                  onClick={submitLinkRequest}
+                  className="w-full py-3 bg-[#FC687D] text-white rounded-xl"
+                >
+                  Request Account Linking
+                </button>
+              </div>
+                  </div>
         
       </div>
     );
