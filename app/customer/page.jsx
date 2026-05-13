@@ -299,9 +299,9 @@ function LoyaltyTab({ member, setMember, user }) {
   try {
     const updateData = {
       customer_name: form.customer_name,
-      phone: form.phone,
-      address: form.address,
-      note: form.note,
+      Phone: form.phone,
+      Address: form.address,
+      Note: form.note,
     };
 
      const { error } = await supabase
