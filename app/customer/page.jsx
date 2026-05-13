@@ -367,14 +367,10 @@ function LoyaltyTab({ member, setMember, user }) {
   <div className="relative z-10 h-full w-full flex flex-col p-[5%]">
     
     {/* CUSTOMER NAME - Positioned to match your 2nd image */}
-    <div className="flex-1 flex items-center justify-start mt-[10%] px-2">
-  <h2 className="text-lg md:text-xl font-bold text-[#5C3D2E] tracking-tight text-left uppercase">
-    {member["customer_name"] || "VALUED CUSTOMER"}
-  </h2>
-</div>
+ 
 
     {/* BOTTOM SECTION: Barcode Box + Loyalty Rules */}
-    <div className="flex items-end justify-between w-[50%] h-[20%]">
+    <div className="flex items-end justify-between w-full h-[50%]">
       
       {/* BARCODE BOX - Positioned over the white rectangle in the bg */}
       <div className="w-[38%] h-full bg-white flex flex-col items-center justify-center rounded-lg shadow-sm p-1">
