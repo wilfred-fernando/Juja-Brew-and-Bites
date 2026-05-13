@@ -12,7 +12,7 @@ export default function LoyaltyAdminPage() {
   const [editingMember, setEditingMember] = useState(null);
   
   const [form, setForm] = useState({ 
-    "Customer name": "", "Phone": "", "Points balance": 0, "Total visits": 0, "Note": ""
+    "customer_name": "", "Phone": "", "Points balance": 0, "Total visits": 0, "Note": ""
   });
   const [saving, setSaving] = useState(false);
 
@@ -62,7 +62,7 @@ const linkAccount = async (requestId, memberId, userId) => {
   const openModal = (member) => {
     setEditingMember(member);
     setForm({
-      "Customer name": member["Customer name"] || "",
+      "customer_name": member["customer_name"] || "",
       "Phone": member["Phone"] || "",
       "Points balance": member["Points balance"] || 0,
       "Total visits": member["Total visits"] || 0,
@@ -91,8 +91,8 @@ const linkAccount = async (requestId, memberId, userId) => {
   };
 
   const filteredMembers = members.filter(m => 
-    (m["Customer name"]?.toLowerCase() || "").includes(search.toLowerCase()) ||
-    (m["Customer code"]?.toLowerCase() || "").includes(search.toLowerCase()) ||
+    (m["customer_name"]?.toLowerCase() || "").includes(search.toLowerCase()) ||
+    (m["customer_code"]?.toLowerCase() || "").includes(search.toLowerCase()) ||
     (m["Phone"] || "").includes(search)
   );
 
@@ -128,13 +128,13 @@ const linkAccount = async (requestId, memberId, userId) => {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <h3 className="font-normal text-slate-800 text-sm md:text-base leading-tight truncate">{member["Customer name"] || "Unknown Member"}</h3>
+                  <h3 className="font-normal text-slate-800 text-sm md:text-base leading-tight truncate">{member["customer_name"] || "Unknown Member"}</h3>
                   {member["Points balance"] >= 500 && (
                      <span className="bg-[#FFF9FA] text-[#FC687D] text-[9px] font-normal uppercase tracking-widest px-2 py-0.5 rounded-md border border-rose-100">VIP</span>
                   )}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-mono font-normal text-slate-500 text-[10px] md:text-xs bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">{member["Customer code"]}</span>
+                  <span className="font-mono font-normal text-slate-500 text-[10px] md:text-xs bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">{member["customer_code"]}</span>
                   <span className="text-slate-300 text-[10px]">•</span>
                   <span className="text-[10px] md:text-xs font-normal text-slate-500">{member["Phone"] || "No phone"}</span>
                 </div>
@@ -185,7 +185,7 @@ const linkAccount = async (requestId, memberId, userId) => {
             <div className="flex justify-between items-start mb-6">
               <div>
                 <h3 className="text-xl md:text-2xl font-normal text-slate-800 tracking-tight">Edit Member</h3>
-                <p className="font-mono text-[10px] font-normal text-slate-400 mt-1">{editingMember["Customer code"]}</p>
+                <p className="font-mono text-[10px] font-normal text-slate-400 mt-1">{editingMember["customer_code"]}</p>
               </div>
               <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90">
                 ✕
@@ -196,7 +196,7 @@ const linkAccount = async (requestId, memberId, userId) => {
               
               <div>
                 <label className="block text-[10px] font-normal uppercase tracking-widest text-slate-400 mb-1.5 ml-1">Full Name</label>
-                <input type="text" required value={form["Customer name"]} onChange={e => setForm({...form, "Customer name": e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs md:text-sm font-semibold focus:bg-white focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" />
+                <input type="text" required value={form["customer_name"]} onChange={e => setForm({...form, "customer_name": e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs md:text-sm font-semibold focus:bg-white focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" />
               </div>
 
               <div>
