@@ -5,6 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import BookingTab from "@/components/BookingForm"; // Keeping your externalized booking form
+import dynamic from "next/dynamic";
+
+const Barcode = dynamic(() => import("react-barcode"), {
+  ssr: false,
+});
 
 const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
 
