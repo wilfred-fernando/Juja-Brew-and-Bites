@@ -245,14 +245,15 @@ function LoyaltyTab({ member, setMember, user }) {
   };
 
   const startEdit = () => {
-    setForm({ 
-      customer_name: member.customer_name || "", 
-      phone: member.phone || "", 
-      address: member.address || "", 
-      note: member.note || "" 
-    });
-    setEditing(true);
-  };
+  setForm({
+    customer_name: member?.customer_name || "",
+    phone: member?.Phone || "",
+    address: member?.Address || "",
+    note: member?.Note || "",
+  });
+
+  setEditing(true);
+};
 
   const saveEdit = async (e) => {
   e.preventDefault();
@@ -272,21 +273,17 @@ function LoyaltyTab({ member, setMember, user }) {
       .eq("id", member.id);
 
     if (error) {
-  console.error(error);
-  alert(error.message);
-} else {
-  const { data: refreshedMember } = await supabase
-    .from("loyalty_members")
-    .select("*")
-    .eq("id", member.id)
-    .single();
+      console.error(error);
+      alert(error.message);
+    } else {
+      const updatedMember = {
+        ...member,
+        ...updateData,
+      };
 
-  if (refreshedMember) {
-    setMember(refreshedMember);
-  }
-
-  setEditing(false);
-}
+      setMember(updatedMember);
+      setEditing(false);
+    }
   } catch (err) {
     console.error(err);
   }
