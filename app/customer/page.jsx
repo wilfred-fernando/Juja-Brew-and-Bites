@@ -372,42 +372,7 @@ function LoyaltyTab({ member, setMember, user }) {
         <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">Digital Rewards Member</p>
       </div>
 
-        {/* ── DIGITAL LOYALTY CARD ── */}
-        <div className="relative w-full overflow-hidden rounded-2xl shadow-2xl">
-
-          {/* CARD TEMPLATE */}
-            <Image
-              src="/images/loyalty-card-bg.png"
-              alt="Loyalty Card"
-              width={800}
-              height={500}
-              className="w-full h-auto object-cover"
-            />
-
-          {/* MEMBER NAME */}
-          <div className="absolute top-[30%] left-0 w-full text-center px-4">
-            <h2 className="text-black font-black tracking-wide text-[24px] md:text-[32px] uppercase">
-              {member["customer_name"] || "JUJA MEMBER"}
-            </h2>
-          </div>
-
-          {/* BARCODE AREA */}
-          <div className="absolute bottom-[6%] left-[3%] bg-white px-2 py-2 rounded-lg shadow-lg">
-
-            <Barcode
-              value={member["customer_code"] || "JUJA000"}
-              width={1.4}
-              height={38}
-              fontSize={14}
-              margin={0}
-              background="white"
-              lineColor="#C026D3"
-              displayValue={true}
-            />
-
-          </div>
-
-        </div>
+ 
 
       {/* Points progress */}
       <div className="bg-white rounded-xl md:rounded-[24px] p-5 md:p-6 border border-rose-50 shadow-sm">
