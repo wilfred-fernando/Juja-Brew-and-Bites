@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import BookingTab from "@/components/BookingForm"; // Keeping your externalized booking form
 import Barcode from "react-barcode";
+import Image from "next/image";
 
 const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
 
@@ -262,23 +263,31 @@ function LoyaltyTab({ member, setMember, user }) {
   };
 
   const saveEdit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const { error } = await supabase.from("loyalty_members").update(form).eq("id", member.id);
-      if (!error) {
-        setMember(m => ({ ...m, ...form }));
-        setEditing(false);
-      }
-    } catch (e) { console.error(e); }
-    setSaving(false);
-  };
+  e.preventDefault();
+  setSaving(true);
 
-  const updateData = {
-  customer_name: form.customer_name,
-  Phone: form.phone,
-  Address: form.address,
-  Note: form.note,
+  try {
+    const updateData = {
+      customer_name: form.customer_name,
+      phone: form.phone,
+      address: form.address,
+      note: form.note,
+    };
+
+    const { error } = await supabase
+      .from("loyalty_members")
+      .update(updateData)
+      .eq("id", member.id);
+
+    if (!error) {
+      setMember((m) => ({ ...m, ...updateData }));
+      setEditing(false);
+    }
+  } catch (err) {
+    console.error(err);
+  }
+
+  setSaving(false);
 };
 
 const { error } = await supabase
@@ -347,15 +356,13 @@ const { error } = await supabase
         <div className="relative w-full overflow-hidden rounded-2xl shadow-2xl">
 
           {/* CARD TEMPLATE */}
-          <img
-            import Image from "next/image";
             <Image
               src="/images/loyalty-card-bg.png"
               alt="Loyalty Card"
               width={1000}
               height={630}
               className="w-full aspect-[1.58/1] object-cover"
-          />
+         
             alt="Loyalty Card"
             className="w-full aspect-[1.58/1] object-cover"
           />
