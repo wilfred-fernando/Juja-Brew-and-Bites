@@ -673,21 +673,19 @@ export default function BookingForm({ user, member }) {
                         ₱{Number(p.rental_fee).toLocaleString()} / 3 hours
                       </h3>
 
-                      {/* ✅ Replace extension line with consumable or room rental only */}
-                      {pid >= 1 && pid <= 3 ? (
-                        <p className="text-[11px] text-slate-500 mt-2">
-                          Capacity up to {p.capacity} guests • Consumable: <b>{formatPeso(consumable)}</b>
-                        </p>
-                      ) : (
-                        <div className="mt-2 space-y-1">
-                          <p className="text-[11px] text-slate-500">
-                            Capacity up to {p.capacity} guests
+                      {/* ✅ Replace extension line with consumable or room rental only */}                                            
+                      {(() => {
+                        const metaLabel =
+                          pid >= 1 && pid <= 3
+                            ? `Capacity up to ${p.capacity} guests • Consumable: ${formatPeso(consumable)}`
+                            : `Capacity up to ${p.capacity} guests • Room rental only`;
+
+                        return (
+                          <p className="text-[11px] text-slate-500 mt-2 whitespace-nowrap overflow-hidden text-ellipsis">
+                            {metaLabel}
                           </p>
-                          <p className="text-[11px] text-slate-500">
-                            <b>Room rental only</b>
-                          </p>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </div>
 
                     <div className="flex gap-2">
