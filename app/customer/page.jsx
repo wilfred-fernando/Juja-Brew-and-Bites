@@ -1010,9 +1010,7 @@ export default function Customer() {
   };
 
   return (
-    <div className="min-h-screen pb-24 pt-16 md:pt-20 bg-[#FFF5F7]">
-      <TopHeader user={user} />
-
+    <div className="min-h-screen pb-24 pt-16 md:pt-20 bg-[#FFF5F7]">      
       <main className="max-w-md mx-auto px-4 md:px-5 py-4">
         {tab === "home" && (
           <HomeTab member={member} user={user} setTab={setTab} />
