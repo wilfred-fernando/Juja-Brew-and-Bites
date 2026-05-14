@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -26,7 +26,7 @@ function todayISO() {
   return new Date().toISOString().split("T")[0];
 }
 
-// ─── BOTTOM TAB BAR ───────────────────────────────────────────────────────────
+// ─── BOTTOM TAB BAR (Mobile Optimized) ────────────────────────────────────────
 function TabBar({ tab, setTab }) {
   const tabs = [
     { id: "home", icon: "🏠", label: "Home" },
@@ -74,37 +74,30 @@ function TabBar({ tab, setTab }) {
   );
 }
 
-// ─── TOP HEADER ───────────────────────────────────────────────────────────────
-function TopHeader({ user }) {
-  return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-rose-50 shadow-sm">
-      <div className="max-w-md mx-auto px-4 md:px-6 h-14 md:h-16 flex items-center justify-between">
-        <Link href="/" aria-label="Home">
-          <img
-            src={LOGO}
-            alt="Juja"
-            className="h-8 md:h-10 w-auto object-contain transition-transform hover:scale-105 active:scale-95"
-          />
-        </Link>
-
-        <div className="flex items-center gap-3">
-          <span className="text-slate-500 text-[10px] md:text-[11px] font-bold hidden sm:block truncate max-w-[140px]">
-            {user?.email}
-          </span>
-        </div>
-      </div>
-    </header>
-  );
-}
-
-// ─── HOME TAB ────────────────────────────────────────────────────────────────
+// ─── HOME DASHBOARD ───────────────────────────────────────────────────────────
 function HomeTab({ member, user, setTab }) {
   const pts = parseFloat(member?.["Points balance"] ?? 0) || 0;
   const visits = parseFloat(member?.["Total visits"] ?? 0) || 0;
 
   return (
     <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Hero */}
+      {/* Logo (header removed, so show a simple top brand block) */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <img
+            src={LOGO}
+            alt="Juja"
+            className="h-8 md:h0px] md:text-[11px] uppercase tracking-widest text-slate-400">
+              Juja Brew &amp; Bites
+            </p>
+            <p className="text-[12px] md:text-[13px] text-slate-600 font-semibold">
+              {user?.email}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Hero Welcome Card */}
       <div className="bg-white rounded-2xl md:rounded-[32px] p-5 md:p-6 border border-rose-100 shadow-[0_4px_20px_rgba(252,104,125,0.06)] relative overflow-hidden">
         <div
           className="absolute top-0 right-0 w-40 h-40 md:w-48 md:h-48 pointer-events-none opacity-20"
@@ -154,7 +147,7 @@ function HomeTab({ member, user, setTab }) {
         </div>
       </div>
 
-      {/* Quick Actions */}
+      {/* Quick Action Grid */}
       <div className="grid grid-cols-2 gap-3 md:gap-4">
         {[
           { icon: "🛍️", label: "Order Food", sub: "Browse menu", tab: "order" },
@@ -166,11 +159,7 @@ function HomeTab({ member, user, setTab }) {
             <Link
               key={c.label}
               href={c.href}
-              className="bg-white rounded-xl md:rounded-[24px] p-4 md:p-5 border border-rose-50 shadow-sm hover:shadow-md active:scale-95 transition-all duration-300"
-            >
-              <div className="text-2xl md:text-3xl mb-2 md:mb-3 bg-rose-50 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center">
-                {c.icon}
-              </div>
+              className="bg-white rounded-xl md:rounded-[24px] p-4 md:p-5 border border-rose-50 shadow-sm hover:shadow-md active:      </div>
               <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">
                 {c.label}
               </p>
@@ -226,7 +215,7 @@ function HomeTab({ member, user, setTab }) {
   );
 }
 
-// ─── ORDER TAB ────────────────────────────────────────────────────────────────
+// ─── ORDER TAB ──────────────────────────────────────────────────────────
 function OrderTab() {
   const [items, setItems] = useState([]);
   const [cats, setCategories] = useState([]);
@@ -287,8 +276,8 @@ function OrderTab() {
 
   return (
     <div className="space-y-4 md:space-y-6 animate-in fade-in duration-500">
-      {/* Categories */}
-      <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2 pt-1 -mx-4 px-4 sticky top-[56px] md:top-[64px] z-20 bg-[#FFF5F7]">
+      {/* Categories (header removed, so sticky top-0) */}
+      <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2 pt-1 -mx-4 px-4 sticky top-0 z-20 bg-[#FFF5F7]">
         {cats.map((cat) => (
           <button
             key={cat.id}
@@ -304,11 +293,10 @@ function OrderTab() {
         ))}
       </div>
 
-      {/* Items */}
+      {/* Grid of Items */}
       <div className="grid grid-cols-2 gap-3 md:gap-4 pb-10">
         {filtered.map((item) => {
           const inCart = cart[item.id]?.qty || 0;
-
           return (
             <div
               key={item.id}
@@ -319,11 +307,7 @@ function OrderTab() {
                   <img
                     src={item.image_url}
                     alt={item.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-2xl text-slate-200">📷</span>
-                )}
+                    className="w-full      )}
               </div>
 
               <div className="flex flex-col flex-1 px-1">
@@ -378,6 +362,10 @@ function LoyaltyTab({ member, setMember, user }) {
   const [showPerks, setShowPerks] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Voucher state (requires `vouchers` table in Supabase)
+  const [vouchers, setVouchers] = useState([]);
+  const [loadingVouchers, setLoadingVouchers] = useState(false);
+
   const [form, setForm] = useState({
     customer_name: "",
     Phone: "",
@@ -388,6 +376,11 @@ function LoyaltyTab({ member, setMember, user }) {
     Country: "",
     Note: "",
   });
+
+  const pts = useMemo(
+    () => parseFloat(member?.["Points balance"] ?? 0) || 0,
+    [member]
+  );
 
   const join = async () => {
     if (!user?.id) return;
@@ -464,7 +457,6 @@ function LoyaltyTab({ member, setMember, user }) {
     if (!member?.id) return;
 
     setSaving(true);
-
     try {
       const updateData = {
         customer_name: form.customer_name,
@@ -494,24 +486,80 @@ function LoyaltyTab({ member, setMember, user }) {
     } catch (err) {
       console.error(err);
     }
-
     setSaving(false);
   };
 
-  const fmtBirthday = (val) => {
-    if (!val) return "";
-    try {
-      const d = new Date(val + "T00:00:00");
-      if (isNaN(d.getTime())) return val;
-      return `${d.getFullYear()}-${d.toLocaleString("en", {
-        month: "short",
-      })}-${String(d.getDate()).padStart(2, "0")}`;
-    } catch {
-      return val;
-    }
+  const fmtDate = (iso) => {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString();
   };
 
-  // Not enrolled
+  // Fetch active vouchers for this member
+  useEffect(() => {
+    async function fetchVouchers() {
+      if (!member?.id) return;
+      setLoadingVouchers(true);
+
+      const nowIso = new Date().toISOString();
+
+      const { data, error } = await supabase
+        .from("vouchers")
+        .select("id, code, reward_text, issued_at, expires_at, status")
+        .eq("member_id", member.id)
+        .eq("status", "active")
+        .gt("expires_at", nowIso)
+        .order("issued_at", { ascending: false });
+
+      if (error) {
+        console.warn("Voucher fetch error:", error.message);
+      } else {
+        setVouchers(data || []);
+      }
+
+      setLoadingVouchers(false);
+    }
+
+    fetchVouchers();
+  }, [member?.id]);
+
+  // Optional realtime updates for vouchers (inserts/updates)
+  useEffect(() => {
+    if (!member?.id) return;
+
+    const channel = supabase
+      .channel(`vouchers-live-${member.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "vouchers",
+          filter: `member_id=eq.${member.id}`,
+        },
+        async () => {
+          // refresh list
+          const nowIso = new Date().toISOString();
+          const { data } = await supabase
+            .from("vouchers")
+            .select("id, code, reward_text, issued_at, expires_at, status")
+            .eq("member_id", member.id)
+            .eq("status", "active")
+            .gt("expires_at", nowIso)
+            .order("issued_at", { ascending: false });
+
+          setVouchers(data || []);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [member?.id]);
+
+  // ── Not enrolled ──
   if (!member) {
     return (
       <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -532,7 +580,6 @@ function LoyaltyTab({ member, setMember, user }) {
           >
             ⭐
           </div>
-
           <h3 className="text-xl md:text-2xl font-normal text-slate-800 mb-2 relative z-10">
             Join Juja Rewards
           </h3>
@@ -543,10 +590,10 @@ function LoyaltyTab({ member, setMember, user }) {
 
           <div className="text-left space-y-3 md:space-y-4 mb-6 md:mb-8 bg-[#FFF9FA] p-4 md:p-6 rounded-xl md:rounded-[24px] relative z-10 border border-rose-50">
             {[
-              ["🌟", "1 point per ₱10 spent"],
-              ["🎁", "100 pts = free reward item"],
-              ["🎂", "Birthday month double points"],
-              ["📲", "Show member ID at checkout"],
+              ["🌟", "Earn points on purchases"],
+              ["🎁", "Get rewards at 100 points"],
+              ["🎂", "Birthday freebies with ID"],
+              ["📲", "Show your barcode at checkout"],
             ].map(([ic, t]) => (
               <div
                 key={t}
@@ -570,7 +617,7 @@ function LoyaltyTab({ member, setMember, user }) {
     );
   }
 
-  const pts = parseFloat(member?.["Points balance"] ?? 0) || 0;
+  // ── Enrolled view ──
   const progress = ((pts % 100) / 100) * 100;
   const nextReward = (Math.floor(pts / 100) + 1) * 100;
 
@@ -585,16 +632,12 @@ function LoyaltyTab({ member, setMember, user }) {
         </p>
       </div>
 
-      {/* Loyalty Card Background + Barcode */}
+      {/* Loyalty Card (Background + Barcode) */}
       <div className="relative w-full max-w-[600px] aspect-[16/9] rounded-3xl overflow-hidden shadow-2xl bg-white group">
         <img
           src="/images/loyalty-card-bg.jpg"
           alt="Loyalty Card Background"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-
-        <div className="relative z-10 h-full w-full flex flex-col p-[5%]">
-          <div className="flex items-end justify-between w-full h-[50%] mt-[10px]">
+          className="absolute inset-0 w-full h-full-end justify-between w-full h-[50%] mt-[10px]">
             <div className="w-[70%] bg-white flex flex-col items-center justify-center rounded-lg shadow-sm p-2 relative top-[90px]">
               <Barcode
                 value={member?.customer_code || "JUJA000000"}
@@ -613,7 +656,7 @@ function LoyaltyTab({ member, setMember, user }) {
         </div>
       </div>
 
-      {/* Premium Pink Card */}
+      {/* Premium Card */}
       <div
         className="rounded-2xl md:rounded-[32px] overflow-hidden shadow-[0_10px_30px_rgba(252,104,125,0.2)] md:shadow-[0_20px_40px_rgba(252,104,125,0.2)]"
         style={{ background: "linear-gradient(135deg, #FC687D 0%, #f43f5e 100%)" }}
@@ -630,7 +673,7 @@ function LoyaltyTab({ member, setMember, user }) {
             { icon: "📞", value: member?.["Phone"] || "—" },
             { icon: "📍", value: member?.["Address"] || "—", truncate: true },
             { icon: "▦", value: member?.customer_code || "—", mono: true },
-            { icon: "🎂", value: fmtBirthday(member?.["Note"]) || "—" },
+            { icon: "🎂", value: member?.["Note"] || "—" },
           ].map(({ icon, value, mono, truncate }) => (
             <div key={icon} className="flex items-center gap-3 md:gap-4">
               <span className="text-lg md:text-xl text-white/60 w-6 md:w-7 text-center">
@@ -648,17 +691,18 @@ function LoyaltyTab({ member, setMember, user }) {
         </div>
 
         <div className="px-5 py-5 md:px-6 md:pt-6 md:pb-8 flex justify-between items-center bg-black/10">
-          <div className="flex gap-1">
+          {/* Bigger buttons + slightly tightened spacing */}
+          <div className="flex gap-1.5">
             <button
               onClick={startEdit}
-              className="text-[9px] md:text-[11px] leading-none font-normal uppercase tracking-[0.14em] text-white/85 hover:text-white transition-all bg-white/10 px-4 py-2 md:px-4 md:py-2.5 rounded-full border border-white/20 active:scale-95"
+              className="text-[9px] md:text-[11px] leading-none font-normal uppercase tracking-[0.14em] text-white/85 hover:text-white transition-all bg-white/10 px-4 py-2 md:px-5 md:py-2.5 rounded-full border border-white/20 active:scale-95"
             >
               Edit Profile
             </button>
 
             <button
               onClick={() => setShowPerks(true)}
-              className="text-[9px] md:text-[11px] leading-none font-normal uppercase tracking-[0.14em] text-white hover:text-white transition-all bg-white/20 px-4 py-2 md:px-4 md:py-2.5 rounded-full border border-white/20 active:scale-95"
+              className="text-[9px] md:text-[11px] leading-none font-normal uppercase tracking-[0.14em] text-white hover:text-white transition-all bg-white/20 px-4 py-2 md:px-5 md:py-2.5 rounded-full border border-white/20 active:scale-95"
             >
               View Perks
             </button>
@@ -675,7 +719,7 @@ function LoyaltyTab({ member, setMember, user }) {
         </div>
       </div>
 
-      {/* Progress */}
+      {/* Points progress */}
       <div className="bg-white rounded-xl md:rounded-[24px] p-5 md:p-6 border border-rose-50 shadow-sm">
         <div className="flex justify-between items-end mb-3 md:mb-4">
           <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">
@@ -696,6 +740,56 @@ function LoyaltyTab({ member, setMember, user }) {
         <p className="text-[10px] md:text-[11px] font-normal text-slate-500">
           {(nextReward - pts).toFixed(0)} more points until your next free reward 🎁
         </p>
+      </div>
+
+      {/* Vouchers (shown when points reach 100 and DB created a voucher) */}
+      <div className="bg-white rounded-xl md:rounded-[24px] p-5 md:p-6 border border-rose-50 shadow-sm">
+        <div className="flex items-end justify-between mb-3 md:mb-4">
+          <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">
+            Your Vouchers
+          </p>
+          <p className="text-[10px] md:text-xs font-normal text-slate-400">
+            {loadingVouchers ? "Loading…" : `${vouchers.length} active`}
+          </p>
+        </div>
+
+        {vouchers.length === 0 ? (
+          <p className="text-[11px] md:text-[12px] text-slate-500">
+            No vouchers yet — reach 100 points to receive a reward 🎁
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {vouchers.map((v) => (
+              <div
+                key={v.id}
+                className="border border-slate-200 rounded-2xl p-4 bg-slate-50"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[12px] md:text-[13px] font-semibold text-slate-800">
+                      🎁 Reward Voucher
+                    </p>
+                    <p className="text-[11px] md:text-[12px] text-slate-600 mt-1 leading-relaxed">
+                      {v.reward_text}
+                    </p>
+                    <p className="text-[10px] md:text-[11px] text-slate-400 mt-2 font-mono">
+                      Code: {v.code}
+                    </p>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-[10px] md:text-[11px] text-slate-400">
+                      Expires
+                    </p>
+                    <p className="text-[11px] md:text-[12px] font-semibold text-slate-800">
+                      {fmtDate(v.expires_at)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Edit Modal */}
@@ -742,7 +836,7 @@ function LoyaltyTab({ member, setMember, user }) {
                     value={form[key] ?? ""}
                     placeholder={ph}
                     onChange={(e) =>
-                      setForm((f) => ({ ...f, [key]: e.target.value }))
+                      setForm((f) => ({ ...f, [key]:et.value }))
                     }
                     className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs md:text-sm font-semibold text-slate-800 focus:outline-none focus:border-[#FC687D] focus:bg-white focus:ring-1 focus:ring-rose-100 transition-all"
                   />
@@ -757,7 +851,6 @@ function LoyaltyTab({ member, setMember, user }) {
                 >
                   Cancel
                 </button>
-
                 <button
                   type="submit"
                   disabled={saving}
@@ -771,7 +864,7 @@ function LoyaltyTab({ member, setMember, user }) {
         </div>
       )}
 
-      {/* Perks Modal */}
+      {/* PERKS MODAL (updated content) */}
       {showPerks && (
         <div
           className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
@@ -793,111 +886,103 @@ function LoyaltyTab({ member, setMember, user }) {
               </button>
             </div>
 
-            <div className="space-y-3 test-sm text-slate-700">
-  <div className="text-center">
-    <p className="text-[13px] md:text-[14px] font-semibold text-slate-900">
-      🎉 LOYALTY PROGRAM 🎉
-    </p>
-    <p className="text-[11px] md:text-[12px] text-slate-500 mt-1">
-      JUJA Brew &amp; Bites Rewards Guide
-    </p>
-  </div>
+            {/* Full loyalty program content */}
+            <div className="space-y-5 text-slate-700">
+              <div className="text-center">
+                <p className="text-[13px] md:text-[14px] font-semibold text-slate-900">
+                  🎉 LOYALTY PROGRAM 🎉
+                </p>
+              </div>
 
-  {/* Registration */}
-  <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
-    <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
-      Registration
-    </h4>
-    <ul className="mt-3 space-y-2 text-[12px] md:text-[13px] leading-relaxed">
-      <li>✅ FREE to join — no fees, no hidden charges.</li>
-      <li>Sign up in-store and get your JUJA Loyalty Card instantly.</li>
-    </ul>
-  </section>
+              <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
+                <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
+                  Registration
+                </h4>
+                <ul className="mt-3 space-y-2 text-[12px] md:text-[13px] leading-relaxed">
+                  <li>✅ FREE to join — no fees, no hidden charges.</li>
+                  <li>Sign up in-store and get your JUJA Loyalty Card instantly.</li>
+                </ul>
+              </section>
 
-  {/* Earning Points */}
-  <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
-    <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
-      Earning Points
-    </h4>
-    <ul className="mt-3 space-y-2 text-[12px] md:text-[13px] leading-relaxed">
-      <li>💙 Earn 1 JUJA Point for every ₱25 spent on food &amp; drinks.</li>
-      <li>📲 Present your loyalty card for scanning during purchase.</li>
-      <li>⏱ Points are credited immediately after purchase.</li>
-    </ul>
-  </section>
+              <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
+                <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
+                  Earning Points
+                </h4>
+                <ul className="mt-3 space-y-2 text-[12px] md:text-[13px] leading-relaxed">
+                  <li>💙 Earn 1 JUJA Point for every ₱25 spent on food &amp; drinks.</li>
+                  <li>📲 Present your loyalty card for scanning during purchase.</li>
+                  <li>⏱ Points are credited immediately after purchase.</li>
+                </ul>
+              </section>
 
-  {/* Redeeming Rewards */}
-  <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
-    <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
-      Redeeming Rewards
-    </h4>
-    <ul className="mt-3 space-y-2 text-[12px] md:text-[13px] leading-relaxed">
-      <li>
-        🎯 <b>100 Points</b> = FREE reward — choose any 16oz drink, waffle, or mini donuts
-      </li>
-      <li>
-        🎂 <b>Birthday Perk:</b> Get any 16oz drink or waffle FREE on your birthday (just present a valid ID).
-      </li>
-      <li>⏳ Rewards expire 90 days after reaching 100 points.</li>
-    </ul>
-  </section>
+              <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
+                <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
+                  Redeeming Rewards
+                </h4>
+                <ul className="mt-3 space-y-2 text-[12px] md:text-[13px] leading-relaxed">
+                  <li>
+                    🎯 <b>100 Points</b> = FREE reward — choose any 16oz drink, waffle, or mini donuts
+                  </li>
+                  <li>
+                    🎂 <b>Birthday Perk:</b> Get any 16oz drink or waffle FREE on your birthday (just present a valid ID).
+                  </li>
+                  <li>⏳ Rewards expire 90 days after reaching 100 points.</li>
+                </ul>
+              </section>
 
-  {/* Expiration Policy */}
-  <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
-    <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
-      Expiration Policy
-    </h4>
-    <p className="mt-3 text-[12px] md:text-[13px] leading-relaxed">
-      All JUJA Points expire every <b>December 31, 11:59 PM</b>.
-    </p>
-  </section>
+              <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
+                <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
+                  Expiration Policy
+                </h4>
+                <p className="mt-3 text-[12px] md:text-[13px] leading-relaxed">
+                  All JUJA Points expire every <b>December 31, 11:59 PM.</b>
+                </p>
+              </section>
 
-  {/* Flavor Selections */}
-  <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
-    <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
-      Flavor Selection
-    </h4>
+              <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
+                <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
+                  Flavor Selection
+                </h4>
 
-    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-      <div className="bg-white border border-slate-200 rounded-xl p-3">
-        <p className="text-[11px] font-semibold text-slate-800 mb-2">
-          Flavor Selection for Waffles
-        </p>
-        <ul className="space-y-1 text-[12px] md:text-[13px]">
-          <li>• Honey Syrup</li>
-          <li>• Choco Oreo</li>
-          <li>• Cheese</li>
-          <li>• Blueberry Whip</li>
-          <li>• Strawberry Whip</li>
-          <li>• Mango Graham</li>
-        </ul>
-      </div>
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="bg-white border border-slate-200 rounded-xl p-3">
+                    <p className="text-[11px] font-semibold text-slate-800 mb-2">
+                      Flavor Selection for Waffles
+                    </p>
+                    <ul className="space-y-1 text-[12px] md:text-[13px]">
+                      <li>• Honey Syrup</li>
+                      <li>• Choco Oreo</li>
+                      <li>• Cheese</li>
+                      <li>• Blueberry Whip</li>
+                      <li>• Strawberry Whip</li>
+                      <li>• Mango Graham</li>
+                    </ul>
+                  </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl p-3">
-        <p className="text-[11px] font-semibold text-slate-800 mb-2">
-          Flavor Selection for Mini Donuts
-        </p>
-        <ul className="space-y-1 text-[12px] md:text-[13px]">
-          <li>• Chocolate</li>
-          <li>• White Chocolate</li>
-          <li>• Strawberry</li>
-          <li>• Matcha</li>
-        </ul>
-      </div>
-    </div>
-  </section>
+                  <div className="bg-white border border-slate-200 rounded-xl p-3">
+                    <p className="text-[11px] font-semibold text-slate-800 mb-2">
+                      Flavor Selection for Mini Donuts
+                    </p>
+                    <ul className="space-y-1 text-[12px] md:text-[13px]">
+                      <li>• Chocolate</li>
+                      <li>• White Chocolate</li>
+                      <li>• Strawberry</li>
+                      <li>• Matcha</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
 
-                {/* Terms */}
-                <section className="bg-rose-50 border border-rose-200 rounded-2xl p-4 md:p-5">
-                  <h4 className="text-[10px] md:text-[11px] font-semibold text-rose-700 uppercase tracking-widest">
-                    📌 Terms &amp; conditions apply.
-                  </h4>
-                  <ul className="mt-3 space-y-2 text-[12px] md:text-[13px] leading-relaxed">
-                    <li>• Rewards and perks are non-transferable and cannot be exchanged for cash.</li>
-                    <li>• Lost loyalty card? Request a digital copy in-store.</li>
-                    <li>• JUJA Brew &amp; Bites reserves the right to amend these guidelines without prior notice.</li>
-                  </ul>
-                </section>              
+              <section className="bg-rose-50 border border-rose-200 rounded-2xl p-4 md:p-5">
+                <h4 className="text-[10px] md:text-[11px] font-semibold text-rose-700 uppercase tracking-widest">
+                  📌 Terms &amp; conditions apply.
+                </h4>
+                <ul className="mt-3 space-y-2 text-[12px] md:text-[13px] leading-relaxed">
+                  <li>• Rewards and perks are non-transferable and cannot be exchanged for cash.</li>
+                  <li>• Lost loyalty card? Request a digital copy in-store.</li>
+                  <li>• JUJA Brew &amp; Bites reserves the right to amend these guidelines without prior notice.</li>
+                </ul>
+              </section>
             </div>
           </div>
         </div>
@@ -974,7 +1059,7 @@ export default function Customer() {
     loadData();
   }, [router]);
 
-  // ✅ REALTIME LISTENER
+  // ✅ REALTIME LISTENER (loyalty_members updates)
   useEffect(() => {
     if (!user?.id) return;
 
@@ -1010,7 +1095,7 @@ export default function Customer() {
   };
 
   return (
-    <div className="min-h-screen pb-24 pt-16 md:pt-20 bg-[#FFF5F7]">      
+    <div className="min-h-screen pb-24 pt-4 md:pt-6 bg-[#FFF5F7]">
       <main className="max-w-md mx-auto px-4 md:px-5 py-4">
         {tab === "home" && (
           <HomeTab member={member} user={user} setTab={setTab} />
