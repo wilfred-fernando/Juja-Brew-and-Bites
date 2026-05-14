@@ -1,10 +1,12 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createBrowserClient } from "@/lib/supabase/client";
 
 /* -------------------------------------------------------
-   Modal Shell (consistent overlay + "luxury" panel feel)
+   Modal Shell (overlay + centered panel)
 -------------------------------------------------------- */
 function ModalShell({ children, onClose, className = "" }) {
   return (
@@ -12,16 +14,11 @@ function ModalShell({ children, onClose, className = "" }) {
       <button
         className="absolute inset-0 bg-black/40"
         onClick={onClose}
-        aria-label="Close modal backdrop"
+        aria-label="Close modal"
       />
       <div
-        className={
-          "relative z-10 w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-100 " +
-          className
-        }
-        style={{
-          transition: "all 0.35s cubic-bezier(0.25,0.46,0.45,0.94)",
-        }}
+        className={`relative z-10 w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-100 ${className}`}
+        style={{ transition: "all 0.35s cubic-bezier(0.25,0.46,0.45,0.94)" }}
       >
         {children}
       </div>
@@ -31,6 +28,7 @@ function ModalShell({ children, onClose, className = "" }) {
 
 /* -------------------------------------------------------
    ADD TO CART MODAL (Variants + instructions + edit mode)
+   (keeps PosPage_5 behavior: edit cart item if editIndex exists)
 -------------------------------------------------------- */
 function AddToCartModal({ item, onClose, onAddToCart }) {
   const [quantity, setQuantity] = useState(1);
@@ -40,15 +38,15 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
   useEffect(() => {
     if (!item) return;
 
-    // FIX: PosPage_5 had a broken fallback operator in export text;
-    // correct intent is "editData || item"
+    // PosPage_5 intent: use editData if provided
     const source = item.editData || item;
 
     setQuantity(source.quantity || 1);
     setInstructions(source.instructions || "");
 
-    // Start with required defaults
     const next = {};
+
+    // Default required selections
     if (item.variants?.length) {
       item.variants.forEach((g) => {
         if (g.isRequired && g.options?.length) {
@@ -57,7 +55,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
       });
     }
 
-    // If editing and variantDetails exists, rehydrate by option name
+    // If editing, rehydrate variant selections from saved variantDetails (by name)
     if (source.variantDetails && item.variants?.length) {
       const names = String(source.variantDetails)
         .split(",")
@@ -80,10 +78,12 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
 
   const toggleOption = (group, opt) => {
     const current = selections[group.id] || [];
+
     if (!group.isMultiSelect) {
       setSelections({ ...selections, [group.id]: [opt] });
       return;
     }
+
     const exists = current.some((o) => o.id === opt.id);
     setSelections({
       ...selections,
@@ -122,6 +122,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
             Base ₱{(Number(item?.price) || 0).toFixed(0)}
           </p>
         </div>
+
         <button
           onClick={onClose}
           className="w-10 h-10 rounded-2xl bg-slate-50 border border-slate-100 text-slate-500 hover:text-rose-500 transition-colors"
@@ -158,12 +159,11 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
                       type="button"
                       key={o.id}
                       onClick={() => toggleOption(g, o)}
-                      className={
-                        "flex justify-between items-center p-4 rounded-2xl border text-sm transition-all " +
-                        (selected
+                      className={`flex justify-between items-center p-4 rounded-2xl border text-sm transition-all ${
+                        selected
                           ? "border-rose-300 bg-rose-50/30"
-                          : "border-slate-100 bg-white hover:border-slate-200")
-                      }
+                          : "border-slate-100 bg-white hover:border-slate-200"
+                      }`}
                       style={{
                         transition: "all 0.35s cubic-bezier(0.25,0.46,0.45,0.94)",
                       }}
@@ -220,6 +220,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
           onClick={() =>
             onAddToCart({
               ...item,
+              // preserve cartItemId if editing
               cartItemId: item?.editData?.cartItemId || Date.now(),
               unitPrice,
               quantity,
@@ -227,10 +228,9 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
               instructions,
             })
           }
-          className={
-            "flex-1 py-4 rounded-2xl text-white text-sm font-medium shadow-lg transition-all active:scale-[0.98] " +
-            (missingRequired ? "bg-slate-300 cursor-not-allowed" : "bg-[#FC687D] hover:brightness-95")
-          }
+          className={`flex-1 py-4 rounded-2xl text-white text-sm font-medium shadow-lg transition-all active:scale-[0.98] ${
+            missingRequired ? "bg-slate-300 cursor-not-allowed" : "bg-[#FC687D] hover:brightness-95"
+          }`}
           style={{ transition: "all 0.35s cubic-bezier(0.25,0.46,0.45,0.94)" }}
         >
           {missingRequired ? "Select required options" : `Add to Ticket · ₱${total}`}
@@ -268,10 +268,10 @@ function ConfirmModal({ title, message, onConfirm, onCancel }) {
 }
 
 /* -------------------------------------------------------
-   MAIN POS TERMINAL (PosPage_5 with luxury + responsive)
+   MAIN POS TERMINAL — PosPage_5 + luxury/responsive tweaks
 -------------------------------------------------------- */
 export default function POSPage() {
-  // FIX: Do not import supabase AND redeclare it. PosPage_5 had that conflict. [1](https://onedrive.live.com/?id=7df293e8-6435-4703-b430-d465fb16e1e4&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s7df293e864354703b430d465fb16e1e4)
+  // FIX: PosPage_5 originally imported supabase AND created a client with same name (redeclare). [1](https://onedrive.live.com/?id=7df293e8-6435-4703-b430-d465fb16e1e4&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s7df293e864354703b430d465fb16e1e4)
   const supabase = useMemo(() => createBrowserClient(), []);
 
   const [items, setItems] = useState([]);
@@ -298,13 +298,14 @@ export default function POSPage() {
 
   const searchRef = useRef(null);
 
-  // 1) Auth gate + data init (same intent as PosPage_5) [1](https://onedrive.live.com/?id=7df293e8-6435-4703-b430-d465fb16e1e4&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s7df293e864354703b430d465fb16e1e4)
   useEffect(() => {
+    // Auth gate (same intent as PosPage_5) [1](https://onedrive.live.com/?id=7df293e8-6435-4703-b430-d465fb16e1e4&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s7df293e864354703b430d465fb16e1e4)
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) window.location.href = "/login";
       else fetchData();
     });
 
+    // close customer dropdown on outside click
     const close = (e) => {
       if (searchRef.current && !searchRef.current.contains(e.target)) {
         setIsCustListOpen(false);
@@ -344,7 +345,7 @@ export default function POSPage() {
     );
   }, [cart]);
 
-  // 2) Barcode / loyalty scan logic (FIX: PosPage_5 used broken "\" for OR) [1](https://onedrive.live.com/?id=7df293e8-6435-4703-b430-d465fb16e1e4&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s7df293e864354703b430d465fb16e1e4)
+  // FIX: PosPage_5 showed broken "\" where logical OR should be in scan matching. [1](https://onedrive.live.com/?id=7df293e8-6435-4703-b430-d465fb16e1e4&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s7df293e864354703b430d465fb16e1e4)
   const handleScanSubmit = (e) => {
     e.preventDefault();
     const q = customerSearch.trim().toLowerCase();
@@ -372,18 +373,15 @@ export default function POSPage() {
     }
   };
 
-  // Filter menu
   const filteredMenuItems = useMemo(() => {
     const s = menuSearch.toLowerCase();
-    return items
-      .filter(
-        (i) =>
-          (activeCategory === "ALL" || i.category === activeCategory) &&
-          i.name?.toLowerCase().includes(s)
-      );
+    return items.filter(
+      (i) =>
+        (activeCategory === "ALL" || i.category === activeCategory) &&
+        i.name?.toLowerCase().includes(s)
+    );
   }, [items, activeCategory, menuSearch]);
 
-  // Customer dropdown filter
   const filteredCustomers = useMemo(() => {
     const s = customerSearch.toLowerCase();
     if (!s) return [];
@@ -392,7 +390,7 @@ export default function POSPage() {
     );
   }, [customers, customerSearch]);
 
-  // 3) Save ticket (kept as prompt to match PosPage_5 intent) [1](https://onedrive.live.com/?id=7df293e8-6435-4703-b430-d465fb16e1e4&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s7df293e864354703b430d465fb16e1e4)
+  // Save ticket prompt (matches PosPage_5 behavior) [1](https://onedrive.live.com/?id=7df293e8-6435-4703-b430-d465fb16e1e4&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s7df293e864354703b430d465fb16e1e4)
   const handleSaveTicket = async () => {
     if (cart.length === 0) return;
 
@@ -458,34 +456,25 @@ export default function POSPage() {
               <button
                 key={item.id}
                 onClick={() => setSelectedItemForModal(item)}
-                className="
-                  group relative flex items-center p-3 bg-white border border-slate-100 rounded-2xl cursor-pointer text-left
-                  opacity-0 translate-y-2 animate-[menuIn_420ms_ease_forwards]
-                  transition-all
-                  hover:-translate-y-[12px]
-                  hover:shadow-[0_20px_40px_rgba(252,104,125,0.2)]
-                "
+                // ✅ FIX: template literal (no multiline double-quote string)
+                className={`group relative flex items-center p-3 bg-white border border-slate-100 rounded-2xl cursor-pointer text-left
+opacity-0 translate-y-2 animate-[menuIn_420ms_ease_forwards]
+transition-all hover:-translate-y-[12px] hover:shadow-[0_20px_40px_rgba(252,104,125,0.2)]`}
                 style={{
-                  // ✅ Luxury motion: same bezier as your original "expensive" feel [1](https://onedrive.live.com/?id=7df293e8-6435-4703-b430-d465fb16e1e4&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s7df293e864354703b430d465fb16e1e4)
+                  // Luxury motion curve + duration
                   transitionTimingFunction: "cubic-bezier(0.25,0.46,0.45,0.94)",
                   transitionDuration: "0.35s",
-                  // ✅ Entrance staggering (slower reveal): 100ms steps
+                  // Slower stagger reveal
                   animationDelay: `${index * 100}ms`,
                 }}
               >
                 {/* Image Container */}
                 <div className="w-14 h-14 rounded-xl bg-slate-50 border border-slate-100 overflow-hidden grid place-items-center flex-shrink-0">
                   {item.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={item.image_url}
                       alt={item.name}
-                      className="
-                        w-full h-full object-cover
-                        transform scale-100
-                        transition-transform duration-[650ms] ease-out
-                        group-hover:scale-[1.2]
-                      "
+                      className="w-full h-full object-cover transform scale-100 transition-transform duration-[650ms] ease-out group-hover:scale-[1.2]"
                     />
                   ) : (
                     <span className="text-xs text-slate-400">No image</span>
@@ -502,16 +491,9 @@ export default function POSPage() {
                     ₱{Number(item.price || 0).toFixed(0)}
                   </div>
 
-                  {/* Optional CTA with color swap (luxury hover) */}
+                  {/* Optional CTA with color swap */}
                   <div className="mt-2">
-                    <span
-                      className="
-                        inline-flex items-center justify-center px-3 py-1.5 rounded-xl text-xs font-semibold
-                        bg-[#FFF5F7] text-[#FC687D]
-                        transition-colors duration-300
-                        group-hover:bg-[#FC687D] group-hover:text-white
-                      "
-                    >
+                    <span className="inline-flex items-center justify-center px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#FFF5F7] text-[#FC687D] transition-colors duration-300 group-hover:bg-[#FC687D] group-hover:text-white">
                       Add
                     </span>
                   </div>
@@ -541,10 +523,9 @@ export default function POSPage() {
           )}
 
           <div
-            className={
-              "bg-white border border-slate-100 rounded-3xl shadow-sm p-4 lg:p-5 " +
-              (mobileCartOpen ? "" : "hidden lg:block")
-            }
+            className={`bg-white border border-slate-100 rounded-3xl shadow-sm p-4 lg:p-5 ${
+              mobileCartOpen ? "" : "hidden lg:block"
+            }`}
           >
             {/* Header */}
             <div className="flex items-center justify-between gap-2">
@@ -564,7 +545,6 @@ export default function POSPage() {
               </div>
 
               <div className="flex items-center gap-1">
-                {/* Clear */}
                 <button
                   onClick={() => setConfirmClear(true)}
                   className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-100 text-slate-400 hover:text-rose-500 transition-colors"
@@ -573,7 +553,6 @@ export default function POSPage() {
                   ✕
                 </button>
 
-                {/* Save ticket (kept from PosPage_5 UI icons) */}
                 <button
                   onClick={handleSaveTicket}
                   className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-100 text-slate-500 hover:text-[#FC687D] transition-colors disabled:opacity-40"
@@ -583,9 +562,8 @@ export default function POSPage() {
                   📥
                 </button>
 
-                {/* Placeholder for open tickets (icon existed in PosPage_5 layout) */}
                 <button
-                  onClick={() => alert("Hook this to an Open Tickets modal if needed.")}
+                  onClick={() => alert("Hook this to Open Tickets modal if needed.")}
                   className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-100 text-slate-500 hover:text-[#FC687D] transition-colors"
                   title="Open Tickets"
                 >
@@ -668,9 +646,7 @@ export default function POSPage() {
             {/* Cart items */}
             <div className="mt-4 space-y-3">
               {cart.length === 0 ? (
-                <div className="py-10 text-center text-sm text-slate-400">
-                  Empty Ticket
-                </div>
+                <div className="py-10 text-center text-sm text-slate-400">Empty Ticket</div>
               ) : (
                 cart.map((ci, idx) => (
                   <div
@@ -681,6 +657,8 @@ export default function POSPage() {
                       className="flex-1 text-left"
                       onClick={() => {
                         const baseItem = items.find((i) => i.id === ci.id) || ci;
+
+                        // FIX: PosPage_5 had undefined setEditingCartIndex; remove it and just pass editIndex. [1](https://onedrive.live.com/?id=7df293e8-6435-4703-b430-d465fb16e1e4&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s7df293e864354703b430d465fb16e1e4)
                         setSelectedItemForModal({
                           ...baseItem,
                           editData: ci,
@@ -777,7 +755,7 @@ export default function POSPage() {
         />
       )}
 
-      {/* Entrance animation keyframes */}
+      {/* Keyframes for entrance animation (self-contained) */}
       <style jsx global>{`
         @keyframes menuIn {
           from {
