@@ -462,12 +462,8 @@ function LoyaltyTab({ member, setMember, user }) {
     try {
       const updateData = {
         customer_name: form.customer_name,
-        Phone: form.Phone,
-        Address: form.Address,
+        Phone: form.Phone,        
         City: form.City,
-        Province: form.Province,
-        "Postal code": form["Postal code"],
-        Country: form.Country,
         Note: form.Note,
       };
 
@@ -563,10 +559,10 @@ function LoyaltyTab({ member, setMember, user }) {
     <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
         <h2 className="text-2xl md:text-[28px] font-normal text-slate-800 tracking-tight">
-          Juja Loyalty Dashboard
+          JUJA Loyalty Program
         </h2>
         <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">
-          Digital Rewards Member
+          Member Dashboard
         </p>
       </div>
 
@@ -613,7 +609,7 @@ function LoyaltyTab({ member, setMember, user }) {
         <div className="px-5 py-5 md:px-6 md:py-6 space-y-3 border-b border-white/20 bg-black/5">
           {[
             { icon: "📞", value: member?.["Phone"] || "—" },
-            { icon: "📍", value: member?.["Address"] || "—" },
+            { icon: "📍", value: member?.["City"] || "—" },
             { icon: "▦", value: member?.customer_code || "—" },
             { icon: "🎂", value: member?.["Note"] || "—" },
           ].map((row) => (
@@ -754,12 +750,8 @@ function LoyaltyTab({ member, setMember, user }) {
             <form onSubmit={saveEdit} className="space-y-4">
               {[
                 ["customer_name", "Full Name", "text", "Your full name"],
-                ["Phone", "Phone Number", "tel", "09XX XXX XXXX"],
-                ["Address", "Address", "text", "Street / Barangay"],
-                ["City", "City", "text", "e.g. QC"],
-                ["Province", "Province", "text", "e.g. Metro Manila"],
-                ["Postal code", "Postal Code", "text", "e.g. 1100"],
-                ["Country", "Country", "text", "Philippines"],
+                ["Phone", "Phone Number", "tel", "09XX XXX XXXX"],                
+                ["City", "City", "text", "e.g. QC"],                
                 ["Note", "Birthday (YYYY-MM-DD)", "text", "1995-12-25"],
               ].map(([key, lbl, type, ph]) => (
                 <div key={key}>
