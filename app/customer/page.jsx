@@ -34,7 +34,7 @@ function TabBar({ tab, setTab }) {
     { id: "home", icon: "🏠", label: "Home" },
     { id: "order", icon: "🛍️", label: "Order" },
     { id: "loyalty", icon: "⭐", label: "Loyalty" },
-    { id: "booking", icon: "🗓", label: "Book" },
+    { id: "booking", icon: "🎪", label: "Book" },
     { id: "profile", icon: "👤", label: "Profile" },
   ];
 
@@ -77,7 +77,7 @@ function TabBar({ tab, setTab }) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Home Tab (Branch Buttons)
+   Home Tab (Visit Us with Branch Buttons)
 ────────────────────────────────────────────────────────────── */
 function HomeTab({ member, user, setTab }) {
   const pts = parseFloat(member?.["Points balance"] ?? 0) || 0;
@@ -114,12 +114,16 @@ function HomeTab({ member, user, setTab }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link href="/" className="active:scale-95 transition">
-            <img src={LOGO} alt="Juja" className="h-8 md:h-10 w-auto object-contain" />
+            <img
+              src={LOGO}
+              alt="Juja"
+              className="h-8 md:h-10 w-auto object-contain"
+            />
           </Link>
 
           <div className="leading-tight">
             <p className="text-[10px] md:text-[11px] uppercase tracking-widest text-slate-400">
-              Juja Brew & Bites
+              Juja Brew &amp; Bites
             </p>
             <p className="text-[12px] md:text-[13px] text-slate-600 font-semibold">
               {user?.email}
@@ -142,9 +146,10 @@ function HomeTab({ member, user, setTab }) {
           <p className="text-[#FC687D] text-[9px] md:text-[10px] font-normal uppercase tracking-[0.25em] mb-1">
             Welcome back 👋
           </p>
-
           <h2 className="text-2xl md:text-3xl font-normal text-slate-800 leading-tight mb-1 tracking-tight">
-            {member?.customer_name || user?.user_metadata?.full_name || "JUJA Member"}
+            {member?.customer_name ||
+              user?.user_metadata?.full_name ||
+              "Coffee Lover"}
           </h2>
 
           {member?.customer_code && (
@@ -182,7 +187,7 @@ function HomeTab({ member, user, setTab }) {
         {[
           { icon: "🛍️", label: "Order Food", sub: "Browse menu", tab: "order" },
           { icon: "⭐", label: "Loyalty", sub: "Rewards", tab: "loyalty" },
-          { icon: "🗓", label: "Book Room", sub: "Function room", tab: "booking" },
+          { icon: "🎪", label: "Book Room", sub: "Function room", tab: "booking" },
           { icon: "🎁", label: "Promos", sub: "Deals & offers", href: "/promo" },
         ].map((c) =>
           c.href ? (
@@ -194,7 +199,9 @@ function HomeTab({ member, user, setTab }) {
               <div className="text-2xl md:text-3xl mb-2 md:mb-3 bg-rose-50 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center">
                 {c.icon}
               </div>
-              <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">{c.label}</p>
+              <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">
+                {c.label}
+              </p>
               <p className="text-slate-400 text-[9px] md:text-[11px] font-normal uppercase tracking-widest mt-0.5">
                 {c.sub}
               </p>
@@ -208,7 +215,9 @@ function HomeTab({ member, user, setTab }) {
               <div className="text-2xl md:text-3xl mb-2 md:mb-3 bg-rose-50 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-[#FC687D]">
                 {c.icon}
               </div>
-              <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">{c.label}</p>
+              <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">
+                {c.label}
+              </p>
               <p className="text-slate-400 text-[9px] md:text-[11px] font-normal uppercase tracking-widest mt-0.5">
                 {c.sub}
               </p>
@@ -217,7 +226,7 @@ function HomeTab({ member, user, setTab }) {
         )}
       </div>
 
-      {/* Visit Us */}
+      {/* Visit Us (Branch Buttons) */} {/* Branch info matches your existing site content. [2](https://onedrive.live.com/?id=af43a453-b117-4668-9f62-738214f89b46&cid=933e55cc8541ec41&web=1) */}
       <div className="bg-white rounded-xl md:rounded-[24px] p-5 border border-rose-50 shadow-sm">
         <p className="text-[9px] md:text-[10px] font-normal uppercase tracking-widest text-slate-400 mb-3">
           Visit Us
@@ -248,7 +257,6 @@ function HomeTab({ member, user, setTab }) {
             <span>📍</span>
             {active.address}
           </p>
-
           <p className="flex gap-3">
             <span>📞</span>
             {active.phone}
@@ -359,6 +367,7 @@ function OrderTab() {
       <div className="grid grid-cols-2 gap-3 md:gap-4 pb-10">
         {filtered.map((item) => {
           const inCart = cart[item.id]?.qty || 0;
+
           return (
             <div
               key={item.id}
@@ -366,7 +375,11 @@ function OrderTab() {
             >
               <div className="h-24 md:h-32 rounded-lg md:rounded-xl bg-slate-50 flex items-center justify-center relative overflow-hidden mb-2 border border-slate-100">
                 {item.image_url ? (
-                  <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                  <img
+                    src={item.image_url}
+                    alt={item.name}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
                   <span className="text-2xl text-slate-200">📷</span>
                 )}
@@ -418,7 +431,7 @@ function OrderTab() {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Loyalty Tab (RESTORED)
+   Loyalty Tab (Perks content matches your longer version) [1](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=eb4cb160-5ac1-4fd9-abe6-dc3829e3f276&cid=933e55cc8541ec41)
 ────────────────────────────────────────────────────────────── */
 function LoyaltyTab({ member, setMember, user }) {
   const [joining, setJoining] = useState(false);
@@ -429,7 +442,6 @@ function LoyaltyTab({ member, setMember, user }) {
   const [vouchers, setVouchers] = useState([]);
   const [loadingVouchers, setLoadingVouchers] = useState(false);
 
-  // Edit Profile fields (reduced)
   const [form, setForm] = useState({
     customer_name: "",
     Phone: "",
@@ -478,12 +490,8 @@ function LoyaltyTab({ member, setMember, user }) {
         .select()
         .single();
 
-      if (error) {
-        console.error(error);
-        alert(error.message);
-      } else {
-        setMember(data);
-      }
+      if (error) alert(error.message);
+      else setMember(data);
     } catch (e) {
       console.error(e);
     }
@@ -521,17 +529,14 @@ function LoyaltyTab({ member, setMember, user }) {
         .select()
         .single();
 
-      if (error) {
-        console.error(error);
-        alert(error.message);
-      } else {
+      if (error) alert(error.message);
+      else {
         setMember(data);
         setEditing(false);
       }
-    } catch (err) {
-      console.error(err);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const fmtDate = (iso) => {
@@ -562,7 +567,6 @@ function LoyaltyTab({ member, setMember, user }) {
     fetchVouchers();
   }, [member?.id]);
 
-  // Not enrolled
   if (!member) {
     return (
       <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -583,7 +587,6 @@ function LoyaltyTab({ member, setMember, user }) {
           >
             ⭐
           </div>
-
           <h3 className="text-xl md:text-2xl font-normal text-slate-800 mb-2 relative z-10">
             Join Juja Rewards
           </h3>
@@ -614,7 +617,6 @@ function LoyaltyTab({ member, setMember, user }) {
         </p>
       </div>
 
-      {/* Loyalty Card */}
       <div className="relative w-full max-w-[600px] aspect-[16/9] rounded-3xl overflow-hidden shadow-2xl bg-white">
         <img
           src="/images/loyalty-card-bg.jpg"
@@ -640,7 +642,6 @@ function LoyaltyTab({ member, setMember, user }) {
         </div>
       </div>
 
-      {/* Premium Card */}
       <div
         className="rounded-2xl md:rounded-[32px] overflow-hidden shadow-[0_10px_30px_rgba(252,104,125,0.2)]"
         style={{ background: "linear-gradient(135deg, #FC687D 0%, #f43f5e 100%)" }}
@@ -694,7 +695,6 @@ function LoyaltyTab({ member, setMember, user }) {
         </div>
       </div>
 
-      {/* Points Progress */}
       <div className="bg-white rounded-xl md:rounded-[24px] p-5 md:p-6 border border-rose-50 shadow-sm">
         <div className="flex justify-between items-end mb-3">
           <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">Points Progress</p>
@@ -712,7 +712,6 @@ function LoyaltyTab({ member, setMember, user }) {
         </p>
       </div>
 
-      {/* Vouchers */}
       <div className="bg-white rounded-xl md:rounded-[24px] p-5 md:p-6 border border-rose-50 shadow-sm">
         <div className="flex items-end justify-between mb-3">
           <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">Your Vouchers</p>
@@ -819,7 +818,7 @@ function LoyaltyTab({ member, setMember, user }) {
         </div>
       )}
 
-      {/* Perks Modal */}
+      {/* Perks Modal (FULL content) — matches your long perks text [1](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=eb4cb160-5ac1-4fd9-abe6-dc3829e3f276&cid=933e55cc8541ec41) */}
       {showPerks && (
         <div
           className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
@@ -830,7 +829,9 @@ function LoyaltyTab({ member, setMember, user }) {
             className="w-full max-w-2xl bg-white rounded-t-[28px] md:rounded-[32px] p-6 md:p-8 max-h-[90vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl md:text-2xl font-normal text-slate-800">Perks</h3>
+              <h3 className="text-xl md:text-2xl font-normal text-slate-800">
+                Perks
+              </h3>
               <button
                 onClick={() => setShowPerks(false)}
                 className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
@@ -839,11 +840,98 @@ function LoyaltyTab({ member, setMember, user }) {
               </button>
             </div>
 
-            <div className="space-y-3 text-sm text-slate-700">
-              <p>🌟 Earn 1 JUJA Point for every ₱25 spent</p>
-              <p>🎁 Redeem: 100 Points = FREE reward item</p>
-              <p>🎂 Birthday Perk: Free 16oz drink or waffle (present valid ID)</p>
-              <p>⏳ Rewards expire 90 days after reaching 100 points</p>
+            <div className="space-y-5 text-slate-700">
+              <div className="text-center">
+                <p className="text-[13px] md:text-[14px] font-semibold text-slate-900">
+                  🎉 LOYALTY PROGRAM 🎉
+                </p>
+              </div>
+
+              <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
+                <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
+                  Registration
+                </h4>
+                <ul className="mt-3 space-y-2 text-[12px] md:text-[13px] leading-relaxed">
+                  <li>✅ FREE to join — no fees, no hidden charges.</li>
+                  <li>Sign up in-store and get your JUJA Loyalty Card instantly.</li>
+                </ul>
+              </section>
+
+              <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
+                <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
+                  Earning Points
+                </h4>
+                <ul className="mt-3 space-y-2 text-[12px] md:text-[13px] leading-relaxed">
+                  <li>💙 Earn 1 JUJA Point for every ₱25 spent on food &amp; drinks.</li>
+                  <li>📲 Present your loyalty card for scanning during purchase.</li>
+                  <li>⏱ Points are credited immediately after purchase.</li>
+                </ul>
+              </section>
+
+              <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
+                <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
+                  Redeeming Rewards
+                </h4>
+                <ul className="mt-3 space-y-2 text-[12px] md:text-[13px] leading-relaxed">
+                  <li>🎯 <b>100 Points</b> = FREE reward — choose any 16oz drink, waffle, or mini donuts</li>
+                  <li>🎂 <b>Birthday Perk:</b> Get any 16oz drink or waffle FREE on your birthday (just present a valid ID).</li>
+                  <li>⏳ Rewards expire 90 days after reaching 100 points.</li>
+                </ul>
+              </section>
+
+              <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
+                <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
+                  Expiration Policy
+                </h4>
+                <p className="mt-3 text-[12px] md:text-[13px] leading-relaxed">
+                  All JUJA Points expire every <b>December 31, 11:59 PM.</b>
+                </p>
+              </section>
+
+              <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
+                <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
+                  Flavor Selection
+                </h4>
+
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="bg-white border border-slate-200 rounded-xl p-3">
+                    <p className="text-[11px] font-semibold text-slate-800 mb-2">
+                      Flavor Selection for Waffles
+                    </p>
+                    <ul className="space-y-1 text-[12px] md:text-[13px]">
+                      <li>• Honey Syrup</li>
+                      <li>• Choco Oreo</li>
+                      <li>• Cheese</li>
+                      <li>• Blueberry Whip</li>
+                      <li>• Strawberry Whip</li>
+                      <li>• Mango Graham</li>
+                    </ul>
+                  </div>
+
+                  <div className="bg-white border border-slate-200 rounded-xl p-3">
+                    <p className="text-[11px] font-semibold text-slate-800 mb-2">
+                      Flavor Selection for Mini Donuts
+                    </p>
+                    <ul className="space-y-1 text-[12px] md:text-[13px]">
+                      <li>• Chocolate</li>
+                      <li>• White Chocolate</li>
+                      <li>• Strawberry</li>
+                      <li>• Matcha</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+
+              <section className="bg-rose-50 border border-rose-200 rounded-2xl p-4 md:p-5">
+                <h4 className="text-[10px] md:text-[11px] font-semibold text-rose-700 uppercase tracking-widest">
+                  📌 Terms &amp; conditions apply.
+                </h4>
+                <ul className="mt-3 space-y-2 text-[12px] md:text-[13px] leading-relaxed">
+                  <li>• Rewards and perks are non-transferable and cannot be exchanged for cash.</li>
+                  <li>• Lost loyalty card? Request a digital copy in-store.</li>
+                  <li>• JUJA Brew &amp; Bites reserves the right to amend these guidelines without prior notice.</li>
+                </ul>
+              </section>
             </div>
           </div>
         </div>
@@ -864,7 +952,9 @@ function ProfileTab({ user, onLogout }) {
             👤
           </div>
           <div>
-            <p className="font-normal text-slate-800 text-base md:text-lg">{user?.email}</p>
+            <p className="font-normal text-slate-800 text-base md:text-lg">
+              {user?.email}
+            </p>
             <p className="text-slate-400 text-[9px] md:text-[10px] font-normal uppercase tracking-widest">
               Juja Member
             </p>
