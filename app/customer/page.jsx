@@ -648,17 +648,17 @@ function LoyaltyTab({ member, setMember, user }) {
         </div>
 
         <div className="px-5 py-5 md:px-6 md:pt-6 md:pb-8 flex justify-between items-center bg-black/10">
-          <div className="flex gap-2">
+          <div className="flex gap-1">
             <button
               onClick={startEdit}
-              className="text-[9px] md:text-[11px] font-normal uppercase tracking-[0.25em] text-white/80 hover:text-white transition-all bg-white/10 px-4 py-2 md:px-5 md:py-2.5 rounded-full border border-white/20 active:scale-95"
+              className="text-[7px] md:text-[9px] leading-none font-normal uppercase tracking-[0.12em] text-white/85 hover:text-white transition-all bg-white/10 px-2.5 py-1 md:px-3 md:py-1.5 rounded-full border border-white/15 active:scale-95"
             >
               Edit Profile
             </button>
 
             <button
               onClick={() => setShowPerks(true)}
-              className="text-[9px] md:text-[11px] font-normal uppercase tracking-[0.25em] text-white hover:text-white transition-all bg-white/20 px-4 py-2 md:px-5 md:py-2.5 rounded-full border border-white/20 active:scale-95"
+              className="text-[7px] md:text-[9px] leading-none font-normal uppercase tracking-[0.12em] text-white hover:text-white transition-all bg-white/20 px-2.5 py-1 md:px-3 md:py-1.5 rounded-full border border-white/15 active:scale-95"
             >
               View Perks
             </button>
