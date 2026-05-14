@@ -32,7 +32,7 @@ function TabBar({ tab, setTab }) {
     { id: "home", icon: "🏠", label: "Home" },
     { id: "order", icon: "🛍️", label: "Order" },
     { id: "loyalty", icon: "⭐", label: "Loyalty" },
-    { id: "booking", icon: "🎪", label: "Book" },
+    { id: "booking", icon: "🗓", label: "Book" },
     { id: "profile", icon: "👤", label: "Profile" },
   ];
 
@@ -214,8 +214,8 @@ function HomeTab({ member, user, setTab }) {
             <span>
               Store: 10AM – 12MN
               <br />
-              <span className="text-slate-400 text-[10px]">
-                Room: 10AM – 2AM
+              <span>
+                Function Room: 10AM – 2AM
               </span>
             </span>
           </p>
