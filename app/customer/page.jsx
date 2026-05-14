@@ -373,7 +373,7 @@ function LoyaltyTab({ member, setMember, user }) {
     <div className="flex items-end justify-between w-full h-[50%] mt-[10px]">
       
       {/* BARCODE BOX - Positioned over the white rectangle in the bg */}
-      <div className="w-[80%] bg-white flex flex-col items-center justify-center rounded-lg shadow-sm p-2 relative top-[100px]">
+      <div className="w-[70%] bg-white flex flex-col items-center justify-center rounded-lg shadow-sm p-2 relative top-[100px]">
         <Barcode 
           value={member["customer_code"] || "JUJA000000"} 
           background="transparent"
@@ -401,7 +401,7 @@ function LoyaltyTab({ member, setMember, user }) {
       <div className="rounded-2xl md:rounded-[32px] overflow-hidden shadow-[0_10px_30px_rgba(252,104,125,0.2)] md:shadow-[0_20px_40px_rgba(252,104,125,0.2)]"
         style={{ background: "linear-gradient(135deg, #FC687D 0%, #f43f5e 100%)" }}>
         
-        <div className="px-5 py-6 md:px-6 md:pt-8 md:pb-6 text-center border-b border-white/20 relative">
+        <div className="px-5 py-6 md:px-6 md:pt-8 md:pb-6 uppercase text-center border-b border-white/20 relative">
           <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-white/10 rounded-full blur-2xl" />
         
           <h3 className="text-xl md:text-2xl font-normal text-white tracking-tight">{member["customer_name"] || "Juja Member"}</h3>
