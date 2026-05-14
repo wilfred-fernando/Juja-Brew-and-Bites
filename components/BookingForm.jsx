@@ -15,8 +15,8 @@ const MIN_ADVANCE_DAYS = 3; // must be at least 3 days in advance
 // Deposit policy (current): ₱1,000 non-refundable to confirm booking
 const DEPOSIT_AMOUNT = 1000;
 
-// Put QR image here: public/images/gcash-qr.jpg
-const QR_IMAGE_PATH = "/images/gcash-qr.jpg";
+// Put QR image here: public/images/qrph.jpg
+const QR_IMAGE_PATH = "/images/qrph.jpg";
 
 // Optional admin notify (if you implement /api/booking-notify)
 const ADMIN_EMAIL = "booking@jujabrewandbites.com";
@@ -757,7 +757,7 @@ export default function BookingForm({ user, member }) {
               <option value="">Select package…</option>
               {packages.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} — ₱{Number(p.rental_fee).toLocaleString()} (cap {p.capacity})
+                  {p.name} — ₱{Number(p.rental_fee).toLocaleString()} (pax {p.capacity})
                 </option>
               ))}
             </select>
@@ -767,7 +767,7 @@ export default function BookingForm({ user, member }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {[
               ["name", "Name", "text", "Full name"],
-              ["event_type", "Event (Birthday/Gathering/Meeting)", "text", "Birthday"],
+              ["event_type", "Event Type", "text", "Birthday, Gathering, etc."],
               ["contact_number", "Contact Number", "tel", "09XX XXX XXXX"],
               ["email", "Email Address", "email", "name@email.com"],
             ].map(([key, lbl, type, ph]) => (
