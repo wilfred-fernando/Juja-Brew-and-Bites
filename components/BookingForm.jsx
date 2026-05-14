@@ -9,7 +9,7 @@ const BUFFER_HOURS = 1;
 const MAX_EXTENSION_HOURS = 2;
 
 const DEPOSIT_AMOUNT = 1000; // ₱1,000 non-refundable fee (per your rule) [1](https://onedrive.live.com/?id=b611d747-f510-449d-92fe-356dfe0e7611&cid=933e55cc8541ec41&web=1)
-const QR_IMAGE_PATH = "/images/gcash-qr.jpg"; // put [Gcash QR.jpg](https://onedrive.live.com/?id=03dd12cf-433c-4f31-8310-7768b023f9b7&cid=933e55cc8541ec41&web=1&EntityRepresentationId=0a342549-72a5-436e-a307-f4de0c1be808) here [2](https://onedrive.live.com/?id=03dd12cf-433c-4f31-8310-7768b023f9b7&cid=933e55cc8541ec41&web=1)
+const QR_IMAGE_PATH = "/images/qrph.jpg"; // put [qrph.jpg](https://onedrive.live.com/?id=03dd12cf-433c-4f31-8310-7768b023f9b7&cid=933e55cc8541ec41&web=1&EntityRepresentationId=0a342549-72a5-436e-a307-f4de0c1be808) here [2](https://onedrive.live.com/?id=03dd12cf-433c-4f31-8310-7768b023f9b7&cid=933e55cc8541ec41&web=1)
 
 // Admin email (use a real email address)
 const ADMIN_EMAIL = "booking@jujabrewandbites.com"; // adjust if needed
@@ -432,13 +432,17 @@ export default function BookingForm({ user, member }) {
                   <option value={0}>0 hr</option>
                   <option value={1}>1 hr</option>
                   <option value={2}>2 hr</option>
+                  <option value={0}>3 hr</option>
+                  <option value={1}>4 hr</option>
+                  <option value={2}>5 hr</option>
                 </select>
               </div>
             </div>
           </div>
 
           <div className="text-[11px] text-slate-500">
-            Operating hours: 10:00 AM – 2:00 AM (next day). Buffer rule: 1 hour before &amp; after every booking.
+            Operating hours: 10:00 AM – 2:00 AM (next day). 
+            Buffer rule: 1 hour before &amp; after every booking.
           </div>
 
           {loadingBookings ? (
