@@ -158,7 +158,7 @@ function HomeTab({ member, user, setTab }) {
         {[
           { icon: "🛍️", label: "Order Food", sub: "Browse menu", tab: "order" },
           { icon: "⭐", label: "Loyalty", sub: "Rewards", tab: "loyalty" },
-          { icon: "🎪", label: "Book Room", sub: "Function room", tab: "booking" },
+          { icon: "🗓", label: "Book Room", sub: "Function room", tab: "booking" },
           { icon: "🎁", label: "Promos", sub: "Deals & offers", href: "/promo" },
         ].map((c) =>
           c.href ? (
