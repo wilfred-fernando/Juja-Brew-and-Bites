@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
+import nextdynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import OrderTab from "./components/order/OrderTab";
 
 import { supabase } from "@/lib/supabase";
 import BookingTab from "@/components/BookingForm";
 
-const Barcode = dynamic(() => import("react-barcode"), { ssr: false });
+const Barcode = nextdynamic(() => import("react-barcode"), { ssr: false });
 
 const LOGO =
   "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
@@ -297,7 +297,7 @@ function HomeTab({ member, user, setTab }) {
 /* ──────────────────────────────────────────────────────────────
    Order Tab
 ────────────────────────────────────────────────────────────── */
-{tab === "order" && <OrderTab />}
+
 
 /* ──────────────────────────────────────────────────────────────
    Loyalty Tab (Perks content matches your longer version) [1](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=eb4cb160-5ac1-4fd9-abe6-dc3829e3f276&cid=933e55cc8541ec41)
