@@ -7,18 +7,41 @@ import { supabase } from "@/lib/supabase";
    Business Rules / Config
 ======================= */
 const OPERATING_START_HOUR = 10; // 10AM
-const BASE_DURATION_HOURS = 3; // 3 hours [1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=0ec94f46-cb8c-4c43-8d67-c522c89c97ba&cid=933e55cc8541ec41)
+const BASE_DURATION_HOURS = 3; // 3 hours
 const BUFFER_HOURS = 1; // 1 hour gap before & after (your rule)
-const MAX_EXTENSION_HOURS = 2; // max extension 2 hours [1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=0ec94f46-cb8c-4c43-8d67-c522c89c97ba&cid=933e55cc8541ec41)
-const MIN_ADVANCE_DAYS = 3; // at least 3 days in advance [1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=0ec94f46-cb8c-4c43-8d67-c522c89c97ba&cid=933e55cc8541ec41)
+const MAX_EXTENSION_HOURS = 2; // extension max 2 hours
+const MIN_ADVANCE_DAYS = 3; // must be at least 3 days in advance
 
-const DEPOSIT_AMOUNT = 1000; // VIP Guidelines_2026 mentions ₱1,000 non-refundable deposit [2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=0ec94f46-cb8c-4c43-8d67-c522c89c97ba&cid=933e55cc8541ec41)
+// Deposit policy (current): ₱1,000 non-refundable to confirm booking
+const DEPOSIT_AMOUNT = 1000;
+
+// Put QR image here: public/images/qrph.jpg
 const QR_IMAGE_PATH = "/images/qrph.jpg";
-const ADMIN_EMAIL = "booking@jujabrewandbites.com"; // optional if you implement /api/booking-notify
+
+// Optional admin notify (if you implement /api/booking-notify)
+const ADMIN_EMAIL = "booking@jujabrewandbites.com";
+
+/* =====================================================
+   PLAN B: Strip citations + OneDrive/SharePoint URLs
+   Prevents any pasted “[1](https://onedrive...)” from showing.
+===================================================== */
+function stripCitationsAndLinks(text = "") {
+  return String(text || "")
+    // remove markdown citations like [1](https://...)
+    .replace(/\[\d+\]\((https?:\/\/[^)]+)\)/g, "")
+    // remove any OneDrive/SharePoint URLs
+    .replace(
+      /https?:\/\/(?:1drv\.ms|onedrive\.live\.com|my\.sharepoint\.com|[^/\s]+sharepoint\.com)\S*/gi,
+      ""
+    )
+    // tighten whitespace
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
 
 /* =====================================================
    PACKAGE POLICIES (1–6) — Full Details content
-   Based on Function Room Guidelines + VIP Guidelines_2026
+   (Text normalized from your guidelines; no external links)
 ===================================================== */
 const PACKAGE_POLICIES = {
   1: {
@@ -56,6 +79,7 @@ const PACKAGE_POLICIES = {
       notes: "Customized menus and special requests must be arranged in advance.",
     },
   },
+
   2: {
     name: "Package 2",
     room_usage: {
@@ -91,6 +115,7 @@ const PACKAGE_POLICIES = {
       notes: "Customized menus and special requests must be arranged in advance.",
     },
   },
+
   3: {
     name: "Package 3",
     room_usage: {
@@ -127,6 +152,7 @@ const PACKAGE_POLICIES = {
       notes: "Customized menus and special requests must be arranged in advance.",
     },
   },
+
   4: {
     name: "Package 4",
     room_usage: {
@@ -153,6 +179,7 @@ const PACKAGE_POLICIES = {
       notes: "Additional setup time must be requested during booking (if needed).",
     },
   },
+
   5: {
     name: "Package 5",
     room_usage: {
@@ -179,6 +206,7 @@ const PACKAGE_POLICIES = {
       notes: "Additional setup time must be requested during booking (if needed).",
     },
   },
+
   6: {
     name: "Package 6",
     room_usage: {
@@ -206,7 +234,7 @@ const PACKAGE_POLICIES = {
       notes: "Additional setup time must be requested during booking (if needed).",
     },
   },
-}; // [1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=0ec94f46-cb8c-4c43-8d67-c522c89c97ba&cid=933e55cc8541ec41)
+};
 
 /* =======================
    Helpers
@@ -228,7 +256,7 @@ function addDays(date, days) {
 function buildSlotHours() {
   const hours = [];
   for (let h = OPERATING_START_HOUR; h <= 23; h++) hours.push(h);
-  hours.push(24, 25); // 12AM, 1AM next day
+  hours.push(24, 25);
   return hours;
 }
 
@@ -498,7 +526,7 @@ export default function BookingForm({ user, member }) {
 
       if (bookErr) throw bookErr;
 
-      // Optional notify route (not required for compile)
+      // Optional notify route
       try {
         await fetch("/api/booking-notify", {
           method: "POST",
@@ -526,8 +554,12 @@ export default function BookingForm({ user, member }) {
         <h2 className="text-2xl md:text-[28px] font-normal text-slate-800 tracking-tight">
           Function Room Booking
         </h2>
+
+        {/* Plan B cleaner applied */}
         <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">
-          Booking is <b>{BASE_DURATION_HOURS} hours</b> + optional extension (max {MAX_EXTENSION_HOURS} hours). [1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=0ec94f46-cb8c-4c43-8d67-c522c89c97ba&cid=933e55cc8541ec41)
+          {stripCitationsAndLinks(
+            `Booking is ${BASE_DURATION_HOURS} hours + optional extension (max ${MAX_EXTENSION_HOURS} hours).`
+          )}
         </p>
       </div>
 
@@ -554,7 +586,7 @@ export default function BookingForm({ user, member }) {
 
       {notice && (
         <div className="bg-white border border-rose-100 text-slate-700 rounded-xl p-3 text-[12px]">
-          {notice}
+          {stripCitationsAndLinks(notice)}
         </div>
       )}
 
@@ -571,8 +603,10 @@ export default function BookingForm({ user, member }) {
                 onChange={(e) => setDateISO(e.target.value)}
                 className="mt-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm"
               />
+
+              {/* Plan B cleaner applied */}
               <p className="text-[10px] text-slate-400 mt-1">
-                Must be at least {MIN_ADVANCE_DAYS} days in advance. [1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=0ec94f46-cb8c-4c43-8d67-c522c89c97ba&cid=933e55cc8541ec41)
+                {stripCitationsAndLinks(`Must be at least ${MIN_ADVANCE_DAYS} days in advance.`)}
               </p>
             </div>
 
@@ -664,7 +698,7 @@ export default function BookingForm({ user, member }) {
                         ₱{Number(p.rental_fee).toLocaleString()} / 3 hours
                       </h3>
 
-                      {/* Row 1 + Row 2 (both forced single-line on mobile) */}
+                      {/* 2 rows, forced single-line with ellipsis */}
                       <div className="mt-2 space-y-1 min-w-0">
                         <p className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
                           Capacity up to {p.capacity} guests
@@ -717,7 +751,7 @@ export default function BookingForm({ user, member }) {
         </div>
       )}
 
-      {/* Book Now (Form) */}
+      {/* Book Now */}
       {tab === "book" && (
         <div className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6 space-y-4">
           <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -726,12 +760,6 @@ export default function BookingForm({ user, member }) {
               <p className="text-[12px] text-slate-800 mt-1">
                 Date: <b>{dateISO}</b> • Time:{" "}
                 <b>{selectedHour != null ? labelHour(selectedHour) : "Not selected"}</b>
-              </p>
-              <p className="text-[11px] text-slate-500 mt-1">
-                Duration: {BASE_DURATION_HOURS} hours
-                {form.extend === "yes" && Number(form.extension_hours) > 0
-                  ? ` + ${form.extension_hours} hour(s) extension`
-                  : ""}
               </p>
             </div>
 
@@ -743,7 +771,6 @@ export default function BookingForm({ user, member }) {
             </button>
           </div>
 
-          {/* Package selection (no inclusions text) */}
           <div>
             <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
               Package Selection
@@ -762,7 +789,6 @@ export default function BookingForm({ user, member }) {
             </select>
           </div>
 
-          {/* Form fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {[
               ["name", "Name", "text", "Full name"],
@@ -817,11 +843,7 @@ export default function BookingForm({ user, member }) {
                 <button
                   type="button"
                   onClick={() =>
-                    setForm((f) => ({
-                      ...f,
-                      extend: "yes",
-                      extension_hours: f.extension_hours || 1,
-                    }))
+                    setForm((f) => ({ ...f, extend: "yes", extension_hours: f.extension_hours || 1 }))
                   }
                   className={`px-4 py-2 rounded-xl text-[11px] border active:scale-95 ${
                     form.extend === "yes"
@@ -834,9 +856,7 @@ export default function BookingForm({ user, member }) {
 
                 <select
                   value={form.extension_hours}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, extension_hours: Number(e.target.value) }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, extension_hours: Number(e.target.value) }))}
                   disabled={form.extend !== "yes"}
                   className="ml-auto bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm disabled:opacity-50"
                 >
@@ -871,24 +891,7 @@ export default function BookingForm({ user, member }) {
             {(() => {
               const pid = Number(detailsPkg.id);
               const policy = PACKAGE_POLICIES[pid];
-
-              if (!policy) {
-                return (
-                  <div className="text-slate-700">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-xl font-semibold">Package Details</h3>
-                      <button
-                        onClick={() => setDetailsOpen(false)}
-                        className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    <p>No policy details found for this package.</p>
-                  </div>
-                );
-              }
-
+              if (!policy) return <p className="text-slate-700">No policy details found.</p>;
               const rfi = policy.rental_fees_inclusions;
 
               return (
@@ -909,22 +912,18 @@ export default function BookingForm({ user, member }) {
                     </button>
                   </div>
 
-                  {/* 2. ROOM USAGE */}
                   <div className="bg-white border border-slate-200 rounded-2xl p-4">
-                    <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">
-                      2. Room Usage
-                    </p>
+                    <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">2. Room Usage</p>
                     <ul className="space-y-2 text-[12px] text-slate-700 leading-relaxed">
                       <li>• {policy.room_usage.capacity}</li>
                       <li>• {policy.room_usage.additional_guests}</li>
                       <li>• {policy.room_usage.rental_duration}</li>
-                      {policy.room_usage.extension?.map((x) => (
+                      {policy.room_usage.extension.map((x) => (
                         <li key={x}>• {x}</li>
                       ))}
                     </ul>
                   </div>
 
-                  {/* 3. RENTAL FEES & INCLUSIONS */}
                   <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
                     <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">
                       3. Rental Fees &amp; Inclusions
@@ -952,15 +951,13 @@ export default function BookingForm({ user, member }) {
                     </p>
                   </div>
 
-                  {/* 5. FOOD & BEVERAGES */}
                   <div className="bg-white border border-rose-200 rounded-2xl p-4">
                     <p className="text-[10px] uppercase tracking-widest text-rose-600 mb-2">
                       5. Food &amp; Beverages
                     </p>
-
                     <p className="text-[12px] text-slate-700 mb-2">• {policy.food_beverages.policy}</p>
 
-                    {policy.food_beverages.corkage?.length > 0 && (
+                    {policy.food_beverages.corkage.length > 0 && (
                       <ul className="space-y-1 text-[12px] text-slate-700 leading-relaxed ml-3">
                         {policy.food_beverages.corkage.map((x) => (
                           <li key={x}>◦ {x}</li>
@@ -990,9 +987,7 @@ export default function BookingForm({ user, member }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg md:text-xl font-semibold text-slate-800">
-                Secure Your Booking
-              </h3>
+              <h3 className="text-lg md:text-xl font-semibold text-slate-800">Secure Your Booking</h3>
               <button
                 onClick={() => setPayOpen(false)}
                 className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
@@ -1003,13 +998,13 @@ export default function BookingForm({ user, member }) {
 
             <div className="space-y-4 text-slate-700">
               <p className="text-sm leading-relaxed">
-                To secure your booking, a <b>₱{DEPOSIT_AMOUNT.toLocaleString()}</b> non-refundable fee is required. [2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=0ec94f46-cb8c-4c43-8d67-c522c89c97ba&cid=933e55cc8541ec41)
+                {stripCitationsAndLinks(
+                  `To secure your booking, a ₱${DEPOSIT_AMOUNT.toLocaleString()} non-refundable fee is required.`
+                )}
               </p>
 
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                <p className="text-[11px] uppercase tracking-widest text-slate-500 mb-2">
-                  Scan QR to Pay
-                </p>
+                <p className="text-[11px] uppercase tracking-widest text-slate-500 mb-2">Scan QR to Pay</p>
                 <img
                   src={QR_IMAGE_PATH}
                   alt="Payment QR Code"
@@ -1029,11 +1024,7 @@ export default function BookingForm({ user, member }) {
 
                 {proofPreview && (
                   <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden">
-                    <img
-                      src={proofPreview}
-                      alt="Payment proof preview"
-                      className="w-full object-cover"
-                    />
+                    <img src={proofPreview} alt="Payment proof preview" className="w-full object-cover" />
                   </div>
                 )}
               </div>
