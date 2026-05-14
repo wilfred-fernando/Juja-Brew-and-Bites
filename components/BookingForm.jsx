@@ -7,23 +7,28 @@ import { supabase } from "@/lib/supabase";
    Business Rules / Config
 ======================= */
 const OPERATING_START_HOUR = 10; // 10AM
-const BASE_DURATION_HOURS = 3; // 3 hours rental duration
+const BASE_DURATION_HOURS = 3; // 3 hours rental duration [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=31079ddc-68b9-45e6-a5fb-8f6ed21b2cd5&cid=933e55cc8541ec41)
 const BUFFER_HOURS = 1; // 1 hour gap before & after (your rule)
-const MAX_EXTENSION_HOURS = 2; // max extension 2 hours
-const MIN_ADVANCE_DAYS = 3; // at least 3 days in advance
+const MAX_EXTENSION_HOURS = 2; // max extension 2 hours [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=31079ddc-68b9-45e6-a5fb-8f6ed21b2cd5&cid=933e55cc8541ec41)
+const MIN_ADVANCE_DAYS = 3; // at least 3 days in advance [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=31079ddc-68b9-45e6-a5fb-8f6ed21b2cd5&cid=933e55cc8541ec41)
 
-// Deposit policy (₱1,000 non-refundable deposit noted in VIP Guidelines_2026) [2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=31079ddc-68b9-45e6-a5fb-8f6ed21b2cd5&cid=933e55cc8541ec41)
-const DEPOSIT_AMOUNT = 1000;
-
-// Put QR image here (save as public/images/gcash-qr.jpg)
+const DEPOSIT_AMOUNT = 1000; // VIP Guidelines_2026 [2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=31079ddc-68b9-45e6-a5fb-8f6ed21b2cd5&cid=933e55cc8541ec41)
 const QR_IMAGE_PATH = "/images/gcash-qr.jpg";
-
-// Optional admin notification target (only used if you implement /api/booking-notify)
 const ADMIN_EMAIL = "booking@jujabrewandbites.com";
 
 /* =========================================
+   Consumables mapping (Packages 1–3)
+   Based on Function Room Guidelines package includes amounts [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)
+========================================= */
+const PACKAGE_CONSUMABLES = {
+  1: 2500,
+  2: 5500,
+  3: 12000,
+};
+
+/* =========================================
    Extracted Function Room Guidelines (No Links)
-   Based on: Function Room Guidelines + VIP Guidelines_2026
+   Based on Function Room Guidelines + VIP Guidelines_2026 [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=31079ddc-68b9-45e6-a5fb-8f6ed21b2cd5&cid=933e55cc8541ec41)
 ========================================= */
 const FUNCTION_ROOM_GUIDELINES = {
   reservation_policy: [
@@ -91,6 +96,22 @@ function computeDateTime(businessDateISO, hourLike) {
 function intersects(aStart, aEnd, bStart, bEnd) {
   // [start, end) overlap
   return aStart < bEnd && aEnd > bStart;
+}
+
+// Remove PlayStation wording from inclusions display (your preference)
+function sanitizeInclusions(text = "") {
+  return String(text || "")
+    .replace(/&/g, "&") // keep safe
+    .replace(/PlayStation\s*4/gi, "")
+    .replace(/PlayStation/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s*;\s*;/g, ";")
+    .replace(/;\s*$/g, "")
+    .trim();
+}
+
+function formatPeso(n) {
+  return `₱${Number(n).toLocaleString()}`;
 }
 
 /* =======================
@@ -379,7 +400,7 @@ export default function BookingForm({ user, member }) {
 
       if (bookErr) throw bookErr;
 
-      // 3) Optional admin notify endpoint (implement separately if you want)
+      // optional notify
       try {
         await fetch("/api/booking-notify", {
           method: "POST",
@@ -401,7 +422,7 @@ export default function BookingForm({ user, member }) {
           }),
         });
       } catch {
-        // ignore notify errors
+        // ignore
       }
 
       setNotice("✅ Booking saved! Payment proof submitted.");
@@ -487,7 +508,8 @@ export default function BookingForm({ user, member }) {
                     setForm((f) => ({
                       ...f,
                       extend: e.target.value,
-                      extension_hours: e.target.value === "yes" ? f.extension_hours : 0,
+                      extension_hours:
+                        e.target.value === "yes" ? f.extension_hours : 0,
                     }))
                   }
                   className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm"
@@ -499,7 +521,10 @@ export default function BookingForm({ user, member }) {
                 <select
                   value={form.extension_hours}
                   onChange={(e) =>
-                    setForm((f) => ({ ...f, extension_hours: Number(e.target.value) }))
+                    setForm((f) => ({
+                      ...f,
+                      extension_hours: Number(e.target.value),
+                    }))
                   }
                   disabled={form.extend !== "yes"}
                   className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm disabled:opacity-50"
@@ -534,7 +559,9 @@ export default function BookingForm({ user, member }) {
                   }`}
                   disabled={!s.available}
                 >
-                  <p className="text-[11px] font-semibold text-slate-800">{s.label}</p>
+                  <p className="text-[11px] font-semibold text-slate-800">
+                    {s.label}
+                  </p>
                   <p className="text-[10px] text-slate-400 mt-1">
                     {s.available ? "Available" : "Unavailable"}
                   </p>
@@ -553,57 +580,73 @@ export default function BookingForm({ user, member }) {
               <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
             </div>
           ) : (
-            packages.map((p) => (
-              <div
-                key={p.id}
-                className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-[12px] uppercase tracking-widest text-slate-400">
-                      {p.name}
-                    </p>
-                    <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">
-                      ₱{Number(p.rental_fee).toLocaleString()} / 3 hours
-                    </h3>
-                    <p className="text-[11px] text-slate-500 mt-2">
-                      Capacity up to {p.capacity} guests • Extension max{" "}
-                      {p.extension_max_hours ?? 2} hours
-                    </p>
+            packages.map((p) => {
+              const pkgId = Number(p.id);
+              const consumable = PACKAGE_CONSUMABLES[pkgId];
+              const isConsumablePkg = pkgId >= 1 && pkgId <= 3;
+              const inclusionText = sanitizeInclusions(p.inclusions || "");
+
+              return (
+                <div
+                  key={p.id}
+                  className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-[12px] uppercase tracking-widest text-slate-400">
+                        {p.name}
+                      </p>
+                      <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">
+                        ₱{Number(p.rental_fee).toLocaleString()} / 3 hours
+                      </h3>
+
+                      {/* ✅ Replace “Extension …” with Consumable or Room Rental Only */}
+                      {isConsumablePkg ? (
+                        <p className="text-[11px] text-slate-500 mt-2">
+                          Capacity up to {p.capacity} guests • Consumable:{" "}
+                          <b>{formatPeso(consumable)}</b>
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-slate-500 mt-2">
+                          Capacity up to {p.capacity} guests • <b>Room rental only</b>
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDetailsPkg(p);
+                          setDetailsOpen(true);
+                        }}
+                        className="px-4 py-2 rounded-full bg-white border border-slate-200 text-slate-700 text-[10px] uppercase tracking-widest hover:bg-slate-50 active:scale-95"
+                      >
+                        Full Details
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setForm((f) => ({ ...f, package_id: String(p.id) }));
+                          setTab("book");
+                        }}
+                        className="px-4 py-2 rounded-full bg-[#FC687D] text-white text-[10px] uppercase tracking-widest active:scale-95"
+                      >
+                        Choose
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDetailsPkg(p);
-                        setDetailsOpen(true);
-                      }}
-                      className="px-4 py-2 rounded-full bg-white border border-slate-200 text-slate-700 text-[10px] uppercase tracking-widest hover:bg-slate-50 active:scale-95"
-                    >
-                      Full Details
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setForm((f) => ({ ...f, package_id: String(p.id) }));
-                        setTab("book");
-                      }}
-                      className="px-4 py-2 rounded-full bg-[#FC687D] text-white text-[10px] uppercase tracking-widest active:scale-95"
-                    >
-                      Choose
-                    </button>
-                  </div>
+                  {/* ✅ Display inclusions (PlayStation removed) */}
+                  {inclusionText && (
+                    <p className="text-[12px] text-slate-700 mt-3 leading-relaxed">
+                      {inclusionText}
+                    </p>
+                  )}
                 </div>
-
-                {p.inclusions && (
-                  <p className="text-[12px] text-slate-700 mt-3 leading-relaxed">
-                    {p.inclusions}
-                  </p>
-                )}
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}
@@ -613,10 +656,14 @@ export default function BookingForm({ user, member }) {
         <div className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6 space-y-4">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-slate-400">Selected</p>
+              <p className="text-[10px] uppercase tracking-widest text-slate-400">
+                Selected
+              </p>
               <p className="text-[12px] text-slate-800 mt-1">
                 Date: <b>{dateISO}</b> • Time:{" "}
-                <b>{selectedHour != null ? labelHour(selectedHour) : "Not selected"}</b>
+                <b>
+                  {selectedHour != null ? labelHour(selectedHour) : "Not selected"}
+                </b>
               </p>
               <p className="text-[11px] text-slate-500 mt-1">
                 Duration: {BASE_DURATION_HOURS} hours
@@ -632,113 +679,6 @@ export default function BookingForm({ user, member }) {
             >
               Pick Time
             </button>
-          </div>
-
-          <div>
-            <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
-              Package Selection
-            </label>
-            <select
-              value={form.package_id}
-              onChange={(e) => setForm((f) => ({ ...f, package_id: e.target.value }))}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
-            >
-              <option value="">Select package…</option>
-              {packages.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} — ₱{Number(p.rental_fee).toLocaleString()} (cap {p.capacity})
-                </option>
-              ))}
-            </select>
-
-            {selectedPackage?.inclusions && (
-              <p className="text-[11px] text-slate-500 mt-2">{selectedPackage.inclusions}</p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {[
-              ["name", "Name", "text", "Full name"],
-              ["event_type", "Event Type (Birthday/Gathering/Meeting)", "text", "Birthday"],
-              ["contact_number", "Contact Number", "tel", "09XX XXX XXXX"],
-              ["email", "Email Address", "email", "name@email.com"],
-            ].map(([key, lbl, type, ph]) => (
-              <div key={key}>
-                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
-                  {lbl}
-                </label>
-                <input
-                  type={type}
-                  value={form[key] ?? ""}
-                  placeholder={ph}
-                  onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
-                />
-              </div>
-            ))}
-
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
-                No. of Guests
-              </label>
-              <input
-                type="number"
-                min={1}
-                value={form.guest_count}
-                onChange={(e) => setForm((f) => ({ ...f, guest_count: Number(e.target.value) }))}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
-                Going to extend?
-              </label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setForm((f) => ({ ...f, extend: "no", extension_hours: 0 }))}
-                  className={`px-4 py-2 rounded-xl text-[11px] border active:scale-95 ${
-                    form.extend === "no"
-                      ? "bg-[#FC687D] text-white border-[#FC687D]"
-                      : "bg-white text-slate-600 border-slate-200"
-                  }`}
-                >
-                  No
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setForm((f) => ({
-                      ...f,
-                      extend: "yes",
-                      extension_hours: f.extension_hours || 1,
-                    }))
-                  }
-                  className={`px-4 py-2 rounded-xl text-[11px] border active:scale-95 ${
-                    form.extend === "yes"
-                      ? "bg-[#FC687D] text-white border-[#FC687D]"
-                      : "bg-white text-slate-600 border-slate-200"
-                  }`}
-                >
-                  Yes
-                </button>
-
-                <select
-                  value={form.extension_hours}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, extension_hours: Number(e.target.value) }))
-                  }
-                  disabled={form.extend !== "yes"}
-                  className="ml-auto bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm disabled:opacity-50"
-                >
-                  <option value={0}>0 hr</option>
-                  <option value={1}>1 hr</option>
-                  <option value={2}>2 hr</option>
-                </select>
-              </div>
-            </div>
           </div>
 
           <button
@@ -763,7 +703,9 @@ export default function BookingForm({ user, member }) {
           >
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
-                <p className="text-[10px] uppercase tracking-widest text-slate-400">Package Details</p>
+                <p className="text-[10px] uppercase tracking-widest text-slate-400">
+                  Package Details
+                </p>
                 <h3 className="text-xl md:text-2xl font-semibold text-slate-900 mt-1">
                   {detailsPkg.name}
                 </h3>
@@ -782,80 +724,96 @@ export default function BookingForm({ user, member }) {
               </button>
             </div>
 
-            <div className="space-y-4">
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Inclusions</p>
-                <p className="text-[13px] text-slate-700 leading-relaxed">
-                  {detailsPkg.inclusions || "—"}
-                </p>
-              </div>
+            {(() => {
+              const pkgId = Number(detailsPkg.id);
+              const isConsumablePkg = pkgId >= 1 && pkgId <= 3;
+              const consumable = PACKAGE_CONSUMABLES[pkgId];
+              const inclusionText = sanitizeInclusions(detailsPkg.inclusions || "");
 
-              <div className="bg-white border border-rose-100 rounded-2xl p-4">
-                <p className="text-[10px] uppercase tracking-widest text-rose-600 mb-2">
-                  Function Room Guidelines
-                </p>
-
-                <div className="space-y-3 text-[12px] text-slate-700 leading-relaxed">
-                  <div>
-                    <p className="font-semibold text-slate-800">Reservation Policy</p>
-                    <ul className="mt-1 space-y-1">
-                      {FUNCTION_ROOM_GUIDELINES.reservation_policy.map((t) => (
-                        <li key={t}>• {t}</li>
-                      ))}
+              return (
+                <div className="space-y-4">
+                  {/* Important inclusions (explicit + clean) */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                    <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">
+                      Important Inclusions
+                    </p>
+                    <ul className="space-y-1 text-[12px] text-slate-700">
+                      <li>• Videoke</li>
+                      <li>• YouTube</li>
+                      <li>• Netflix</li>
+                      <li>• Fully air-conditioned room</li>
+                      <li>• High-speed WiFi access</li>
                     </ul>
+                    {inclusionText && (
+                      <p className="text-[12px] text-slate-700 mt-3 leading-relaxed">
+                        {inclusionText}
+                      </p>
+                    )}
                   </div>
 
-                  <div>
-                    <p className="font-semibold text-slate-800">Room Usage</p>
-                    <ul className="mt-1 space-y-1">
-                      {FUNCTION_ROOM_GUIDELINES.room_usage.map((t) => (
-                        <li key={t}>• {t}</li>
-                      ))}
-                    </ul>
+                  {/* Consumable vs Room rental only */}
+                  <div className="bg-white border border-rose-100 rounded-2xl p-4">
+                    <p className="text-[10px] uppercase tracking-widest text-rose-600 mb-2">
+                      Package Value
+                    </p>
+                    {isConsumablePkg ? (
+                      <p className="text-[12px] text-slate-700">
+                        This package includes consumables worth <b>{formatPeso(consumable)}</b>. [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)
+                      </p>
+                    ) : (
+                      <p className="text-[12px] text-slate-700">
+                        This package is <b>room rental only</b>. [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)
+                      </p>
+                    )}
                   </div>
 
-                  <div>
-                    <p className="font-semibold text-slate-800">Rebooking &amp; Cancellations</p>
-                    <ul className="mt-1 space-y-1">
-                      {FUNCTION_ROOM_GUIDELINES.rebooking_cancellation.map((t) => (
-                        <li key={t}>• {t}</li>
-                      ))}
-                    </ul>
-                  </div>
+                  {/* Extracted guidelines */}
+                  <div className="bg-white border border-rose-100 rounded-2xl p-4">
+                    <p className="text-[10px] uppercase tracking-widest text-rose-600 mb-2">
+                      Function Room Guidelines
+                    </p>
 
-                  <div>
-                    <p className="font-semibold text-slate-800">Conduct &amp; Liability</p>
-                    <ul className="mt-1 space-y-1">
-                      {FUNCTION_ROOM_GUIDELINES.conduct_liability.map((t) => (
-                        <li key={t}>• {t}</li>
-                      ))}
-                    </ul>
+                    <div className="space-y-3 text-[12px] text-slate-700 leading-relaxed">
+                      <div>
+                        <p className="font-semibold text-slate-800">Reservation Policy</p>
+                        <ul className="mt-1 space-y-1">
+                          {FUNCTION_ROOM_GUIDELINES.reservation_policy.map((t) => (
+                            <li key={t}>• {t}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-slate-800">Room Usage</p>
+                        <ul className="mt-1 space-y-1">
+                          {FUNCTION_ROOM_GUIDELINES.room_usage.map((t) => (
+                            <li key={t}>• {t}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-slate-800">Rebooking &amp; Cancellations</p>
+                        <ul className="mt-1 space-y-1">
+                          {FUNCTION_ROOM_GUIDELINES.rebooking_cancellation.map((t) => (
+                            <li key={t}>• {t}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-slate-800">Conduct &amp; Liability</p>
+                        <ul className="mt-1 space-y-1">
+                          {FUNCTION_ROOM_GUIDELINES.conduct_liability.map((t) => (
+                            <li key={t}>• {t}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setForm((f) => ({ ...f, package_id: String(detailsPkg.id) }));
-                    setDetailsOpen(false);
-                    setTab("book");
-                  }}
-                  className="flex-1 py-3 rounded-xl bg-[#FC687D] text-white text-[11px] uppercase tracking-widest hover:bg-rose-500 active:scale-95"
-                >
-                  Choose This Package
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setDetailsOpen(false)}
-                  className="py-3 px-4 rounded-xl bg-white border border-slate-200 text-slate-600 text-[11px] uppercase tracking-widest hover:bg-slate-50 active:scale-95"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -886,7 +844,7 @@ export default function BookingForm({ user, member }) {
             <div className="space-y-4 text-slate-700">
               <p className="text-sm leading-relaxed">
                 To secure your booking, a{" "}
-                <b>₱{DEPOSIT_AMOUNT.toLocaleString()}</b> non-refundable fee is required.
+                <b>₱{DEPOSIT_AMOUNT.toLocaleString()}</b> non-refundable fee is required. [2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=31079ddc-68b9-45e6-a5fb-8f6ed21b2cd5&cid=933e55cc8541ec41)
               </p>
 
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
@@ -896,15 +854,9 @@ export default function BookingForm({ user, member }) {
                 <img
                   src={QR_IMAGE_PATH}
                   alt="Payment QR Code"
-                  className="w-full max-w-[320px] mx-auto rounded-xl border border-slate-200 bg-white"
+                  className="w-full max-w-[320px] mx-auto rounded-xl border border-slate-200"
                 />
-                <p className="text-[10px] text-slate-400 mt-2">
-                  Place your QR image at <b>public/images/gcash-qr.jpg</b>.
-                </p>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-4">
-                <p className="text-sm font-semibold text-slate-800">
+                <p className="mt-3 text-sm text-slate-600">
                   After payment, attach screenshot of your payment confirmation to lock in your reservation!
                 </p>
 
@@ -933,10 +885,6 @@ export default function BookingForm({ user, member }) {
               >
                 {submitting ? "Submitting…" : "Submit Proof & Confirm Booking"}
               </button>
-
-              <p className="text-[10px] text-slate-400">
-                Payment proof will be stored. Admin notification is optional via `/api/booking-notify`.
-              </p>
             </div>
           </div>
         </div>
