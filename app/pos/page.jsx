@@ -3,22 +3,25 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createBrowserClient } from "@/lib/supabase/client";
 
-/* --------------------------------------------
-   Reusable Modal Shell (overlay + panel)
---------------------------------------------- */
+/* -------------------------------------------------------
+   Modal Shell (consistent overlay + "luxury" panel feel)
+-------------------------------------------------------- */
 function ModalShell({ children, onClose, className = "" }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <button
         className="absolute inset-0 bg-black/40"
         onClick={onClose}
-        aria-label="Close modal"
+        aria-label="Close modal backdrop"
       />
       <div
         className={
-          "relative z-10 w-full max-w-lg rounded-2xl bg-white shadow-2xl " +
+          "relative z-10 w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-100 " +
           className
         }
+        style={{
+          transition: "all 0.35s cubic-bezier(0.25,0.46,0.45,0.94)",
+        }}
       >
         {children}
       </div>
@@ -26,23 +29,25 @@ function ModalShell({ children, onClose, className = "" }) {
   );
 }
 
-/* --------------------------------------------
-   Modal: Add / Edit Cart Item (variants + notes)
---------------------------------------------- */
+/* -------------------------------------------------------
+   ADD TO CART MODAL (Variants + instructions + edit mode)
+-------------------------------------------------------- */
 function AddToCartModal({ item, onClose, onAddToCart }) {
   const [quantity, setQuantity] = useState(1);
   const [selections, setSelections] = useState({});
   const [instructions, setInstructions] = useState("");
 
-  // Build initial selection state either from editData.variantDetails, or required defaults
   useEffect(() => {
     if (!item) return;
 
-    const source = item.editData || item; // FIX: was shown as "\" in file [1](https://onedrive.live.com/?id=7df293e8-6435-4703-b430-d465fb16e1e4&cid=933e55cc8541ec41&web=1)
+    // FIX: PosPage_5 had a broken fallback operator in export text;
+    // correct intent is "editData || item"
+    const source = item.editData || item;
+
     setQuantity(source.quantity || 1);
     setInstructions(source.instructions || "");
 
-    // Start with required defaults (if any)
+    // Start with required defaults
     const next = {};
     if (item.variants?.length) {
       item.variants.forEach((g) => {
@@ -52,7 +57,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
       });
     }
 
-    // If editing and variantDetails exists, rehydrate selections by option name
+    // If editing and variantDetails exists, rehydrate by option name
     if (source.variantDetails && item.variants?.length) {
       const names = String(source.variantDetails)
         .split(",")
@@ -64,7 +69,6 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
           const match = g.options?.find((o) => o.name === name);
           if (match) {
             next[g.id] = next[g.id] || [];
-            // avoid duplicates
             if (!next[g.id].some((x) => x.id === match.id)) next[g.id].push(match);
           }
         });
@@ -76,12 +80,10 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
 
   const toggleOption = (group, opt) => {
     const current = selections[group.id] || [];
-
     if (!group.isMultiSelect) {
       setSelections({ ...selections, [group.id]: [opt] });
       return;
     }
-
     const exists = current.some((o) => o.id === opt.id);
     setSelections({
       ...selections,
@@ -90,14 +92,14 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
   };
 
   const unitPrice = useMemo(() => {
-    const base = Number(item?.price) || 0; // FIX: was shown as "\" in file [1](https://onedrive.live.com/?id=7df293e8-6435-4703-b430-d465fb16e1e4&cid=933e55cc8541ec41&web=1)
+    const base = Number(item?.price) || 0;
     const addons = Object.values(selections)
       .flat()
       .reduce((sum, o) => sum + (Number(o.price) || 0), 0);
     return base + addons;
   }, [item, selections]);
 
-  const variantDetailsText = useMemo(() => {
+  const variantDetails = useMemo(() => {
     return Object.values(selections)
       .flat()
       .map((o) => o.name)
@@ -122,7 +124,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
         </div>
         <button
           onClick={onClose}
-          className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-100 text-slate-500 hover:text-rose-500"
+          className="w-10 h-10 rounded-2xl bg-slate-50 border border-slate-100 text-slate-500 hover:text-rose-500 transition-colors"
           aria-label="Close"
         >
           ✕
@@ -157,11 +159,14 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
                       key={o.id}
                       onClick={() => toggleOption(g, o)}
                       className={
-                        "flex justify-between items-center p-4 rounded-xl border text-sm transition-all " +
+                        "flex justify-between items-center p-4 rounded-2xl border text-sm transition-all " +
                         (selected
                           ? "border-rose-300 bg-rose-50/30"
                           : "border-slate-100 bg-white hover:border-slate-200")
                       }
+                      style={{
+                        transition: "all 0.35s cubic-bezier(0.25,0.46,0.45,0.94)",
+                      }}
                     >
                       <span className="font-medium text-slate-800">{o.name}</span>
                       <span className="text-slate-500">
@@ -183,17 +188,17 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
           placeholder="Add specific notes..."
-          className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl text-sm outline-none h-20 resize-none focus:bg-slate-100/50 transition-all"
+          className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm outline-none h-20 resize-none focus:bg-slate-100/50 transition-all"
         />
       </div>
 
       {/* Quantity + Add */}
       <div className="mt-5 flex items-center gap-3">
-        <div className="flex items-center overflow-hidden rounded-xl border border-slate-100 bg-white">
+        <div className="flex items-center overflow-hidden rounded-2xl border border-slate-100 bg-white">
           <button
             type="button"
             onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-            className="w-14 h-12 text-xl text-slate-400 hover:text-rose-500"
+            className="w-14 h-12 text-xl text-slate-400 hover:text-rose-500 transition-colors"
           >
             −
           </button>
@@ -203,7 +208,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
           <button
             type="button"
             onClick={() => setQuantity((q) => q + 1)}
-            className="w-14 h-12 text-xl text-slate-400 hover:text-rose-500"
+            className="w-14 h-12 text-xl text-slate-400 hover:text-rose-500 transition-colors"
           >
             +
           </button>
@@ -218,33 +223,26 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
               cartItemId: item?.editData?.cartItemId || Date.now(),
               unitPrice,
               quantity,
-              variantDetails: variantDetailsText,
+              variantDetails,
               instructions,
             })
           }
           className={
-            "flex-1 py-4 rounded-xl text-white text-sm font-medium shadow-lg transition-all active:scale-[0.98] " +
+            "flex-1 py-4 rounded-2xl text-white text-sm font-medium shadow-lg transition-all active:scale-[0.98] " +
             (missingRequired ? "bg-slate-300 cursor-not-allowed" : "bg-[#FC687D] hover:brightness-95")
           }
+          style={{ transition: "all 0.35s cubic-bezier(0.25,0.46,0.45,0.94)" }}
         >
           {missingRequired ? "Select required options" : `Add to Ticket · ₱${total}`}
         </button>
       </div>
-
-      {/* Selected summary */}
-      {(variantDetailsText || instructions) && (
-        <div className="mt-4 text-xs text-slate-500">
-          {variantDetailsText ? <div>Selected: {variantDetailsText}</div> : null}
-          {instructions ? <div className="mt-1">Notes: {instructions}</div> : null}
-        </div>
-      )}
     </ModalShell>
   );
 }
 
-/* --------------------------------------------
-   Modal: Confirm Clear Cart
---------------------------------------------- */
+/* -------------------------------------------------------
+   Confirm Modal (Clear cart)
+-------------------------------------------------------- */
 function ConfirmModal({ title, message, onConfirm, onCancel }) {
   return (
     <ModalShell onClose={onCancel} className="p-6">
@@ -253,13 +251,14 @@ function ConfirmModal({ title, message, onConfirm, onCancel }) {
       <div className="mt-6 flex gap-2 justify-end">
         <button
           onClick={onCancel}
-          className="px-4 py-2 rounded-xl bg-slate-50 border border-slate-100 text-slate-700 hover:bg-slate-100"
+          className="px-4 py-2 rounded-2xl bg-slate-50 border border-slate-100 text-slate-700 hover:bg-slate-100 transition-colors"
         >
           Cancel
         </button>
         <button
           onClick={onConfirm}
-          className="px-4 py-2 rounded-xl bg-rose-500 text-white hover:brightness-95"
+          className="px-4 py-2 rounded-2xl bg-rose-500 text-white hover:brightness-95 transition-all active:scale-[0.98]"
+          style={{ transition: "all 0.35s cubic-bezier(0.25,0.46,0.45,0.94)" }}
         >
           Confirm
         </button>
@@ -268,136 +267,17 @@ function ConfirmModal({ title, message, onConfirm, onCancel }) {
   );
 }
 
-/* --------------------------------------------
-   Modal: Save Ticket (Park)
---------------------------------------------- */
-function SaveTicketModal({ defaultName, onClose, onSave }) {
-  const [name, setName] = useState(defaultName || "");
-
-  useEffect(() => {
-    setName(defaultName || "");
-  }, [defaultName]);
-
-  return (
-    <ModalShell onClose={onClose} className="p-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-slate-900">Save Ticket</h3>
-        <button
-          onClick={onClose}
-          className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-100 text-slate-500 hover:text-rose-500"
-        >
-          ✕
-        </button>
-      </div>
-
-      <p className="text-sm text-slate-600 mt-2">Confirm or enter a custom label.</p>
-
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onFocus={(e) => e.target.select()}
-        className="w-full mt-6 px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 text-sm font-medium outline-none focus:bg-white focus:border-rose-200"
-        placeholder="Ticket label"
-      />
-
-      <div className="mt-6 flex gap-2">
-        <button
-          onClick={onClose}
-          className="flex-1 py-3 rounded-xl bg-slate-50 border border-slate-100 text-slate-700 hover:bg-slate-100"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={() => onSave(name)}
-          disabled={!name.trim()}
-          className="flex-[2] py-3 rounded-xl bg-[#FC687D] text-white font-medium hover:brightness-95 disabled:bg-slate-300 disabled:cursor-not-allowed"
-        >
-          Confirm Save
-        </button>
-      </div>
-    </ModalShell>
-  );
-}
-
-/* --------------------------------------------
-   Modal: Open Tickets (Recall)
---------------------------------------------- */
-function OpenTicketsModal({ supabase, onClose, onRecall }) {
-  const [tickets, setTickets] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      setLoading(true);
-      const { data } = await supabase
-        .from("open_tickets")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (!alive) return;
-      setTickets(data || []);
-      setLoading(false);
-    })();
-
-    return () => {
-      alive = false;
-    };
-  }, [supabase]);
-
-  return (
-    <ModalShell onClose={onClose} className="p-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-slate-900">Open Tickets</h3>
-        <button
-          onClick={onClose}
-          className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-100 text-slate-500 hover:text-rose-500"
-        >
-          ✕
-        </button>
-      </div>
-
-      <div className="mt-5">
-        {loading ? (
-          <div className="text-sm text-slate-600">Loading...</div>
-        ) : tickets.length === 0 ? (
-          <div className="text-sm text-slate-600">No parked orders</div>
-        ) : (
-          <div className="space-y-2">
-            {tickets.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => onRecall(t)}
-                className="w-full bg-slate-50/50 hover:bg-[#FDF7F8] border border-slate-100 hover:border-[#FC687D]/20 p-4 rounded-2xl text-left transition-all flex justify-between items-center"
-              >
-                <div className="min-w-0">
-                  <div className="font-semibold text-slate-800 truncate">
-                    {t.ticket_name}
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1">
-                    ₱{Number(t.total_amount || 0).toFixed(0)} • {t.order_type || "—"}
-                  </div>
-                </div>
-                <div className="text-sm text-rose-500 font-semibold">Recall ➔</div>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </ModalShell>
-  );
-}
-
-/* --------------------------------------------
-   MAIN POS TERMINAL
---------------------------------------------- */
+/* -------------------------------------------------------
+   MAIN POS TERMINAL (PosPage_5 with luxury + responsive)
+-------------------------------------------------------- */
 export default function POSPage() {
+  // FIX: Do not import supabase AND redeclare it. PosPage_5 had that conflict. [1](https://onedrive.live.com/?id=7df293e8-6435-4703-b430-d465fb16e1e4&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s7df293e864354703b430d465fb16e1e4)
   const supabase = useMemo(() => createBrowserClient(), []);
+
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [diningOptions, setDiningOptions] = useState([]);
-  const [orderType, setOrderType] = useState("");
 
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -407,22 +287,19 @@ export default function POSPage() {
 
   const [customerSearch, setCustomerSearch] = useState("");
   const [isCustListOpen, setIsCustListOpen] = useState(false);
+
   const [attachedCustomer, setAttachedCustomer] = useState(null);
-
   const [selectedItemForModal, setSelectedItemForModal] = useState(null);
-  const [mobileCartOpen, setMobileCartOpen] = useState(false);
 
+  const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
 
-  // Added missing modals + wiring (from your earlier version)
-  const [saveModalOpen, setSaveModalOpen] = useState(false);
-  const [openTicketsOpen, setOpenTicketsOpen] = useState(false);
-  const [activeTicketId, setActiveTicketId] = useState(null);
+  const [orderType, setOrderType] = useState("");
 
   const searchRef = useRef(null);
 
+  // 1) Auth gate + data init (same intent as PosPage_5) [1](https://onedrive.live.com/?id=7df293e8-6435-4703-b430-d465fb16e1e4&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s7df293e864354703b430d465fb16e1e4)
   useEffect(() => {
-    // Auth gate (same intention as your current file) [1](https://onedrive.live.com/?id=7df293e8-6435-4703-b430-d465fb16e1e4&cid=933e55cc8541ec41&web=1)
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) window.location.href = "/login";
       else fetchData();
@@ -440,64 +317,39 @@ export default function POSPage() {
 
   async function fetchData() {
     setLoading(true);
-    const [iRes, catRes, cRes, diningOptionsRes] = await Promise.all([
-      supabase
-        .from("menu_items")
-        .select("*")
-        .eq("is_available", true)
-        .order("name"),
+
+    const [iRes, catRes, cRes, diningRes] = await Promise.all([
+      supabase.from("menu_items").select("*").eq("is_available", true).order("name"),
       supabase.from("menu_categories").select("*").order("sort_order"),
-      supabase
-        .from("loyalty_members")
-        .select('id, name:"Customer name", code:"Customer code"'),
-      supabase
-        .from("dining_options")
-        .select("*")
-        .eq("is_available", true)
-        .order("id"),
+      supabase.from("loyalty_members").select('id, name:"Customer name", code:"Customer code"'),
+      supabase.from("dining_options").select("*").eq("is_available", true).order("id"),
     ]);
 
     if (iRes.data) setItems(iRes.data);
     if (catRes.data) setCategories(catRes.data);
     if (cRes.data) setCustomers(cRes.data);
-    if (diningOptionsRes.data) {
-      setDiningOptions(diningOptionsRes.data);
-      // pick first as default if none selected
-      setOrderType((prev) => prev || diningOptionsRes.data?.[0]?.name || "");
+
+    if (diningRes.data) {
+      setDiningOptions(diningRes.data);
+      setOrderType((prev) => prev || diningRes.data?.[0]?.name || "");
     }
 
     setLoading(false);
   }
 
-  const subtotal = useMemo(
-    () => cart.reduce((sum, i) => sum + (Number(i.unitPrice) || 0) * (Number(i.quantity) || 0), 0),
-    [cart]
-  );
-
-  const filteredMenuItems = useMemo(() => {
-    const s = menuSearch.toLowerCase();
-    return items
-      .filter(
-        (i) =>
-          (activeCategory === "ALL" || i.category === activeCategory) &&
-          i.name.toLowerCase().includes(s)
-      );
-  }, [items, activeCategory, menuSearch]);
-
-  const filteredCustomers = useMemo(() => {
-    const s = customerSearch.toLowerCase();
-    if (!s) return [];
-    return customers.filter(
-      (c) => c?.name?.toLowerCase().includes(s) || c?.code?.toLowerCase().includes(s)
+  const subtotal = useMemo(() => {
+    return cart.reduce(
+      (sum, i) => sum + (Number(i.unitPrice) || 0) * (Number(i.quantity) || 0),
+      0
     );
-  }, [customers, customerSearch]);
+  }, [cart]);
 
+  // 2) Barcode / loyalty scan logic (FIX: PosPage_5 used broken "\" for OR) [1](https://onedrive.live.com/?id=7df293e8-6435-4703-b430-d465fb16e1e4&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s7df293e864354703b430d465fb16e1e4)
   const handleScanSubmit = (e) => {
     e.preventDefault();
     const q = customerSearch.trim().toLowerCase();
     if (!q) return;
 
-    // FIX: in your file this was shown as "\" between conditions; should be OR [1](https://onedrive.live.com/?id=7df293e8-6435-4703-b430-d465fb16e1e4&cid=933e55cc8541ec41&web=1)
     const matchItem = items.find(
       (i) => i.sku?.toLowerCase() === q || i.name?.toLowerCase() === q
     );
@@ -520,53 +372,59 @@ export default function POSPage() {
     }
   };
 
-  const handleSaveTicket = async (ticketName) => {
-    if (!cart.length) return;
+  // Filter menu
+  const filteredMenuItems = useMemo(() => {
+    const s = menuSearch.toLowerCase();
+    return items
+      .filter(
+        (i) =>
+          (activeCategory === "ALL" || i.category === activeCategory) &&
+          i.name?.toLowerCase().includes(s)
+      );
+  }, [items, activeCategory, menuSearch]);
 
-    const payload = {
-      ticket_name: ticketName,
-      customer_id: attachedCustomer?.id || null,
-      items: cart,
-      total_amount: subtotal,
-      order_type: orderType,
-    };
+  // Customer dropdown filter
+  const filteredCustomers = useMemo(() => {
+    const s = customerSearch.toLowerCase();
+    if (!s) return [];
+    return customers.filter(
+      (c) => c?.name?.toLowerCase().includes(s) || c?.code?.toLowerCase().includes(s)
+    );
+  }, [customers, customerSearch]);
 
-    // Update existing ticket if recalled/active; otherwise insert
-    if (activeTicketId) payload.id = activeTicketId;
+  // 3) Save ticket (kept as prompt to match PosPage_5 intent) [1](https://onedrive.live.com/?id=7df293e8-6435-4703-b430-d465fb16e1e4&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s7df293e864354703b430d465fb16e1e4)
+  const handleSaveTicket = async () => {
+    if (cart.length === 0) return;
 
-    const { error } = await supabase.from("open_tickets").upsert([payload]);
+    const label = prompt(
+      "Enter Ticket Label:",
+      attachedCustomer?.name || "Quick Order"
+    );
+    if (!label) return;
+
+    const { error } = await supabase.from("open_tickets").insert([
+      {
+        ticket_name: label,
+        customer_id: attachedCustomer?.id || null,
+        items: cart,
+        total_amount: subtotal,
+        order_type: orderType,
+      },
+    ]);
+
     if (!error) {
       setCart([]);
       setAttachedCustomer(null);
-      setActiveTicketId(null);
-      setCustomerSearch("");
-      setSaveModalOpen(false);
-      setMobileCartOpen(false);
+      alert("Ticket Saved!");
     }
-  };
-
-  const handleRecallTicket = (ticket) => {
-    setCart(ticket.items || []);
-    setOrderType(ticket.order_type || "");
-    setActiveTicketId(ticket.id);
-
-    if (ticket.customer_id) {
-      const cust = customers.find((c) => c.id === ticket.customer_id);
-      setAttachedCustomer(cust || null);
-    } else {
-      setAttachedCustomer(null);
-    }
-
-    setOpenTicketsOpen(false);
-    setMobileCartOpen(true);
   };
 
   if (loading) return <div className="p-6 text-sm text-slate-600">Loading…</div>;
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="mx-auto max-w-6xl p-4 md:p-6 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
-        {/* LEFT: MENU */}
+      <div className="mx-auto max-w-7xl p-4 md:p-6 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+        {/* ---------------- MENU SECTION ---------------- */}
         <div>
           <div className="flex items-center justify-between gap-3 mb-4">
             <h2 className="text-xl font-semibold text-slate-900">Terminal</h2>
@@ -594,33 +452,47 @@ export default function POSPage() {
             </div>
           </div>
 
-          {/* MENU GRID */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-            {filteredMenuItems.map((item) => (
+          {/* ✅ Responsive Grid: Mobile 1 col, Tablet 3, Desktop 4 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {filteredMenuItems.map((item, index) => (
               <button
                 key={item.id}
                 onClick={() => setSelectedItemForModal(item)}
-                className="group relative flex items-center p-3 bg-white border border-slate-100 rounded-2xl cursor-pointer transition-all hover:-translate-y-[4px] hover:shadow-[0_20px_40px_rgba(252,104,125,0.12)] text-left"
+                className="
+                  group relative flex items-center p-3 bg-white border border-slate-100 rounded-2xl cursor-pointer text-left
+                  opacity-0 translate-y-2 animate-[menuIn_420ms_ease_forwards]
+                  transition-all
+                  hover:-translate-y-[12px]
+                  hover:shadow-[0_20px_40px_rgba(252,104,125,0.2)]
+                "
                 style={{
+                  // ✅ Luxury motion: same bezier as your original "expensive" feel [1](https://onedrive.live.com/?id=7df293e8-6435-4703-b430-d465fb16e1e4&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s7df293e864354703b430d465fb16e1e4)
                   transitionTimingFunction: "cubic-bezier(0.25,0.46,0.45,0.94)",
                   transitionDuration: "0.35s",
+                  // ✅ Entrance staggering (slower reveal): 100ms steps
+                  animationDelay: `${index * 100}ms`,
                 }}
               >
-                {/* Image */}
+                {/* Image Container */}
                 <div className="w-14 h-14 rounded-xl bg-slate-50 border border-slate-100 overflow-hidden grid place-items-center flex-shrink-0">
                   {item.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={item.image_url}
                       alt={item.name}
-                      className="w-full h-full object-cover"
+                      className="
+                        w-full h-full object-cover
+                        transform scale-100
+                        transition-transform duration-[650ms] ease-out
+                        group-hover:scale-[1.2]
+                      "
                     />
                   ) : (
                     <span className="text-xs text-slate-400">No image</span>
                   )}
                 </div>
 
-                {/* Text */}
+                {/* Text Details */}
                 <div className="ml-3 min-w-0">
                   <div className="text-[11px] text-slate-400">
                     {item.category || "General"}
@@ -629,19 +501,34 @@ export default function POSPage() {
                   <div className="text-sm text-slate-600 mt-1">
                     ₱{Number(item.price || 0).toFixed(0)}
                   </div>
+
+                  {/* Optional CTA with color swap (luxury hover) */}
+                  <div className="mt-2">
+                    <span
+                      className="
+                        inline-flex items-center justify-center px-3 py-1.5 rounded-xl text-xs font-semibold
+                        bg-[#FFF5F7] text-[#FC687D]
+                        transition-colors duration-300
+                        group-hover:bg-[#FC687D] group-hover:text-white
+                      "
+                    >
+                      Add
+                    </span>
+                  </div>
                 </div>
               </button>
             ))}
           </div>
         </div>
 
-        {/* RIGHT: TICKET */}
+        {/* ---------------- TICKET SIDEBAR ---------------- */}
         <div className="lg:sticky lg:top-6 h-fit">
-          {/* Mobile floating open button */}
+          {/* Mobile floating cart button */}
           {cart.length > 0 && !mobileCartOpen && (
             <button
               onClick={() => setMobileCartOpen(true)}
               className="fixed bottom-4 left-4 right-4 z-40 lg:hidden w-auto bg-slate-900 text-white flex items-center justify-between px-5 py-4 rounded-2xl shadow-2xl active:scale-[0.98] transition-all"
+              style={{ transition: "all 0.35s cubic-bezier(0.25,0.46,0.45,0.94)" }}
             >
               <div>
                 <div className="font-semibold">Current Ticket</div>
@@ -670,9 +557,7 @@ export default function POSPage() {
               </button>
 
               <div className="min-w-0">
-                <div className="text-xs text-slate-400">
-                  {activeTicketId ? "Editing Ticket" : "New Ticket"}
-                </div>
+                <div className="text-xs text-slate-400">Ticket</div>
                 <div className="font-semibold text-slate-900 truncate">
                   {attachedCustomer ? attachedCustomer.name : "New Ticket"}
                 </div>
@@ -682,26 +567,26 @@ export default function POSPage() {
                 {/* Clear */}
                 <button
                   onClick={() => setConfirmClear(true)}
-                  className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-100 text-slate-400 hover:text-rose-500"
+                  className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-100 text-slate-400 hover:text-rose-500 transition-colors"
                   title="Clear"
                 >
                   ✕
                 </button>
 
-                {/* Save (📥) - now wired */}
+                {/* Save ticket (kept from PosPage_5 UI icons) */}
                 <button
-                  onClick={() => setSaveModalOpen(true)}
-                  className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-100 text-slate-500 hover:text-[#FC687D]"
+                  onClick={handleSaveTicket}
+                  className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-100 text-slate-500 hover:text-[#FC687D] transition-colors disabled:opacity-40"
                   title="Save Ticket"
                   disabled={cart.length === 0}
                 >
                   📥
                 </button>
 
-                {/* Open Tickets (📋) - now wired */}
+                {/* Placeholder for open tickets (icon existed in PosPage_5 layout) */}
                 <button
-                  onClick={() => setOpenTicketsOpen(true)}
-                  className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-100 text-slate-500 hover:text-[#FC687D]"
+                  onClick={() => alert("Hook this to an Open Tickets modal if needed.")}
+                  className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-100 text-slate-500 hover:text-[#FC687D] transition-colors"
                   title="Open Tickets"
                 >
                   📋
@@ -709,9 +594,18 @@ export default function POSPage() {
               </div>
             </div>
 
-            {/* Scan + customer search */}
+            {/* Scan input */}
             <form onSubmit={handleScanSubmit} className="mt-4" ref={searchRef}>
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => document.getElementById("scan-in")?.focus()}
+                  className="text-slate-300 font-bold text-sm hover:text-rose-400 transition-colors"
+                  title="Focus Scanner"
+                >
+                  ⌁
+                </button>
+
                 <input
                   id="scan-in"
                   value={customerSearch}
@@ -723,6 +617,7 @@ export default function POSPage() {
                   className="flex-1 px-3 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm outline-none focus:bg-white"
                   placeholder="Scan / Search customer or item…"
                 />
+
                 <button
                   type="submit"
                   className="px-4 py-3 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:brightness-95"
@@ -755,7 +650,7 @@ export default function POSPage() {
               )}
             </form>
 
-            {/* Order Type */}
+            {/* Order type */}
             <div className="mt-4">
               <select
                 value={orderType}
@@ -770,7 +665,7 @@ export default function POSPage() {
               </select>
             </div>
 
-            {/* Cart Items */}
+            {/* Cart items */}
             <div className="mt-4 space-y-3">
               {cart.length === 0 ? (
                 <div className="py-10 text-center text-sm text-slate-400">
@@ -835,11 +730,11 @@ export default function POSPage() {
                 </div>
               </div>
 
-              {/* Charge Order - kept as button (you can wire to payment flow later) */}
               <button
                 className="w-full mt-4 py-4 rounded-2xl bg-slate-900 text-white font-semibold hover:brightness-95 active:scale-[0.98] transition-all disabled:bg-slate-300 disabled:cursor-not-allowed"
                 disabled={cart.length === 0}
                 onClick={() => alert("Hook this to your payment/checkout flow.")}
+                style={{ transition: "all 0.35s cubic-bezier(0.25,0.46,0.45,0.94)" }}
               >
                 Charge Order
               </button>
@@ -848,7 +743,7 @@ export default function POSPage() {
         </div>
       </div>
 
-      {/* MODALS */}
+      {/* Modals */}
       {selectedItemForModal && (
         <AddToCartModal
           item={selectedItemForModal}
@@ -876,28 +771,25 @@ export default function POSPage() {
           onConfirm={() => {
             setCart([]);
             setAttachedCustomer(null);
-            setActiveTicketId(null);
             setConfirmClear(false);
             setMobileCartOpen(false);
           }}
         />
       )}
 
-      {saveModalOpen && (
-        <SaveTicketModal
-          defaultName={attachedCustomer ? `${attachedCustomer.name} (${orderType})` : (orderType || "Quick Order")}
-          onClose={() => setSaveModalOpen(false)}
-          onSave={handleSaveTicket}
-        />
-      )}
-
-      {openTicketsOpen && (
-        <OpenTicketsModal
-          supabase={supabase}
-          onClose={() => setOpenTicketsOpen(false)}
-          onRecall={handleRecallTicket}
-        />
-      )}
+      {/* Entrance animation keyframes */}
+      <style jsx global>{`
+        @keyframes menuIn {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }
