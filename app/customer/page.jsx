@@ -32,9 +32,9 @@ function todayISO() {
 function TabBar({ tab, setTab }) {
   const tabs = [
     { id: "home", icon: "🏠", label: "Home" },
-    { id: "order", icon: "🛍️", label: "Order" },
+    { id: "order", icon: "🍽️", label: "Order" },
     { id: "loyalty", icon: "⭐", label: "Loyalty" },
-    { id: "booking", icon: "🎪", label: "Book" },
+    { id: "booking", icon: "🗓", label: "Book" },
     { id: "profile", icon: "👤", label: "Profile" },
   ];
 
@@ -101,7 +101,7 @@ function HomeTab({ member, user, setTab }) {
       address: "8 Visayas Ave., Diliman, QC",
       phone: "0961-6320909",
       hoursLabel: "STORE HOURS",
-      hours: ["MON - WED: 8AM – 10PM", "THU - SAT: 10AM – 10PM", "SUN: CLOSED"],
+      hours: ["Mon - Wed: 8AM – 10PM", "Thu - Sat: 10AM – 10PM", "Sun: CLOSED"],
       room: [],
     },
   };
@@ -185,9 +185,9 @@ function HomeTab({ member, user, setTab }) {
       {/* Quick Action Grid */}
       <div className="grid grid-cols-2 gap-3 md:gap-4">
         {[
-          { icon: "🛍️", label: "Order Food", sub: "Browse menu", tab: "order" },
+          { icon: "🍽️", label: "Order Food", sub: "Browse menu", tab: "order" },
           { icon: "⭐", label: "Loyalty", sub: "Rewards", tab: "loyalty" },
-          { icon: "🎪", label: "Book Room", sub: "Function room", tab: "booking" },
+          { icon: "🗓", label: "Book Room", sub: "Function room", tab: "booking" },
           { icon: "🎁", label: "Promos", sub: "Deals & offers", href: "/promo" },
         ].map((c) =>
           c.href ? (
@@ -277,7 +277,7 @@ function HomeTab({ member, user, setTab }) {
 
           {active.room.length > 0 && (
             <p className="flex gap-3 items-start">
-              <span>🎪</span>
+              <span>🕙</span>
               <span>
                 {active.room.map((line) => (
                   <span key={line} className="block text-slate-500">
