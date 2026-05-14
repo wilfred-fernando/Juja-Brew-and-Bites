@@ -673,20 +673,39 @@ export default function BookingForm({ user, member }) {
                         ₱{Number(p.rental_fee).toLocaleString()} / 3 hours
                       </h3>
 
-                      {/* ✅ Replace extension line with consumable or room rental only */}                                            
-                      {(() => {
-                        const metaLabel =
-                          pid >= 1 && pid <= 3
-                            ? `Capacity up to ${p.capacity} guests • Consumable: ${formatPeso(consumable)}`
-                            : `Capacity up to ${p.capacity} guests • Room rental only`;
+                      // meta row 2 label (shorter on mobile)
+                          const pid = Number(p.id);
+                          const policy = PACKAGE_POLICIES[pid];
+                          const consumable = policy?.rental_fees_inclusions?.consumable_amount ?? null;
+                          const roomRentalOnly = policy?.rental_fees_inclusions?.room_rental_only ?? false;
 
-                        return (
-                          <p className="text-[11px] text-slate-500 mt-2 whitespace-nowrap overflow-hidden text-ellipsis">
-                            {metaLabel}
-                          </p>
-                        );
-                      })()}
-                    </div>
+                          <div className="mt-2 space-y-1 min-w-0">
+                            {/* Row 1: Capacity */}
+                            <p className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
+                              Capacity up to {p.capacity} guests
+                            </p>
+
+                            {/* Row 2: Room rental only / Consumable (force 1 line on mobile) */}
+                            <p className="text-[11px] text-slate-500 min-w-0 whitespace-nowrap overflow-hidden text-ellipsis">
+                              {roomRentalOnly ? (
+                                <>
+                                  {/* Short label on mobile, full label on larger screens */}
+                                  <span className="sm:hidden">Room-only</span>
+                                  <span className="hidden sm:inline">Room rental only</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="sm:hidden">
+                                    Cons: {formatPeso(consumable)}
+                                  </span>
+                                  <span className="hidden sm:inline">
+                                    Consumable: {formatPeso(consumable)}
+                                  </span>
+                                </>
+                              )}
+                            </p>
+                          </div>
+
 
                     <div className="flex gap-2">
                       <button
@@ -715,9 +734,7 @@ export default function BookingForm({ user, member }) {
 
                   {/* ✅ Removed: inclusions text from package card (as requested) */}
                 </div>
-              );
-            })
-          )}
+              );                
         </div>
       )}
 
@@ -851,6 +868,7 @@ export default function BookingForm({ user, member }) {
           </button>
         </div>
       )}
+      
 
       {/* FULL DETAILS MODAL (ALL PACKAGES INCLUDED) */}
       {detailsOpen && detailsPkg && (
