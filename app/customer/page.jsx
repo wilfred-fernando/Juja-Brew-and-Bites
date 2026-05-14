@@ -272,7 +272,7 @@ function HomeTab({ member, user, setTab }) {
 
           {active.room.length > 0 && (
             <p className="flex gap-3 items-start">
-              <span>🎪</span>
+              <span>🕙</span>
               <span>
                 {active.room.map((line) => (
                   <span key={line} className="block text-slate-500">
