@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
+import OrderTab from "./_components/order/OrderTab";
 
 import { supabase } from "@/lib/supabase";
 import BookingTab from "@/components/BookingForm";
@@ -296,139 +297,7 @@ function HomeTab({ member, user, setTab }) {
 /* ──────────────────────────────────────────────────────────────
    Order Tab
 ────────────────────────────────────────────────────────────── */
-function OrderTab() {
-  const [items, setItems] = useState([]);
-  const [cats, setCategories] = useState([]);
-  const [activeTab, setActiveTab] = useState(null);
-  const [cart, setCart] = useState({});
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchMenu() {
-      const [itemRes, catRes] = await Promise.all([
-        supabase.from("menu_items").select("*").eq("is_available", true).order("name"),
-        supabase.from("menu_categories").select("*").eq("is_active", true).order("sort_order"),
-      ]);
-
-      if (itemRes.data) setItems(itemRes.data);
-      if (catRes.data) {
-        setCategories(catRes.data);
-        if (catRes.data.length > 0) setActiveTab(catRes.data[0].name);
-      }
-      setLoading(false);
-    }
-    fetchMenu();
-  }, []);
-
-  const filtered = items.filter((i) => i.category === activeTab);
-
-  const add = (item) =>
-    setCart((c) => ({
-      ...c,
-      [item.id]: c[item.id]
-        ? { ...c[item.id], qty: c[item.id].qty + 1 }
-        : { id: item.id, name: item.name, price: item.price, qty: 1 },
-    }));
-
-  const remove = (id) =>
-    setCart((c) => {
-      const n = { ...c };
-      if (n[id]?.qty > 1) n[id] = { ...n[id], qty: n[id].qty - 1 };
-      else delete n[id];
-      return n;
-    });
-
-  if (loading) {
-    return (
-      <div className="min-h-[40vh] flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4 md:space-y-6 animate-in fade-in duration-500">
-      <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2 pt-1 -mx-4 px-4 sticky top-0 z-20 bg-[#FFF5F7]">
-        {cats.map((cat) => (
-          <button
-            key={cat.id}
-            onClick={() => setActiveTab(cat.name)}
-            className={`flex-shrink-0 px-4 md:px-5 py-2 md:py-2.5 rounded-xl text-[10px] md:text-[11px] font-normal uppercase tracking-widest transition-all duration-300 active:scale-95 shadow-sm border ${
-              activeTab === cat.name
-                ? "bg-[#FC687D] text-white border-[#FC687D]"
-                : "bg-white text-slate-500 border-rose-100"
-            }`}
-          >
-            {cat.name}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 md:gap-4 pb-10">
-        {filtered.map((item) => {
-          const inCart = cart[item.id]?.qty || 0;
-
-          return (
-            <div
-              key={item.id}
-              className="bg-white rounded-xl md:rounded-[24px] border border-rose-50 shadow-sm overflow-hidden flex flex-col p-2.5 md:p-3"
-            >
-              <div className="h-24 md:h-32 rounded-lg md:rounded-xl bg-slate-50 flex items-center justify-center relative overflow-hidden mb-2 border border-slate-100">
-                {item.image_url ? (
-                  <img
-                    src={item.image_url}
-                    alt={item.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-2xl text-slate-200">📷</span>
-                )}
-              </div>
-
-              <div className="flex flex-col flex-1 px-1">
-                <p className="font-normal text-slate-800 text-[11px] md:text-[13px] leading-tight mb-1">
-                  {item.name}
-                </p>
-                <p className="font-normal text-[#FC687D] text-[13px] md:text-[15px] mb-3">
-                  ₱{item.price}
-                </p>
-
-                <div className="mt-auto">
-                  {inCart > 0 ? (
-                    <div className="flex items-center justify-between bg-slate-50 p-1 rounded-lg border border-slate-200">
-                      <button
-                        onClick={() => remove(item.id)}
-                        className="w-7 h-7 md:w-8 md:h-8 rounded-[6px] bg-white flex items-center justify-center text-slate-600 font-normal shadow-sm active:scale-90"
-                      >
-                        −
-                      </button>
-                      <span className="font-normal text-[12px] md:text-[13px] text-slate-700">
-                        {inCart}
-                      </span>
-                      <button
-                        onClick={() => add(item)}
-                        className="w-7 h-7 md:w-8 md:h-8 rounded-[6px] bg-[#FC687D] flex items-center justify-center text-white font-normal shadow-sm active:scale-90"
-                      >
-                        +
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => add(item)}
-                      className="w-full py-2 md:py-2.5 rounded-lg text-[9px] md:text-[11px] font-normal uppercase tracking-widest text-[#FC687D] bg-[#FFF9FA] border border-rose-100 hover:bg-[#FC687D] hover:text-white transition-all active:scale-95"
-                    >
-                      Add to Cart
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+{tab === "order" && <OrderTab />}
 
 /* ──────────────────────────────────────────────────────────────
    Loyalty Tab (Perks content matches your longer version) [1](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=eb4cb160-5ac1-4fd9-abe6-dc3829e3f276&cid=933e55cc8541ec41)
