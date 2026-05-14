@@ -407,7 +407,7 @@ function LoyaltyTab({ member, setMember, user }) {
           <h3 className="text-xl md:text-2xl font-normal text-white tracking-tight">{member["customer_name"] || "Juja Member"}</h3>
         </div>
 
-        <div className="px-5 py-5 md:px-6 md:py-6 space-y-4 md:space-y-5 border-b border-white/20 bg-black/5">
+        <div className="px-5 py-5 md:px-6 md:py-6 space-y-2 md:space-y-5 border-b border-white/20 bg-black/5">
           {[
             { icon: "📞", value: member["Phone"] || "—" },
             { icon: "📍", value: member["Address"] || "—", truncate: true },
