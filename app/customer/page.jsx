@@ -227,6 +227,7 @@ function OrderTab({ user }) {
 function LoyaltyTab({ member, setMember, user }) {
   const [joining, setJoining] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [showPerks, setShowPerks] = useState(false);
   const [form, setForm] = useState({ customer_name: "", phone: "", address: "", note: "" });
   const [saving, setSaving] = useState(false);
 
@@ -343,8 +344,8 @@ function LoyaltyTab({ member, setMember, user }) {
 
   // ── Loyalty Card ──
   const pts = parseFloat(member["Points balance"]) || 0;
-  const progress = (pts % 100) / 100 * 100;
-  const nextReward = Math.ceil((pts + 0.01) / 100) * 100;
+  const progress = ((pts % 100) / 100) * 100;
+  const nextReward = Math.floor(pts / 100 + 1) * 100;
 
   return (
     <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -354,45 +355,45 @@ function LoyaltyTab({ member, setMember, user }) {
       </div>
 
       {/* LOYALTY CARD CONTAINER */}
-<div className="relative w-full max-w-[600px] aspect-[16/9] rounded-3xl overflow-hidden shadow-2xl bg-white group">
-  
-  {/* 1. THE BACKGROUND IMAGE (The 1st image you uploaded) */}
-  <img
-    src="/images/loyalty-card-bg.jpg" 
-    alt="Loyalty Card Background"
-    className="absolute inset-0 w-full h-full object-cover"
-  />
-
-  {/* 2. THE LAYOUT LAYER (Positioning the Name and Barcode) */}
-  <div className="relative z-10 h-full w-full flex flex-col p-[5%]">
-    
-    {/* CUSTOMER NAME - Positioned to match your 2nd image */}
- 
-
-    {/* BOTTOM SECTION: Barcode Box + Loyalty Rules */}
-    <div className="flex items-end justify-between w-full h-[50%] mt-[10px]">
-      
-      {/* BARCODE BOX - Positioned over the white rectangle in the bg */}
-      <div className="w-[70%] bg-white flex flex-col items-center justify-center rounded-lg shadow-sm p-2 relative top-[90px]">
-        <Barcode 
-          value={member["customer_code"] || "JUJA000000"} 
-          background="transparent"
-          lineColor="#003399" // Matches the blue in your screenshot
-          width={1.4}
-          height={70}
-          displayValue={true}
-          fontSize={14}
-          margin={0}
+      <div className="relative w-full max-w-[600px] aspect-[16/9] rounded-3xl overflow-hidden shadow-2xl bg-white group">
+        
+        {/* 1. THE BACKGROUND IMAGE (The 1st image you uploaded) */}
+        <img
+          src="/images/loyalty-card-bg.jpg" 
+          alt="Loyalty Card Background"
+          className="absolute inset-0 w-full h-full object-cover"
         />
-      </div>
 
-      {/* RULES SECTION (Empty div to maintain the flex layout space) */}
-      <div className="w-[58%] h-full pointer-events-none">
-        {/* The text for the rules is already in your background image! */}
+        {/* 2. THE LAYOUT LAYER (Positioning the Name and Barcode) */}
+        <div className="relative z-10 h-full w-full flex flex-col p-[5%]">
+          
+          {/* CUSTOMER NAME - Positioned to match your 2nd image */}
+       
+
+          {/* BOTTOM SECTION: Barcode Box + Loyalty Rules */}
+          <div className="flex items-end justify-between w-full h-[50%] mt-[10px]">
+            
+            {/* BARCODE BOX - Positioned over the white rectangle in the bg */}
+            <div className="w-[70%] bg-white flex flex-col items-center justify-center rounded-lg shadow-sm p-2 relative top-[90px]">
+              <Barcode 
+                value={member["customer_code"] || "JUJA000000"} 
+                background="transparent"
+                lineColor="#003399"
+                width={1.4}
+                height={70}
+                displayValue={true}
+                fontSize={14}
+                margin={0}
+              />
+            </div>
+
+            {/* RULES SECTION (Empty div to maintain the flex layout space) */}
+            <div className="w-[58%] h-full pointer-events-none">
+              {/* The text for the rules is already in your background image! */}
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
-</div>
 
 
 
@@ -424,13 +425,33 @@ function LoyaltyTab({ member, setMember, user }) {
         </div>
 
         <div className="px-5 py-5 md:px-6 md:pt-6 md:pb-8 flex justify-between items-center bg-black/10">
-          <button onClick={startEdit} className="text-[9px] md:text-[11px] font-normal uppercase tracking-[0.25em] text-white/80 hover:text-white transition-all bg-white/10 px-4 py-2 md:px-5 md:py-2.5 rounded-full border border-white/20 active:scale-95">
+  
+        <div className="flex gap-2">
+          
+          <button
+            onClick={startEdit}
+            className="text-[9px] md:text-[11px] font-normal uppercase tracking-[0.25em] text-white/80 hover:text-white transition-all bg-white/10 px-4 py-2 md:px-5 md:py-2.5 rounded-full border border-white/20 active:scale-95"
+          >
             Edit Profile
           </button>
-          <div className="text-right">
-            <p className="text-white/80 text-[9px] md:text-[10px] font-normal uppercase tracking-widest mb-0.5 md:mb-1">Total Points</p>
-            <p className="text-2xl md:text-3xl font-normal text-white">{pts.toFixed(0)}</p>
-          </div>
+
+          <button
+            onClick={() => setShowPerks(true)}
+            className="text-[9px] md:text-[11px] font-normal uppercase tracking-[0.25em] text-white hover:text-white transition-all bg-white/20 px-4 py-2 md:px-5 md:py-2.5 rounded-full border border-white/20 active:scale-95"
+          >
+            View Perks
+          </button>
+
+        </div>
+
+        <div className="text-right">
+          <p className="text-white/80 text-[9px] md:text-[10px] font-normal uppercase tracking-widest mb-0.5 md:mb-1">
+            Total Points
+          </p>
+
+          <p className="text-2xl md:text-3xl font-normal text-white">
+            {pts.toFixed(0)}
+          </p>
         </div>
       </div>
 
@@ -473,18 +494,35 @@ function LoyaltyTab({ member, setMember, user }) {
                     onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
                     className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs md:text-sm font-semibold text-slate-800 focus:outline-none focus:border-[#FC687D] focus:bg-white focus:ring-1 focus:ring-rose-100 transition-all" />
                 </div>
-              ))}
-              <div className="grid grid-cols-2 gap-3 pt-4 md:pt-6 mt-4 md:mt-6 border-t border-slate-100">
-                <button type="button" onClick={() => setEditing(false)}
-                  className="w-full py-3.5 md:py-4 rounded-xl bg-white border border-slate-200 text-slate-500 font-normal uppercase tracking-widest text-[10px] md:text-xs hover:bg-slate-50 hover:text-slate-800 transition-all active:scale-95">
-                  Cancel
-                </button>
-                <button type="submit" disabled={saving}
-                  className="w-full py-3.5 md:py-4 rounded-xl bg-[#FC687D] text-white font-normal uppercase tracking-widest text-[10px] md:text-xs hover:bg-rose-500 transition-all shadow-[0_4px_15px_rgba(252,104,125,0.25)] disabled:opacity-70 active:scale-95 hover:-translate-y-0.5">
-                  {saving ? "Saving…" : "Save Changes"}
-                </button>
+               ))}
+
+                {/* buttons */}
+                <div className="grid grid-cols-2 gap-3 pt-4 md:pt-6 mt-4 md:mt-6 border-t border-slate-100">
+                  <button type="button" onClick={() => setEditing(false)}
+                    className="w-full py-3.5 md:py-4 rounded-xl bg-white border border-slate-200 text-slate-500 font-normal uppercase tracking-widest text-[10px] md:text-xs hover:bg-slate-50 hover:text-slate-800 transition-all active:scale-95">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={saving}
+                    className="w-full py-3.5 md:py-4 rounded-xl bg-[#FC687D] text-white font-normal uppercase tracking-widest text-[10px] md:text-xs hover:bg-rose-500 transition-all shadow-[0_4px_15px_rgba(252,104,125,0.25)] disabled:opacity-70 active:scale-95 hover:-translate-y-0.5">
+                    {saving ? "Saving…" : "Save Changes"}
+                  </button>
+                </div>
+              </form>
+
+          {/* PERKS MODAL — OUTSIDE EVERYTHING */}
+            {showPerks && (
+              <div
+                className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
+                onClick={() => setShowPerks(false)}
+              >
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full max-w-2xl bg-white rounded-t-[28px] md:rounded-[32px] p-6 md:p-8 max-h-[90vh] overflow-y-auto"
+                >
+                  {/* perks content */}
+                </div>
               </div>
-            </form>
+            )}
           </div>
         </div>
       )}
@@ -559,7 +597,7 @@ export default function Customer() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      channel.unsubscribe();
     };
   }, [user]);
 
