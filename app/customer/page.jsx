@@ -83,7 +83,7 @@ function HomeTab({ member, user, setTab }) {
           {member && (
             <div className="flex gap-4 md:gap-6 mt-4 md:mt-6 bg-[#FFF9FA] p-3 md:p-4 rounded-xl md:rounded-2xl border border-rose-50 inline-flex">
               <div>
-                <p className="text-[#FC687D] font-normal text-xl md:text-2xl leading-none">{parseFloat(member.points_balance || 0).toFixed(0)}</p>
+                <p className="text-[#FC687D] font-normal text-xl md:text-2xl leading-none">{parseFloat(member["Points balance"] || 0).toFixed(0)}</p>
                 <p className="text-slate-500 text-[9px] md:text-[10px] uppercase font-normal tracking-widest mt-1">Points</p>
               </div>
               <div className="w-px bg-rose-100" />
@@ -238,7 +238,7 @@ function LoyaltyTab({ member, setMember, user }) {
         email: user?.email || "",
         phone: "", address: "", note: "", 
         customer_code: genMemberId(), // Uses the helper function from the top of your file
-        points_balance: 0, total_visits: 0,
+        "Points balance": 0, total_visits: 0,
         last_visit: new Date().toISOString().split("T")[0],
         user_id: user?.id,
       };
@@ -342,7 +342,7 @@ function LoyaltyTab({ member, setMember, user }) {
   }
 
   // ── Loyalty Card ──
-  const pts = parseFloat(member.points_balance) || 0;
+  const pts = parseFloat(member["Points balance"]) || 0;
   const progress = (pts % 100) / 100 * 100;
   const nextReward = Math.ceil((pts + 0.01) / 100) * 100;
 
@@ -536,6 +536,32 @@ export default function Customer() {
     }
     loadData();
   }, [router]);
+
+  // ✅ REALTIME LISTENER
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel("loyalty-live-update")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "loyalty_members",
+        },
+        (payload) => {
+          if (payload.new.user_id === user.id) {
+            setMember(payload.new);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-[#FFF5F7]">
