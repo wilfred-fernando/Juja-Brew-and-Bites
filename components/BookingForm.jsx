@@ -7,15 +7,15 @@ import { supabase } from "@/lib/supabase";
    Business Rules / Config
 ======================= */
 const OPERATING_START_HOUR = 10; // 10AM
-const BASE_DURATION_HOURS = 3; // 3 hours rental duration [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[3](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+const BASE_DURATION_HOURS = 3; // 3 hours rental duration
 const BUFFER_HOURS = 1; // 1 hour gap before & after (your rule)
-const MAX_EXTENSION_HOURS = 2; // max extension 2 hours [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[3](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
-const MIN_ADVANCE_DAYS = 3; // reservation must be made at least 3 days in advance [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[3](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+const MAX_EXTENSION_HOURS = 2; // max extension 2 hours
+const MIN_ADVANCE_DAYS = 3; // at least 3 days in advance
 
-// Deposit policy (VIP Guidelines_2026 mentions ₱1,000 non-refundable deposit) [3](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+// Deposit policy (₱1,000 non-refundable deposit noted in VIP Guidelines_2026) [2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=31079ddc-68b9-45e6-a5fb-8f6ed21b2cd5&cid=933e55cc8541ec41)
 const DEPOSIT_AMOUNT = 1000;
 
-// Put QR image here (use your file Gcash QR.jpg -> save as public/images/gcash-qr.jpg) [2](https://onedrive.live.com/?id=03dd12cf-433c-4f31-8310-7768b023f9b7&cid=933e55cc8541ec41&web=1)
+// Put QR image here (save as public/images/gcash-qr.jpg)
 const QR_IMAGE_PATH = "/images/gcash-qr.jpg";
 
 // Optional admin notification target (only used if you implement /api/booking-notify)
@@ -23,14 +23,14 @@ const ADMIN_EMAIL = "booking@jujabrewandbites.com";
 
 /* =========================================
    Extracted Function Room Guidelines (No Links)
-   Sources: Function Room Guidelines + VIP docs
+   Based on: Function Room Guidelines + VIP Guidelines_2026
 ========================================= */
 const FUNCTION_ROOM_GUIDELINES = {
   reservation_policy: [
     "Reservation must be made at least 3 days in advance.",
     "Advance order is required for food selection.",
     "Reservation is subject to availability.",
-    "Deposit is required to confirm the booking (policy may vary by guideline version).",
+    "Deposit is required to confirm the booking.",
   ],
   room_usage: [
     "Rental duration is 3 hours.",
@@ -39,14 +39,14 @@ const FUNCTION_ROOM_GUIDELINES = {
   rebooking_cancellation: [
     "Reservation fee/deposit is non-refundable.",
     "Rebooking is allowed at least 2 days before the original booking date, subject to availability.",
-    "No-show will forfeit the deposit (per guidelines).",
+    "No-show will forfeit the deposit.",
   ],
   conduct_liability: [
     "Guests must behave respectfully and follow house rules.",
     "Smoking, vaping, and illegal substances are prohibited.",
     "Guests are responsible for any damages to the property or equipment during rental.",
   ],
-}; // [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[3](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+};
 
 /* =======================
    Helpers
@@ -62,7 +62,7 @@ function addDays(date, days) {
 }
 
 function buildSlotHours() {
-  // Hours for a "business date": 10..23 plus 24..25 (12AM, 1AM next day)
+  // 10..23 plus 24..25 (12AM, 1AM next day)
   const hours = [];
   for (let h = OPERATING_START_HOUR; h <= 23; h++) hours.push(h);
   hours.push(24, 25);
@@ -425,7 +425,7 @@ export default function BookingForm({ user, member }) {
         </h2>
         <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">
           Booking is <b>{BASE_DURATION_HOURS} hours</b> + optional extension (max{" "}
-          {MAX_EXTENSION_HOURS} hours). [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[3](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+          {MAX_EXTENSION_HOURS} hours).
         </p>
       </div>
 
@@ -472,7 +472,7 @@ export default function BookingForm({ user, member }) {
                 className="mt-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm"
               />
               <p className="text-[10px] text-slate-400 mt-1">
-                Must be at least {MIN_ADVANCE_DAYS} days in advance. [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[3](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+                Must be at least {MIN_ADVANCE_DAYS} days in advance.
               </p>
             </div>
 
@@ -568,7 +568,7 @@ export default function BookingForm({ user, member }) {
                     </h3>
                     <p className="text-[11px] text-slate-500 mt-2">
                       Capacity up to {p.capacity} guests • Extension max{" "}
-                      {p.extension_max_hours ?? 2} hours [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[3](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+                      {p.extension_max_hours ?? 2} hours
                     </p>
                   </div>
 
@@ -709,7 +709,13 @@ export default function BookingForm({ user, member }) {
 
                 <button
                   type="button"
-                  onClick={() => setForm((f) => ({ ...f, extend: "yes", extension_hours: f.extension_hours || 1 }))}
+                  onClick={() =>
+                    setForm((f) => ({
+                      ...f,
+                      extend: "yes",
+                      extension_hours: f.extension_hours || 1,
+                    }))
+                  }
                   className={`px-4 py-2 rounded-xl text-[11px] border active:scale-95 ${
                     form.extend === "yes"
                       ? "bg-[#FC687D] text-white border-[#FC687D]"
@@ -721,7 +727,9 @@ export default function BookingForm({ user, member }) {
 
                 <select
                   value={form.extension_hours}
-                  onChange={(e) => setForm((f) => ({ ...f, extension_hours: Number(e.target.value) }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, extension_hours: Number(e.target.value) }))
+                  }
                   disabled={form.extend !== "yes"}
                   className="ml-auto bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm disabled:opacity-50"
                 >
@@ -760,7 +768,8 @@ export default function BookingForm({ user, member }) {
                   {detailsPkg.name}
                 </h3>
                 <p className="text-[12px] text-slate-600 mt-1">
-                  ₱{Number(detailsPkg.rental_fee).toLocaleString()} • 3 hours • Capacity up to {detailsPkg.capacity} guests [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[3](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+                  ₱{Number(detailsPkg.rental_fee).toLocaleString()} • 3 hours • Capacity up to{" "}
+                  {detailsPkg.capacity} guests
                 </p>
               </div>
 
@@ -774,13 +783,13 @@ export default function BookingForm({ user, member }) {
             </div>
 
             <div className="space-y-4">
-              {/* Package inclusions */}
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
                 <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Inclusions</p>
-                <p className="text-[13px] text-slate-700 leading-relaxed">{detailsPkg.inclusions || "—"}</p>
+                <p className="text-[13px] text-slate-700 leading-relaxed">
+                  {detailsPkg.inclusions || "—"}
+                </p>
               </div>
 
-              {/* Extracted guidelines (no links) */}
               <div className="bg-white border border-rose-100 rounded-2xl p-4">
                 <p className="text-[10px] uppercase tracking-widest text-rose-600 mb-2">
                   Function Room Guidelines
@@ -877,7 +886,7 @@ export default function BookingForm({ user, member }) {
             <div className="space-y-4 text-slate-700">
               <p className="text-sm leading-relaxed">
                 To secure your booking, a{" "}
-                <b>₱{DEPOSIT_AMOUNT.toLocaleString()}</b> non-refundable fee is required. [3](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+                <b>₱{DEPOSIT_AMOUNT.toLocaleString()}</b> non-refundable fee is required.
               </p>
 
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
@@ -889,6 +898,9 @@ export default function BookingForm({ user, member }) {
                   alt="Payment QR Code"
                   className="w-full max-w-[320px] mx-auto rounded-xl border border-slate-200 bg-white"
                 />
+                <p className="text-[10px] text-slate-400 mt-2">
+                  Place your QR image at <b>public/images/gcash-qr.jpg</b>.
+                </p>
               </div>
 
               <div className="bg-white border border-slate-200 rounded-2xl p-4">
@@ -912,19 +924,19 @@ export default function BookingForm({ user, member }) {
                     />
                   </div>
                 )}
-
-                <button
-                  onClick={handleSubmitProof}
-                  disabled={submitting}
-                  className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-normal text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-rose-500 active:scale-95 disabled:opacity-60"
-                >
-                  {submitting ? "Submitting…" : "Submit Proof & Confirm Booking"}
-                </button>
-
-                <p className="text-[10px] text-slate-400">
-                  Payment proof will be stored. Admin notification is optional via `/api/booking-notify`.
-                </p>
               </div>
+
+              <button
+                onClick={confirmPaymentAndSubmit}
+                disabled={submitting}
+                className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-normal text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-rose-500 active:scale-95 disabled:opacity-60"
+              >
+                {submitting ? "Submitting…" : "Submit Proof & Confirm Booking"}
+              </button>
+
+              <p className="text-[10px] text-slate-400">
+                Payment proof will be stored. Admin notification is optional via `/api/booking-notify`.
+              </p>
             </div>
           </div>
         </div>
