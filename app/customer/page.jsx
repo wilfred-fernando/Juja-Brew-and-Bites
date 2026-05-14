@@ -844,10 +844,16 @@ function ProfileTab({ user, onLogout }) {
 /* ──────────────────────────────────────────────────────────────
    Main Customer Page
 ────────────────────────────────────────────────────────────── */
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default function Customer() {
   const [user, setUser] = useState(null);
   const [member, setMember] = useState(null);
+
+  // ✅ REQUIRED: this is what your error is missing
   const [tab, setTab] = useState("home");
+
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -918,11 +924,14 @@ export default function Customer() {
       <main className="max-w-md mx-auto px-4 md:px-5 py-4">
         {tab === "home" && <HomeTab member={member} user={user} setTab={setTab} />}
         {tab === "order" && <OrderTab />}
-        {tab === "loyalty" && <LoyaltyTab member={member} setMember={setMember} user={user} />}
+        {tab === "loyalty" && (
+          <LoyaltyTab member={member} setMember={setMember} user={user} />
+        )}
         {tab === "booking" && <BookingTab user={user} member={member} />}
         {tab === "profile" && <ProfileTab user={user} onLogout={logout} />}
       </main>
 
+      {/* ✅ TabBar must receive tab + setTab */}
       <TabBar tab={tab} setTab={setTab} />
     </div>
   );
