@@ -6,8 +6,9 @@ import { useRouter } from "next/navigation";
 
 import { supabase } from "@/lib/supabase";
 import BookingTab from "@/components/BookingForm";
+import nextDynamic from "next/dynamic";
 
-const Barcode = dynamic(() => import("react-barcode"), { ssr: false });
+const Barcode = nextDynamic(() => import("react-barcode"), { ssr: false });
 
 const LOGO =
   "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
@@ -31,9 +32,9 @@ function todayISO() {
 function TabBar({ tab, setTab }) {
   const tabs = [
     { id: "home", icon: "🏠", label: "Home" },
-    { id: "order", icon: "🛍️", label: "Order" },
+    { id: "order", icon: "🍽️", label: "Order" },
     { id: "loyalty", icon: "⭐", label: "Loyalty" },
-    { id: "booking", icon: "🎪", label: "Book" },
+    { id: "booking", icon: "🗓", label: "Book" },
     { id: "profile", icon: "👤", label: "Profile" },
   ];
 
@@ -176,9 +177,9 @@ function HomeTab({ member, user, setTab }) {
       {/* Quick Action Grid */}
       <div className="grid grid-cols-2 gap-3 md:gap-4">
         {[
-          { icon: "🛍️", label: "Order Food", sub: "Browse menu", tab: "order" },
+          { icon: "🍽️", label: "Order Food", sub: "Browse menu", tab: "order" },
           { icon: "⭐", label: "Loyalty", sub: "Rewards", tab: "loyalty" },
-          { icon: "🎪", label: "Book Room", sub: "Function room", tab: "booking" },
+          { icon: "🗓", label: "Book Room", sub: "Function room", tab: "booking" },
           { icon: "🎁", label: "Promos", sub: "Deals & offers", href: "/promo" },
         ].map((c) =>
           c.href ? (
@@ -264,7 +265,7 @@ function HomeTab({ member, user, setTab }) {
 
           {active.room.length > 0 && (
             <p className="flex gap-3 items-start">
-              <span>🎪</span>
+              <span>🕙</span>
               <span>
                 {active.room.map((line) => (
                   <span key={line} className="block text-slate-500">
