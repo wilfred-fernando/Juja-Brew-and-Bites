@@ -373,8 +373,7 @@ export default function BookingForm({ user, member }) {
           Function Room Booking
         </h2>
         <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">
-          Booking is <b>{BASE_DURATION_HOURS} hours</b> + optional extension (max {MAX_EXTENSION_HOURS} hours).{" "}
-          [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+          Booking is <b>{BASE_DURATION_HOURS} hours</b> + optional extension (max {MAX_EXTENSION_HOURS} hours).
         </p>
       </div>
 
@@ -382,7 +381,7 @@ export default function BookingForm({ user, member }) {
       <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
         {[
           { id: "availability", label: "Check Availability" },
-          { id: "packages", label: "Check Packages" },
+          { id: "packages", label: "Packages" },
           { id: "book", label: "Book Now" },
         ].map((t) => (
           <button
@@ -419,7 +418,7 @@ export default function BookingForm({ user, member }) {
                 className="mt-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm"
               />
               <p className="text-[10px] text-slate-400 mt-1">
-                Must be at least {MIN_ADVANCE_DAYS} days in advance. [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+                Must be at least {MIN_ADVANCE_DAYS} days in advance.
               </p>
             </div>
 
