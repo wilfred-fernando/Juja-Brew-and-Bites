@@ -673,7 +673,7 @@ export default function BookingForm({ user, member }) {
             <div className="space-y-4 text-slate-700">
               <p className="text-sm leading-relaxed">
                 To secure your booking, a{" "}
-                <b>₱{DEPOSIT_AMOUNT.toLocaleString()}</b> non-refundable fee is required. [1](https://onedrive.live.com/?id=b611d747-f510-449d-92fe-356dfe0e7611&cid=933e55cc8541ec41&web=1)
+                <b>₱{DEPOSIT_AMOUNT.toLocaleString()}</b> non-refundable fee is required. 
               </p>
 
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
@@ -682,7 +682,7 @@ export default function BookingForm({ user, member }) {
                 </p>
                 {QR_IMAGE_PATH}
                 <p className="text-[10px] text-slate-400 mt-2">
-                  (QR image from [Gcash QR.jpg](https://onedrive.live.com/?id=03dd12cf-433c-4f31-8310-7768b023f9b7&cid=933e55cc8541ec41&web=1&EntityRepresentationId=0a342549-72a5-436e-a307-f4de0c1be808) placed in <b>public/images/gcash-qr.jpg</b>) [2](https://onedrive.live.com/?id=03dd12cf-433c-4f31-8310-7768b023f9b7&cid=933e55cc8541ec41&web=1)
+                  (QR image from [qrph.jpg] placed in <b>public/images/qrph.jpg</b>)
                 </p>
               </div>
 
