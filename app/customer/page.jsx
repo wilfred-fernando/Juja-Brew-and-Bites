@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import OrderTab from "./_components/order/OrderTab";
+import OrderTab from "/components/order/OrderTab";
 
 import { supabase } from "@/lib/supabase";
 import BookingTab from "@/components/BookingForm";
