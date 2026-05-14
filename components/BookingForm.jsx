@@ -683,9 +683,9 @@ export default function BookingForm({ user, member }) {
                           <p className="text-[11px] text-slate-500">
                             Capacity up to {p.capacity} guests
                           </p>
-                          <span className="inline-flex text-[10px] uppercase tracking-widest px-3 py-1 rounded-full bg-slate-100 text-slate-600">
-                            Room rental only
-                          </span>
+                          <p className="text-[11px] text-slate-500">
+                            <b>Room rental only</b>
+                          </p>
                         </div>
                       )}
                     </div>
