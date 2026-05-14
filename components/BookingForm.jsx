@@ -3,25 +3,39 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-const OPERATING_START_HOUR = 10;
-const BASE_DURATION_HOURS = 3;
-const BUFFER_HOURS = 1;
-const MAX_EXTENSION_HOURS = 2;
+// Business rules
+const OPERATING_START_HOUR = 10; // 10AM
+const OPERATING_END_HOUR_NEXT_DAY = 2; // 2AM next day
+const BASE_DURATION_HOURS = 3; // booking is good for 3 hours [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+const BUFFER_HOURS = 1; // 1 hour gap before and after (your rule)
+const MAX_EXTENSION_HOURS = 2; // max extension per guidelines [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+const MIN_ADVANCE_DAYS = 3; // reservation must be made at least 3 days in advance [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
 
-const DEPOSIT_AMOUNT = 1000; // ₱1,000 non-refundable fee (per your rule) [1](https://onedrive.live.com/?id=b611d747-f510-449d-92fe-356dfe0e7611&cid=933e55cc8541ec41&web=1)
-const QR_IMAGE_PATH = "/images/qrph.jpg"; // put [qrph.jpg](https://onedrive.live.com/?id=03dd12cf-433c-4f31-8310-7768b023f9b7&cid=933e55cc8541ec41&web=1&EntityRepresentationId=0a342549-72a5-436e-a307-f4de0c1be808) here [2](https://onedrive.live.com/?id=03dd12cf-433c-4f31-8310-7768b023f9b7&cid=933e55cc8541ec41&web=1)
+// Deposit policy (2026 guideline mentions ₱1,000 non-refundable deposit) [1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+const DEPOSIT_AMOUNT = 1000;
 
-// Admin email (use a real email address)
-const ADMIN_EMAIL = "booking@jujabrewandbites.com"; // adjust if needed
+// Put your QR image into: public/images/gcash-qr.jpg
+// You have the QR file available as [Gcash QR.jpg](https://onedrive.live.com/?id=03dd12cf-433c-4f31-8310-7768b023f9b7&cid=933e55cc8541ec41&web=1&EntityRepresentationId=0a342549-72a5-436e-a307-f4de0c1be808) [2](https://onedrive.live.com/?id=03dd12cf-433c-4f31-8310-7768b023f9b7&cid=933e55cc8541ec41&web=1)
+const QR_IMAGE_PATH = "/images/gcash-qr.jpg";
+
+// Admin notification target
+const ADMIN_EMAIL = "booking@jujabrewandbites.com";
 
 function toISODate(d) {
   return d.toISOString().split("T")[0];
 }
 
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
 function buildSlotHours() {
+  // 10..23 plus 24..25 (12AM, 1AM next day)
   const hours = [];
   for (let h = OPERATING_START_HOUR; h <= 23; h++) hours.push(h);
-  hours.push(24, 25); // 12AM, 1AM next day
+  hours.push(24, 25);
   return hours;
 }
 
@@ -45,6 +59,7 @@ function computeDateTime(businessDateISO, hourLike) {
 }
 
 function intersects(aStart, aEnd, bStart, bEnd) {
+  // [start, end) overlap
   return aStart < bEnd && aEnd > bStart;
 }
 
@@ -54,14 +69,18 @@ export default function BookingForm({ user, member }) {
   const [packages, setPackages] = useState([]);
   const [loadingPackages, setLoadingPackages] = useState(true);
 
-  const [dateISO, setDateISO] = useState(() => toISODate(new Date()));
+  const [dateISO, setDateISO] = useState(() => toISODate(addDays(new Date(), MIN_ADVANCE_DAYS)));
   const [bookings, setBookings] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
 
   const [selectedHour, setSelectedHour] = useState(null);
   const [notice, setNotice] = useState(null);
 
-  // PAYMENT MODAL STATE
+  // Package full-details modal
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsPkg, setDetailsPkg] = useState(null);
+
+  // Payment popup modal
   const [payOpen, setPayOpen] = useState(false);
   const [proofFile, setProofFile] = useState(null);
   const [proofPreview, setProofPreview] = useState(null);
@@ -75,11 +94,11 @@ export default function BookingForm({ user, member }) {
     email: "",
     guest_count: 1,
     package_id: "",
-    extend: "no",
+    extend: "no", // yes/no
     extension_hours: 0,
   });
 
-  // Autofill from loyalty profile / auth user
+  // Autofill from profile
   useEffect(() => {
     setForm((f) => ({
       ...f,
@@ -89,10 +108,12 @@ export default function BookingForm({ user, member }) {
     }));
   }, [member, user]);
 
-  // Load packages
+  // Load packages from Supabase table
   useEffect(() => {
     async function fetchPackages() {
       setLoadingPackages(true);
+      setNotice(null);
+
       const { data, error } = await supabase
         .from("function_room_packages")
         .select("*")
@@ -112,13 +133,13 @@ export default function BookingForm({ user, member }) {
     [packages, form.package_id]
   );
 
-  // Fetch bookings for the business window (10AM -> 2AM next day)
+  // Load bookings for selected business date window (10AM to 2AM next day)
   useEffect(() => {
     async function fetchBookingsForDate() {
       setLoadingBookings(true);
       setNotice(null);
 
-      const dayStart = computeDateTime(dateISO, 10);
+      const dayStart = computeDateTime(dateISO, OPERATING_START_HOUR);
       const dayEnd = computeDateTime(dateISO, 26); // 2AM next day
 
       const queryStart = new Date(dayStart.getTime() - BUFFER_HOURS * 3600 * 1000).toISOString();
@@ -147,6 +168,7 @@ export default function BookingForm({ user, member }) {
 
   const slotHours = useMemo(() => buildSlotHours(), []);
 
+  // Compute availability (client-side). DB should still enforce no overlap.
   const availability = useMemo(() => {
     const ext = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
     const totalHours = BASE_DURATION_HOURS + ext;
@@ -158,14 +180,17 @@ export default function BookingForm({ user, member }) {
       const operatingEnd = computeDateTime(dateISO, 26); // 2AM next day
       const withinOperating = end <= operatingEnd;
 
+      // buffer window
       const blockedStart = new Date(start.getTime() - BUFFER_HOURS * 3600 * 1000);
       const blockedEnd = new Date(end.getTime() + BUFFER_HOURS * 3600 * 1000);
 
       const hasConflict = bookings.some((b) => {
         const bStart = new Date(b.start_at);
         const bEnd = new Date(b.end_at);
+
         const bBlockedStart = new Date(bStart.getTime() - BUFFER_HOURS * 3600 * 1000);
         const bBlockedEnd = new Date(bEnd.getTime() + BUFFER_HOURS * 3600 * 1000);
+
         return intersects(blockedStart, blockedEnd, bBlockedStart, bBlockedEnd);
       });
 
@@ -177,14 +202,12 @@ export default function BookingForm({ user, member }) {
     });
   }, [slotHours, dateISO, bookings, form.extend, form.extension_hours]);
 
-  function selectSlot(h) {
-    setSelectedHour(h);
-    setTab("book");
-    setNotice(null);
-  }
-
   function validateBookingInputs() {
     setNotice(null);
+
+    // Enforce 3 days advance (per guidelines) [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+    const minDate = toISODate(addDays(new Date(), MIN_ADVANCE_DAYS));
+    if (dateISO < minDate) return `Booking must be at least ${MIN_ADVANCE_DAYS} days in advance.`;
 
     if (!form.name.trim()) return "Name is required.";
     if (!form.event_type.trim()) return "Event type is required.";
@@ -197,9 +220,7 @@ export default function BookingForm({ user, member }) {
     const guests = Number(form.guest_count || 0);
     if (!guests || guests < 1) return "No. of guests must be at least 1.";
 
-    const extensionHours =
-      form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
-
+    const extensionHours = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
     if (extensionHours < 0 || extensionHours > MAX_EXTENSION_HOURS) {
       return `Extension must be 0–${MAX_EXTENSION_HOURS} hours.`;
     }
@@ -207,7 +228,24 @@ export default function BookingForm({ user, member }) {
     return null;
   }
 
-  // Click Book Now -> open payment popup
+  function selectSlot(h) {
+    setSelectedHour(h);
+    setTab("book");
+    setNotice(null);
+  }
+
+  // Image preview for proof
+  useEffect(() => {
+    if (!proofFile) {
+      setProofPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(proofFile);
+    setProofPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [proofFile]);
+
+  // Book Now => open payment popup
   function onBookNowClick() {
     const err = validateBookingInputs();
     if (err) {
@@ -217,7 +255,6 @@ export default function BookingForm({ user, member }) {
     setPayOpen(true);
   }
 
-  // Upload proof + create booking + email admin
   async function confirmPaymentAndSubmit() {
     const err = validateBookingInputs();
     if (err) {
@@ -231,17 +268,15 @@ export default function BookingForm({ user, member }) {
       return;
     }
 
-    const extensionHours =
-      form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
-
+    const extensionHours = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
     const start = computeDateTime(dateISO, selectedHour);
 
     setSubmitting(true);
     setNotice(null);
 
     try {
-      // 1) Upload screenshot to Supabase Storage
-      const ext = proofFile.name.split(".").pop() || "jpg";
+      // 1) Upload screenshot proof to Supabase Storage bucket: booking_proofs
+      const ext = (proofFile.name.split(".").pop() || "jpg").toLowerCase();
       const path = `${user?.id || "guest"}/${Date.now()}_${Math.random()
         .toString(16)
         .slice(2)}.${ext}`;
@@ -256,13 +291,10 @@ export default function BookingForm({ user, member }) {
 
       if (uploadErr) throw uploadErr;
 
-      const { data: pub } = supabase.storage
-        .from("booking_proofs")
-        .getPublicUrl(uploadData.path);
-
+      const { data: pub } = supabase.storage.from("booking_proofs").getPublicUrl(uploadData.path);
       const proofUrl = pub?.publicUrl || null;
 
-      // 2) Create booking record
+      // 2) Insert booking
       const payload = {
         user_id: user?.id || null,
         member_id: member?.id || null,
@@ -270,8 +302,8 @@ export default function BookingForm({ user, member }) {
 
         customer_name: form.name.trim(),
         event_type: form.event_type.trim(),
-        business_date: dateISO,
 
+        business_date: dateISO,
         start_at: start.toISOString(),
         duration_hours: BASE_DURATION_HOURS,
         extension_hours: extensionHours,
@@ -280,10 +312,12 @@ export default function BookingForm({ user, member }) {
         contact_number: form.contact_number.trim(),
         email: form.email.trim(),
 
-        status: "pending",
+        // payment
         deposit_amount: DEPOSIT_AMOUNT,
         payment_status: "submitted",
         payment_proof_url: proofUrl,
+
+        status: "pending",
       };
 
       const { data: bookingRow, error: bookErr } = await supabase
@@ -294,36 +328,32 @@ export default function BookingForm({ user, member }) {
 
       if (bookErr) throw bookErr;
 
-      // 3) Call server route to email admin (with screenshot)
-      const res = await fetch("/api/booking-notify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          adminEmail: ADMIN_EMAIL,
-          bookingId: bookingRow.id,
-          customerName: payload.customer_name,
-          eventType: payload.event_type,
-          businessDate: payload.business_date,
-          timeLabel: labelHour(selectedHour),
-          packageId: payload.package_id,
-          guestCount: payload.guest_count,
-          contactNumber: payload.contact_number,
-          customerEmail: payload.email,
-          extensionHours: payload.extension_hours,
-          depositAmount: payload.deposit_amount,
-          proofUrl: proofUrl,
-        }),
-      });
-
-      if (!res.ok) {
-        // booking is saved even if email fails; show notice
-        const t = await res.text();
-        setNotice(`✅ Booking saved. (Email notify failed: ${t})`);
-      } else {
-        setNotice("✅ Booking saved and payment proof sent to admin!");
+      // 3) Optional: notify admin via server route (doesn't affect build)
+      try {
+        await fetch("/api/booking-notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            adminEmail: ADMIN_EMAIL,
+            bookingId: bookingRow.id,
+            customerName: payload.customer_name,
+            eventType: payload.event_type,
+            businessDate: payload.business_date,
+            timeLabel: labelHour(selectedHour),
+            packageId: payload.package_id,
+            guestCount: payload.guest_count,
+            contactNumber: payload.contact_number,
+            customerEmail: payload.email,
+            extensionHours: payload.extension_hours,
+            depositAmount: payload.deposit_amount,
+            proofUrl: proofUrl,
+          }),
+        });
+      } catch {
+        // ignore notify errors
       }
 
-      // reset UI
+      setNotice("✅ Booking saved! Payment proof submitted.");
       setPayOpen(false);
       setProofFile(null);
       setProofPreview(null);
@@ -336,17 +366,6 @@ export default function BookingForm({ user, member }) {
     }
   }
 
-  // Preview uploaded image
-  useEffect(() => {
-    if (!proofFile) {
-      setProofPreview(null);
-      return;
-    }
-    const url = URL.createObjectURL(proofFile);
-    setProofPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [proofFile]);
-
   return (
     <div className="space-y-4 md:space-y-6 animate-in fade-in duration-500">
       <div>
@@ -354,7 +373,8 @@ export default function BookingForm({ user, member }) {
           Function Room Booking
         </h2>
         <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">
-          Booking duration is 3 hours + optional extension.
+          Booking is <b>{BASE_DURATION_HOURS} hours</b> + optional extension (max {MAX_EXTENSION_HOURS} hours).{" "}
+          [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
         </p>
       </div>
 
@@ -390,21 +410,21 @@ export default function BookingForm({ user, member }) {
         <div className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6 space-y-4">
           <div className="flex items-end justify-between gap-4 flex-wrap">
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-slate-400">
-                Select Date
-              </p>
+              <p className="text-[10px] uppercase tracking-widest text-slate-400">Select Date</p>
               <input
                 type="date"
                 value={dateISO}
+                min={toISODate(addDays(new Date(), MIN_ADVANCE_DAYS))}
                 onChange={(e) => setDateISO(e.target.value)}
                 className="mt-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm"
               />
+              <p className="text-[10px] text-slate-400 mt-1">
+                Must be at least {MIN_ADVANCE_DAYS} days in advance. [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+              </p>
             </div>
 
             <div className="text-right">
-              <p className="text-[10px] uppercase tracking-widest text-slate-400">
-                Extension
-              </p>
+              <p className="text-[10px] uppercase tracking-widest text-slate-400">Extension</p>
               <div className="mt-2 flex items-center gap-2 justify-end">
                 <select
                   value={form.extend}
@@ -423,26 +443,20 @@ export default function BookingForm({ user, member }) {
 
                 <select
                   value={form.extension_hours}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, extension_hours: Number(e.target.value) }))
-                  }
+                  onChange={(e) => setForm((f) => ({ ...f, extension_hours: Number(e.target.value) }))}
                   disabled={form.extend !== "yes"}
                   className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm disabled:opacity-50"
                 >
                   <option value={0}>0 hr</option>
                   <option value={1}>1 hr</option>
                   <option value={2}>2 hr</option>
-                  <option value={0}>3 hr</option>
-                  <option value={1}>4 hr</option>
-                  <option value={2}>5 hr</option>
                 </select>
               </div>
             </div>
           </div>
 
           <div className="text-[11px] text-slate-500">
-            Operating hours: 10:00 AM – 2:00 AM (next day). 
-            Buffer rule: 1 hour before &amp; after every booking.
+            Operating hours: <b>10:00 AM – 2:00 AM</b> (next day). Buffer rule: <b>1 hour</b> before &amp; after.
           </div>
 
           {loadingBookings ? (
@@ -463,9 +477,7 @@ export default function BookingForm({ user, member }) {
                   disabled={!s.available}
                 >
                   <p className="text-[11px] font-semibold text-slate-800">{s.label}</p>
-                  <p className="text-[10px] text-slate-400 mt-1">
-                    {s.available ? "Available" : "Unavailable"}
-                  </p>
+                  <p className="text-[10px] text-slate-400 mt-1">{s.available ? "Available" : "Unavailable"}</p>
                 </button>
               ))}
             </div>
@@ -488,27 +500,43 @@ export default function BookingForm({ user, member }) {
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-[12px] uppercase tracking-widest text-slate-400">
-                      {p.name}
-                    </p>
+                    <p className="text-[12px] uppercase tracking-widest text-slate-400">{p.name}</p>
                     <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">
                       ₱{Number(p.rental_fee).toLocaleString()} / 3 hours
                     </h3>
                     <p className="text-[11px] text-slate-500 mt-2">
-                      Capacity up to {p.capacity} guests • Extension max {p.extension_max_hours} hours
+                      Capacity up to {p.capacity} guests • Extension max {p.extension_max_hours ?? 2} hours [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
                     </p>
                   </div>
 
-                  <button
-                    onClick={() => {
-                      setForm((f) => ({ ...f, package_id: String(p.id) }));
-                      setTab("book");
-                    }}
-                    className="px-4 py-2 rounded-full bg-[#FC687D] text-white text-[10px] uppercase tracking-widest active:scale-95"
-                  >
-                    Choose
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDetailsPkg(p);
+                        setDetailsOpen(true);
+                      }}
+                      className="px-4 py-2 rounded-full bg-white border border-slate-200 text-slate-700 text-[10px] uppercase tracking-widest hover:bg-slate-50 active:scale-95"
+                    >
+                      Full Details
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForm((f) => ({ ...f, package_id: String(p.id) }));
+                        setTab("book");
+                      }}
+                      className="px-4 py-2 rounded-full bg-[#FC687D] text-white text-[10px] uppercase tracking-widest active:scale-95"
+                    >
+                      Choose
+                    </button>
+                  </div>
                 </div>
+
+                {p.inclusions && (
+                  <p className="text-[12px] text-slate-700 mt-3 leading-relaxed">{p.inclusions}</p>
+                )}
               </div>
             ))
           )}
@@ -520,12 +548,9 @@ export default function BookingForm({ user, member }) {
         <div className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6 space-y-4">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-slate-400">
-                Selected
-              </p>
+              <p className="text-[10px] uppercase tracking-widest text-slate-400">Selected</p>
               <p className="text-[12px] text-slate-800 mt-1">
-                Date: <b>{dateISO}</b> • Time:{" "}
-                <b>{selectedHour != null ? labelHour(selectedHour) : "Not selected"}</b>
+                Date: <b>{dateISO}</b> • Time: <b>{selectedHour != null ? labelHour(selectedHour) : "Not selected"}</b>
               </p>
               <p className="text-[11px] text-slate-500 mt-1">
                 Duration: {BASE_DURATION_HOURS} hours
@@ -560,20 +585,22 @@ export default function BookingForm({ user, member }) {
                 </option>
               ))}
             </select>
+
+            {selectedPackage?.inclusions && (
+              <p className="text-[11px] text-slate-500 mt-2">{selectedPackage.inclusions}</p>
+            )}
           </div>
 
           {/* Fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {[
               ["name", "Name", "text", "Full name"],
-              ["event_type", "Event (Birthday/Gathering/Meeting)", "text", "Birthday"],
+              ["event_type", "Event Type (Birthday/Gathering/Meeting)", "text", "Birthday"],
               ["contact_number", "Contact Number", "tel", "09XX XXX XXXX"],
               ["email", "Email Address", "email", "name@email.com"],
             ].map(([key, lbl, type, ph]) => (
               <div key={key}>
-                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
-                  {lbl}
-                </label>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">{lbl}</label>
                 <input
                   type={type}
                   value={form[key] ?? ""}
@@ -615,9 +642,7 @@ export default function BookingForm({ user, member }) {
                 </button>
                 <button
                   type="button"
-                  onClick={() =>
-                    setForm((f) => ({ ...f, extend: "yes", extension_hours: f.extension_hours || 1 }))
-                  }
+                  onClick={() => setForm((f) => ({ ...f, extend: "yes", extension_hours: f.extension_hours || 1 }))}
                   className={`px-4 py-2 rounded-xl text-[11px] border active:scale-95 ${
                     form.extend === "yes"
                       ? "bg-[#FC687D] text-white border-[#FC687D]"
@@ -638,6 +663,9 @@ export default function BookingForm({ user, member }) {
                   <option value={2}>2 hr</option>
                 </select>
               </div>
+              <p className="text-[11px] text-slate-500 mt-2">
+                Extension maximum is {MAX_EXTENSION_HOURS} hours. [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+              </p>
             </div>
           </div>
 
@@ -651,15 +679,101 @@ export default function BookingForm({ user, member }) {
         </div>
       )}
 
+      {/* FULL DETAILS MODAL */}
+      {detailsOpen && detailsPkg && (
+        <div
+          className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
+          onClick={() => setDetailsOpen(false)}
+        >
+          <div
+            className="w-full max-w-2xl bg-white rounded-t-[28px] md:rounded-[32px] p-6 md:p-8 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-slate-400">Package Details</p>
+                <h3 className="text-xl md:text-2xl font-semibold text-slate-900 mt-1">
+                  {detailsPkg.name}
+                </h3>
+                <p className="text-[12px] text-slate-600 mt-1">
+                  ₱{Number(detailsPkg.rental_fee).toLocaleString()} • 3 hours • Capacity up to {detailsPkg.capacity} guests [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+                </p>
+              </div>
+
+              <button
+                onClick={() => setDetailsOpen(false)}
+                className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Inclusions</p>
+                <p className="text-[13px] text-slate-700 leading-relaxed">{detailsPkg.inclusions || "—"}</p>
+
+                {detailsPkg.included_food_value != null && (
+                  <p className="text-[12px] text-slate-600 mt-2">
+                    Includes food &amp; drinks worth ₱{Number(detailsPkg.included_food_value).toLocaleString()} [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)
+                  </p>
+                )}
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Extension</p>
+                <p className="text-[12px] text-slate-700">
+                  Maximum extension: <b>{detailsPkg.extension_max_hours ?? 2} hours</b> [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+                </p>
+                {detailsPkg.extension_option1 && <p className="text-[12px] text-slate-700 mt-2">⏱ {detailsPkg.extension_option1} [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)</p>}
+                {detailsPkg.extension_option2 && <p className="text-[12px] text-slate-700 mt-1">⏱ {detailsPkg.extension_option2} [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)</p>}
+              </div>
+
+              <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4">
+                <p className="text-[10px] uppercase tracking-widest text-rose-600 mb-2">Key Policies</p>
+                <ul className="space-y-2 text-[12px] text-slate-700 leading-relaxed">
+                  <li>• Reservation must be made at least <b>3 days</b> in advance. [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)</li>
+                  <li>• Booking duration is <b>3 hours</b>. [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)</li>
+                  <li>• Deposit required (₱1,000 non-refundable per 2026 guideline). [1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)</li>
+                </ul>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm((f) => ({ ...f, package_id: String(detailsPkg.id) }));
+                    setDetailsOpen(false);
+                    setTab("book");
+                  }}
+                  className="flex-1 py-3 rounded-xl bg-[#FC687D] text-white text-[11px] uppercase tracking-widest hover:bg-rose-500 active:scale-95"
+                >
+                  Choose This Package
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDetailsOpen(false)}
+                  className="py-3 px-4 rounded-xl bg-white border border-slate-200 text-slate-600 text-[11px] uppercase tracking-widest hover:bg-slate-50 active:scale-95"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* PAYMENT POPUP MODAL */}
       {payOpen && (
         <div
-          className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
+          className="fixed inset-0 z-[95] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
           onClick={() => setPayOpen(false)}
         >
           <div
-            onClick={(e) => e.stopPropagation()}
             className="w-full max-w-lg bg-white rounded-t-[28px] md:rounded-[32px] p-6 md:p-7 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg md:text-xl font-semibold text-slate-800">
@@ -676,17 +790,20 @@ export default function BookingForm({ user, member }) {
 
             <div className="space-y-4 text-slate-700">
               <p className="text-sm leading-relaxed">
-                To secure your booking, a{" "}
-                <b>₱{DEPOSIT_AMOUNT.toLocaleString()}</b> non-refundable fee is required. 
+                To secure your booking, a <b>₱{DEPOSIT_AMOUNT.toLocaleString()}</b> non-refundable fee is required. [1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
               </p>
 
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
                 <p className="text-[11px] uppercase tracking-widest text-slate-500 mb-2">
                   Scan QR to Pay
                 </p>
-                {QR_IMAGE_PATH}
+                <img
+                  src={QR_IMAGE_PATH}
+                  alt="Payment QR Code"
+                  className="w-full max-w-[320px] mx-auto rounded-xl border border-slate-200 bg-white"
+                />
                 <p className="text-[10px] text-slate-400 mt-2">
-                  (QR image from [qrph.jpg] placed in <b>public/images/qrph.jpg</b>)
+                  QR source file available as [Gcash QR.jpg](https://onedrive.live.com/?id=03dd12cf-433c-4f31-8310-7768b023f9b7&cid=933e55cc8541ec41&web=1&EntityRepresentationId=0a342549-72a5-436e-a307-f4de0c1be808). [2](https://onedrive.live.com/?id=03dd12cf-433c-4f31-8310-7768b023f9b7&cid=933e55cc8541ec41&web=1)
                 </p>
               </div>
 
@@ -704,7 +821,12 @@ export default function BookingForm({ user, member }) {
 
                 {proofPreview && (
                   <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden">
-                    <img src={proofPreview} alt="Payment proof preview" className="w-full object-cover" />
+                    {/* ✅ THIS FIXES YOUR BUILD ERROR: proper img tag */}
+                    <img
+                      src={proofPreview}
+                      alt="Payment proof preview"
+                      className="w-full object-cover"
+                    />
                   </div>
                 )}
               </div>
@@ -718,7 +840,7 @@ export default function BookingForm({ user, member }) {
               </button>
 
               <p className="text-[10px] text-slate-400">
-                This will send your screenshot to admin for booking notification.
+                Payment proof will be stored and an admin notification can be sent automatically.
               </p>
             </div>
           </div>
