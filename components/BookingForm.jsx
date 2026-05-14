@@ -679,10 +679,14 @@ export default function BookingForm({ user, member }) {
                           Capacity up to {p.capacity} guests • Consumable: <b>{formatPeso(consumable)}</b>
                         </p>
                       ) : (
-                        <p className="text-[11px] text-slate-500 mt-2">
-                          Capacity up to {p.capacity} guests
-                          <b>Room rental only</b>
-                        </p>
+                        <div className="mt-2 space-y-1">
+                          <p className="text-[11px] text-slate-500">
+                            Capacity up to {p.capacity} guests
+                          </p>
+                          <span className="inline-flex text-[10px] uppercase tracking-widest px-3 py-1 rounded-full bg-slate-100 text-slate-600">
+                            Room rental only
+                          </span>
+                        </div>
                       )}
                     </div>
 
