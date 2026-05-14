@@ -149,7 +149,7 @@ export default function POSPage() {
     const [iRes, catRes, cRes, diningOptionsRes] = await Promise.all([
       supabase.from("menu_items").select("*").eq("is_available", true).order("name"),
       supabase.from("menu_categories").select("*").order("sort_order"),
-      supabase.from("loyalty_members").select('id, name:"Customer name", code:"Customer code"'),
+      supabase.from("loyalty_members").select("id, name:customer_name, code:customer_code"),
       supabase.from("dining_options").select("*").eq("is_available", true).order("id")
     ]);
     if (iRes.data) setItems(iRes.data);
@@ -161,13 +161,35 @@ export default function POSPage() {
 
   // 2. BARCODE & LOYALTY SCAN LOGIC
   const handleScanSubmit = (e) => {
-    e.preventDefault();
-    const q = customerSearch.trim().toLowerCase();
-    const matchItem = items.find(i => i.sku?.toLowerCase() === q || i.name.toLowerCase() === q);
-    if (matchItem) { setSelectedItemForModal(matchItem); setCustomerSearch(""); return; }
-    const matchCust = customers.find(c => c.code?.toLowerCase() === q || c.name?.toLowerCase().includes(q));
-    if (matchCust) { setAttachedCustomer(matchCust); setCustomerSearch(""); setIsCustListOpen(false); }
-  };
+  e.preventDefault();
+
+  const q = customerSearch.trim().toLowerCase();
+  if (!q) return;
+
+  // MENU ITEM MATCH (barcode SKU or name)
+  const matchItem = items.find(
+    (i) => i.sku?.toLowerCase() === q || i.name?.toLowerCase() === q
+  );
+
+  if (matchItem) {
+    setSelectedItemForModal(matchItem);
+    setCustomerSearch("");
+    return;
+  }
+
+  // CUSTOMER MATCH (exact customer_code OR name contains)
+  const matchCust = customers.find(
+    (c) =>
+      c.code?.toLowerCase() === q ||               // <-- customer_code
+      c.name?.toLowerCase().includes(q)
+  );
+
+  if (matchCust) {
+    setAttachedCustomer(matchCust);
+    setCustomerSearch("");
+    setIsCustListOpen(false);
+  }
+};
 
   // 3. SAVE TICKET (PARK) LOGIC
   const handleSaveTicket = async () => {
@@ -346,7 +368,7 @@ export default function POSPage() {
             {isCustListOpen && customerSearch.length > 0 && (
               <div className="absolute top-[135px] left-4 right-4 bg-white border border-slate-100 rounded-xl shadow-2xl z-50 max-h-40 overflow-y-auto divide-y divide-slate-50">
                 {customers
-                  .filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase()))
+                  .filter(c => c.name?.toLowerCase().includes(customerSearch.toLowerCase()))
                   .map(c => (
                     <button
                       key={c.id}
