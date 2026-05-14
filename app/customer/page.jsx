@@ -370,16 +370,16 @@ function LoyaltyTab({ member, setMember, user }) {
  
 
     {/* BOTTOM SECTION: Barcode Box + Loyalty Rules */}
-    <div className="flex items-end justify-between w-full h-[50%]">
+    <div className="flex items-end justify-between w-full h-[50%] mt-[10px]">
       
       {/* BARCODE BOX - Positioned over the white rectangle in the bg */}
-      <div className="w-[38%] h-full bg-white flex flex-col items-center justify-center rounded-lg shadow-sm p-1">
+      <div className="w-[70%] bg-white flex flex-col items-center justify-center rounded-lg shadow-sm p-2 relative top-[120px]">
         <Barcode 
           value={member["customer_code"] || "JUJA000000"} 
           background="transparent"
           lineColor="#003399" // Matches the blue in your screenshot
-          width={1.4}
-          height={45}
+          width={1.2}
+          height={60}
           displayValue={true}
           fontSize={14}
           margin={0}
