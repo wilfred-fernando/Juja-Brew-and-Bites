@@ -704,7 +704,7 @@ export default function BookingForm({ user, member }) {
 
                 {proofPreview && (
                   <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden">
-                    {proofPreview} alt="Payment proof preview" className="w-full object-cover" />
+                    <img src={proofPreview} alt="Payment proof preview" className="w-full object-cover" />
                   </div>
                 )}
               </div>
