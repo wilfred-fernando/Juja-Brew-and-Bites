@@ -3,21 +3,54 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-// Business rules
+/* =======================
+   Business Rules / Config
+======================= */
 const OPERATING_START_HOUR = 10; // 10AM
-const OPERATING_END_HOUR_NEXT_DAY = 2; // 2AM next day
-const BASE_DURATION_HOURS = 3; // booking is good for 3 hours 
-const MAX_EXTENSION_HOURS = 2; // max extension per guidelines 
-const MIN_ADVANCE_DAYS = 3; // reservation must be made at least 3 days in advance 
-// Deposit policy (2026 guideline mentions ₱1,000 non-refundable deposit) 
+const BASE_DURATION_HOURS = 3; // 3 hours rental duration [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[3](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+const BUFFER_HOURS = 1; // 1 hour gap before & after (your rule)
+const MAX_EXTENSION_HOURS = 2; // max extension 2 hours [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[3](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+const MIN_ADVANCE_DAYS = 3; // reservation must be made at least 3 days in advance [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[3](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+
+// Deposit policy (VIP Guidelines_2026 mentions ₱1,000 non-refundable deposit) [3](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
 const DEPOSIT_AMOUNT = 1000;
 
-// Put your QR image into: public/images/gcash-qr.jpg
-// You have the QR file available as 
+// Put QR image here (use your file Gcash QR.jpg -> save as public/images/gcash-qr.jpg) [2](https://onedrive.live.com/?id=03dd12cf-433c-4f31-8310-7768b023f9b7&cid=933e55cc8541ec41&web=1)
+const QR_IMAGE_PATH = "/images/gcash-qr.jpg";
 
-// Admin notification target
+// Optional admin notification target (only used if you implement /api/booking-notify)
 const ADMIN_EMAIL = "booking@jujabrewandbites.com";
 
+/* =========================================
+   Extracted Function Room Guidelines (No Links)
+   Sources: Function Room Guidelines + VIP docs
+========================================= */
+const FUNCTION_ROOM_GUIDELINES = {
+  reservation_policy: [
+    "Reservation must be made at least 3 days in advance.",
+    "Advance order is required for food selection.",
+    "Reservation is subject to availability.",
+    "Deposit is required to confirm the booking (policy may vary by guideline version).",
+  ],
+  room_usage: [
+    "Rental duration is 3 hours.",
+    "Extension is allowed with a maximum of 2 hours (rates depend on package).",
+  ],
+  rebooking_cancellation: [
+    "Reservation fee/deposit is non-refundable.",
+    "Rebooking is allowed at least 2 days before the original booking date, subject to availability.",
+    "No-show will forfeit the deposit (per guidelines).",
+  ],
+  conduct_liability: [
+    "Guests must behave respectfully and follow house rules.",
+    "Smoking, vaping, and illegal substances are prohibited.",
+    "Guests are responsible for any damages to the property or equipment during rental.",
+  ],
+}; // [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[3](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+
+/* =======================
+   Helpers
+======================= */
 function toISODate(d) {
   return d.toISOString().split("T")[0];
 }
@@ -29,7 +62,7 @@ function addDays(date, days) {
 }
 
 function buildSlotHours() {
-  // 10..23 plus 24..25 (12AM, 1AM next day)
+  // Hours for a "business date": 10..23 plus 24..25 (12AM, 1AM next day)
   const hours = [];
   for (let h = OPERATING_START_HOUR; h <= 23; h++) hours.push(h);
   hours.push(24, 25);
@@ -60,20 +93,25 @@ function intersects(aStart, aEnd, bStart, bEnd) {
   return aStart < bEnd && aEnd > bStart;
 }
 
+/* =======================
+   Component
+======================= */
 export default function BookingForm({ user, member }) {
   const [tab, setTab] = useState("availability"); // availability | packages | book
 
   const [packages, setPackages] = useState([]);
   const [loadingPackages, setLoadingPackages] = useState(true);
 
-  const [dateISO, setDateISO] = useState(() => toISODate(addDays(new Date(), MIN_ADVANCE_DAYS)));
+  const [dateISO, setDateISO] = useState(() =>
+    toISODate(addDays(new Date(), MIN_ADVANCE_DAYS))
+  );
   const [bookings, setBookings] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
 
   const [selectedHour, setSelectedHour] = useState(null);
   const [notice, setNotice] = useState(null);
 
-  // Package full-details modal
+  // Package Full Details modal
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsPkg, setDetailsPkg] = useState(null);
 
@@ -91,11 +129,11 @@ export default function BookingForm({ user, member }) {
     email: "",
     guest_count: 1,
     package_id: "",
-    extend: "no", // yes/no
+    extend: "no",
     extension_hours: 0,
   });
 
-  // Autofill from profile
+  // Autofill from profile / auth user
   useEffect(() => {
     setForm((f) => ({
       ...f,
@@ -105,7 +143,7 @@ export default function BookingForm({ user, member }) {
     }));
   }, [member, user]);
 
-  // Load packages from Supabase table
+  // Load packages
   useEffect(() => {
     async function fetchPackages() {
       setLoadingPackages(true);
@@ -130,7 +168,7 @@ export default function BookingForm({ user, member }) {
     [packages, form.package_id]
   );
 
-  // Load bookings for selected business date window (10AM to 2AM next day)
+  // Load bookings (pending/confirmed) for the date window (10AM to 2AM next day)
   useEffect(() => {
     async function fetchBookingsForDate() {
       setLoadingBookings(true);
@@ -139,8 +177,12 @@ export default function BookingForm({ user, member }) {
       const dayStart = computeDateTime(dateISO, OPERATING_START_HOUR);
       const dayEnd = computeDateTime(dateISO, 26); // 2AM next day
 
-      const queryStart = new Date(dayStart.getTime() - BUFFER_HOURS * 3600 * 1000).toISOString();
-      const queryEnd = new Date(dayEnd.getTime() + BUFFER_HOURS * 3600 * 1000).toISOString();
+      const queryStart = new Date(
+        dayStart.getTime() - BUFFER_HOURS * 3600 * 1000
+      ).toISOString();
+      const queryEnd = new Date(
+        dayEnd.getTime() + BUFFER_HOURS * 3600 * 1000
+      ).toISOString();
 
       const { data, error } = await supabase
         .from("function_room_bookings")
@@ -165,7 +207,7 @@ export default function BookingForm({ user, member }) {
 
   const slotHours = useMemo(() => buildSlotHours(), []);
 
-  // Compute availability (client-side). DB should still enforce no overlap.
+  // Availability calculation with 1-hour buffer before and after each booking
   const availability = useMemo(() => {
     const ext = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
     const totalHours = BASE_DURATION_HOURS + ext;
@@ -177,16 +219,21 @@ export default function BookingForm({ user, member }) {
       const operatingEnd = computeDateTime(dateISO, 26); // 2AM next day
       const withinOperating = end <= operatingEnd;
 
-      // buffer window
-      const blockedStart = new Date(start.getTime() - BUFFER_HOURS * 3600 * 1000);
+      const blockedStart = new Date(
+        start.getTime() - BUFFER_HOURS * 3600 * 1000
+      );
       const blockedEnd = new Date(end.getTime() + BUFFER_HOURS * 3600 * 1000);
 
       const hasConflict = bookings.some((b) => {
         const bStart = new Date(b.start_at);
         const bEnd = new Date(b.end_at);
 
-        const bBlockedStart = new Date(bStart.getTime() - BUFFER_HOURS * 3600 * 1000);
-        const bBlockedEnd = new Date(bEnd.getTime() + BUFFER_HOURS * 3600 * 1000);
+        const bBlockedStart = new Date(
+          bStart.getTime() - BUFFER_HOURS * 3600 * 1000
+        );
+        const bBlockedEnd = new Date(
+          bEnd.getTime() + BUFFER_HOURS * 3600 * 1000
+        );
 
         return intersects(blockedStart, blockedEnd, bBlockedStart, bBlockedEnd);
       });
@@ -202,9 +249,10 @@ export default function BookingForm({ user, member }) {
   function validateBookingInputs() {
     setNotice(null);
 
-    // Enforce 3 days advance (per guidelines) 
     const minDate = toISODate(addDays(new Date(), MIN_ADVANCE_DAYS));
-    if (dateISO < minDate) return `Booking must be at least ${MIN_ADVANCE_DAYS} days in advance.`;
+    if (dateISO < minDate) {
+      return `Booking must be at least ${MIN_ADVANCE_DAYS} days in advance.`;
+    }
 
     if (!form.name.trim()) return "Name is required.";
     if (!form.event_type.trim()) return "Event type is required.";
@@ -217,7 +265,9 @@ export default function BookingForm({ user, member }) {
     const guests = Number(form.guest_count || 0);
     if (!guests || guests < 1) return "No. of guests must be at least 1.";
 
-    const extensionHours = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
+    const extensionHours =
+      form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
+
     if (extensionHours < 0 || extensionHours > MAX_EXTENSION_HOURS) {
       return `Extension must be 0–${MAX_EXTENSION_HOURS} hours.`;
     }
@@ -231,7 +281,7 @@ export default function BookingForm({ user, member }) {
     setNotice(null);
   }
 
-  // Image preview for proof
+  // Proof preview
   useEffect(() => {
     if (!proofFile) {
       setProofPreview(null);
@@ -265,18 +315,20 @@ export default function BookingForm({ user, member }) {
       return;
     }
 
-    const extensionHours = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
+    const extensionHours =
+      form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
+
     const start = computeDateTime(dateISO, selectedHour);
 
     setSubmitting(true);
     setNotice(null);
 
     try {
-      // 1) Upload screenshot proof to Supabase Storage bucket: booking_proofs
-      const ext = (proofFile.name.split(".").pop() || "jpg").toLowerCase();
+      // 1) Upload proof to Supabase Storage bucket: booking_proofs
+      const fileExt = (proofFile.name.split(".").pop() || "jpg").toLowerCase();
       const path = `${user?.id || "guest"}/${Date.now()}_${Math.random()
         .toString(16)
-        .slice(2)}.${ext}`;
+        .slice(2)}.${fileExt}`;
 
       const { data: uploadData, error: uploadErr } = await supabase.storage
         .from("booking_proofs")
@@ -288,7 +340,10 @@ export default function BookingForm({ user, member }) {
 
       if (uploadErr) throw uploadErr;
 
-      const { data: pub } = supabase.storage.from("booking_proofs").getPublicUrl(uploadData.path);
+      const { data: pub } = supabase.storage
+        .from("booking_proofs")
+        .getPublicUrl(uploadData.path);
+
       const proofUrl = pub?.publicUrl || null;
 
       // 2) Insert booking
@@ -309,7 +364,6 @@ export default function BookingForm({ user, member }) {
         contact_number: form.contact_number.trim(),
         email: form.email.trim(),
 
-        // payment
         deposit_amount: DEPOSIT_AMOUNT,
         payment_status: "submitted",
         payment_proof_url: proofUrl,
@@ -325,7 +379,7 @@ export default function BookingForm({ user, member }) {
 
       if (bookErr) throw bookErr;
 
-      // 3) Optional: notify admin via server route (doesn't affect build)
+      // 3) Optional admin notify endpoint (implement separately if you want)
       try {
         await fetch("/api/booking-notify", {
           method: "POST",
@@ -370,11 +424,12 @@ export default function BookingForm({ user, member }) {
           Function Room Booking
         </h2>
         <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">
-          Booking is <b>{BASE_DURATION_HOURS} hours</b> + optional extension (max {MAX_EXTENSION_HOURS} hours).
+          Booking is <b>{BASE_DURATION_HOURS} hours</b> + optional extension (max{" "}
+          {MAX_EXTENSION_HOURS} hours). [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[3](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
         </p>
       </div>
 
-      {/* Sub Tabs */}
+      {/* Tabs */}
       <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
         {[
           { id: "availability", label: "Check Availability" },
@@ -401,12 +456,14 @@ export default function BookingForm({ user, member }) {
         </div>
       )}
 
-      {/* AVAILABILITY */}
+      {/* Availability */}
       {tab === "availability" && (
         <div className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6 space-y-4">
           <div className="flex items-end justify-between gap-4 flex-wrap">
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-slate-400">Select Date</p>
+              <p className="text-[10px] uppercase tracking-widest text-slate-400">
+                Select Date
+              </p>
               <input
                 type="date"
                 value={dateISO}
@@ -415,12 +472,14 @@ export default function BookingForm({ user, member }) {
                 className="mt-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm"
               />
               <p className="text-[10px] text-slate-400 mt-1">
-                Must be at least {MIN_ADVANCE_DAYS} days in advance.
+                Must be at least {MIN_ADVANCE_DAYS} days in advance. [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[3](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
               </p>
             </div>
 
             <div className="text-right">
-              <p className="text-[10px] uppercase tracking-widest text-slate-400">Extension</p>
+              <p className="text-[10px] uppercase tracking-widest text-slate-400">
+                Extension
+              </p>
               <div className="mt-2 flex items-center gap-2 justify-end">
                 <select
                   value={form.extend}
@@ -439,24 +498,23 @@ export default function BookingForm({ user, member }) {
 
                 <select
                   value={form.extension_hours}
-                  onChange={(e) => setForm((f) => ({ ...f, extension_hours: Number(e.target.value) }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, extension_hours: Number(e.target.value) }))
+                  }
                   disabled={form.extend !== "yes"}
                   className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm disabled:opacity-50"
                 >
                   <option value={0}>0 hr</option>
                   <option value={1}>1 hr</option>
                   <option value={2}>2 hr</option>
-                  <option value={3}>3 hr</option>  
-                  <option value={4}>4 hr</option>
-                  <option value={5}>5 hr</option>
                 </select>
               </div>
             </div>
           </div>
 
           <div className="text-[11px] text-slate-500">
-            Operating hours: <b>10:00 AM – 2:00 AM</b> (next day). 
-            Buffer rule: <b>1 hour</b> before &amp; after.
+            Operating hours: <b>10:00 AM – 2:00 AM</b> (next day). Buffer rule:{" "}
+            <b>1 hour</b> before &amp; after.
           </div>
 
           {loadingBookings ? (
@@ -477,7 +535,9 @@ export default function BookingForm({ user, member }) {
                   disabled={!s.available}
                 >
                   <p className="text-[11px] font-semibold text-slate-800">{s.label}</p>
-                  <p className="text-[10px] text-slate-400 mt-1">{s.available ? "Available" : "Unavailable"}</p>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    {s.available ? "Available" : "Unavailable"}
+                  </p>
                 </button>
               ))}
             </div>
@@ -485,7 +545,7 @@ export default function BookingForm({ user, member }) {
         </div>
       )}
 
-      {/* PACKAGES */}
+      {/* Packages */}
       {tab === "packages" && (
         <div className="space-y-3">
           {loadingPackages ? (
@@ -500,12 +560,15 @@ export default function BookingForm({ user, member }) {
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-[12px] uppercase tracking-widest text-slate-400">{p.name}</p>
+                    <p className="text-[12px] uppercase tracking-widest text-slate-400">
+                      {p.name}
+                    </p>
                     <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">
                       ₱{Number(p.rental_fee).toLocaleString()} / 3 hours
                     </h3>
                     <p className="text-[11px] text-slate-500 mt-2">
-                      Capacity up to {p.capacity} guests • Extension max {p.extension_max_hours ?? 2} hours [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+                      Capacity up to {p.capacity} guests • Extension max{" "}
+                      {p.extension_max_hours ?? 2} hours [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[3](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
                     </p>
                   </div>
 
@@ -535,7 +598,9 @@ export default function BookingForm({ user, member }) {
                 </div>
 
                 {p.inclusions && (
-                  <p className="text-[12px] text-slate-700 mt-3 leading-relaxed">{p.inclusions}</p>
+                  <p className="text-[12px] text-slate-700 mt-3 leading-relaxed">
+                    {p.inclusions}
+                  </p>
                 )}
               </div>
             ))
@@ -543,14 +608,15 @@ export default function BookingForm({ user, member }) {
         </div>
       )}
 
-      {/* BOOK NOW */}
+      {/* Book Now */}
       {tab === "book" && (
         <div className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6 space-y-4">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <p className="text-[10px] uppercase tracking-widest text-slate-400">Selected</p>
               <p className="text-[12px] text-slate-800 mt-1">
-                Date: <b>{dateISO}</b> • Time: <b>{selectedHour != null ? labelHour(selectedHour) : "Not selected"}</b>
+                Date: <b>{dateISO}</b> • Time:{" "}
+                <b>{selectedHour != null ? labelHour(selectedHour) : "Not selected"}</b>
               </p>
               <p className="text-[11px] text-slate-500 mt-1">
                 Duration: {BASE_DURATION_HOURS} hours
@@ -568,7 +634,6 @@ export default function BookingForm({ user, member }) {
             </button>
           </div>
 
-          {/* Package */}
           <div>
             <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
               Package Selection
@@ -591,7 +656,6 @@ export default function BookingForm({ user, member }) {
             )}
           </div>
 
-          {/* Fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {[
               ["name", "Name", "text", "Full name"],
@@ -600,7 +664,9 @@ export default function BookingForm({ user, member }) {
               ["email", "Email Address", "email", "name@email.com"],
             ].map(([key, lbl, type, ph]) => (
               <div key={key}>
-                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">{lbl}</label>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
+                  {lbl}
+                </label>
                 <input
                   type={type}
                   value={form[key] ?? ""}
@@ -640,6 +706,7 @@ export default function BookingForm({ user, member }) {
                 >
                   No
                 </button>
+
                 <button
                   type="button"
                   onClick={() => setForm((f) => ({ ...f, extend: "yes", extension_hours: f.extension_hours || 1 }))}
@@ -663,9 +730,6 @@ export default function BookingForm({ user, member }) {
                   <option value={2}>2 hr</option>
                 </select>
               </div>
-              <p className="text-[11px] text-slate-500 mt-2">
-                Extension maximum is {MAX_EXTENSION_HOURS} hours. [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
-              </p>
             </div>
           </div>
 
@@ -679,7 +743,7 @@ export default function BookingForm({ user, member }) {
         </div>
       )}
 
-      {/* FULL DETAILS MODAL */}
+      {/* Full Details Modal */}
       {detailsOpen && detailsPkg && (
         <div
           className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
@@ -696,7 +760,7 @@ export default function BookingForm({ user, member }) {
                   {detailsPkg.name}
                 </h3>
                 <p className="text-[12px] text-slate-600 mt-1">
-                  ₱{Number(detailsPkg.rental_fee).toLocaleString()} • 3 hours • Capacity up to {detailsPkg.capacity} guests [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+                  ₱{Number(detailsPkg.rental_fee).toLocaleString()} • 3 hours • Capacity up to {detailsPkg.capacity} guests [1](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[3](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
                 </p>
               </div>
 
@@ -710,33 +774,55 @@ export default function BookingForm({ user, member }) {
             </div>
 
             <div className="space-y-4">
+              {/* Package inclusions */}
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
                 <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Inclusions</p>
                 <p className="text-[13px] text-slate-700 leading-relaxed">{detailsPkg.inclusions || "—"}</p>
-
-                {detailsPkg.included_food_value != null && (
-                  <p className="text-[12px] text-slate-600 mt-2">
-                    Includes food &amp; drinks worth ₱{Number(detailsPkg.included_food_value).toLocaleString()} [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)
-                  </p>
-                )}
               </div>
 
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Extension</p>
-                <p className="text-[12px] text-slate-700">
-                  Maximum extension: <b>{detailsPkg.extension_max_hours ?? 2} hours</b> [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+              {/* Extracted guidelines (no links) */}
+              <div className="bg-white border border-rose-100 rounded-2xl p-4">
+                <p className="text-[10px] uppercase tracking-widest text-rose-600 mb-2">
+                  Function Room Guidelines
                 </p>
-                {detailsPkg.extension_option1 && <p className="text-[12px] text-slate-700 mt-2">⏱ {detailsPkg.extension_option1} [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)</p>}
-                {detailsPkg.extension_option2 && <p className="text-[12px] text-slate-700 mt-1">⏱ {detailsPkg.extension_option2} [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)</p>}
-              </div>
 
-              <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4">
-                <p className="text-[10px] uppercase tracking-widest text-rose-600 mb-2">Key Policies</p>
-                <ul className="space-y-2 text-[12px] text-slate-700 leading-relaxed">
-                  <li>• Reservation must be made at least <b>3 days</b> in advance. [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)</li>
-                  <li>• Booking duration is <b>3 hours</b>. [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)</li>
-                  <li>• Deposit required (₱1,000 non-refundable per 2026 guideline). [1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)</li>
-                </ul>
+                <div className="space-y-3 text-[12px] text-slate-700 leading-relaxed">
+                  <div>
+                    <p className="font-semibold text-slate-800">Reservation Policy</p>
+                    <ul className="mt-1 space-y-1">
+                      {FUNCTION_ROOM_GUIDELINES.reservation_policy.map((t) => (
+                        <li key={t}>• {t}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-slate-800">Room Usage</p>
+                    <ul className="mt-1 space-y-1">
+                      {FUNCTION_ROOM_GUIDELINES.room_usage.map((t) => (
+                        <li key={t}>• {t}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-slate-800">Rebooking &amp; Cancellations</p>
+                    <ul className="mt-1 space-y-1">
+                      {FUNCTION_ROOM_GUIDELINES.rebooking_cancellation.map((t) => (
+                        <li key={t}>• {t}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-slate-800">Conduct &amp; Liability</p>
+                    <ul className="mt-1 space-y-1">
+                      {FUNCTION_ROOM_GUIDELINES.conduct_liability.map((t) => (
+                        <li key={t}>• {t}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
               </div>
 
               <div className="flex gap-2 pt-2">
@@ -765,7 +851,7 @@ export default function BookingForm({ user, member }) {
         </div>
       )}
 
-      {/* PAYMENT POPUP MODAL */}
+      {/* Payment Popup Modal */}
       {payOpen && (
         <div
           className="fixed inset-0 z-[95] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
@@ -790,7 +876,8 @@ export default function BookingForm({ user, member }) {
 
             <div className="space-y-4 text-slate-700">
               <p className="text-sm leading-relaxed">
-                To secure your booking, a <b>₱{DEPOSIT_AMOUNT.toLocaleString()}</b> non-refundable fee is required. [1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+                To secure your booking, a{" "}
+                <b>₱{DEPOSIT_AMOUNT.toLocaleString()}</b> non-refundable fee is required. [3](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
               </p>
 
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
@@ -802,9 +889,6 @@ export default function BookingForm({ user, member }) {
                   alt="Payment QR Code"
                   className="w-full max-w-[320px] mx-auto rounded-xl border border-slate-200 bg-white"
                 />
-                <p className="text-[10px] text-slate-400 mt-2">
-                  QR source file available as [Gcash QR.jpg](https://onedrive.live.com/?id=03dd12cf-433c-4f31-8310-7768b023f9b7&cid=933e55cc8541ec41&web=1&EntityRepresentationId=0a342549-72a5-436e-a307-f4de0c1be808). [2](https://onedrive.live.com/?id=03dd12cf-433c-4f31-8310-7768b023f9b7&cid=933e55cc8541ec41&web=1)
-                </p>
               </div>
 
               <div className="bg-white border border-slate-200 rounded-2xl p-4">
@@ -821,7 +905,6 @@ export default function BookingForm({ user, member }) {
 
                 {proofPreview && (
                   <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden">
-                    {/* ✅ THIS FIXES YOUR BUILD ERROR: proper img tag */}
                     <img
                       src={proofPreview}
                       alt="Payment proof preview"
@@ -829,19 +912,19 @@ export default function BookingForm({ user, member }) {
                     />
                   </div>
                 )}
+
+                <button
+                  onClick={handleSubmitProof}
+                  disabled={submitting}
+                  className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-normal text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-rose-500 active:scale-95 disabled:opacity-60"
+                >
+                  {submitting ? "Submitting…" : "Submit Proof & Confirm Booking"}
+                </button>
+
+                <p className="text-[10px] text-slate-400">
+                  Payment proof will be stored. Admin notification is optional via `/api/booking-notify`.
+                </p>
               </div>
-
-              <button
-                onClick={confirmPaymentAndSubmit}
-                disabled={submitting}
-                className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-normal text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-rose-500 active:scale-95 disabled:opacity-60"
-              >
-                {submitting ? "Submitting…" : "Submit Proof & Confirm Booking"}
-              </button>
-
-              <p className="text-[10px] text-slate-400">
-                Payment proof will be stored and an admin notification can be sent automatically.
-              </p>
             </div>
           </div>
         </div>
