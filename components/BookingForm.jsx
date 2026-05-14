@@ -913,7 +913,7 @@ export default function BookingForm({ user, member }) {
                   </div>
 
                   <div className="bg-white border border-slate-200 rounded-2xl p-4">
-                    <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">2. Room Usage</p>
+                    <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">1. Room Usage</p>
                     <ul className="space-y-2 text-[12px] text-slate-700 leading-relaxed">
                       <li>• {policy.room_usage.capacity}</li>
                       <li>• {policy.room_usage.additional_guests}</li>
@@ -926,7 +926,7 @@ export default function BookingForm({ user, member }) {
 
                   <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
                     <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">
-                      3. Rental Fees &amp; Inclusions
+                      2. Rental Fees &amp; Inclusions
                     </p>
                     <p className="text-[12px] text-slate-700 mb-3">• {rfi.rental_fee}</p>
 
@@ -953,7 +953,7 @@ export default function BookingForm({ user, member }) {
 
                   <div className="bg-white border border-rose-200 rounded-2xl p-4">
                     <p className="text-[10px] uppercase tracking-widest text-rose-600 mb-2">
-                      5. Food &amp; Beverages
+                      3. Food &amp; Beverages
                     </p>
                     <p className="text-[12px] text-slate-700 mb-2">• {policy.food_beverages.policy}</p>
 
