@@ -155,44 +155,48 @@ function HomeTab({ member, user, setTab }) {
       </div>
 
       {/* Quick Action Grid */}
-      <div className="grid grid-cols-2 gap-3 md:gap-4">
-        {[
-          { icon: "🛍️", label: "Order Food", sub: "Browse menu", tab: "order" },
-          { icon: "⭐", label: "Loyalty", sub: "Rewards", tab: "loyalty" },
-          { icon: "🎪", label: "Book Room", sub: "Function room", tab: "booking" },
-          { icon: "🎁", label: "Promos", sub: "Deals & offers", href: "/promo" },
-        ].map((c) =>
-          c.href ? (
-            <Link
-              key={c.label}
-              href={c.href}
-              className="bg-white rounded-xl md:rounded-[24px] p-4 md:p-5 border border-rose-50 shadow-sm hover:shadow-md active:      </div>
-              <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">
-                {c.label}
-              </p>
-              <p className="text-slate-400 text-[9px] md:text-[11px] font-normal uppercase tracking-widest mt-0.5">
-                {c.sub}
-              </p>
-            </Link>
-          ) : (
-            <button
-              key={c.label}
-              onClick={() => setTab(c.tab)}
-              className="bg-white rounded-xl md:rounded-[24px] p-4 md:p-5 border border-rose-50 shadow-sm text-left hover:shadow-md active:scale-95 transition-all duration-300"
-            >
-              <div className="text-2xl md:text-3xl mb-2 md:mb-3 bg-rose-50 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-[#FC687D]">
-                {c.icon}
-              </div>
-              <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">
-                {c.label}
-              </p>
-              <p className="text-slate-400 text-[9px] md:text-[11px] font-normal uppercase tracking-widest mt-0.5">
-                {c.sub}
-              </p>
-            </button>
-          )
-        )}
-      </div>
+        <div className="grid grid-cols-2 gap-3 md:gap-4">
+          {[
+            { icon: "🛍️", label: "Order Food", sub: "Browse menu", tab: "order" },
+            { icon: "⭐", label: "Loyalty", sub: "Rewards", tab: "loyalty" },
+            { icon: "🎪", label: "Book Room", sub: "Function room", tab: "booking" },
+            { icon: "🎁", label: "Promos", sub: "Deals & offers", href: "/promo" },
+          ].map((c) =>
+            c.href ? (
+              <Link
+                key={c.label}
+                href={c.href}
+                className="bg-white rounded-xl md:rounded-[24px] p-4 md:p-5 border border-rose-50 shadow-sm hover:shadow-md active:scale-95 transition-all duration-300"
+              >
+                <div className="text-2xl md:text-3xl mb-2 md:mb-3 bg-rose-50 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center">
+                  {c.icon}
+                </div>
+                <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">
+                  {c.label}
+                </p>
+                <p className="text-slate-400 text-[9px] md:text-[11px] font-normal uppercase tracking-widest mt-0.5">
+                  {c.sub}
+                </p>
+              </Link>
+            ) : (
+              <button
+                key={c.label}
+                onClick={() => setTab(c.tab)}
+                className="bg-white rounded-xl md:rounded-[24px] p-4 md:p-5 border border-rose-50 shadow-sm text-left hover:shadow-md active:scale-95 transition-all duration-300"
+              >
+                <div className="text-2xl md:text-3xl mb-2 md:mb-3 bg-rose-50 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-[#FC687D]">
+                  {c.icon}
+                </div>
+                <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">
+                  {c.label}
+                </p>
+                <p className="text-slate-400 text-[9px] md:text-[11px] font-normal uppercase tracking-widest mt-0.5">
+                  {c.sub}
+                </p>
+              </button>
+            )
+          )}
+        </div>
 
       {/* Store Info */}
       <div className="bg-white rounded-xl md:rounded-[24px] p-5 border border-rose-50 shadow-sm">
