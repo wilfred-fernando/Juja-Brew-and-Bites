@@ -680,7 +680,8 @@ export default function BookingForm({ user, member }) {
                         </p>
                       ) : (
                         <p className="text-[11px] text-slate-500 mt-2">
-                          Capacity up to {p.capacity} guests • <b>Room rental only</b>
+                          Capacity up to {p.capacity} guests
+                          <b>Room rental only</b>
                         </p>
                       )}
                     </div>
