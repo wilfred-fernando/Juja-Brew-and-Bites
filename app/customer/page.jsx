@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 
 import { supabase } from "@/lib/supabase";
 import BookingTab from "@/components/BookingForm";
-import nextDynamic from "next/dynamic";
 
-const Barcode = nextDynamic(() => import("react-barcode"), { ssr: false });
+const Barcode = dynamic(() => import("react-barcode"), { ssr: false });
 
 const LOGO =
   "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
@@ -46,7 +46,9 @@ function TabBar({ tab, setTab }) {
             key={t.id}
             onClick={() => setTab(t.id)}
             className={`relative flex flex-col items-center justify-center py-2.5 md:py-3 gap-0.5 md:gap-1 transition-all duration-300 active:scale-90 ${
-              tab === t.id ? "text-[#FC687D]" : "text-slate-400 hover:text-slate-600"
+              tab === t.id
+                ? "text-[#FC687D]"
+                : "text-slate-400 hover:text-slate-600"
             }`}
           >
             <span
@@ -99,7 +101,7 @@ function HomeTab({ member, user, setTab }) {
       address: "8 Visayas Ave., Diliman, QC",
       phone: "0961-6320909",
       hoursLabel: "STORE HOURS",
-      hours: ["MON - WED: 8AM – 10PM", "THU - SAT: 10AM – 10PM", "SUN: CLOSED"],
+      hours: ["Mon - Wed: 8AM – 10PM", "Thu - Sat: 10AM – 10PM", "Sun: CLOSED"],
       room: [],
     },
   };
@@ -112,7 +114,11 @@ function HomeTab({ member, user, setTab }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link href="/" className="active:scale-95 transition">
-            <img src={LOGO} alt="Juja" className="h-8 md:h-10 w-auto object-contain" />
+            <img
+              src={LOGO}
+              alt="Juja"
+              className="h-8 md:h-10 w-auto object-contain"
+            />
           </Link>
 
           <div className="leading-tight">
@@ -141,7 +147,9 @@ function HomeTab({ member, user, setTab }) {
             Welcome back 👋
           </p>
           <h2 className="text-2xl md:text-3xl font-normal text-slate-800 leading-tight mb-1 tracking-tight">
-            {member?.customer_name || user?.user_metadata?.full_name || "Coffee Lover"}
+            {member?.customer_name ||
+              user?.user_metadata?.full_name ||
+              "Coffee Lover"}
           </h2>
 
           {member?.customer_code && (
@@ -191,7 +199,9 @@ function HomeTab({ member, user, setTab }) {
               <div className="text-2xl md:text-3xl mb-2 md:mb-3 bg-rose-50 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center">
                 {c.icon}
               </div>
-              <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">{c.label}</p>
+              <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">
+                {c.label}
+              </p>
               <p className="text-slate-400 text-[9px] md:text-[11px] font-normal uppercase tracking-widest mt-0.5">
                 {c.sub}
               </p>
@@ -205,7 +215,9 @@ function HomeTab({ member, user, setTab }) {
               <div className="text-2xl md:text-3xl mb-2 md:mb-3 bg-rose-50 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-[#FC687D]">
                 {c.icon}
               </div>
-              <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">{c.label}</p>
+              <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">
+                {c.label}
+              </p>
               <p className="text-slate-400 text-[9px] md:text-[11px] font-normal uppercase tracking-widest mt-0.5">
                 {c.sub}
               </p>
@@ -214,7 +226,7 @@ function HomeTab({ member, user, setTab }) {
         )}
       </div>
 
-      {/* Visit Us */}
+      {/* Visit Us (Branch Buttons) */} {/* Branch info matches your existing site content. [2](https://onedrive.live.com/?id=af43a453-b117-4668-9f62-738214f89b46&cid=933e55cc8541ec41&web=1) */}
       <div className="bg-white rounded-xl md:rounded-[24px] p-5 border border-rose-50 shadow-sm">
         <p className="text-[9px] md:text-[10px] font-normal uppercase tracking-widest text-slate-400 mb-3">
           Visit Us
@@ -282,18 +294,14 @@ function HomeTab({ member, user, setTab }) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Order Tab (UPDATED: Search button + Category dropdown)
-   Uses menu_items + menu_categories like your admin menu pages. 
+   Order Tab
 ────────────────────────────────────────────────────────────── */
 function OrderTab() {
   const [items, setItems] = useState([]);
   const [cats, setCategories] = useState([]);
-  const [activeTab, setActiveTab] = useState("All");
+  const [activeTab, setActiveTab] = useState(null);
   const [cart, setCart] = useState({});
   const [loading, setLoading] = useState(true);
-
-  // ✅ New: search
-  const [search, setSearch] = useState("");
 
   useEffect(() => {
     async function fetchMenu() {
@@ -303,27 +311,16 @@ function OrderTab() {
       ]);
 
       if (itemRes.data) setItems(itemRes.data);
-      if (catRes.data) setCategories(catRes.data);
-
+      if (catRes.data) {
+        setCategories(catRes.data);
+        if (catRes.data.length > 0) setActiveTab(catRes.data[0].name);
+      }
       setLoading(false);
     }
     fetchMenu();
   }, []);
 
-  // ✅ New: filter by category + search
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-
-    return items.filter((i) => {
-      const matchesCat =
-        !activeTab || activeTab === "All" ? true : i.category === activeTab;
-
-      if (!q) return matchesCat;
-
-      const hay = `${i.name || ""} ${i.description || ""} ${i.category || ""}`.toLowerCase();
-      return matchesCat && hay.includes(q);
-    });
-  }, [items, activeTab, search]);
+  const filtered = items.filter((i) => i.category === activeTab);
 
   const add = (item) =>
     setCart((c) => ({
@@ -351,70 +348,22 @@ function OrderTab() {
 
   return (
     <div className="space-y-4 md:space-y-6 animate-in fade-in duration-500">
-      {/* ✅ Search + Category dropdown (replaces category pills) */}
-      <div className="space-y-2 -mx-4 px-4 sticky top-0 z-20 bg-[#FFF5F7] pt-1 pb-2">
-        <div className="flex gap-2">
-          <div className="flex-1 relative">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search menu…"
-              className="w-full bg-white border border-rose-100 rounded-xl px-4 py-2.5 text-sm pr-10"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 text-slate-500 active:scale-95"
-                aria-label="Clear search"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          {/* Search button (requested) */}
+      <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2 pt-1 -mx-4 px-4 sticky top-0 z-20 bg-[#FFF5F7]">
+        {cats.map((cat) => (
           <button
-            type="button"
-            onClick={() => document.activeElement?.blur?.()}
-            className="px-4 py-2.5 rounded-xl bg-[#FC687D] text-white text-[11px] uppercase tracking-widest active:scale-95 whitespace-nowrap"
+            key={cat.id}
+            onClick={() => setActiveTab(cat.name)}
+            className={`flex-shrink-0 px-4 md:px-5 py-2 md:py-2.5 rounded-xl text-[10px] md:text-[11px] font-normal uppercase tracking-widest transition-all duration-300 active:scale-95 shadow-sm border ${
+              activeTab === cat.name
+                ? "bg-[#FC687D] text-white border-[#FC687D]"
+                : "bg-white text-slate-500 border-rose-100"
+            }`}
           >
-            Search
+            {cat.name}
           </button>
-        </div>
-
-        <div className="flex gap-2">
-          <select
-            value={activeTab}
-            onChange={(e) => setActiveTab(e.target.value)}
-            className="w-full bg-white border border-rose-100 rounded-xl px-4 py-2.5 text-sm"
-          >
-            <option value="All">All Categories</option>
-            {cats.map((cat) => (
-              <option key={cat.id} value={cat.name}>
-                {cat.name}
-              </option>
-            ))}
-          </select>
-
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab("All");
-              setSearch("");
-            }}
-            className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 text-[11px] uppercase tracking-widest active:scale-95 whitespace-nowrap"
-          >
-            Reset
-          </button>
-        </div>
-
-        <p className="text-[10px] text-slate-400 uppercase tracking-widest">
-          Showing {filtered.length} item(s)
-        </p>
+        ))}
       </div>
 
-      {/* Items */}
       <div className="grid grid-cols-2 gap-3 md:gap-4 pb-10">
         {filtered.map((item) => {
           const inCart = cart[item.id]?.qty || 0;
@@ -482,7 +431,7 @@ function OrderTab() {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Loyalty Tab (Perks content per guidelines doc) [2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=9e94c0aa-6b3c-4b09-bfea-346df6f55b3c&cid=933e55cc8541ec41)
+   Loyalty Tab (Perks content matches your longer version) [1](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=eb4cb160-5ac1-4fd9-abe6-dc3829e3f276&cid=933e55cc8541ec41)
 ────────────────────────────────────────────────────────────── */
 function LoyaltyTab({ member, setMember, user }) {
   const [joining, setJoining] = useState(false);
@@ -668,7 +617,6 @@ function LoyaltyTab({ member, setMember, user }) {
         </p>
       </div>
 
-      {/* Loyalty Card */}
       <div className="relative w-full max-w-[600px] aspect-[16/9] rounded-3xl overflow-hidden shadow-2xl bg-white">
         <img
           src="/images/loyalty-card-bg.jpg"
@@ -694,7 +642,6 @@ function LoyaltyTab({ member, setMember, user }) {
         </div>
       </div>
 
-      {/* Premium Card */}
       <div
         className="rounded-2xl md:rounded-[32px] overflow-hidden shadow-[0_10px_30px_rgba(252,104,125,0.2)]"
         style={{ background: "linear-gradient(135deg, #FC687D 0%, #f43f5e 100%)" }}
@@ -748,7 +695,6 @@ function LoyaltyTab({ member, setMember, user }) {
         </div>
       </div>
 
-      {/* Points Progress */}
       <div className="bg-white rounded-xl md:rounded-[24px] p-5 md:p-6 border border-rose-50 shadow-sm">
         <div className="flex justify-between items-end mb-3">
           <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">Points Progress</p>
@@ -766,7 +712,6 @@ function LoyaltyTab({ member, setMember, user }) {
         </p>
       </div>
 
-      {/* Vouchers */}
       <div className="bg-white rounded-xl md:rounded-[24px] p-5 md:p-6 border border-rose-50 shadow-sm">
         <div className="flex items-end justify-between mb-3">
           <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">Your Vouchers</p>
@@ -809,7 +754,71 @@ function LoyaltyTab({ member, setMember, user }) {
         )}
       </div>
 
-      {/* Perks Modal (Full content) */}
+      {/* Edit Modal */}
+      {editing && (
+        <div
+          className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
+          onClick={() => setEditing(false)}
+        >
+          <div
+            className="w-full max-w-md mx-auto bg-white rounded-t-[24px] md:rounded-[32px] p-5 md:p-8 pb-8 md:pb-12 max-h-[90vh] overflow-y-auto shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-xl md:text-2xl font-normal text-slate-800 tracking-tight">
+                Edit Profile
+              </h3>
+              <button
+                onClick={() => setEditing(false)}
+                className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={saveEdit} className="space-y-4">
+              {[
+                ["customer_name", "Full Name", "text", "Your full name"],
+                ["Phone", "Phone Number", "tel", "09XX XXX XXXX"],
+                ["City", "City", "text", "e.g. QC"],
+                ["Note", "Birthday (YYYY-MM-DD)", "text", "1995-12-25"],
+              ].map(([key, lbl, type, ph]) => (
+                <div key={key}>
+                  <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
+                    {lbl}
+                  </label>
+                  <input
+                    type={type}
+                    value={form[key] ?? ""}
+                    placeholder={ph}
+                    onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs md:text-sm font-semibold text-slate-800 focus:outline-none focus:border-[#FC687D] focus:bg-white focus:ring-1 focus:ring-rose-100 transition-all"
+                  />
+                </div>
+              ))}
+
+              <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditing(false)}
+                  className="w-full py-3 rounded-xl bg-white border border-slate-200 text-slate-500 uppercase tracking-widest text-[10px] hover:bg-slate-50 active:scale-95"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="w-full py-3 rounded-xl bg-[#FC687D] text-white uppercase tracking-widest text-[10px] hover:bg-rose-500 active:scale-95 disabled:opacity-70"
+                >
+                  {saving ? "Saving…" : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Perks Modal (FULL content) — matches your long perks text [1](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=eb4cb160-5ac1-4fd9-abe6-dc3829e3f276&cid=933e55cc8541ec41) */}
       {showPerks && (
         <div
           className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
@@ -820,7 +829,9 @@ function LoyaltyTab({ member, setMember, user }) {
             className="w-full max-w-2xl bg-white rounded-t-[28px] md:rounded-[32px] p-6 md:p-8 max-h-[90vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl md:text-2xl font-normal text-slate-800">Perks</h3>
+              <h3 className="text-xl md:text-2xl font-normal text-slate-800">
+                Perks
+              </h3>
               <button
                 onClick={() => setShowPerks(false)}
                 className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
@@ -941,7 +952,9 @@ function ProfileTab({ user, onLogout }) {
             👤
           </div>
           <div>
-            <p className="font-normal text-slate-800 text-base md:text-lg">{user?.email}</p>
+            <p className="font-normal text-slate-800 text-base md:text-lg">
+              {user?.email}
+            </p>
             <p className="text-slate-400 text-[9px] md:text-[10px] font-normal uppercase tracking-widest">
               Juja Member
             </p>
@@ -1045,4 +1058,3 @@ export default function Customer() {
     </div>
   );
 }
-``
