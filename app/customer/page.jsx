@@ -349,7 +349,7 @@ function LoyaltyTab({ member, setMember, user }) {
   return (
     <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
-        <h2 className="text-2xl md:text-[28px] font-normal text-slate-800 tracking-tight">Juja Loyalty Card</h2>
+        <h2 className="text-2xl md:text-[28px] font-normal text-slate-800 tracking-tight">Juja Loyalty Dashboard</h2>
         <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">Digital Rewards Member</p>
       </div>
 
@@ -373,7 +373,7 @@ function LoyaltyTab({ member, setMember, user }) {
     <div className="flex items-end justify-between w-full h-[50%] mt-[10px]">
       
       {/* BARCODE BOX - Positioned over the white rectangle in the bg */}
-      <div className="w-[70%] bg-white flex flex-col items-center justify-center rounded-lg shadow-sm p-2 relative top-[100px]">
+      <div className="w-[80%] bg-white flex flex-col items-center justify-center rounded-lg shadow-sm p-2 relative top-[100px]">
         <Barcode 
           value={member["customer_code"] || "JUJA000000"} 
           background="transparent"
