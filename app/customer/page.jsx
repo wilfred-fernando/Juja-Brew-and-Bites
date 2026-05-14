@@ -81,13 +81,19 @@ function HomeTab({ member, user, setTab }) {
 
   return (
     <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Logo (header removed, so show a simple top brand block) */}
+      {/* Logo / brand block (header removed) */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <img
-            src={LOGO}
-            alt="Juja"
-            className="h-8 md:h0px] md:text-[11px] uppercase tracking-widest text-slate-400">
+          <Link href="/" className="active:scale-95 transition">
+            <img
+              src={LOGO}
+              alt="Juja"
+              className="h-8 md:h-10 w-auto object-contain"
+            />
+          </Link>
+
+          <div className="leading-tight">
+            <p className="text-[10px] md:text-[11px] uppercase tracking-widest text-slate-400">
               Juja Brew &amp; Bites
             </p>
             <p className="text-[12px] md:text-[13px] text-slate-600 font-semibold">
@@ -96,6 +102,7 @@ function HomeTab({ member, user, setTab }) {
           </div>
         </div>
       </div>
+
 
       {/* Hero Welcome Card */}
       <div className="bg-white rounded-2xl md:rounded-[32px] p-5 md:p-6 border border-rose-100 shadow-[0_4px_20px_rgba(252,104,125,0.06)] relative overflow-hidden">
