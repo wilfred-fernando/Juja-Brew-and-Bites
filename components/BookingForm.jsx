@@ -6,17 +6,14 @@ import { supabase } from "@/lib/supabase";
 // Business rules
 const OPERATING_START_HOUR = 10; // 10AM
 const OPERATING_END_HOUR_NEXT_DAY = 2; // 2AM next day
-const BASE_DURATION_HOURS = 3; // booking is good for 3 hours [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
-const BUFFER_HOURS = 1; // 1 hour gap before and after (your rule)
-const MAX_EXTENSION_HOURS = 2; // max extension per guidelines [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
-const MIN_ADVANCE_DAYS = 3; // reservation must be made at least 3 days in advance [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
-
-// Deposit policy (2026 guideline mentions ₱1,000 non-refundable deposit) [1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+const BASE_DURATION_HOURS = 3; // booking is good for 3 hours 
+const MAX_EXTENSION_HOURS = 2; // max extension per guidelines 
+const MIN_ADVANCE_DAYS = 3; // reservation must be made at least 3 days in advance 
+// Deposit policy (2026 guideline mentions ₱1,000 non-refundable deposit) 
 const DEPOSIT_AMOUNT = 1000;
 
 // Put your QR image into: public/images/gcash-qr.jpg
-// You have the QR file available as [Gcash QR.jpg](https://onedrive.live.com/?id=03dd12cf-433c-4f31-8310-7768b023f9b7&cid=933e55cc8541ec41&web=1&EntityRepresentationId=0a342549-72a5-436e-a307-f4de0c1be808) [2](https://onedrive.live.com/?id=03dd12cf-433c-4f31-8310-7768b023f9b7&cid=933e55cc8541ec41&web=1)
-const QR_IMAGE_PATH = "/images/gcash-qr.jpg";
+// You have the QR file available as 
 
 // Admin notification target
 const ADMIN_EMAIL = "booking@jujabrewandbites.com";
@@ -205,7 +202,7 @@ export default function BookingForm({ user, member }) {
   function validateBookingInputs() {
     setNotice(null);
 
-    // Enforce 3 days advance (per guidelines) [3](https://onedrive.live.com/?id=f843ae32-d8e7-471e-ac6b-6df8c2be2e65&cid=933e55cc8541ec41&web=1)[2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=3a1d8df4-22b8-41c6-87ee-74156b1201e7&cid=933e55cc8541ec41)[1](https://onedrive.live.com/?id=d30f7d0e-49cc-4c18-9508-b6cc1405c65a&cid=933e55cc8541ec41&web=1)
+    // Enforce 3 days advance (per guidelines) 
     const minDate = toISODate(addDays(new Date(), MIN_ADVANCE_DAYS));
     if (dateISO < minDate) return `Booking must be at least ${MIN_ADVANCE_DAYS} days in advance.`;
 
@@ -449,13 +446,17 @@ export default function BookingForm({ user, member }) {
                   <option value={0}>0 hr</option>
                   <option value={1}>1 hr</option>
                   <option value={2}>2 hr</option>
+                  <option value={3}>3 hr</option>  
+                  <option value={4}>4 hr</option>
+                  <option value={5}>5 hr</option>
                 </select>
               </div>
             </div>
           </div>
 
           <div className="text-[11px] text-slate-500">
-            Operating hours: <b>10:00 AM – 2:00 AM</b> (next day). Buffer rule: <b>1 hour</b> before &amp; after.
+            Operating hours: <b>10:00 AM – 2:00 AM</b> (next day). 
+            Buffer rule: <b>1 hour</b> before &amp; after.
           </div>
 
           {loadingBookings ? (
