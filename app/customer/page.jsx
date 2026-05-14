@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 
 import { supabase } from "@/lib/supabase";
@@ -32,9 +31,9 @@ function todayISO() {
 function TabBar({ tab, setTab }) {
   const tabs = [
     { id: "home", icon: "🏠", label: "Home" },
-    { id: "order", icon: "🍽️", label: "Order" },
+    { id: "order", icon: "🛍️", label: "Order" },
     { id: "loyalty", icon: "⭐", label: "Loyalty" },
-    { id: "booking", icon: "🗓", label: "Book" },
+    { id: "booking", icon: "🎪", label: "Book" },
     { id: "profile", icon: "👤", label: "Profile" },
   ];
 
@@ -46,9 +45,7 @@ function TabBar({ tab, setTab }) {
             key={t.id}
             onClick={() => setTab(t.id)}
             className={`relative flex flex-col items-center justify-center py-2.5 md:py-3 gap-0.5 md:gap-1 transition-all duration-300 active:scale-90 ${
-              tab === t.id
-                ? "text-[#FC687D]"
-                : "text-slate-400 hover:text-slate-600"
+              tab === t.id ? "text-[#FC687D]" : "text-slate-400 hover:text-slate-600"
             }`}
           >
             <span
@@ -101,7 +98,7 @@ function HomeTab({ member, user, setTab }) {
       address: "8 Visayas Ave., Diliman, QC",
       phone: "0961-6320909",
       hoursLabel: "STORE HOURS",
-      hours: ["Mon - Wed: 8AM – 10PM", "Thu - Sat: 10AM – 10PM", "Sun: CLOSED"],
+      hours: ["MON - WED: 8AM – 10PM", "THU - SAT: 10AM – 10PM", "SUN: CLOSED"],
       room: [],
     },
   };
@@ -114,11 +111,7 @@ function HomeTab({ member, user, setTab }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link href="/" className="active:scale-95 transition">
-            <img
-              src={LOGO}
-              alt="Juja"
-              className="h-8 md:h-10 w-auto object-contain"
-            />
+            <img src={LOGO} alt="Juja" className="h-8 md:h-10 w-auto object-contain" />
           </Link>
 
           <div className="leading-tight">
@@ -147,9 +140,7 @@ function HomeTab({ member, user, setTab }) {
             Welcome back 👋
           </p>
           <h2 className="text-2xl md:text-3xl font-normal text-slate-800 leading-tight mb-1 tracking-tight">
-            {member?.customer_name ||
-              user?.user_metadata?.full_name ||
-              "Coffee Lover"}
+            {member?.customer_name || user?.user_metadata?.full_name || "Coffee Lover"}
           </h2>
 
           {member?.customer_code && (
@@ -185,9 +176,9 @@ function HomeTab({ member, user, setTab }) {
       {/* Quick Action Grid */}
       <div className="grid grid-cols-2 gap-3 md:gap-4">
         {[
-          { icon: "🍽️", label: "Order Food", sub: "Browse menu", tab: "order" },
+          { icon: "🛍️", label: "Order Food", sub: "Browse menu", tab: "order" },
           { icon: "⭐", label: "Loyalty", sub: "Rewards", tab: "loyalty" },
-          { icon: "🗓", label: "Book Room", sub: "Function room", tab: "booking" },
+          { icon: "🎪", label: "Book Room", sub: "Function room", tab: "booking" },
           { icon: "🎁", label: "Promos", sub: "Deals & offers", href: "/promo" },
         ].map((c) =>
           c.href ? (
@@ -199,9 +190,7 @@ function HomeTab({ member, user, setTab }) {
               <div className="text-2xl md:text-3xl mb-2 md:mb-3 bg-rose-50 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center">
                 {c.icon}
               </div>
-              <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">
-                {c.label}
-              </p>
+              <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">{c.label}</p>
               <p className="text-slate-400 text-[9px] md:text-[11px] font-normal uppercase tracking-widest mt-0.5">
                 {c.sub}
               </p>
@@ -215,9 +204,7 @@ function HomeTab({ member, user, setTab }) {
               <div className="text-2xl md:text-3xl mb-2 md:mb-3 bg-rose-50 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-[#FC687D]">
                 {c.icon}
               </div>
-              <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">
-                {c.label}
-              </p>
+              <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">{c.label}</p>
               <p className="text-slate-400 text-[9px] md:text-[11px] font-normal uppercase tracking-widest mt-0.5">
                 {c.sub}
               </p>
@@ -226,7 +213,7 @@ function HomeTab({ member, user, setTab }) {
         )}
       </div>
 
-      {/* Visit Us (Branch Buttons) */} {/* Branch info matches your existing site content. [2](https://onedrive.live.com/?id=af43a453-b117-4668-9f62-738214f89b46&cid=933e55cc8541ec41&web=1) */}
+      {/* Visit Us */}
       <div className="bg-white rounded-xl md:rounded-[24px] p-5 border border-rose-50 shadow-sm">
         <p className="text-[9px] md:text-[10px] font-normal uppercase tracking-widest text-slate-400 mb-3">
           Visit Us
@@ -277,7 +264,7 @@ function HomeTab({ member, user, setTab }) {
 
           {active.room.length > 0 && (
             <p className="flex gap-3 items-start">
-              <span>🕙</span>
+              <span>🎪</span>
               <span>
                 {active.room.map((line) => (
                   <span key={line} className="block text-slate-500">
@@ -294,302 +281,64 @@ function HomeTab({ member, user, setTab }) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Order Tab
+   Order Tab (UPDATED: Search button + Category dropdown)
+   Uses menu_items + menu_categories like your admin menu pages. 
 ────────────────────────────────────────────────────────────── */
-/* ──────────────────────────────────────────────────────────────
-   Order Tab (Customer)
-   - Loads menu_categories + menu_items from Supabase
-   - Category pills
-   - Item grid
-   - Add-to-cart modal (supports variants if item.variants exists)
-   - Cart bottom bar + Cart drawer
-────────────────────────────────────────────────────────────── */
-
-function AddToCartModal({ item, onClose, onAddToCart }) {
-  const [quantity, setQuantity] = useState(1);
-  const [selections, setSelections] = useState({});
-  const [instructions, setInstructions] = useState("");
-
-  // If variants exist, set defaults for required groups (same concept used in POS modal) [2](https://onedrive.live.com/?id=d6131528-ea5d-4d52-8076-987a99d1e0fd&cid=933e55cc8541ec41&web=1)
-  useEffect(() => {
-    if (!item) return;
-    if (Array.isArray(item.variants)) {
-      const defaults = {};
-      item.variants.forEach((g) => {
-        if (g.isRequired && Array.isArray(g.options) && g.options.length > 0) {
-          defaults[g.id] = [g.options[0]];
-        }
-      });
-      setSelections(defaults);
-    } else {
-      setSelections({});
-    }
-    setQuantity(1);
-    setInstructions("");
-  }, [item]);
-
-  const toggleOption = (group, opt) => {
-    const current = selections[group.id] || [];
-    if (!group.isMultiSelect) {
-      setSelections({ ...selections, [group.id]: [opt] });
-    } else {
-      const exists = current.find((o) => o.id === opt.id);
-      setSelections({
-        ...selections,
-        [group.id]: exists ? current.filter((o) => o.id !== opt.id) : [...current, opt],
-      });
-    }
-  };
-
-  const unitPrice =
-    (Number(item?.price) || 0) +
-    Object.values(selections)
-      .flat()
-      .reduce((sum, o) => sum + (Number(o.price) || 0), 0);
-
-  const save = () => {
-    const variantText = Object.values(selections)
-      .flat()
-      .map((o) => o.name)
-      .join(", ");
-
-    onAddToCart({
-      cartItemId: `${item.id}-${Date.now()}`,
-      id: item.id,
-      name: item.name,
-      image_url: item.image_url || null,
-      quantity,
-      unitPrice,
-      variantDetails: variantText,
-      instructions,
-    });
-    onClose();
-  };
-
-  if (!item) return null;
-
-  return (
-    <div
-      className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-lg bg-white rounded-t-[28px] md:rounded-[32px] p-6 md:p-7 max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-4 mb-3">
-          <div>
-            <p className="text-[10px] uppercase tracking-widest text-slate-400">Add to Cart</p>
-            <h3 className="text-lg md:text-xl font-semibold text-slate-900">{item.name}</h3>
-            <p className="text-[12px] text-slate-500 mt-1">
-              Base: ₱{Number(item.price || 0).toLocaleString()}
-            </p>
-          </div>
-
-          <button
-            onClick={onClose}
-            className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
-            aria-label="Close"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Variants (if any) */}
-        {Array.isArray(item.variants) && item.variants.length > 0 && (
-          <div className="space-y-4 mt-4">
-            {item.variants.map((g) => (
-              <div key={g.id} className="border border-slate-200 rounded-2xl p-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-[11px] font-semibold text-slate-800">
-                    {g.name} {g.isRequired ? <span className="text-rose-500">*</span> : null}
-                  </p>
-                  {g.isMultiSelect ? (
-                    <span className="text-[10px] text-slate-400">Multi</span>
-                  ) : (
-                    <span className="text-[10px] text-slate-400">Single</span>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 mt-3">
-                  {(g.options || []).map((opt) => {
-                    const selected = (selections[g.id] || []).some((o) => o.id === opt.id);
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => toggleOption(g, opt)}
-                        className={`p-3 rounded-xl border text-left transition-all active:scale-95 ${
-                          selected
-                            ? "bg-[#FFF1F4] border-[#FC687D]"
-                            : "bg-white border-slate-200 hover:bg-slate-50"
-                        }`}
-                      >
-                        <p className="text-[11px] font-semibold text-slate-800">{opt.name}</p>
-                        {Number(opt.price || 0) > 0 && (
-                          <p className="text-[10px] text-slate-500 mt-1">
-                            + ₱{Number(opt.price).toLocaleString()}
-                          </p>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Instructions */}
-        <div className="mt-4">
-          <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
-            Special Instructions (optional)
-          </label>
-          <textarea
-            value={instructions}
-            onChange={(e) => setInstructions(e.target.value)}
-            rows={3}
-            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm"
-            placeholder="e.g. Less ice, no sugar, etc."
-          />
-        </div>
-
-        {/* Quantity + Total */}
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-              className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 active:scale-95"
-            >
-              −
-            </button>
-            <div className="min-w-[48px] text-center font-semibold text-slate-800">{quantity}</div>
-            <button
-              onClick={() => setQuantity((q) => q + 1)}
-              className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 active:scale-95"
-            >
-              +
-            </button>
-          </div>
-
-          <div className="text-right">
-            <p className="text-[10px] uppercase tracking-widest text-slate-400">Total</p>
-            <p className="text-lg font-semibold text-slate-900">
-              ₱{Number(unitPrice * quantity).toLocaleString()}
-            </p>
-          </div>
-        </div>
-
-        <button
-          onClick={save}
-          className="mt-5 w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-normal text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-rose-500 active:scale-95"
-        >
-          Add to Cart
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function OrderTab({ user }) {
+function OrderTab() {
   const [items, setItems] = useState([]);
   const [cats, setCategories] = useState([]);
-  const [activeTab, setActiveTab] = useState(null);
-
-  // cart is a list to preserve variants/instructions
-  const [cart, setCart] = useState([]);
+  const [activeTab, setActiveTab] = useState("All");
+  const [cart, setCart] = useState({});
   const [loading, setLoading] = useState(true);
 
-  // modal
-  const [modalItem, setModalItem] = useState(null);
-
-  // cart drawer
-  const [cartOpen, setCartOpen] = useState(false);
+  // ✅ New: search
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     async function fetchMenu() {
-      setLoading(true);
-
-      // menu_items and menu_categories match your admin tooling [1](https://onedrive.live.com/?id=1ab3dbc6-06b2-4ab9-a1ee-b77013969aeb&cid=933e55cc8541ec41&web=1)
       const [itemRes, catRes] = await Promise.all([
-        supabase
-          .from("menu_items")
-          .select("*")
-          .eq("is_available", true)
-          .order("name"),
-        supabase
-          .from("menu_categories")
-          .select("*")
-          .eq("is_active", true)
-          .order("sort_order"),
+        supabase.from("menu_items").select("*").eq("is_available", true).order("name"),
+        supabase.from("menu_categories").select("*").eq("is_active", true).order("sort_order"),
       ]);
 
       if (itemRes.data) setItems(itemRes.data);
-      if (catRes.data) {
-        setCategories(catRes.data);
-        if (catRes.data.length > 0) setActiveTab(catRes.data[0].name);
-      }
+      if (catRes.data) setCategories(catRes.data);
 
       setLoading(false);
     }
-
     fetchMenu();
   }, []);
 
+  // ✅ New: filter by category + search
   const filtered = useMemo(() => {
-    if (!activeTab) return items;
-    return items.filter((i) => i.category === activeTab);
-  }, [items, activeTab]);
+    const q = search.trim().toLowerCase();
 
-  const cartCount = useMemo(() => cart.reduce((sum, x) => sum + (Number(x.quantity) || 0), 0), [cart]);
+    return items.filter((i) => {
+      const matchesCat =
+        !activeTab || activeTab === "All" ? true : i.category === activeTab;
 
-  const cartTotal = useMemo(
-    () => cart.reduce((sum, x) => sum + (Number(x.unitPrice) || 0) * (Number(x.quantity) || 0), 0),
-    [cart]
-  );
+      if (!q) return matchesCat;
 
-  const addSimple = (item) => {
-    // If item has variants, use modal instead (pattern from POS modal code) [2](https://onedrive.live.com/?id=d6131528-ea5d-4d52-8076-987a99d1e0fd&cid=933e55cc8541ec41&web=1)
-    if (Array.isArray(item.variants) && item.variants.length > 0) {
-      setModalItem(item);
-      return;
-    }
-    setCart((c) => [
+      const hay = `${i.name || ""} ${i.description || ""} ${i.category || ""}`.toLowerCase();
+      return matchesCat && hay.includes(q);
+    });
+  }, [items, activeTab, search]);
+
+  const add = (item) =>
+    setCart((c) => ({
       ...c,
-      {
-        cartItemId: `${item.id}-${Date.now()}`,
-        id: item.id,
-        name: item.name,
-        image_url: item.image_url || null,
-        quantity: 1,
-        unitPrice: Number(item.price) || 0,
-        variantDetails: "",
-        instructions: "",
-      },
-    ]);
-  };
+      [item.id]: c[item.id]
+        ? { ...c[item.id], qty: c[item.id].qty + 1 }
+        : { id: item.id, name: item.name, price: item.price, qty: 1 },
+    }));
 
-  const onAddToCartFromModal = (cartItem) => {
-    setCart((c) => [...c, cartItem]);
-  };
-
-  const changeQty = (cartItemId, delta) => {
-    setCart((c) =>
-      c
-        .map((x) =>
-          x.cartItemId === cartItemId
-            ? { ...x, quantity: Math.max(1, (Number(x.quantity) || 1) + delta) }
-            : x
-        )
-        .filter(Boolean)
-    );
-  };
-
-  const removeLine = (cartItemId) => {
-    setCart((c) => c.filter((x) => x.cartItemId !== cartItemId));
-  };
-
-  const clearCart = () => setCart([]);
+  const remove = (id) =>
+    setCart((c) => {
+      const n = { ...c };
+      if (n[id]?.qty > 1) n[id] = { ...n[id], qty: n[id].qty - 1 };
+      else delete n[id];
+      return n;
+    });
 
   if (loading) {
     return (
@@ -600,204 +349,139 @@ function OrderTab({ user }) {
   }
 
   return (
-    <div className="space-y-4 md:space-y-6 animate-in fade-in duration-500 pb-24">
-      {/* Categories */}
-      <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2 pt-1 -mx-4 px-4 sticky top-0 z-20 bg-[#FFF5F7]">
-        {cats.map((cat) => (
-          <button
-            key={cat.id}
-            onClick={() => setActiveTab(cat.name)}
-            className={`flex-shrink-0 px-4 md:px-5 py-2 md:py-2.5 rounded-xl text-[10px] md:text-[11px] font-normal uppercase tracking-widest transition-all duration-300 active:scale-95 shadow-sm border ${
-              activeTab === cat.name
-                ? "bg-[#FC687D] text-white border-[#FC687D]"
-                : "bg-white text-slate-500 border-rose-100"
-            }`}
-          >
-            {cat.name}
-          </button>
-        ))}
-      </div>
-
-      {/* Items */}
-      <div className="grid grid-cols-2 gap-3 md:gap-4">
-        {filtered.map((item) => (
-          <div
-            key={item.id}
-            className="bg-white rounded-xl md:rounded-[24px] border border-rose-50 shadow-sm overflow-hidden flex flex-col p-2.5 md:p-3"
-          >
-            <div className="h-24 md:h-32 rounded-lg md:rounded-xl bg-slate-50 flex items-center justify-center relative overflow-hidden mb-2 border border-slate-100">
-              {item.image_url ? (
-                <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-2xl text-slate-200">📷</span>
-              )}
-            </div>
-
-            <div className="flex flex-col flex-1 px-1">
-              <p className="font-normal text-slate-800 text-[11px] md:text-[13px] leading-tight mb-1">
-                {item.name}
-              </p>
-
-              <p className="font-normal text-[#FC687D] text-[13px] md:text-[15px] mb-3">
-                ₱{Number(item.price).toLocaleString()}
-              </p>
-
-              <div className="mt-auto">
-                <button
-                  onClick={() => addSimple(item)}
-                  className="w-full py-2 md:py-2.5 rounded-lg text-[9px] md:text-[11px] font-normal uppercase tracking-widest text-[#FC687D] bg-[#FFF9FA] border border-rose-100 hover:bg-[#FC687D] hover:text-white transition-all active:scale-95"
-                >
-                  Add to Cart
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Add-to-cart modal */}
-      {modalItem && (
-        <AddToCartModal
-          item={modalItem}
-          onClose={() => setModalItem(null)}
-          onAddToCart={onAddToCartFromModal}
-        />
-      )}
-
-      {/* Cart bottom bar */}
-      {cartCount > 0 && (
-        <div className="fixed bottom-[72px] md:bottom-[84px] left-0 right-0 z-[60] px-4">
-          <div className="max-w-md mx-auto bg-white border border-rose-100 shadow-[0_10px_30px_rgba(252,104,125,0.15)] rounded-2xl p-3 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[10px] uppercase tracking-widest text-slate-400">Cart</p>
-              <p className="text-[12px] text-slate-800 font-semibold">
-                {cartCount} item(s) • ₱{Number(cartTotal).toLocaleString()}
-              </p>
-            </div>
-
-            <button
-              onClick={() => setCartOpen(true)}
-              className="px-4 py-2 rounded-xl bg-[#FC687D] text-white text-[10px] uppercase tracking-widest active:scale-95"
-            >
-              View Cart
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Cart drawer */}
-      {cartOpen && (
-        <div
-          className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
-          onClick={() => setCartOpen(false)}
-        >
-          <div
-            className="w-full max-w-lg bg-white rounded-t-[28px] md:rounded-[32px] p-6 md:p-7 max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg md:text-xl font-semibold text-slate-900">Your Cart</h3>
+    <div className="space-y-4 md:space-y-6 animate-in fade-in duration-500">
+      {/* ✅ Search + Category dropdown (replaces category pills) */}
+      <div className="space-y-2 -mx-4 px-4 sticky top-0 z-20 bg-[#FFF5F7] pt-1 pb-2">
+        <div className="flex gap-2">
+          <div className="flex-1 relative">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search menu…"
+              className="w-full bg-white border border-rose-100 rounded-xl px-4 py-2.5 text-sm pr-10"
+            />
+            {search && (
               <button
-                onClick={() => setCartOpen(false)}
-                className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
-                aria-label="Close"
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 text-slate-500 active:scale-95"
+                aria-label="Clear search"
               >
                 ✕
               </button>
-            </div>
-
-            {cart.length === 0 ? (
-              <p className="text-sm text-slate-500">Cart is empty.</p>
-            ) : (
-              <div className="space-y-3">
-                {cart.map((x) => (
-                  <div
-                    key={x.cartItemId}
-                    className="border border-slate-200 rounded-2xl p-4 flex items-start gap-3"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[12px] font-semibold text-slate-800 truncate">
-                        {x.name}
-                      </p>
-
-                      {(x.variantDetails || x.instructions) && (
-                        <p className="text-[11px] text-slate-500 mt-1">
-                          {x.variantDetails ? `• ${x.variantDetails}` : ""}
-                          {x.instructions ? ` • Note: ${x.instructions}` : ""}
-                        </p>
-                      )}
-
-                      <p className="text-[11px] text-slate-600 mt-2">
-                        ₱{Number(x.unitPrice).toLocaleString()} each
-                      </p>
-
-                      <div className="mt-2 flex items-center gap-2">
-                        <button
-                          onClick={() => changeQty(x.cartItemId, -1)}
-                          className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 active:scale-95"
-                        >
-                          −
-                        </button>
-                        <span className="w-10 text-center text-sm font-semibold text-slate-800">
-                          {x.quantity}
-                        </span>
-                        <button
-                          onClick={() => changeQty(x.cartItemId, +1)}
-                          className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 active:scale-95"
-                        >
-                          +
-                        </button>
-
-                        <button
-                          onClick={() => removeLine(x.cartItemId)}
-                          className="ml-auto text-[10px] uppercase tracking-widest text-rose-500"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                <div className="border-t border-slate-200 pt-4 flex items-center justify-between">
-                  <p className="text-[11px] uppercase tracking-widest text-slate-500">Total</p>
-                  <p className="text-lg font-semibold text-slate-900">
-                    ₱{Number(cartTotal).toLocaleString()}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={clearCart}
-                    className="py-3 rounded-xl bg-white border border-slate-200 text-slate-600 text-[10px] uppercase tracking-widest active:scale-95"
-                  >
-                    Clear
-                  </button>
-
-                  {/* NOTE: Checkout saving is not wired here because your orders schema wasn’t found in files.
-                      If you have an orders table, connect it here. */}
-                  <button
-                    onClick={() => alert("Checkout not wired yet. If you want, we can connect this to an orders table.")}
-                    className="py-3 rounded-xl bg-[#FC687D] text-white text-[10px] uppercase tracking-widest active:scale-95"
-                  >
-                    Checkout
-                  </button>
-                </div>
-
-                <p className="text-[10px] text-slate-400">
-                  Tip: We can connect Checkout to a Supabase orders table once you confirm the table names/columns.
-                </p>
-              </div>
             )}
           </div>
+
+          {/* Search button (requested) */}
+          <button
+            type="button"
+            onClick={() => document.activeElement?.blur?.()}
+            className="px-4 py-2.5 rounded-xl bg-[#FC687D] text-white text-[11px] uppercase tracking-widest active:scale-95 whitespace-nowrap"
+          >
+            Search
+          </button>
         </div>
-      )}
+
+        <div className="flex gap-2">
+          <select
+            value={activeTab}
+            onChange={(e) => setActiveTab(e.target.value)}
+            className="w-full bg-white border border-rose-100 rounded-xl px-4 py-2.5 text-sm"
+          >
+            <option value="All">All Categories</option>
+            {cats.map((cat) => (
+              <option key={cat.id} value={cat.name}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab("All");
+              setSearch("");
+            }}
+            className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 text-[11px] uppercase tracking-widest active:scale-95 whitespace-nowrap"
+          >
+            Reset
+          </button>
+        </div>
+
+        <p className="text-[10px] text-slate-400 uppercase tracking-widest">
+          Showing {filtered.length} item(s)
+        </p>
+      </div>
+
+      {/* Items */}
+      <div className="grid grid-cols-2 gap-3 md:gap-4 pb-10">
+        {filtered.map((item) => {
+          const inCart = cart[item.id]?.qty || 0;
+
+          return (
+            <div
+              key={item.id}
+              className="bg-white rounded-xl md:rounded-[24px] border border-rose-50 shadow-sm overflow-hidden flex flex-col p-2.5 md:p-3"
+            >
+              <div className="h-24 md:h-32 rounded-lg md:rounded-xl bg-slate-50 flex items-center justify-center relative overflow-hidden mb-2 border border-slate-100">
+                {item.image_url ? (
+                  <img
+                    src={item.image_url}
+                    alt={item.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-2xl text-slate-200">📷</span>
+                )}
+              </div>
+
+              <div className="flex flex-col flex-1 px-1">
+                <p className="font-normal text-slate-800 text-[11px] md:text-[13px] leading-tight mb-1">
+                  {item.name}
+                </p>
+                <p className="font-normal text-[#FC687D] text-[13px] md:text-[15px] mb-3">
+                  ₱{item.price}
+                </p>
+
+                <div className="mt-auto">
+                  {inCart > 0 ? (
+                    <div className="flex items-center justify-between bg-slate-50 p-1 rounded-lg border border-slate-200">
+                      <button
+                        onClick={() => remove(item.id)}
+                        className="w-7 h-7 md:w-8 md:h-8 rounded-[6px] bg-white flex items-center justify-center text-slate-600 font-normal shadow-sm active:scale-90"
+                      >
+                        −
+                      </button>
+                      <span className="font-normal text-[12px] md:text-[13px] text-slate-700">
+                        {inCart}
+                      </span>
+                      <button
+                        onClick={() => add(item)}
+                        className="w-7 h-7 md:w-8 md:h-8 rounded-[6px] bg-[#FC687D] flex items-center justify-center text-white font-normal shadow-sm active:scale-90"
+                      >
+                        +
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => add(item)}
+                      className="w-full py-2 md:py-2.5 rounded-lg text-[9px] md:text-[11px] font-normal uppercase tracking-widest text-[#FC687D] bg-[#FFF9FA] border border-rose-100 hover:bg-[#FC687D] hover:text-white transition-all active:scale-95"
+                    >
+                      Add to Cart
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Loyalty Tab (Perks content matches your longer version) [1](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=eb4cb160-5ac1-4fd9-abe6-dc3829e3f276&cid=933e55cc8541ec41)
+   Loyalty Tab (Perks content per guidelines doc) [2](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=9e94c0aa-6b3c-4b09-bfea-346df6f55b3c&cid=933e55cc8541ec41)
 ────────────────────────────────────────────────────────────── */
 function LoyaltyTab({ member, setMember, user }) {
   const [joining, setJoining] = useState(false);
@@ -983,6 +667,7 @@ function LoyaltyTab({ member, setMember, user }) {
         </p>
       </div>
 
+      {/* Loyalty Card */}
       <div className="relative w-full max-w-[600px] aspect-[16/9] rounded-3xl overflow-hidden shadow-2xl bg-white">
         <img
           src="/images/loyalty-card-bg.jpg"
@@ -1008,6 +693,7 @@ function LoyaltyTab({ member, setMember, user }) {
         </div>
       </div>
 
+      {/* Premium Card */}
       <div
         className="rounded-2xl md:rounded-[32px] overflow-hidden shadow-[0_10px_30px_rgba(252,104,125,0.2)]"
         style={{ background: "linear-gradient(135deg, #FC687D 0%, #f43f5e 100%)" }}
@@ -1061,6 +747,7 @@ function LoyaltyTab({ member, setMember, user }) {
         </div>
       </div>
 
+      {/* Points Progress */}
       <div className="bg-white rounded-xl md:rounded-[24px] p-5 md:p-6 border border-rose-50 shadow-sm">
         <div className="flex justify-between items-end mb-3">
           <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">Points Progress</p>
@@ -1078,6 +765,7 @@ function LoyaltyTab({ member, setMember, user }) {
         </p>
       </div>
 
+      {/* Vouchers */}
       <div className="bg-white rounded-xl md:rounded-[24px] p-5 md:p-6 border border-rose-50 shadow-sm">
         <div className="flex items-end justify-between mb-3">
           <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">Your Vouchers</p>
@@ -1120,71 +808,7 @@ function LoyaltyTab({ member, setMember, user }) {
         )}
       </div>
 
-      {/* Edit Modal */}
-      {editing && (
-        <div
-          className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
-          onClick={() => setEditing(false)}
-        >
-          <div
-            className="w-full max-w-md mx-auto bg-white rounded-t-[24px] md:rounded-[32px] p-5 md:p-8 pb-8 md:pb-12 max-h-[90vh] overflow-y-auto shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center mb-5">
-              <h3 className="text-xl md:text-2xl font-normal text-slate-800 tracking-tight">
-                Edit Profile
-              </h3>
-              <button
-                onClick={() => setEditing(false)}
-                className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={saveEdit} className="space-y-4">
-              {[
-                ["customer_name", "Full Name", "text", "Your full name"],
-                ["Phone", "Phone Number", "tel", "09XX XXX XXXX"],
-                ["City", "City", "text", "e.g. QC"],
-                ["Note", "Birthday (YYYY-MM-DD)", "text", "1995-12-25"],
-              ].map(([key, lbl, type, ph]) => (
-                <div key={key}>
-                  <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
-                    {lbl}
-                  </label>
-                  <input
-                    type={type}
-                    value={form[key] ?? ""}
-                    placeholder={ph}
-                    onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs md:text-sm font-semibold text-slate-800 focus:outline-none focus:border-[#FC687D] focus:bg-white focus:ring-1 focus:ring-rose-100 transition-all"
-                  />
-                </div>
-              ))}
-
-              <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setEditing(false)}
-                  className="w-full py-3 rounded-xl bg-white border border-slate-200 text-slate-500 uppercase tracking-widest text-[10px] hover:bg-slate-50 active:scale-95"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="w-full py-3 rounded-xl bg-[#FC687D] text-white uppercase tracking-widest text-[10px] hover:bg-rose-500 active:scale-95 disabled:opacity-70"
-                >
-                  {saving ? "Saving…" : "Save Changes"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Perks Modal (FULL content) — matches your long perks text [1](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=eb4cb160-5ac1-4fd9-abe6-dc3829e3f276&cid=933e55cc8541ec41) */}
+      {/* Perks Modal (Full content) */}
       {showPerks && (
         <div
           className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
@@ -1195,9 +819,7 @@ function LoyaltyTab({ member, setMember, user }) {
             className="w-full max-w-2xl bg-white rounded-t-[28px] md:rounded-[32px] p-6 md:p-8 max-h-[90vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl md:text-2xl font-normal text-slate-800">
-                Perks
-              </h3>
+              <h3 className="text-xl md:text-2xl font-normal text-slate-800">Perks</h3>
               <button
                 onClick={() => setShowPerks(false)}
                 className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
@@ -1318,9 +940,7 @@ function ProfileTab({ user, onLogout }) {
             👤
           </div>
           <div>
-            <p className="font-normal text-slate-800 text-base md:text-lg">
-              {user?.email}
-            </p>
+            <p className="font-normal text-slate-800 text-base md:text-lg">{user?.email}</p>
             <p className="text-slate-400 text-[9px] md:text-[10px] font-normal uppercase tracking-widest">
               Juja Member
             </p>
@@ -1424,3 +1044,4 @@ export default function Customer() {
     </div>
   );
 }
+``
