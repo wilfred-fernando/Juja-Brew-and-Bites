@@ -793,7 +793,7 @@ function LoyaltyTab({ member, setMember, user }) {
               </button>
             </div>
 
-            <div className="space-y-5 text-slate-700">
+            <div className="space-y-3 test-sm text-slate-700">
   <div className="text-center">
     <p className="text-[13px] md:text-[14px] font-semibold text-slate-900">
       🎉 LOYALTY PROGRAM 🎉
