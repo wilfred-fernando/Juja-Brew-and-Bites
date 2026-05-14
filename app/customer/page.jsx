@@ -383,11 +383,7 @@ function LoyaltyTab({ member, setMember, user }) {
   const [form, setForm] = useState({
     customer_name: "",
     Phone: "",
-    Address: "",
     City: "",
-    Province: "",
-    "Postal code": "",
-    Country: "",
     Note: "",
   });
 
@@ -419,11 +415,7 @@ function LoyaltyTab({ member, setMember, user }) {
         customer_name: user?.user_metadata?.full_name || "",
         Email: user?.email || null,
         Phone: null,
-        Address: null,
         City: null,
-        Province: null,
-        "Postal code": null,
-        Country: null,
         customer_code: genMemberCode(),
         "Points balance": 0,
         Note: null,
@@ -456,11 +448,7 @@ function LoyaltyTab({ member, setMember, user }) {
     setForm({
       customer_name: member?.customer_name || "",
       Phone: member?.["Phone"] || "",
-      Address: member?.["Address"] || "",
       City: member?.["City"] || "",
-      Province: member?.["Province"] || "",
-      "Postal code": member?.["Postal code"] || "",
-      Country: member?.["Country"] || "",
       Note: member?.["Note"] || "",
     });
     setEditing(true);
