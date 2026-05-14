@@ -32,7 +32,7 @@ function todayISO() {
 function TabBar({ tab, setTab }) {
   const tabs = [
     { id: "home", icon: "🏠", label: "Home" },
-    { id: "order", icon: "🛍️", label: "Order" },
+    { id: "order", icon: "🍽️", label: "Order" },
     { id: "loyalty", icon: "⭐", label: "Loyalty" },
     { id: "booking", icon: "🗓", label: "Book" },
     { id: "profile", icon: "👤", label: "Profile" },
@@ -181,7 +181,7 @@ function HomeTab({ member, user, setTab }) {
       {/* Quick Action Grid */}
       <div className="grid grid-cols-2 gap-3 md:gap-4">
         {[
-          { icon: "🛍️", label: "Order Food", sub: "Browse menu", tab: "order" },
+          { icon: "🍽️", label: "Order Food", sub: "Browse menu", tab: "order" },
           { icon: "⭐", label: "Loyalty", sub: "Rewards", tab: "loyalty" },
           { icon: "🗓", label: "Book Room", sub: "Function room", tab: "booking" },
           { icon: "🎁", label: "Promos", sub: "Deals & offers", href: "/promo" },
