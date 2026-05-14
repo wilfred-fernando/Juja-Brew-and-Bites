@@ -793,17 +793,111 @@ function LoyaltyTab({ member, setMember, user }) {
               </button>
             </div>
 
-            <div className="space-y-3 text-sm text-slate-700">
-              <p>
-                🌟 Earn <b>1 point</b> per ₱10 spent
-              </p>
-              <p>
-                🎁 Redeem: <b>100 points</b> = free reward item
-              </p>
-              <p>
-                🎂 Birthday month: <b>double points</b>
-              </p>
-              <p>📲 Show your member barcode at checkout</p>
+            <div className="space-y-5 text-slate-700">
+  <div className="text-center">
+    <p className="text-[13px] md:text-[14px] font-semibold text-slate-900">
+      🎉 LOYALTY PROGRAM 🎉
+    </p>
+    <p className="text-[11px] md:text-[12px] text-slate-500 mt-1">
+      JUJA Brew &amp; Bites Rewards Guide
+    </p>
+  </div>
+
+  {/* Registration */}
+  <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
+    <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
+      Registration
+    </h4>
+    <ul className="mt-3 space-y-2 text-[12px] md:text-[13px] leading-relaxed">
+      <li>✅ FREE to join — no fees, no hidden charges.</li>
+      <li>Sign up in-store and get your JUJA Loyalty Card instantly.</li>
+    </ul>
+  </section>
+
+  {/* Earning Points */}
+  <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
+    <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
+      Earning Points
+    </h4>
+    <ul className="mt-3 space-y-2 text-[12px] md:text-[13px] leading-relaxed">
+      <li>💙 Earn 1 JUJA Point for every ₱25 spent on food &amp; drinks.</li>
+      <li>📲 Present your loyalty card for scanning during purchase.</li>
+      <li>⏱ Points are credited immediately after purchase.</li>
+    </ul>
+  </section>
+
+  {/* Redeeming Rewards */}
+  <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
+    <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
+      Redeeming Rewards
+    </h4>
+    <ul className="mt-3 space-y-2 text-[12px] md:text-[13px] leading-relaxed">
+      <li>
+        🎯 <b>100 Points</b> = FREE reward — choose any 16oz drink, waffle, or mini donuts
+      </li>
+      <li>
+        🎂 <b>Birthday Perk:</b> Get any 16oz drink or waffle FREE on your birthday (just present a valid ID).
+      </li>
+      <li>⏳ Rewards expire 90 days after reaching 100 points.</li>
+    </ul>
+  </section>
+
+  {/* Expiration Policy */}
+  <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
+    <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
+      Expiration Policy
+    </h4>
+    <p className="mt-3 text-[12px] md:text-[13px] leading-relaxed">
+      All JUJA Points expire every <b>December 31, 11:59 PM</b>.
+    </p>
+  </section>
+
+  {/* Flavor Selections */}
+  <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
+    <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
+      Flavor Selection
+    </h4>
+
+    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="bg-white border border-slate-200 rounded-xl p-3">
+        <p className="text-[11px] font-semibold text-slate-800 mb-2">
+          Flavor Selection for Waffles
+        </p>
+        <ul className="space-y-1 text-[12px] md:text-[13px]">
+          <li>• Honey Syrup</li>
+          <li>• Choco Oreo</li>
+          <li>• Cheese</li>
+          <li>• Blueberry Whip</li>
+          <li>• Strawberry Whip</li>
+          <li>• Mango Graham</li>
+        </ul>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl p-3">
+        <p className="text-[11px] font-semibold text-slate-800 mb-2">
+          Flavor Selection for Mini Donuts
+        </p>
+        <ul className="space-y-1 text-[12px] md:text-[13px]">
+          <li>• Chocolate</li>
+          <li>• White Chocolate</li>
+          <li>• Strawberry</li>
+          <li>• Matcha</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+                {/* Terms */}
+                <section className="bg-rose-50 border border-rose-200 rounded-2xl p-4 md:p-5">
+                  <h4 className="text-[10px] md:text-[11px] font-semibold text-rose-700 uppercase tracking-widest">
+                    📌 Terms &amp; conditions apply.
+                  </h4>
+                  <ul className="mt-3 space-y-2 text-[12px] md:text-[13px] leading-relaxed">
+                    <li>• Rewards and perks are non-transferable and cannot be exchanged for cash.</li>
+                    <li>• Lost loyalty card? Request a digital copy in-store.</li>
+                    <li>• JUJA Brew &amp; Bites reserves the right to amend these guidelines without prior notice.</li>
+                  </ul>
+                </section>              
             </div>
           </div>
         </div>
