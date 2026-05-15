@@ -445,17 +445,6 @@ export default function POSPage() {
                       {item.variantDetails}
                     </p>
                   )}
-
-                  <button
-                    onClick={() => {
-                      const n = [...cart];
-                      n.splice(idx, 1);
-                      setCart(n);
-                    }}
-                    className="text-[10px] text-slate-300 hover:text-red-500 mt-1 transition-colors underline"
-                  >
-                    Remove
-                  </button>
                 </div>
 
                 <p className="text-sm text-slate-800 font-medium">
