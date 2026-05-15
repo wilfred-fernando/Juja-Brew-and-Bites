@@ -309,7 +309,7 @@ function OrderTab({ user }) {
       setLoading(true);
 
       const [itemRes, catRes] = await Promise.all([
-        // ✅ Public menu: hide POS-only items
+        // ✅ public menu: show only available + NOT pos-only
         supabase
           .from("menu_items")
           .select("*")
@@ -317,20 +317,25 @@ function OrderTab({ user }) {
           .eq("pos_only", false)
           .order("name"),
 
-        // ✅ Public menu: hide POS-only categories
+        // ✅ public menu: show only active + NOT pos-only, sorted alphabetically
         supabase
           .from("menu_categories")
           .select("*")
           .eq("is_active", true)
           .eq("pos_only", false)
-          .order("sort_order") // if you removed sort_order, change to: .order("name", { ascending: true })
+          .order("name", { ascending: true }),
       ]);
 
       if (itemRes.data) setItems(itemRes.data);
 
       if (catRes.data) {
-        setCategories(catRes.data);
-        if (catRes.data.length > 0) setActiveTab(catRes.data[0].name);
+        // extra safety: sort client-side too (alphabetical)
+        const sortedCats = [...catRes.data].sort((a, b) =>
+          (a.name || "").localeCompare(b.name || "")
+        );
+        setCategories(sortedCats);
+
+        if (sortedCats.length > 0) setActiveTab(sortedCats[0].name);
       }
 
       setLoading(false);
@@ -339,10 +344,14 @@ function OrderTab({ user }) {
     fetchMenu();
   }, []);
 
-  // ✅ Filter by selected category + search text
-  const filtered = items
-    .filter((i) => i.category === activeTab)
-    .filter((i) => i.name.toLowerCase().includes(itemSearch.toLowerCase()));
+  // ✅ Search should be for ALL items:
+  // - if itemSearch has text → search across all items (ignore category)
+  // - if itemSearch is empty → show items only from selected category
+  const q = itemSearch.trim().toLowerCase();
+  const filtered = (q
+    ? items.filter((i) => (i.name || "").toLowerCase().includes(q))
+    : items.filter((i) => i.category === activeTab)
+  );
 
   const cartArr = Object.values(cart);
   const total = cartArr.reduce((s, e) => s + e.price * e.qty, 0);
@@ -371,9 +380,13 @@ function OrderTab({ user }) {
     );
   }
 
+  const catsSorted = [...cats].sort((a, b) =>
+    (a.name || "").localeCompare(b.name || "")
+  );
+
   return (
     <div className="space-y-4">
-      {/* ✅ Top Controls: Category Dropdown + Item Search */}
+      {/* Controls */}
       <div className="bg-white border border-rose-50 rounded-2xl p-3 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {/* Category Dropdown */}
@@ -384,20 +397,28 @@ function OrderTab({ user }) {
             <select
               value={activeTab}
               onChange={(e) => setActiveTab(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
+              disabled={q.length > 0} // optional: lock category when searching globally
+              className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all disabled:opacity-60"
             >
-              {cats.map((cat) => (
+              {catsSorted.map((cat) => (
                 <option key={cat.id} value={cat.name}>
                   {cat.name}
                 </option>
               ))}
             </select>
+
+            {/* optional helper text */}
+            {q.length > 0 && (
+              <p className="text-[10px] text-slate-400 mt-1">
+                Searching all items (category filter is ignored)
+              </p>
+            )}
           </div>
 
-          {/* Item Search */}
+          {/* Item Search (ALL items) */}
           <div>
             <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">
-              Search Item
+              Search Item (All)
             </label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
@@ -407,7 +428,7 @@ function OrderTab({ user }) {
                 type="text"
                 value={itemSearch}
                 onChange={(e) => setItemSearch(e.target.value)}
-                placeholder="Search within category..."
+                placeholder="Search across all items..."
                 className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
               />
             </div>
@@ -415,23 +436,16 @@ function OrderTab({ user }) {
         </div>
       </div>
 
-      {/* ✅ Grid of Items (same as before, now filtered) */}
+      {/* Items Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {filtered.map((item) => {
           const inCart = cart[item.id]?.qty || 0;
 
           return (
-            <div
-              key={item.id}
-              className="bg-white border border-rose-50 rounded-2xl p-3 shadow-sm"
-            >
+            <div key={item.id} className="bg-white border border-rose-50 rounded-2xl p-3 shadow-sm">
               <div className="w-full h-24 rounded-xl bg-[#FFF9FA] border border-rose-50 flex items-center justify-center overflow-hidden mb-2">
                 {item.image_url ? (
-                  <img
-                    src={item.image_url}
-                    alt={item.name}
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-2xl text-rose-200/50">📷</span>
                 )}
@@ -441,9 +455,15 @@ function OrderTab({ user }) {
                 <p className="text-xs font-bold text-slate-800 leading-tight">
                   {item.name}
                 </p>
-                <p className="text-xs font-semibold text-slate-500">
-                  ₱{item.price}
-                </p>
+
+                {/* show category when searching globally */}
+                {q.length > 0 && (
+                  <p className="text-[10px] uppercase tracking-wider text-slate-400">
+                    {item.category}
+                  </p>
+                )}
+
+                <p className="text-xs font-semibold text-slate-500">₱{item.price}</p>
               </div>
 
               <div className="mt-3">
@@ -481,13 +501,11 @@ function OrderTab({ user }) {
         })}
       </div>
 
-      {/* Optional: show total */}
+      {/* Optional cart total */}
       {cartArr.length > 0 && (
         <div className="sticky bottom-3 bg-slate-900 text-white rounded-2xl p-4 shadow-2xl flex items-center justify-between">
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-slate-300">
-              Cart Total
-            </p>
+            <p className="text-[10px] uppercase tracking-widest text-slate-300">Cart Total</p>
             <p className="text-lg font-bold">₱{total.toFixed(0)}</p>
           </div>
           <p className="text-sm font-semibold">
@@ -498,7 +516,6 @@ function OrderTab({ user }) {
     </div>
   );
 }
-
 /* ──────────────────────────────────────────────────────────────
    Loyalty Tab (Perks content matches your longer version) [1](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=eb4cb160-5ac1-4fd9-abe6-dc3829e3f276&cid=933e55cc8541ec41)
 ────────────────────────────────────────────────────────────── */
