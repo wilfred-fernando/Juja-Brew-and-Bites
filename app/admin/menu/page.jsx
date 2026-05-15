@@ -14,10 +14,19 @@ export default function MenuAdminPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalTab, setModalTab] = useState("Details");
   const [editingItem, setEditingItem] = useState(null);
-  const [form, setForm] = useState({ 
-    name: "", category: "", price: "", description: "", 
-    image_url: "", is_available: true, is_featured: false 
+
+  // ✅ ADD: pos_only to item form
+  const [form, setForm] = useState({
+    name: "",
+    category: "",
+    price: "",
+    description: "",
+    image_url: "",
+    is_available: true,
+    is_featured: false,
+    pos_only: false,
   });
+
   const [optionGroups, setOptionGroups] = useState([]);
   const [groupTemplates, setGroupTemplates] = useState([]);
   const [editingTemplate, setEditingTemplate] = useState(null);
@@ -28,7 +37,11 @@ export default function MenuAdminPage() {
   // Category Modal State
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
-  const [catForm, setCatForm] = useState({ name: "", is_active: true });
+  const [catForm, setCatForm] = useState({
+    name: "",
+    is_active: true,
+    pos_only: false,
+  });
   const [catSaving, setCatSaving] = useState(false);
 
   // Custom Delete Modal State
@@ -42,44 +55,65 @@ export default function MenuAdminPage() {
 
   async function fetchData() {
     setLoading(true);
-    const [itemRes, catRes, templateRes] = await Promise.all([
-  supabase.from("menu_items").select("*").order("name"),
-  supabase.from("menu_categories").select("*").order("name", { ascending: true }),
-  supabase.from("option_group_templates").select("*").order("name")
-]);
 
-if (itemRes.data) setItems(itemRes.data);
-if (catRes.data) setCategories(catRes.data);
-if (templateRes.data) setGroupTemplates(templateRes.data);
+    const [itemRes, catRes, templateRes] = await Promise.all([
+      supabase.from("menu_items").select("*").order("name"),
+      supabase.from("menu_categories").select("*").order("name", { ascending: true }),
+      supabase.from("option_group_templates").select("*").order("name"),
+    ]);
+
+    if (itemRes.data) setItems(itemRes.data);
+    if (catRes.data) setCategories(catRes.data);
+    if (templateRes.data) setGroupTemplates(templateRes.data);
+
     setLoading(false);
   }
 
   // --- ITEM HANDLERS ---
   const openModal = (item = null) => {
-    setModalTab("Details"); 
+    setModalTab("Details");
+
     if (item) {
       setEditingItem(item);
+
+      // ✅ ADD: pos_only prefill
       setForm({
-        name: item.name || "", category: item.category || "", price: item.price || "",
-        description: item.description || "", image_url: item.image_url || "",
-        is_available: item.is_available !== false, is_featured: item.is_featured || false
+        name: item.name || "",
+        category: item.category || "",
+        price: item.price ?? "",
+        description: item.description || "",
+        image_url: item.image_url || "",
+        is_available: item.is_available !== false,
+        is_featured: !!item.is_featured,
+        pos_only: !!item.pos_only,
       });
+
       setOptionGroups(item.variants || []);
     } else {
       setEditingItem(null);
-      setForm({ 
-        name: "", category: categories.length > 0 ? categories[0].name : "", 
-        price: "", description: "", image_url: "", is_available: true, is_featured: false 
+
+      // ✅ ADD: pos_only default false
+      setForm({
+        name: "",
+        category: categories.length > 0 ? categories[0].name : "",
+        price: "",
+        description: "",
+        image_url: "",
+        is_available: true,
+        is_featured: false,
+        pos_only: false,
       });
+
       setOptionGroups([]);
     }
+
     setIsModalOpen(true);
   };
 
   const handleSave = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
-    
-    if (!form.name.trim() || !form.category || (form.price === "")) {
+
+    if (!form.name.trim() || !form.category || form.price === "") {
       alert("Please ensure Name, Category, and Price are filled out.");
       return;
     }
@@ -87,36 +121,39 @@ if (templateRes.data) setGroupTemplates(templateRes.data);
     setSaving(true);
     try {
       const finalPayload = {
-        ...form,
-        // If variants exist, base price is 0 (the POS will use the variant price)
+        ...form, // ✅ includes pos_only now
         price: parseFloat(form.price) || 0,
-        variants: optionGroups
+        variants: optionGroups,
       };
 
       let responseError = null;
+
       if (editingItem) {
-        const { error } = await supabase.from("menu_items").update(finalPayload).eq("id", editingItem.id);
+        const { error } = await supabase
+          .from("menu_items")
+          .update(finalPayload)
+          .eq("id", editingItem.id);
         responseError = error;
       } else {
         const { error } = await supabase.from("menu_items").insert([finalPayload]);
         responseError = error;
       }
-      
+
       if (responseError) throw responseError;
-      
-      await fetchData(); 
+
+      await fetchData();
       setIsModalOpen(false);
-    } catch (error) { 
+    } catch (error) {
       console.error("Save Error:", error);
-      alert("Error saving item: " + (error.message || JSON.stringify(error))); 
+      alert("Error saving item: " + (error.message || JSON.stringify(error)));
     } finally {
       setSaving(false);
     }
-  }
+  };
 
   // --- DELETE HANDLERS ---
   const confirmDeleteItem = (item) => setItemToDelete(item);
-  
+
   const executeDeleteItem = async () => {
     setIsDeleting(true);
     try {
@@ -138,7 +175,7 @@ if (templateRes.data) setGroupTemplates(templateRes.data);
     try {
       const { error } = await supabase.from("menu_categories").delete().eq("id", categoryToDelete.id);
       if (error) throw error;
-      
+
       if (catFilter === categoryToDelete.name) setCatFilter("All");
       await fetchData();
       setCategoryToDelete(null);
@@ -153,95 +190,114 @@ if (templateRes.data) setGroupTemplates(templateRes.data);
   const addOptionGroup = () => {
     setOptionGroups([
       ...optionGroups,
-      // Default to required, single select for primary variants like Size or Spicy level
-      { id: Date.now(), name: "Variants", isRequired: true, isMultiSelect: false, options: [{ id: Date.now() + 1, name: "", price: "" }] }
+      {
+        id: Date.now(),
+        name: "Variants",
+        isRequired: true,
+        isMultiSelect: false,
+        options: [{ id: Date.now() + 1, name: "", price: "" }],
+      },
     ]);
     setModalTab("Option Groups");
   };
 
-  const removeOptionGroup = (groupId) => setOptionGroups(optionGroups.filter(g => g.id !== groupId));
-  const updateOptionGroup = (groupId, field, value) => setOptionGroups(optionGroups.map(g => g.id === groupId ? { ...g, [field]: value } : g));
-  
-  const addOption = (groupId) => setOptionGroups(optionGroups.map(g => g.id === groupId ? { ...g, options: [...g.options, { id: Date.now(), name: "", price: "" }] } : g));
-  const removeOption = (groupId, optionId) => setOptionGroups(optionGroups.map(g => g.id === groupId ? { ...g, options: g.options.filter(o => o.id !== optionId) } : g));
-  const updateOption = (groupId, optionId, field, value) => setOptionGroups(optionGroups.map(g => g.id === groupId ? { ...g, options: g.options.map(o => o.id === optionId ? { ...o, [field]: value } : o) } : g));
+  const removeOptionGroup = (groupId) => setOptionGroups(optionGroups.filter((g) => g.id !== groupId));
+  const updateOptionGroup = (groupId, field, value) =>
+    setOptionGroups(optionGroups.map((g) => (g.id === groupId ? { ...g, [field]: value } : g)));
+
+  const addOption = (groupId) =>
+    setOptionGroups(
+      optionGroups.map((g) =>
+        g.id === groupId ? { ...g, options: [...g.options, { id: Date.now(), name: "", price: "" }] } : g
+      )
+    );
+
+  const removeOption = (groupId, optionId) =>
+    setOptionGroups(
+      optionGroups.map((g) => (g.id === groupId ? { ...g, options: g.options.filter((o) => o.id !== optionId) } : g))
+    );
+
+  const updateOption = (groupId, optionId, field, value) =>
+    setOptionGroups(
+      optionGroups.map((g) =>
+        g.id === groupId
+          ? {
+              ...g,
+              options: g.options.map((o) => (o.id === optionId ? { ...o, [field]: value } : o)),
+            }
+          : g
+      )
+    );
+
   const saveAsTemplate = async (group) => {
-  
-  try {
-    const payload = {
-      name: group.name,
-      is_required: group.isRequired,
-      is_multi_select: group.isMultiSelect,
-      options: group.options
-    };
+    try {
+      const payload = {
+        name: group.name,
+        is_required: group.isRequired,
+        is_multi_select: group.isMultiSelect,
+        options: group.options,
+      };
 
-    const { error } = await supabase
-      .from("option_group_templates")
-      .insert([payload]);
+      const { error } = await supabase.from("option_group_templates").insert([payload]);
+      if (error) throw error;
 
-    if (error) throw error;
+      alert("Template saved!");
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    }
+  };
 
-    alert("Template saved!");
+  const updateTemplate = async () => {
+    try {
+      const { error } = await supabase
+        .from("option_group_templates")
+        .update({
+          name: templateForm.name,
+          is_required: templateForm.is_required,
+          is_multi_select: templateForm.is_multi_select,
+          options: templateForm.options,
+        })
+        .eq("id", editingTemplate.id);
 
-    fetchData();
-  } catch (err) {
-    console.error(err);
-    alert(err.message);
-  }
-};
+      if (error) throw error;
 
-const updateTemplate = async () => {
-  try {
-    const { error } = await supabase
-      .from("option_group_templates")
-      .update({
-        name: templateForm.name,
-        is_required: templateForm.is_required,
-        is_multi_select: templateForm.is_multi_select,
-        options: templateForm.options
-      })
-      .eq("id", editingTemplate.id);
+      alert("Template updated!");
+      setEditingTemplate(null);
+      setTemplateForm(null);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    }
+  };
 
-    if (error) throw error;
+  const deleteTemplate = async (id) => {
+    if (!confirm("Delete this template?")) return;
 
-    alert("Template updated!");
-
-    setEditingTemplate(null);
-    setTemplateForm(null);
-
-    fetchData();
-  } catch (err) {
-    console.error(err);
-    alert(err.message);
-  }
-};
-
-const deleteTemplate = async (id) => {
-  if (!confirm("Delete this template?")) return;
-
-  try {
-    const { error } = await supabase
-      .from("option_group_templates")
-      .delete()
-      .eq("id", id);
-
-    if (error) throw error;
-
-    fetchData();
-  } catch (err) {
-    console.error(err);
-    alert(err.message);
-  }
-};
+    try {
+      const { error } = await supabase.from("option_group_templates").delete().eq("id", id);
+      if (error) throw error;
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    }
+  };
 
   // --- CATEGORY HANDLERS ---
   const openCategoryModal = (cat = null) => {
     if (cat) {
       setEditingCategory(cat);
-      setCatForm({ name: cat.name, is_active: cat.is_active });
+      setCatForm({
+        name: cat.name,
+        is_active: cat.is_active,
+        pos_only: !!cat.pos_only,
+      });
     } else {
       setEditingCategory(null);
-      setCatForm({ name: "", is_active: true });
+      setCatForm({ name: "", is_active: true, pos_only: false });
     }
     setIsCatModalOpen(true);
   };
@@ -249,13 +305,13 @@ const deleteTemplate = async (id) => {
   const handleCategorySave = async (e) => {
     e.preventDefault();
     if (!catForm.name.trim()) return alert("Category name is required.");
-    
+
     setCatSaving(true);
     try {
       if (editingCategory) {
         const { error } = await supabase.from("menu_categories").update(catForm).eq("id", editingCategory.id);
         if (error) throw error;
-        
+
         if (editingCategory.name !== catForm.name) {
           await supabase.from("menu_items").update({ category: catForm.name }).eq("category", editingCategory.name);
           if (catFilter === editingCategory.name) setCatFilter(catForm.name);
@@ -264,7 +320,7 @@ const deleteTemplate = async (id) => {
         const { error } = await supabase.from("menu_categories").insert([catForm]);
         if (error) throw error;
       }
-      
+
       await fetchData();
       setIsCatModalOpen(false);
     } catch (error) {
@@ -275,19 +331,19 @@ const deleteTemplate = async (id) => {
     }
   };
 
-
   const filteredItems = items
-    .filter(i => catFilter === "All" || i.category === catFilter)
-    .filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
+    .filter((i) => catFilter === "All" || i.category === catFilter)
+    .filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
 
-  if (loading) return <div className="p-8 flex justify-center"><div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full"></div></div>;
+  if (loading)
+    return (
+      <div className="p-8 flex justify-center">
+        <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
+      </div>
+    );
 
   return (
-    <div 
-      className="max-w-7xl mx-auto animate-in fade-in duration-500 pb-24 px-3 md:px-8"
-      style={{ fontFamily: "'Arial', sans-serif" }}
-    >
-      
+    <div className="max-w-7xl mx-auto animate-in fade-in duration-500 pb-24 px-3 md:px-8" style={{ fontFamily: "'Arial', sans-serif" }}>
       {/* HEADER */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-6 mb-4 md:mb-8 pt-4 md:pt-6">
         <div>
@@ -297,10 +353,16 @@ const deleteTemplate = async (id) => {
           </p>
         </div>
         <div className="flex w-full md:w-auto gap-2 md:gap-3">
-          <button onClick={() => openModal()} className="flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3.5 bg-[#FC687D] text-white text-[11px] md:text-sm font-normal uppercase rounded-xl md:rounded-2xl hover:bg-rose-500 transition-all shadow-[0_4px_15px_rgba(252,104,125,0.25)] hover:-translate-y-0.5 active:scale-95">
+          <button
+            onClick={() => openModal()}
+            className="flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3.5 bg-[#FC687D] text-white text-[11px] md:text-sm font-normal uppercase rounded-xl md:rounded-2xl hover:bg-rose-500 transition-all shadow-[0_4px_15px_rgba(252,104,125,0.25)] hover:-translate-y-0.5 active:scale-95"
+          >
             + Add Item
           </button>
-          <button onClick={() => openCategoryModal()} className="flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3.5 bg-white border border-rose-100 text-[#FC687D] text-[11px] md:text-sm font-normal uppercase rounded-xl md:rounded-2xl hover:bg-rose-50 transition-all shadow-sm active:scale-95">
+          <button
+            onClick={() => openCategoryModal()}
+            className="flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3.5 bg-white border border-rose-100 text-[#FC687D] text-[11px] md:text-sm font-normal uppercase rounded-xl md:rounded-2xl hover:bg-rose-50 transition-all shadow-sm active:scale-95"
+          >
             + Category
           </button>
         </div>
@@ -310,12 +372,15 @@ const deleteTemplate = async (id) => {
       <div className="lg:hidden flex flex-col gap-3 mb-6">
         <div className="relative">
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
-          <input 
-            type="text" placeholder="Search menu..." value={search} onChange={(e) => setSearch(e.target.value)}
+          <input
+            type="text"
+            placeholder="Search menu..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-100 rounded-xl text-xs focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all shadow-sm"
           />
         </div>
-        
+
         <div className="flex gap-2">
           <div className="relative flex-1">
             <select
@@ -324,21 +389,27 @@ const deleteTemplate = async (id) => {
               className="w-full h-full bg-white border border-slate-100 rounded-xl px-4 py-3 text-xs font-semibold text-slate-700 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all shadow-sm"
             >
               <option value="All">All Items ({items.length})</option>
-              {categories.map(cat => (
+              {categories.map((cat) => (
                 <option key={cat.id} value={cat.name}>
-                  {cat.name} ({items.filter(i => i.category === cat.name).length})
+                  {cat.name} ({items.filter((i) => i.category === cat.name).length})
                 </option>
               ))}
             </select>
           </div>
-          
+
           {/* Mobile Category Edit/Delete */}
           {catFilter !== "All" && (
             <div className="flex gap-2 flex-shrink-0 animate-in fade-in duration-200">
-              <button onClick={() => openCategoryModal(categories.find(c => c.name === catFilter))} className="w-11 h-11 flex items-center justify-center bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-[#FC687D] hover:bg-rose-50 transition-colors shadow-sm text-sm">
+              <button
+                onClick={() => openCategoryModal(categories.find((c) => c.name === catFilter))}
+                className="w-11 h-11 flex items-center justify-center bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-[#FC687D] hover:bg-rose-50 transition-colors shadow-sm text-sm"
+              >
                 ✎
               </button>
-              <button onClick={() => confirmDeleteCategory(categories.find(c => c.name === catFilter))} className="w-11 h-11 flex items-center justify-center bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors shadow-sm text-sm">
+              <button
+                onClick={() => confirmDeleteCategory(categories.find((c) => c.name === catFilter))}
+                className="w-11 h-11 flex items-center justify-center bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors shadow-sm text-sm"
+              >
                 🗑
               </button>
             </div>
@@ -347,21 +418,23 @@ const deleteTemplate = async (id) => {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 md:gap-8">
-        
         {/* RESPONSIVE CATEGORY NAVIGATION (Desktop) */}
         <div className="hidden lg:block w-72 flex-shrink-0">
           <div className="relative mb-6">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
-            <input 
-              type="text" placeholder="Search menu..." value={search} onChange={(e) => setSearch(e.target.value)}
+            <input
+              type="text"
+              placeholder="Search menu..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-3 bg-white border border-slate-100 rounded-2xl text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all shadow-sm"
             />
           </div>
-          
+
           <div className="flex flex-col bg-white p-2 rounded-2xl border border-slate-100 shadow-sm gap-1">
             <h3 className="text-[10px] font-normal uppercase text-slate-400 px-3 pt-2 pb-2">Categories</h3>
-            
-            <button 
+
+            <button
               onClick={() => setCatFilter("All")}
               className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-normal uppercase transition-all duration-300 active:scale-95 ${
                 catFilter === "All" ? "bg-slate-800 text-white shadow-sm" : "bg-transparent text-slate-500 hover:bg-slate-50 border-transparent"
@@ -370,10 +443,10 @@ const deleteTemplate = async (id) => {
               <span className="text-left break-words whitespace-normal leading-tight pr-2">All Items</span>
               <span className={`flex-shrink-0 flex px-2 py-0.5 rounded-full text-[9px] ${catFilter === "All" ? "bg-white/20" : "bg-slate-100"}`}>{items.length}</span>
             </button>
-            
-            {categories.map(cat => (
+
+            {categories.map((cat) => (
               <div key={cat.id} className="relative group w-full flex items-center">
-                <button 
+                <button
                   onClick={() => setCatFilter(cat.name)}
                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-normal uppercase transition-all duration-300 active:scale-95 ${
                     catFilter === cat.name ? "bg-[#FC687D] text-white shadow-sm shadow-rose-200" : "bg-transparent text-slate-500 hover:bg-slate-50 border-transparent"
@@ -381,16 +454,40 @@ const deleteTemplate = async (id) => {
                 >
                   <div className="flex items-center gap-2 pr-2">
                     <span className="text-left break-words whitespace-normal leading-tight">{cat.name}</span>
+
+                    {/* Optional Category badge */}
+                    {cat.pos_only && (
+                      <span className="text-[9px] font-bold uppercase text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
+                        POS
+                      </span>
+                    )}
                   </div>
+
                   <span className={`flex-shrink-0 flex px-2 py-0.5 rounded-full text-[9px] ${catFilter === cat.name ? "bg-white/20" : "bg-slate-100"}`}>
-                    {items.filter(i => i.category === cat.name).length}
+                    {items.filter((i) => i.category === cat.name).length}
                   </span>
                 </button>
-                
+
                 {/* Desktop Category Edit/Delete Hover Menu */}
                 <div className="absolute right-2 opacity-0 group-hover:opacity-100 flex items-center gap-1.5 transition-opacity bg-white/90 backdrop-blur-sm p-1 rounded-lg shadow-sm border border-slate-100 pointer-events-none group-hover:pointer-events-auto">
-                  <button onClick={(e) => { e.stopPropagation(); openCategoryModal(cat); }} className="w-6 h-6 flex items-center justify-center bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-[#FC687D] rounded-md text-[11px] transition-colors">✎</button>
-                  <button onClick={(e) => { e.stopPropagation(); confirmDeleteCategory(cat); }} className="w-6 h-6 flex items-center justify-center bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-md text-[11px] transition-colors">🗑</button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openCategoryModal(cat);
+                    }}
+                    className="w-6 h-6 flex items-center justify-center bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-[#FC687D] rounded-md text-[11px] transition-colors"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      confirmDeleteCategory(cat);
+                    }}
+                    className="w-6 h-6 flex items-center justify-center bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-md text-[11px] transition-colors"
+                  >
+                    🗑
+                  </button>
                 </div>
               </div>
             ))}
@@ -399,9 +496,11 @@ const deleteTemplate = async (id) => {
 
         {/* LIST AREA */}
         <div className="flex-1 flex flex-col gap-3 md:gap-4">
-          {filteredItems.map(item => (
-            <div key={item.id} className="bg-white rounded-xl md:rounded-2xl border border-rose-50 shadow-sm p-3 md:p-4 pr-3 md:pr-5 flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0 hover:shadow-md transition-all duration-300 group cursor-default">
-              
+          {filteredItems.map((item) => (
+            <div
+              key={item.id}
+              className="bg-white rounded-xl md:rounded-2xl border border-rose-50 shadow-sm p-3 md:p-4 pr-3 md:pr-5 flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0 hover:shadow-md transition-all duration-300 group cursor-default"
+            >
               <div className="flex items-center gap-3 md:gap-4">
                 <div className="w-12 h-12 md:w-16 md:h-16 rounded-lg md:rounded-xl bg-[#FFF9FA] flex items-center justify-center relative overflow-hidden flex-shrink-0 border border-rose-50">
                   {item.image_url ? (
@@ -410,40 +509,61 @@ const deleteTemplate = async (id) => {
                     <span className="text-xl md:text-2xl text-rose-200/50">📷</span>
                   )}
                 </div>
+
                 <div>
                   <h3 className="font-normal text-slate-800 text-sm md:text-base mb-0.5 leading-tight">
-                    {item.name} {item.variants?.length > 0 && <span className="ml-1 text-[10px] text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded uppercase font-bold">Variants</span>}
+                    {item.name}
+
+                    {item.variants?.length > 0 && (
+                      <span className="ml-1 text-[10px] text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded uppercase font-bold">
+                        Variants
+                      </span>
+                    )}
+
+                    {/* ✅ Item POS Only badge */}
+                    {item.pos_only && (
+                      <span className="ml-1 text-[10px] text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded uppercase font-bold">
+                        POS Only
+                      </span>
+                    )}
                   </h3>
+
                   <div className="flex items-center gap-2">
-                    <span className="font-normal text-[#FC687D] text-xs md:text-sm">
-                      ₱{item.price}
-                    </span>
+                    <span className="font-normal text-[#FC687D] text-xs md:text-sm">₱{item.price}</span>
                     <span className="text-slate-200 text-[10px]">•</span>
                     <span className="text-[9px] md:text-[10px] font-normal uppercase text-slate-400">{item.category}</span>
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex items-center justify-between md:justify-end w-full md:w-auto gap-3 md:gap-6 pt-3 md:pt-0 border-t md:border-none border-slate-50">
-                <span className={`px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-[9px] md:text-[10px] font-normal uppercase border flex items-center gap-1.5 ${
-                  item.is_available ? "bg-emerald-50 text-emerald-600 border-emerald-100/50" : "bg-slate-50 text-slate-400 border-slate-100"
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${item.is_available ? "bg-emerald-500 animate-pulse" : "bg-slate-300"}`}></span>
+                <span
+                  className={`px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-[9px] md:text-[10px] font-normal uppercase border flex items-center gap-1.5 ${
+                    item.is_available ? "bg-emerald-50 text-emerald-600 border-emerald-100/50" : "bg-slate-50 text-slate-400 border-slate-100"
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${item.is_available ? "bg-emerald-500 animate-pulse" : "bg-slate-300"}`} />
                   {item.is_available ? "Available" : "Disabled"}
                 </span>
 
                 <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300">
-                  <button onClick={() => openModal(item)} className="px-3 md:px-4 py-1.5 md:py-2 bg-slate-50 border border-slate-100 text-[10px] md:text-xs font-normal text-slate-500 hover:text-[#FC687D] hover:bg-rose-50 rounded-lg md:rounded-xl transition-all active:scale-90">
+                  <button
+                    onClick={() => openModal(item)}
+                    className="px-3 md:px-4 py-1.5 md:py-2 bg-slate-50 border border-slate-100 text-[10px] md:text-xs font-normal text-slate-500 hover:text-[#FC687D] hover:bg-rose-50 rounded-lg md:rounded-xl transition-all active:scale-90"
+                  >
                     ✎
                   </button>
-                  <button onClick={() => confirmDeleteItem(item)} className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center bg-slate-50 border border-slate-100 text-[10px] md:text-xs text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg md:rounded-xl transition-all active:scale-90">
+                  <button
+                    onClick={() => confirmDeleteItem(item)}
+                    className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center bg-slate-50 border border-slate-100 text-[10px] md:text-xs text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg md:rounded-xl transition-all active:scale-90"
+                  >
                     🗑
                   </button>
                 </div>
               </div>
             </div>
           ))}
-          
+
           {filteredItems.length === 0 && (
             <div className="text-center py-12 md:py-20 text-slate-400 font-normal uppercase text-[10px] md:text-xs border border-dashed border-slate-200/60 rounded-xl md:rounded-2xl bg-white/50">
               No items found
@@ -459,22 +579,27 @@ const deleteTemplate = async (id) => {
             <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 shadow-sm border border-red-100">
               🗑️
             </div>
-            <h3 className="text-xl font-bold text-slate-800 text-center mb-2">
-              Delete {itemToDelete ? "Item" : "Category"}?
-            </h3>
+
+            <h3 className="text-xl font-bold text-slate-800 text-center mb-2">Delete {itemToDelete ? "Item" : "Category"}?</h3>
+
             <p className="text-sm text-slate-500 text-center mb-6 leading-relaxed">
-              {itemToDelete 
+              {itemToDelete
                 ? `Are you sure you want to permanently delete "${itemToDelete.name}"? This action cannot be undone.`
                 : `Are you sure you want to delete "${categoryToDelete.name}"? Items inside this category will NOT be deleted, but they will lose their category filter.`}
             </p>
+
             <div className="flex gap-3 w-full">
-              <button 
-                onClick={() => { setItemToDelete(null); setCategoryToDelete(null); }} 
+              <button
+                onClick={() => {
+                  setItemToDelete(null);
+                  setCategoryToDelete(null);
+                }}
                 className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors text-xs uppercase"
               >
                 Cancel
               </button>
-              <button 
+
+              <button
                 onClick={itemToDelete ? executeDeleteItem : executeDeleteCategory}
                 disabled={isDeleting}
                 className="flex-1 py-3.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl shadow-md shadow-red-200 transition-colors disabled:opacity-70 text-xs uppercase active:scale-95"
@@ -488,59 +613,96 @@ const deleteTemplate = async (id) => {
 
       {/* ─── ADD/EDIT CATEGORY MODAL ─── */}
       {isCatModalOpen && (
-        <div className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 transition-all duration-300" onClick={() => setIsCatModalOpen(false)}>
-          <div className="bg-white w-full max-w-md rounded-[24px] p-6 md:p-8 shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 transition-all duration-300"
+          onClick={() => setIsCatModalOpen(false)}
+        >
+          <div
+            className="bg-white w-full max-w-md rounded-[24px] p-6 md:p-8 shadow-2xl animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl md:text-2xl font-bold text-slate-800">
                 {editingCategory ? "Edit Category" : "Add Category"}
               </h3>
-              <button onClick={() => setIsCatModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90 font-bold">
+              <button
+                onClick={() => setIsCatModalOpen(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90 font-bold"
+              >
                 ✕
               </button>
             </div>
+
             <form onSubmit={handleCategorySave} className="space-y-5">
               <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Category Name *</label>
-                <input 
-                  type="text" required placeholder="e.g. Rice Meals" 
-                  value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} 
-                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" 
+                <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">
+                  Category Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Rice Meals"
+                  value={catForm.name}
+                  onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
                 />
-              </div>              
+              </div>
+
               <div className="pt-2">
                 <label className="flex items-center gap-3 cursor-pointer group w-fit">
                   <div className="relative flex items-center justify-center">
-                    <input 
-                      type="checkbox" checked={catForm.is_active} onChange={e => setCatForm({...catForm, is_active: e.target.checked})} 
-                      className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-[#FC687D] checked:bg-[#FC687D] transition-all cursor-pointer" 
+                    <input
+                      type="checkbox"
+                      checked={catForm.is_active}
+                      onChange={(e) => setCatForm({ ...catForm, is_active: e.target.checked })}
+                      className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-[#FC687D] checked:bg-[#FC687D] transition-all cursor-pointer"
                     />
                     <span className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xs font-bold">✓</span>
                   </div>
                   <span className="text-sm font-medium text-slate-700">Active / Visible</span>
                 </label>
               </div>
+
+              <label className="flex items-center gap-3 cursor-pointer group w-fit mt-3">
+                <div className="relative flex items-center justify-center">
+                  <input
+                    type="checkbox"
+                    checked={catForm.pos_only}
+                    onChange={(e) => setCatForm({ ...catForm, pos_only: e.target.checked })}
+                    className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-[#FC687D] checked:bg-[#FC687D] transition-all cursor-pointer"
+                  />
+                  <span className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xs font-bold">✓</span>
+                </div>
+                <span className="text-sm font-medium text-slate-700">POS Only (hide from public menu)</span>
+              </label>
+
               <div className="grid grid-cols-2 gap-3 pt-4 mt-2 border-t border-slate-100">
-                <button type="button" onClick={() => setIsCatModalOpen(false)} className="w-full py-3.5 rounded-xl bg-slate-50 text-slate-600 font-bold text-xs hover:bg-slate-100 transition-all active:scale-95">
+                <button
+                  type="button"
+                  onClick={() => setIsCatModalOpen(false)}
+                  className="w-full py-3.5 rounded-xl bg-slate-50 text-slate-600 font-bold text-xs hover:bg-slate-100 transition-all active:scale-95"
+                >
                   Cancel
                 </button>
-                <button type="submit" disabled={catSaving} className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-bold text-xs hover:bg-rose-500 transition-all shadow-md shadow-rose-200 disabled:opacity-70 active:scale-95">
-                  {catSaving ? "Saving..." : (editingCategory ? "Update Category" : "Add Category")}
+                <button
+                  type="submit"
+                  disabled={catSaving}
+                  className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-bold text-xs hover:bg-rose-500 transition-all shadow-md shadow-rose-200 disabled:opacity-70 active:scale-95"
+                >
+                  {catSaving ? "Saving..." : editingCategory ? "Update Category" : "Add Category"}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-      
+
+      {/* TEMPLATE EDIT MODAL */}
       {editingTemplate && templateForm && (
         <div className="fixed inset-0 z-[70] bg-black/40 flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-lg rounded-2xl p-6">
-            
             <div className="flex justify-between items-center mb-5">
-              <h3 className="text-lg font-bold">
-                Edit Template
-              </h3>
-
+              <h3 className="text-lg font-bold">Edit Template</h3>
               <button
                 onClick={() => {
                   setEditingTemplate(null);
@@ -555,12 +717,7 @@ const deleteTemplate = async (id) => {
             <div className="space-y-4">
               <input
                 value={templateForm.name}
-                onChange={(e) =>
-                  setTemplateForm({
-                    ...templateForm,
-                    name: e.target.value
-                  })
-                }
+                onChange={(e) => setTemplateForm({ ...templateForm, name: e.target.value })}
                 placeholder="Template name"
                 className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"
               />
@@ -569,12 +726,7 @@ const deleteTemplate = async (id) => {
                 <input
                   type="checkbox"
                   checked={templateForm.is_required}
-                  onChange={(e) =>
-                    setTemplateForm({
-                      ...templateForm,
-                      is_required: e.target.checked
-                    })
-                  }
+                  onChange={(e) => setTemplateForm({ ...templateForm, is_required: e.target.checked })}
                 />
                 Required
               </label>
@@ -583,12 +735,7 @@ const deleteTemplate = async (id) => {
                 <input
                   type="checkbox"
                   checked={templateForm.is_multi_select}
-                  onChange={(e) =>
-                    setTemplateForm({
-                      ...templateForm,
-                      is_multi_select: e.target.checked
-                    })
-                  }
+                  onChange={(e) => setTemplateForm({ ...templateForm, is_multi_select: e.target.checked })}
                 />
                 Multi Select
               </label>
@@ -601,11 +748,7 @@ const deleteTemplate = async (id) => {
                       onChange={(e) => {
                         const updated = [...templateForm.options];
                         updated[idx].name = e.target.value;
-
-                        setTemplateForm({
-                          ...templateForm,
-                          options: updated
-                        });
+                        setTemplateForm({ ...templateForm, options: updated });
                       }}
                       placeholder="Option name"
                       className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm"
@@ -617,11 +760,7 @@ const deleteTemplate = async (id) => {
                       onChange={(e) => {
                         const updated = [...templateForm.options];
                         updated[idx].price = e.target.value;
-
-                        setTemplateForm({
-                          ...templateForm,
-                          options: updated
-                        });
+                        setTemplateForm({ ...templateForm, options: updated });
                       }}
                       placeholder="Price"
                       className="w-28 border border-slate-200 rounded-xl px-3 py-2 text-sm"
@@ -635,10 +774,7 @@ const deleteTemplate = async (id) => {
                 onClick={() =>
                   setTemplateForm({
                     ...templateForm,
-                    options: [
-                      ...templateForm.options,
-                      { name: "", price: 0 }
-                    ]
+                    options: [...templateForm.options, { name: "", price: 0 }],
                   })
                 }
                 className="text-xs font-bold text-[#FC687D]"
@@ -646,62 +782,91 @@ const deleteTemplate = async (id) => {
                 + Add Option
               </button>
 
-              <button
-                type="button"
-                onClick={updateTemplate}
-                className="w-full py-3 rounded-xl bg-[#FC687D] text-white font-bold text-sm"
-              >
+              <button type="button" onClick={updateTemplate} className="w-full py-3 rounded-xl bg-[#FC687D] text-white font-bold text-sm">
                 Save Changes
               </button>
             </div>
           </div>
         </div>
       )}
-      
+
       {/* ─── ADD/EDIT ITEM MODAL ─── */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 transition-all duration-300" onClick={() => setIsModalOpen(false)}>
-          <div className="bg-white w-full max-w-2xl rounded-t-[20px] md:rounded-[24px] p-5 md:p-8 shadow-2xl animate-in slide-in-from-bottom-full md:slide-in-from-bottom-10 md:zoom-in-95 duration-300 max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-            
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 transition-all duration-300"
+          onClick={() => setIsModalOpen(false)}
+        >
+          <div
+            className="bg-white w-full max-w-2xl rounded-t-[20px] md:rounded-[24px] p-5 md:p-8 shadow-2xl animate-in slide-in-from-bottom-full md:slide-in-from-bottom-10 md:zoom-in-95 duration-300 max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4 md:hidden flex-shrink-0" />
 
             <div className="flex justify-between items-center mb-5 md:mb-6 flex-shrink-0">
-              <h3 className="text-xl md:text-2xl font-bold text-slate-800" >{editingItem ? "Edit Item" : "New Item"}</h3>
-              <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90 font-bold">
+              <h3 className="text-xl md:text-2xl font-bold text-slate-800">{editingItem ? "Edit Item" : "New Item"}</h3>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90 font-bold"
+              >
                 ✕
               </button>
             </div>
 
             {/* Premium Tabs */}
             <div className="flex gap-1 md:gap-2 mb-5 md:mb-6 bg-slate-50 p-1 rounded-xl w-fit border border-slate-100 flex-shrink-0">
-              <button onClick={() => setModalTab("Details")} className={`px-4 md:px-5 py-2 rounded-lg text-[10px] md:text-xs font-bold flex items-center gap-1.5 transition-all duration-300 ${modalTab === "Details" ? "bg-rose-50 text-[#FC687D] shadow-sm border border-rose-100" : "text-slate-500 hover:bg-slate-100"}`}>
+              <button
+                onClick={() => setModalTab("Details")}
+                className={`px-4 md:px-5 py-2 rounded-lg text-[10px] md:text-xs font-bold flex items-center gap-1.5 transition-all duration-300 ${
+                  modalTab === "Details" ? "bg-rose-50 text-[#FC687D] shadow-sm border border-rose-100" : "text-slate-500 hover:bg-slate-100"
+                }`}
+              >
                 <span className="text-xs md:text-sm">📝</span> Details
               </button>
-              <button onClick={() => setModalTab("Option Groups")} className={`px-4 md:px-5 py-2 rounded-lg text-[10px] md:text-xs font-bold flex items-center gap-1.5 transition-all duration-300 ${modalTab === "Option Groups" ? "bg-rose-50 text-[#FC687D] shadow-sm border border-rose-100" : "text-slate-500 hover:bg-slate-100"}`}>
+
+              <button
+                onClick={() => setModalTab("Option Groups")}
+                className={`px-4 md:px-5 py-2 rounded-lg text-[10px] md:text-xs font-bold flex items-center gap-1.5 transition-all duration-300 ${
+                  modalTab === "Option Groups" ? "bg-rose-50 text-[#FC687D] shadow-sm border border-rose-100" : "text-slate-500 hover:bg-slate-100"
+                }`}
+              >
                 <span className="text-xs md:text-sm">⚙️</span> Variants & Options {hasVariants && `(${optionGroups.length})`}
               </button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto hide-scrollbar -mx-2 px-2 pb-4">
               {modalTab === "Details" ? (
                 <form id="item-form" onSubmit={handleSave} className="space-y-4 md:space-y-5 animate-in fade-in duration-200">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Item Name *</label>
-                    <input type="text" required value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" />
+                    <input
+                      type="text"
+                      required
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
+                    />
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-3 md:gap-5">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Category *</label>
-                      <select required value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all appearance-none cursor-pointer">
+                      <select
+                        required
+                        value={form.category}
+                        onChange={(e) => setForm({ ...form, category: e.target.value })}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all appearance-none cursor-pointer"
+                      >
                         <option value="">— Select Category —</option>
-                        {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.name}>
+                            {c.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Base Price (₱) *</label>
-                      
                       <input
                         type="number"
                         step="0.01"
@@ -711,41 +876,69 @@ const deleteTemplate = async (id) => {
                         onChange={(e) => setForm({ ...form, price: e.target.value })}
                         className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
                       />
-
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Description</label>
-                    <textarea rows="2" value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all resize-none" />
+                    <textarea
+                      rows="2"
+                      value={form.description}
+                      onChange={(e) => setForm({ ...form, description: e.target.value })}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all resize-none"
+                    />
                   </div>
 
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Product Image URL</label>
-                    <input 
-                      type="url" 
-                      placeholder="https://example.com/image.jpg" 
-                      value={form.image_url} 
-                      onChange={e => setForm({...form, image_url: e.target.value})} 
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" 
+                    <input
+                      type="url"
+                      placeholder="https://example.com/image.jpg"
+                      value={form.image_url}
+                      onChange={(e) => setForm({ ...form, image_url: e.target.value })}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
                     />
                   </div>
 
                   <div className="flex flex-col md:flex-row items-start md:items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 mt-2">
                     <label className="flex items-center gap-3 cursor-pointer group">
                       <div className="relative flex items-center justify-center">
-                        <input type="checkbox" checked={form.is_available} onChange={e => setForm({...form, is_available: e.target.checked})} className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-[#FC687D] checked:bg-[#FC687D] transition-all cursor-pointer" />
+                        <input
+                          type="checkbox"
+                          checked={form.is_available}
+                          onChange={(e) => setForm({ ...form, is_available: e.target.checked })}
+                          className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-[#FC687D] checked:bg-[#FC687D] transition-all cursor-pointer"
+                        />
                         <span className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xs font-bold">✓</span>
                       </div>
                       <span className="text-xs md:text-sm font-medium text-slate-700">Available to Order</span>
                     </label>
-                    
+
                     <label className="flex items-center gap-3 cursor-pointer group">
                       <div className="relative flex items-center justify-center">
-                        <input type="checkbox" checked={form.is_featured} onChange={e => setForm({...form, is_featured: e.target.checked})} className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-[#FC687D] checked:bg-[#FC687D] transition-all cursor-pointer" />
+                        <input
+                          type="checkbox"
+                          checked={form.is_featured}
+                          onChange={(e) => setForm({ ...form, is_featured: e.target.checked })}
+                          className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-[#FC687D] checked:bg-[#FC687D] transition-all cursor-pointer"
+                        />
                         <span className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xs font-bold">✓</span>
                       </div>
                       <span className="text-xs md:text-sm font-medium text-slate-700">Featured Item ⭐️</span>
+                    </label>
+
+                    {/* ✅ ADD: POS Only toggle for items */}
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <div className="relative flex items-center justify-center">
+                        <input
+                          type="checkbox"
+                          checked={form.pos_only}
+                          onChange={(e) => setForm({ ...form, pos_only: e.target.checked })}
+                          className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-[#FC687D] checked:bg-[#FC687D] transition-all cursor-pointer"
+                        />
+                        <span className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xs font-bold">✓</span>
+                      </div>
+                      <span className="text-xs md:text-sm font-medium text-slate-700">POS Only (hide from public menu)</span>
                     </label>
                   </div>
                 </form>
@@ -754,6 +947,7 @@ const deleteTemplate = async (id) => {
                   <p className="text-xs text-slate-500 mb-5 font-medium leading-relaxed px-1">
                     Group 1 acts as your base <strong className="text-[#FC687D]">Variants</strong> (e.g. Regular/Spicy). Additional groups act as Add-ons.
                   </p>
+
                   <button
                     type="button"
                     onClick={addOptionGroup}
@@ -763,32 +957,26 @@ const deleteTemplate = async (id) => {
                   </button>
 
                   <div className="mb-5">
-                    <label className="block text-[10px] font-bold text-slate-500 mb-2 uppercase tracking-wider">
-                      Add From Template
-                    </label>
-
+                    <label className="block text-[10px] font-bold text-slate-500 mb-2 uppercase tracking-wider">Add From Template</label>
                     <select
                       defaultValue=""
                       onChange={(e) => {
-                        const selected = groupTemplates.find(
-                          g => g.id === e.target.value
-                        );
-
+                        const selected = groupTemplates.find((g) => g.id === e.target.value);
                         if (!selected) return;
 
-                        setOptionGroups(prev => [
+                        setOptionGroups((prev) => [
                           ...prev,
                           {
                             id: Date.now(),
                             name: selected.name,
                             isRequired: selected.is_required,
                             isMultiSelect: selected.is_multi_select,
-                            options: selected.options.map(opt => ({
+                            options: selected.options.map((opt) => ({
                               id: Date.now() + Math.random(),
                               name: opt.name,
-                              price: opt.price
-                            }))
-                          }
+                              price: opt.price,
+                            })),
+                          },
                         ]);
 
                         e.target.value = "";
@@ -796,8 +984,7 @@ const deleteTemplate = async (id) => {
                       className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
                     >
                       <option value="">Select Option Group Template</option>
-
-                      {groupTemplates.map(group => (
+                      {groupTemplates.map((group) => (
                         <option key={group.id} value={group.id}>
                           {group.name}
                         </option>
@@ -806,24 +993,14 @@ const deleteTemplate = async (id) => {
                   </div>
 
                   <div className="mb-6 border border-slate-200 rounded-2xl p-4 bg-slate-50">
-                    <h4 className="text-xs font-bold uppercase text-slate-500 mb-3">
-                      Saved Templates
-                    </h4>
+                    <h4 className="text-xs font-bold uppercase text-slate-500 mb-3">Saved Templates</h4>
 
                     <div className="space-y-2">
                       {groupTemplates.map((template) => (
-                        <div
-                          key={template.id}
-                          className="flex items-center justify-between bg-white border border-slate-100 rounded-xl px-3 py-2"
-                        >
+                        <div key={template.id} className="flex items-center justify-between bg-white border border-slate-100 rounded-xl px-3 py-2">
                           <div>
-                            <p className="text-xs font-bold text-slate-700">
-                              {template.name}
-                            </p>
-
-                            <p className="text-[10px] text-slate-400">
-                              {template.options?.length || 0} options
-                            </p>
+                            <p className="text-xs font-bold text-slate-700">{template.name}</p>
+                            <p className="text-[10px] text-slate-400">{template.options?.length || 0} options</p>
                           </div>
 
                           <div className="flex gap-2">
@@ -831,12 +1008,11 @@ const deleteTemplate = async (id) => {
                               type="button"
                               onClick={() => {
                                 setEditingTemplate(template);
-
                                 setTemplateForm({
                                   name: template.name,
                                   is_required: template.is_required,
                                   is_multi_select: template.is_multi_select,
-                                  options: template.options || []
+                                  options: template.options || [],
                                 });
                               }}
                               className="text-[10px] font-bold text-blue-500 hover:text-blue-700"
@@ -860,8 +1036,6 @@ const deleteTemplate = async (id) => {
                   <div className="space-y-4 mb-6">
                     {optionGroups.map((group) => (
                       <div key={group.id} className="border border-rose-100 rounded-2xl p-4 md:p-5 bg-white shadow-[0_2px_10px_rgba(252,104,125,0.05)]">
-                        
-                        {/* Group Header Row */}
                         <div className="flex flex-wrap lg:flex-nowrap gap-3 items-center mb-4 pb-4 border-b border-slate-50">
                           <input
                             placeholder="Group name (e.g. Variants, Add-ons)"
@@ -869,14 +1043,27 @@ const deleteTemplate = async (id) => {
                             onChange={(e) => updateOptionGroup(group.id, "name", e.target.value)}
                             className="flex-1 min-w-[140px] border border-slate-200 rounded-xl p-2.5 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] transition font-bold text-slate-700"
                           />
+
                           <label className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-600 font-medium cursor-pointer">
-                            <input type="checkbox" checked={group.isRequired} onChange={(e) => updateOptionGroup(group.id, "isRequired", e.target.checked)} className="w-3.5 h-3.5 accent-[#FC687D] cursor-pointer" />
+                            <input
+                              type="checkbox"
+                              checked={group.isRequired}
+                              onChange={(e) => updateOptionGroup(group.id, "isRequired", e.target.checked)}
+                              className="w-3.5 h-3.5 accent-[#FC687D] cursor-pointer"
+                            />
                             Required
                           </label>
+
                           <label className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-600 font-medium cursor-pointer">
-                            <input type="checkbox" checked={group.isMultiSelect} onChange={(e) => updateOptionGroup(group.id, "isMultiSelect", e.target.checked)} className="w-3.5 h-3.5 accent-[#FC687D] cursor-pointer" />
+                            <input
+                              type="checkbox"
+                              checked={group.isMultiSelect}
+                              onChange={(e) => updateOptionGroup(group.id, "isMultiSelect", e.target.checked)}
+                              className="w-3.5 h-3.5 accent-[#FC687D] cursor-pointer"
+                            />
                             Multi-select
                           </label>
+
                           <div className="flex items-center gap-2 ml-auto lg:ml-2">
                             <button
                               type="button"
@@ -896,7 +1083,6 @@ const deleteTemplate = async (id) => {
                           </div>
                         </div>
 
-                        {/* Options List */}
                         <div className="space-y-3 pl-2 md:pl-4 border-l-2 border-slate-100 ml-1">
                           {group.options.map((opt) => (
                             <div key={opt.id} className="flex gap-2 md:gap-3 items-center">
@@ -906,8 +1092,7 @@ const deleteTemplate = async (id) => {
                                 onChange={(e) => updateOption(group.id, opt.id, "name", e.target.value)}
                                 className="flex-1 border border-slate-200 rounded-xl p-2.5 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] transition"
                               />
-                              
-                              {/* Clean Price Input matching your screenshot */}
+
                               <div className="relative w-28 md:w-32">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₱</span>
                                 <input
@@ -918,40 +1103,52 @@ const deleteTemplate = async (id) => {
                                   className="w-full pl-7 pr-3 py-2.5 border border-slate-200 rounded-xl text-xs md:text-sm focus:outline-none focus:border-[#FC687D] transition"
                                 />
                               </div>
-             
-                              <button type="button" onClick={() => removeOption(group.id, opt.id)} className="text-red-300 hover:text-red-500 font-bold px-1 transition-colors text-base">✕</button>
-                              </div>
-                          ))}
-
 
                               <button
                                 type="button"
-                                onClick={() => addOption(group.id)}
-                                className="text-[#FC687D] font-bold text-[10px] md:text-xs mt-2 hover:underline flex items-center gap-1"
+                                onClick={() => removeOption(group.id, opt.id)}
+                                className="text-red-300 hover:text-red-500 font-bold px-1 transition-colors text-base"
                               >
-                                  + Add Option
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+
+                          <button
+                            type="button"
+                            onClick={() => addOption(group.id)}
+                            className="text-[#FC687D] font-bold text-[10px] md:text-xs mt-2 hover:underline flex items-center gap-1"
+                          >
+                            + Add Option
                           </button>
                         </div>
                       </div>
                     ))}
                   </div>
-
-                  
                 </div>
               )}
             </div>
 
             <div className="pt-4 mt-4 border-t border-slate-100 flex-shrink-0">
-               <div className="grid grid-cols-2 gap-3">
-                 <button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-3 md:py-3.5 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs hover:bg-slate-200 transition-all active:scale-95">
-                   Cancel
-                 </button>
-                 <button onClick={handleSave} form="item-form" disabled={saving} className="w-full py-3 md:py-3.5 rounded-xl bg-[#FC687D] text-white font-bold text-xs hover:bg-rose-500 transition-all shadow-md shadow-rose-200 disabled:opacity-70 active:scale-95">
-                   {saving ? "Saving..." : "Save Menu Item"}
-                 </button>
-               </div>
-            </div>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="w-full py-3 md:py-3.5 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs hover:bg-slate-200 transition-all active:scale-95"
+                >
+                  Cancel
+                </button>
 
+                <button
+                  onClick={handleSave}
+                  form="item-form"
+                  disabled={saving}
+                  className="w-full py-3 md:py-3.5 rounded-xl bg-[#FC687D] text-white font-bold text-xs hover:bg-rose-500 transition-all shadow-md shadow-rose-200 disabled:opacity-70 active:scale-95"
+                >
+                  {saving ? "Saving..." : "Save Menu Item"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
