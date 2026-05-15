@@ -309,7 +309,7 @@ function OrderTab({ user }) {
       setLoading(true);
 
       const [itemRes, catRes] = await Promise.all([
-        // ✅ public menu: only available + not POS-only
+        // ✅ public menu: show only available + NOT pos-only
         supabase
           .from("menu_items")
           .select("*")
@@ -317,7 +317,7 @@ function OrderTab({ user }) {
           .eq("pos_only", false)
           .order("name"),
 
-        // ✅ public menu categories: active + not POS-only + alphabetical
+        // ✅ public menu: show only active + NOT pos-only, sorted alphabetically
         supabase
           .from("menu_categories")
           .select("*")
@@ -329,12 +329,13 @@ function OrderTab({ user }) {
       if (itemRes.data) setItems(itemRes.data);
 
       if (catRes.data) {
-        // extra safety: ensure alphabetical even if DB collation differs
-        const sorted = [...catRes.data].sort((a, b) =>
+        // extra safety: sort client-side too (alphabetical)
+        const sortedCats = [...catRes.data].sort((a, b) =>
           (a.name || "").localeCompare(b.name || "")
         );
-        setCategories(sorted);
-        if (sorted.length > 0) setActiveTab(sorted[0].name);
+        setCategories(sortedCats);
+
+        if (sortedCats.length > 0) setActiveTab(sortedCats[0].name);
       }
 
       setLoading(false);
@@ -343,17 +344,17 @@ function OrderTab({ user }) {
     fetchMenu();
   }, []);
 
+  // ✅ Search should be for ALL items:
+  // - if itemSearch has text → search across all items (ignore category)
+  // - if itemSearch is empty → show items only from selected category
   const q = itemSearch.trim().toLowerCase();
-  const isSearching = q.length > 0;
-
-  // ✅ Search across ALL items (ignore category when searching)
-  const filtered = isSearching
+  const filtered = (q
     ? items.filter((i) => (i.name || "").toLowerCase().includes(q))
-    : items.filter((i) => i.category === activeTab);
+    : items.filter((i) => i.category === activeTab)
+  );
 
   const cartArr = Object.values(cart);
   const total = cartArr.reduce((s, e) => s + e.price * e.qty, 0);
-  const itemCount = cartArr.reduce((s, x) => s + x.qty, 0);
 
   const add = (item) =>
     setCart((c) => ({
@@ -379,159 +380,137 @@ function OrderTab({ user }) {
     );
   }
 
+  const catsSorted = [...cats].sort((a, b) =>
+    (a.name || "").localeCompare(b.name || "")
+  );
+
   return (
-    <div className="relative">
-      {/* ✅ Sticky Controls (mobile + desktop) */}
-      <div className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-rose-50">
-        <div className="px-3 md:px-0 py-3 max-w-5xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {/* Category Dropdown */}
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">
-                Category
-              </label>
-              <select
-                value={activeTab}
-                onChange={(e) => setActiveTab(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
-              >
-                {cats.map((cat) => (
-                  <option key={cat.id} value={cat.name}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
+    <div className="space-y-4">
+      {/* Controls */}
+      <div className="bg-white border border-rose-50 rounded-2xl p-3 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {/* Category Dropdown */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">
+              Category
+            </label>
+            <select
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value)}
+              disabled={q.length > 0} // optional: lock category when searching globally
+              className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all disabled:opacity-60"
+            >
+              {catsSorted.map((cat) => (
+                <option key={cat.id} value={cat.name}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
 
-              {isSearching && (
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Searching all items (category ignored)
-                </p>
-              )}
-            </div>
+            {/* optional helper text */}
+            {q.length > 0 && (
+              <p className="text-[10px] text-slate-400 mt-1">
+                Searching all items (category filter is ignored)
+              </p>
+            )}
+          </div>
 
-            {/* Search ALL items */}
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">
-                Search (All Items)
-              </label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
-                  🔍
-                </span>
-                <input
-                  type="text"
-                  value={itemSearch}
-                  onChange={(e) => setItemSearch(e.target.value)}
-                  placeholder="Search across the whole menu..."
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
-                />
-              </div>
+          {/* Item Search (ALL items) */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">
+              Search Item (All)
+            </label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
+                🔍
+              </span>
+              <input
+                type="text"
+                value={itemSearch}
+                onChange={(e) => setItemSearch(e.target.value)}
+                placeholder="Search across all items..."
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
+              />
             </div>
           </div>
         </div>
       </div>
 
-      {/* ✅ Items grid (responsive columns + comfortable spacing) */}
-      <div className="max-w-5xl mx-auto px-3 md:px-0 pt-4 pb-32">
-        {/* Optional: no results */}
-        {filtered.length === 0 && (
-          <div className="text-center py-10 text-slate-400 text-xs uppercase tracking-widest">
-            No items found
-          </div>
-        )}
+      {/* Items Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {filtered.map((item) => {
+          const inCart = cart[item.id]?.qty || 0;
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {filtered.map((item) => {
-            const inCart = cart[item.id]?.qty || 0;
+          return (
+            <div key={item.id} className="bg-white border border-rose-50 rounded-2xl p-3 shadow-sm">
+              <div className="w-full h-24 rounded-xl bg-[#FFF9FA] border border-rose-50 flex items-center justify-center overflow-hidden mb-2">
+                {item.image_url ? (
+                  <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-2xl text-rose-200/50">📷</span>
+                )}
+              </div>
 
-            return (
-              <div
-                key={item.id}
-                className="bg-white border border-rose-50 rounded-2xl p-3 shadow-sm active:scale-[0.99] transition"
-              >
-                <div className="w-full h-24 sm:h-28 rounded-xl bg-[#FFF9FA] border border-rose-50 flex items-center justify-center overflow-hidden mb-2">
-                  {item.image_url ? (
-                    <img
-                      src={item.image_url}
-                      alt={item.name}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center p-2">
-                      <p className="text-slate-400 text-sm">Image not available</p>
-                    </div>
-                  )}
-                  <p className="text-xs sm:text-sm font-bold text-slate-800 leading-tight line-clamp-2">
-                    {item.name}
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-slate-800 leading-tight">
+                  {item.name}
+                </p>
+
+                {/* show category when searching globally */}
+                {q.length > 0 && (
+                  <p className="text-[10px] uppercase tracking-wider text-slate-400">
+                    {item.category}
                   </p>
+                )}
 
-                  {/* When searching all items, show its category */}
-                  {isSearching && (
-                    <p className="text-[10px] uppercase tracking-wider text-slate-400">
-                      {item.category}
-                    </p>
-                  )}
+                <p className="text-xs font-semibold text-slate-500">₱{item.price}</p>
+              </div>
 
-                  <p className="text-xs font-semibold text-slate-500">
-                    ₱{Number(item.price).toFixed(0)}
-                  </p>
-                </div>
+              <div className="mt-3">
+                {inCart > 0 ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      onClick={() => remove(item.id)}
+                      className="w-8 h-8 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-600 font-bold shadow-sm active:scale-95"
+                    >
+                      −
+                    </button>
 
-                <div className="mt-3">
-                  {inCart > 0 ? (
-                    <div className="flex items-center justify-between gap-2">
-                      <button
-                        onClick={() => remove(item.id)}
-                        className="w-9 h-9 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-600 font-bold shadow-sm active:scale-95"
-                      >
-                        −
-                      </button>
-
-                      <div className="flex-1 text-center text-sm font-bold text-slate-800">
-                        {inCart}
-                      </div>
-
-                      <button
-                        onClick={() => add(item)}
-                        className="w-9 h-9 rounded-xl bg-[#FC687D] flex items-center justify-center text-white font-bold shadow-sm active:scale-95"
-                      >
-                        +
-                      </button>
+                    <div className="flex-1 text-center text-sm font-bold text-slate-800">
+                      {inCart}
                     </div>
-                  ) : (
+
                     <button
                       onClick={() => add(item)}
-                      className="w-full py-2.5 rounded-xl text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-[#FC687D] bg-[#FFF9FA] border border-rose-100 hover:bg-[#FC687D] hover:text-white transition-all active:scale-95"
+                      className="w-8 h-8 rounded-xl bg-[#FC687D] flex items-center justify-center text-white font-bold shadow-sm active:scale-95"
                     >
-                      Add to Cart
+                      +
                     </button>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => add(item)}
+                    className="w-full py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest text-[#FC687D] bg-[#FFF9FA] border border-rose-100 hover:bg-[#FC687D] hover:text-white transition-all active:scale-95"
+                  >
+                    Add to Cart
+                  </button>
+                )}
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </div>
 
-      {/* ✅ Sticky cart bar (mobile-friendly, doesn’t cover content) */}
+      {/* Optional cart total */}
       {cartArr.length > 0 && (
-        <div
-          className="fixed left-3 right-3 md:left-1/2 md:-translate-x-1/2 md:max-w-5xl bottom-3 z-40"
-          style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-        >
-          <div className="bg-slate-900 text-white rounded-2xl p-4 shadow-2xl flex items-center justify-between">
-            <div>
-              <p className="text-[10px] uppercase tracking-widest text-slate-300">
-                Cart Total
-              </p>
-              <p className="text-lg font-bold">₱{total.toFixed(0)}</p>
-            </div>
-
-            <p className="text-sm font-semibold">
-              {itemCount} item{itemCount > 1 ? "s" : ""}
-            </p>
+        <div className="sticky bottom-3 bg-slate-900 text-white rounded-2xl p-4 shadow-2xl flex items-center justify-between">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-slate-300">Cart Total</p>
+            <p className="text-lg font-bold">₱{total.toFixed(0)}</p>
           </div>
+          <p className="text-sm font-semibold">
+            {cartArr.reduce((s, x) => s + x.qty, 0)} item(s)
+          </p>
         </div>
       )}
     </div>
