@@ -416,7 +416,7 @@ const deleteTemplate = async (id) => {
                   </h3>
                   <div className="flex items-center gap-2">
                     <span className="font-normal text-[#FC687D] text-xs md:text-sm">
-                      `₱${item.price}`
+                      `₱{item.price}`
                     </span>
                     <span className="text-slate-200 text-[10px]">•</span>
                     <span className="text-[9px] md:text-[10px] font-normal uppercase text-slate-400">{item.category}</span>
