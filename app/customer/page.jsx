@@ -296,31 +296,56 @@ function HomeTab({ member, user, setTab }) {
 /* ──────────────────────────────────────────────────────────────
    Order Tab
 ────────────────────────────────────────────────────────────── */
-function OrderTab() {
+function OrderTab({ user }) {
   const [items, setItems] = useState([]);
   const [cats, setCategories] = useState([]);
-  const [activeTab, setActiveTab] = useState(null);
+  const [activeTab, setActiveTab] = useState("");
+  const [itemSearch, setItemSearch] = useState("");
   const [cart, setCart] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchMenu() {
+      setLoading(true);
+
       const [itemRes, catRes] = await Promise.all([
-        supabase.from("menu_items").select("*").eq("is_available", true).eq("pos_only", false).order("name"),
-        supabase.from("menu_categories").select("*").eq("is_active", true).eq("pos_only", false).order("sort_order"),
+        // ✅ Public menu: hide POS-only items
+        supabase
+          .from("menu_items")
+          .select("*")
+          .eq("is_available", true)
+          .eq("pos_only", false)
+          .order("name"),
+
+        // ✅ Public menu: hide POS-only categories
+        supabase
+          .from("menu_categories")
+          .select("*")
+          .eq("is_active", true)
+          .eq("pos_only", false)
+          .order("sort_order") // if you removed sort_order, change to: .order("name", { ascending: true })
       ]);
 
       if (itemRes.data) setItems(itemRes.data);
+
       if (catRes.data) {
         setCategories(catRes.data);
         if (catRes.data.length > 0) setActiveTab(catRes.data[0].name);
       }
+
       setLoading(false);
     }
+
     fetchMenu();
   }, []);
 
-  const filtered = items.filter((i) => i.category === activeTab);
+  // ✅ Filter by selected category + search text
+  const filtered = items
+    .filter((i) => i.category === activeTab)
+    .filter((i) => i.name.toLowerCase().includes(itemSearch.toLowerCase()));
+
+  const cartArr = Object.values(cart);
+  const total = cartArr.reduce((s, e) => s + e.price * e.qty, 0);
 
   const add = (item) =>
     setCart((c) => ({
@@ -340,40 +365,67 @@ function OrderTab() {
 
   if (loading) {
     return (
-      <div className="min-h-[40vh] flex items-center justify-center">
+      <div className="p-6 flex justify-center">
         <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 md:space-y-6 animate-in fade-in duration-500">
-      <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2 pt-1 -mx-4 px-4 sticky top-0 z-20 bg-[#FFF5F7]">
-        {cats.map((cat) => (
-          <button
-            key={cat.id}
-            onClick={() => setActiveTab(cat.name)}
-            className={`flex-shrink-0 px-4 md:px-5 py-2 md:py-2.5 rounded-xl text-[10px] md:text-[11px] font-normal uppercase tracking-widest transition-all duration-300 active:scale-95 shadow-sm border ${
-              activeTab === cat.name
-                ? "bg-[#FC687D] text-white border-[#FC687D]"
-                : "bg-white text-slate-500 border-rose-100"
-            }`}
-          >
-            {cat.name}
-          </button>
-        ))}
+    <div className="space-y-4">
+      {/* ✅ Top Controls: Category Dropdown + Item Search */}
+      <div className="bg-white border border-rose-50 rounded-2xl p-3 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {/* Category Dropdown */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">
+              Category
+            </label>
+            <select
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
+            >
+              {cats.map((cat) => (
+                <option key={cat.id} value={cat.name}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Item Search */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">
+              Search Item
+            </label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
+                🔍
+              </span>
+              <input
+                type="text"
+                value={itemSearch}
+                onChange={(e) => setItemSearch(e.target.value)}
+                placeholder="Search within category..."
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:gap-4 pb-10">
+      {/* ✅ Grid of Items (same as before, now filtered) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {filtered.map((item) => {
           const inCart = cart[item.id]?.qty || 0;
 
           return (
             <div
               key={item.id}
-              className="bg-white rounded-xl md:rounded-[24px] border border-rose-50 shadow-sm overflow-hidden flex flex-col p-2.5 md:p-3"
+              className="bg-white border border-rose-50 rounded-2xl p-3 shadow-sm"
             >
-              <div className="h-24 md:h-32 rounded-lg md:rounded-xl bg-slate-50 flex items-center justify-center relative overflow-hidden mb-2 border border-slate-100">
+              <div className="w-full h-24 rounded-xl bg-[#FFF9FA] border border-rose-50 flex items-center justify-center overflow-hidden mb-2">
                 {item.image_url ? (
                   <img
                     src={item.image_url}
@@ -381,51 +433,68 @@ function OrderTab() {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <span className="text-2xl text-slate-200">📷</span>
+                  <span className="text-2xl text-rose-200/50">📷</span>
                 )}
               </div>
 
-              <div className="flex flex-col flex-1 px-1">
-                <p className="font-normal text-slate-800 text-[11px] md:text-[13px] leading-tight mb-1">
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-slate-800 leading-tight">
                   {item.name}
                 </p>
-                <p className="font-normal text-[#FC687D] text-[13px] md:text-[15px] mb-3">
+                <p className="text-xs font-semibold text-slate-500">
                   ₱{item.price}
                 </p>
+              </div>
 
-                <div className="mt-auto">
-                  {inCart > 0 ? (
-                    <div className="flex items-center justify-between bg-slate-50 p-1 rounded-lg border border-slate-200">
-                      <button
-                        onClick={() => remove(item.id)}
-                        className="w-7 h-7 md:w-8 md:h-8 rounded-[6px] bg-white flex items-center justify-center text-slate-600 font-normal shadow-sm active:scale-90"
-                      >
-                        −
-                      </button>
-                      <span className="font-normal text-[12px] md:text-[13px] text-slate-700">
-                        {inCart}
-                      </span>
-                      <button
-                        onClick={() => add(item)}
-                        className="w-7 h-7 md:w-8 md:h-8 rounded-[6px] bg-[#FC687D] flex items-center justify-center text-white font-normal shadow-sm active:scale-90"
-                      >
-                        +
-                      </button>
+              <div className="mt-3">
+                {inCart > 0 ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      onClick={() => remove(item.id)}
+                      className="w-8 h-8 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-600 font-bold shadow-sm active:scale-95"
+                    >
+                      −
+                    </button>
+
+                    <div className="flex-1 text-center text-sm font-bold text-slate-800">
+                      {inCart}
                     </div>
-                  ) : (
+
                     <button
                       onClick={() => add(item)}
-                      className="w-full py-2 md:py-2.5 rounded-lg text-[9px] md:text-[11px] font-normal uppercase tracking-widest text-[#FC687D] bg-[#FFF9FA] border border-rose-100 hover:bg-[#FC687D] hover:text-white transition-all active:scale-95"
+                      className="w-8 h-8 rounded-xl bg-[#FC687D] flex items-center justify-center text-white font-bold shadow-sm active:scale-95"
                     >
-                      Add to Cart
+                      +
                     </button>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => add(item)}
+                    className="w-full py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest text-[#FC687D] bg-[#FFF9FA] border border-rose-100 hover:bg-[#FC687D] hover:text-white transition-all active:scale-95"
+                  >
+                    Add to Cart
+                  </button>
+                )}
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Optional: show total */}
+      {cartArr.length > 0 && (
+        <div className="sticky bottom-3 bg-slate-900 text-white rounded-2xl p-4 shadow-2xl flex items-center justify-between">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-slate-300">
+              Cart Total
+            </p>
+            <p className="text-lg font-bold">₱{total.toFixed(0)}</p>
+          </div>
+          <p className="text-sm font-semibold">
+            {cartArr.reduce((s, x) => s + x.qty, 0)} item(s)
+          </p>
+        </div>
+      )}
     </div>
   );
 }
