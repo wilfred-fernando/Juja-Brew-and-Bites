@@ -148,7 +148,7 @@ export default function POSPage() {
     setLoading(true);
     const [iRes, catRes, cRes, diningOptionsRes] = await Promise.all([
       supabase.from("menu_items").select("*").eq("is_available", true).order("name"),
-      supabase.from("menu_categories").select("*").order("sort_order"),
+      supabase.from("menu_categories").select("*").order("name", { ascending: true }),
       supabase.from("loyalty_members").select("id, name:customer_name, code:customer_code"),
       supabase.from("dining_options").select("*").eq("is_available", true).order("id")
     ]);

@@ -28,7 +28,7 @@ export default function MenuAdminPage() {
   // Category Modal State
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
-  const [catForm, setCatForm] = useState({ name: "", sort_order: 1, is_active: true });
+  const [catForm, setCatForm] = useState({ name: "", is_active: true });
   const [catSaving, setCatSaving] = useState(false);
 
   // Custom Delete Modal State
@@ -44,7 +44,7 @@ export default function MenuAdminPage() {
     setLoading(true);
     const [itemRes, catRes, templateRes] = await Promise.all([
   supabase.from("menu_items").select("*").order("name"),
-  supabase.from("menu_categories").select("*").order("sort_order"),
+  supabase.from("menu_categories").select("*").order("name", { ascending: true }),
   supabase.from("option_group_templates").select("*").order("name")
 ]);
 
@@ -238,10 +238,10 @@ const deleteTemplate = async (id) => {
   const openCategoryModal = (cat = null) => {
     if (cat) {
       setEditingCategory(cat);
-      setCatForm({ name: cat.name, sort_order: cat.sort_order, is_active: cat.is_active });
+      setCatForm({ name: cat.name, is_active: cat.is_active });
     } else {
       setEditingCategory(null);
-      setCatForm({ name: "", sort_order: categories.length + 1, is_active: true });
+      setCatForm({ name: "", is_active: true });
     }
     setIsCatModalOpen(true);
   };
