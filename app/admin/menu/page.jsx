@@ -79,7 +79,7 @@ if (templateRes.data) setGroupTemplates(templateRes.data);
   const handleSave = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     
-    if (!form.name.trim() || !form.category || (!hasVariants && form.price === "")) {
+    if (!form.name.trim() || !form.category || (form.price === "")) {
       alert("Please ensure Name, Category, and Price are filled out.");
       return;
     }
@@ -89,7 +89,7 @@ if (templateRes.data) setGroupTemplates(templateRes.data);
       const finalPayload = {
         ...form,
         // If variants exist, base price is 0 (the POS will use the variant price)
-        price: hasVariants ? 0 : parseFloat(form.price) || 0,
+        price: parseFloat(form.price) || 0,
         variants: optionGroups
       };
 
@@ -416,7 +416,7 @@ const deleteTemplate = async (id) => {
                   </h3>
                   <div className="flex items-center gap-2">
                     <span className="font-normal text-[#FC687D] text-xs md:text-sm">
-                      {item.variants?.length > 0 ? "Variable Price" : `₱${item.price}`}
+                      `₱${item.price}`
                     </span>
                     <span className="text-slate-200 text-[10px]">•</span>
                     <span className="text-[9px] md:text-[10px] font-normal uppercase text-slate-400">{item.category}</span>
@@ -709,19 +709,17 @@ const deleteTemplate = async (id) => {
 
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Base Price (₱) *</label>
-                      <input 
-                        type="number" step="0.01" 
-                        required={!hasVariants} 
-                        disabled={hasVariants}
-                        value={hasVariants ? "" : form.price} 
-                        placeholder={hasVariants ? "Set in Variants tab" : "0.00"}
-                        onChange={e => setForm({...form, price: e.target.value})} 
-                        className={`w-full rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm transition-all ${
-                          hasVariants 
-                            ? "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed" 
-                            : "bg-white border border-slate-200 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100"
-                        }`} 
+                      
+                      <input
+                        type="number"
+                        step="0.01"
+                        required
+                        value={form.price}
+                        placeholder="0.00"
+                        onChange={(e) => setForm({ ...form, price: e.target.value })}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
                       />
+
                     </div>
                   </div>
 
