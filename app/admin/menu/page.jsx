@@ -506,15 +506,7 @@ const deleteTemplate = async (id) => {
                   value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} 
                   className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" 
                 />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">Sort Order</label>
-                <input 
-                  type="number" required 
-                  value={catForm.sort_order} onChange={e => setCatForm({...catForm, sort_order: parseInt(e.target.value) || 0})} 
-                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all" 
-                />
-              </div>
+              </div>              
               <div className="pt-2">
                 <label className="flex items-center gap-3 cursor-pointer group w-fit">
                   <div className="relative flex items-center justify-center">
