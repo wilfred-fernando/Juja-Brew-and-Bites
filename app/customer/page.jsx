@@ -306,8 +306,8 @@ function OrderTab() {
   useEffect(() => {
     async function fetchMenu() {
       const [itemRes, catRes] = await Promise.all([
-        supabase.from("menu_items").select("*").eq("is_available", true).order("name"),
-        supabase.from("menu_categories").select("*").eq("is_active", true).order("sort_order"),
+        supabase.from("menu_items").select("*").eq("is_available", true).eq("pos_only", false).order("name"),
+        supabase.from("menu_categories").select("*").eq("is_active", true).eq("pos_only", false).order("sort_order"),
       ]);
 
       if (itemRes.data) setItems(itemRes.data);
