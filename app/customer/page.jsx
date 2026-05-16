@@ -32,48 +32,34 @@ function todayISO() {
 function TabBar({ tab, setTab }) {
   const tabs = [
     { id: "home", icon: "🏠", label: "Home" },
-    { id: "order", icon: "🍽️", label: "Order" },
+    { id: "order", icon: "🍽️", label: "Order" },    
     { id: "loyalty", icon: "⭐", label: "Loyalty" },
-    { id: "booking", icon: "🗓", label: "Book" },
+    { id: "booking", icon: "📅", label: "Book" },
     { id: "promo", icon: "🎁", label: "Promo" },
     { id: "profile", icon: "👤", label: "Profile" },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-rose-50 pb-safe shadow-[0_-4px_24px_rgba(252,104,125,0.05)]">
-      <div className="max-w-6xl mx-auto px-4 grid grid-cols-5 px-1 md:px-2">
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 z-50">
+      <div className="flex justify-between items-center w-full overflow-x-auto whitespace-nowrap px-2">
+
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`relative flex flex-col items-center justify-center py-2.5 md:py-3 gap-0.5 md:gap-1 transition-all duration-300 active:scale-90 ${
+            className={`flex flex-col items-center flex-shrink-0 min-w-[60px] py-2 text-[10px] transition-all ${
               tab === t.id
                 ? "text-[#FC687D]"
-                : "text-slate-400 hover:text-slate-600"
+                : "text-slate-400"
             }`}
           >
-            <span
-              className={`text-[20px] md:text-[22px] leading-none transition-transform duration-300 ${
-                tab === t.id ? "scale-110 -translate-y-1" : ""
-              }`}
-            >
-              {t.icon}
-            </span>
-            <span
-              className={`text-[8px] md:text-[9px] font-normal uppercase tracking-widest ${
-                tab === t.id ? "text-[#FC687D]" : "text-slate-400"
-              }`}
-            >
-              {t.label}
-            </span>
-
-            {tab === t.id && (
-              <span className="absolute bottom-1 w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-[#FC687D]" />
-            )}
+            <span className="text-sm">{t.icon}</span>
+            <span>{t.label}</span>
           </button>
         ))}
+
       </div>
-    </nav>
+    </div>
   );
 }
 
