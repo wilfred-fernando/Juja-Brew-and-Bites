@@ -1174,11 +1174,12 @@ export default function Customer() {
 
   return (
     <div className="min-h-screen pb-24 pt-4 md:pt-6 bg-[#FFF5F7]">
-      <main className="max-w-md mx-auto px-4 md:px-5 py-4">
+      <main className="max-w-6xl mx-auto px-4 md:px-5 py-4">
         {tab === "home" && <HomeTab member={member} user={user} setTab={setTab} />}
         {tab === "order" && <OrderTab />}
         {tab === "loyalty" && <LoyaltyTab member={member} setMember={setMember} user={user} />}
         {tab === "booking" && <BookingTab user={user} member={member} />}
+        {tab === "promo" && <PromoTab setTab={setTab} setAppliedPromo={setAppliedPromo} />}
         {tab === "profile" && <ProfileTab user={user} onLogout={logout} />}
       </main>
 
