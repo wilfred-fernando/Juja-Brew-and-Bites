@@ -183,7 +183,7 @@ function HomeTab({ member, user, setTab }) {
           c.href ? (
             <Link
               key={c.label}
-              href={c.href}
+              href="/promo"
               className="bg-white rounded-xl md:rounded-[24px] p-4 md:p-5 border border-rose-50 shadow-sm hover:shadow-md active:scale-95 transition-all duration-300"
             >
               <div className="text-2xl md:text-3xl mb-2 md:mb-3 bg-rose-50 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center">
