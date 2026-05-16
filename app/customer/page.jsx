@@ -32,29 +32,31 @@ function todayISO() {
 function TabBar({ tab, setTab }) {
   const tabs = [
     { id: "home", icon: "🏠", label: "Home" },
-    { id: "order", icon: "🍽️", label: "Order" },    
+    { id: "order", icon: "🍽️", label: "Order" },
+    { id: "promo", icon: "🎁", label: "Promo" },
     { id: "loyalty", icon: "⭐", label: "Loyalty" },
     { id: "booking", icon: "📅", label: "Book" },
-    { id: "promo", icon: "🎁", label: "Promo" },
     { id: "profile", icon: "👤", label: "Profile" },
   ];
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 z-50">
-      <div className="flex justify-between items-center w-full overflow-x-auto whitespace-nowrap px-2">
+      
+      {/* CENTERED CONTAINER */}
+      <div className="flex justify-center gap-3 py-2">
 
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex flex-col items-center flex-shrink-0 min-w-[60px] py-2 text-[10px] transition-all ${
+            className={`flex flex-col items-center px-2 py-1 text-[10px] transition-all ${
               tab === t.id
                 ? "text-[#FC687D]"
                 : "text-slate-400"
             }`}
           >
-            <span className="text-sm">{t.icon}</span>
-            <span>{t.label}</span>
+            <span className="text-base">{t.icon}</span>
+            <span className="leading-tight">{t.label}</span>
           </button>
         ))}
 
@@ -62,6 +64,7 @@ function TabBar({ tab, setTab }) {
     </div>
   );
 }
+``
 
 /* ──────────────────────────────────────────────────────────────
    Home Tab (Visit Us with Branch Buttons)
