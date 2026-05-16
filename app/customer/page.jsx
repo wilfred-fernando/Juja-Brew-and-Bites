@@ -35,6 +35,7 @@ function TabBar({ tab, setTab }) {
     { id: "order", icon: "🍽️", label: "Order" },
     { id: "loyalty", icon: "⭐", label: "Loyalty" },
     { id: "booking", icon: "🗓", label: "Book" },
+    { id: "promo", icon: "🎁", label: "Promo" },
     { id: "profile", icon: "👤", label: "Profile" },
   ];
 
@@ -1022,6 +1023,47 @@ function LoyaltyTab({ member, setMember, user }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Profile Tab
+────────────────────────────────────────────────────────────── */
+function PromoTab({ setTab, setAppliedPromo }) {
+  const [promos, setPromos] = useState([]);
+
+  useEffect(() => {
+    async function fetchPromos() {
+      const { data } = await supabase
+        .from("promotions")
+        .select("*")
+        .eq("is_active", true);
+
+      setPromos(data || []);
+    }
+
+    fetchPromos();
+  }, []);
+
+  return (
+    <div className="space-y-3">
+      {promos.map((promo) => (
+        <div key={promo.id} className="bg-white border p-3 rounded-xl">
+          <p className="font-bold text-sm">{promo.title}</p>
+          <p className="text-xs text-slate-500">{promo.description}</p>
+
+          <button
+            onClick={() => {
+              setAppliedPromo(promo);
+              setTab("order");
+            }}
+            className="mt-2 w-full py-2 bg-[#FC687D] text-white rounded-xl text-xs"
+          >
+            Use Promo
+          </button>
+        </div>
+      ))}
     </div>
   );
 }
