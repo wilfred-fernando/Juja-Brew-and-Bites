@@ -406,16 +406,17 @@ export default function BookingForm({ user, member }) {
 
       const meetsAdvanceTime = start >= minAllowed;
 
-      const blockedStart = new Date(start.getTime() - BUFFER_HOURS * 3600 * 1000);
-      const blockedEnd = new Date(end.getTime() + BUFFER_HOURS * 3600 * 1000);
-
       const hasConflict = bookings.some((b) => {
-        const bStart = new Date(b.start_at);
-        const bEnd = new Date(b.end_at);
-        const bBlockedStart = new Date(bStart.getTime() - BUFFER_HOURS * 3600 * 1000);
-        const bBlockedEnd = new Date(bEnd.getTime() + BUFFER_HOURS * 3600 * 1000);
-        return intersects(blockedStart, blockedEnd, bBlockedStart, bBlockedEnd);
-      });
+      const bStart = new Date(b.start_at);
+      const bEnd = new Date(b.end_at);
+
+      // ✅ Apply buffer ONLY to existing bookings
+      const bBlockedStart = new Date(bStart.getTime() - BUFFER_HOURS * 3600 * 1000);
+      const bBlockedEnd = new Date(bEnd.getTime() + BUFFER_HOURS * 3600 * 1000);
+
+      // ✅ DO NOT buffer the new slot
+      return start < bBlockedEnd && end > bBlockedStart;
+    });
 
       let reason = "";
       if (hasConflict) reason = "booked";
