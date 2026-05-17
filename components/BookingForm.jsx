@@ -422,7 +422,30 @@ export default function BookingForm({ user, member }) {
         return intersects(blockedStart, blockedEnd, bBlockedStart, bBlockedEnd);
       });
 
-      return { hour: h, label: labelHour(h), available: withinOperating && !hasConflict && meetsAdvanceTime };
+      let reason = "";
+
+      // ✅ Priority 1: Booking conflict
+      if (hasConflict) {
+        reason = "booked";
+      }
+
+      // ✅ Priority 2: Too soon
+      else if (!meetsAdvanceTime) {
+        reason = "too-soon";
+      }
+
+      // ✅ Priority 3: Outside operating
+      else if (!withinOperating) {
+        reason = "closed";
+      }
+
+      return {
+        hour: h,
+        label: labelHour(h),
+        available: !hasConflict && meetsAdvanceTime && withinOperating,
+        reason,
+      };
+      ``
     });
   }, [slotHours, dateISO, bookings, form.extend, form.extension_hours]);
 
@@ -675,7 +698,21 @@ export default function BookingForm({ user, member }) {
                   disabled={!s.available}
                 >
                   <p className="text-[11px] font-semibold text-slate-800">{s.label}</p>
-                  <p className="text-[10px] text-slate-400 mt-1">{s.available ? "Available" : "Too soon (5-hour rule)"}</p>
+                  <p className="text-[10px] mt-1">
+                      {s.available && "Available"}
+
+                      {!s.available && s.reason === "booked" && (
+                        <span className="text-red-500 font-semibold">Booked</span>
+                      )}
+
+                      {!s.available && s.reason === "too-soon" && (
+                        <span className="text-slate-400">Too soon (5-hour rule)</span>
+                      )}
+
+                      {!s.available && s.reason === "closed" && (
+                        <span className="text-slate-400">Outside operating hours</span>
+                      )}
+                    </p>
                 </button>
               ))}
             </div>
