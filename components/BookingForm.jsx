@@ -403,6 +403,11 @@ export default function BookingForm({ user, member }) {
 
       const operatingEnd = computeDateTime(dateISO, 26); // 2AM next day
       const withinOperating = end <= operatingEnd;
+      const now = new Date();
+      const minAllowed = new Date(now.getTime() + MIN_ADVANCE_HOURS * 60 * 60 * 1000);
+
+      // ✅ New rule: start must be >= min allowed time
+      const meetsAdvanceTime = start >= minAllowed;
 
       const blockedStart = new Date(start.getTime() - BUFFER_HOURS * 3600 * 1000);
       const blockedEnd = new Date(end.getTime() + BUFFER_HOURS * 3600 * 1000);
@@ -417,7 +422,7 @@ export default function BookingForm({ user, member }) {
         return intersects(blockedStart, blockedEnd, bBlockedStart, bBlockedEnd);
       });
 
-      return { hour: h, label: labelHour(h), available: withinOperating && !hasConflict };
+      return { hour: h, label: labelHour(h), available: withinOperating && !hasConflict && meetsAdvanceTime };
     });
   }, [slotHours, dateISO, bookings, form.extend, form.extension_hours]);
 
@@ -670,7 +675,7 @@ export default function BookingForm({ user, member }) {
                   disabled={!s.available}
                 >
                   <p className="text-[11px] font-semibold text-slate-800">{s.label}</p>
-                  <p className="text-[10px] text-slate-400 mt-1">{s.available ? "Available" : "Unavailable"}</p>
+                  <p className="text-[10px] text-slate-400 mt-1">{s.available ? "Available" : "Too soon (5-hour rule)"}</p>
                 </button>
               ))}
             </div>
