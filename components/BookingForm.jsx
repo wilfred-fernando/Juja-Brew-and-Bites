@@ -11,6 +11,7 @@ const BASE_DURATION_HOURS = 3; // booking duration logic stays 3 hours
 const BUFFER_HOURS = 1; // 1 hour gap before & after
 const MAX_EXTENSION_HOURS = 2; // extension max 2 hours
 const MIN_ADVANCE_HOURS = 5; // must be at least 5 hours in advance
+
 const RESCHEDULE_MIN_DAYS = 2; // reschedule/update allowed only if >= 2 days before booked date
 
 const DEPOSIT_AMOUNT = 1000;
@@ -18,7 +19,7 @@ const QR_IMAGE_PATH = "/images/qrph.jpg";
 const ADMIN_EMAIL = "booking@jujabrewandbites.com";
 
 /* =====================================================
- PLAN B: Strip citations + OneDrive/SharePoint URLs
+ Cleaner: Strip citations + OneDrive/SharePoint URLs
 ===================================================== */
 function stripCitationsAndLinks(text = "") {
   return String(text || "")
@@ -32,8 +33,7 @@ function stripCitationsAndLinks(text = "") {
 }
 
 /* =====================================================
- PACKAGE POLICIES (1–6) — Full Details content
-(kept from your existing file)
+ PACKAGE POLICIES (1–6) — kept from your file
 ===================================================== */
 const PACKAGE_POLICIES = {
   1: {
@@ -262,27 +262,26 @@ function canChangeBooking(startAtISO) {
 }
 
 /**
- * ✅ Booking time rule update:
- * If booking ends at 3:59 PM, buffer ends at 4:59 PM, next available is 5 PM.
+ * ✅ RULE YOU REQUESTED:
+ * booking 1:00PM → 3:59PM
+ * buffer-after ends 4:59PM
+ * next available slot is 5:00PM
  *
- * We achieve this by:
- * - Treating end_at that lands exactly on the hour as "end of hour" (xx:59:59.999)
- * - Computing endCeilHour = next hour boundary after the effective end
- * - Booking occupies slots where slotStart < endCeilHour
- * - Buffer-after occupies slots with slotStart in [endCeilHour, endCeilHour + 1h)
- * - Buffer-before is exactly slotStart == start_at - 1h
- * - Closed if the candidate slot interval overlaps [start_at - 1h, endCeilHour + 1h)
+ * Implementation:
+ * - Compute endCeilHour = next hour boundary after end_at (even if end_at is 3:00, treat hour as 3:59)
+ * - Booked slots: slotStart in [start_at, endCeilHour)
+ * - Buffer-before slot: exactly start_at - 1 hour
+ * - Buffer-after slots: slotStart in [endCeilHour, endCeilHour + 1 hour)
+ * - Closed: slot interval overlaps buffer window [start_at-1h, endCeilHour+1h)
+ * - Too-soon applied after conflict classification
  */
 function classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings }) {
-  // operating hour guard
   if (slotEnd > operatingEnd) return { available: false, reason: "closed-hours" };
 
-  // conflict first (so we can show Booked/Buffer instead of Too soon)
   const list = bookings || [];
-
   let best = { available: true, reason: "available" };
-  const priority = { booked: 3, buffer: 2, closed: 1, "closed-hours": 1, "too-soon": 0, available: 0 };
 
+  const priority = { booked: 4, buffer: 3, closed: 2, "closed-hours": 2, "too-soon": 1, available: 0 };
   const setBest = (reason) => {
     if ((priority[reason] ?? 0) > (priority[best.reason] ?? 0)) best = { available: false, reason };
   };
@@ -291,31 +290,28 @@ function classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings }
     const bStart = new Date(b.start_at);
     const bEndRaw = new Date(b.end_at);
 
-    // Effective end:
-    // If end_at is exactly on the hour, treat it as end-of-hour (xx:59:59.999)
+    // If end is exactly on the hour, treat it as the end of the hour (xx:59:59.999)
     const bEndEff = new Date(bEndRaw);
     if (bEndEff.getMinutes() === 0 && bEndEff.getSeconds() === 0 && bEndEff.getMilliseconds() === 0) {
       bEndEff.setMinutes(59, 59, 999);
     }
 
-    // endCeilHour = next full hour after endEff
+    // endCeilHour = next hour boundary after effective end
     const endCeil = new Date(bEndEff);
     endCeil.setMinutes(0, 0, 0);
     endCeil.setHours(endCeil.getHours() + 1);
 
-    // buffer before slot = start - 1h
     const bufferBeforeSlot = new Date(bStart.getTime() - BUFFER_HOURS * 3600 * 1000);
-    // buffer-after range [endCeil, endCeil+1h)
     const bufferAfterStart = new Date(endCeil);
     const bufferAfterEnd = new Date(endCeil.getTime() + BUFFER_HOURS * 3600 * 1000);
 
-    // booked if slotStart in [bStart, endCeil)
+    // Booked: slotStart in [start, endCeil)
     if (slotStart >= bStart && slotStart < endCeil) {
       setBest("booked");
       continue;
     }
 
-    // buffer if exact before slot or within after-buffer range
+    // Buffer: exact before slot OR any slot in [endCeil, endCeil+1h)
     if (slotStart.getTime() === bufferBeforeSlot.getTime()) {
       setBest("buffer");
       continue;
@@ -325,22 +321,17 @@ function classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings }
       continue;
     }
 
-    // closed if slot interval overlaps the buffer window [bStart-1h, endCeil+1h)
+    // Closed: overlap with buffer window [start-1h, endCeil+1h)
     const bufferWindowStart = bufferBeforeSlot;
     const bufferWindowEnd = bufferAfterEnd;
     const overlapsBufferWindow = slotStart < bufferWindowEnd && slotEnd > bufferWindowStart;
-    if (overlapsBufferWindow) {
-      setBest("closed");
-    }
+    if (overlapsBufferWindow) setBest("closed");
   }
 
-  // if no conflict-based block, apply too-soon
-  if (best.reason === "available" && slotStart < minAllowed) {
-    return { available: false, reason: "too-soon" };
-  }
+  // Too soon only if otherwise available
+  if (best.reason === "available" && slotStart < minAllowed) return { available: false, reason: "too-soon" };
 
-  if (best.reason !== "available") return best;
-  return { available: true, reason: "available" };
+  return best;
 }
 
 function reasonToLabel(reason) {
@@ -356,15 +347,18 @@ function reasonToLabel(reason) {
 ======================= */
 export default function BookingForm({ user, member }) {
   const [tab, setTab] = useState("availability"); // availability | packages | book | manage
+
   const [packages, setPackages] = useState([]);
   const [loadingPackages, setLoadingPackages] = useState(true);
 
   const [dateISO, setDateISO] = useState(() => toISODate(new Date()));
   const [bookings, setBookings] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
-  const [selectedHour, setSelectedHour] = useState(null);
 
+  const [selectedHour, setSelectedHour] = useState(null);
   const [notice, setNotice] = useState(null);
+
+  // Confirmation UI
   const [successBooking, setSuccessBooking] = useState(null);
 
   // Modals
@@ -404,7 +398,7 @@ export default function BookingForm({ user, member }) {
     extension_hours: 0,
   });
 
-  // Autofill
+  // Autofill profile
   useEffect(() => {
     setForm((f) => ({
       ...f,
@@ -419,7 +413,6 @@ export default function BookingForm({ user, member }) {
     async function fetchPackages() {
       setLoadingPackages(true);
       setNotice(null);
-
       const { data, error } = await supabase
         .from("function_room_packages")
         .select("*")
@@ -468,7 +461,7 @@ export default function BookingForm({ user, member }) {
 
   const slotHours = useMemo(() => buildSlotHours(), []);
 
-  // Availability (uses new classifySlot)
+  // Availability
   const availability = useMemo(() => {
     const ext = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
     const totalHours = BASE_DURATION_HOURS + ext;
@@ -493,42 +486,6 @@ export default function BookingForm({ user, member }) {
     });
   }, [slotHours, dateISO, bookings, form.extend, form.extension_hours]);
 
-  function validateBookingInputs() {
-    setNotice(null);
-
-    if (!form.name.trim()) return "Name is required.";
-    if (!form.event_type.trim()) return "Event type is required.";
-    if (!dateISO) return "Date is required.";
-    if (selectedHour == null) return "Time is required.";
-    if (!form.package_id) return "Please select a package.";
-    if (!form.contact_number.trim()) return "Contact number is required.";
-    if (!form.email.trim()) return "Email address is required.";
-
-    const guests = Number(form.guest_count || 0);
-    if (!guests || guests < 1) return "No. of guests must be at least 1.";
-
-    const extensionHours = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
-    if (extensionHours < 0 || extensionHours > MAX_EXTENSION_HOURS) {
-      return `Extension must be 0–${MAX_EXTENSION_HOURS} hours.`;
-    }
-
-    // 5-hour rule
-    const now = new Date();
-    const selectedStart = computeDateTime(dateISO, selectedHour);
-    const minAllowed = new Date(now.getTime() + MIN_ADVANCE_HOURS * 60 * 60 * 1000);
-    if (selectedStart < minAllowed) {
-      return `Booking must be at least ${MIN_ADVANCE_HOURS} hours in advance.`;
-    }
-
-    return null;
-  }
-
-  function selectSlot(h) {
-    setSelectedHour(h);
-    setTab("book");
-    setNotice(null);
-  }
-
   // Proof preview
   useEffect(() => {
     if (!proofFile) {
@@ -540,7 +497,7 @@ export default function BookingForm({ user, member }) {
     return () => URL.revokeObjectURL(url);
   }, [proofFile]);
 
-  // Load upcoming bookings for Manage
+  // Manage bookings load (upcoming)
   useEffect(() => {
     async function fetchMyBookings() {
       if (!user?.id) return;
@@ -557,13 +514,12 @@ export default function BookingForm({ user, member }) {
       if (!error) setMyBookings(data || []);
       setLoadingMyBookings(false);
     }
-
     fetchMyBookings();
   }, [user?.id]);
 
-  // Reschedule conflicts fetch
+  // Reschedule conflicts
   useEffect(() => {
-    async function fetchReschedConflicts() {
+    async function fetchBookingsForReschedDate() {
       if (!reschedOpen || !reschedDateISO) return;
 
       const dayStart = computeDateTime(reschedDateISO, OPERATING_START_HOUR);
@@ -580,12 +536,9 @@ export default function BookingForm({ user, member }) {
         .lte("start_at", queryEnd)
         .order("start_at", { ascending: true });
 
-      if (!error) {
-        setReschedBookings((data || []).filter((x) => x.id !== reschedBooking?.id));
-      }
+      if (!error) setReschedBookings((data || []).filter((x) => x.id !== reschedBooking?.id));
     }
-
-    fetchReschedConflicts();
+    fetchBookingsForReschedDate();
   }, [reschedOpen, reschedDateISO, reschedBooking?.id]);
 
   const reschedAvailability = useMemo(() => {
@@ -615,6 +568,40 @@ export default function BookingForm({ user, member }) {
     });
   }, [reschedOpen, reschedBooking, reschedDateISO, reschedBookings, slotHours]);
 
+  function validateBookingInputs() {
+    setNotice(null);
+
+    if (!form.name.trim()) return "Name is required.";
+    if (!form.event_type.trim()) return "Event type is required.";
+    if (!dateISO) return "Date is required.";
+    if (selectedHour == null) return "Time is required.";
+    if (!form.package_id) return "Please select a package.";
+    if (!form.contact_number.trim()) return "Contact number is required.";
+    if (!form.email.trim()) return "Email address is required.";
+
+    const guests = Number(form.guest_count || 0);
+    if (!guests || guests < 1) return "No. of guests must be at least 1.";
+
+    const extensionHours = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
+    if (extensionHours < 0 || extensionHours > MAX_EXTENSION_HOURS) {
+      return `Extension must be 0–${MAX_EXTENSION_HOURS} hours.`;
+    }
+
+    // 5-hour rule
+    const now = new Date();
+    const selectedStart = computeDateTime(dateISO, selectedHour);
+    const minAllowed = new Date(now.getTime() + MIN_ADVANCE_HOURS * 60 * 60 * 1000);
+    if (selectedStart < minAllowed) return `Booking must be at least ${MIN_ADVANCE_HOURS} hours in advance.`;
+
+    return null;
+  }
+
+  function selectSlot(h) {
+    setSelectedHour(h);
+    setTab("book");
+    setNotice(null);
+  }
+
   function onBookNowClick() {
     const err = validateBookingInputs();
     if (err) return setNotice(err);
@@ -624,7 +611,6 @@ export default function BookingForm({ user, member }) {
   async function confirmPaymentAndSubmit() {
     const err = validateBookingInputs();
     if (err) return setNotice(err);
-
     if (!proofFile) return setNotice("Please attach a screenshot of your payment confirmation.");
 
     const extensionHours = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
@@ -685,7 +671,6 @@ export default function BookingForm({ user, member }) {
       setSuccessBooking(bookingRow);
       setPayOpen(false);
 
-      // reset
       setProofFile(null);
       setProofPreview(null);
       setSelectedHour(null);
@@ -699,27 +684,33 @@ export default function BookingForm({ user, member }) {
     }
   }
 
-  // Success screen
+  /* ✅ Confirmation UI adapted to your UI style */
   if (successBooking) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FFF5F7] px-4">
-        <div className="bg-white rounded-2xl p-6 max-w-md w-full text-center shadow-lg">
-          <h2 className="text-2xl font-bold text-green-600 mb-2">✅ Booking Confirmed</h2>
-          <p className="text-sm text-slate-600 mb-4">Your reservation has been received.</p>
-
-          <div className="bg-slate-50 border rounded-xl p-4 text-left text-sm space-y-2">
-            <p><b>Reference:</b> {successBooking.reference_code || successBooking.id}</p>
-            <p><b>Name:</b> {successBooking.customer_name}</p>
-            <p><b>Date:</b> {successBooking.business_date}</p>
-            <p><b>Status:</b> {successBooking.status}</p>
+      <div className="min-h-screen bg-[#FFF5F7] flex items-center justify-center px-4">
+        <div className="bg-white rounded-[28px] border border-rose-50 shadow-sm p-6 max-w-md w-full space-y-4 animate-in fade-in">
+          <div className="text-center space-y-1">
+            <p className="text-[10px] uppercase tracking-widest text-slate-400">Booking Confirmed</p>
+            <h2 className="text-xl font-semibold text-slate-800">Reservation Received ✅</h2>
           </div>
+
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 text-sm">
+            <p><span className="text-slate-400">Reference:</span> <b>{successBooking.reference_code || successBooking.id}</b></p>
+            <p><span className="text-slate-400">Name:</span> <b>{successBooking.customer_name}</b></p>
+            <p><span className="text-slate-400">Date:</span> <b>{successBooking.business_date}</b></p>
+            <p><span className="text-slate-400">Status:</span> <b className="text-blue-500">Pending Confirmation</b></p>
+          </div>
+
+          <p className="text-[12px] text-slate-500 text-center">
+            We will review your payment and confirm shortly.
+          </p>
 
           <button
             onClick={() => {
               setSuccessBooking(null);
               setTab("availability");
             }}
-            className="mt-5 w-full py-3 bg-[#FC687D] text-white rounded-xl"
+            className="w-full py-3 rounded-xl bg-[#FC687D] text-white text-[11px] uppercase tracking-widest active:scale-95 hover:bg-rose-500"
           >
             Back to Booking
           </button>
@@ -742,14 +733,14 @@ export default function BookingForm({ user, member }) {
       </div>
 
       {/* Dropdown navigation */}
-      <div className="bg-white border border-rose-100 rounded-2xl p-3 shadow-sm max-w-sm">
+      <div className="w-full max-w-xs">
         <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
           Select Option
         </label>
         <select
           value={tab}
           onChange={(e) => setTab(e.target.value)}
-          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100"
+          className="w-full bg-white border border-rose-100 rounded-xl px-3 py-3 text-sm text-slate-700"
         >
           <option value="availability">Check Availability</option>
           <option value="packages">Packages</option>
@@ -767,6 +758,7 @@ export default function BookingForm({ user, member }) {
       {/* Availability */}
       {tab === "availability" && (
         <div className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6 space-y-4">
+          {/* Date selection */}
           <div className="flex items-end justify-between gap-4 flex-wrap">
             <div>
               <p className="text-[10px] uppercase tracking-widest text-slate-400">Select Date</p>
@@ -827,7 +819,7 @@ export default function BookingForm({ user, member }) {
               {availability.map((s) => {
                 const status = reasonToLabel(s.reason);
 
-                // ✅ requested mapping
+                // ✅ requested statusClass mapping
                 const statusClass =
                   s.available ? "text-green-600" :
                   s.reason === "booked" ? "text-red-500 font-semibold" :
@@ -867,10 +859,8 @@ export default function BookingForm({ user, member }) {
             packages.map((p) => {
               const pid = Number(p.id);
               const policy = PACKAGE_POLICIES[pid];
-              const rfi = policy?.rental_fees_inclusions;
-
-              const roomRentalOnly = rfi?.room_rental_only ?? false;
-              const consumableAmt = rfi?.consumable_amount ?? null;
+              const consumable = policy?.rental_fees_inclusions?.consumable_amount ?? null;
+              const roomRentalOnly = policy?.rental_fees_inclusions?.room_rental_only ?? false;
 
               return (
                 <div
@@ -880,6 +870,8 @@ export default function BookingForm({ user, member }) {
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <p className="text-[12px] uppercase tracking-widest text-slate-400">{p.name}</p>
+
+                      {/* Price only */}
                       <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">
                         ₱{Number(p.rental_fee).toLocaleString()}
                       </h3>
@@ -888,8 +880,10 @@ export default function BookingForm({ user, member }) {
                         <p className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
                           Capacity up to {p.capacity} guests
                         </p>
+
+                        {/* ✅ restored */}
                         <p className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
-                          {roomRentalOnly ? "Room Rental Only" : `Consumable: ${formatPeso(consumableAmt || 0)}`}
+                          {roomRentalOnly ? "Room rental only" : `Consumable: ${formatPeso(consumable || 0)}`}
                         </p>
                       </div>
                     </div>
@@ -932,7 +926,8 @@ export default function BookingForm({ user, member }) {
             <div>
               <p className="text-[10px] uppercase tracking-widest text-slate-400">Selected</p>
               <p className="text-[12px] text-slate-800 mt-1">
-                Date: <b>{dateISO}</b> • Time: <b>{selectedHour != null ? labelHour(selectedHour) : "Not selected"}</b>
+                Date: <b>{dateISO}</b> • Time:{" "}
+                <b>{selectedHour != null ? labelHour(selectedHour) : "Not selected"}</b>
               </p>
             </div>
 
@@ -995,54 +990,6 @@ export default function BookingForm({ user, member }) {
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
               />
             </div>
-
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
-                Going to extend?
-              </label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setForm((f) => ({ ...f, extend: "no", extension_hours: 0 }))}
-                  className={`px-4 py-2 rounded-xl text-[11px] border active:scale-95 ${
-                    form.extend === "no"
-                      ? "bg-[#FC687D] text-white border-[#FC687D]"
-                      : "bg-white text-slate-600 border-slate-200"
-                  }`}
-                >
-                  No
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setForm((f) => ({
-                      ...f,
-                      extend: "yes",
-                      extension_hours: f.extension_hours || 1,
-                    }))
-                  }
-                  className={`px-4 py-2 rounded-xl text-[11px] border active:scale-95 ${
-                    form.extend === "yes"
-                      ? "bg-[#FC687D] text-white border-[#FC687D]"
-                      : "bg-white text-slate-600 border-slate-200"
-                  }`}
-                >
-                  Yes
-                </button>
-
-                <select
-                  value={form.extension_hours}
-                  onChange={(e) => setForm((f) => ({ ...f, extension_hours: Number(e.target.value) }))}
-                  disabled={form.extend !== "yes"}
-                  className="ml-auto bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm disabled:opacity-50"
-                >
-                  <option value={0}>0 hr</option>
-                  <option value={1}>1 hr</option>
-                  <option value={2}>2 hr</option>
-                </select>
-              </div>
-            </div>
           </div>
 
           <button
@@ -1089,7 +1036,7 @@ export default function BookingForm({ user, member }) {
               const statusColor =
                 b.status === "confirmed" ? "text-green-600" :
                 b.status === "rejected" ? "text-red-500" :
-                b.status === "cancelled_gc" ? "text-yellow-600" :
+                b.status === "cancelled_gc" ? "text-yellow-500" :
                 "text-blue-500";
 
               return (
@@ -1098,7 +1045,6 @@ export default function BookingForm({ user, member }) {
                     <div className="min-w-0">
                       <p className="text-[10px] uppercase tracking-widest text-slate-400">Reference</p>
                       <p className="text-sm font-semibold text-slate-800">{b.reference_code || b.id}</p>
-
                       <p className="text-xs text-slate-500 mt-1">
                         Date: <b>{b.business_date}</b> • Start:{" "}
                         <b>{new Date(b.start_at).toLocaleString()}</b>
@@ -1138,7 +1084,6 @@ export default function BookingForm({ user, member }) {
                           setReschedDateISO(toISODate(new Date(b.start_at)));
                           setReschedHour(null);
                           setReschedOpen(true);
-                          setNotice(null);
                         }}
                         className={`px-4 py-2 rounded-full text-[10px] uppercase tracking-widest active:scale-95 ${
                           allowChange
@@ -1188,23 +1133,29 @@ export default function BookingForm({ user, member }) {
           className="fixed inset-0 z-[97] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => !editLoading && setEditBooking(null)}
         >
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold mb-4">Update Booking Info</h3>
+          <div className="bg-white rounded-[28px] border border-rose-50 shadow-sm p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-slate-400">Update Booking</p>
+                <h3 className="text-lg font-semibold text-slate-800">Booking Info</h3>
+              </div>
+              <button
+                className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
+                onClick={() => !editLoading && setEditBooking(null)}
+              >
+                ✕
+              </button>
+            </div>
 
-            <p className="text-[11px] text-slate-500 mb-3">
-              You can update only package, guests, and event type (allowed only if booking is at least {RESCHEDULE_MIN_DAYS} days away).
+            <p className="text-[11px] text-slate-500 mb-4">
+              Only package, guests, and event type can be changed. Allowed only if booking is at least {RESCHEDULE_MIN_DAYS} days away.
             </p>
 
-            <label className="text-xs text-slate-500">Package</label>
+            <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">Package</label>
             <select
               value={editBooking.package_id}
-              onChange={(e) =>
-                setEditBooking((prev) => ({
-                  ...prev,
-                  package_id: Number(e.target.value),
-                }))
-              }
-              className="w-full mt-1 mb-3 p-2 border rounded"
+              onChange={(e) => setEditBooking((prev) => ({ ...prev, package_id: Number(e.target.value) }))}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm mb-3"
             >
               {packages.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -1213,35 +1164,35 @@ export default function BookingForm({ user, member }) {
               ))}
             </select>
 
-            <label className="text-xs text-slate-500">No. of Guests</label>
+            <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">No. of Guests</label>
             <input
               type="number"
               min={1}
               value={editBooking.guest_count || 1}
-              onChange={(e) =>
-                setEditBooking((prev) => ({
-                  ...prev,
-                  guest_count: Number(e.target.value),
-                }))
-              }
-              className="w-full mt-1 mb-3 p-2 border rounded"
+              onChange={(e) => setEditBooking((prev) => ({ ...prev, guest_count: Number(e.target.value) }))}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm mb-3"
             />
 
-            <label className="text-xs text-slate-500">Event Type</label>
+            <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">Event Type</label>
             <input
               type="text"
               value={editBooking.event_type || ""}
-              onChange={(e) =>
-                setEditBooking((prev) => ({
-                  ...prev,
-                  event_type: e.target.value,
-                }))
-              }
-              className="w-full mt-1 mb-4 p-2 border rounded"
+              onChange={(e) => setEditBooking((prev) => ({ ...prev, event_type: e.target.value }))}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm mb-4"
             />
 
-            <div className="flex gap-2">
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
               <button
+                type="button"
+                onClick={() => !editLoading && setEditBooking(null)}
+                className="w-full py-3 rounded-xl bg-white border border-slate-200 text-slate-600 text-[11px] uppercase tracking-widest active:scale-95"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={editLoading}
                 onClick={async () => {
                   if (!canChangeBooking(editBooking.start_at)) {
                     alert(`Updates are only allowed at least ${RESCHEDULE_MIN_DAYS} days before the booking.`);
@@ -1266,19 +1217,17 @@ export default function BookingForm({ user, member }) {
                     return;
                   }
 
-                  setMyBookings((prev) => prev.map((x) => (x.id === editBooking.id ? editBooking : x)));
-                  alert("✅ Booking updated");
+                  setMyBookings((prev) =>
+                    prev.map((x) => (x.id === editBooking.id ? { ...x, ...editBooking, status: "pending" } : x))
+                  );
 
-                  setEditBooking(null);
                   setEditLoading(false);
+                  setEditBooking(null);
+                  setNotice("✅ Booking updated. Waiting for confirmation.");
                 }}
-                className="flex-1 py-2 bg-[#FC687D] text-white rounded"
+                className="w-full py-3 rounded-xl bg-[#FC687D] text-white text-[11px] uppercase tracking-widest active:scale-95 disabled:opacity-60"
               >
-                {editLoading ? "Saving..." : "Save"}
-              </button>
-
-              <button onClick={() => setEditBooking(null)} className="flex-1 py-2 bg-gray-200 rounded">
-                Cancel
+                {editLoading ? "Saving…" : "Save"}
               </button>
             </div>
           </div>
@@ -1572,4 +1521,3 @@ export default function BookingForm({ user, member }) {
     </div>
   );
 }
-``
