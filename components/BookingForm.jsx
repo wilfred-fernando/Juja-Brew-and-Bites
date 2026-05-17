@@ -530,6 +530,69 @@ export default function BookingForm({ user, member }) {
       {/* Availability */}
       {tab === "availability" && (
         <div className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6 space-y-4">
+          <div className="flex items-end justify-between gap-4 flex-wrap">
+
+  {/* ✅ DATE SELECT */}
+  <div>
+    <p className="text-[10px] uppercase tracking-widest text-slate-400">
+      Select Date
+    </p>
+
+    <input
+      type="date"
+      value={dateISO}
+      min={toISODate(new Date())}
+      onChange={(e) => setDateISO(e.target.value)}
+      className="mt-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm"
+    />
+
+    <p className="text-[10px] text-slate-400 mt-1">
+      Must be at least {MIN_ADVANCE_HOURS} hours in advance
+    </p>
+  </div>
+
+  {/* ✅ EXTENSION SELECT */}
+  <div className="text-right">
+    <p className="text-[10px] uppercase tracking-widest text-slate-400">
+      Extension
+    </p>
+
+    <div className="mt-2 flex items-center gap-2 justify-end">
+      <select
+        value={form.extend}
+        onChange={(e) =>
+          setForm((f) => ({
+            ...f,
+            extend: e.target.value,
+            extension_hours:
+              e.target.value === "yes" ? f.extension_hours : 0,
+          }))
+        }
+        className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm"
+      >
+        <option value="no">No</option>
+        <option value="yes">Yes</option>
+      </select>
+
+      <select
+        value={form.extension_hours}
+        onChange={(e) =>
+          setForm((f) => ({
+            ...f,
+            extension_hours: Number(e.target.value),
+          }))
+        }
+        disabled={form.extend !== "yes"}
+        className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm disabled:opacity-50"
+      >
+        <option value={0}>0 hr</option>
+        <option value={1}>1 hr</option>
+        <option value={2}>2 hr</option>
+      </select>
+    </div>
+  </div>
+
+</div>
           <div className="text-[11px] text-slate-500">
             Operating hours: <b>10:00 AM – 2:00 AM</b> (next day). Buffer rule: <b>1 hour</b> before & after.
           </div>
