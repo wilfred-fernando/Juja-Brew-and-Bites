@@ -535,9 +535,12 @@ export default function BookingForm({ user, member }) {
       } catch {
         // ignore notify failure
       }
-
-      setNotice("✅ Booking saved! Payment proof submitted.");
+      
+      const [successBooking, setSuccessBooking] = useState(null);
+      setNotice(null);
+      setSuccessBooking(bookingRow);
       setPayOpen(false);
+
 
       // reset
       setProofFile(null);
@@ -555,6 +558,39 @@ export default function BookingForm({ user, member }) {
     }
   }
 
+  if (successBooking) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#FFF5F7] px-4">
+      <div className="bg-white rounded-2xl p-6 max-w-md w-full text-center shadow-lg">
+
+        <h2 className="text-2xl font-bold text-green-600 mb-2">
+          ✅ Booking Confirmed
+        </h2>
+
+        <p className="text-sm text-slate-600 mb-4">
+          Your reservation has been received.
+        </p>
+
+        <div className="bg-slate-50 border rounded-xl p-4 text-left text-sm space-y-2">
+          <p><b>Reference:</b> {successBooking.reference_code}</p>
+          <p><b>Name:</b> {successBooking.customer_name}</p>
+          <p><b>Date:</b> {successBooking.business_date}</p>
+        </div>
+
+        <button
+          onClick={() => {
+            setSuccessBooking(null);
+            setTab("availability");
+          }}
+          className="mt-5 w-full py-3 bg-[#FC687D] text-white rounded-xl"
+        >
+          Back to Booking
+        </button>
+
+      </div>
+    </div>
+  );
+}
   return (
     <div className="space-y-4 md:space-y-6 animate-in fade-in duration-500">
       <div>
