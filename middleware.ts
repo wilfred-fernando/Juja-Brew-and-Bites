@@ -38,6 +38,46 @@ export function middleware(req: NextRequest) {
 
   const targetPath = matchedSubdomain ? routes[matchedSubdomain] : null;
 
+// ✅ BLOCK CROSS-APP ACCESS (IMPORTANT)
+if (cleanHost.startsWith("customer.")) {
+  if (
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/pos") ||
+    pathname.startsWith("/kitchen")
+  ) {
+    return NextResponse.redirect(new URL("/", req.url));
+  }
+}
+
+if (cleanHost.startsWith("admin.")) {
+  if (
+    pathname.startsWith("/customer") ||
+    pathname.startsWith("/pos") ||
+    pathname.startsWith("/kitchen")
+  ) {
+    return NextResponse.redirect(new URL("/", req.url));
+  }
+}
+
+if (cleanHost.startsWith("pos.")) {
+  if (
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/customer") ||
+    pathname.startsWith("/kitchen")
+  ) {
+    return NextResponse.redirect(new URL("/", req.url));
+  }
+}
+
+if (cleanHost.startsWith("kitchen.")) {
+  if (
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/customer") ||
+    pathname.startsWith("/pos")
+  ) {
+    return NextResponse.redirect(new URL("/", req.url));
+  }
+}
   // ✅ 3. APPLY REWRITE (ONLY FOR NON-PUBLIC ROUTES)
   if (targetPath) {
     if (!pathname.startsWith(targetPath)) {
