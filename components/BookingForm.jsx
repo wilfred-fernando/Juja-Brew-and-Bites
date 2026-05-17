@@ -15,7 +15,7 @@ const MAX_EXTENSION_HOURS = 2; // extension max 2 hours
 const MIN_ADVANCE_HOURS = 5;
 
 // ✅ Manage booking rules
-const RESCHEDULE_MIN_DAYS = 2; // can reschedule only if >= 2 days before booked date
+const RESCHEDULE_MIN_DAYS = 2; // reschedule allowed only if >= 2 days before booked date
 
 // Deposit policy
 const DEPOSIT_AMOUNT = 1000;
@@ -39,197 +39,6 @@ function stripCitationsAndLinks(text = "") {
     .replace(/\s{2,}/g, " ")
     .trim();
 }
-
-/* =====================================================
- PACKAGE POLICIES (1–6) — Full Details content
-===================================================== */
-const PACKAGE_POLICIES = {
-  1: {
-    name: "Package 1",
-    room_usage: {
-      capacity:
-        "Capacity: up to 15 Guests (children aged 4 years and below are not counted in the headcount).",
-      additional_guests:
-        "Additional guests: ₱300 worth of food & drinks per person (maximum of 5 additional guests).",
-      rental_duration: "Rental duration: 3 hours.",
-      extension: [
-        "Extension maximum of 2 hours:",
-        "Option 1: ₱1,000 worth of food & drinks per hour.",
-        "Option 2: ₱250 per hour.",
-      ],
-    },
-    rental_fees_inclusions: {
-      rental_fee: "Standard rental fee: ₱3,000 for 3 hours.",
-      package_includes: [
-        "₱2,500 worth of food & drinks (customizable selection).",
-        "Use of entertainment amenities: Videoke, YouTube & Netflix.",
-        "Fully air-conditioned private room.",
-        "High-speed WiFi access.",
-      ],
-      consumable_amount: 2500,
-      room_rental_only: false,
-    },
-    food_beverages: {
-      policy: "Outside food and beverages are subject to corkage fees:",
-      corkage: [
-        "Alcoholic drinks: ₱250",
-        "Cakes & Lechon: FREE",
-        "Other food items: ₱200 per dish (max of 2 dish only)",
-      ],
-      notes: "Customized menus and special requests must be arranged in advance.",
-    },
-  },
-  2: {
-    name: "Package 2",
-    room_usage: {
-      capacity:
-        "Capacity: up to 30 Guests (children aged 4 years and below are not counted in the headcount).",
-      additional_guests:
-        "Additional guests: ₱300 worth of food & drinks per person (maximum of 5 additional guests).",
-      rental_duration: "Rental duration: 3 hours.",
-      extension: [
-        "Extension maximum of 2 hours:",
-        "Option 1: ₱1,500 worth of food & drinks per hour.",
-        "Option 2: ₱750 per hour.",
-      ],
-    },
-    rental_fees_inclusions: {
-      rental_fee: "Standard rental fee: ₱7,000 for 3 hours.",
-      package_includes: [
-        "₱5,500 worth of food & drinks (customizable selection).",
-        "Use of entertainment amenities: Videoke, YouTube & Netflix.",
-        "Fully air-conditioned private room.",
-        "High-speed WiFi access.",
-      ],
-      consumable_amount: 5500,
-      room_rental_only: false,
-    },
-    food_beverages: {
-      policy: "Outside food and beverages are subject to corkage fees:",
-      corkage: [
-        "Alcoholic drinks: ₱500",
-        "Cakes & Lechon: FREE",
-        "Other food items: ₱200 per dish (max of 2 dish only)",
-      ],
-      notes: "Customized menus and special requests must be arranged in advance.",
-    },
-  },
-  3: {
-    name: "Package 3",
-    room_usage: {
-      capacity:
-        "Capacity: up to 60 Guests (children aged 4 years and below are not counted in the headcount).",
-      additional_guests:
-        "Additional guests: ₱300 worth of food & drinks per person (maximum of 5 additional guests).",
-      rental_duration: "Rental duration: 3 hours.",
-      extension: [
-        "Extension maximum of 2 hours:",
-        "Option 1: ₱3,000 worth of food & drinks per hour.",
-        "Option 2: ₱1,500 per hour.",
-      ],
-    },
-    rental_fees_inclusions: {
-      rental_fee: "Standard rental fee: ₱15,000 for 3 hours.",
-      package_includes: [
-        "₱12,000 worth of food & drinks (customizable selection).",
-        "The entire store will be exclusively reserved for your event during the booking.",
-        "Use of entertainment amenities: Videoke, YouTube & Netflix.",
-        "Fully air-conditioned private room.",
-        "High-speed WiFi access.",
-      ],
-      consumable_amount: 12000,
-      room_rental_only: false,
-    },
-    food_beverages: {
-      policy: "Outside food and beverages are subject to corkage fees:",
-      corkage: [
-        "Alcoholic drinks: ₱1,000",
-        "Cakes & Lechon: FREE",
-        "Other food items: ₱200 per dish (max of 2 dish only)",
-      ],
-      notes: "Customized menus and special requests must be arranged in advance.",
-    },
-  },
-  4: {
-    name: "Package 4",
-    room_usage: {
-      capacity:
-        "Capacity: up to 15 Guests (children aged 4 years and below are not counted in the headcount).",
-      additional_guests: "Additional guests: ₱150 per person (maximum of 5 additional guests).",
-      rental_duration: "Rental duration: 3 hours.",
-      extension: ["Extension maximum of 2 hours: ₱1,000 per hour."],
-    },
-    rental_fees_inclusions: {
-      rental_fee: "Standard rental fee: ₱2,500 for 3 hours.",
-      package_includes: [
-        "Inclusive of corkage for food and drinks.",
-        "Use of entertainment amenities: Videoke, YouTube & Netflix.",
-        "Fully air-conditioned private room.",
-        "High-speed WiFi access.",
-      ],
-      consumable_amount: null,
-      room_rental_only: true,
-    },
-    food_beverages: {
-      policy: "Outside food and beverages are allowed.",
-      corkage: [],
-      notes: "Additional setup time must be requested during booking (if needed).",
-    },
-  },
-  5: {
-    name: "Package 5",
-    room_usage: {
-      capacity:
-        "Capacity: up to 30 Guests (children aged 4 years and below are not counted in the headcount).",
-      additional_guests: "Additional guests: ₱150 per person (maximum of 5 additional guests).",
-      rental_duration: "Rental duration: 3 hours.",
-      extension: ["Extension maximum of 2 hours: ₱1,500 per hour."],
-    },
-    rental_fees_inclusions: {
-      rental_fee: "Standard rental fee: ₱3,500 for 3 hours.",
-      package_includes: [
-        "Inclusive of corkage for food and drinks.",
-        "Use of entertainment amenities: Videoke, YouTube & Netflix.",
-        "Fully air-conditioned private room.",
-        "High-speed WiFi access.",
-      ],
-      consumable_amount: null,
-      room_rental_only: true,
-    },
-    food_beverages: {
-      policy: "Outside food and beverages are allowed.",
-      corkage: [],
-      notes: "Additional setup time must be requested during booking (if needed).",
-    },
-  },
-  6: {
-    name: "Package 6",
-    room_usage: {
-      capacity:
-        "Capacity: up to 60 Guests (children aged 4 years and below are not counted in the headcount).",
-      additional_guests: "Additional guests: FREE.",
-      rental_duration: "Rental duration: 3 hours.",
-      extension: ["Extension maximum of 2 hours: ₱2,500 per hour."],
-    },
-    rental_fees_inclusions: {
-      rental_fee: "Standard rental fee: ₱8,000 for 3 hours.",
-      package_includes: [
-        "Inclusive of corkage for food and drinks.",
-        "The entire store will be exclusively reserved for your event during the booking.",
-        "Use of entertainment amenities: Videoke, YouTube & Netflix.",
-        "Fully air-conditioned private room.",
-        "High-speed WiFi access.",
-      ],
-      consumable_amount: null,
-      room_rental_only: true,
-    },
-    food_beverages: {
-      policy: "Outside food and beverages are allowed.",
-      corkage: [],
-      notes: "Additional setup time must be requested during booking (if needed).",
-    },
-  },
-};
 
 /* =======================
  Helpers
@@ -262,9 +71,7 @@ function computeDateTime(businessDateISO, hourLike) {
   dt.setHours(h, 0, 0, 0);
   return dt;
 }
-function intersects(aStart, aEnd, bStart, bEnd) {
-  return aStart < bEnd && aEnd > bStart;
-}
+
 function canReschedule(startAtISO) {
   const now = new Date();
   const start = new Date(startAtISO);
@@ -272,23 +79,41 @@ function canReschedule(startAtISO) {
   return diffDays >= RESCHEDULE_MIN_DAYS;
 }
 
+/**
+ * ✅ FIXED conflict rule:
+ * Only apply buffer around EXISTING bookings (not around candidate slot).
+ * conflict if candidate [start,end] overlaps existing [bStart-buffer, bEnd+buffer]
+ */
+function hasBookingConflict(candidateStart, candidateEnd, existingBookings) {
+  return (existingBookings || []).some((b) => {
+    const bStart = new Date(b.start_at);
+    const bEnd = new Date(b.end_at);
+
+    const bBlockedStart = new Date(bStart.getTime() - BUFFER_HOURS * 3600 * 1000);
+    const bBlockedEnd = new Date(bEnd.getTime() + BUFFER_HOURS * 3600 * 1000);
+
+    // overlap check; if candidateEnd == bBlockedStart it's allowed
+    return candidateStart < bBlockedEnd && candidateEnd > bBlockedStart;
+  });
+}
+
 /* =======================
  Component
 ======================= */
 export default function BookingForm({ user, member }) {
   const [tab, setTab] = useState("availability"); // availability | packages | book | manage
+
   const [packages, setPackages] = useState([]);
   const [loadingPackages, setLoadingPackages] = useState(true);
 
-  // ✅ Default date can be today now (time rule handles 5 hours)
+  // default date today
   const [dateISO, setDateISO] = useState(() => toISODate(new Date()));
 
   const [bookings, setBookings] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
   const [selectedHour, setSelectedHour] = useState(null);
-  const [notice, setNotice] = useState(null);
 
-  // ✅ Success confirmation (FIXED: must be top-level hook)
+  const [notice, setNotice] = useState(null);
   const [successBooking, setSuccessBooking] = useState(null);
 
   // Modals
@@ -300,17 +125,21 @@ export default function BookingForm({ user, member }) {
   const [proofPreview, setProofPreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // ✅ Manage bookings
+  // ✅ Manage Bookings
   const [myBookings, setMyBookings] = useState([]);
   const [loadingMyBookings, setLoadingMyBookings] = useState(false);
 
-  // Reschedule modal state
+  // ✅ Reschedule modal
   const [reschedOpen, setReschedOpen] = useState(false);
   const [reschedBooking, setReschedBooking] = useState(null);
   const [reschedDateISO, setReschedDateISO] = useState(() => toISODate(new Date()));
   const [reschedHour, setReschedHour] = useState(null);
   const [reschedLoading, setReschedLoading] = useState(false);
   const [reschedBookings, setReschedBookings] = useState([]);
+
+  // ✅ Update booking info modal
+  const [editBooking, setEditBooking] = useState(null);
+  const [editLoading, setEditLoading] = useState(false);
 
   // Book Now form
   const [form, setForm] = useState({
@@ -324,7 +153,7 @@ export default function BookingForm({ user, member }) {
     extension_hours: 0,
   });
 
-  // Autofill from profile
+  // Autofill
   useEffect(() => {
     setForm((f) => ({
       ...f,
@@ -334,7 +163,7 @@ export default function BookingForm({ user, member }) {
     }));
   }, [member, user]);
 
-  // Load packages from Supabase
+  // Load packages
   useEffect(() => {
     async function fetchPackages() {
       setLoadingPackages(true);
@@ -354,7 +183,7 @@ export default function BookingForm({ user, member }) {
     fetchPackages();
   }, []);
 
-  // Load bookings for availability
+  // Load bookings for date availability (confirmed + pending)
   useEffect(() => {
     async function fetchBookingsForDate() {
       setLoadingBookings(true);
@@ -389,7 +218,7 @@ export default function BookingForm({ user, member }) {
 
   const slotHours = useMemo(() => buildSlotHours(), []);
 
-  // ✅ Availability computation with 5-hour rule + reason
+  // ✅ Availability computation with correct "Booked vs Too soon" behavior
   const availability = useMemo(() => {
     const ext = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
     const totalHours = BASE_DURATION_HOURS + ext;
@@ -401,29 +230,18 @@ export default function BookingForm({ user, member }) {
       const start = computeDateTime(dateISO, h);
       const end = new Date(start.getTime() + totalHours * 3600 * 1000);
 
-      const operatingEnd = computeDateTime(dateISO, 26); // 2AM next day
+      const operatingEnd = computeDateTime(dateISO, 26);
       const withinOperating = end <= operatingEnd;
-
       const meetsAdvanceTime = start >= minAllowed;
 
-      const hasConflict = bookings.some((b) => {
-      const bStart = new Date(b.start_at);
-      const bEnd = new Date(b.end_at);
-
-      // ✅ Apply buffer ONLY to existing bookings
-      const bBlockedStart = new Date(bStart.getTime() - BUFFER_HOURS * 3600 * 1000);
-      const bBlockedEnd = new Date(bEnd.getTime() + BUFFER_HOURS * 3600 * 1000);
-
-      // ✅ DO NOT buffer the new slot
-      return start < bBlockedEnd && end > bBlockedStart;
-    });
+      const conflict = hasBookingConflict(start, end, bookings);
 
       let reason = "";
-      if (hasConflict) reason = "booked";
+      if (conflict) reason = "booked";
       else if (!meetsAdvanceTime) reason = "too-soon";
       else if (!withinOperating) reason = "closed";
 
-      const availableNow = withinOperating && !hasConflict && meetsAdvanceTime;
+      const availableNow = withinOperating && meetsAdvanceTime && !conflict;
 
       return { hour: h, label: labelHour(h), available: availableNow, reason };
     });
@@ -448,10 +266,11 @@ export default function BookingForm({ user, member }) {
       return `Extension must be 0–${MAX_EXTENSION_HOURS} hours.`;
     }
 
-    // ✅ 5-hour rule validation based on selected date + slot
+    // 5-hour rule validation
     const now = new Date();
     const selectedStart = computeDateTime(dateISO, selectedHour);
     const minAllowed = new Date(now.getTime() + MIN_ADVANCE_HOURS * 60 * 60 * 1000);
+
     if (selectedStart < minAllowed) {
       return `Booking must be at least ${MIN_ADVANCE_HOURS} hours in advance.`;
     }
@@ -476,16 +295,23 @@ export default function BookingForm({ user, member }) {
     return () => URL.revokeObjectURL(url);
   }, [proofFile]);
 
-  // Load upcoming bookings for manage tab
+  function onBookNowClick() {
+    const err = validateBookingInputs();
+    if (err) return setNotice(err);
+    setPayOpen(true);
+  }
+
+  // Load upcoming bookings for Manage
   useEffect(() => {
     async function fetchMyBookings() {
       if (!user?.id) return;
-      setLoadingMyBookings(true);
 
+      setLoadingMyBookings(true);
       const nowIso = new Date().toISOString();
+
       const { data, error } = await supabase
         .from("function_room_bookings")
-        .select("id, reference_code, business_date, start_at, end_at, status, package_id, duration_hours, extension_hours, payment_proof_url")
+        .select("*")
         .eq("user_id", user.id)
         .in("status", ["pending", "confirmed"])
         .gte("start_at", nowIso)
@@ -498,9 +324,9 @@ export default function BookingForm({ user, member }) {
     fetchMyBookings();
   }, [user?.id]);
 
-  // Fetch reschedule conflicts
+  // Reschedule: load conflicts for chosen resched date
   useEffect(() => {
-    async function fetchBookingsForReschedDate() {
+    async function fetchReschedConflicts() {
       if (!reschedOpen || !reschedDateISO) return;
 
       const dayStart = computeDateTime(reschedDateISO, OPERATING_START_HOUR);
@@ -517,18 +343,19 @@ export default function BookingForm({ user, member }) {
         .lte("start_at", queryEnd)
         .order("start_at", { ascending: true });
 
-      const filtered = (data || []).filter((b) => b.id !== reschedBooking?.id);
-      if (!error) setReschedBookings(filtered);
+      if (!error) {
+        setReschedBookings((data || []).filter((x) => x.id !== reschedBooking?.id));
+      }
     }
 
-    fetchBookingsForReschedDate();
+    fetchReschedConflicts();
   }, [reschedOpen, reschedDateISO, reschedBooking?.id]);
 
   const reschedAvailability = useMemo(() => {
-    if (!reschedOpen) return [];
+    if (!reschedOpen || !reschedBooking) return [];
 
-    const dur = Number(reschedBooking?.duration_hours || BASE_DURATION_HOURS);
-    const ext = Number(reschedBooking?.extension_hours || 0);
+    const dur = Number(reschedBooking.duration_hours || BASE_DURATION_HOURS);
+    const ext = Number(reschedBooking.extension_hours || 0);
     const totalHours = dur + ext;
 
     const now = new Date();
@@ -540,39 +367,23 @@ export default function BookingForm({ user, member }) {
 
       const operatingEnd = computeDateTime(reschedDateISO, 26);
       const withinOperating = end <= operatingEnd;
-
       const meetsAdvanceTime = start >= minAllowed;
 
-      const blockedStart = new Date(start.getTime() - BUFFER_HOURS * 3600 * 1000);
-      const blockedEnd = new Date(end.getTime() + BUFFER_HOURS * 3600 * 1000);
-
-      const hasConflict = reschedBookings.some((b) => {
-        const bStart = new Date(b.start_at);
-        const bEnd = new Date(b.end_at);
-        const bBlockedStart = new Date(bStart.getTime() - BUFFER_HOURS * 3600 * 1000);
-        const bBlockedEnd = new Date(bEnd.getTime() + BUFFER_HOURS * 3600 * 1000);
-        return intersects(blockedStart, blockedEnd, bBlockedStart, bBlockedEnd);
-      });
+      const conflict = hasBookingConflict(start, end, reschedBookings);
 
       let reason = "";
-      if (hasConflict) reason = "booked";
+      if (conflict) reason = "booked";
       else if (!meetsAdvanceTime) reason = "too-soon";
       else if (!withinOperating) reason = "closed";
 
       return {
         hour: h,
         label: labelHour(h),
-        available: withinOperating && meetsAdvanceTime && !hasConflict,
+        available: withinOperating && meetsAdvanceTime && !conflict,
         reason,
       };
     });
-  }, [reschedOpen, reschedDateISO, reschedBookings, slotHours, reschedBooking?.duration_hours, reschedBooking?.extension_hours]);
-
-  function onBookNowClick() {
-    const err = validateBookingInputs();
-    if (err) return setNotice(err);
-    setPayOpen(true);
-  }
+  }, [reschedOpen, reschedBooking, reschedDateISO, reschedBookings, slotHours]);
 
   async function confirmPaymentAndSubmit() {
     const err = validateBookingInputs();
@@ -631,25 +442,21 @@ export default function BookingForm({ user, member }) {
         status: "pending",
       };
 
-      // ✅ Use RPC create_booking (as in your current file)
+      // RPC insert
       const { data: bookingRow, error: bookErr } = await supabase.rpc("create_booking", { data: payload });
       if (bookErr) throw bookErr;
 
-      // Optional notify route
       try {
         await fetch("/api/booking-notify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ adminEmail: ADMIN_EMAIL, bookingId: bookingRow?.id, proofUrl }),
         });
-      } catch {
-        // ignore notify failure
-      }
+      } catch {}
 
       setSuccessBooking(bookingRow);
       setPayOpen(false);
 
-      // reset booking form
       setProofFile(null);
       setProofPreview(null);
       setSelectedHour(null);
@@ -705,8 +512,8 @@ export default function BookingForm({ user, member }) {
         </p>
       </div>
 
-      {/* Tabs */}
-      <div className="w-full max-w-xs">
+      {/* ✅ Dropdown navigation replacing buttons */}
+      <div className="bg-white border border-rose-100 rounded-2xl p-3 shadow-sm max-w-sm">
         <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
           Select Option
         </label>
@@ -714,7 +521,7 @@ export default function BookingForm({ user, member }) {
         <select
           value={tab}
           onChange={(e) => setTab(e.target.value)}
-          className="w-full bg-white border border-rose-100 rounded-xl px-3 py-3 text-sm text-slate-700"
+          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100"
         >
           <option value="availability">Check Availability</option>
           <option value="packages">Packages</option>
@@ -836,73 +643,48 @@ export default function BookingForm({ user, member }) {
               <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
             </div>
           ) : (
-            packages.map((p) => {
-              const pid = Number(p.id);
-              const policy = PACKAGE_POLICIES[pid];
-              const consumable = policy?.rental_fees_inclusions?.consumable_amount ?? null;
-              const roomRentalOnly = policy?.rental_fees_inclusions?.room_rental_only ?? false;
-
-              return (
-                <div
-                  key={p.id}
-                  className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="text-[12px] uppercase tracking-widest text-slate-400">{p.name}</p>
-
-                      {/* ✅ Removed "/ 3 hours" display */}
-                      <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">
-                        ₱{Number(p.rental_fee).toLocaleString()}
-                      </h3>
-
-                      <div className="mt-2 space-y-1 min-w-0">
-                        <p className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
-                          Capacity up to {p.capacity} guests
-                        </p>
-                        <p className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
-                          {roomRentalOnly ? (
-                            <>
-                              <span className="sm:hidden">Room-only</span>
-                              <span className="hidden sm:inline">Room rental only</span>
-                            </>
-                          ) : (
-                            <>
-                              <span className="sm:hidden">Cons: {formatPeso(consumable)}</span>
-                              <span className="hidden sm:inline">Consumable: {formatPeso(consumable)}</span>
-                            </>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDetailsPkg(p);
-                          setDetailsOpen(true);
-                        }}
-                        className="px-4 py-2 rounded-full bg-white border border-slate-200 text-slate-700 text-[10px] uppercase tracking-widest hover:bg-slate-50 active:scale-95"
-                      >
-                        Full Details
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setForm((f) => ({ ...f, package_id: String(p.id) }));
-                          setTab("book");
-                        }}
-                        className="px-4 py-2 rounded-full bg-[#FC687D] text-white text-[10px] uppercase tracking-widest active:scale-95"
-                      >
-                        Choose
-                      </button>
+            packages.map((p) => (
+              <div
+                key={p.id}
+                className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-[12px] uppercase tracking-widest text-slate-400">{p.name}</p>
+                    <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">
+                      ₱{Number(p.rental_fee).toLocaleString()}
+                    </h3>
+                    <div className="mt-2 space-y-1 min-w-0">
+                      <p className="text-[11px] text-slate-500">Capacity up to {p.capacity} guests</p>
                     </div>
                   </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDetailsPkg(p);
+                        setDetailsOpen(true);
+                      }}
+                      className="px-4 py-2 rounded-full bg-white border border-slate-200 text-slate-700 text-[10px] uppercase tracking-widest hover:bg-slate-50 active:scale-95"
+                    >
+                      Full Details
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForm((f) => ({ ...f, package_id: String(p.id) }));
+                        setTab("book");
+                      }}
+                      className="px-4 py-2 rounded-full bg-[#FC687D] text-white text-[10px] uppercase tracking-widest active:scale-95"
+                    >
+                      Choose
+                    </button>
+                  </div>
                 </div>
-              );
-            })
+              </div>
+            ))
           )}
         </div>
       )}
@@ -955,9 +737,7 @@ export default function BookingForm({ user, member }) {
               ["email", "Email Address", "email", "name@email.com"],
             ].map(([key, lbl, type, ph]) => (
               <div key={key}>
-                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
-                  {lbl}
-                </label>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">{lbl}</label>
                 <input
                   type={type}
                   value={form[key] ?? ""}
@@ -980,54 +760,6 @@ export default function BookingForm({ user, member }) {
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
               />
             </div>
-
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
-                Going to extend?
-              </label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setForm((f) => ({ ...f, extend: "no", extension_hours: 0 }))}
-                  className={`px-4 py-2 rounded-xl text-[11px] border active:scale-95 ${
-                    form.extend === "no"
-                      ? "bg-[#FC687D] text-white border-[#FC687D]"
-                      : "bg-white text-slate-600 border-slate-200"
-                  }`}
-                >
-                  No
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setForm((f) => ({
-                      ...f,
-                      extend: "yes",
-                      extension_hours: f.extension_hours || 1,
-                    }))
-                  }
-                  className={`px-4 py-2 rounded-xl text-[11px] border active:scale-95 ${
-                    form.extend === "yes"
-                      ? "bg-[#FC687D] text-white border-[#FC687D]"
-                      : "bg-white text-slate-600 border-slate-200"
-                  }`}
-                >
-                  Yes
-                </button>
-
-                <select
-                  value={form.extension_hours}
-                  onChange={(e) => setForm((f) => ({ ...f, extension_hours: Number(e.target.value) }))}
-                  disabled={form.extend !== "yes"}
-                  className="ml-auto bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm disabled:opacity-50"
-                >
-                  <option value={0}>0 hr</option>
-                  <option value={1}>1 hr</option>
-                  <option value={2}>2 hr</option>
-                </select>
-              </div>
-            </div>
           </div>
 
           <button
@@ -1041,11 +773,11 @@ export default function BookingForm({ user, member }) {
         </div>
       )}
 
-      {/* ✅ Manage Bookings merged into Booking tab */}
+      {/* Manage bookings */}
       {tab === "manage" && (
         <div className="space-y-3">
-          <div className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6">
-            <h3 className="text-lg md:text-xl font-semibold text-slate-800">Upcoming Bookings</h3>
+          <div className="bg-white rounded-2xl border border-rose-50 shadow-sm p-5">
+            <h3 className="text-lg font-semibold text-slate-800">Upcoming Bookings</h3>
             <p className="text-xs text-slate-500 mt-1">
               Reschedule allowed only if at least <b>{RESCHEDULE_MIN_DAYS} days</b> before booking date.
               Cancellation will be converted into a gift certificate.
@@ -1057,7 +789,7 @@ export default function BookingForm({ user, member }) {
               <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
             </div>
           ) : myBookings.length === 0 ? (
-            <div className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6 text-slate-500 text-sm">
+            <div className="bg-white rounded-2xl border border-rose-50 shadow-sm p-5 text-slate-500 text-sm">
               No upcoming bookings.
             </div>
           ) : (
@@ -1065,17 +797,14 @@ export default function BookingForm({ user, member }) {
               const allowResched = canReschedule(b.start_at);
 
               return (
-                <div key={b.id} className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6">
+                <div key={b.id} className="bg-white rounded-2xl border border-rose-50 shadow-sm p-5">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <p className="text-[10px] uppercase tracking-widest text-slate-400">Reference</p>
-                      <p className="text-sm font-semibold text-slate-800">
-                        {b.reference_code || b.id}
-                      </p>
+                      <p className="text-sm font-semibold text-slate-800">{b.reference_code || b.id}</p>
 
                       <p className="text-xs text-slate-500 mt-1">
-                        Date: <b>{b.business_date}</b> • Start:{" "}
-                        <b>{new Date(b.start_at).toLocaleString()}</b>
+                        Date: <b>{b.business_date}</b> • Start: <b>{new Date(b.start_at).toLocaleString()}</b>
                       </p>
 
                       <p className="text-xs mt-1">
@@ -1093,6 +822,15 @@ export default function BookingForm({ user, member }) {
                     </div>
 
                     <div className="flex gap-2 flex-shrink-0">
+                      {/* ✅ Update booking info (package, guests, event type) */}
+                      <button
+                        type="button"
+                        onClick={() => setEditBooking({ ...b })}
+                        className="px-4 py-2 rounded-full bg-blue-500 text-white text-[10px] uppercase tracking-widest active:scale-95"
+                      >
+                        Update
+                      </button>
+
                       <button
                         type="button"
                         disabled={!allowResched}
@@ -1144,98 +882,183 @@ export default function BookingForm({ user, member }) {
         </div>
       )}
 
-      {/* Full Details Modal */}
-      {detailsOpen && detailsPkg && (
+      {/* ✅ Update Booking Info Modal */}
+      {editBooking && (
         <div
-          className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
-          onClick={() => setDetailsOpen(false)}
+          className="fixed inset-0 z-[97] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => !editLoading && setEditBooking(null)}
         >
           <div
-            className="w-full max-w-2xl bg-white rounded-t-[28px] md:rounded-[32px] p-6 md:p-8 max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-2xl p-6 w-full max-w-md"
             onClick={(e) => e.stopPropagation()}
           >
-            {(() => {
-              const pid = Number(detailsPkg.id);
-              const policy = PACKAGE_POLICIES[pid];
-              if (!policy) return <p className="text-slate-700">No policy details found.</p>;
-              const rfi = policy.rental_fees_inclusions;
+            <h3 className="text-lg font-semibold mb-4">Update Booking Info</h3>
 
-              return (
-                <div className="space-y-4">
-                  <div className="flex items-start justify-between gap-4 mb-2">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-widest text-slate-400">Full Details</p>
-                      <h3 className="text-xl md:text-2xl font-semibold text-slate-900 mt-1">{policy.name}</h3>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setDetailsOpen(false)}
-                      className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
-                      aria-label="Close"
-                    >
-                      ✕
-                    </button>
-                  </div>
+            <label className="text-xs text-slate-500">Package</label>
+            <select
+              value={editBooking.package_id}
+              onChange={(e) =>
+                setEditBooking((prev) => ({
+                  ...prev,
+                  package_id: Number(e.target.value),
+                }))
+              }
+              className="w-full mt-1 mb-3 p-2 border rounded"
+            >
+              {packages.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
 
-                  <div className="bg-white border border-slate-200 rounded-2xl p-4">
-                    <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">1. Room Usage</p>
-                    <ul className="space-y-2 text-[12px] text-slate-700 leading-relaxed">
-                      <li>• {policy.room_usage.capacity}</li>
-                      <li>• {policy.room_usage.additional_guests}</li>
-                      <li>• {policy.room_usage.rental_duration}</li>
-                      {policy.room_usage.extension.map((x) => (
-                        <li key={x}>• {x}</li>
-                      ))}
-                    </ul>
-                  </div>
+            <label className="text-xs text-slate-500">No. of Guests</label>
+            <input
+              type="number"
+              min={1}
+              value={editBooking.guest_count || 1}
+              onChange={(e) =>
+                setEditBooking((prev) => ({
+                  ...prev,
+                  guest_count: Number(e.target.value),
+                }))
+              }
+              className="w-full mt-1 mb-3 p-2 border rounded"
+            />
 
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                    <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">
-                      2. Rental Fees & Inclusions
-                    </p>
-                    <p className="text-[12px] text-slate-700 mb-3">• {rfi.rental_fee}</p>
+            <label className="text-xs text-slate-500">Event Type</label>
+            <input
+              type="text"
+              value={editBooking.event_type || ""}
+              onChange={(e) =>
+                setEditBooking((prev) => ({
+                  ...prev,
+                  event_type: e.target.value,
+                }))
+              }
+              className="w-full mt-1 mb-4 p-2 border rounded"
+            />
 
-                    <p className="text-[11px] uppercase tracking-widest text-slate-500 mb-2">Package Includes</p>
-                    <ul className="space-y-2 text-[12px] text-slate-700 leading-relaxed">
-                      {rfi.package_includes.map((x) => (
-                        <li key={x}>• {x}</li>
-                      ))}
-                    </ul>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  setEditLoading(true);
 
-                    <p className="text-[12px] text-slate-700 mt-3">
-                      •{" "}
-                      {rfi.room_rental_only ? (
-                        <b>Room rental only</b>
-                      ) : (
-                        <>
-                          Consumable: <b>{formatPeso(rfi.consumable_amount)}</b>
-                        </>
-                      )}
-                    </p>
-                  </div>
+                  const { error } = await supabase
+                    .from("function_room_bookings")
+                    .update({
+                      package_id: editBooking.package_id,
+                      guest_count: editBooking.guest_count,
+                      event_type: editBooking.event_type,
+                    })
+                    .eq("id", editBooking.id);
 
-                  <div className="bg-white border border-rose-200 rounded-2xl p-4">
-                    <p className="text-[10px] uppercase tracking-widest text-rose-600 mb-2">3. Food & Beverages</p>
-                    <p className="text-[12px] text-slate-700 mb-2">• {policy.food_beverages.policy}</p>
-                    {policy.food_beverages.corkage.length > 0 && (
-                      <ul className="space-y-1 text-[12px] text-slate-700 leading-relaxed ml-3">
-                        {policy.food_beverages.corkage.map((x) => (
-                          <li key={x}>◦ {x}</li>
-                        ))}
-                      </ul>
-                    )}
-                    {policy.food_beverages.notes && (
-                      <p className="text-[12px] text-slate-700 mt-3">• {policy.food_beverages.notes}</p>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
+                  if (error) {
+                    alert(error.message);
+                    setEditLoading(false);
+                    return;
+                  }
+
+                  setMyBookings((prev) =>
+                    prev.map((item) => (item.id === editBooking.id ? editBooking : item))
+                  );
+
+                  alert("✅ Booking updated");
+                  setEditBooking(null);
+                  setEditLoading(false);
+                }}
+                className="flex-1 py-2 bg-[#FC687D] text-white rounded"
+              >
+                {editLoading ? "Saving..." : "Save"}
+              </button>
+
+              <button
+                onClick={() => setEditBooking(null)}
+                className="flex-1 py-2 bg-gray-200 rounded"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* ✅ Reschedule Modal */}
+      {/* Payment Modal */}
+      {payOpen && (
+        <div
+          className="fixed inset-0 z-[95] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
+          onClick={() => !submitting && setPayOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg bg-white rounded-t-[28px] md:rounded-[32px] p-6 md:p-7 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg md:text-xl font-semibold text-slate-800">Secure Your Booking</h3>
+              <button
+                type="button"
+                onClick={() => !submitting && setPayOpen(false)}
+                className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4 text-slate-700">
+              <p className="text-sm leading-relaxed">
+                {stripCitationsAndLinks(
+                  `To secure your booking, a ₱${DEPOSIT_AMOUNT.toLocaleString()} non-refundable fee is required.`
+                )}
+              </p>
+
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                <p className="text-[11px] uppercase tracking-widest text-slate-500 mb-2">Scan QR to Pay</p>
+
+                <img
+                  src={QR_IMAGE_PATH}
+                  alt="Payment QR Code"
+                  className="w-full max-w-[320px] mx-auto rounded-xl border border-slate-200 bg-white"
+                />
+
+                <p className="text-[12px] text-slate-700 mt-3">
+                  After payment, attach screenshot of your payment confirmation to lock in your reservation!
+                </p>
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="mt-3 w-full text-sm"
+                  onChange={(e) => setProofFile(e.target.files?.[0] || null)}
+                  disabled={submitting}
+                />
+
+                {proofPreview && (
+                  <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden">
+                    <img src={proofPreview} alt="Payment proof preview" className="w-full object-cover" />
+                  </div>
+                )}
+
+                {!proofFile && (
+                  <p className="mt-2 text-[11px] text-rose-500">
+                    Please upload your payment proof before submitting.
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={confirmPaymentAndSubmit}
+                disabled={submitting || !proofFile}
+                className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-normal text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-rose-500 active:scale-95 disabled:opacity-60"
+              >
+                {submitting ? "Submitting…" : "Submit Proof & Confirm Booking"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reschedule Modal */}
       {reschedOpen && reschedBooking && (
         <div
           className="fixed inset-0 z-[96] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
@@ -1363,81 +1186,6 @@ export default function BookingForm({ user, member }) {
                 className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-normal text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-rose-500 active:scale-95 disabled:opacity-60"
               >
                 {reschedLoading ? "Updating…" : "Confirm Reschedule"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Payment Popup Modal */}
-      {payOpen && (
-        <div
-          className="fixed inset-0 z-[95] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
-          onClick={() => !submitting && setPayOpen(false)}
-        >
-          <div
-            className="w-full max-w-lg bg-white rounded-t-[28px] md:rounded-[32px] p-6 md:p-7 max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg md:text-xl font-semibold text-slate-800">Secure Your Booking</h3>
-              <button
-                type="button"
-                onClick={() => !submitting && setPayOpen(false)}
-                className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-4 text-slate-700">
-              <p className="text-sm leading-relaxed">
-                {stripCitationsAndLinks(
-                  `To secure your booking, a ₱${DEPOSIT_AMOUNT.toLocaleString()} non-refundable fee is required.`
-                )}
-              </p>
-
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                <p className="text-[11px] uppercase tracking-widest text-slate-500 mb-2">Scan QR to Pay</p>
-
-                <img
-                  src={QR_IMAGE_PATH}
-                  alt="Payment QR Code"
-                  className="w-full max-w-[320px] mx-auto rounded-xl border border-slate-200 bg-white"
-                />
-
-                <p className="text-[12px] text-slate-700 mt-3">
-                  After payment, attach screenshot of your payment confirmation to lock in your reservation!
-                </p>
-
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="mt-3 w-full text-sm"
-                  onChange={(e) => setProofFile(e.target.files?.[0] || null)}
-                  disabled={submitting}
-                />
-
-                {proofPreview && (
-                  <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden">
-                    <img src={proofPreview} alt="Payment proof preview" className="w-full object-cover" />
-                  </div>
-                )}
-
-                {!proofFile && (
-                  <p className="mt-2 text-[11px] text-rose-500">
-                    Please upload your payment proof before submitting.
-                  </p>
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={confirmPaymentAndSubmit}
-                disabled={submitting || !proofFile}
-                className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-normal text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-rose-500 active:scale-95 disabled:opacity-60"
-              >
-                {submitting ? "Submitting…" : "Submit Proof & Confirm Booking"}
               </button>
             </div>
           </div>
