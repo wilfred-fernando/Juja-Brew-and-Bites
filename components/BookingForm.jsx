@@ -10,7 +10,7 @@ const OPERATING_START_HOUR = 10; // 10AM
 const BASE_DURATION_HOURS = 3; // 3 hours
 const BUFFER_HOURS = 1; // 1 hour gap before & after (your rule)
 const MAX_EXTENSION_HOURS = 2; // extension max 2 hours
-const MIN_ADVANCE_DAYS = 3; // must be at least 3 days in advance
+const MIN_ADVANCE_HOURS = 5; // must be at least 3 days in advance
 
 // Deposit policy (current): ₱1,000 non-refundable to confirm booking
 const DEPOSIT_AMOUNT = 1000;
@@ -253,6 +253,12 @@ function addDays(date, days) {
   return d;
 }
 
+function addHours(date, hours) {
+  const d = new Date(date);
+  d.setHours(d.getHours() + hours);
+  return d;
+}
+
 function buildSlotHours() {
   const hours = [];
   for (let h = OPERATING_START_HOUR; h <= 23; h++) hours.push(h);
@@ -291,7 +297,7 @@ export default function BookingForm({ user, member }) {
   const [packages, setPackages] = useState([]);
   const [loadingPackages, setLoadingPackages] = useState(true);
 
-  const [dateISO, setDateISO] = useState(() => toISODate(addDays(new Date(), MIN_ADVANCE_DAYS)));
+  const [dateISO, setDateISO] = useState(() => toISODate(addHours(new Date(), MIN_ADVANCE_HOURS)));
 
   const [bookings, setBookings] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
@@ -418,8 +424,8 @@ export default function BookingForm({ user, member }) {
   function validateBookingInputs() {
     setNotice(null);
 
-    const minDate = toISODate(addDays(new Date(), MIN_ADVANCE_DAYS));
-    if (dateISO < minDate) return `Booking must be at least ${MIN_ADVANCE_DAYS} days in advance.`;
+    const minDate = toISODate(addHours(new Date(), MIN_ADVANCE_HOURS));
+    if (dateISO < minDate) return `Booking must be at least ${MIN_ADVANCE_HOURS} hours in advance.`;
 
     if (!form.name.trim()) return "Name is required.";
     if (!form.event_type.trim()) return "Event type is required.";
@@ -599,14 +605,14 @@ export default function BookingForm({ user, member }) {
               <input
                 type="date"
                 value={dateISO}
-                min={toISODate(addDays(new Date(), MIN_ADVANCE_DAYS))}
+                min={toISODate(addHours(new Date(), MIN_ADVANCE_HOURS))}
                 onChange={(e) => setDateISO(e.target.value)}
                 className="mt-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm"
               />
 
               {/* Plan B cleaner applied */}
               <p className="text-[10px] text-slate-400 mt-1">
-                {stripCitationsAndLinks(`Must be at least ${MIN_ADVANCE_DAYS} days in advance.`)}
+                {stripCitationsAndLinks(`Must be at least ${MIN_ADVANCE_HOURS} hours in advance.`)}
               </p>
             </div>
 
