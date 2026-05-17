@@ -1,4 +1,6 @@
-"use client";"use client";
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 /* =======================
@@ -10,8 +12,8 @@ const MAX_EXTENSION_HOURS = 2; // extension max 2 hours
 const MIN_ADVANCE_HOURS = 5; // must be at least 5 hours in advance
 const RESCHEDULE_MIN_DAYS = 2; // update/reschedule allowed only if >= 2 days before start
 
-// ✅ NEW BASE BOOKING: 2 hours 59 minutes
-const BASE_BOOKING_MINUTES = 2 * 60 + 59; // 179 minutes
+// ✅ NEW BASE DURATION: 2 hours 59 minutes
+const BASE_BOOKING_MINUTES = 2 * 60 + 59; // 179 mins
 
 const DEPOSIT_AMOUNT = 1000;
 const QR_IMAGE_PATH = "/images/qrph.jpg";
@@ -260,7 +262,7 @@ function canChangeBooking(startAtISO) {
   return diffDays >= RESCHEDULE_MIN_DAYS;
 }
 
-// ✅ FIX: declared globally (no more “not defined”)
+/* ✅ global helper */
 function reasonToLabel(reason) {
   if (reason === "available") return "Available";
   if (reason === "booked") return "Booked";
@@ -271,10 +273,10 @@ function reasonToLabel(reason) {
 }
 
 /**
- * ✅ FINAL SLOT CLASSIFICATION
- * Base booking = 2h59 (end_at stored accordingly)
- * Booked = start hour up to end hour (floored), inclusive
- * Buffer = exactly 1 hour before start + exactly 1 hour after endHourBlock
+ * ✅ Slot classification for:
+ * - Booking duration = 2h59 (+ extension hours)
+ * - Buffer = 1 hour before start and 1 hour after end-hour-block (exact slots)
+ * - UI-only buffer (DB does not store buffer)
  */
 function classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings }) {
   if (slotEnd > operatingEnd) return { available: false, reason: "closed-hours" };
@@ -283,31 +285,23 @@ function classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings }
     const bStart = new Date(b.start_at);
     let bEnd = new Date(b.end_at);
 
-    // if end_at exactly on the hour, nudge back slightly to avoid over-blocking next hour
+    // if end is exactly on hour, move back 1ms to avoid pushing into next hour
     if (bEnd.getMinutes() === 0 && bEnd.getSeconds() === 0 && bEnd.getMilliseconds() === 0) {
       bEnd = new Date(bEnd.getTime() - 1);
     }
 
-    // floor end to hour block
     const endHourBlock = new Date(bEnd);
     endHourBlock.setMinutes(0, 0, 0);
 
     const bufferBefore = new Date(bStart.getTime() - BUFFER_HOURS * 3600000);
     const bufferAfter = new Date(endHourBlock.getTime() + BUFFER_HOURS * 3600000);
 
-    if (slotStart >= bStart && slotStart <= endHourBlock) {
-      return { available: false, reason: "booked" };
-    }
-    if (slotStart.getTime() === bufferBefore.getTime()) {
-      return { available: false, reason: "buffer" };
-    }
-    if (slotStart.getTime() === bufferAfter.getTime()) {
-      return { available: false, reason: "buffer" };
-    }
+    if (slotStart >= bStart && slotStart <= endHourBlock) return { available: false, reason: "booked" };
+    if (slotStart.getTime() === bufferBefore.getTime()) return { available: false, reason: "buffer" };
+    if (slotStart.getTime() === bufferAfter.getTime()) return { available: false, reason: "buffer" };
   }
 
   if (slotStart < minAllowed) return { available: false, reason: "too-soon" };
-
   return { available: true, reason: "available" };
 }
 
@@ -340,7 +334,7 @@ export default function BookingForm({ user, member }) {
   const [myBookings, setMyBookings] = useState([]);
   const [loadingMyBookings, setLoadingMyBookings] = useState(false);
 
-  // ✅ Reschedule (RESTORED)
+  // ✅ Reschedule state
   const [reschedOpen, setReschedOpen] = useState(false);
   const [reschedBooking, setReschedBooking] = useState(null);
   const [reschedDateISO, setReschedDateISO] = useState(() => toISODate(new Date()));
@@ -348,10 +342,11 @@ export default function BookingForm({ user, member }) {
   const [reschedLoading, setReschedLoading] = useState(false);
   const [reschedBookings, setReschedBookings] = useState([]);
 
-  // ✅ Update booking info (RESTORED)
+  // ✅ Update booking info state
   const [editBooking, setEditBooking] = useState(null);
   const [editLoading, setEditLoading] = useState(false);
 
+  // Book Now form
   const [form, setForm] = useState({
     name: "",
     event_type: "",
@@ -363,7 +358,7 @@ export default function BookingForm({ user, member }) {
     extension_hours: 0,
   });
 
-  // Autofill
+  // Autofill profile
   useEffect(() => {
     setForm((f) => ({
       ...f,
@@ -392,14 +387,14 @@ export default function BookingForm({ user, member }) {
     fetchPackages();
   }, []);
 
-  // Load bookings (pending + confirmed)
+  // Load bookings for availability (pending + confirmed)
   useEffect(() => {
     async function fetchBookingsForDate() {
       setLoadingBookings(true);
       setNotice(null);
 
       const dayStart = computeDateTime(dateISO, OPERATING_START_HOUR);
-      const dayEnd = computeDateTime(dateISO, 26);
+      const dayEnd = computeDateTime(dateISO, 26); // 2AM next day
 
       const queryStart = new Date(dayStart.getTime() - BUFFER_HOURS * 3600000).toISOString();
       const queryEnd = new Date(dayEnd.getTime() + BUFFER_HOURS * 3600000).toISOString();
@@ -418,6 +413,7 @@ export default function BookingForm({ user, member }) {
       } else {
         setBookings(data || []);
       }
+
       setLoadingBookings(false);
     }
 
@@ -426,6 +422,7 @@ export default function BookingForm({ user, member }) {
 
   const slotHours = useMemo(() => buildSlotHours(), []);
 
+  // Availability (2h59 + extension)
   const availability = useMemo(() => {
     const ext = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
     const totalMinutes = BASE_BOOKING_MINUTES + ext * 60;
@@ -443,7 +440,7 @@ export default function BookingForm({ user, member }) {
     });
   }, [slotHours, dateISO, bookings, form.extend, form.extension_hours]);
 
-  // proof preview
+  // Proof preview
   useEffect(() => {
     if (!proofFile) {
       setProofPreview(null);
@@ -454,7 +451,7 @@ export default function BookingForm({ user, member }) {
     return () => URL.revokeObjectURL(url);
   }, [proofFile]);
 
-  // Manage bookings list (upcoming)
+  // Manage bookings load (upcoming)
   useEffect(() => {
     async function fetchMyBookings() {
       if (!user?.id) return;
@@ -474,7 +471,7 @@ export default function BookingForm({ user, member }) {
     fetchMyBookings();
   }, [user?.id]);
 
-  // Reschedule conflicts (pending+confirmed)
+  // Reschedule conflicts
   useEffect(() => {
     async function fetchBookingsForReschedDate() {
       if (!reschedOpen || !reschedDateISO) return;
@@ -495,10 +492,10 @@ export default function BookingForm({ user, member }) {
 
       if (!error) setReschedBookings((data || []).filter((x) => x.id !== reschedBooking?.id));
     }
-
     fetchBookingsForReschedDate();
   }, [reschedOpen, reschedDateISO, reschedBooking?.id]);
 
+  // Reschedule availability grid
   const reschedAvailability = useMemo(() => {
     if (!reschedOpen || !reschedBooking) return [];
 
@@ -512,6 +509,7 @@ export default function BookingForm({ user, member }) {
     return slotHours.map((h) => {
       const slotStart = computeDateTime(reschedDateISO, h);
       const slotEnd = new Date(slotStart.getTime() + totalMinutes * 60000);
+
       const verdict = classifySlot({
         slotStart,
         slotEnd,
@@ -519,6 +517,7 @@ export default function BookingForm({ user, member }) {
         minAllowed,
         bookings: reschedBookings,
       });
+
       return { hour: h, label: labelHour(h), ...verdict };
     });
   }, [reschedOpen, reschedBooking, reschedDateISO, reschedBookings, slotHours]);
@@ -601,7 +600,7 @@ export default function BookingForm({ user, member }) {
         business_date: dateISO,
         start_at: start.toISOString(),
         end_at: end.toISOString(),
-        duration_hours: 3, // keep DB compatibility; end_at is authoritative
+        duration_hours: 3, // DB compatibility; end_at is authoritative
         extension_hours: extensionHours,
         guest_count: Number(form.guest_count),
         contact_number: form.contact_number.trim(),
@@ -632,14 +631,20 @@ export default function BookingForm({ user, member }) {
       setTab("availability");
     } catch (e) {
       console.error("❌ FULL ERROR:", e);
-      alert(e?.message || "Something went wrong");
-      setNotice(e?.message || "Something went wrong");
+      // friendly overlap message if constraint triggers
+      const msg = String(e?.message || "");
+      if (msg.includes("no_overlap_function_room")) {
+        setNotice("Selected time is no longer available. Please choose another slot.");
+      } else {
+        alert(e?.message || "Something went wrong");
+        setNotice(e?.message || "Something went wrong");
+      }
     } finally {
       setSubmitting(false);
     }
   }
 
-  /* ✅ Confirmation UI */
+  /* ✅ Confirmation UI adapted to your UI style */
   if (successBooking) {
     return (
       <div className="min-h-screen bg-[#FFF5F7] flex items-center justify-center px-4">
@@ -650,10 +655,20 @@ export default function BookingForm({ user, member }) {
           </div>
 
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 text-sm">
-            <p><span className="text-slate-400">Reference:</span> <b>{successBooking.reference_code || successBooking.id}</b></p>
-            <p><span className="text-slate-400">Name:</span> <b>{successBooking.customer_name}</b></p>
-            <p><span className="text-slate-400">Date:</span> <b>{successBooking.business_date}</b></p>
-            <p><span className="text-slate-400">Status:</span> <b className="text-blue-500">Pending Confirmation</b></p>
+            <p>
+              <span className="text-slate-400">Reference:</span>{" "}
+              <b>{successBooking.reference_code || successBooking.id}</b>
+            </p>
+            <p>
+              <span className="text-slate-400">Name:</span> <b>{successBooking.customer_name}</b>
+            </p>
+            <p>
+              <span className="text-slate-400">Date:</span> <b>{successBooking.business_date}</b>
+            </p>
+            <p>
+              <span className="text-slate-400">Status:</span>{" "}
+              <b className="text-blue-500">Pending Confirmation</b>
+            </p>
           </div>
 
           <p className="text-[12px] text-slate-500 text-center">
@@ -761,7 +776,8 @@ export default function BookingForm({ user, member }) {
           </div>
 
           <div className="text-[11px] text-slate-500">
-            Operating hours: <b>10:00 AM – 2:00 AM</b> (next day). Buffer rule: <b>1 hour</b> before & after.
+            Operating hours: <b>10:00 AM – 2:00 AM</b> (next day). Buffer rule:{" "}
+            <b>1 hour</b> before & after.
           </div>
 
           {loadingBookings ? (
@@ -772,7 +788,6 @@ export default function BookingForm({ user, member }) {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
               {availability.map((s) => {
                 const status = reasonToLabel(s.reason);
-
                 const statusClass =
                   s.available ? "text-green-600" :
                   s.reason === "booked" ? "text-red-500 font-semibold" :
@@ -823,7 +838,6 @@ export default function BookingForm({ user, member }) {
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <p className="text-[12px] uppercase tracking-widest text-slate-400">{p.name}</p>
-
                       <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">
                         ₱{Number(p.rental_fee).toLocaleString()}
                       </h3>
@@ -832,7 +846,6 @@ export default function BookingForm({ user, member }) {
                         <p className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
                           Capacity up to {p.capacity} guests
                         </p>
-
                         <p className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
                           {roomRentalOnly ? "Room rental only" : `Consumable: ${formatPeso(consumable || 0)}`}
                         </p>
@@ -918,7 +931,9 @@ export default function BookingForm({ user, member }) {
               ["email", "Email Address", "email", "name@email.com"],
             ].map(([key, lbl, type, ph]) => (
               <div key={key}>
-                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">{lbl}</label>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
+                  {lbl}
+                </label>
                 <input
                   type={type}
                   value={form[key] ?? ""}
@@ -991,11 +1006,15 @@ export default function BookingForm({ user, member }) {
                 "text-blue-500";
 
               return (
-                <div key={b.id} className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6">
+                <div
+                  key={b.id}
+                  className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6"
+                >
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <p className="text-[10px] uppercase tracking-widest text-slate-400">Reference</p>
                       <p className="text-sm font-semibold text-slate-800">{b.reference_code || b.id}</p>
+
                       <p className="text-xs text-slate-500 mt-1">
                         Date: <b>{b.business_date}</b> • Start:{" "}
                         <b>{new Date(b.start_at).toLocaleString()}</b>
@@ -1011,7 +1030,6 @@ export default function BookingForm({ user, member }) {
                     </div>
 
                     <div className="flex gap-2 flex-shrink-0">
-                      {/* ✅ UPDATE (RESTORED) */}
                       <button
                         type="button"
                         disabled={!allowChange}
@@ -1025,7 +1043,6 @@ export default function BookingForm({ user, member }) {
                         ✏️ Update
                       </button>
 
-                      {/* ✅ RESCHEDULE (RESTORED) */}
                       <button
                         type="button"
                         disabled={!allowChange}
@@ -1045,7 +1062,6 @@ export default function BookingForm({ user, member }) {
                         Reschedule
                       </button>
 
-                      {/* Cancel */}
                       <button
                         type="button"
                         onClick={async () => {
@@ -1078,7 +1094,7 @@ export default function BookingForm({ user, member }) {
         </div>
       )}
 
-      {/* ✅ UPDATE MODAL (RESTORED) */}
+      {/* ✅ Update Booking Modal */}
       {editBooking && (
         <div
           className="fixed inset-0 z-[97] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
@@ -1112,7 +1128,9 @@ export default function BookingForm({ user, member }) {
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm mb-3"
             >
               {packages.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
               ))}
             </select>
 
@@ -1186,7 +1204,7 @@ export default function BookingForm({ user, member }) {
         </div>
       )}
 
-      {/* ✅ RESCHEDULE MODAL (RESTORED) */}
+      {/* ✅ Reschedule Modal */}
       {reschedOpen && reschedBooking && (
         <div
           className="fixed inset-0 z-[96] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
@@ -1291,7 +1309,13 @@ export default function BookingForm({ user, member }) {
                   setMyBookings((prev) =>
                     prev.map((x) =>
                       x.id === reschedBooking.id
-                        ? { ...x, business_date: reschedDateISO, start_at: newStart.toISOString(), end_at: newEnd.toISOString(), status: "pending" }
+                        ? {
+                            ...x,
+                            business_date: reschedDateISO,
+                            start_at: newStart.toISOString(),
+                            end_at: newEnd.toISOString(),
+                            status: "pending",
+                          }
                         : x
                     )
                   );
@@ -1476,4 +1500,3 @@ export default function BookingForm({ user, member }) {
     </div>
   );
 }
-
