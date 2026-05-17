@@ -695,13 +695,13 @@ export default function BookingForm({ user, member }) {
                     <div className="min-w-0">
                       <p className="text-[12px] uppercase tracking-widest text-slate-400">{p.name}</p>
                       <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">
-                        ₱{Number(p.rental_fee).toLocaleString()} / 3 hours
+                        ₱{Number(p.rental_fee).toLocaleString()}
                       </h3>
 
                       {/* 2 rows, forced single-line with ellipsis */}
                       <div className="mt-2 space-y-1 min-w-0">
                         <p className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
-                          Capacity up to {p.capacity} guests
+                          Up to {p.capacity} guests
                         </p>
 
                         <p className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
