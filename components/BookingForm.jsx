@@ -828,7 +828,7 @@ export default function BookingForm({ user, member }) {
               <option value="">Select package…</option>
               {packages.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} — ₱{Number(p.rental_fee).toLocaleString()} (pax {p.capacity})
+                  {p.name} — ₱{Number(p.rental_fee).toLocaleString()} ({p.capacity} pax)
                 </option>
               ))}
             </select>
