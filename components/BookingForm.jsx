@@ -540,9 +540,12 @@ export default function BookingForm({ user, member }) {
       setProofPreview(null);
       setSelectedHour(null);
       setTab("availability");
-    } catch (e) {
-      console.error("Booking submit error:", e);
-      setNotice(e?.message || "Something went wrong. Please try again.");
+    } 
+      catch (e) {
+        console.error("❌ FULL ERROR:", e);
+        alert(e?.message || "Something went wrong");
+        setNotice(e?.message || "Something went wrong");
+
     } finally {
       setSubmitting(false);
     }
