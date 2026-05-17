@@ -276,56 +276,41 @@ function canChangeBooking(startAtISO) {
  * - Too-soon applied after conflict classification
  */
 function classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings }) {
-  if (slotEnd > operatingEnd) {
-    return { available: false, reason: "closed-hours" };
-  }
+  if (slotEnd > operatingEnd) return { available: false, reason: "closed-hours" };
 
-  const list = bookings || [];
-
-  for (const b of list) {
+  for (const b of bookings || []) {
     const bStart = new Date(b.start_at);
     const bEnd = new Date(b.end_at);
 
-    // ✅ Floor end to hour block
+    // ✅ FLOOR END (7:59 → 7:00, but we use next hour for block)
     const endHourBlock = new Date(bEnd);
     endHourBlock.setMinutes(0, 0, 0);
+    endHourBlock.setHours(endHourBlock.getHours() + 1);
 
-    // ✅ STRICT boundaries
-    const bufferBefore = new Date(bStart.getTime() - BUFFER_HOURS * 3600000);
-    const bufferAfter = new Date(endHourBlock.getTime() + BUFFER_HOURS * 3600000);
+    const bufferBefore = new Date(bStart.getTime() - 3600000);
+    const bufferAfter = new Date(endHourBlock.getTime());
 
-    // ✅ 1. BOOKED (highest priority)
-    if (slotStart >= bStart && slotStart <= endHourBlock) {
+    // ✅ BOOKED (FIXED LINE)
+    if (slotStart >= bStart && slotStart < endHourBlock) {
       return { available: false, reason: "booked" };
     }
 
-    // ✅ 2. BUFFER (ONLY exact slots)
+    // ✅ BUFFER BEFORE
     if (slotStart.getTime() === bufferBefore.getTime()) {
       return { available: false, reason: "buffer" };
     }
 
+    // ✅ BUFFER AFTER
     if (slotStart.getTime() === bufferAfter.getTime()) {
       return { available: false, reason: "buffer" };
     }
-
-    // ✅ ❌ REMOVE "overlap closed logic completely"
-    // Do NOT add any "overlap buffer window" logic
   }
 
-  // ✅ 3. TOO SOON
   if (slotStart < minAllowed) {
     return { available: false, reason: "too-soon" };
   }
 
   return { available: true, reason: "available" };
-}
-
-function reasonToLabel(reason) {
-  if (reason === "available") return "Available";
-  if (reason === "booked") return "Booked";
-  if (reason === "buffer") return "Buffer";
-  if (reason === "too-soon") return `Too soon (${MIN_ADVANCE_HOURS}-hour rule)`;
-  return "Closed";
 }
 
 /* =======================
