@@ -276,60 +276,86 @@ function canChangeBooking(startAtISO) {
  * - Too-soon applied after conflict classification
  */
 function classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings }) {
-  if (slotEnd > operatingEnd) return { available: false, reason: "closed-hours" };
+  if (slotEnd > operatingEnd) {
+    return { available: false, reason: "closed-hours" };
+  }
 
   const list = bookings || [];
   let best = { available: true, reason: "available" };
 
-  const priority = { booked: 4, buffer: 3, closed: 2, "closed-hours": 2, "too-soon": 1, available: 0 };
+  const priority = {
+    booked: 4,
+    buffer: 3,
+    closed: 2,
+    "closed-hours": 2,
+    "too-soon": 1,
+    available: 0,
+  };
+
   const setBest = (reason) => {
-    if ((priority[reason] ?? 0) > (priority[best.reason] ?? 0)) best = { available: false, reason };
+    if ((priority[reason] || 0) > (priority[best.reason] || 0)) {
+      best = { available: false, reason };
+    }
   };
 
   for (const b of list) {
     const bStart = new Date(b.start_at);
-    const bEndRaw = new Date(b.end_at);
+    const bEnd = new Date(b.end_at);
 
-    // If end is exactly on the hour, treat it as the end of the hour (xx:59:59.999)
-    const bEndEff = new Date(bEndRaw);
-    if (bEndEff.getMinutes() === 0 && bEndEff.getSeconds() === 0 && bEndEff.getMilliseconds() === 0) {
-      bEndEff.setMinutes(59, 59, 999);
+    // ✅ FORCE END TO :59
+    const endEffective = new Date(bEnd);
+    if (
+      endEffective.getMinutes() === 0 &&
+      endEffective.getSeconds() === 0 &&
+      endEffective.getMilliseconds() === 0
+    ) {
+      endEffective.setMinutes(59, 59, 999);
     }
 
-    // endCeilHour = next hour boundary after effective end
-    const endCeil = new Date(bEndEff);
-    endCeil.setMinutes(0, 0, 0);
-    endCeil.setHours(endCeil.getHours() + 1);
+    // ✅ ROUND TO NEXT HOUR → THIS IS CRITICAL
+    const endCeilHour = new Date(endEffective);
+    endCeilHour.setMinutes(0, 0, 0);
+    endCeilHour.setHours(endCeilHour.getHours() + 1);
 
-    const bufferBeforeSlot = new Date(bStart.getTime() - BUFFER_HOURS * 3600 * 1000);
-    const bufferAfterStart = new Date(endCeil);
-    const bufferAfterEnd = new Date(endCeil.getTime() + BUFFER_HOURS * 3600 * 1000);
+    // ✅ BUFFER WINDOWS
+    const bufferBefore = new Date(bStart.getTime() - BUFFER_HOURS * 3600000);
+    const bufferAfterStart = new Date(endCeilHour);
+    const bufferAfterEnd = new Date(endCeilHour.getTime() + BUFFER_HOURS * 3600000);
 
-    // Booked: slotStart in [start, endCeil)
-    if (slotStart >= bStart && slotStart < endCeil) {
+    // ✅ BOOKED HOURS
+    if (slotStart >= bStart && slotStart < endCeilHour) {
       setBest("booked");
       continue;
     }
 
-    // Buffer: exact before slot OR any slot in [endCeil, endCeil+1h)
-    if (slotStart.getTime() === bufferBeforeSlot.getTime()) {
+    // ✅ BUFFER BEFORE
+    if (slotStart.getTime() === bufferBefore.getTime()) {
       setBest("buffer");
       continue;
     }
+
+    // ✅ BUFFER AFTER (ONLY 1 SLOT!)
     if (slotStart >= bufferAfterStart && slotStart < bufferAfterEnd) {
       setBest("buffer");
       continue;
     }
 
-    // Closed: overlap with buffer window [start-1h, endCeil+1h)
-    const bufferWindowStart = bufferBeforeSlot;
-    const bufferWindowEnd = bufferAfterEnd;
-    const overlapsBufferWindow = slotStart < bufferWindowEnd && slotEnd > bufferWindowStart;
-    if (overlapsBufferWindow) setBest("closed");
+    // ✅ CLOSED (overlapping region only)
+    const overlapWindowStart = bufferBefore;
+    const overlapWindowEnd = bufferAfterEnd;
+
+    const overlaps =
+      slotStart < overlapWindowEnd && slotEnd > overlapWindowStart;
+
+    if (overlaps) {
+      setBest("closed");
+    }
   }
 
-  // Too soon only if otherwise available
-  if (best.reason === "available" && slotStart < minAllowed) return { available: false, reason: "too-soon" };
+  // ✅ TOO SOON RULE
+  if (best.reason === "available" && slotStart < minAllowed) {
+    return { available: false, reason: "too-soon" };
+  }
 
   return best;
 }
