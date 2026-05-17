@@ -500,7 +500,12 @@ export default function BookingForm({ user, member }) {
       setPayOpen(false);
       return;
     }
-    if (!proofFile) return setNotice("Please attach a screenshot of your payment confirmation.");
+    
+    if (!proofFile) {
+      alert("Please attach payment screenshot first.");
+      return;
+    }
+
 
     const extensionHours = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
     const start = computeDateTime(dateISO, selectedHour);
@@ -564,7 +569,12 @@ export default function BookingForm({ user, member }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ adminEmail: ADMIN_EMAIL, bookingId: bookingRow.id, proofUrl }),
         });
-      } catch {}
+      } 
+        catch (e) {
+          console.error(e);
+          alert(e?.message || "Upload failed");
+        }
+
 
       setNotice("✅ Booking saved! Payment proof submitted.");
       setPayOpen(false);
