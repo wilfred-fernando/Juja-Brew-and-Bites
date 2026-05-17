@@ -302,27 +302,17 @@ function classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings }
     const bStart = new Date(b.start_at);
     const bEnd = new Date(b.end_at);
 
-    // ✅ FORCE END TO :59
-    const endEffective = new Date(bEnd);
-    if (
-      endEffective.getMinutes() === 0 &&
-      endEffective.getSeconds() === 0 &&
-      endEffective.getMilliseconds() === 0
-    ) {
-      endEffective.setMinutes(59, 59, 999);
-    }
-
-    // ✅ ROUND TO NEXT HOUR → THIS IS CRITICAL
-    const endCeilHour = new Date(endEffective);
+    // ✅ Compute END CEIL HOUR (NEXT SLOT AFTER BOOKING)
+    const endCeilHour = new Date(bEnd);
     endCeilHour.setMinutes(0, 0, 0);
     endCeilHour.setHours(endCeilHour.getHours() + 1);
 
     // ✅ BUFFER WINDOWS
-    const bufferBefore = new Date(bStart.getTime() - BUFFER_HOURS * 3600000);
+    const bufferBefore = new Date(bStart.getTime() - BUFFER_HOURS * 3600 * 1000);
     const bufferAfterStart = new Date(endCeilHour);
-    const bufferAfterEnd = new Date(endCeilHour.getTime() + BUFFER_HOURS * 3600000);
+    const bufferAfterEnd = new Date(endCeilHour.getTime() + BUFFER_HOURS * 3600 * 1000);
 
-    // ✅ BOOKED HOURS
+    // ✅ BOOKED
     if (slotStart >= bStart && slotStart < endCeilHour) {
       setBest("booked");
       continue;
@@ -334,20 +324,17 @@ function classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings }
       continue;
     }
 
-    // ✅ BUFFER AFTER (ONLY 1 SLOT!)
+    // ✅ BUFFER AFTER (ONLY 1 SLOT)
     if (slotStart >= bufferAfterStart && slotStart < bufferAfterEnd) {
       setBest("buffer");
       continue;
     }
 
-    // ✅ CLOSED (overlapping region only)
-    const overlapWindowStart = bufferBefore;
-    const overlapWindowEnd = bufferAfterEnd;
+    // ✅ CLOSED if overlapping buffer zone
+    const overlapStart = bufferBefore;
+    const overlapEnd = bufferAfterEnd;
 
-    const overlaps =
-      slotStart < overlapWindowEnd && slotEnd > overlapWindowStart;
-
-    if (overlaps) {
+    if (slotStart < overlapEnd && slotEnd > overlapStart) {
       setBest("closed");
     }
   }
@@ -641,7 +628,9 @@ export default function BookingForm({ user, member }) {
 
     const extensionHours = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
     const start = computeDateTime(dateISO, selectedHour);
-    const end = new Date(start.getTime() + (BASE_DURATION_HOURS + extensionHours) * 3600 * 1000);
+    const totalMinutes = (2 * 60 + 59) + (extensionHours * 60);
+
+    const end = new Date(start.getTime() + (totalMinutes * 60 * 1000));
 
     setSubmitting(true);
     setNotice(null);
