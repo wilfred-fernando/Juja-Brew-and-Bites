@@ -311,7 +311,7 @@ function classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings }
 
     // ✅ BUFFER WINDOWS
     const bufferBefore = new Date(bStart.getTime() - BUFFER_HOURS * 3600 * 1000);
-    cconst bufferAfter = new Date(endHourBlock.getTime() + 1 * 3600000);
+    const bufferAfter = new Date(endHourBlock.getTime() + 1 * 3600000);
     const bufferAfterEnd = new Date(endCeilHour.getTime() + BUFFER_HOURS * 3600 * 1000);
 
     // ✅ BOOKED
