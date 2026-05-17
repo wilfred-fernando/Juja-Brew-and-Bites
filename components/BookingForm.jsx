@@ -706,26 +706,21 @@ export default function BookingForm({ user, member }) {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
-        {[
-          { id: "availability", label: "Check Availability" },
-          { id: "packages", label: "Packages" },
-          { id: "book", label: "Book Now" },
-          { id: "manage", label: "My Bookings" }, // ✅ merged manage booking here
-        ].map((t) => (
-          <button
-            type="button"
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`flex-shrink-0 px-4 py-2 rounded-xl text-[10px] md:text-[11px] uppercase tracking-widest border transition-all active:scale-95 ${
-              tab === t.id
-                ? "bg-[#FC687D] text-white border-[#FC687D]"
-                : "bg-white text-slate-500 border-rose-100"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="w-full max-w-xs">
+        <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
+          Select Option
+        </label>
+
+        <select
+          value={tab}
+          onChange={(e) => setTab(e.target.value)}
+          className="w-full bg-white border border-rose-100 rounded-xl px-3 py-3 text-sm text-slate-700"
+        >
+          <option value="availability">Check Availability</option>
+          <option value="packages">Packages</option>
+          <option value="book">Book Now</option>
+          <option value="manage">My Bookings</option>
+        </select>
       </div>
 
       {notice && (
