@@ -282,16 +282,15 @@ function classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings }
     const bStart = new Date(b.start_at);
     const bEnd = new Date(b.end_at);
 
-    // ✅ FLOOR END (7:59 → 7:00, but we use next hour for block)
+    // ✅ KEY FIX
     const endHourBlock = new Date(bEnd);
-    endHourBlock.setMinutes(0, 0, 0);
-    endHourBlock.setHours(endHourBlock.getHours() + 1);
+    endHourBlock.setMinutes(0, 0, 0); // DO NOT push hour forward
 
     const bufferBefore = new Date(bStart.getTime() - 3600000);
-    const bufferAfter = new Date(endHourBlock.getTime());
+    const bufferAfter = new Date(endHourBlock.getTime() + 3600000);
 
-    // ✅ BOOKED (FIXED LINE)
-    if (slotStart >= bStart && slotStart < endHourBlock) {
+    // ✅ BOOKED
+    if (slotStart >= bStart && slotStart <= endHourBlock) {
       return { available: false, reason: "booked" };
     }
 
@@ -791,6 +790,14 @@ export default function BookingForm({ user, member }) {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
               {availability.map((s) => {
                 const status = reasonToLabel(s.reason);
+                  function reasonToLabel(reason) {
+                    if (reason === "available") return "Available";
+                    if (reason === "booked") return "Booked";
+                    if (reason === "buffer") return "Buffer";
+                    if (reason === "too-soon") return `Too soon (5-hour rule)`;
+                    if (reason === "closed-hours") return "Closed";
+                    return "Closed";
+}
 
                 // ✅ requested statusClass mapping
                 const statusClass =
