@@ -11,8 +11,11 @@ const BASE_DURATION_HOURS = 3; // booking duration logic stays 3 hours
 const BUFFER_HOURS = 1; // 1 hour gap before & after
 const MAX_EXTENSION_HOURS = 2; // extension max 2 hours
 
-// ✅ CHANGED: from days to hours
-const MIN_ADVANCE_HOURS = 5; // must be at least 5 hours in advance
+// ✅ Booking must be at least 5 hours in advance
+const MIN_ADVANCE_HOURS = 5;
+
+// ✅ Manage booking rules
+const RESCHEDULE_MIN_DAYS = 2; // can reschedule only if >= 2 days before booked date
 
 // Deposit policy
 const DEPOSIT_AMOUNT = 1000;
@@ -262,22 +265,31 @@ function computeDateTime(businessDateISO, hourLike) {
 function intersects(aStart, aEnd, bStart, bEnd) {
   return aStart < bEnd && aEnd > bStart;
 }
+function canReschedule(startAtISO) {
+  const now = new Date();
+  const start = new Date(startAtISO);
+  const diffDays = (start.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+  return diffDays >= RESCHEDULE_MIN_DAYS;
+}
 
 /* =======================
  Component
 ======================= */
 export default function BookingForm({ user, member }) {
-  const [tab, setTab] = useState("availability"); // availability | packages | book
+  const [tab, setTab] = useState("availability"); // availability | packages | book | manage
   const [packages, setPackages] = useState([]);
   const [loadingPackages, setLoadingPackages] = useState(true);
 
-  // ✅ Default date can be today now (time rule handles the 5 hours)
+  // ✅ Default date can be today now (time rule handles 5 hours)
   const [dateISO, setDateISO] = useState(() => toISODate(new Date()));
 
   const [bookings, setBookings] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
   const [selectedHour, setSelectedHour] = useState(null);
   const [notice, setNotice] = useState(null);
+
+  // ✅ Success confirmation (FIXED: must be top-level hook)
+  const [successBooking, setSuccessBooking] = useState(null);
 
   // Modals
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -287,6 +299,18 @@ export default function BookingForm({ user, member }) {
   const [proofFile, setProofFile] = useState(null);
   const [proofPreview, setProofPreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // ✅ Manage bookings
+  const [myBookings, setMyBookings] = useState([]);
+  const [loadingMyBookings, setLoadingMyBookings] = useState(false);
+
+  // Reschedule modal state
+  const [reschedOpen, setReschedOpen] = useState(false);
+  const [reschedBooking, setReschedBooking] = useState(null);
+  const [reschedDateISO, setReschedDateISO] = useState(() => toISODate(new Date()));
+  const [reschedHour, setReschedHour] = useState(null);
+  const [reschedLoading, setReschedLoading] = useState(false);
+  const [reschedBookings, setReschedBookings] = useState([]);
 
   // Book Now form
   const [form, setForm] = useState({
@@ -315,6 +339,7 @@ export default function BookingForm({ user, member }) {
     async function fetchPackages() {
       setLoadingPackages(true);
       setNotice(null);
+
       const { data, error } = await supabase
         .from("function_room_packages")
         .select("*")
@@ -325,6 +350,7 @@ export default function BookingForm({ user, member }) {
       else setPackages(data || []);
       setLoadingPackages(false);
     }
+
     fetchPackages();
   }, []);
 
@@ -357,6 +383,7 @@ export default function BookingForm({ user, member }) {
 
       setLoadingBookings(false);
     }
+
     fetchBookingsForDate();
   }, [dateISO]);
 
@@ -379,7 +406,6 @@ export default function BookingForm({ user, member }) {
 
       const meetsAdvanceTime = start >= minAllowed;
 
-      // buffer-window conflict check
       const blockedStart = new Date(start.getTime() - BUFFER_HOURS * 3600 * 1000);
       const blockedEnd = new Date(end.getTime() + BUFFER_HOURS * 3600 * 1000);
 
@@ -391,7 +417,6 @@ export default function BookingForm({ user, member }) {
         return intersects(blockedStart, blockedEnd, bBlockedStart, bBlockedEnd);
       });
 
-      // ✅ reason priority: booked > too-soon > closed
       let reason = "";
       if (hasConflict) reason = "booked";
       else if (!meetsAdvanceTime) reason = "too-soon";
@@ -422,11 +447,10 @@ export default function BookingForm({ user, member }) {
       return `Extension must be 0–${MAX_EXTENSION_HOURS} hours.`;
     }
 
-    // ✅ 5-hour rule validation based on selected date + selected slot time
+    // ✅ 5-hour rule validation based on selected date + slot
     const now = new Date();
     const selectedStart = computeDateTime(dateISO, selectedHour);
     const minAllowed = new Date(now.getTime() + MIN_ADVANCE_HOURS * 60 * 60 * 1000);
-
     if (selectedStart < minAllowed) {
       return `Booking must be at least ${MIN_ADVANCE_HOURS} hours in advance.`;
     }
@@ -451,6 +475,98 @@ export default function BookingForm({ user, member }) {
     return () => URL.revokeObjectURL(url);
   }, [proofFile]);
 
+  // Load upcoming bookings for manage tab
+  useEffect(() => {
+    async function fetchMyBookings() {
+      if (!user?.id) return;
+      setLoadingMyBookings(true);
+
+      const nowIso = new Date().toISOString();
+      const { data, error } = await supabase
+        .from("function_room_bookings")
+        .select("id, reference_code, business_date, start_at, end_at, status, package_id, duration_hours, extension_hours, payment_proof_url")
+        .eq("user_id", user.id)
+        .in("status", ["pending", "confirmed"])
+        .gte("start_at", nowIso)
+        .order("start_at", { ascending: true });
+
+      if (!error) setMyBookings(data || []);
+      setLoadingMyBookings(false);
+    }
+
+    fetchMyBookings();
+  }, [user?.id]);
+
+  // Fetch reschedule conflicts
+  useEffect(() => {
+    async function fetchBookingsForReschedDate() {
+      if (!reschedOpen || !reschedDateISO) return;
+
+      const dayStart = computeDateTime(reschedDateISO, OPERATING_START_HOUR);
+      const dayEnd = computeDateTime(reschedDateISO, 26);
+
+      const queryStart = new Date(dayStart.getTime() - BUFFER_HOURS * 3600 * 1000).toISOString();
+      const queryEnd = new Date(dayEnd.getTime() + BUFFER_HOURS * 3600 * 1000).toISOString();
+
+      const { data, error } = await supabase
+        .from("function_room_bookings")
+        .select("id, start_at, end_at, status")
+        .in("status", ["pending", "confirmed"])
+        .gte("start_at", queryStart)
+        .lte("start_at", queryEnd)
+        .order("start_at", { ascending: true });
+
+      const filtered = (data || []).filter((b) => b.id !== reschedBooking?.id);
+      if (!error) setReschedBookings(filtered);
+    }
+
+    fetchBookingsForReschedDate();
+  }, [reschedOpen, reschedDateISO, reschedBooking?.id]);
+
+  const reschedAvailability = useMemo(() => {
+    if (!reschedOpen) return [];
+
+    const dur = Number(reschedBooking?.duration_hours || BASE_DURATION_HOURS);
+    const ext = Number(reschedBooking?.extension_hours || 0);
+    const totalHours = dur + ext;
+
+    const now = new Date();
+    const minAllowed = new Date(now.getTime() + MIN_ADVANCE_HOURS * 60 * 60 * 1000);
+
+    return slotHours.map((h) => {
+      const start = computeDateTime(reschedDateISO, h);
+      const end = new Date(start.getTime() + totalHours * 3600 * 1000);
+
+      const operatingEnd = computeDateTime(reschedDateISO, 26);
+      const withinOperating = end <= operatingEnd;
+
+      const meetsAdvanceTime = start >= minAllowed;
+
+      const blockedStart = new Date(start.getTime() - BUFFER_HOURS * 3600 * 1000);
+      const blockedEnd = new Date(end.getTime() + BUFFER_HOURS * 3600 * 1000);
+
+      const hasConflict = reschedBookings.some((b) => {
+        const bStart = new Date(b.start_at);
+        const bEnd = new Date(b.end_at);
+        const bBlockedStart = new Date(bStart.getTime() - BUFFER_HOURS * 3600 * 1000);
+        const bBlockedEnd = new Date(bEnd.getTime() + BUFFER_HOURS * 3600 * 1000);
+        return intersects(blockedStart, blockedEnd, bBlockedStart, bBlockedEnd);
+      });
+
+      let reason = "";
+      if (hasConflict) reason = "booked";
+      else if (!meetsAdvanceTime) reason = "too-soon";
+      else if (!withinOperating) reason = "closed";
+
+      return {
+        hour: h,
+        label: labelHour(h),
+        available: withinOperating && meetsAdvanceTime && !hasConflict,
+        reason,
+      };
+    });
+  }, [reschedOpen, reschedDateISO, reschedBookings, slotHours, reschedBooking?.duration_hours, reschedBooking?.extension_hours]);
+
   function onBookNowClick() {
     const err = validateBookingInputs();
     if (err) return setNotice(err);
@@ -460,7 +576,6 @@ export default function BookingForm({ user, member }) {
   async function confirmPaymentAndSubmit() {
     const err = validateBookingInputs();
     if (err) {
-      // ✅ keep modal open so user sees the error immediately
       setNotice(err);
       return;
     }
@@ -472,6 +587,7 @@ export default function BookingForm({ user, member }) {
 
     const extensionHours = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
     const start = computeDateTime(dateISO, selectedHour);
+    const end = new Date(start.getTime() + (BASE_DURATION_HOURS + extensionHours) * 3600 * 1000);
 
     setSubmitting(true);
     setNotice(null);
@@ -502,6 +618,7 @@ export default function BookingForm({ user, member }) {
         event_type: form.event_type.trim(),
         business_date: dateISO,
         start_at: start.toISOString(),
+        end_at: end.toISOString(),
         duration_hours: BASE_DURATION_HOURS,
         extension_hours: extensionHours,
         guest_count: Number(form.guest_count),
@@ -513,16 +630,8 @@ export default function BookingForm({ user, member }) {
         status: "pending",
       };
 
-      
-        const { data: bookingRow, error: bookErr } = await supabase
-          .rpc("create_booking", { data: payload });
-
-        if (bookErr) {
-          console.error(bookErr);
-          alert(bookErr.message);
-          return;
-        }
-
+      // ✅ Use RPC create_booking (as in your current file)
+      const { data: bookingRow, error: bookErr } = await supabase.rpc("create_booking", { data: payload });
       if (bookErr) throw bookErr;
 
       // Optional notify route
@@ -530,67 +639,58 @@ export default function BookingForm({ user, member }) {
         await fetch("/api/booking-notify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ adminEmail: ADMIN_EMAIL, bookingId: bookingRow.id, proofUrl }),
+          body: JSON.stringify({ adminEmail: ADMIN_EMAIL, bookingId: bookingRow?.id, proofUrl }),
         });
       } catch {
         // ignore notify failure
       }
-      
-      const [successBooking, setSuccessBooking] = useState(null);
-      setNotice(null);
+
       setSuccessBooking(bookingRow);
       setPayOpen(false);
 
-
-      // reset
+      // reset booking form
       setProofFile(null);
       setProofPreview(null);
       setSelectedHour(null);
       setTab("availability");
-    } 
-      catch (e) {
-        console.error("❌ FULL ERROR:", e);
-        alert(e?.message || "Something went wrong");
-        setNotice(e?.message || "Something went wrong");
-
+    } catch (e) {
+      console.error("❌ FULL ERROR:", e);
+      alert(e?.message || "Something went wrong");
+      setNotice(e?.message || "Something went wrong");
     } finally {
       setSubmitting(false);
     }
   }
 
+  // ✅ Success screen
   if (successBooking) {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FFF5F7] px-4">
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full text-center shadow-lg">
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#FFF5F7] px-4">
+        <div className="bg-white rounded-2xl p-6 max-w-md w-full text-center shadow-lg">
+          <h2 className="text-2xl font-bold text-green-600 mb-2">✅ Booking Confirmed</h2>
+          <p className="text-sm text-slate-600 mb-4">Your reservation has been received.</p>
 
-        <h2 className="text-2xl font-bold text-green-600 mb-2">
-          ✅ Booking Confirmed
-        </h2>
+          <div className="bg-slate-50 border rounded-xl p-4 text-left text-sm space-y-2">
+            <p><b>Reference:</b> {successBooking.reference_code || successBooking.id}</p>
+            <p><b>Name:</b> {successBooking.customer_name}</p>
+            <p><b>Date:</b> {successBooking.business_date}</p>
+            <p><b>Status:</b> {successBooking.status}</p>
+          </div>
 
-        <p className="text-sm text-slate-600 mb-4">
-          Your reservation has been received.
-        </p>
-
-        <div className="bg-slate-50 border rounded-xl p-4 text-left text-sm space-y-2">
-          <p><b>Reference:</b> {successBooking.reference_code}</p>
-          <p><b>Name:</b> {successBooking.customer_name}</p>
-          <p><b>Date:</b> {successBooking.business_date}</p>
+          <button
+            onClick={() => {
+              setSuccessBooking(null);
+              setTab("availability");
+            }}
+            className="mt-5 w-full py-3 bg-[#FC687D] text-white rounded-xl"
+          >
+            Back to Booking
+          </button>
         </div>
-
-        <button
-          onClick={() => {
-            setSuccessBooking(null);
-            setTab("availability");
-          }}
-          className="mt-5 w-full py-3 bg-[#FC687D] text-white rounded-xl"
-        >
-          Back to Booking
-        </button>
-
       </div>
-    </div>
-  );
-}
+    );
+  }
+
   return (
     <div className="space-y-4 md:space-y-6 animate-in fade-in duration-500">
       <div>
@@ -610,6 +710,7 @@ export default function BookingForm({ user, member }) {
           { id: "availability", label: "Check Availability" },
           { id: "packages", label: "Packages" },
           { id: "book", label: "Book Now" },
+          { id: "manage", label: "My Bookings" }, // ✅ merged manage booking here
         ].map((t) => (
           <button
             type="button"
@@ -694,15 +795,20 @@ export default function BookingForm({ user, member }) {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
               {availability.map((s) => {
                 const status =
-                  s.available ? "Available" :
-                  s.reason === "booked" ? "Booked" :
-                  s.reason === "too-soon" ? `Too soon (${MIN_ADVANCE_HOURS}-hour rule)` :
-                  "Closed";
+                  s.available
+                    ? "Available"
+                    : s.reason === "booked"
+                    ? "Booked"
+                    : s.reason === "too-soon"
+                    ? `Too soon (${MIN_ADVANCE_HOURS}-hour rule)`
+                    : "Closed";
 
                 const statusClass =
-                  s.available ? "text-emerald-600" :
-                  s.reason === "booked" ? "text-red-500 font-semibold" :
-                  "text-slate-400";
+                  s.available
+                    ? "text-emerald-600"
+                    : s.reason === "booked"
+                    ? "text-red-500 font-semibold"
+                    : "text-slate-400";
 
                 return (
                   <button
@@ -816,6 +922,7 @@ export default function BookingForm({ user, member }) {
                 <b>{selectedHour != null ? labelHour(selectedHour) : "Not selected"}</b>
               </p>
             </div>
+
             <button
               type="button"
               onClick={() => setTab("availability")}
@@ -829,6 +936,7 @@ export default function BookingForm({ user, member }) {
             <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
               Package Selection
             </label>
+
             <select
               value={form.package_id}
               onChange={(e) => setForm((f) => ({ ...f, package_id: e.target.value }))}
@@ -937,6 +1045,109 @@ export default function BookingForm({ user, member }) {
         </div>
       )}
 
+      {/* ✅ Manage Bookings merged into Booking tab */}
+      {tab === "manage" && (
+        <div className="space-y-3">
+          <div className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6">
+            <h3 className="text-lg md:text-xl font-semibold text-slate-800">Upcoming Bookings</h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Reschedule allowed only if at least <b>{RESCHEDULE_MIN_DAYS} days</b> before booking date.
+              Cancellation will be converted into a gift certificate.
+            </p>
+          </div>
+
+          {loadingMyBookings ? (
+            <div className="min-h-[120px] flex items-center justify-center">
+              <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
+            </div>
+          ) : myBookings.length === 0 ? (
+            <div className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6 text-slate-500 text-sm">
+              No upcoming bookings.
+            </div>
+          ) : (
+            myBookings.map((b) => {
+              const allowResched = canReschedule(b.start_at);
+
+              return (
+                <div key={b.id} className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-widest text-slate-400">Reference</p>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {b.reference_code || b.id}
+                      </p>
+
+                      <p className="text-xs text-slate-500 mt-1">
+                        Date: <b>{b.business_date}</b> • Start:{" "}
+                        <b>{new Date(b.start_at).toLocaleString()}</b>
+                      </p>
+
+                      <p className="text-xs mt-1">
+                        Status:{" "}
+                        <span className={b.status === "confirmed" ? "text-emerald-600 font-semibold" : "text-blue-500 font-semibold"}>
+                          {b.status === "confirmed" ? "✅ Confirmed" : "🕒 Pending"}
+                        </span>
+                      </p>
+
+                      {!allowResched && (
+                        <p className="text-[10px] text-slate-400 mt-2">
+                          Reschedule disabled — must be at least {RESCHEDULE_MIN_DAYS} days before booking date.
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 flex-shrink-0">
+                      <button
+                        type="button"
+                        disabled={!allowResched}
+                        onClick={() => {
+                          setReschedBooking(b);
+                          setReschedDateISO(b.business_date);
+                          setReschedHour(null);
+                          setReschedOpen(true);
+                          setNotice(null);
+                        }}
+                        className={`px-4 py-2 rounded-full text-[10px] uppercase tracking-widest active:scale-95 ${
+                          allowResched
+                            ? "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
+                            : "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed"
+                        }`}
+                      >
+                        Reschedule
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const ok = confirm("Cancel this booking? It will be converted into a gift certificate.");
+                          if (!ok) return;
+
+                          const { error } = await supabase
+                            .from("function_room_bookings")
+                            .update({ status: "cancelled_gc" })
+                            .eq("id", b.id);
+
+                          if (error) {
+                            setNotice(error.message);
+                            return;
+                          }
+
+                          setMyBookings((prev) => prev.filter((x) => x.id !== b.id));
+                          setNotice("✅ Booking cancelled. It will be converted into a gift certificate.");
+                        }}
+                        className="px-4 py-2 rounded-full bg-red-500 text-white text-[10px] uppercase tracking-widest active:scale-95"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
       {/* Full Details Modal */}
       {detailsOpen && detailsPkg && (
         <div
@@ -1010,7 +1221,6 @@ export default function BookingForm({ user, member }) {
                   <div className="bg-white border border-rose-200 rounded-2xl p-4">
                     <p className="text-[10px] uppercase tracking-widest text-rose-600 mb-2">3. Food & Beverages</p>
                     <p className="text-[12px] text-slate-700 mb-2">• {policy.food_beverages.policy}</p>
-
                     {policy.food_beverages.corkage.length > 0 && (
                       <ul className="space-y-1 text-[12px] text-slate-700 leading-relaxed ml-3">
                         {policy.food_beverages.corkage.map((x) => (
@@ -1018,7 +1228,6 @@ export default function BookingForm({ user, member }) {
                         ))}
                       </ul>
                     )}
-
                     {policy.food_beverages.notes && (
                       <p className="text-[12px] text-slate-700 mt-3">• {policy.food_beverages.notes}</p>
                     )}
@@ -1026,6 +1235,140 @@ export default function BookingForm({ user, member }) {
                 </div>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* ✅ Reschedule Modal */}
+      {reschedOpen && reschedBooking && (
+        <div
+          className="fixed inset-0 z-[96] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
+          onClick={() => !reschedLoading && setReschedOpen(false)}
+        >
+          <div
+            className="w-full max-w-2xl bg-white rounded-t-[28px] md:rounded-[32px] p-6 md:p-8 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg md:text-xl font-semibold text-slate-800">Reschedule Booking</h3>
+              <button
+                type="button"
+                onClick={() => !reschedLoading && setReschedOpen(false)}
+                className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs text-slate-600">
+                Reference: <b>{reschedBooking.reference_code || reschedBooking.id}</b>
+              </p>
+
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">New Date</label>
+                <input
+                  type="date"
+                  value={reschedDateISO}
+                  min={toISODate(new Date())}
+                  onChange={(e) => setReschedDateISO(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {reschedAvailability.map((s) => {
+                  const status =
+                    s.available
+                      ? "Available"
+                      : s.reason === "booked"
+                      ? "Booked"
+                      : s.reason === "too-soon"
+                      ? `Too soon (${MIN_ADVANCE_HOURS}-hour rule)`
+                      : "Closed";
+
+                  const statusClass =
+                    s.available
+                      ? "text-emerald-600"
+                      : s.reason === "booked"
+                      ? "text-red-500 font-semibold"
+                      : "text-slate-400";
+
+                  return (
+                    <button
+                      key={s.hour}
+                      type="button"
+                      disabled={!s.available}
+                      onClick={() => s.available && setReschedHour(s.hour)}
+                      className={`p-3 rounded-xl border text-left transition-all active:scale-95 ${
+                        reschedHour === s.hour
+                          ? "border-[#FC687D] bg-rose-50"
+                          : s.available
+                          ? "bg-white border-slate-200 hover:bg-slate-50"
+                          : "bg-slate-50 border-slate-200 opacity-70 cursor-not-allowed"
+                      }`}
+                    >
+                      <p className="text-[11px] font-semibold text-slate-800">{s.label}</p>
+                      <p className={`text-[10px] mt-1 ${statusClass}`}>{status}</p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                type="button"
+                disabled={reschedLoading || reschedHour == null}
+                onClick={async () => {
+                  if (reschedHour == null) return;
+
+                  setReschedLoading(true);
+                  setNotice(null);
+
+                  const dur = Number(reschedBooking.duration_hours || BASE_DURATION_HOURS);
+                  const ext = Number(reschedBooking.extension_hours || 0);
+
+                  const newStart = computeDateTime(reschedDateISO, reschedHour);
+                  const newEnd = new Date(newStart.getTime() + (dur + ext) * 3600 * 1000);
+
+                  const { error } = await supabase
+                    .from("function_room_bookings")
+                    .update({
+                      business_date: reschedDateISO,
+                      start_at: newStart.toISOString(),
+                      end_at: newEnd.toISOString(),
+                      status: "pending",
+                    })
+                    .eq("id", reschedBooking.id);
+
+                  if (error) {
+                    setNotice(error.message);
+                    setReschedLoading(false);
+                    return;
+                  }
+
+                  setMyBookings((prev) =>
+                    prev.map((x) =>
+                      x.id === reschedBooking.id
+                        ? {
+                            ...x,
+                            business_date: reschedDateISO,
+                            start_at: newStart.toISOString(),
+                            end_at: newEnd.toISOString(),
+                            status: "pending",
+                          }
+                        : x
+                    )
+                  );
+
+                  setReschedLoading(false);
+                  setReschedOpen(false);
+                  setNotice("✅ Booking rescheduled! Waiting for confirmation.");
+                }}
+                className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-normal text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-rose-500 active:scale-95 disabled:opacity-60"
+              >
+                {reschedLoading ? "Updating…" : "Confirm Reschedule"}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1060,11 +1403,13 @@ export default function BookingForm({ user, member }) {
 
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
                 <p className="text-[11px] uppercase tracking-widest text-slate-500 mb-2">Scan QR to Pay</p>
+
                 <img
                   src={QR_IMAGE_PATH}
                   alt="Payment QR Code"
                   className="w-full max-w-[320px] mx-auto rounded-xl border border-slate-200 bg-white"
                 />
+
                 <p className="text-[12px] text-slate-700 mt-3">
                   After payment, attach screenshot of your payment confirmation to lock in your reservation!
                 </p>
