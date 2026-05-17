@@ -305,11 +305,13 @@ function classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings }
     // ✅ Compute END CEIL HOUR (NEXT SLOT AFTER BOOKING)
     const endCeilHour = new Date(bEnd);
     endCeilHour.setMinutes(0, 0, 0);
-    endCeilHour.setHours(endCeilHour.getHours() + 1);
+    // ✅ DO NOT push to next hour yet
+    const endHourBlock = new Date(bEnd);
+    endHourBlock.setMinutes(0, 0, 0); // stays at 7:00 for 7:59
 
     // ✅ BUFFER WINDOWS
     const bufferBefore = new Date(bStart.getTime() - BUFFER_HOURS * 3600 * 1000);
-    const bufferAfterStart = new Date(endCeilHour);
+    cconst bufferAfter = new Date(endHourBlock.getTime() + 1 * 3600000);
     const bufferAfterEnd = new Date(endCeilHour.getTime() + BUFFER_HOURS * 3600 * 1000);
 
     // ✅ BOOKED
@@ -324,11 +326,12 @@ function classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings }
       continue;
     }
 
-    // ✅ BUFFER AFTER (ONLY 1 SLOT)
-    if (slotStart >= bufferAfterStart && slotStart < bufferAfterEnd) {
+    // ✅ BUFFER AFTER (ONLY 1 SLOT)    
+    if (slotStart.getTime() === bufferAfter.getTime()) {
       setBest("buffer");
       continue;
     }
+
 
     // ✅ CLOSED if overlapping buffer zone
     const overlapStart = bufferBefore;
