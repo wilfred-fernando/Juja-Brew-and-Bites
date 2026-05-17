@@ -513,11 +513,15 @@ export default function BookingForm({ user, member }) {
         status: "pending",
       };
 
-      const { data: bookingRow, error: bookErr } = await supabase
-        .from("function_room_bookings")
-        .insert([payload])
-        .select()
-        .single();
+      
+        const { data: bookingRow, error: bookErr } = await supabase
+          .rpc("create_booking", { data: payload });
+
+        if (bookErr) {
+          console.error(bookErr);
+          alert(bookErr.message);
+          return;
+        }
 
       if (bookErr) throw bookErr;
 
