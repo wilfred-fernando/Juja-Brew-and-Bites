@@ -281,73 +281,43 @@ function classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings }
   }
 
   const list = bookings || [];
-  let best = { available: true, reason: "available" };
-
-  const priority = {
-    booked: 4,
-    buffer: 3,
-    closed: 2,
-    "closed-hours": 2,
-    "too-soon": 1,
-    available: 0,
-  };
-
-  const setBest = (reason) => {
-    if ((priority[reason] || 0) > (priority[best.reason] || 0)) {
-      best = { available: false, reason };
-    }
-  };
 
   for (const b of list) {
     const bStart = new Date(b.start_at);
     const bEnd = new Date(b.end_at);
 
-    // ✅ Compute END CEIL HOUR (NEXT SLOT AFTER BOOKING)
-    const endCeilHour = new Date(bEnd);
-    endCeilHour.setMinutes(0, 0, 0);
-    // ✅ DO NOT push to next hour yet
+    // ✅ Floor end to hour block
     const endHourBlock = new Date(bEnd);
-    endHourBlock.setMinutes(0, 0, 0); // stays at 7:00 for 7:59
+    endHourBlock.setMinutes(0, 0, 0);
 
-    // ✅ BUFFER WINDOWS
-    const bufferBefore = new Date(bStart.getTime() - BUFFER_HOURS * 3600 * 1000);
-    const bufferAfter = new Date(endHourBlock.getTime() + 1 * 3600000);
-    const bufferAfterEnd = new Date(endCeilHour.getTime() + BUFFER_HOURS * 3600 * 1000);
+    // ✅ STRICT boundaries
+    const bufferBefore = new Date(bStart.getTime() - BUFFER_HOURS * 3600000);
+    const bufferAfter = new Date(endHourBlock.getTime() + BUFFER_HOURS * 3600000);
 
-    // ✅ BOOKED
-    if (slotStart >= bStart && slotStart < endCeilHour) {
-      setBest("booked");
-      continue;
+    // ✅ 1. BOOKED (highest priority)
+    if (slotStart >= bStart && slotStart <= endHourBlock) {
+      return { available: false, reason: "booked" };
     }
 
-    // ✅ BUFFER BEFORE
+    // ✅ 2. BUFFER (ONLY exact slots)
     if (slotStart.getTime() === bufferBefore.getTime()) {
-      setBest("buffer");
-      continue;
+      return { available: false, reason: "buffer" };
     }
 
-    // ✅ BUFFER AFTER (ONLY 1 SLOT)    
     if (slotStart.getTime() === bufferAfter.getTime()) {
-      setBest("buffer");
-      continue;
+      return { available: false, reason: "buffer" };
     }
 
-
-    // ✅ CLOSED if overlapping buffer zone
-    const overlapStart = bufferBefore;
-    const overlapEnd = bufferAfterEnd;
-
-    if (slotStart < overlapEnd && slotEnd > overlapStart) {
-      setBest("closed");
-    }
+    // ✅ ❌ REMOVE "overlap closed logic completely"
+    // Do NOT add any "overlap buffer window" logic
   }
 
-  // ✅ TOO SOON RULE
-  if (best.reason === "available" && slotStart < minAllowed) {
+  // ✅ 3. TOO SOON
+  if (slotStart < minAllowed) {
     return { available: false, reason: "too-soon" };
   }
 
-  return best;
+  return { available: true, reason: "available" };
 }
 
 function reasonToLabel(reason) {
