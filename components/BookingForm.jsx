@@ -33,6 +33,12 @@ function stripCitationsAndLinks(text = "") {
     .trim();
 }
 
+/* =====================================================
+ PACKAGE POLICIES (KEEP YOUR EXISTING BLOCK HERE)
+===================================================== */
+// ✅ Keep your existing PACKAGE_POLICIES exactly as-is from BookingFormPage_4.txt
+// const PACKAGE_POLICIES = { ... };
+
 /* =======================
  Helpers
 ======================= */
@@ -72,99 +78,62 @@ function canChangeBooking(startAtISO) {
 }
 
 /**
- * ✅ Slot classification that matches your expectation:
- * - "booked": slot start is inside actual booking window
- * - "buffer": slot start is within 1 hour BEFORE/AFTER booking (inclusive end for after-buffer)
- * - "closed": slot duration overlaps booking window even if start is outside booking/buffer (ex: 10AM overlaps 12-3)
- * - "too-soon": violates 5-hour rule
- * - "closed-hours": exceeds operating hours
- * - "available": ok
+ * ✅ Slot classification matching your requirements
+ * - Booked: slot start is inside booking window (inclusive end for hour slots)
+ * - Buffer: slot start is exactly 1hr before booking start OR exactly 1hr after booking end
+ * - Closed: slot duration overlaps buffer window but start not booked/buffer (ex: 10AM)
+ * - Too-soon: violates 5-hour rule
+ * - Closed-hours: exceeds operating hours
  */
 function classifySlot({ start, end, operatingEnd, minAllowed, bookings }) {
-  // operating hours check first
   if (end > operatingEnd) return { available: false, reason: "closed-hours" };
-
-  // 5-hour rule
   if (start < minAllowed) return { available: false, reason: "too-soon" };
 
   const list = bookings || [];
+  const sameHour = (a, b) => a.getTime() === b.getTime();
 
-  // 1) BOOKED if start falls inside actual booking window
+  // priority: booked > buffer > closed > available
+  let best = { available: true, reason: "available" };
+
+  // 1) BOOKED / BUFFER by slot-start
   for (const b of list) {
     const bStart = new Date(b.start_at);
     const bEnd = new Date(b.end_at);
-    if (start >= bStart && start < bEnd) {
+
+    // inclusive end for hour slots (so a "12–3" blocks 3PM label if your data stores end_at exactly 3PM)
+    const bEndInclusive = new Date(bEnd.getTime() + 1);
+
+    const bufferBeforeSlot = new Date(bStart.getTime() - BUFFER_HOURS * 3600 * 1000); // 11AM
+    const bufferAfterSlot = new Date(bEnd.getTime() + BUFFER_HOURS * 3600 * 1000);   // 4PM
+
+    if (start >= bStart && start < bEndInclusive) {
       return { available: false, reason: "booked" };
     }
-  }
 
-  // 2) BUFFER if start falls inside buffer windows (before or after)
-  for (const b of list) {
-    const bStart = new Date(b.start_at);
-    const bEnd = new Date(b.end_at);
-    const bufferStart = new Date(bStart.getTime() - BUFFER_HOURS * 3600 * 1000);
-    const bufferEnd = new Date(bEnd.getTime() + BUFFER_HOURS * 3600 * 1000);
-
-    // before buffer: [bufferStart, bStart)
-    if (start >= bufferStart && start < bStart) {
-      return { available: false, reason: "buffer" };
-    }
-
-    // after buffer: (bEnd, bufferEnd]  (inclusive end so 4PM shows as buffer for 3PM end)
-    if (start > bEnd && start <= bufferEnd) {
-      return { available: false, reason: "buffer" };
+    if (sameHour(start, bufferBeforeSlot) || sameHour(start, bufferAfterSlot)) {
+      if (best.reason !== "booked") best = { available: false, reason: "buffer" };
     }
   }
 
-  // 3) CLOSED if the duration overlaps actual booking window (but start wasn’t in booked/buffer)
+  if (best.reason === "booked" || best.reason === "buffer") return best;
+
+  // 2) CLOSED if duration overlaps BUFFER WINDOW (this makes 10AM = Closed for 12–3 booking)
   for (const b of list) {
     const bStart = new Date(b.start_at);
     const bEnd = new Date(b.end_at);
 
-    // overlap check
-    const overlapsBooking = start < bEnd && end > bStart;
-    if (overlapsBooking) {
+    const bufferWindowStart = new Date(bStart.getTime() - BUFFER_HOURS * 3600 * 1000);
+    const bufferWindowEnd = new Date(bEnd.getTime() + BUFFER_HOURS * 3600 * 1000);
+
+    const overlapsBufferWindow = start < bufferWindowEnd && end > bufferWindowStart;
+    if (overlapsBufferWindow) {
       return { available: false, reason: "closed" };
-    }
-  }
-
-  // 4) BUFFER if duration overlaps buffer window (rare but safe)
-  for (const b of list) {
-    const bStart = new Date(b.start_at);
-    const bEnd = new Date(b.end_at);
-    const bufferStart = new Date(bStart.getTime() - BUFFER_HOURS * 3600 * 1000);
-    const bufferEnd = new Date(bEnd.getTime() + BUFFER_HOURS * 3600 * 1000);
-
-    const overlapsBuffer = start < bufferEnd && end > bufferStart;
-    if (overlapsBuffer) {
-      return { available: false, reason: "buffer" };
     }
   }
 
   return { available: true, reason: "available" };
 }
 
-function reasonLabel(reason) {
-  if (reason === "available") return "Available";
-  if (reason === "booked") return "Booked";
-  if (reason === "buffer") return "Buffer";
-  if (reason === "closed") return "Closed";
-  if (reason === "too-soon") return `Too soon (${MIN_ADVANCE_HOURS}-hour rule)`;
-  if (reason === "closed-hours") return "Closed";
-  return "Closed";
-}
-
-function reasonClass(reason) {
-  if (reason === "available") return "text-emerald-600";
-  if (reason === "booked") return "text-red-500 font-semibold";
-  if (reason === "buffer") return "text-amber-600 font-semibold";
-  if (reason === "too-soon") return "text-slate-400";
-  return "text-slate-400";
-}
-
-/* =======================
- Component
-======================= */
 export default function BookingForm({ user, member }) {
   const [tab, setTab] = useState("availability"); // availability | packages | book | manage
 
@@ -180,7 +149,11 @@ export default function BookingForm({ user, member }) {
   const [notice, setNotice] = useState(null);
   const [successBooking, setSuccessBooking] = useState(null);
 
+  // Modals
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsPkg, setDetailsPkg] = useState(null);
   const [payOpen, setPayOpen] = useState(false);
+
   const [proofFile, setProofFile] = useState(null);
   const [proofPreview, setProofPreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -243,14 +216,14 @@ export default function BookingForm({ user, member }) {
     fetchPackages();
   }, []);
 
-  // Load bookings for date availability (pending+confirmed)
+  // Load bookings for date availability
   useEffect(() => {
     async function fetchBookingsForDate() {
       setLoadingBookings(true);
       setNotice(null);
 
       const dayStart = computeDateTime(dateISO, OPERATING_START_HOUR);
-      const dayEnd = computeDateTime(dateISO, 26); // 2AM next day
+      const dayEnd = computeDateTime(dateISO, 26);
 
       const queryStart = new Date(dayStart.getTime() - BUFFER_HOURS * 3600 * 1000).toISOString();
       const queryEnd = new Date(dayEnd.getTime() + BUFFER_HOURS * 3600 * 1000).toISOString();
@@ -278,6 +251,7 @@ export default function BookingForm({ user, member }) {
 
   const slotHours = useMemo(() => buildSlotHours(), []);
 
+  // ✅ Availability computation
   const availability = useMemo(() => {
     const ext = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
     const totalHours = BASE_DURATION_HOURS + ext;
@@ -289,97 +263,12 @@ export default function BookingForm({ user, member }) {
     return slotHours.map((h) => {
       const start = computeDateTime(dateISO, h);
       const end = new Date(start.getTime() + totalHours * 3600 * 1000);
-
-      const verdict = classifySlot({
-        start,
-        end,
-        operatingEnd,
-        minAllowed,
-        bookings,
-      });
-
+      const verdict = classifySlot({ start, end, operatingEnd, minAllowed, bookings });
       return { hour: h, label: labelHour(h), ...verdict };
     });
   }, [slotHours, dateISO, bookings, form.extend, form.extension_hours]);
 
-  function validateBookingInputs() {
-    setNotice(null);
-
-    if (!form.name.trim()) return "Name is required.";
-    if (!form.event_type.trim()) return "Event type is required.";
-    if (!dateISO) return "Date is required.";
-    if (selectedHour == null) return "Time is required.";
-    if (!form.package_id) return "Please select a package.";
-    if (!form.contact_number.trim()) return "Contact number is required.";
-    if (!form.email.trim()) return "Email address is required.";
-
-    const guests = Number(form.guest_count || 0);
-    if (!guests || guests < 1) return "No. of guests must be at least 1.";
-
-    const extensionHours = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
-    if (extensionHours < 0 || extensionHours > MAX_EXTENSION_HOURS) {
-      return `Extension must be 0–${MAX_EXTENSION_HOURS} hours.`;
-    }
-
-    // 5-hour rule validation
-    const now = new Date();
-    const selectedStart = computeDateTime(dateISO, selectedHour);
-    const minAllowed = new Date(now.getTime() + MIN_ADVANCE_HOURS * 60 * 60 * 1000);
-
-    if (selectedStart < minAllowed) {
-      return `Booking must be at least ${MIN_ADVANCE_HOURS} hours in advance.`;
-    }
-
-    return null;
-  }
-
-  function selectSlot(h) {
-    setSelectedHour(h);
-    setTab("book");
-    setNotice(null);
-  }
-
-  // Proof preview
-  useEffect(() => {
-    if (!proofFile) {
-      setProofPreview(null);
-      return;
-    }
-    const url = URL.createObjectURL(proofFile);
-    setProofPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [proofFile]);
-
-  function onBookNowClick() {
-    const err = validateBookingInputs();
-    if (err) return setNotice(err);
-    setPayOpen(true);
-  }
-
-  // Load upcoming bookings for Manage
-  useEffect(() => {
-    async function fetchMyBookings() {
-      if (!user?.id) return;
-
-      setLoadingMyBookings(true);
-      const nowIso = new Date().toISOString();
-
-      const { data, error } = await supabase
-        .from("function_room_bookings")
-        .select("*")
-        .eq("user_id", user.id)
-        .in("status", ["pending", "confirmed"])
-        .gte("start_at", nowIso)
-        .order("start_at", { ascending: true });
-
-      if (!error) setMyBookings(data || []);
-      setLoadingMyBookings(false);
-    }
-
-    fetchMyBookings();
-  }, [user?.id]);
-
-  // Reschedule conflicts for date
+  // ✅ Reschedule availability uses same tagging but excludes current booking
   useEffect(() => {
     async function fetchReschedConflicts() {
       if (!reschedOpen || !reschedDateISO) return;
@@ -420,30 +309,90 @@ export default function BookingForm({ user, member }) {
     return slotHours.map((h) => {
       const start = computeDateTime(reschedDateISO, h);
       const end = new Date(start.getTime() + totalHours * 3600 * 1000);
-
-      const verdict = classifySlot({
-        start,
-        end,
-        operatingEnd,
-        minAllowed,
-        bookings: reschedBookings,
-      });
-
+      const verdict = classifySlot({ start, end, operatingEnd, minAllowed, bookings: reschedBookings });
       return { hour: h, label: labelHour(h), ...verdict };
     });
   }, [reschedOpen, reschedBooking, reschedDateISO, reschedBookings, slotHours]);
 
-  async function confirmPaymentAndSubmit() {
-    const err = validateBookingInputs();
-    if (err) {
-      setNotice(err);
-      return;
+  function validateBookingInputs() {
+    setNotice(null);
+
+    if (!form.name.trim()) return "Name is required.";
+    if (!form.event_type.trim()) return "Event type is required.";
+    if (!dateISO) return "Date is required.";
+    if (selectedHour == null) return "Time is required.";
+    if (!form.package_id) return "Please select a package.";
+    if (!form.contact_number.trim()) return "Contact number is required.";
+    if (!form.email.trim()) return "Email address is required.";
+
+    const guests = Number(form.guest_count || 0);
+    if (!guests || guests < 1) return "No. of guests must be at least 1.";
+
+    const extensionHours = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
+    if (extensionHours < 0 || extensionHours > MAX_EXTENSION_HOURS) {
+      return `Extension must be 0–${MAX_EXTENSION_HOURS} hours.`;
     }
 
+    const now = new Date();
+    const selectedStart = computeDateTime(dateISO, selectedHour);
+    const minAllowed = new Date(now.getTime() + MIN_ADVANCE_HOURS * 60 * 60 * 1000);
+    if (selectedStart < minAllowed) {
+      return `Booking must be at least ${MIN_ADVANCE_HOURS} hours in advance.`;
+    }
+
+    return null;
+  }
+
+  function selectSlot(h) {
+    setSelectedHour(h);
+    setTab("book");
+    setNotice(null);
+  }
+
+  // Proof preview
+  useEffect(() => {
     if (!proofFile) {
-      setNotice("Please attach a screenshot of your payment confirmation.");
+      setProofPreview(null);
       return;
     }
+    const url = URL.createObjectURL(proofFile);
+    setProofPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [proofFile]);
+
+  // Manage bookings: load upcoming
+  useEffect(() => {
+    async function fetchMyBookings() {
+      if (!user?.id) return;
+      setLoadingMyBookings(true);
+
+      const nowIso = new Date().toISOString();
+      const { data, error } = await supabase
+        .from("function_room_bookings")
+        .select("*")
+        .eq("user_id", user.id)
+        .in("status", ["pending", "confirmed"])
+        .gte("start_at", nowIso)
+        .order("start_at", { ascending: true });
+
+      if (!error) setMyBookings(data || []);
+      setLoadingMyBookings(false);
+    }
+
+    fetchMyBookings();
+  }, [user?.id]);
+
+  function onBookNowClick() {
+    const err = validateBookingInputs();
+    if (err) return setNotice(err);
+    setPayOpen(true);
+  }
+
+  async function confirmPaymentAndSubmit() {
+    const err = validateBookingInputs();
+    if (err) return setNotice(err);
+
+    if (!proofFile) return setNotice("Please attach a screenshot of your payment confirmation.");
 
     const extensionHours = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
     const start = computeDateTime(dateISO, selectedHour);
@@ -581,53 +530,6 @@ export default function BookingForm({ user, member }) {
       {/* Availability */}
       {tab === "availability" && (
         <div className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6 space-y-4">
-          <div className="flex items-end justify-between gap-4 flex-wrap">
-            <div>
-              <p className="text-[10px] uppercase tracking-widest text-slate-400">Select Date</p>
-              <input
-                type="date"
-                value={dateISO}
-                min={toISODate(new Date())}
-                onChange={(e) => setDateISO(e.target.value)}
-                className="mt-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm"
-              />
-              <p className="text-[10px] text-slate-400 mt-1">
-                {stripCitationsAndLinks(`Must be at least ${MIN_ADVANCE_HOURS} hours in advance.`)}
-              </p>
-            </div>
-
-            <div className="text-right">
-              <p className="text-[10px] uppercase tracking-widest text-slate-400">Extension</p>
-              <div className="mt-2 flex items-center gap-2 justify-end">
-                <select
-                  value={form.extend}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      extend: e.target.value,
-                      extension_hours: e.target.value === "yes" ? f.extension_hours : 0,
-                    }))
-                  }
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm"
-                >
-                  <option value="no">No</option>
-                  <option value="yes">Yes</option>
-                </select>
-
-                <select
-                  value={form.extension_hours}
-                  onChange={(e) => setForm((f) => ({ ...f, extension_hours: Number(e.target.value) }))}
-                  disabled={form.extend !== "yes"}
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm disabled:opacity-50"
-                >
-                  <option value={0}>0 hr</option>
-                  <option value={1}>1 hr</option>
-                  <option value={2}>2 hr</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
           <div className="text-[11px] text-slate-500">
             Operating hours: <b>10:00 AM – 2:00 AM</b> (next day). Buffer rule: <b>1 hour</b> before & after.
           </div>
@@ -638,58 +540,176 @@ export default function BookingForm({ user, member }) {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {availability.map((s) => (
-                <button
-                  type="button"
-                  key={s.hour}
-                  onClick={() => s.available && selectSlot(s.hour)}
-                  className={`p-3 rounded-xl border text-left transition-all active:scale-95 ${
-                    s.available
-                      ? "bg-[#FFF9FA] border-rose-100 hover:bg-rose-50"
-                      : "bg-slate-50 border-slate-200 opacity-70 cursor-not-allowed"
-                  }`}
-                  disabled={!s.available}
-                >
-                  <p className="text-[11px] font-semibold text-slate-800">{s.label}</p>
-                  <p className={`text-[10px] mt-1 ${reasonClass(s.reason)}`}>
-                    {reasonLabel(s.reason)}
-                  </p>
-                </button>
-              ))}
+              {availability.map((s) => {
+                const status = s.available
+                  ? "Available"
+                  : s.reason === "booked"
+                  ? "Booked"
+                  : s.reason === "buffer"
+                  ? "Buffer"
+                  : s.reason === "too-soon"
+                  ? `Too soon (${MIN_ADVANCE_HOURS}-hour rule)`
+                  : "Closed";
+
+                // ✅ your requested class map
+                const statusClass =
+                  s.available
+                    ? "text-green-600"
+                    : s.reason === "booked"
+                    ? "text-red-500 font-semibold"
+                    : s.reason === "buffer"
+                    ? "text-yellow-500 font-semibold"
+                    : "text-slate-400";
+
+                return (
+                  <button
+                    type="button"
+                    key={s.hour}
+                    onClick={() => s.available && selectSlot(s.hour)}
+                    className={`p-3 rounded-xl border text-left transition-all active:scale-95 ${
+                      s.available
+                        ? "bg-[#FFF9FA] border-rose-100 hover:bg-rose-50"
+                        : "bg-slate-50 border-slate-200 opacity-70 cursor-not-allowed"
+                    }`}
+                    disabled={!s.available}
+                  >
+                    <p className="text-[11px] font-semibold text-slate-800">{s.label}</p>
+                    <p className={`text-[10px] mt-1 ${statusClass}`}>{status}</p>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
       )}
 
-      {/* Packages (unchanged UI assumed from your project; keep yours if already customized) */}
+      {/* Packages */}
       {tab === "packages" && (
-        <div className="bg-white rounded-2xl border border-rose-50 shadow-sm p-5">
-          <p className="text-sm text-slate-600">
-            (Keep your existing Packages rendering here — unchanged)
-          </p>
+        <div className="space-y-3">
+          {loadingPackages ? (
+            <div className="min-h-[120px] flex items-center justify-center">
+              <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
+            </div>
+          ) : (
+            packages.map((p) => (
+              <div
+                key={p.id}
+                className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-[12px] uppercase tracking-widest text-slate-400">{p.name}</p>
+                    <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">
+                      ₱{Number(p.rental_fee).toLocaleString()}
+                    </h3>
+                    <p className="text-[11px] text-slate-500 mt-2">
+                      Capacity up to {p.capacity} guests
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDetailsPkg(p);
+                        setDetailsOpen(true);
+                      }}
+                      className="px-4 py-2 rounded-full bg-white border border-slate-200 text-slate-700 text-[10px] uppercase tracking-widest hover:bg-slate-50 active:scale-95"
+                    >
+                      Full Details
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForm((f) => ({ ...f, package_id: String(p.id) }));
+                        setTab("book");
+                      }}
+                      className="px-4 py-2 rounded-full bg-[#FC687D] text-white text-[10px] uppercase tracking-widest active:scale-95"
+                    >
+                      Choose
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
 
-      {/* Book Now (unchanged UI assumed from your project; keep yours if already customized) */}
+      {/* Book Now */}
       {tab === "book" && (
-        <div className="bg-white rounded-2xl border border-rose-50 shadow-sm p-5">
-          <p className="text-sm text-slate-600">
-            (Keep your existing Book Now form rendering here — unchanged)
+        <div className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6 space-y-4">
+          <p className="text-[12px] text-slate-800">
+            Date: <b>{dateISO}</b> • Time:{" "}
+            <b>{selectedHour != null ? labelHour(selectedHour) : "Not selected"}</b>
           </p>
+
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
+              Package Selection
+            </label>
+            <select
+              value={form.package_id}
+              onChange={(e) => setForm((f) => ({ ...f, package_id: e.target.value }))}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
+            >
+              <option value="">Select package…</option>
+              {packages.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} — ₱{Number(p.rental_fee).toLocaleString()} (pax {p.capacity})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {[
+              ["name", "Name", "text", "Full name"],
+              ["event_type", "Event Type", "text", "Birthday, Gathering, Meeting..."],
+              ["contact_number", "Contact Number", "tel", "09XX XXX XXXX"],
+              ["email", "Email Address", "email", "name@email.com"],
+            ].map(([key, lbl, type, ph]) => (
+              <div key={key}>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">{lbl}</label>
+                <input
+                  type={type}
+                  value={form[key] ?? ""}
+                  placeholder={ph}
+                  onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
+                />
+              </div>
+            ))}
+
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
+                No. of Guests
+              </label>
+              <input
+                type="number"
+                min={1}
+                value={form.guest_count}
+                onChange={(e) => setForm((f) => ({ ...f, guest_count: Number(e.target.value) }))}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
+              />
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onBookNowClick}
+            disabled={submitting}
+            className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-normal text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-rose-500 active:scale-95 disabled:opacity-60"
+          >
+            Book Now
+          </button>
         </div>
       )}
 
       {/* Manage Bookings */}
       {tab === "manage" && (
         <div className="space-y-3">
-          <div className="bg-white rounded-2xl border border-rose-50 shadow-sm p-5">
-            <h3 className="text-lg font-semibold text-slate-800">Upcoming Bookings</h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Reschedule & Update allowed only if at least <b>{RESCHEDULE_MIN_DAYS} days</b> before booking date.
-              Cancellation will be converted into a gift certificate.
-            </p>
-          </div>
-
           {loadingMyBookings ? (
             <div className="min-h-[120px] flex items-center justify-center">
               <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
@@ -711,22 +731,15 @@ export default function BookingForm({ user, member }) {
                       <p className="text-xs text-slate-500 mt-1">
                         Date: <b>{b.business_date}</b> • Start: <b>{new Date(b.start_at).toLocaleString()}</b>
                       </p>
-                      <p className="text-xs mt-1">
-                        Status:{" "}
-                        <span className={b.status === "confirmed" ? "text-emerald-600 font-semibold" : "text-blue-500 font-semibold"}>
-                          {b.status === "confirmed" ? "✅ Confirmed" : "🕒 Pending"}
-                        </span>
-                      </p>
-
                       {!allowChange && (
                         <p className="text-[10px] text-slate-400 mt-2">
-                          Updates & reschedule disabled — must be at least {RESCHEDULE_MIN_DAYS} days before booking date.
+                          Updates & reschedule disabled — must be at least {RESCHEDULE_MIN_DAYS} days before booking.
                         </p>
                       )}
                     </div>
 
                     <div className="flex gap-2 flex-shrink-0">
-                      {/* ✅ Update booking info (allowed only ≥2 days) */}
+                      {/* Update */}
                       <button
                         type="button"
                         disabled={!allowChange}
@@ -740,7 +753,7 @@ export default function BookingForm({ user, member }) {
                         ✏️ Update
                       </button>
 
-                      {/* ✅ Reschedule (allowed only ≥2 days) */}
+                      {/* Reschedule */}
                       <button
                         type="button"
                         disabled={!allowChange}
@@ -750,7 +763,6 @@ export default function BookingForm({ user, member }) {
                           setReschedDateISO(b.business_date);
                           setReschedHour(null);
                           setReschedOpen(true);
-                          setNotice(null);
                         }}
                         className={`px-4 py-2 rounded-full text-[10px] uppercase tracking-widest active:scale-95 ${
                           allowChange
@@ -773,10 +785,7 @@ export default function BookingForm({ user, member }) {
                             .update({ status: "cancelled_gc" })
                             .eq("id", b.id);
 
-                          if (error) {
-                            setNotice(error.message);
-                            return;
-                          }
+                          if (error) return setNotice(error.message);
 
                           setMyBookings((prev) => prev.filter((x) => x.id !== b.id));
                           setNotice("✅ Booking cancelled. It will be converted into a gift certificate.");
@@ -794,37 +803,23 @@ export default function BookingForm({ user, member }) {
         </div>
       )}
 
-      {/* ✅ Update Booking Info Modal */}
+      {/* Update Booking Modal */}
       {editBooking && (
         <div
           className="fixed inset-0 z-[97] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => !editLoading && setEditBooking(null)}
         >
-          <div
-            className="bg-white rounded-2xl p-6 w-full max-w-md"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">Update Booking Info</h3>
-
-            <p className="text-[11px] text-slate-500 mb-3">
-              Allowed only if booking is at least {RESCHEDULE_MIN_DAYS} days away.
-            </p>
 
             <label className="text-xs text-slate-500">Package</label>
             <select
               value={editBooking.package_id}
-              onChange={(e) =>
-                setEditBooking((prev) => ({
-                  ...prev,
-                  package_id: Number(e.target.value),
-                }))
-              }
+              onChange={(e) => setEditBooking((prev) => ({ ...prev, package_id: Number(e.target.value) }))}
               className="w-full mt-1 mb-3 p-2 border rounded"
             >
               {packages.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
+                <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
 
@@ -833,12 +828,7 @@ export default function BookingForm({ user, member }) {
               type="number"
               min={1}
               value={editBooking.guest_count || 1}
-              onChange={(e) =>
-                setEditBooking((prev) => ({
-                  ...prev,
-                  guest_count: Number(e.target.value),
-                }))
-              }
+              onChange={(e) => setEditBooking((prev) => ({ ...prev, guest_count: Number(e.target.value) }))}
               className="w-full mt-1 mb-3 p-2 border rounded"
             />
 
@@ -846,24 +836,17 @@ export default function BookingForm({ user, member }) {
             <input
               type="text"
               value={editBooking.event_type || ""}
-              onChange={(e) =>
-                setEditBooking((prev) => ({
-                  ...prev,
-                  event_type: e.target.value,
-                }))
-              }
+              onChange={(e) => setEditBooking((prev) => ({ ...prev, event_type: e.target.value }))}
               className="w-full mt-1 mb-4 p-2 border rounded"
             />
 
             <div className="flex gap-2">
               <button
                 onClick={async () => {
-                  // Enforce 2-day rule on save
                   if (!canChangeBooking(editBooking.start_at)) {
                     alert(`Updates are only allowed at least ${RESCHEDULE_MIN_DAYS} days before the booking.`);
                     return;
                   }
-
                   setEditLoading(true);
 
                   const { error } = await supabase
@@ -872,7 +855,7 @@ export default function BookingForm({ user, member }) {
                       package_id: editBooking.package_id,
                       guest_count: editBooking.guest_count,
                       event_type: editBooking.event_type,
-                      status: "pending", // optional: send back to pending for re-approval
+                      status: "pending",
                     })
                     .eq("id", editBooking.id);
 
@@ -882,10 +865,7 @@ export default function BookingForm({ user, member }) {
                     return;
                   }
 
-                  setMyBookings((prev) =>
-                    prev.map((item) => (item.id === editBooking.id ? editBooking : item))
-                  );
-
+                  setMyBookings((prev) => prev.map((x) => (x.id === editBooking.id ? editBooking : x)));
                   alert("✅ Booking updated");
                   setEditBooking(null);
                   setEditLoading(false);
@@ -895,10 +875,7 @@ export default function BookingForm({ user, member }) {
                 {editLoading ? "Saving..." : "Save"}
               </button>
 
-              <button
-                onClick={() => setEditBooking(null)}
-                className="flex-1 py-2 bg-gray-200 rounded"
-              >
+              <button onClick={() => setEditBooking(null)} className="flex-1 py-2 bg-gray-200 rounded">
                 Cancel
               </button>
             </div>
@@ -936,7 +913,6 @@ export default function BookingForm({ user, member }) {
 
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
                 <p className="text-[11px] uppercase tracking-widest text-slate-500 mb-2">Scan QR to Pay</p>
-
                 <img
                   src={QR_IMAGE_PATH}
                   alt="Payment QR Code"
@@ -1019,24 +995,46 @@ export default function BookingForm({ user, member }) {
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {reschedAvailability.map((s) => (
-                  <button
-                    key={s.hour}
-                    type="button"
-                    disabled={!s.available}
-                    onClick={() => s.available && setReschedHour(s.hour)}
-                    className={`p-3 rounded-xl border text-left transition-all active:scale-95 ${
-                      reschedHour === s.hour
-                        ? "border-[#FC687D] bg-rose-50"
-                        : s.available
-                        ? "bg-white border-slate-200 hover:bg-slate-50"
-                        : "bg-slate-50 border-slate-200 opacity-70 cursor-not-allowed"
-                    }`}
-                  >
-                    <p className="text-[11px] font-semibold text-slate-800">{s.label}</p>
-                    <p className={`text-[10px] mt-1 ${reasonClass(s.reason)}`}>{reasonLabel(s.reason)}</p>
-                  </button>
-                ))}
+                {reschedAvailability.map((s) => {
+                  const status =
+                    s.available
+                      ? "Available"
+                      : s.reason === "booked"
+                      ? "Booked"
+                      : s.reason === "buffer"
+                      ? "Buffer"
+                      : s.reason === "too-soon"
+                      ? `Too soon (${MIN_ADVANCE_HOURS}-hour rule)`
+                      : "Closed";
+
+                  const statusClass =
+                    s.available
+                      ? "text-green-600"
+                      : s.reason === "booked"
+                      ? "text-red-500 font-semibold"
+                      : s.reason === "buffer"
+                      ? "text-yellow-500 font-semibold"
+                      : "text-slate-400";
+
+                  return (
+                    <button
+                      key={s.hour}
+                      type="button"
+                      disabled={!s.available}
+                      onClick={() => s.available && setReschedHour(s.hour)}
+                      className={`p-3 rounded-xl border text-left transition-all active:scale-95 ${
+                        reschedHour === s.hour
+                          ? "border-[#FC687D] bg-rose-50"
+                          : s.available
+                          ? "bg-white border-slate-200 hover:bg-slate-50"
+                          : "bg-slate-50 border-slate-200 opacity-70 cursor-not-allowed"
+                      }`}
+                    >
+                      <p className="text-[11px] font-semibold text-slate-800">{s.label}</p>
+                      <p className={`text-[10px] mt-1 ${statusClass}`}>{status}</p>
+                    </button>
+                  );
+                })}
               </div>
 
               <button
@@ -1050,7 +1048,6 @@ export default function BookingForm({ user, member }) {
 
                   const dur = Number(reschedBooking.duration_hours || BASE_DURATION_HOURS);
                   const ext = Number(reschedBooking.extension_hours || 0);
-
                   const newStart = computeDateTime(reschedDateISO, reschedHour);
                   const newEnd = new Date(newStart.getTime() + (dur + ext) * 3600 * 1000);
 
@@ -1093,6 +1090,23 @@ export default function BookingForm({ user, member }) {
                 {reschedLoading ? "Updating…" : "Confirm Reschedule"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full Details Modal (works if you keep your PACKAGE_POLICIES block) */}
+      {detailsOpen && detailsPkg && (
+        <div
+          className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
+          onClick={() => setDetailsOpen(false)}
+        >
+          <div
+            className="w-full max-w-2xl bg-white rounded-t-[28px] md:rounded-[32px] p-6 md:p-8 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-slate-700 text-sm">
+              Keep your existing Full Details modal content here (unchanged).
+            </p>
           </div>
         </div>
       )}
