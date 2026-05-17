@@ -2,154 +2,51 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
-
-/* ================= TYPES ================= */
-
-type SubItem = {
-  name: string;
-  path: string;
-};
+import AdminSidebar from "@/components/AdminSidebar";
 
 type NavItem = {
   name: string;
   path: string;
   icon: string;
-  submenu?: SubItem[];
 };
 
-/* ================= NAV ================= */
-
-const navItems: NavItem[] = [
-  { name: "Dashboard", path: "/admin", icon: "🏠" },
-
-  {
-    name: "Bookings",
-    path: "/admin/bookings",
-    icon: "📅",
-    submenu: [
-      { name: "All Bookings", path: "/admin/bookings" },
-      { name: "Calendar View", path: "/admin/bookings/calendar" },
-    ],
-  },
-
-  {
-    name: "Reports",
-    path: "/admin/reports",
-    icon: "📊",
-  },
-
-  {
-    name: "Items",
-    path: "/admin/menu",
-    icon: "🛍️",
-  },
-
-  { name: "Loyalty", path: "/admin/loyalty", icon: "⭐" },
-];
-
-/* ================= HELPERS ================= */
-
-function isActive(item: NavItem, pathname: string): boolean {
-  if (pathname === item.path) return true;
-
-  if (pathname.startsWith(item.path + "/")) return true;
-
-  if (
-    item.submenu?.some((s: SubItem) =>
-      pathname === s.path || pathname.startsWith(s.path + "/")
-    )
-  ) return true;
-
-  return false;
-}
-
-/* ================= COMPONENT ================= */
-
-export default function Sidebar() {
-  const pathname = usePathname();
-
-  const [openSection, setOpenSection] = useState<string>("");
-
-  useEffect(() => {
-    const active = navItems.find((item) => isActive(item, pathname));
-    if (active?.submenu) {
-      setOpenSection(active.name);
-    }
-  }, [pathname]);
-
-  function toggleSection(name: string) {
-    setOpenSection((prev) => (prev === name ? "" : name));
-  }
-
+export default function AdminSidebar({
+  navItems,
+  pathname,
+  onNavigate,
+}) {
   return (
-    <aside className="w-64 bg-white border-r border-gray-100 flex flex-col h-screen sticky top-0">
+    <aside className="fixed inset-y-0 left-0 z-50 w-[260px] bg-white border-r border-rose-100 flex flex-col">
 
-      {/* HEADER */}
-      <div className="p-6 border-b">
+      {/* LOGO */}
+      <div className="p-8 border-b border-rose-50">
         <h2 className="font-bold text-slate-800">Admin Panel</h2>
       </div>
 
       {/* NAV */}
-      <nav className="flex-1 p-4 space-y-1">
-
+      <nav className="flex-1 py-6 px-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
-          const hasSub = !!item.submenu;
-          const isOpen = openSection === item.name;
-          const active = isActive(item, pathname);
+          const isActive =
+            item.path === "/admin"
+              ? pathname === "/admin" || pathname === "/"
+              : pathname.startsWith(item.path);
 
           return (
-            <div key={item.name}>
-
-              {/* MAIN ITEM */}
-              {hasSub ? (
-                <button
-                  onClick={() => toggleSection(item.name)}
-                  className={`w-full flex justify-between px-4 py-2 rounded-lg ${
-                    active ? "bg-rose-100 text-[#FC687D]" : "text-slate-500"
-                  }`}
-                >
-                  <span>{item.icon} {item.name}</span>
-                  <span>{isOpen ? "▲" : "▼"}</span>
-                </button>
-              ) : (
-                <Link
-                  href={item.path}
-                  className={`block px-4 py-2 rounded-lg ${
-                    active ? "bg-rose-100 text-[#FC687D]" : "text-slate-500"
-                  }`}
-                >
-                  {item.icon} {item.name}
-                </Link>
-              )}
-
-              {/* SUBMENU */}
-              {hasSub && isOpen && (
-                <div className="ml-6 mt-1 space-y-1">
-                  {item.submenu?.map((s: SubItem) => {
-                    const subActive = pathname === s.path;
-
-                    return (
-                      <Link
-                        key={s.name}
-                        href={s.path}
-                        className={`block text-sm ${
-                          subActive
-                            ? "text-[#FC687D]"
-                            : "text-slate-400"
-                        }`}
-                      >
-                        {s.name}
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-
-            </div>
+            <Link
+              key={item.name}
+              href={item.path}
+              onClick={onNavigate}
+              className={`flex items-center gap-4 px-5 py-4 rounded-2xl font-bold transition-all ${
+                isActive
+                  ? "bg-[#FC687D] text-white shadow-lg"
+                  : "text-slate-600 hover:bg-rose-50 hover:text-[#FC687D]"
+              }`}
+            >
+              <span className="text-xl">{item.icon}</span>
+              <span className="text-sm">{item.name}</span>
+            </Link>
           );
         })}
-
       </nav>
     </aside>
   );

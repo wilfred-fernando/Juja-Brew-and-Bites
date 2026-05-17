@@ -6,7 +6,7 @@ export function middleware(req: NextRequest) {
 
   const cleanHost = host.split(":")[0].toLowerCase();
 
-  /* ✅ ALLOW SYSTEM FILES */
+  // ✅ ignore system paths
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
@@ -15,31 +15,26 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  /* ✅ LOGIN PAGE ALWAYS ALLOWED */
-  if (
-    pathname === "/login" ||
-    pathname.startsWith("/admin/login")
-  ) {
+  // ✅ allow login
+  if (pathname.startsWith("/admin/login") || pathname === "/login") {
     return NextResponse.next();
   }
 
-  /* ✅ SUBDOMAIN ROUTING */
   const routes: Record<string, string> = {
     "admin.": "/admin",
     "pos.": "/pos",
     "customer.": "/customer",
-    "kitchen.": "/kitchen",
   };
 
-  const matchedSubdomain = Object.keys(routes).find((key) =>
-    cleanHost.startsWith(key)
+  const sub = Object.keys(routes).find((k) =>
+    cleanHost.startsWith(k)
   );
 
-  const basePath = matchedSubdomain ? routes[matchedSubdomain] : null;
+  const base = sub ? routes[sub] : null;
 
-  if (basePath && !pathname.startsWith(basePath)) {
+  if (base && !pathname.startsWith(base)) {
     const url = req.nextUrl.clone();
-    url.pathname = `${basePath}${pathname === "/" ? "" : pathname}`;
+    url.pathname = `${base}${pathname === "/" ? "" : pathname}`;
     return NextResponse.rewrite(url);
   }
 

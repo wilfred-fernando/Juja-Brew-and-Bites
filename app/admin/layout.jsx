@@ -53,14 +53,15 @@ export default function AdminLayout({ children }) {
   };
 
   const navItems = [
-    { name: "Home", path: "/admin", icon: "🏠" },
-    { name: "Live Orders", path: "/admin/orders", icon: "📋" },
-    { name: "Menu Builder", path: "/admin/menu", icon: "🧩" },
-    { name: "POS System", path: "/admin/pos-admin", icon: "🛒" },
-    { name: "Loyalty Program", path: "/admin/loyalty", icon: "⭐" }, 
-    { name: "Promo Codes", path: "/admin/promos", icon: "🎁" },    
-    { name: "Settings", path: "/admin/settings", icon: "⚙️" },
-  ];
+  { name: "Home", path: "/admin", icon: "🏠" },
+  { name: "Bookings", path: "/admin/bookings", icon: "📅" },
+  { name: "Live Orders", path: "/admin/orders", icon: "📋" },
+  { name: "Menu Builder", path: "/admin/menu", icon: "🧩" },
+  { name: "POS System", path: "/admin/pos-admin", icon: "🛒" },
+  { name: "Loyalty Program", path: "/admin/loyalty", icon: "⭐" },
+  { name: "Promo Codes", path: "/admin/promos", icon: "🎁" },
+  { name: "Settings", path: "/admin/settings", icon: "⚙️" },
+];
 
   // 1. THE LOGIN FIX: Hide sidebar entirely if on the login page
   if (pathname && pathname.includes('login')) {
