@@ -4,15 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 /* =======================
-   Business Rules / Config
+ Business Rules / Config
 ======================= */
 const OPERATING_START_HOUR = 10; // 10AM
-const BASE_DURATION_HOURS = 3; // 3 hours
-const BUFFER_HOURS = 1; // 1 hour gap before & after (your rule)
+const BASE_DURATION_HOURS = 3; // booking duration logic stays 3 hours
+const BUFFER_HOURS = 1; // 1 hour gap before & after
 const MAX_EXTENSION_HOURS = 2; // extension max 2 hours
-const MIN_ADVANCE_HOURS = 5; // must be at least 3 days in advance
 
-// Deposit policy (current): ₱1,000 non-refundable to confirm booking
+// ✅ CHANGED: from days to hours
+const MIN_ADVANCE_HOURS = 5; // must be at least 5 hours in advance
+
+// Deposit policy
 const DEPOSIT_AMOUNT = 1000;
 
 // Put QR image here: public/images/qrph.jpg
@@ -22,26 +24,21 @@ const QR_IMAGE_PATH = "/images/qrph.jpg";
 const ADMIN_EMAIL = "booking@jujabrewandbites.com";
 
 /* =====================================================
-   PLAN B: Strip citations + OneDrive/SharePoint URLs
-   Prevents any pasted “[1](https://onedrive...)” from showing.
+ PLAN B: Strip citations + OneDrive/SharePoint URLs
 ===================================================== */
 function stripCitationsAndLinks(text = "") {
   return String(text || "")
-    // remove markdown citations like [1](https://...)
     .replace(/\[\d+\]\((https?:\/\/[^)]+)\)/g, "")
-    // remove any OneDrive/SharePoint URLs
     .replace(
       /https?:\/\/(?:1drv\.ms|onedrive\.live\.com|my\.sharepoint\.com|[^/\s]+sharepoint\.com)\S*/gi,
       ""
     )
-    // tighten whitespace
     .replace(/\s{2,}/g, " ")
     .trim();
 }
 
 /* =====================================================
-   PACKAGE POLICIES (1–6) — Full Details content
-   (Text normalized from your guidelines; no external links)
+ PACKAGE POLICIES (1–6) — Full Details content
 ===================================================== */
 const PACKAGE_POLICIES = {
   1: {
@@ -53,8 +50,9 @@ const PACKAGE_POLICIES = {
         "Additional guests: ₱300 worth of food & drinks per person (maximum of 5 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
       extension: [
-        "Extension maximum of 2 hours:",        
-        "₱250 per hour.",
+        "Extension maximum of 2 hours:",
+        "Option 1: ₱1,000 worth of food & drinks per hour.",
+        "Option 2: ₱250 per hour.",
       ],
     },
     rental_fees_inclusions: {
@@ -73,12 +71,11 @@ const PACKAGE_POLICIES = {
       corkage: [
         "Alcoholic drinks: ₱250",
         "Cakes & Lechon: FREE",
-        "Other food items: ₱200 per dish",
+        "Other food items: ₱200 per dish (max of 2 dish only)",
       ],
       notes: "Customized menus and special requests must be arranged in advance.",
     },
   },
-
   2: {
     name: "Package 2",
     room_usage: {
@@ -88,8 +85,9 @@ const PACKAGE_POLICIES = {
         "Additional guests: ₱300 worth of food & drinks per person (maximum of 5 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
       extension: [
-        "Extension maximum of 2 hours:",       
-        "₱750 per hour.",
+        "Extension maximum of 2 hours:",
+        "Option 1: ₱1,500 worth of food & drinks per hour.",
+        "Option 2: ₱750 per hour.",
       ],
     },
     rental_fees_inclusions: {
@@ -108,12 +106,11 @@ const PACKAGE_POLICIES = {
       corkage: [
         "Alcoholic drinks: ₱500",
         "Cakes & Lechon: FREE",
-        "Other food items: ₱200 per dish",
+        "Other food items: ₱200 per dish (max of 2 dish only)",
       ],
       notes: "Customized menus and special requests must be arranged in advance.",
     },
   },
-
   3: {
     name: "Package 3",
     room_usage: {
@@ -123,8 +120,9 @@ const PACKAGE_POLICIES = {
         "Additional guests: ₱300 worth of food & drinks per person (maximum of 5 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
       extension: [
-        "Extension maximum of 2 hours:",       
-        "₱1,500 per hour.",
+        "Extension maximum of 2 hours:",
+        "Option 1: ₱3,000 worth of food & drinks per hour.",
+        "Option 2: ₱1,500 per hour.",
       ],
     },
     rental_fees_inclusions: {
@@ -144,12 +142,11 @@ const PACKAGE_POLICIES = {
       corkage: [
         "Alcoholic drinks: ₱1,000",
         "Cakes & Lechon: FREE",
-        "Other food items: ₱200 per dish",
+        "Other food items: ₱200 per dish (max of 2 dish only)",
       ],
       notes: "Customized menus and special requests must be arranged in advance.",
     },
   },
-
   4: {
     name: "Package 4",
     room_usage: {
@@ -176,7 +173,6 @@ const PACKAGE_POLICIES = {
       notes: "Additional setup time must be requested during booking (if needed).",
     },
   },
-
   5: {
     name: "Package 5",
     room_usage: {
@@ -203,7 +199,6 @@ const PACKAGE_POLICIES = {
       notes: "Additional setup time must be requested during booking (if needed).",
     },
   },
-
   6: {
     name: "Package 6",
     room_usage: {
@@ -234,35 +229,20 @@ const PACKAGE_POLICIES = {
 };
 
 /* =======================
-   Helpers
+ Helpers
 ======================= */
 function formatPeso(n) {
   return `₱${Number(n).toLocaleString()}`;
 }
-
 function toISODate(d) {
   return d.toISOString().split("T")[0];
 }
-
-function addDays(date, days) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
-function addHours(date, hours) {
-  const d = new Date(date);
-  d.setHours(d.getHours() + hours);
-  return d;
-}
-
 function buildSlotHours() {
   const hours = [];
   for (let h = OPERATING_START_HOUR; h <= 23; h++) hours.push(h);
   hours.push(24, 25);
   return hours;
 }
-
 function labelHour(h) {
   const dayOffset = h >= 24 ? " (+1)" : "";
   const hh = h % 24;
@@ -270,7 +250,6 @@ function labelHour(h) {
   const disp = ((hh + 11) % 12) + 1;
   return `${disp}:00 ${ampm}${dayOffset}`;
 }
-
 function computeDateTime(businessDateISO, hourLike) {
   const base = new Date(`${businessDateISO}T00:00:00`);
   const h = hourLike % 24;
@@ -280,36 +259,33 @@ function computeDateTime(businessDateISO, hourLike) {
   dt.setHours(h, 0, 0, 0);
   return dt;
 }
-
 function intersects(aStart, aEnd, bStart, bEnd) {
   return aStart < bEnd && aEnd > bStart;
 }
 
 /* =======================
-   Component
+ Component
 ======================= */
 export default function BookingForm({ user, member }) {
   const [tab, setTab] = useState("availability"); // availability | packages | book
-
   const [packages, setPackages] = useState([]);
   const [loadingPackages, setLoadingPackages] = useState(true);
 
-  const [dateISO, setDateISO] = useState(() => toISODate(addHours(new Date(), MIN_ADVANCE_HOURS)));
+  // ✅ Default date can be today now (time rule handles the 5 hours)
+  const [dateISO, setDateISO] = useState(() => toISODate(new Date()));
 
   const [bookings, setBookings] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
-
   const [selectedHour, setSelectedHour] = useState(null);
   const [notice, setNotice] = useState(null);
 
   // Modals
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsPkg, setDetailsPkg] = useState(null);
-
   const [payOpen, setPayOpen] = useState(false);
+
   const [proofFile, setProofFile] = useState(null);
   const [proofPreview, setProofPreview] = useState(null);
-
   const [submitting, setSubmitting] = useState(false);
 
   // Book Now form
@@ -339,7 +315,6 @@ export default function BookingForm({ user, member }) {
     async function fetchPackages() {
       setLoadingPackages(true);
       setNotice(null);
-
       const { data, error } = await supabase
         .from("function_room_packages")
         .select("*")
@@ -348,7 +323,6 @@ export default function BookingForm({ user, member }) {
 
       if (error) setNotice(error.message);
       else setPackages(data || []);
-
       setLoadingPackages(false);
     }
     fetchPackages();
@@ -383,16 +357,18 @@ export default function BookingForm({ user, member }) {
 
       setLoadingBookings(false);
     }
-
     fetchBookingsForDate();
   }, [dateISO]);
 
   const slotHours = useMemo(() => buildSlotHours(), []);
 
-  // Availability computation
+  // ✅ Availability computation with 5-hour rule + reason
   const availability = useMemo(() => {
     const ext = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
     const totalHours = BASE_DURATION_HOURS + ext;
+
+    const now = new Date();
+    const minAllowed = new Date(now.getTime() + MIN_ADVANCE_HOURS * 60 * 60 * 1000);
 
     return slotHours.map((h) => {
       const start = computeDateTime(dateISO, h);
@@ -400,57 +376,35 @@ export default function BookingForm({ user, member }) {
 
       const operatingEnd = computeDateTime(dateISO, 26); // 2AM next day
       const withinOperating = end <= operatingEnd;
-      const now = new Date();
-      const minAllowed = new Date(now.getTime() + MIN_ADVANCE_HOURS * 60 * 60 * 1000);
 
-      // ✅ New rule: start must be >= min allowed time
       const meetsAdvanceTime = start >= minAllowed;
 
+      // buffer-window conflict check
       const blockedStart = new Date(start.getTime() - BUFFER_HOURS * 3600 * 1000);
       const blockedEnd = new Date(end.getTime() + BUFFER_HOURS * 3600 * 1000);
 
       const hasConflict = bookings.some((b) => {
         const bStart = new Date(b.start_at);
         const bEnd = new Date(b.end_at);
-
         const bBlockedStart = new Date(bStart.getTime() - BUFFER_HOURS * 3600 * 1000);
         const bBlockedEnd = new Date(bEnd.getTime() + BUFFER_HOURS * 3600 * 1000);
-
         return intersects(blockedStart, blockedEnd, bBlockedStart, bBlockedEnd);
       });
 
+      // ✅ reason priority: booked > too-soon > closed
       let reason = "";
+      if (hasConflict) reason = "booked";
+      else if (!meetsAdvanceTime) reason = "too-soon";
+      else if (!withinOperating) reason = "closed";
 
-      // ✅ Priority 1: Booking conflict
-      if (hasConflict) {
-        reason = "booked";
-      }
+      const availableNow = withinOperating && !hasConflict && meetsAdvanceTime;
 
-      // ✅ Priority 2: Too soon
-      else if (!meetsAdvanceTime) {
-        reason = "too-soon";
-      }
-
-      // ✅ Priority 3: Outside operating
-      else if (!withinOperating) {
-        reason = "closed";
-      }
-
-      return {
-        hour: h,
-        label: labelHour(h),
-        available: !hasConflict && meetsAdvanceTime && withinOperating,
-        reason,
-      };
-      ``
+      return { hour: h, label: labelHour(h), available: availableNow, reason };
     });
   }, [slotHours, dateISO, bookings, form.extend, form.extension_hours]);
 
   function validateBookingInputs() {
     setNotice(null);
-
-    const minDate = toISODate(addHours(new Date(), MIN_ADVANCE_HOURS));
-    if (dateISO < minDate) return `Booking must be at least ${MIN_ADVANCE_HOURS} hours in advance.`;
 
     if (!form.name.trim()) return "Name is required.";
     if (!form.event_type.trim()) return "Event type is required.";
@@ -467,6 +421,16 @@ export default function BookingForm({ user, member }) {
     if (extensionHours < 0 || extensionHours > MAX_EXTENSION_HOURS) {
       return `Extension must be 0–${MAX_EXTENSION_HOURS} hours.`;
     }
+
+    // ✅ 5-hour rule validation based on selected date + selected slot time
+    const now = new Date();
+    const selectedStart = computeDateTime(dateISO, selectedHour);
+    const minAllowed = new Date(now.getTime() + MIN_ADVANCE_HOURS * 60 * 60 * 1000);
+
+    if (selectedStart < minAllowed) {
+      return `Booking must be at least ${MIN_ADVANCE_HOURS} hours in advance.`;
+    }
+
     return null;
   }
 
@@ -496,16 +460,15 @@ export default function BookingForm({ user, member }) {
   async function confirmPaymentAndSubmit() {
     const err = validateBookingInputs();
     if (err) {
+      // ✅ keep modal open so user sees the error immediately
       setNotice(err);
-      setPayOpen(false);
-      return;
-    }
-    
-    if (!proofFile) {
-      alert("Please attach payment screenshot first.");
       return;
     }
 
+    if (!proofFile) {
+      setNotice("Please attach a screenshot of your payment confirmation.");
+      return;
+    }
 
     const extensionHours = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
     const start = computeDateTime(dateISO, selectedHour);
@@ -535,19 +498,15 @@ export default function BookingForm({ user, member }) {
         user_id: user?.id || null,
         member_id: member?.id || null,
         package_id: Number(form.package_id),
-
         customer_name: form.name.trim(),
         event_type: form.event_type.trim(),
-
         business_date: dateISO,
         start_at: start.toISOString(),
         duration_hours: BASE_DURATION_HOURS,
         extension_hours: extensionHours,
-
         guest_count: Number(form.guest_count),
         contact_number: form.contact_number.trim(),
         email: form.email.trim(),
-
         deposit_amount: DEPOSIT_AMOUNT,
         payment_status: "submitted",
         payment_proof_url: proofUrl,
@@ -569,21 +528,21 @@ export default function BookingForm({ user, member }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ adminEmail: ADMIN_EMAIL, bookingId: bookingRow.id, proofUrl }),
         });
-      } 
-        catch (e) {
-          console.error(e);
-          alert(e?.message || "Upload failed");
-        }
-
+      } catch {
+        // ignore notify failure
+      }
 
       setNotice("✅ Booking saved! Payment proof submitted.");
       setPayOpen(false);
+
+      // reset
       setProofFile(null);
       setProofPreview(null);
       setSelectedHour(null);
       setTab("availability");
     } catch (e) {
-      setNotice(e?.message || "Something went wrong.");
+      console.error("Booking submit error:", e);
+      setNotice(e?.message || "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -595,8 +554,6 @@ export default function BookingForm({ user, member }) {
         <h2 className="text-2xl md:text-[28px] font-normal text-slate-800 tracking-tight">
           Function Room Booking
         </h2>
-
-        {/* Plan B cleaner applied */}
         <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">
           {stripCitationsAndLinks(
             `Booking is ${BASE_DURATION_HOURS} hours + optional extension (max ${MAX_EXTENSION_HOURS} hours).`
@@ -612,6 +569,7 @@ export default function BookingForm({ user, member }) {
           { id: "book", label: "Book Now" },
         ].map((t) => (
           <button
+            type="button"
             key={t.id}
             onClick={() => setTab(t.id)}
             className={`flex-shrink-0 px-4 py-2 rounded-xl text-[10px] md:text-[11px] uppercase tracking-widest border transition-all active:scale-95 ${
@@ -640,12 +598,10 @@ export default function BookingForm({ user, member }) {
               <input
                 type="date"
                 value={dateISO}
-                min={toISODate(addHours(new Date(), MIN_ADVANCE_HOURS))}
+                min={toISODate(new Date())}
                 onChange={(e) => setDateISO(e.target.value)}
                 className="mt-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm"
               />
-
-              {/* Plan B cleaner applied */}
               <p className="text-[10px] text-slate-400 mt-1">
                 {stripCitationsAndLinks(`Must be at least ${MIN_ADVANCE_HOURS} hours in advance.`)}
               </p>
@@ -684,7 +640,7 @@ export default function BookingForm({ user, member }) {
           </div>
 
           <div className="text-[11px] text-slate-500">
-            Operating hours: <b>10:00 AM – 2:00 AM</b> (next day). Buffer rule: <b>1 hour</b> before &amp; after.
+            Operating hours: <b>10:00 AM – 2:00 AM</b> (next day). Buffer rule: <b>1 hour</b> before & after.
           </div>
 
           {loadingBookings ? (
@@ -693,35 +649,35 @@ export default function BookingForm({ user, member }) {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {availability.map((s) => (
-                <button
-                  key={s.hour}
-                  onClick={() => s.available && selectSlot(s.hour)}
-                  className={`p-3 rounded-xl border text-left transition-all active:scale-95 ${
-                    s.available
-                      ? "bg-[#FFF9FA] border-rose-100 hover:bg-rose-50"
-                      : "bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed"
-                  }`}
-                  disabled={!s.available}
-                >
-                  <p className="text-[11px] font-semibold text-slate-800">{s.label}</p>
-                  <p className="text-[10px] mt-1">
-                      {s.available && "Available"}
+              {availability.map((s) => {
+                const status =
+                  s.available ? "Available" :
+                  s.reason === "booked" ? "Booked" :
+                  s.reason === "too-soon" ? `Too soon (${MIN_ADVANCE_HOURS}-hour rule)` :
+                  "Closed";
 
-                      {!s.available && s.reason === "booked" && (
-                        <span className="text-red-500 font-semibold">Booked</span>
-                      )}
+                const statusClass =
+                  s.available ? "text-emerald-600" :
+                  s.reason === "booked" ? "text-red-500 font-semibold" :
+                  "text-slate-400";
 
-                      {!s.available && s.reason === "too-soon" && (
-                        <span className="text-slate-400">Too soon (5-hour rule)</span>
-                      )}
-
-                      {!s.available && s.reason === "closed" && (
-                        <span className="text-slate-400">Outside operating hours</span>
-                      )}
-                    </p>
-                </button>
-              ))}
+                return (
+                  <button
+                    type="button"
+                    key={s.hour}
+                    onClick={() => s.available && selectSlot(s.hour)}
+                    className={`p-3 rounded-xl border text-left transition-all active:scale-95 ${
+                      s.available
+                        ? "bg-[#FFF9FA] border-rose-100 hover:bg-rose-50"
+                        : "bg-slate-50 border-slate-200 opacity-70 cursor-not-allowed"
+                    }`}
+                    disabled={!s.available}
+                  >
+                    <p className="text-[11px] font-semibold text-slate-800">{s.label}</p>
+                    <p className={`text-[10px] mt-1 ${statusClass}`}>{status}</p>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -749,16 +705,16 @@ export default function BookingForm({ user, member }) {
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <p className="text-[12px] uppercase tracking-widest text-slate-400">{p.name}</p>
+
+                      {/* ✅ Removed "/ 3 hours" display */}
                       <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">
                         ₱{Number(p.rental_fee).toLocaleString()}
                       </h3>
 
-                      {/* 2 rows, forced single-line with ellipsis */}
                       <div className="mt-2 space-y-1 min-w-0">
                         <p className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
-                          Up to {p.capacity} guests
+                          Capacity up to {p.capacity} guests
                         </p>
-
                         <p className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
                           {roomRentalOnly ? (
                             <>
@@ -817,8 +773,8 @@ export default function BookingForm({ user, member }) {
                 <b>{selectedHour != null ? labelHour(selectedHour) : "Not selected"}</b>
               </p>
             </div>
-
             <button
+              type="button"
               onClick={() => setTab("availability")}
               className="px-4 py-2 rounded-full bg-slate-50 border border-slate-200 text-slate-600 text-[10px] uppercase tracking-widest active:scale-95"
             >
@@ -838,7 +794,7 @@ export default function BookingForm({ user, member }) {
               <option value="">Select package…</option>
               {packages.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} — ₱{Number(p.rental_fee).toLocaleString()} (up to {p.capacity} pax)
+                  {p.name} — ₱{Number(p.rental_fee).toLocaleString()} (pax {p.capacity})
                 </option>
               ))}
             </select>
@@ -898,7 +854,11 @@ export default function BookingForm({ user, member }) {
                 <button
                   type="button"
                   onClick={() =>
-                    setForm((f) => ({ ...f, extend: "yes", extension_hours: f.extension_hours || 1 }))
+                    setForm((f) => ({
+                      ...f,
+                      extend: "yes",
+                      extension_hours: f.extension_hours || 1,
+                    }))
                   }
                   className={`px-4 py-2 rounded-xl text-[11px] border active:scale-95 ${
                     form.extend === "yes"
@@ -924,6 +884,7 @@ export default function BookingForm({ user, member }) {
           </div>
 
           <button
+            type="button"
             onClick={onBookNowClick}
             disabled={submitting}
             className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-normal text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-rose-500 active:scale-95 disabled:opacity-60"
@@ -954,11 +915,10 @@ export default function BookingForm({ user, member }) {
                   <div className="flex items-start justify-between gap-4 mb-2">
                     <div>
                       <p className="text-[10px] uppercase tracking-widest text-slate-400">Full Details</p>
-                      <h3 className="text-xl md:text-2xl font-semibold text-slate-900 mt-1">
-                        {policy.name}
-                      </h3>
+                      <h3 className="text-xl md:text-2xl font-semibold text-slate-900 mt-1">{policy.name}</h3>
                     </div>
                     <button
+                      type="button"
                       onClick={() => setDetailsOpen(false)}
                       className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
                       aria-label="Close"
@@ -981,13 +941,11 @@ export default function BookingForm({ user, member }) {
 
                   <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
                     <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">
-                      2. Rental Fees &amp; Inclusions
+                      2. Rental Fees & Inclusions
                     </p>
                     <p className="text-[12px] text-slate-700 mb-3">• {rfi.rental_fee}</p>
 
-                    <p className="text-[11px] uppercase tracking-widest text-slate-500 mb-2">
-                      Package Includes
-                    </p>
+                    <p className="text-[11px] uppercase tracking-widest text-slate-500 mb-2">Package Includes</p>
                     <ul className="space-y-2 text-[12px] text-slate-700 leading-relaxed">
                       {rfi.package_includes.map((x) => (
                         <li key={x}>• {x}</li>
@@ -1007,9 +965,7 @@ export default function BookingForm({ user, member }) {
                   </div>
 
                   <div className="bg-white border border-rose-200 rounded-2xl p-4">
-                    <p className="text-[10px] uppercase tracking-widest text-rose-600 mb-2">
-                      3. Food &amp; Beverages
-                    </p>
+                    <p className="text-[10px] uppercase tracking-widest text-rose-600 mb-2">3. Food & Beverages</p>
                     <p className="text-[12px] text-slate-700 mb-2">• {policy.food_beverages.policy}</p>
 
                     {policy.food_beverages.corkage.length > 0 && (
@@ -1035,7 +991,7 @@ export default function BookingForm({ user, member }) {
       {payOpen && (
         <div
           className="fixed inset-0 z-[95] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
-          onClick={() => setPayOpen(false)}
+          onClick={() => !submitting && setPayOpen(false)}
         >
           <div
             className="w-full max-w-lg bg-white rounded-t-[28px] md:rounded-[32px] p-6 md:p-7 max-h-[90vh] overflow-y-auto"
@@ -1044,7 +1000,8 @@ export default function BookingForm({ user, member }) {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg md:text-xl font-semibold text-slate-800">Secure Your Booking</h3>
               <button
-                onClick={() => setPayOpen(false)}
+                type="button"
+                onClick={() => !submitting && setPayOpen(false)}
                 className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
               >
                 ✕
@@ -1065,7 +1022,6 @@ export default function BookingForm({ user, member }) {
                   alt="Payment QR Code"
                   className="w-full max-w-[320px] mx-auto rounded-xl border border-slate-200 bg-white"
                 />
-
                 <p className="text-[12px] text-slate-700 mt-3">
                   After payment, attach screenshot of your payment confirmation to lock in your reservation!
                 </p>
@@ -1075,6 +1031,7 @@ export default function BookingForm({ user, member }) {
                   accept="image/*"
                   className="mt-3 w-full text-sm"
                   onChange={(e) => setProofFile(e.target.files?.[0] || null)}
+                  disabled={submitting}
                 />
 
                 {proofPreview && (
@@ -1082,11 +1039,18 @@ export default function BookingForm({ user, member }) {
                     <img src={proofPreview} alt="Payment proof preview" className="w-full object-cover" />
                   </div>
                 )}
+
+                {!proofFile && (
+                  <p className="mt-2 text-[11px] text-rose-500">
+                    Please upload your payment proof before submitting.
+                  </p>
+                )}
               </div>
 
               <button
+                type="button"
                 onClick={confirmPaymentAndSubmit}
-                disabled={submitting}
+                disabled={submitting || !proofFile}
                 className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-normal text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-rose-500 active:scale-95 disabled:opacity-60"
               >
                 {submitting ? "Submitting…" : "Submit Proof & Confirm Booking"}
