@@ -66,7 +66,7 @@ const PACKAGE_POLICIES = {
       corkage: [
         "Alcoholic drinks: ₱250",
         "Cakes & Lechon: FREE",
-        "Other food items: ₱200 per dish (max of 2 dish only)",
+        "Other food items: ₱200 per dish",
       ],
       notes: "Customized menus and special requests must be arranged in advance.",
     },
@@ -100,7 +100,7 @@ const PACKAGE_POLICIES = {
       corkage: [
         "Alcoholic drinks: ₱500",
         "Cakes & Lechon: FREE",
-        "Other food items: ₱200 per dish (max of 2 dish only)",
+        "Other food items: ₱200 per dish",
       ],
       notes: "Customized menus and special requests must be arranged in advance.",
     },
@@ -135,7 +135,7 @@ const PACKAGE_POLICIES = {
       corkage: [
         "Alcoholic drinks: ₱1,000",
         "Cakes & Lechon: FREE",
-        "Other food items: ₱200 per dish (max of 2 dish only)",
+        "Other food items: ₱200 per dish",
       ],
       notes: "Customized menus and special requests must be arranged in advance.",
     },
