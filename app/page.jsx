@@ -26,8 +26,8 @@ function Nav({ active }) {
 
   const links = [
     ["home", "Home", "/"],
-    ["menu", "Menu", "/admin/menu"],
-    ["promo", "Promos", "/admin/promos"],
+    ["menu", "Menu", "/menu"],
+    ["promo", "Promos", "/promos"],
     ["about", "About Us", "/about"]
   ];
 
@@ -123,8 +123,8 @@ function Footer() {
         </div>
       </div>
       <div className="max-w-6xl mx-auto pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-3">
-        <p className="text-slate-500 text-[11px] tracking-[0.2em] uppercase">© {new Date().getFullYear()} Juja 주자 Brew & Bites® · All rights reserved</p>
-        <p className="text-slate-500 text-[11px]">Pasong Tamo · Quezon City · Philippines</p>
+        <p className="text-slate-500 text-[11px] tracking-[0.2em] uppercase">© {new Date().getFullYear()} Juja Brew & Bites® · All rights reserved</p>
+        <p className="text-slate-500 text-[11px]">Quezon City · Philippines</p>
       </div>
     </footer>
   );
@@ -173,24 +173,24 @@ export default function Home() {
         <div className="relative z-10 text-center px-6 max-w-4xl mx-auto pt-24 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <img src={LOGO} alt="Juja Brew & Bites"
             className="h-32 md:h-44 w-auto object-contain mx-auto mb-8 drop-shadow-md" />
+           
 
+
+        <p className="text-slate-500 text-lg md:text-xl max-w-xl mx-auto font-medium leading-relaxed mb-3">
+                    Chicken · Milk Tea · Coffee · Waffle · Rice in a Box
+                  </p>
           <div className="inline-flex items-center gap-2.5 mb-7 px-5 py-2 rounded-full text-[10px] font-normal uppercase tracking-[0.3em] bg-white text-[#FC687D] border border-rose-100 shadow-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-[#FC687D] animate-pulse" />
-            Brew & Bites · Quezon City · Open Daily
+            food ·  drinks · Quezon City
           </div>
 
           <h1 className="text-5xl sm:text-6xl md:text-[80px] font-extrabold leading-[1.0] tracking-tight mb-5 text-slate-800">
-            Good Food.<br />
+           brewing with<br />
             <span className="text-[#FC687D]">
-              Great Brews.
+              gratitude
             </span>
           </h1>
-          <p className="text-slate-500 text-lg md:text-xl max-w-xl mx-auto font-medium leading-relaxed mb-3">
-            Chicken · Milk Tea · Coffee · Waffles · and so much more
-          </p>
-          <p className="text-rose-400 text-sm font-normal mb-12 tracking-wide">
-            📍 36D Visayas Ave., Pasong Tamo, QC &nbsp;·&nbsp; Open 10AM – 12MN
-          </p>
+          
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/order"
