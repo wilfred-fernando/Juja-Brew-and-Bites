@@ -30,6 +30,21 @@ export default function LoyaltyAdminPage() {
   const [saving, setSaving] = useState(false);
 
   // =========================
+  // LINK REQUESTS (PENDING APPROVAL)
+  // =========================
+  const [linkRequests, setLinkRequests] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [requestBusyId, setRequestBusyId] = useState(null);
+
+  // map user_id -> {full_name,email}
+  const [profilesById, setProfilesById] = useState({});
+
+  // per-request: selected member id (for manual choose)
+  const [selectedMemberByRequestId, setSelectedMemberByRequestId] = useState({});
+  // per-request: search input
+  const [requestMemberQueryById, setRequestMemberQueryById] = useState({});
+
+  // =========================
   // MANUAL LINK UI
   // =========================
   const [notice, setNotice] = useState("");
@@ -48,7 +63,7 @@ export default function LoyaltyAdminPage() {
   const memberTimer = useRef(null);
 
   // =========================
-  // ✅ CONFIRMATION MODAL (replaces confirm/alert)
+  // CONFIRM MODAL
   // =========================
   const [confirmModal, setConfirmModal] = useState({
     open: false,
@@ -90,11 +105,14 @@ export default function LoyaltyAdminPage() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      await fetchMembers();
+      await Promise.all([fetchMembers(), fetchLinkRequests()]);
       setLoading(false);
     })();
   }, []);
 
+  // =========================
+  // FETCH MEMBERS
+  // =========================
   async function fetchMembers() {
     const { data, error } = await supabase.from("loyalty_members").select("*");
     if (error) {
@@ -114,7 +132,227 @@ export default function LoyaltyAdminPage() {
   }
 
   // =========================
-  // SEARCH: Profiles by email/full_name
+  // FETCH LINK REQUESTS + FETCH PROFILES for display
+  // =========================
+  async function fetchLinkRequests() {
+    setLoadingRequests(true);
+
+    const { data, error } = await supabase
+      .from("loyalty_link_requests")
+      .select("*")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error(error);
+      setLinkRequests([]);
+      setLoadingRequests(false);
+      return;
+    }
+
+    const reqs = data || [];
+    setLinkRequests(reqs);
+
+    // Fetch profiles for user display (full_name/email)
+    const userIds = Array.from(new Set(reqs.map((r) => r.user_id).filter(Boolean)));
+    if (userIds.length > 0) {
+      const { data: pData, error: pErr } = await supabase
+        .from("profiles")
+        .select("id,email,full_name")
+        .in("id", userIds);
+
+      if (!pErr) {
+        const map = {};
+        (pData || []).forEach((p) => {
+          map[p.id] = { full_name: p.full_name || "", email: p.email || "" };
+        });
+        setProfilesById(map);
+      }
+    }
+
+    setLoadingRequests(false);
+  }
+
+  // =========================
+  // HELPERS
+  // =========================
+  const memberById = useMemo(() => {
+    const map = {};
+    for (const m of members) map[m.id] = m;
+    return map;
+  }, [members]);
+
+  const unlinkedMembers = useMemo(() => members.filter((m) => !m.user_id), [members]);
+
+  function userLabel(userId) {
+    const p = profilesById[userId];
+    if (!userId) return "—";
+    if (p?.full_name) return p.full_name;
+    if (p?.email) return p.email;
+    return userId;
+  }
+
+  function userSubLabel(userId) {
+    const p = profilesById[userId];
+    if (!userId) return "";
+    if (p?.email && p?.full_name) return p.email;
+    if (p?.email) return p.email;
+    return userId;
+  }
+
+  function requestCandidateList(reqId) {
+    const q = (requestMemberQueryById[reqId] || "").trim().toLowerCase();
+    const base = unlinkedMembers;
+
+    if (!q) return base.slice(0, 8);
+
+    return base
+      .filter((m) => {
+        const name = String(m.customer_name || m["customer_name"] || "").toLowerCase();
+        const code = String(m.customer_code || m["customer_code"] || "").toLowerCase();
+        const phone = String(m["Phone"] || "").toLowerCase();
+        const city = String(m["City"] || "").toLowerCase();
+        return (
+          name.includes(q) ||
+          code.includes(q) ||
+          phone.includes(q) ||
+          city.includes(q)
+        );
+      })
+      .slice(0, 8);
+  }
+
+  // =========================
+  // APPROVE REQUEST (links BOTH tables)
+  // =========================
+  async function approveRequest(req) {
+  const requestId = req.id;
+  const userId = req.user_id;
+
+  // ✅ Define it here (this fixes your error)
+  const chosenMemberId =
+    req.matched_member_id || selectedMemberByRequestId[requestId] || null;
+
+  if (!userId) {
+    setNotice("❌ Request has no user_id.");
+    return;
+  }
+
+  if (!chosenMemberId) {
+    setNotice("⚠️ Select a loyalty member to approve this request.");
+    return;
+  }
+
+  setRequestBusyId(requestId);
+  setNotice("");
+
+  try {
+    // 1) Ensure member exists and not linked
+    const { data: memberRow, error: memberErr } = await supabase
+      .from("loyalty_members")
+      .select("id,user_id,customer_name,customer_code")
+      .eq("id", chosenMemberId)
+      .single();
+
+    if (memberErr) throw memberErr;
+
+    if (memberRow?.user_id) {
+      setNotice("⚠️ This loyalty member is already linked. Unlink first.");
+      return;
+    }
+
+    // 2) Ensure profile is not already linked
+    const { data: profileRow, error: profileErr } = await supabase
+      .from("profiles")
+      .select("id,loyalty_account_id")
+      .eq("id", userId)
+      .single();
+
+    if (profileErr) throw profileErr;
+
+    if (profileRow?.loyalty_account_id) {
+      setNotice(
+        `⚠️ This user already has loyalty_account_id = ${profileRow.loyalty_account_id}. Unlink first.`
+      );
+      return;
+    }
+
+    // 3) Link member -> user
+    const { error: linkErr } = await supabase
+      .from("loyalty_members")
+      .update({ user_id: userId })
+      .eq("id", chosenMemberId);
+
+    if (linkErr) throw linkErr;
+
+    // 4) Link profile -> member
+    const { error: profLinkErr } = await supabase
+      .from("profiles")
+      .update({ loyalty_account_id: chosenMemberId })
+      .eq("id", userId);
+
+    if (profLinkErr) {
+      // rollback member link if profile update fails
+      await supabase
+        .from("loyalty_members")
+        .update({ user_id: null })
+        .eq("id", chosenMemberId);
+      throw profLinkErr;
+    }
+
+    // 5) Mark request approved + timestamp
+    const { error: reqErr } = await supabase
+      .from("loyalty_link_requests")
+      .update({
+        status: "approved",
+        matched_member_id: chosenMemberId,
+        approved_at: new Date().toISOString(),
+      })
+      .eq("id", requestId);
+
+    if (reqErr) throw reqErr;
+
+    // ✅ remove row from UI immediately (even if refetch is slow)
+    setLinkRequests((prev) => prev.filter((r) => r.id !== requestId));
+
+    setNotice("✅ Approved and linked successfully.");
+    await Promise.all([fetchMembers(), fetchLinkRequests()]);
+  } catch (err) {
+    setNotice("❌ Approve failed: " + (err?.message || "Unknown error"));
+  } finally {
+    setRequestBusyId(null);
+  }
+}
+
+  // =========================
+  // REJECT REQUEST
+  // =========================
+  async function rejectRequest(req) {
+  setRequestBusyId(req.id);
+
+  try {
+    await supabase
+      .from("loyalty_link_requests")
+      .update({
+        status: "rejected",
+        rejected_at: new Date().toISOString(),
+      })
+      .eq("id", req.id);
+
+    // ✅ REMOVE FROM UI IMMEDIATELY
+    setLinkRequests(prev => prev.filter(r => r.id !== req.id));
+
+    setNotice("✅ Rejected + removed from list");
+
+  } catch (err) {
+    setNotice("❌ " + err.message);
+  } finally {
+    setRequestBusyId(null);
+  }
+}
+
+  // =========================
+  // SEARCH: Profiles by email/full_name (manual link)
   // =========================
   useEffect(() => {
     if (userTimer.current) clearTimeout(userTimer.current);
@@ -145,7 +383,7 @@ export default function LoyaltyAdminPage() {
   }, [userQuery]);
 
   // =========================
-  // SEARCH: Loyalty members by name/code
+  // SEARCH: loyalty_members by name/code (manual link)
   // =========================
   useEffect(() => {
     if (memberTimer.current) clearTimeout(memberTimer.current);
@@ -176,7 +414,7 @@ export default function LoyaltyAdminPage() {
   }, [memberQuery]);
 
   // =========================
-  // FILTER + SPLIT LINKED/UNLINKED
+  // FILTER + SPLIT LINKED/UNLINKED (members list)
   // =========================
   const filteredMembers = useMemo(() => {
     const s = (search || "").toLowerCase();
@@ -194,18 +432,18 @@ export default function LoyaltyAdminPage() {
     });
   }, [members, search]);
 
-  const linkedMembers = useMemo(
+  const linkedMembersList = useMemo(
     () => filteredMembers.filter((m) => !!m.user_id),
     [filteredMembers]
   );
 
-  const unlinkedMembers = useMemo(
+  const unlinkedMembersList = useMemo(
     () => filteredMembers.filter((m) => !m.user_id),
     [filteredMembers]
   );
 
   // =========================
-  // EDIT
+  // EDIT MEMBER MODAL
   // =========================
   const openModal = (member) => {
     setEditingMember(member);
@@ -245,7 +483,7 @@ export default function LoyaltyAdminPage() {
   };
 
   // =========================
-  // ✅ DELETE (confirmed)
+  // DELETE (confirmed)
   // =========================
   async function deleteMemberConfirmed(member) {
     if (!member?.id) return;
@@ -254,12 +492,15 @@ export default function LoyaltyAdminPage() {
     setNotice("");
 
     try {
-      // if linked, unlink silently first to keep tables consistent
       if (member.user_id) {
         await unlinkMemberConfirmed(member, { silent: true });
       }
 
-      const { error } = await supabase.from("loyalty_members").delete().eq("id", member.id);
+      const { error } = await supabase
+        .from("loyalty_members")
+        .delete()
+        .eq("id", member.id);
+
       if (error) throw error;
 
       await fetchMembers();
@@ -272,7 +513,7 @@ export default function LoyaltyAdminPage() {
   }
 
   // =========================
-  // ✅ MANUAL LINK
+  // MANUAL LINK (links BOTH tables)
   // =========================
   async function manualLink() {
     setNotice("");
@@ -285,19 +526,18 @@ export default function LoyaltyAdminPage() {
     setActionBusy(true);
 
     try {
-      // 1) Ensure member not already linked
       const { data: mRow, error: mErr } = await supabase
         .from("loyalty_members")
         .select("id,user_id,customer_name,customer_code")
         .eq("id", selectedMember.id)
         .single();
+
       if (mErr) throw mErr;
       if (mRow?.user_id) {
         setNotice("⚠️ Selected loyalty member is already linked. Unlink first.");
         return;
       }
 
-      // 2) Ensure user not linked to another member
       const { data: existingMember, error: exErr } = await supabase
         .from("loyalty_members")
         .select("id,customer_name,customer_code")
@@ -311,33 +551,31 @@ export default function LoyaltyAdminPage() {
         return;
       }
 
-      // 3) Ensure profile doesn’t already have loyalty_account_id
       const { data: pRow, error: pErr } = await supabase
         .from("profiles")
-        .select("id,loyalty_account_id,email,full_name")
+        .select("id,loyalty_account_id")
         .eq("id", selectedUser.id)
         .single();
+
       if (pErr) throw pErr;
       if (pRow?.loyalty_account_id) {
         setNotice(`⚠️ This user already has loyalty_account_id = ${pRow.loyalty_account_id}. Unlink first.`);
         return;
       }
 
-      // 4) Link member -> user
       const { error: linkErr } = await supabase
         .from("loyalty_members")
         .update({ user_id: selectedUser.id })
         .eq("id", selectedMember.id);
+
       if (linkErr) throw linkErr;
 
-      // 5) Link profile -> member
       const { error: profErr } = await supabase
         .from("profiles")
         .update({ loyalty_account_id: selectedMember.id })
         .eq("id", selectedUser.id);
 
       if (profErr) {
-        // rollback
         await supabase
           .from("loyalty_members")
           .update({ user_id: null })
@@ -346,7 +584,6 @@ export default function LoyaltyAdminPage() {
       }
 
       setNotice("✅ Linked successfully.");
-
       setSelectedUser(null);
       setSelectedMember(null);
       setUserQuery("");
@@ -363,7 +600,7 @@ export default function LoyaltyAdminPage() {
   }
 
   // =========================
-  // ✅ UNLINK (confirmed)
+  // UNLINK (clears BOTH tables)
   // =========================
   async function unlinkMemberConfirmed(member, { silent = false } = {}) {
     if (!member?.id) return;
@@ -371,7 +608,6 @@ export default function LoyaltyAdminPage() {
     const memberId = member.id;
     const userId = member.user_id;
 
-    // 1) Clear loyalty_members.user_id
     const { error: uErr } = await supabase
       .from("loyalty_members")
       .update({ user_id: null })
@@ -379,7 +615,6 @@ export default function LoyaltyAdminPage() {
 
     if (uErr) throw uErr;
 
-    // 2) Clear profiles.loyalty_account_id by user id (if known)
     if (userId) {
       const { error: pErr } = await supabase
         .from("profiles")
@@ -389,7 +624,6 @@ export default function LoyaltyAdminPage() {
       if (pErr) throw pErr;
     }
 
-    // 3) Safety cleanup: any profile pointing to this loyalty member id
     await supabase
       .from("profiles")
       .update({ loyalty_account_id: null })
@@ -402,7 +636,7 @@ export default function LoyaltyAdminPage() {
   }
 
   // =========================
-  // ✅ CONFIRM MODAL ACTION
+  // CONFIRM MODAL ACTION
   // =========================
   async function handleConfirmAction() {
     const { type, payload } = confirmModal;
@@ -416,6 +650,7 @@ export default function LoyaltyAdminPage() {
         await unlinkMemberConfirmed(payload);
         setNotice("✅ Unlinked successfully.");
       }
+
       if (type === "delete") {
         await deleteMemberConfirmed(payload);
       }
@@ -430,7 +665,7 @@ export default function LoyaltyAdminPage() {
   }
 
   // =========================
-  // UI Helpers
+  // UI: Member Card
   // =========================
   const MemberCard = ({ member }) => {
     const points = Number(member["Points balance"] || 0);
@@ -540,8 +775,7 @@ export default function LoyaltyAdminPage() {
           JUJA LOYALTY PROGRAM
         </h1>
         <p className="text-slate-400 text-xs md:text-sm mt-2">
-          ADMIN DASHBOARD
-          (Members: {members.length} • Linked: {linkedMembers.length} • Not linked: {unlinkedMembers.length})
+          ADMIN DASHBOARD (Members: {members.length} • Linked: {linkedMembersList.length} • Not linked: {unlinkedMembersList.length})
         </p>
 
         {notice && (
@@ -551,6 +785,180 @@ export default function LoyaltyAdminPage() {
         )}
       </header>
 
+      {/* ✅ LINK REQUESTS (PENDING) */}
+      <section className="bg-white border border-rose-100 rounded-2xl p-4 md:p-5">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm md:text-base font-semibold text-slate-800">
+            Link Requests (Pending)
+          </h2>
+
+          <button
+            onClick={fetchLinkRequests}
+            className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600 hover:bg-rose-50 hover:text-[#FC687D] active:scale-95"
+          >
+            Refresh
+          </button>
+        </div>
+
+        {loadingRequests ? (
+          <p className="text-sm text-slate-500 mt-3">Loading requests…</p>
+        ) : linkRequests.length === 0 ? (
+          <p className="text-sm text-slate-400 mt-3">No pending requests.</p>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {linkRequests.map((req) => {
+              const isBusy = requestBusyId === req.id;
+              const matched = req.matched_member_id ? memberById[req.matched_member_id] : null;
+
+              return (
+                <div key={req.id} className="border border-slate-200 rounded-2xl p-4 bg-white">
+                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-slate-800">
+                          {userLabel(req.user_id)}
+                        </p>
+                        <span className="text-slate-300">•</span>
+                        <p className="text-xs text-slate-500">
+                          {userSubLabel(req.user_id)}
+                        </p>
+                      </div>
+
+                      <div className="mt-2 text-xs text-slate-500 space-y-1">
+                        <div>
+                          Input Name: <span className="font-mono">{req.input_name || "—"}</span>
+                        </div>
+                        <div>
+                          Input Birthday: <span className="font-mono">{req.input_birthday || "—"}</span>
+                        </div>
+                        <div>
+                          Request ID: <span className="font-mono">{req.id}</span>
+                        </div>
+                      </div>
+
+                      {/* ✅ SHOW MATCHED MEMBER DETAILS FOR VERIFICATION */}
+                      {req.matched_member_id && (
+                        <div className="mt-3 bg-[#FFF9FA] border border-rose-100 rounded-xl p-3">
+                          <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
+                            Matched Member (Verify)
+                          </p>
+                          {matched ? (
+                            <div className="mt-2 text-sm text-slate-700 space-y-1">
+                              <div className="font-semibold text-slate-800">
+                                {matched.customer_name || matched["customer_name"] || "Unknown"} •{" "}
+                                <span className="font-mono">{matched.customer_code || matched["customer_code"] || matched.id}</span>
+                              </div>
+                              <div className="text-xs text-slate-600">
+                                Phone: <span className="font-mono">{matched["Phone"] || "—"}</span>{" "}
+                                • City: <span className="font-mono">{matched["City"] || "—"}</span>
+                              </div>
+                              <div className="text-xs text-slate-600">
+                                Birthday: <span className="font-mono">{matched["Note"] || "—"}</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-2 text-xs text-slate-500">
+                              matched_member_id: <span className="font-mono">{req.matched_member_id}</span>
+                              <div className="text-[11px] text-slate-400 mt-1">
+                                (Member details not found in loaded list — refresh members.)
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* ✅ TYPE-TO-SEARCH MEMBER WHEN NO MATCH */}
+                      {!req.matched_member_id && (
+                        <div className="mt-3">
+                          <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+                            Search Member to Link (type name/code/phone/city)
+                          </label>
+
+                          <input
+                            value={requestMemberQueryById[req.id] || ""}
+                            onChange={(e) =>
+                              setRequestMemberQueryById((prev) => ({
+                                ...prev,
+                                [req.id]: e.target.value,
+                              }))
+                            }
+                            placeholder="e.g. Maria / JUJA2026 / 09xx / QC"
+                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                          />
+
+                          {(requestMemberQueryById[req.id] || "").trim().length > 0 && (
+                            <div className="mt-2 border border-slate-200 rounded-xl overflow-hidden bg-white">
+                              {requestCandidateList(req.id).length === 0 ? (
+                                <div className="px-3 py-2 text-xs text-slate-500">
+                                  No matches among unlinked members.
+                                </div>
+                              ) : (
+                                requestCandidateList(req.id).map((m) => (
+                                  <button
+                                    key={m.id}
+                                    type="button"
+                                    onClick={() =>
+                                      setSelectedMemberByRequestId((prev) => ({
+                                        ...prev,
+                                        [req.id]: m.id,
+                                      }))
+                                    }
+                                    className={`w-full text-left px-3 py-2 text-sm hover:bg-rose-50 ${
+                                      selectedMemberByRequestId[req.id] === m.id
+                                        ? "bg-rose-50"
+                                        : ""
+                                    }`}
+                                  >
+                                    <div className="font-semibold text-slate-800">
+                                      {m.customer_name || m["customer_name"] || "Unknown"} •{" "}
+                                      <span className="font-mono">
+                                        {m.customer_code || m["customer_code"] || m.id}
+                                      </span>
+                                    </div>
+                                    <div className="text-xs text-slate-500">
+                                      Phone: {m["Phone"] || "—"} • City: {m["City"] || "—"} • Birthday: {m["Note"] || "—"}
+                                    </div>
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                          )}
+
+                          {selectedMemberByRequestId[req.id] && (
+                            <div className="mt-2 text-xs text-slate-600">
+                              Selected member id:{" "}
+                              <span className="font-mono">{selectedMemberByRequestId[req.id]}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        onClick={() => approveRequest(req)}
+                        disabled={isBusy}
+                        className="px-3 py-2 rounded-xl bg-[#FC687D] text-white text-xs font-bold disabled:opacity-60"
+                      >
+                        {isBusy ? "Working…" : "Approve"}
+                      </button>
+
+                      <button
+                        onClick={() => rejectRequest(req)}
+                        disabled={isBusy}
+                        className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-bold disabled:opacity-60"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
       {/* ✅ MANUAL LINK */}
       <section className="bg-white border border-rose-100 rounded-2xl p-4 md:p-5">
         <h2 className="text-sm md:text-base font-semibold text-slate-800">Manual Link</h2>
@@ -559,7 +967,6 @@ export default function LoyaltyAdminPage() {
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-          {/* USER SEARCH */}
           <div>
             <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
               Select User (type email)
@@ -604,7 +1011,6 @@ export default function LoyaltyAdminPage() {
             )}
           </div>
 
-          {/* MEMBER SEARCH */}
           <div>
             <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
               Select Loyalty Member (type name/code)
@@ -680,9 +1086,11 @@ export default function LoyaltyAdminPage() {
         </div>
       </section>
 
-      {/* LIST SEARCH */}
+      {/* SEARCH */}
       <div className="relative">
-        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
+          🔍
+        </span>
         <input
           type="text"
           placeholder="Search members by name, code, phone, user_id..."
@@ -692,39 +1100,39 @@ export default function LoyaltyAdminPage() {
         />
       </div>
 
-      {/* ✅ LINKED */}
+      {/* LINKED */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-slate-700">Linked Accounts</h2>
-          <span className="text-xs text-slate-400">{linkedMembers.length}</span>
+          <span className="text-xs text-slate-400">{linkedMembersList.length}</span>
         </div>
 
-        {linkedMembers.length === 0 ? (
+        {linkedMembersList.length === 0 ? (
           <div className="text-center py-8 text-slate-400 text-sm bg-white/60 border border-dashed border-slate-200 rounded-2xl">
             No linked members found
           </div>
         ) : (
-          linkedMembers.map((m) => <MemberCard key={m.id} member={m} />)
+          linkedMembersList.map((m) => <MemberCard key={m.id} member={m} />)
         )}
       </section>
 
-      {/* ✅ NOT LINKED */}
+      {/* NOT LINKED */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-slate-700">Not Linked</h2>
-          <span className="text-xs text-slate-400">{unlinkedMembers.length}</span>
+          <span className="text-xs text-slate-400">{unlinkedMembersList.length}</span>
         </div>
 
-        {unlinkedMembers.length === 0 ? (
+        {unlinkedMembersList.length === 0 ? (
           <div className="text-center py-8 text-slate-400 text-sm bg-white/60 border border-dashed border-slate-200 rounded-2xl">
             No unlinked members found
           </div>
         ) : (
-          unlinkedMembers.map((m) => <MemberCard key={m.id} member={m} />)
+          unlinkedMembersList.map((m) => <MemberCard key={m.id} member={m} />)
         )}
       </section>
 
-      {/* ✅ CONFIRM MODAL */}
+      {/* CONFIRM MODAL */}
       {confirmModal.open && (
         <div
           className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
@@ -792,7 +1200,9 @@ export default function LoyaltyAdminPage() {
           >
             <div className="flex justify-between items-start mb-5">
               <div>
-                <h3 className="text-xl md:text-2xl font-semibold text-slate-800">Edit Member</h3>
+                <h3 className="text-xl md:text-2xl font-semibold text-slate-800">
+                  Edit Member
+                </h3>
                 <p className="font-mono text-[10px] text-slate-400 mt-1">
                   {editingMember.customer_code || editingMember["customer_code"] || editingMember.id}
                 </p>
