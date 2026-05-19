@@ -1,4 +1,3 @@
-// app/customer/CustomerClient.jsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -58,36 +57,34 @@ function TabBar({ tab, setTab }) {
 }
 
 /* ─────────────────────────────────────────────
-  UI: Home Tab (always shows something)
+  UI: Home Tab
 ───────────────────────────────────────────── */
 function HomeTab({ member, user, setTab }) {
   const pts = parseFloat(member?.["Points balance"] ?? 0) || 0;
   const visits = parseFloat(member?.["Total visits"] ?? 0) || 0;
 
   return (
-        <div className="flex items-center gap-3">
-    <Link href="/" className="active:scale-95 transition">
-        <img
-        src={LOGO}
-        alt="Juja Logo"
-        className="h-8 w-auto object-contain"
-        />
-    </Link>
+    <div className="space-y-4 animate-in fade-in duration-300">
+      <div className="flex items-center gap-3">
+        <Link href="/" className="active:scale-95 transition">
+          <img src={LOGO} alt="Juja" className="h-8 w-auto object-contain" />
+        </Link>
 
-    <div className="leading-tight">
-        <p className="text-[10px] uppercase tracking-widest text-slate-400">
-        Juja Brew &amp; Bites
-        </p>
-        <p className="text-[12px] text-slate-700 font-semibold">
-        {user?.email || "Guest"}
-        </p>
-    </div>
-    </div>
+        <div className="leading-tight">
+          <p className="text-[10px] uppercase tracking-widest text-slate-400">
+            Juja Brew &amp; Bites
+          </p>
+          <p className="text-[12px] text-slate-700 font-semibold">
+            {user?.email || "Guest"}
+          </p>
+        </div>
+      </div>
 
       <div className="bg-white rounded-2xl p-5 border border-rose-100 shadow-sm">
         <p className="text-[#FC687D] text-[10px] uppercase tracking-widest">
           Welcome
         </p>
+
         <h2 className="text-2xl font-semibold text-slate-800 mt-1">
           {member?.customer_name || user?.user_metadata?.full_name || "Coffee Lover"}
         </h2>
@@ -99,7 +96,9 @@ function HomeTab({ member, user, setTab }) {
               Points
             </p>
           </div>
+
           <div className="w-px bg-rose-100" />
+
           <div>
             <p className="text-slate-800 text-xl leading-none">{visits.toFixed(0)}</p>
             <p className="text-slate-500 text-[10px] uppercase tracking-widest mt-1">
@@ -136,7 +135,7 @@ function HomeTab({ member, user, setTab }) {
 }
 
 /* ─────────────────────────────────────────────
-  UI: Promo Tab (safe)
+  UI: Promo Tab
 ───────────────────────────────────────────── */
 function PromoTab({ setTab, setAppliedPromo }) {
   const [promos, setPromos] = useState([]);
@@ -144,6 +143,7 @@ function PromoTab({ setTab, setAppliedPromo }) {
 
   useEffect(() => {
     let mounted = true;
+
     async function fetchPromos() {
       setLoadingPromos(true);
       const { data, error } = await supabase
@@ -151,11 +151,12 @@ function PromoTab({ setTab, setAppliedPromo }) {
         .select("*")
         .eq("is_active", true);
 
-      if (mounted) {
-        if (!error) setPromos(data || []);
-        setLoadingPromos(false);
-      }
+      if (!mounted) return;
+
+      if (!error) setPromos(data || []);
+      setLoadingPromos(false);
     }
+
     fetchPromos();
     return () => {
       mounted = false;
@@ -178,9 +179,13 @@ function PromoTab({ setTab, setAppliedPromo }) {
         </div>
       ) : (
         promos.map((promo) => (
-          <div key={promo.id} className="bg-white border border-slate-200 rounded-2xl p-4">
+          <div
+            key={promo.id}
+            className="bg-white border border-slate-200 rounded-2xl p-4"
+          >
             <p className="font-semibold text-slate-800">{promo.title}</p>
             <p className="text-xs text-slate-500 mt-1">{promo.description}</p>
+
             <button
               onClick={() => {
                 setAppliedPromo(promo);
@@ -198,11 +203,14 @@ function PromoTab({ setTab, setAppliedPromo }) {
 }
 
 /* ─────────────────────────────────────────────
-  UI: Loyalty Tab (safe join)
+  UI: Loyalty Tab
 ───────────────────────────────────────────── */
 function LoyaltyTab({ member, setMember, user }) {
   const [joining, setJoining] = useState(false);
-  const pts = useMemo(() => parseFloat(member?.["Points balance"] ?? 0) || 0, [member]);
+  const pts = useMemo(
+    () => parseFloat(member?.["Points balance"] ?? 0) || 0,
+    [member]
+  );
 
   const join = async () => {
     if (!user?.id) return;
@@ -310,7 +318,6 @@ export default function CustomerClient() {
   const [tab, setTab] = useState("home");
   const [appliedPromo, setAppliedPromo] = useState(null);
 
-  // ✅ Boot / session check (prevents blank screen)
   useEffect(() => {
     let mounted = true;
 
@@ -320,16 +327,13 @@ export default function CustomerClient() {
         const session = data?.session;
 
         if (!session) {
-          // no session: go login
           router.replace("/login");
           return;
         }
 
         if (!mounted) return;
-
         setUser(session.user);
 
-        // fetch member profile (safe)
         const { data: mData } = await supabase
           .from("loyalty_members")
           .select("*")
@@ -346,7 +350,6 @@ export default function CustomerClient() {
 
     boot();
 
-    // listen auth changes
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) router.replace("/login");
     });
@@ -357,7 +360,7 @@ export default function CustomerClient() {
     };
   }, [router]);
 
-  // ✅ Realtime update for this user's member row (optional, safe)
+  // Optional realtime updates
   useEffect(() => {
     if (!user?.id) return;
 
@@ -382,7 +385,6 @@ export default function CustomerClient() {
     router.replace("/login");
   };
 
-  // ✅ Always show something while booting
   if (booting) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#FFF5F7]">
@@ -391,7 +393,6 @@ export default function CustomerClient() {
     );
   }
 
-  // If session missing, the router will redirect; still show fallback to avoid blank
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#FFF5F7] p-6 text-center">
@@ -408,7 +409,6 @@ export default function CustomerClient() {
       <main className="max-w-6xl mx-auto px-4 py-4">
         {tab === "home" && <HomeTab member={member} user={user} setTab={setTab} />}
 
-        {/* Replace with your full OrderTab later (keep it simple to avoid hook issues) */}
         {tab === "order" && (
           <div className="bg-white rounded-2xl border border-rose-50 shadow-sm p-6">
             <p className="text-slate-800 font-semibold">Order</p>
@@ -422,9 +422,13 @@ export default function CustomerClient() {
           </div>
         )}
 
-        {tab === "promo" && <PromoTab setTab={setTab} setAppliedPromo={setAppliedPromo} />}
+        {tab === "promo" && (
+          <PromoTab setTab={setTab} setAppliedPromo={setAppliedPromo} />
+        )}
 
-        {tab === "loyalty" && <LoyaltyTab member={member} setMember={setMember} user={user} />}
+        {tab === "loyalty" && (
+          <LoyaltyTab member={member} setMember={setMember} user={user} />
+        )}
 
         {tab === "booking" && <BookingTab user={user} member={member} />}
 
@@ -435,4 +439,4 @@ export default function CustomerClient() {
     </div>
   );
 }
-```
+``
