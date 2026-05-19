@@ -65,16 +65,24 @@ function HomeTab({ member, user, setTab }) {
   const visits = parseFloat(member?.["Total visits"] ?? 0) || 0;
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-300">
-      <div className="flex items-center gap-3">
-        <Link href="/" className="active:scale-95 transition8 w-auto object-contain"         <p className="text-[10px] uppercase tracking-widest text-slate-400">
-            Juja Brew &amp; Bites
-          </p>
-          <p className="text-[12px] text-slate-700 font-semibold">
-            {user?.email || "Guest"}
-          </p>
-        </div>
-      </div>
+        <div className="flex items-center gap-3">
+    <Link href="/" className="active:scale-95 transition">
+        <img
+        src={LOGO}
+        alt="Juja Logo"
+        className="h-8 w-auto object-contain"
+        />
+    </Link>
+
+    <div className="leading-tight">
+        <p className="text-[10px] uppercase tracking-widest text-slate-400">
+        Juja Brew &amp; Bites
+        </p>
+        <p className="text-[12px] text-slate-700 font-semibold">
+        {user?.email || "Guest"}
+        </p>
+    </div>
+    </div>
 
       <div className="bg-white rounded-2xl p-5 border border-rose-100 shadow-sm">
         <p className="text-[#FC687D] text-[10px] uppercase tracking-widest">
