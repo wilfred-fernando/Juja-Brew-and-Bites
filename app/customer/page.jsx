@@ -339,6 +339,223 @@ function HomeTab({ member, user, setTab }) {
     </div>
   );
 }
+// ==========================================
+// Customer Order: Add To Cart Modal (Variants + Instructions)
+// (Adapted from POS patterns) [1](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s2991804d63884457b61db2c10990a103)
+// ==========================================
+function AddToCartModal({ item, onClose, onAdd }) {
+  const [quantity, setQuantity] = useState(1);
+  const [selections, setSelections] = useState({});
+  const [instructions, setInstructions] = useState("");
+
+  useEffect(() => {
+    if (!item) return;
+    const source = item.editData || item;
+    setQuantity(source.quantity || 1);
+    setInstructions(source.instructions || "");
+
+    // hydrate selections if editing
+    const selected = {};
+    if (source.variantDetails && item.variants) {
+      source.variantDetails.split(", ").forEach((name) => {
+        item.variants.forEach((g) => {
+          const match = g.options?.find((o) => o.name === name);
+          if (match) {
+            selected[g.id] = selected[g.id] || [];
+            selected[g.id].push(match);
+          }
+        });
+      });
+    }
+    setSelections(selected);
+  }, [item]);
+
+  if (!item) return null;
+
+  const toggleOption = (group, opt) => {
+    const current = selections[group.id] || [];
+    if (!group.isMultiSelect) {
+      setSelections({ ...selections, [group.id]: [opt] });
+    } else {
+      const exists = current.find((o) => o.id === opt.id);
+      setSelections({
+        ...selections,
+        [group.id]: exists ? current.filter((o) => o.id !== opt.id) : [...current, opt],
+      });
+    }
+  };
+
+  const variantPrice =
+    Object.values(selections)
+      .flat()
+      .reduce((sum, o) => sum + (Number(o.price) || 0), 0) || 0;
+
+  const unitPrice = (Number(item.price) || 0) + variantPrice;
+  const variantDetails = Object.values(selections)
+    .flat()
+    .map((o) => o.name)
+    .join(", ");
+
+  const canAdd =
+    (item.variants || []).every((g) => !g.isRequired || (selections[g.id] || []).length > 0);
+
+  return (
+    <div
+      className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md bg-white rounded-t-[26px] md:rounded-[30px] p-5 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-slate-400">Add to Cart</p>
+            <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">{item.name}</h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Base ₱{Number(item.price || 0).toFixed(0)}
+              {variantPrice > 0 ? ` • +₱${variantPrice.toFixed(0)} variants` : ""}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Variants (optional) */}
+        {Array.isArray(item.variants) && item.variants.length > 0 && (
+          <div className="mt-4 space-y-4">
+            {item.variants.map((g) => (
+              <div key={g.id} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-slate-700">
+                    {g.name} {g.isRequired ? <span className="text-rose-500">*</span> : null}
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    {g.isMultiSelect ? "Multi-select" : "Single-select"}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  {(g.options || []).map((o) => {
+                    const sel = (selections[g.id] || []).find((x) => x.id === o.id);
+                    return (
+                      <button
+                        key={o.id}
+                        type="button"
+                        onClick={() => toggleOption(g, o)}
+                        className={`w-full flex items-center justify-between p-3 rounded-xl border text-sm transition-all ${
+                          sel ? "border-rose-300 bg-rose-50/40" : "border-slate-200 bg-white"
+                        }`}
+                      >
+                        <span className="font-medium text-slate-800">{o.name}</span>
+                        <span className="text-slate-500 text-xs">
+                          {Number(o.price) > 0 ? `+₱${Number(o.price).toFixed(0)}` : "—"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Instructions */}
+        <div className="mt-4">
+          <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+            Special Instructions
+          </label>
+          <textarea
+            value={instructions}
+            onChange={(e) => setInstructions(e.target.value)}
+            placeholder="Add specific notes..."
+            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none h-20 resize-none focus:bg-slate-100/50 transition-all"
+          />
+        </div>
+
+        {/* Quantity + Add */}
+        <div className="mt-4 flex items-center gap-3">
+          <div className="flex items-center w-36 h-12 bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <button
+              onClick={() => setQuantity(Math.max(1, quantity - 1))}
+              className="w-12 h-full text-xl text-slate-400 hover:text-rose-500 transition-colors"
+            >
+              −
+            </button>
+            <div className="flex-1 text-center font-bold text-slate-800">{quantity}</div>
+            <button
+              onClick={() => setQuantity(quantity + 1)}
+              className="w-12 h-full text-xl text-slate-400 hover:text-rose-500 transition-colors"
+            >
+              +
+            </button>
+          </div>
+
+          <button
+            disabled={!canAdd}
+            onClick={() =>
+              onAdd({
+                id: item.id,
+                name: item.name,
+                unitPrice,
+                quantity,
+                variantDetails,
+                instructions,
+                cartItemId: item.editData?.cartItemId || Date.now(),
+              })
+            }
+            className="flex-1 py-3 rounded-xl text-white text-sm font-semibold shadow-lg transition-all active:scale-[0.98] disabled:opacity-60"
+            style={{ backgroundColor: "#FC687D" }}
+          >
+            {canAdd ? `Add • ₱${(unitPrice * quantity).toFixed(0)}` : "Select required options"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// Customer Order: Confirm Modal (Clear cart)
+// (Adapted from POS patterns) [1](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s2991804d63884457b61db2c10990a103)
+// ==========================================
+function ConfirmModal({ title, message, onConfirm, onCancel }) {
+  return (
+    <div
+      className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-md bg-white rounded-t-[26px] md:rounded-[30px] p-5 md:p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="text-[10px] uppercase tracking-widest text-slate-400">Confirmation</p>
+        <h3 className="text-lg font-semibold text-slate-800 mt-1">{title}</h3>
+        <p className="text-sm text-slate-600 mt-3">{message}</p>
+
+        <div className="grid grid-cols-2 gap-2 mt-5 pt-4 border-t border-slate-100">
+          <button
+            onClick={onCancel}
+            className="w-full py-3 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold active:scale-95"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="w-full py-3 rounded-xl bg-[#FC687D] text-white text-xs font-bold active:scale-95"
+          >
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ──────────────────────────────────────────────────────────────
    Order Tab (placeholder)
@@ -347,17 +564,23 @@ function HomeTab({ member, user, setTab }) {
 function OrderTab({ user }) {
   const [items, setItems] = useState([]);
   const [cats, setCategories] = useState([]);
-  const [activeTab, setActiveTab] = useState("");
+  const [activeTab, setActiveTab] = useState("ALL");
   const [itemSearch, setItemSearch] = useState("");
-  const [cart, setCart] = useState({});
+
+  // POS-like cart is an array of line items [1](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s2991804d63884457b61db2c10990a103)
+  const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Modals / drawers
+  const [selectedItemForModal, setSelectedItemForModal] = useState(null);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   useEffect(() => {
     async function fetchMenu() {
       setLoading(true);
 
       const [itemRes, catRes] = await Promise.all([
-        // ✅ public menu: show only available + NOT pos-only
         supabase
           .from("menu_items")
           .select("*")
@@ -365,7 +588,6 @@ function OrderTab({ user }) {
           .eq("pos_only", false)
           .order("name"),
 
-        // ✅ public menu: show only active + NOT pos-only, sorted alphabetically
         supabase
           .from("menu_categories")
           .select("*")
@@ -374,17 +596,15 @@ function OrderTab({ user }) {
           .order("name", { ascending: true }),
       ]);
 
-      if (itemRes.data) setItems(itemRes.data);
+      const itemsData = itemRes.data || [];
+      const catsData = catRes.data || [];
 
-      if (catRes.data) {
-        // extra safety: sort client-side too (alphabetical)
-        const sortedCats = [...catRes.data].sort((a, b) =>
-          (a.name || "").localeCompare(b.name || "")
-        );
-        setCategories(sortedCats);
+      setItems(itemsData);
 
-        if (sortedCats.length > 0) setActiveTab(sortedCats[0].name);
-      }
+      const sortedCats = [...catsData].sort((a, b) =>
+        (a.name || "").localeCompare(b.name || "")
+      );
+      setCategories(sortedCats);
 
       setLoading(false);
     }
@@ -392,33 +612,65 @@ function OrderTab({ user }) {
     fetchMenu();
   }, []);
 
-  // ✅ Search should be for ALL items:
-  // - if itemSearch has text → search across all items (ignore category)
-  // - if itemSearch is empty → show items only from selected category
   const q = itemSearch.trim().toLowerCase();
-  const filtered = (q
-    ? items.filter((i) => (i.name || "").toLowerCase().includes(q))
-    : items.filter((i) => i.category === activeTab)
+
+  const filteredItems = useMemo(() => {
+    return items
+      .filter((i) => (activeTab === "ALL" ? true : i.category === activeTab))
+      .filter((i) => (q ? (i.name || "").toLowerCase().includes(q) : true));
+  }, [items, activeTab, q]);
+
+  const subtotal = useMemo(
+    () => cart.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0),
+    [cart]
   );
 
-  const cartArr = Object.values(cart);
-  const total = cartArr.reduce((s, e) => s + e.price * e.qty, 0);
+  const itemCount = useMemo(
+    () => cart.reduce((sum, i) => sum + i.quantity, 0),
+    [cart]
+  );
 
-  const add = (item) =>
-    setCart((c) => ({
-      ...c,
-      [item.id]: c[item.id]
-        ? { ...c[item.id], qty: c[item.id].qty + 1 }
-        : { id: item.id, name: item.name, price: item.price, qty: 1 },
-    }));
-
-  const remove = (id) =>
-    setCart((c) => {
-      const n = { ...c };
-      if (n[id]?.qty > 1) n[id] = { ...n[id], qty: n[id].qty - 1 };
-      else delete n[id];
-      return n;
+  // Add/update line item (supports edits)
+  const onAddToCart = (line) => {
+    setCart((prev) => {
+      const editIndex = selectedItemForModal?.editIndex;
+      if (editIndex !== undefined && editIndex !== null) {
+        const updated = [...prev];
+        updated[editIndex] = line;
+        return updated;
+      }
+      return [...prev, line];
     });
+    setSelectedItemForModal(null);
+  };
+
+  const removeLine = (cartItemId) => {
+    setCart((prev) => prev.filter((x) => x.cartItemId !== cartItemId));
+  };
+
+  const changeQty = (cartItemId, delta) => {
+    setCart((prev) =>
+      prev
+        .map((x) =>
+          x.cartItemId === cartItemId
+            ? { ...x, quantity: Math.max(1, x.quantity + delta) }
+            : x
+        )
+        .filter(Boolean)
+    );
+  };
+
+  const clearCart = () => {
+    setCart([]);
+    setConfirmClear(false);
+    setCartOpen(false);
+  };
+
+  const checkout = async () => {
+    // You can wire this to an orders table later.
+    alert("Checkout submitted! Connect to your order/payment flow next.");
+    setCartOpen(false);
+  };
 
   if (loading) {
     return (
@@ -428,142 +680,252 @@ function OrderTab({ user }) {
     );
   }
 
-  const catsSorted = [...cats].sort((a, b) =>
-    (a.name || "").localeCompare(b.name || "")
-  );
-
   return (
     <div className="space-y-4">
-      {/* Controls */}
-      <div className="bg-white border border-rose-50 rounded-2xl p-3 shadow-sm">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {/* Category Dropdown */}
+      {/* Header Controls (POS-inspired) [1](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s2991804d63884457b61db2c10990a103) */}
+      <div className="bg-white border border-rose-50 rounded-2xl p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
           <div>
-            <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">
-              Category
-            </label>
+            <p className="text-[10px] uppercase tracking-widest text-slate-400">Menu</p>
+            <p className="text-base font-semibold text-slate-800">Order</p>
+          </div>
+
+          <div className="flex gap-2">
             <select
               value={activeTab}
               onChange={(e) => setActiveTab(e.target.value)}
-              disabled={q.length > 0} // optional: lock category when searching globally
-              className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all disabled:opacity-60"
+              className="bg-slate-50 px-3 py-2 rounded-xl text-xs outline-none border border-slate-200"
             >
-              {catsSorted.map((cat) => (
+              <option value="ALL">All Categories</option>
+              {cats.map((cat) => (
                 <option key={cat.id} value={cat.name}>
                   {cat.name}
                 </option>
               ))}
             </select>
 
-            {/* optional helper text */}
-            {q.length > 0 && (
-              <p className="text-[10px] text-slate-400 mt-1">
-                Searching all items (category filter is ignored)
-              </p>
-            )}
-          </div>
-
-          {/* Item Search (ALL items) */}
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">
-              Search Item (All)
-            </label>
             <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">
                 🔍
               </span>
               <input
-                type="text"
                 value={itemSearch}
                 onChange={(e) => setItemSearch(e.target.value)}
-                placeholder="Search across all items..."
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
+                placeholder="Search items..."
+                className="pl-8 pr-3 py-2 bg-slate-50 rounded-xl text-xs outline-none border border-slate-200 w-[160px]"
               />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Items Grid */}
+      {/* Product Grid (POS luxury cards) [1](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s2991804d63884457b61db2c10990a103) */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        {filtered.map((item) => {
-          const inCart = cart[item.id]?.qty || 0;
-
-          return (
-            <div key={item.id} className="bg-white border border-rose-50 rounded-2xl p-3 shadow-sm">
-              <div className="w-full h-24 rounded-xl bg-[#FFF9FA] border border-rose-50 flex items-center justify-center overflow-hidden mb-2">
-                {item.image_url ? (
-                  <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-2xl text-rose-200/50">📷</span>
-                )}
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-xs font-bold text-slate-800 leading-tight">
-                  {item.name}
-                </p>
-
-                {/* show category when searching globally */}
-                {q.length > 0 && (
-                  <p className="text-[10px] uppercase tracking-wider text-slate-400">
-                    {item.category}
-                  </p>
-                )}
-
-                <p className="text-xs font-semibold text-slate-500">₱{item.price}</p>
-              </div>
-
-              <div className="mt-3">
-                {inCart > 0 ? (
-                  <div className="flex items-center justify-between gap-2">
-                    <button
-                      onClick={() => remove(item.id)}
-                      className="w-8 h-8 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-600 font-bold shadow-sm active:scale-95"
-                    >
-                      −
-                    </button>
-
-                    <div className="flex-1 text-center text-sm font-bold text-slate-800">
-                      {inCart}
-                    </div>
-
-                    <button
-                      onClick={() => add(item)}
-                      className="w-8 h-8 rounded-xl bg-[#FC687D] flex items-center justify-center text-white font-bold shadow-sm active:scale-95"
-                    >
-                      +
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => add(item)}
-                    className="w-full py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest text-[#FC687D] bg-[#FFF9FA] border border-rose-100 hover:bg-[#FC687D] hover:text-white transition-all active:scale-95"
-                  >
-                    Add to Cart
-                  </button>
-                )}
-              </div>
+        {filteredItems.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setSelectedItemForModal(item)}
+            className="group relative flex flex-col p-3 bg-white border border-slate-100 rounded-2xl cursor-pointer transition-all text-left hover:-translate-y-[6px] hover:shadow-[0_20px_40px_rgba(252,104,125,0.12)]"
+            style={{
+              transitionTimingFunction: "cubic-bezier(0.25,0.46,0.45,0.94)",
+              transitionDuration: "0.35s",
+            }}
+          >
+            <div className="w-full h-24 rounded-xl bg-[#FFF9FA] border border-rose-50 flex items-center justify-center overflow-hidden">
+              {item.image_url ? (
+                <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-2xl text-rose-200/50">📷</span>
+              )}
             </div>
-          );
-        })}
+
+            <div className="mt-2 space-y-1">
+              <p className="text-[10px] uppercase tracking-wider text-slate-400">
+                {item.category || "General"}
+              </p>
+              <p className="text-sm font-semibold text-slate-800 leading-tight">{item.name}</p>
+              <p className="text-sm font-bold text-slate-700">
+                ₱{Number(item.price || 0).toFixed(0)}
+              </p>
+            </div>
+          </button>
+        ))}
       </div>
 
-      {/* Optional cart total */}
-      {cartArr.length > 0 && (
-        <div className="sticky bottom-3 bg-slate-900 text-white rounded-2xl p-4 shadow-2xl flex items-center justify-between">
+      {/* Floating Cart Button (like POS mobile cart) [1](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s2991804d63884457b61db2c10990a103) */}
+      {cart.length > 0 && !cartOpen && (
+        <button
+          onClick={() => setCartOpen(true)}
+          className="fixed bottom-[88px] left-4 right-4 md:left-auto md:right-6 md:w-[360px] z-40 bg-slate-900 text-white flex items-center justify-between px-5 py-4 rounded-2xl shadow-2xl active:scale-[0.98] transition-all"
+        >
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-slate-300">Cart Total</p>
-            <p className="text-lg font-bold">₱{total.toFixed(0)}</p>
+            <p className="text-[10px] uppercase tracking-widest text-slate-300">Current Cart</p>
+            <p className="text-sm font-semibold">{itemCount} item(s)</p>
           </div>
-          <p className="text-sm font-semibold">
-            {cartArr.reduce((s, x) => s + x.qty, 0)} item(s)
-          </p>
+          <div className="text-right">
+            <p className="text-lg font-bold">₱{subtotal.toFixed(0)}</p>
+            <p className="text-xs text-slate-300">🛒 View</p>
+          </div>
+        </button>
+      )}
+
+      {/* Cart Drawer (ticket sidebar vibe) [1](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s2991804d63884457b61db2c10990a103) */}
+      {cartOpen && (
+        <div
+          className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
+          onClick={() => setCartOpen(false)}
+        >
+          <div
+            className="w-full max-w-md bg-white rounded-t-[26px] md:rounded-[30px] p-5 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-slate-400">Cart</p>
+                <h3 className="text-lg font-semibold text-slate-800 mt-1">
+                  ₱{subtotal.toFixed(0)} • {itemCount} item(s)
+                </h3>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConfirmClear(true)}
+                  className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500"
+                  title="Clear cart"
+                >
+                  ✕
+                </button>
+                <button
+                  onClick={() => setCartOpen(false)}
+                  className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500"
+                  aria-label="Close"
+                >
+                  ↩
+                </button>
+              </div>
+            </div>
+
+            {cart.length === 0 ? (
+              <div className="text-center py-10 text-slate-400 border border-dashed border-slate-200 rounded-2xl">
+                Empty cart
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {cart.map((line, idx) => (
+                  <button
+                    key={line.cartItemId}
+                    onClick={() => {
+                      const base = items.find((i) => i.id === line.id) || {};
+                      setSelectedItemForModal({ ...base, editData: line, editIndex: idx });
+                    }}
+                    className="w-full text-left border border-slate-200 rounded-2xl p-3 hover:bg-slate-50/60 transition"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-800 truncate">
+                          {line.name} <span className="text-slate-400">×{line.quantity}</span>
+                        </p>
+
+                        {line.variantDetails ? (
+                          <p className="text-[11px] text-slate-500 mt-1">{line.variantDetails}</p>
+                        ) : null}
+
+                        {line.instructions ? (
+                          <p className="text-[11px] text-slate-400 mt-1">
+                            Note: {line.instructions}
+                          </p>
+                        ) : null}
+
+                        <p className="text-xs text-slate-500 mt-2">
+                          ₱{Number(line.unitPrice).toFixed(0)} each • Subtotal ₱
+                          {(line.unitPrice * line.quantity).toFixed(0)}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col items-end gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeLine(line.cartItemId);
+                          }}
+                          className="text-[10px] font-bold uppercase tracking-widest text-red-600 bg-red-50 border border-red-100 px-3 py-2 rounded-xl active:scale-95"
+                        >
+                          Remove
+                        </button>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              changeQty(line.cartItemId, -1);
+                            }}
+                            className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-700 font-bold active:scale-95"
+                          >
+                            −
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              changeQty(line.cartItemId, +1);
+                            }}
+                            className="w-9 h-9 rounded-xl bg-[#FC687D] flex items-center justify-center text-white font-bold active:scale-95"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="mt-5 pt-4 border-t border-slate-100 space-y-2">
+              <button
+                onClick={checkout}
+                disabled={cart.length === 0}
+                className="w-full py-3 rounded-xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-widest active:scale-95 disabled:opacity-60"
+              >
+                Checkout
+              </button>
+
+              <button
+                onClick={() => setConfirmClear(true)}
+                disabled={cart.length === 0}
+                className="w-full py-3 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-widest active:scale-95 disabled:opacity-60"
+              >
+                Clear Cart
+              </button>
+            </div>
+          </div>
         </div>
+      )}
+
+      {/* Modals */}
+      {selectedItemForModal && (
+        <AddToCartModal
+          item={selectedItemForModal}
+          onClose={() => setSelectedItemForModal(null)}
+          onAdd={onAddToCart}
+        />
+      )}
+
+      {confirmClear && (
+        <ConfirmModal
+          title="Clear cart?"
+          message="This will remove all items from your cart."
+          onCancel={() => setConfirmClear(false)}
+          onConfirm={clearCart}
+        />
       )}
     </div>
   );
 }
+
 
 /* ──────────────────────────────────────────────────────────────
    ✅ Loyalty Tab (Total + Available Points)
