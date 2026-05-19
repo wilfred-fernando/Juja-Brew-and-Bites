@@ -11,6 +11,7 @@ const BUFFER_HOURS = 1; // 1 hour buffer before & after
 const MAX_EXTENSION_HOURS = 2; // extension max 2 hours
 const MIN_ADVANCE_HOURS = 5; // must be at least 5 hours in advance
 const RESCHEDULE_MIN_DAYS = 2; // update/reschedule allowed only if >= 2 days before start
+const [linkLoading, setLinkLoading] = useState(null);
 
 // ✅ NEW BASE DURATION: 2 hours 59 minutes
 const BASE_BOOKING_MINUTES = 2 * 60 + 59; // 179 mins
@@ -419,6 +420,7 @@ export default function BookingForm({ user, member }) {
 
     fetchBookingsForDate();
   }, [dateISO]);
+  
 
   const slotHours = useMemo(() => buildSlotHours(), []);
 
