@@ -60,7 +60,7 @@ useEffect(() => {
       console.error("Admin check error:", e);
       router.replace("/admin/login");
     } finally {
-      if (mounted) setLoading(false); IMPORTANT
+      if (mounted) setLoading(false); ! IMPORTANT
     }
   }
 
