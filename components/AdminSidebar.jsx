@@ -62,6 +62,7 @@ export default function AdminSidebar({
         <nav className="p-4 space-y-2">
           {MENU.map((item) => {
             const isActive = pathname.startsWith(item.path);
+            const isDashboard = item.path === "/admin";
 
             return (
               <Link
@@ -69,9 +70,11 @@ export default function AdminSidebar({
                 href={item.path}
                 onClick={() => setMobileOpen(false)}
                 className={`flex gap-3 p-3 rounded-lg ${
-                  isActive
-                    ? "bg-[#FC687D] text-white"
-                    : "text-slate-600 hover:bg-rose-50"
+                  isActive 
+                    ? isDashboard
+                    ? "text-[#FC687D]" // ✅ NO BACKGROUND
+                    : "bg-[#FC687D] text-white"
+                    : "text-slate-600 hover:bg-rose-50 hover:text-[#FC687D]"
                 }`}
               >
                 <span>{item.icon}</span>

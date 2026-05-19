@@ -6,6 +6,21 @@ import { supabase } from "@/lib/supabase";
 import { usePortalAuth } from "@/components/usePortalAuth";
 import AdminSidebar from "@/components/AdminSidebar";
 
+{/* MOBILE HEADER */}
+<div className="md:hidden flex items-center justify-between p-4 bg-white border-b sticky top-0 z-40">
+
+  {/* OPEN SIDEBAR BUTTON */}
+  <button
+    onClick={() => setMobileOpen(true)}
+    className="text-2xl"
+  >
+    ☰
+  </button>
+
+  <span className="font-bold text-sm">Admin Panel</span>
+
+</div>
+``
 export default function AdminLayout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
