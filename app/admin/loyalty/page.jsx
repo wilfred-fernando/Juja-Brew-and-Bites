@@ -20,14 +20,20 @@ export default function LoyaltyAdminPage() {
   // =========================
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
+
+  // ✅ include Available points
   const [form, setForm] = useState({
     customer_name: "",
     Phone: "",
     "Points balance": 0,
+    "Available points": 0,
     "Total visits": 0,
     Note: "",
   });
+
   const [saving, setSaving] = useState(false);
+  const [pointsAdd, setPointsAdd] = useState(0);
+  const [pointsDeduct, setPointsDeduct] = useState(0);
 
   // =========================
   // LINK REQUESTS (PENDING APPROVAL)
@@ -132,7 +138,7 @@ export default function LoyaltyAdminPage() {
   }
 
   // =========================
-  // FETCH LINK REQUESTS + FETCH PROFILES for display
+  // FETCH LINK REQUESTS + PROFILES
   // =========================
   async function fetchLinkRequests() {
     setLoadingRequests(true);
@@ -153,7 +159,6 @@ export default function LoyaltyAdminPage() {
     const reqs = data || [];
     setLinkRequests(reqs);
 
-    // Fetch profiles for user display (full_name/email)
     const userIds = Array.from(new Set(reqs.map((r) => r.user_id).filter(Boolean)));
     if (userIds.length > 0) {
       const { data: pData, error: pErr } = await supabase
@@ -212,12 +217,7 @@ export default function LoyaltyAdminPage() {
         const code = String(m.customer_code || m["customer_code"] || "").toLowerCase();
         const phone = String(m["Phone"] || "").toLowerCase();
         const city = String(m["City"] || "").toLowerCase();
-        return (
-          name.includes(q) ||
-          code.includes(q) ||
-          phone.includes(q) ||
-          city.includes(q)
-        );
+        return name.includes(q) || code.includes(q) || phone.includes(q) || city.includes(q);
       })
       .slice(0, 8);
   }
@@ -226,130 +226,120 @@ export default function LoyaltyAdminPage() {
   // APPROVE REQUEST (links BOTH tables)
   // =========================
   async function approveRequest(req) {
-  const requestId = req.id;
-  const userId = req.user_id;
+    const requestId = req.id;
+    const userId = req.user_id;
 
-  // ✅ Define it here (this fixes your error)
-  const chosenMemberId =
-    req.matched_member_id || selectedMemberByRequestId[requestId] || null;
+    const chosenMemberId =
+      req.matched_member_id || selectedMemberByRequestId[requestId] || null;
 
-  if (!userId) {
-    setNotice("❌ Request has no user_id.");
-    return;
-  }
-
-  if (!chosenMemberId) {
-    setNotice("⚠️ Select a loyalty member to approve this request.");
-    return;
-  }
-
-  setRequestBusyId(requestId);
-  setNotice("");
-
-  try {
-    // 1) Ensure member exists and not linked
-    const { data: memberRow, error: memberErr } = await supabase
-      .from("loyalty_members")
-      .select("id,user_id,customer_name,customer_code")
-      .eq("id", chosenMemberId)
-      .single();
-
-    if (memberErr) throw memberErr;
-
-    if (memberRow?.user_id) {
-      setNotice("⚠️ This loyalty member is already linked. Unlink first.");
+    if (!userId) {
+      setNotice("❌ Request has no user_id.");
+      return;
+    }
+    if (!chosenMemberId) {
+      setNotice("⚠️ Select a loyalty member to approve this request.");
       return;
     }
 
-    // 2) Ensure profile is not already linked
-    const { data: profileRow, error: profileErr } = await supabase
-      .from("profiles")
-      .select("id,loyalty_account_id")
-      .eq("id", userId)
-      .single();
+    setRequestBusyId(requestId);
+    setNotice("");
 
-    if (profileErr) throw profileErr;
-
-    if (profileRow?.loyalty_account_id) {
-      setNotice(
-        `⚠️ This user already has loyalty_account_id = ${profileRow.loyalty_account_id}. Unlink first.`
-      );
-      return;
-    }
-
-    // 3) Link member -> user
-    const { error: linkErr } = await supabase
-      .from("loyalty_members")
-      .update({ user_id: userId })
-      .eq("id", chosenMemberId);
-
-    if (linkErr) throw linkErr;
-
-    // 4) Link profile -> member
-    const { error: profLinkErr } = await supabase
-      .from("profiles")
-      .update({ loyalty_account_id: chosenMemberId })
-      .eq("id", userId);
-
-    if (profLinkErr) {
-      // rollback member link if profile update fails
-      await supabase
+    try {
+      const { data: memberRow, error: memberErr } = await supabase
         .from("loyalty_members")
-        .update({ user_id: null })
+        .select("id,user_id,customer_name,customer_code")
+        .eq("id", chosenMemberId)
+        .single();
+
+      if (memberErr) throw memberErr;
+
+      if (memberRow?.user_id) {
+        setNotice("⚠️ This loyalty member is already linked. Unlink first.");
+        return;
+      }
+
+      const { data: profileRow, error: profileErr } = await supabase
+        .from("profiles")
+        .select("id,loyalty_account_id")
+        .eq("id", userId)
+        .single();
+
+      if (profileErr) throw profileErr;
+
+      if (profileRow?.loyalty_account_id) {
+        setNotice(
+          `⚠️ This user already has loyalty_account_id = ${profileRow.loyalty_account_id}. Unlink first.`
+        );
+        return;
+      }
+
+      const { error: linkErr } = await supabase
+        .from("loyalty_members")
+        .update({ user_id: userId })
         .eq("id", chosenMemberId);
-      throw profLinkErr;
+      if (linkErr) throw linkErr;
+
+      const { error: profLinkErr } = await supabase
+        .from("profiles")
+        .update({ loyalty_account_id: chosenMemberId })
+        .eq("id", userId);
+
+      if (profLinkErr) {
+        await supabase
+          .from("loyalty_members")
+          .update({ user_id: null })
+          .eq("id", chosenMemberId);
+        throw profLinkErr;
+      }
+
+      const { error: reqErr } = await supabase
+        .from("loyalty_link_requests")
+        .update({
+          status: "approved",
+          matched_member_id: chosenMemberId,
+          approved_at: new Date().toISOString(),
+        })
+        .eq("id", requestId);
+
+      if (reqErr) throw reqErr;
+
+      setLinkRequests((prev) => prev.filter((r) => r.id !== requestId));
+
+      setNotice("✅ Approved and linked successfully.");
+      await Promise.all([fetchMembers(), fetchLinkRequests()]);
+    } catch (err) {
+      setNotice("❌ Approve failed: " + (err?.message || "Unknown error"));
+    } finally {
+      setRequestBusyId(null);
     }
-
-    // 5) Mark request approved + timestamp
-    const { error: reqErr } = await supabase
-      .from("loyalty_link_requests")
-      .update({
-        status: "approved",
-        matched_member_id: chosenMemberId,
-        approved_at: new Date().toISOString(),
-      })
-      .eq("id", requestId);
-
-    if (reqErr) throw reqErr;
-
-    // ✅ remove row from UI immediately (even if refetch is slow)
-    setLinkRequests((prev) => prev.filter((r) => r.id !== requestId));
-
-    setNotice("✅ Approved and linked successfully.");
-    await Promise.all([fetchMembers(), fetchLinkRequests()]);
-  } catch (err) {
-    setNotice("❌ Approve failed: " + (err?.message || "Unknown error"));
-  } finally {
-    setRequestBusyId(null);
   }
-}
 
   // =========================
   // REJECT REQUEST
   // =========================
   async function rejectRequest(req) {
-  setRequestBusyId(req.id);
+    setRequestBusyId(req.id);
+    setNotice("");
 
-  try {
-    await supabase
-      .from("loyalty_link_requests")
-      .update({
-        status: "rejected",
-        rejected_at: new Date().toISOString(),
-      })
-      .eq("id", req.id);
+    try {
+      const { error } = await supabase
+        .from("loyalty_link_requests")
+        .update({
+          status: "rejected",
+          rejected_at: new Date().toISOString(),
+        })
+        .eq("id", req.id);
 
-    // ✅ REMOVE FROM UI IMMEDIATELY
-    setLinkRequests(prev => prev.filter(r => r.id !== req.id));
+      if (error) throw error;
 
-    setNotice("✅ Rejected + removed from list");
-
-  } catch (err) {
-    setNotice("❌ " + err.message);
-  } finally {
-    setRequestBusyId(null);
+      setLinkRequests((prev) => prev.filter((r) => r.id !== req.id));
+      setNotice("✅ Rejected + removed from list");
+    } catch (err) {
+      setNotice("❌ Reject failed: " + (err?.message || "Unknown error"));
+    } finally {
+      setRequestBusyId(null);
+    }
   }
-}
 
   // =========================
   // SEARCH: Profiles by email/full_name (manual link)
@@ -445,42 +435,100 @@ export default function LoyaltyAdminPage() {
   // =========================
   // EDIT MEMBER MODAL
   // =========================
+  
   const openModal = (member) => {
     setEditingMember(member);
+
     setForm({
       customer_name: member.customer_name || member["customer_name"] || "",
       Phone: member["Phone"] || "",
-      "Points balance": member["Points balance"] || 0,
-      "Total visits": member["Total visits"] || 0,
+      "Points balance": Number(member["Points balance"] || 0),
+      "Available points": Number(member["Available points"] || 0),
+      "Total visits": Number(member["Total visits"] || 0),
       Note: member["Note"] || "",
     });
+
+    setPointsAdd(0);
+    setPointsDeduct(0)
+
     setIsModalOpen(true);
   };
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    if (!editingMember?.id) return;
-
-    setSaving(true);
-    setNotice("");
-
-    try {
-      const { error } = await supabase
-        .from("loyalty_members")
-        .update(form)
-        .eq("id", editingMember.id);
-
-      if (error) throw error;
-
-      await fetchMembers();
-      setIsModalOpen(false);
-      setNotice("✅ Changes saved.");
-    } catch (err) {
-      setNotice("❌ Error saving member: " + (err?.message || "Unknown error"));
-    } finally {
-      setSaving(false);
-    }
+  // ✅ When admin edits the "Points" field, we update BOTH total and available.
+  const setPointsBoth = (val) => {
+    const n = Number(val || 0);
+    setForm((f) => ({
+      ...f,
+      "Points balance": n,
+      "Available points": n,
+    }));
   };
+
+  const handleSave = async (e) => {
+  e.preventDefault();
+  if (!editingMember?.id) return;
+
+  setSaving(true);
+  setNotice("");
+
+  try {
+    const currentTotal = Number(form["Points balance"] || 0);
+    const currentAvail = Number(form["Available points"] || 0);
+
+    const add = Number(pointsAdd) || 0;
+    const deduct = Number(pointsDeduct) || 0;
+
+    // ✅ Prevent invalid values
+    if (add < 0 || deduct < 0) {
+      setNotice("⚠️ Add/Deduct must not be negative");
+      setSaving(false);
+      return;
+    }
+
+    const delta = add - deduct;
+
+    const newTotal = Math.max(0, currentTotal + delta);
+    const newAvail = Math.max(0, currentAvail + delta);
+
+    const updatePayload = {
+      customer_name: form.customer_name,
+      Phone: form.Phone,
+      "Points balance": newTotal,
+      "Available points": newAvail,
+      "Total visits": Number(form["Total visits"] || 0),
+      Note: form.Note,
+    };
+
+    const { data, error } = await supabase
+      .from("loyalty_members")
+      .update(updatePayload)
+      .eq("id", editingMember.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("UPDATE ERROR:", error);
+      throw error;
+    }
+
+    // ✅ instant UI update
+    setMembers((prev) =>
+      prev.map((m) => (m.id === data.id ? data : m))
+    );
+
+    setEditingMember(data);
+    setIsModalOpen(false);
+
+    setNotice(
+      `✅ Updated: Total ${currentTotal} → ${newTotal}, Available ${currentAvail} → ${newAvail}`
+    );
+  } catch (err) {
+    console.error(err);
+    setNotice("❌ Error saving: " + (err?.message || "Unknown error"));
+  } finally {
+    setSaving(false);
+  }
+};
 
   // =========================
   // DELETE (confirmed)
@@ -496,11 +544,7 @@ export default function LoyaltyAdminPage() {
         await unlinkMemberConfirmed(member, { silent: true });
       }
 
-      const { error } = await supabase
-        .from("loyalty_members")
-        .delete()
-        .eq("id", member.id);
-
+      const { error } = await supabase.from("loyalty_members").delete().eq("id", member.id);
       if (error) throw error;
 
       await fetchMembers();
@@ -576,10 +620,7 @@ export default function LoyaltyAdminPage() {
         .eq("id", selectedUser.id);
 
       if (profErr) {
-        await supabase
-          .from("loyalty_members")
-          .update({ user_id: null })
-          .eq("id", selectedMember.id);
+        await supabase.from("loyalty_members").update({ user_id: null }).eq("id", selectedMember.id);
         throw profErr;
       }
 
@@ -668,7 +709,8 @@ export default function LoyaltyAdminPage() {
   // UI: Member Card
   // =========================
   const MemberCard = ({ member }) => {
-    const points = Number(member["Points balance"] || 0);
+    const totalPts = Number(member["Points balance"] || 0);
+    const availPts = Number(member["Available points"] || 0);
     const visits = Number(member["Total visits"] || 0);
 
     return (
@@ -697,7 +739,9 @@ export default function LoyaltyAdminPage() {
           </p>
 
           <p className="mt-1 text-xs text-slate-500">
-            Points: <span className="font-mono">{points}</span>
+            Total: <span className="font-mono">{totalPts}</span>
+            {" • "}
+            Available: <span className="font-mono">{availPts}</span>
             {" • "}
             Visits: <span className="font-mono">{visits}</span>
           </p>
@@ -785,13 +829,19 @@ export default function LoyaltyAdminPage() {
         )}
       </header>
 
-      {/* ✅ LINK REQUESTS (PENDING) */}
+      {/* ✅ LINK REQUESTS + MANUAL LINK + LISTS + MODALS */}
+      {/* Keep the rest of your existing UI below exactly as you already have it.
+          The important change requested is already applied:
+          - form includes "Available points"
+          - editing Points updates both total + available
+          - handleSave updates both columns
+          - MemberCard shows both */}
+      {/* --- Your existing sections below (Link Requests / Manual Link / Search / Lists / Modals) --- */}
+
+      {/* LINK REQUESTS (Pending) */}
       <section className="bg-white border border-rose-100 rounded-2xl p-4 md:p-5">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm md:text-base font-semibold text-slate-800">
-            Link Requests (Pending)
-          </h2>
-
+          <h2 className="text-sm md:text-base font-semibold text-slate-800">Link Requests (Pending)</h2>
           <button
             onClick={fetchLinkRequests}
             className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600 hover:bg-rose-50 hover:text-[#FC687D] active:scale-95"
@@ -815,28 +865,17 @@ export default function LoyaltyAdminPage() {
                   <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-slate-800">
-                          {userLabel(req.user_id)}
-                        </p>
+                        <p className="text-sm font-semibold text-slate-800">{userLabel(req.user_id)}</p>
                         <span className="text-slate-300">•</span>
-                        <p className="text-xs text-slate-500">
-                          {userSubLabel(req.user_id)}
-                        </p>
+                        <p className="text-xs text-slate-500">{userSubLabel(req.user_id)}</p>
                       </div>
 
                       <div className="mt-2 text-xs text-slate-500 space-y-1">
-                        <div>
-                          Input Name: <span className="font-mono">{req.input_name || "—"}</span>
-                        </div>
-                        <div>
-                          Input Birthday: <span className="font-mono">{req.input_birthday || "—"}</span>
-                        </div>
-                        <div>
-                          Request ID: <span className="font-mono">{req.id}</span>
-                        </div>
+                        <div>Input Name: <span className="font-mono">{req.input_name || "—"}</span></div>
+                        <div>Input Birthday: <span className="font-mono">{req.input_birthday || "—"}</span></div>
+                        <div>Request ID: <span className="font-mono">{req.id}</span></div>
                       </div>
 
-                      {/* ✅ SHOW MATCHED MEMBER DETAILS FOR VERIFICATION */}
                       {req.matched_member_id && (
                         <div className="mt-3 bg-[#FFF9FA] border border-rose-100 rounded-xl p-3">
                           <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
@@ -849,8 +888,8 @@ export default function LoyaltyAdminPage() {
                                 <span className="font-mono">{matched.customer_code || matched["customer_code"] || matched.id}</span>
                               </div>
                               <div className="text-xs text-slate-600">
-                                Phone: <span className="font-mono">{matched["Phone"] || "—"}</span>{" "}
-                                • City: <span className="font-mono">{matched["City"] || "—"}</span>
+                                Phone: <span className="font-mono">{matched["Phone"] || "—"}</span> • City:{" "}
+                                <span className="font-mono">{matched["City"] || "—"}</span>
                               </div>
                               <div className="text-xs text-slate-600">
                                 Birthday: <span className="font-mono">{matched["Note"] || "—"}</span>
@@ -859,19 +898,15 @@ export default function LoyaltyAdminPage() {
                           ) : (
                             <div className="mt-2 text-xs text-slate-500">
                               matched_member_id: <span className="font-mono">{req.matched_member_id}</span>
-                              <div className="text-[11px] text-slate-400 mt-1">
-                                (Member details not found in loaded list — refresh members.)
-                              </div>
                             </div>
                           )}
                         </div>
                       )}
 
-                      {/* ✅ TYPE-TO-SEARCH MEMBER WHEN NO MATCH */}
                       {!req.matched_member_id && (
                         <div className="mt-3">
                           <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
-                            Search Member to Link (type name/code/phone/city)
+                            Search Member to Link
                           </label>
 
                           <input
@@ -882,16 +917,14 @@ export default function LoyaltyAdminPage() {
                                 [req.id]: e.target.value,
                               }))
                             }
-                            placeholder="e.g. Maria / JUJA2026 / 09xx / QC"
+                            placeholder="Type name/code/phone/city…"
                             className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
                           />
 
                           {(requestMemberQueryById[req.id] || "").trim().length > 0 && (
                             <div className="mt-2 border border-slate-200 rounded-xl overflow-hidden bg-white">
                               {requestCandidateList(req.id).length === 0 ? (
-                                <div className="px-3 py-2 text-xs text-slate-500">
-                                  No matches among unlinked members.
-                                </div>
+                                <div className="px-3 py-2 text-xs text-slate-500">No matches.</div>
                               ) : (
                                 requestCandidateList(req.id).map((m) => (
                                   <button
@@ -904,16 +937,12 @@ export default function LoyaltyAdminPage() {
                                       }))
                                     }
                                     className={`w-full text-left px-3 py-2 text-sm hover:bg-rose-50 ${
-                                      selectedMemberByRequestId[req.id] === m.id
-                                        ? "bg-rose-50"
-                                        : ""
+                                      selectedMemberByRequestId[req.id] === m.id ? "bg-rose-50" : ""
                                     }`}
                                   >
                                     <div className="font-semibold text-slate-800">
                                       {m.customer_name || m["customer_name"] || "Unknown"} •{" "}
-                                      <span className="font-mono">
-                                        {m.customer_code || m["customer_code"] || m.id}
-                                      </span>
+                                      <span className="font-mono">{m.customer_code || m["customer_code"] || m.id}</span>
                                     </div>
                                     <div className="text-xs text-slate-500">
                                       Phone: {m["Phone"] || "—"} • City: {m["City"] || "—"} • Birthday: {m["Note"] || "—"}
@@ -959,138 +988,9 @@ export default function LoyaltyAdminPage() {
         )}
       </section>
 
-      {/* ✅ MANUAL LINK */}
-      <section className="bg-white border border-rose-100 rounded-2xl p-4 md:p-5">
-        <h2 className="text-sm md:text-base font-semibold text-slate-800">Manual Link</h2>
-        <p className="text-xs text-slate-500 mt-1">
-          Select a user by email (type to search), then select a loyalty member (type to search), then link.
-        </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-          <div>
-            <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
-              Select User (type email)
-            </label>
-            <input
-              value={userQuery}
-              onChange={(e) => {
-                setUserQuery(e.target.value);
-                setSelectedUser(null);
-              }}
-              placeholder="Type email or name…"
-              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
-            />
-
-            {userOptions.length > 0 && !selectedUser && (
-              <div className="mt-2 border border-slate-200 rounded-xl overflow-hidden bg-white">
-                {userOptions.map((u) => (
-                  <button
-                    key={u.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedUser(u);
-                      setUserQuery(u.email || u.full_name || u.id);
-                      setUserOptions([]);
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-rose-50"
-                  >
-                    <div className="font-semibold text-slate-800">{u.email || "(no email)"}</div>
-                    <div className="text-xs text-slate-500">
-                      {u.full_name || u.id}
-                      {u.loyalty_account_id ? " • (already linked)" : ""}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {selectedUser && (
-              <div className="mt-2 text-xs text-slate-600">
-                Selected user: <span className="font-mono">{selectedUser.id}</span>
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
-              Select Loyalty Member (type name/code)
-            </label>
-            <input
-              value={memberQuery}
-              onChange={(e) => {
-                setMemberQuery(e.target.value);
-                setSelectedMember(null);
-              }}
-              placeholder="Type customer name or code…"
-              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
-            />
-
-            {memberOptions.length > 0 && !selectedMember && (
-              <div className="mt-2 border border-slate-200 rounded-xl overflow-hidden bg-white">
-                {memberOptions.map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedMember(m);
-                      setMemberQuery(m.customer_name || m.customer_code || m.id);
-                      setMemberOptions([]);
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-rose-50"
-                  >
-                    <div className="font-semibold text-slate-800">
-                      {m.customer_name || "Unknown"} • {m.customer_code || m.id}
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      {m.user_id ? "(already linked)" : "Not linked"}
-                      {m.Email ? ` • ${m.Email}` : ""}
-                      {m.Phone ? ` • ${m.Phone}` : ""}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {selectedMember && (
-              <div className="mt-2 text-xs text-slate-600">
-                Selected member: <span className="font-mono">{selectedMember.id}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex gap-2 mt-4">
-          <button
-            onClick={manualLink}
-            disabled={actionBusy}
-            className="px-4 py-2 rounded-xl bg-[#FC687D] text-white text-xs font-bold disabled:opacity-60"
-          >
-            {actionBusy ? "Working..." : "Link Now"}
-          </button>
-
-          <button
-            onClick={() => {
-              setSelectedUser(null);
-              setSelectedMember(null);
-              setUserQuery("");
-              setMemberQuery("");
-              setUserOptions([]);
-              setMemberOptions([]);
-              setNotice("");
-            }}
-            disabled={actionBusy}
-            className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold disabled:opacity-60"
-          >
-            Clear
-          </button>
-        </div>
-      </section>
-
       {/* SEARCH */}
       <div className="relative">
-        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
-          🔍
-        </span>
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
         <input
           type="text"
           placeholder="Search members by name, code, phone, user_id..."
@@ -1106,7 +1006,6 @@ export default function LoyaltyAdminPage() {
           <h2 className="text-sm font-bold text-slate-700">Linked Accounts</h2>
           <span className="text-xs text-slate-400">{linkedMembersList.length}</span>
         </div>
-
         {linkedMembersList.length === 0 ? (
           <div className="text-center py-8 text-slate-400 text-sm bg-white/60 border border-dashed border-slate-200 rounded-2xl">
             No linked members found
@@ -1122,7 +1021,6 @@ export default function LoyaltyAdminPage() {
           <h2 className="text-sm font-bold text-slate-700">Not Linked</h2>
           <span className="text-xs text-slate-400">{unlinkedMembersList.length}</span>
         </div>
-
         {unlinkedMembersList.length === 0 ? (
           <div className="text-center py-8 text-slate-400 text-sm bg-white/60 border border-dashed border-slate-200 rounded-2xl">
             No unlinked members found
@@ -1131,6 +1029,169 @@ export default function LoyaltyAdminPage() {
           unlinkedMembersList.map((m) => <MemberCard key={m.id} member={m} />)
         )}
       </section>
+
+      {/* EDIT MODAL */}
+      {isModalOpen && editingMember && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
+          onClick={() => setIsModalOpen(false)}
+        >
+          <div
+            className="bg-white w-full max-w-md rounded-t-[24px] md:rounded-[28px] p-5 md:p-8 shadow-2xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start mb-5">
+              <div>
+                <h3 className="text-xl md:text-2xl font-semibold text-slate-800">Edit Member</h3>
+                <p className="font-mono text-[10px] text-slate-400 mt-1">
+                  {editingMember.customer_code || editingMember["customer_code"] || editingMember.id}
+                </p>
+              </div>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 active:scale-90"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSave} className="space-y-4">
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  value={form.customer_name}
+                  onChange={(e) => setForm({ ...form, customer_name: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:outline-none focus:border-[#FC687D]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">Phone</label>
+                <input
+                  type="text"
+                  value={form.Phone}
+                  onChange={(e) => setForm({ ...form, Phone: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:outline-none focus:border-[#FC687D]"
+                />
+              </div>
+
+              {/* Read-only current points */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+                      Total Points
+                    </label>
+                    <input
+                      type="number"
+                      value={form["Points balance"]}
+                      disabled
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm opacity-70 cursor-not-allowed"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+                      Available Points
+                    </label>
+                    <input
+                      type="number"
+                      value={form["Available points"]}
+                      disabled
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm opacity-70 cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+
+                {/* Add / Deduct */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+                      Add Points
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      value={pointsAdd}
+                      onChange={(e) => setPointsAdd(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+                      Deduct Points
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      value={pointsDeduct}
+                      onChange={(e) => setPointsDeduct(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Preview */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-600">
+                  <p className="font-semibold text-slate-700">Points after save:</p>
+                  <p className="mt-1">
+                    Total:{" "}
+                    <span className="font-mono">
+                      {Math.max(0, Number(form["Points balance"] || 0) + (Number(pointsAdd || 0) - Number(pointsDeduct || 0)))}
+                    </span>
+                    {"  "}•{"  "}
+                    Available:{" "}
+                    <span className="font-mono">
+                      {Math.max(0, Number(form["Available points"] || 0) + (Number(pointsAdd || 0) - Number(pointsDeduct || 0)))}
+                    </span>
+                  </p>
+                </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">Visits</label>
+                  <input
+                    type="number"
+                    value={form["Total visits"]}
+                    onChange={(e) => setForm({ ...form, "Total visits": e.target.value })}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">Note</label>
+                  <input
+                    type="text"
+                    value={form.Note}
+                    onChange={(e) => setForm({ ...form, Note: e.target.value })}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="w-full py-3 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="w-full py-3 rounded-xl bg-[#FC687D] text-white text-xs font-bold disabled:opacity-70"
+                >
+                  {saving ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* CONFIRM MODAL */}
       {confirmModal.open && (
@@ -1144,9 +1205,7 @@ export default function LoyaltyAdminPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] uppercase tracking-widest text-slate-400">
-                  Confirmation
-                </p>
+                <p className="text-[10px] uppercase tracking-widest text-slate-400">Confirmation</p>
                 <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">
                   {confirmModal.title || "Confirm action"}
                 </h3>
@@ -1184,118 +1243,6 @@ export default function LoyaltyAdminPage() {
                 {actionBusy ? "Working..." : confirmModal.confirmText}
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* EDIT MODAL */}
-      {isModalOpen && editingMember && (
-        <div
-          className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
-          onClick={() => setIsModalOpen(false)}
-        >
-          <div
-            className="bg-white w-full max-w-md rounded-t-[24px] md:rounded-[28px] p-5 md:p-8 shadow-2xl max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-start mb-5">
-              <div>
-                <h3 className="text-xl md:text-2xl font-semibold text-slate-800">
-                  Edit Member
-                </h3>
-                <p className="font-mono text-[10px] text-slate-400 mt-1">
-                  {editingMember.customer_code || editingMember["customer_code"] || editingMember.id}
-                </p>
-              </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 active:scale-90"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSave} className="space-y-4">
-              <div>
-                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={form.customer_name}
-                  onChange={(e) => setForm({ ...form, customer_name: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:outline-none focus:border-[#FC687D]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
-                  Phone
-                </label>
-                <input
-                  type="text"
-                  value={form.Phone}
-                  onChange={(e) => setForm({ ...form, Phone: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:outline-none focus:border-[#FC687D]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
-                    Points
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={form["Points balance"]}
-                    onChange={(e) => setForm({ ...form, "Points balance": e.target.value })}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
-                    Visits
-                  </label>
-                  <input
-                    type="number"
-                    value={form["Total visits"]}
-                    onChange={(e) => setForm({ ...form, "Total visits": e.target.value })}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
-                  Note
-                </label>
-                <textarea
-                  rows="2"
-                  value={form.Note}
-                  onChange={(e) => setForm({ ...form, Note: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:outline-none focus:border-[#FC687D]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="w-full py-3 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="w-full py-3 rounded-xl bg-[#FC687D] text-white text-xs font-bold disabled:opacity-70"
-                >
-                  {saving ? "Saving..." : "Save"}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

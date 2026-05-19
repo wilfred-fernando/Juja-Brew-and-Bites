@@ -39,7 +39,6 @@ function normalizeBirthday(input) {
   const s = String(input || "").trim();
   if (!s) return { ok: false, value: "", msg: "Birthday is required." };
 
-  // accept exact pattern YYYY-MMM-DD (any case)
   const m = s.match(/^(\d{4})-([A-Za-z]{3})-(\d{2})$/);
   if (!m) {
     return { ok: false, value: s, msg: "Birthday must be YYYY-MMM-DD (e.g. 1995-Dec-25)." };
@@ -113,10 +112,11 @@ function TabBar({ tab, setTab }) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Home Tab (Visit Us with Branch Buttons)
+   Home Tab
 ────────────────────────────────────────────────────────────── */
 function HomeTab({ member, user, setTab }) {
-  const pts = parseFloat(member?.["Points balance"] ?? 0) || 0;
+  const availablePts = parseFloat(member?.["Available points"] ?? 0) || 0;
+  const totalPts = parseFloat(member?.["Points balance"] ?? 0) || 0;
   const visits = parseFloat(member?.["Total visits"] ?? 0) || 0;
 
   const [branch, setBranch] = useState("pasongtamo");
@@ -200,10 +200,19 @@ function HomeTab({ member, user, setTab }) {
             <div className="flex gap-4 md:gap-6 mt-4 md:mt-6 bg-[#FFF9FA] p-3 md:p-4 rounded-xl md:rounded-2xl border border-rose-50 inline-flex">
               <div>
                 <p className="text-[#FC687D] font-normal text-xl md:text-2xl leading-none">
-                  {pts.toFixed(0)}
+                  {availablePts.toFixed(0)}
                 </p>
                 <p className="text-slate-500 text-[9px] md:text-[10px] uppercase font-normal tracking-widest mt-1">
-                  Points
+                  Available
+                </p>
+              </div>
+              <div className="w-px bg-rose-100" />
+              <div>
+                <p className="text-slate-800 font-normal text-xl md:text-2xl leading-none">
+                  {totalPts.toFixed(0)}
+                </p>
+                <p className="text-slate-500 text-[9px] md:text-[10px] uppercase font-normal tracking-widest mt-1">
+                  Total
                 </p>
               </div>
               <div className="w-px bg-rose-100" />
@@ -332,11 +341,10 @@ function HomeTab({ member, user, setTab }) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Order Tab (your working version)
+   Order Tab (placeholder)
+   NOTE: Paste your working OrderTab here if you want the full order UI.
 ────────────────────────────────────────────────────────────── */
-function OrderTab({ user }) {
-  // keep your existing OrderTab code here (unchanged)
-  // NOTE: You already had this complete in your file; leaving as-is is safest.
+function OrderTab() {
   return (
     <div className="p-6 text-slate-500">
       Order tab is unchanged (paste your existing OrderTab code here if needed).
@@ -345,7 +353,9 @@ function OrderTab({ user }) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   ✅ Loyalty Tab (with request status + match preview + dedupe)
+   ✅ Loyalty Tab (Total + Available Points)
+   - Progress uses Available points
+   - Vouchers fetched by member_id
 ────────────────────────────────────────────────────────────── */
 function LoyaltyTab({ member, setMember, user }) {
   const [mode, setMode] = useState(null); // null | "new" | "existing"
@@ -358,7 +368,7 @@ function LoyaltyTab({ member, setMember, user }) {
 
   const [form, setForm] = useState({
     customer_name: "",
-    Phone: "",    
+    Phone: "",
     City: "",
     Note: "", // birthday (YYYY-MMM-DD)
   });
@@ -377,11 +387,15 @@ function LoyaltyTab({ member, setMember, user }) {
   const [matchChecked, setMatchChecked] = useState(false);
   const [matchedPreview, setMatchedPreview] = useState(null);
 
-  const pts = useMemo(() => parseFloat(member?.["Points balance"] ?? 0) || 0, [member]);
-  const progress = ((pts % 100) / 100) * 100;
-  const nextReward = (Math.floor(pts / 100) + 1) * 100;
+  // ✅ Total + Available
+  const total = Number(member?.["Points balance"] || 0);
+  const available = Number(member?.["Available points"] || 0);
 
-  // Fetch latest link request for this user (to show status + block duplicates)
+  // ✅ Progress based on available points
+  const progress = ((available % 100) / 100) * 100;
+  const nextReward = (Math.floor(available / 100) + 1) * 100;
+
+  // Fetch latest link request for this user
   useEffect(() => {
     async function fetchLatestReq() {
       if (!user?.id) return;
@@ -403,7 +417,7 @@ function LoyaltyTab({ member, setMember, user }) {
     fetchLatestReq();
   }, [user?.id]);
 
-  // Fetch vouchers (active + expired computed safely)
+  // Fetch vouchers (active + expired computed safely) by member_id [1](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!sbf7ad4e3d239467b83fe626efa911a6a)
   useEffect(() => {
     async function fetchVouchers() {
       if (!member?.id) return;
@@ -436,7 +450,7 @@ function LoyaltyTab({ member, setMember, user }) {
     fetchVouchers();
   }, [member?.id]);
 
-  // Create member (Sign Up)
+  // Create member (Sign Up) - initialize both Total and Available points to 0
   const createMember = async () => {
     if (!user?.id) return;
 
@@ -461,13 +475,10 @@ function LoyaltyTab({ member, setMember, user }) {
         customer_name: form.customer_name,
         Email: user.email ?? null,
         Phone: form.Phone || null,
-        Address: form.Address || null,
         City: form.City || null,
-        Province: null,
-        "Postal code": null,
-        Country: null,
         customer_code: genMemberCode(),
-        "Points balance": 0,
+        "Points balance": 0,          // ✅ total points
+        "Available points": 0,        // ✅ available points
         Note: b.value,
         "First visit": todayISO(),
         "Last visit": todayISO(),
@@ -493,7 +504,7 @@ function LoyaltyTab({ member, setMember, user }) {
     }
   };
 
-  // Check match preview BEFORE sending request (for customer confirmation)
+  // Check match preview BEFORE sending request
   const checkMatchPreview = async () => {
     setNotice("");
     setMatchedPreview(null);
@@ -510,15 +521,13 @@ function LoyaltyTab({ member, setMember, user }) {
       return;
     }
 
-    // normalize birthday in form for consistency
     setForm((f) => ({ ...f, Note: b.value }));
-
     setCheckingMatch(true);
 
     try {
       const { data, error } = await supabase
         .from("loyalty_members")
-        .select("id, customer_name, customer_code, Phone, City, Note, \"Points balance\"")
+        .select('id, customer_name, customer_code, Phone, City, Note, "Points balance", "Available points"')
         .ilike("customer_name", form.customer_name)
         .eq("Note", b.value)
         .maybeSingle();
@@ -592,7 +601,7 @@ function LoyaltyTab({ member, setMember, user }) {
   const startEdit = () => {
     setForm({
       customer_name: member?.customer_name || "",
-      Phone: member?.["Phone"] || "",      
+      Phone: member?.["Phone"] || "",
       City: member?.["City"] || "",
       Note: member?.["Note"] || "",
     });
@@ -615,7 +624,7 @@ function LoyaltyTab({ member, setMember, user }) {
     try {
       const updateData = {
         customer_name: form.customer_name,
-        Phone: form.Phone,      
+        Phone: form.Phone,
         City: form.City,
         Note: b.value,
       };
@@ -639,7 +648,7 @@ function LoyaltyTab({ member, setMember, user }) {
     }
   };
 
-  // STATUS CARD UI (shown in entry + existing link screen)
+  // STATUS CARD UI
   const StatusCard = () => {
     if (loadingLinkReq) {
       return (
@@ -648,7 +657,6 @@ function LoyaltyTab({ member, setMember, user }) {
         </div>
       );
     }
-
     if (!linkReq) return null;
 
     const s = linkReq.status;
@@ -658,11 +666,17 @@ function LoyaltyTab({ member, setMember, user }) {
         <p className="font-semibold text-slate-800">Link Request Status</p>
         <p className="mt-1 text-slate-600">
           {s === "pending" && <span className="text-yellow-600">⏳ Pending approval</span>}
-          {s === "approved" && <span className="text-green-600">✅ Approved on {new Date(linkReq.approved_at).toLocaleString()}</span>}
-          {s === "rejected" && <span className="text-red-600">❌ Rejected on {new Date(linkReq.rejected_at).toLocaleString()}</span>}
-          {!["pending", "approved", "rejected"].includes(s) && (
-            <span className="text-slate-600">{String(s)}</span>
+          {s === "approved" && linkReq.approved_at && (
+            <span className="text-green-600">
+              ✅ Approved on {new Date(linkReq.approved_at).toLocaleString()}
+            </span>
           )}
+          {s === "rejected" && linkReq.rejected_at && (
+            <span className="text-red-600">
+              ❌ Rejected on {new Date(linkReq.rejected_at).toLocaleString()}
+            </span>
+          )}
+          {!["pending", "approved", "rejected"].includes(s) && <span>{String(s)}</span>}
         </p>
         <p className="mt-2 text-[11px] text-slate-400">
           Submitted: {fmtDate(linkReq.created_at)}
@@ -671,7 +685,7 @@ function LoyaltyTab({ member, setMember, user }) {
     );
   };
 
-  // ENTRY UI
+  // ENTRY UI (no member)
   if (!member && !mode) {
     return (
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -755,7 +769,7 @@ function LoyaltyTab({ member, setMember, user }) {
             value={form.City}
             onChange={(e) => setForm((f) => ({ ...f, City: e.target.value }))}
             className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"
-          />          
+          />
           <input
             placeholder="Contact Number"
             value={form.Phone}
@@ -796,7 +810,7 @@ function LoyaltyTab({ member, setMember, user }) {
     );
   }
 
-  // EXISTING LINK FORM (with status + match preview + dedupe)
+  // EXISTING LINK FORM
   if (!member && mode === "existing") {
     const pendingBlock = linkReq?.status === "pending";
 
@@ -844,7 +858,6 @@ function LoyaltyTab({ member, setMember, user }) {
           </button>
         </div>
 
-        {/* Match preview */}
         {matchChecked && (
           <div className="rounded-2xl border p-4 bg-white">
             {matchedPreview ? (
@@ -862,12 +875,13 @@ function LoyaltyTab({ member, setMember, user }) {
                   <div className="text-xs text-slate-600 mt-1">
                     Phone: <span className="font-mono">{matchedPreview.Phone || "—"}</span> • City:{" "}
                     <span className="font-mono">{matchedPreview.City || "—"}</span>
-                  </div>                  
+                  </div>
                   <div className="text-xs text-slate-600 mt-1">
                     Birthday: <span className="font-mono">{matchedPreview.Note || "—"}</span>
                   </div>
                   <div className="text-xs text-slate-600 mt-1">
-                    Points: <span className="font-mono">{matchedPreview["Points balance"] ?? "0"}</span>
+                    Total: <span className="font-mono">{matchedPreview["Points balance"] ?? "0"}</span> • Available:{" "}
+                    <span className="font-mono">{matchedPreview["Available points"] ?? "0"}</span>
                   </div>
                 </div>
               </>
@@ -915,7 +929,7 @@ function LoyaltyTab({ member, setMember, user }) {
     );
   }
 
-  // MEMBER DASHBOARD (unchanged style)
+  // MEMBER DASHBOARD
   return (
     <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
@@ -966,7 +980,7 @@ function LoyaltyTab({ member, setMember, user }) {
         <div className="px-5 py-5 md:px-6 md:py-6 space-y-3 border-b border-white/20 bg-black/5">
           {[
             { icon: "📞", value: member?.["Phone"] || "—" },
-            { icon: "📍", value: member?.["City"] || "—" },            
+            { icon: "📍", value: member?.["City"] || "—" },
             { icon: "▦", value: member?.customer_code || "—" },
             { icon: "🎂", value: member?.["Note"] || "—" },
           ].map((row) => (
@@ -998,9 +1012,13 @@ function LoyaltyTab({ member, setMember, user }) {
 
           <div className="text-right">
             <p className="text-white/80 text-[9px] md:text-[10px] uppercase tracking-widest mb-1">
-              Total Points
+              Points
             </p>
-            <p className="text-2xl md:text-3xl font-normal text-white">{pts.toFixed(0)}</p>
+            <p className="text-[12px] text-white/85">Total: {total.toFixed(0)}</p>
+            <p className="text-2xl md:text-3xl font-normal text-white">
+              {available.toFixed(0)}
+            </p>
+            <p className="text-[10px] text-white/80 uppercase tracking-widest">Available</p>
           </div>
         </div>
       </div>
@@ -1009,7 +1027,7 @@ function LoyaltyTab({ member, setMember, user }) {
         <div className="flex justify-between items-end mb-3">
           <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">Points Progress</p>
           <p className="text-[10px] md:text-xs font-normal text-slate-400">
-            {pts.toFixed(0)} / {nextReward} pts
+            {available.toFixed(0)} / {nextReward} pts (Available)
           </p>
         </div>
 
@@ -1018,7 +1036,7 @@ function LoyaltyTab({ member, setMember, user }) {
         </div>
 
         <p className="text-[10px] md:text-[11px] font-normal text-slate-500">
-          {(nextReward - pts).toFixed(0)} more points until your next free reward 🎁
+          {(nextReward - available).toFixed(0)} more available points until your next reward 🎁
         </p>
       </div>
 
@@ -1035,7 +1053,7 @@ function LoyaltyTab({ member, setMember, user }) {
           <p className="text-[11px] md:text-[12px] text-slate-500">Loading vouchers…</p>
         ) : vouchersActive.length === 0 ? (
           <p className="text-[11px] md:text-[12px] text-slate-500">
-            No active vouchers yet — reach 100 points to receive a reward 🎁
+            No active vouchers yet — reach 100 available points to receive a reward 🎁
           </p>
         ) : (
           <div className="space-y-3">
@@ -1051,9 +1069,6 @@ function LoyaltyTab({ member, setMember, user }) {
                     </p>
                     <p className="text-[10px] md:text-[11px] text-slate-400 mt-2 font-mono">
                       Code: {v.code}
-                    </p>
-                    <p className="text-[10px] md:text-[11px] text-green-700 mt-1">
-                      Status: active
                     </p>
                   </div>
 
@@ -1091,9 +1106,6 @@ function LoyaltyTab({ member, setMember, user }) {
                       </p>
                       <p className="text-[10px] md:text-[11px] text-slate-400 mt-2 font-mono">
                         Code: {v.code}
-                      </p>
-                      <p className="text-[10px] md:text-[11px] text-red-600 mt-1">
-                        Status: expired
                       </p>
                     </div>
 
@@ -1136,7 +1148,7 @@ function LoyaltyTab({ member, setMember, user }) {
             <form onSubmit={saveEdit} className="space-y-4">
               {[
                 ["customer_name", "Full Name", "text", "Your full name"],
-                ["Phone", "Phone Number", "tel", "09XX XXX XXXX"],                
+                ["Phone", "Phone Number", "tel", "09XX XXX XXXX"],
                 ["City", "City", "text", "e.g. QC"],
                 ["Note", "Birthday (YYYY-MMM-DD)", "text", "1995-Dec-25"],
               ].map(([key, lbl, type, ph]) => (
@@ -1175,7 +1187,7 @@ function LoyaltyTab({ member, setMember, user }) {
         </div>
       )}
 
-      {/* Perks Modal (your existing perks modal can stay as-is) */}
+      {/* Perks Modal (short version) */}
       {showPerks && (
         <div
           className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
@@ -1287,7 +1299,6 @@ function LoyaltyTab({ member, setMember, user }) {
                   <li>• JUJA Brew &amp; Bites reserves the right to amend these guidelines without prior notice.</li>
                 </ul>
               </section>
-
             </div>
           </div>
         </div>
@@ -1408,7 +1419,7 @@ export default function Customer() {
     <div className="min-h-screen pb-24 pt-4 md:pt-6 bg-[#FFF5F7]">
       <main className="max-w-md mx-auto px-4 md:px-5 py-4">
         {tab === "home" && <HomeTab member={member} user={user} setTab={setTab} />}
-        {tab === "order" && <OrderTab user={user} />}
+        {tab === "order" && <OrderTab />}
         {tab === "loyalty" && <LoyaltyTab member={member} setMember={setMember} user={user} />}
         {tab === "booking" && <BookingTab user={user} member={member} />}
         {tab === "profile" && <ProfileTab user={user} onLogout={logout} />}
@@ -1418,4 +1429,3 @@ export default function Customer() {
     </div>
   );
 }
-``
