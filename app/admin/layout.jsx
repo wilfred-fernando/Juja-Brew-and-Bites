@@ -134,7 +134,6 @@ export default function AdminLayout({ children }) {
   );
 
   // UI States
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [isAuthorized, setIsAuthorized] = useState(false); 
   const [loading, setLoading] = useState(true);
