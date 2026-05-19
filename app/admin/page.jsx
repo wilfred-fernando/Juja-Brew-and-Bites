@@ -13,9 +13,12 @@ export default function AdminDashboard() {
   // -----------------------------
   // AUTH + ROLE PROTECTION
   // -----------------------------
-  useEffect(() => {
-    async function checkSession() {
-      setLoading(true);
+useEffect(() => {
+  let mounted = true;
+
+  async function checkSession() {
+    try {
+      if (mounted) setLoading(true);
 
       // 1. Get session
       const {
@@ -24,14 +27,14 @@ export default function AdminDashboard() {
 
       // No session → go login
       if (!session) {
-        router.push("/admin/login");
+        router.replace("/admin/login");
         return;
       }
 
       const currentUser = session.user;
-      setUser(currentUser);
+      if (mounted) setUser(currentUser);
 
-      // 2. Get role from DATABASE (SECURE)
+      // 2. Get role from DB
       const { data: profile, error } = await supabase
         .from("profiles")
         .select("role")
@@ -40,26 +43,33 @@ export default function AdminDashboard() {
 
       if (error || !profile) {
         console.log("Profile not found");
-        router.push("/admin/login");
+        router.replace("/admin/login");
         return;
       }
 
       const role = profile.role;
-
       console.log("Detected role:", role);
 
-      // 3. SECURITY CHECK
+      // 3. Role check
       if (role !== "admin" && role !== "super_admin") {
-        console.log("Access denied: Not admin");
-        router.push("/");
+        console.log("Access denied");
+        router.replace("/");
         return;
       }
-
-      setLoading(false);
+    } catch (e) {
+      console.error("Admin check error:", e);
+      router.replace("/admin/login");
+    } finally {
+      if (mounted) setLoading(false); IMPORTANT
     }
+  }
 
-    checkSession();
-  }, [router]);
+  checkSession();
+
+  return () => {
+    mounted = false;
+  };
+}, [router]);
 
   // -----------------------------
   // LOADING SCREEN
