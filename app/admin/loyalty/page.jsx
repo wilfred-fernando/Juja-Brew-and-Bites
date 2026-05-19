@@ -537,9 +537,10 @@ export default function LoyaltyAdminPage() {
     <div className="max-w-6xl mx-auto pb-24 px-3 md:px-8 space-y-6">
       <header className="pt-4 md:pt-6">
         <h1 className="text-2xl md:text-4xl font-normal text-slate-800 tracking-tight">
-          JUJA LOYALTY PROGRAM (Admin)
+          JUJA LOYALTY PROGRAM
         </h1>
         <p className="text-slate-400 text-xs md:text-sm mt-2">
+          ADMIN DASHBOARD
           Members: {members.length} • Linked: {linkedMembers.length} • Not linked: {unlinkedMembers.length}
         </p>
 
