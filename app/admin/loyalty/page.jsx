@@ -1,64 +1,69 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function LoyaltyAdminPage() {
   const [members, setMembers] = useState([]);
+  const [profiles, setProfiles] = useState([]);
+
   const [loading, setLoading] = useState(true);
 
-  // Existing search + edit modal states
+  // Search/filter
   const [search, setSearch] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingMember, setEditingMember] = useState(null);
-  const [form, setForm] = useState({
-    customer_name: "",
-    Phone: "",
-    "Points balance": 0,
-    "Total visits": 0,
-    Note: "",
-  });
-  const [saving, setSaving] = useState(false);
 
-  // ✅ Link Requests (admin approval)
+  // Manual linking UI
+  const [selectedProfileId, setSelectedProfileId] = useState("");
+  const [selectedMemberId, setSelectedMemberId] = useState("");
+  const [actionBusy, setActionBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+
+  // Optional: link requests (if you use it)
   const [linkRequests, setLinkRequests] = useState([]);
   const [linkLoading, setLinkLoading] = useState(false);
-  const [linkActionBusy, setLinkActionBusy] = useState(null); // request id
+  const [linkActionBusy, setLinkActionBusy] = useState(null);
   const [selectedMemberByRequestId, setSelectedMemberByRequestId] = useState({});
 
   useEffect(() => {
-    fetchMembers();
-    fetchLinkRequests();
+    (async () => {
+      setLoading(true);
+      await Promise.all([fetchMembers(), fetchProfiles(), fetchLinkRequests()]);
+      setLoading(false);
+    })();
   }, []);
 
-  // --------------------
-  // FETCH MEMBERS
-  // --------------------
   async function fetchMembers() {
-    setLoading(true);
-
     const { data, error } = await supabase.from("loyalty_members").select("*");
-
     if (error) {
-      alert("Error: " + error.message);
+      console.error(error);
       setMembers([]);
-      setLoading(false);
       return;
     }
 
-    const sortedData = (data || []).slice().sort((a, b) => {
+    const sorted = (data || []).slice().sort((a, b) => {
       const ap = parseFloat(a["Points balance"] || 0) || 0;
       const bp = parseFloat(b["Points balance"] || 0) || 0;
       return bp - ap;
     });
 
-    setMembers(sortedData);
-    setLoading(false);
+    setMembers(sorted);
   }
 
-  // --------------------
-  // FETCH PENDING LINK REQUESTS
-  // --------------------
+  async function fetchProfiles() {
+    // Pull basic fields + loyalty_account_id to show if already linked
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id,email,full_name,role,loyalty_account_id,created_at")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error(error);
+      setProfiles([]);
+      return;
+    }
+    setProfiles(data || []);
+  }
+
   async function fetchLinkRequests() {
     setLinkLoading(true);
 
@@ -68,7 +73,8 @@ export default function LoyaltyAdminPage() {
       .eq("status", "pending");
 
     if (error) {
-      console.error(error);
+      // If table doesn’t exist or RLS blocks it, we don’t crash the page
+      console.warn("link_requests not available:", error.message);
       setLinkRequests([]);
       setLinkLoading(false);
       return;
@@ -84,169 +90,130 @@ export default function LoyaltyAdminPage() {
     setLinkLoading(false);
   }
 
-  // --------------------
-  // ✅ APPROVE LINK REQUEST
+  // -----------------------------
+  // ✅ MANUAL LINK (admin chooses profile + member)
   // Updates BOTH:
   // - loyalty_members.user_id
   // - profiles.loyalty_account_id
-  // --------------------
-  const approveLinkRequest = async (request) => {
-    const requestId = request.id;
-    const userId = request.user_id;
+  // -----------------------------
+  async function manualLink() {
+    setNotice("");
 
-    const memberId =
-      request.member_id || selectedMemberByRequestId[requestId] || null;
-
-    if (!userId) {
-      alert("This request has no user_id. Cannot approve.");
+    if (!selectedProfileId || !selectedMemberId) {
+      setNotice("Please select BOTH a user profile and a loyalty member.");
       return;
     }
 
-    if (!memberId) {
-      alert("Please select a member to link for this request.");
-      return;
-    }
-
-    setLinkActionBusy(requestId);
+    setActionBusy(true);
 
     try {
-      // 1) Load loyalty member row (prevent overwriting)
+      // 1) Ensure selected member is not already linked
       const { data: memberRow, error: memberErr } = await supabase
         .from("loyalty_members")
-        .select("id, user_id, customer_name, customer_code")
-        .eq("id", memberId)
+        .select("id,user_id,customer_name,customer_code")
+        .eq("id", selectedMemberId)
         .single();
 
       if (memberErr) throw memberErr;
 
       if (memberRow?.user_id) {
-        alert(
-          "⚠️ This loyalty member is already linked. Unlink first, then approve again."
-        );
+        setNotice("⚠️ This loyalty member is already linked. Unlink first.");
         return;
       }
 
-      // 2) Check if user is already linked to another loyalty member
-      const { data: existingMemberLink, error: existingMemberErr } =
-        await supabase
-          .from("loyalty_members")
-          .select("id, customer_name, customer_code")
-          .eq("user_id", userId)
-          .maybeSingle();
+      // 2) Ensure user is not already linked to another loyalty member
+      const { data: existingMemberLink, error: existingMemberErr } = await supabase
+        .from("loyalty_members")
+        .select("id,customer_name,customer_code")
+        .eq("user_id", selectedProfileId)
+        .maybeSingle();
 
       if (!existingMemberErr && existingMemberLink?.id) {
-        alert(
-          `⚠️ This user is already linked to another member (${existingMemberLink.customer_name || "Unknown"} / ${existingMemberLink.customer_code || existingMemberLink.id}). Unlink first.`
+        setNotice(
+          `⚠️ This user is already linked to (${existingMemberLink.customer_name || "Unknown"} / ${existingMemberLink.customer_code || existingMemberLink.id}). Unlink that first.`
         );
         return;
       }
 
-      // 3) Check profiles row + prevent overriding loyalty_account_id
+      // 3) Ensure profile doesn't already have loyalty_account_id
       const { data: profileRow, error: profileErr } = await supabase
         .from("profiles")
-        .select("id, loyalty_account_id, email, full_name, role")
-        .eq("id", userId)
+        .select("id,loyalty_account_id,email,full_name")
+        .eq("id", selectedProfileId)
         .single();
 
       if (profileErr) throw profileErr;
 
       if (profileRow?.loyalty_account_id) {
-        alert(
-          `⚠️ This user already has loyalty_account_id = ${profileRow.loyalty_account_id}. Unlink first.`
+        setNotice(
+          `⚠️ This profile already has loyalty_account_id = ${profileRow.loyalty_account_id}. Unlink first.`
         );
         return;
       }
 
-      // 4) Link loyalty member to user
+      // 4) Update member.user_id
       const { error: linkErr } = await supabase
         .from("loyalty_members")
-        .update({ user_id: userId })
-        .eq("id", memberId);
+        .update({ user_id: selectedProfileId })
+        .eq("id", selectedMemberId);
 
       if (linkErr) throw linkErr;
 
-      // 5) Link profile to loyalty member (your schema column)
+      // 5) Update profile.loyalty_account_id
       const { error: profLinkErr } = await supabase
         .from("profiles")
-        .update({ loyalty_account_id: memberId })
-        .eq("id", userId);
+        .update({ loyalty_account_id: selectedMemberId })
+        .eq("id", selectedProfileId);
 
       if (profLinkErr) {
-        // rollback the member link if profile update fails
+        // rollback member link if profile update fails
         await supabase
           .from("loyalty_members")
           .update({ user_id: null })
-          .eq("id", memberId);
-
+          .eq("id", selectedMemberId);
         throw profLinkErr;
       }
 
-      // 6) Mark request approved
-      const { error: reqErr } = await supabase
-        .from("loyalty_link_requests")
-        .update({
-          status: "approved",
-          matched_member_id: memberId,
-        })
-        .eq("id", requestId);
+      setNotice("✅ Manual link successful.");
+      setSelectedMemberId("");
+      setSelectedProfileId("");
 
-      if (reqErr) throw reqErr;
-
-      await fetchMembers();
-      await fetchLinkRequests();
-    } catch (err) {
-      alert("Approve failed: " + (err?.message || "Unknown error"));
+      await Promise.all([fetchMembers(), fetchProfiles(), fetchLinkRequests()]);
+    } catch (e) {
+      setNotice("Manual link failed: " + (e?.message || "Unknown error"));
     } finally {
-      setLinkActionBusy(null);
+      setActionBusy(false);
     }
-  };
+  }
 
-  // --------------------
-  // REJECT LINK REQUEST
-  // --------------------
-  const rejectLinkRequest = async (requestId) => {
-    setLinkActionBusy(requestId);
-    try {
-      const { error } = await supabase
-        .from("loyalty_link_requests")
-        .update({ status: "rejected" })
-        .eq("id", requestId);
+  // -----------------------------
+  // ✅ UNLINK (clears BOTH tables)
+  // -----------------------------
+  async function unlinkMember(member) {
+    setNotice("");
 
-      if (error) throw error;
+    const memberId = member?.id;
+    const userId = member?.user_id;
 
-      await fetchLinkRequests();
-    } catch (err) {
-      alert("Reject failed: " + (err?.message || "Unknown error"));
-    } finally {
-      setLinkActionBusy(null);
-    }
-  };
+    if (!memberId) return;
 
-  // --------------------
-  // ✅ UNLINK MEMBER (clears BOTH tables)
-  // - loyalty_members.user_id = null
-  // - profiles.loyalty_account_id = null
-  // --------------------
-  const unlinkMember = async (member) => {
-    if (
-      !confirm(
-        `Unlink this member?\n\n${member?.customer_name || "Member"} (${member?.customer_code || member?.id})`
-      )
-    )
-      return;
+    const ok = confirm(
+      `Unlink this loyalty member?\n\n${member?.customer_name || "Member"} (${member?.customer_code || memberId})`
+    );
+    if (!ok) return;
 
-    const userId = member?.user_id || null;
+    setActionBusy(true);
 
     try {
-      // 1) Unlink member
+      // 1) Clear loyalty_members.user_id
       const { error: unlinkErr } = await supabase
         .from("loyalty_members")
         .update({ user_id: null })
-        .eq("id", member.id);
+        .eq("id", memberId);
 
       if (unlinkErr) throw unlinkErr;
 
-      // 2) Unlink profile if we know userId
+      // 2) Clear profiles.loyalty_account_id by userId (if we have it)
       if (userId) {
         const { error: profErr } = await supabase
           .from("profiles")
@@ -256,448 +223,356 @@ export default function LoyaltyAdminPage() {
         if (profErr) throw profErr;
       }
 
-      // 3) Safety clean-up: any profile pointing at this loyalty member id
+      // 3) Safety: clear any profile pointing to this loyalty member id
       await supabase
         .from("profiles")
         .update({ loyalty_account_id: null })
-        .eq("loyalty_account_id", member.id);
+        .eq("loyalty_account_id", memberId);
 
-      await fetchMembers();
-    } catch (err) {
-      alert("Unlink failed: " + (err?.message || "Unknown error"));
+      setNotice("✅ Unlinked successfully.");
+      await Promise.all([fetchMembers(), fetchProfiles(), fetchLinkRequests()]);
+    } catch (e) {
+      setNotice("Unlink failed: " + (e?.message || "Unknown error"));
+    } finally {
+      setActionBusy(false);
     }
-  };
+  }
 
-  // --------------------
-  // EDIT MODAL
-  // --------------------
-  const openModal = (member) => {
-    setEditingMember(member);
-    setForm({
-      customer_name: member["customer_name"] || "",
-      Phone: member["Phone"] || "",
-      "Points balance": member["Points balance"] || 0,
-      "Total visits": member["Total visits"] || 0,
-      Note: member["Note"] || "",
-    });
-    setIsModalOpen(true);
-  };
+  // -----------------------------
+  // OPTIONAL: approve link requests
+  // Updates BOTH tables too
+  // -----------------------------
+  async function approveLinkRequest(req) {
+    const requestId = req.id;
+    const userId = req.user_id;
+    const memberId = req.member_id || selectedMemberByRequestId[requestId] || "";
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-
-    try {
-      const { error } = await supabase
-        .from("loyalty_members")
-        .update(form)
-        .eq("id", editingMember.id);
-
-      if (error) throw error;
-
-      await fetchMembers();
-      setIsModalOpen(false);
-    } catch (error) {
-      alert("Error saving member: " + (error?.message || "Unknown error"));
-    }
-
-    setSaving(false);
-  };
-
-  const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to remove this member? This cannot be undone.")) return;
-    const { error } = await supabase.from("loyalty_members").delete().eq("id", id);
-    if (error) {
-      alert("Delete failed: " + error.message);
+    if (!userId) {
+      alert("Request has no user_id.");
       return;
     }
-    fetchMembers();
-  };
+    if (!memberId) {
+      alert("Select a member to link for this request.");
+      return;
+    }
 
-  // --------------------
-  // FILTER MEMBERS
-  // --------------------
+    setLinkActionBusy(requestId);
+    setNotice("");
+
+    try {
+      // member must be unlinked
+      const { data: memberRow, error: memberErr } = await supabase
+        .from("loyalty_members")
+        .select("id,user_id")
+        .eq("id", memberId)
+        .single();
+
+      if (memberErr) throw memberErr;
+      if (memberRow?.user_id) {
+        alert("This member is already linked. Unlink first.");
+        return;
+      }
+
+      // profile must be unlinked
+      const { data: profileRow, error: profileErr } = await supabase
+        .from("profiles")
+        .select("id,loyalty_account_id")
+        .eq("id", userId)
+        .single();
+
+      if (profileErr) throw profileErr;
+      if (profileRow?.loyalty_account_id) {
+        alert("This profile already has a loyalty_account_id. Unlink first.");
+        return;
+      }
+
+      // link both
+      const { error: linkErr } = await supabase
+        .from("loyalty_members")
+        .update({ user_id: userId })
+        .eq("id", memberId);
+
+      if (linkErr) throw linkErr;
+
+      const { error: profLinkErr } = await supabase
+        .from("profiles")
+        .update({ loyalty_account_id: memberId })
+        .eq("id", userId);
+
+      if (profLinkErr) {
+        await supabase.from("loyalty_members").update({ user_id: null }).eq("id", memberId);
+        throw profLinkErr;
+      }
+
+      // mark request approved
+      const { error: reqErr } = await supabase
+        .from("loyalty_link_requests")
+        .update({ status: "approved", matched_member_id: memberId })
+        .eq("id", requestId);
+
+      if (reqErr) throw reqErr;
+
+      setNotice("✅ Link request approved.");
+      await Promise.all([fetchMembers(), fetchProfiles(), fetchLinkRequests()]);
+    } catch (e) {
+      setNotice("Approve failed: " + (e?.message || "Unknown error"));
+    } finally {
+      setLinkActionBusy(null);
+    }
+  }
+
+  async function rejectLinkRequest(requestId) {
+    setLinkActionBusy(requestId);
+    try {
+      const { error } = await supabase
+        .from("loyalty_link_requests")
+        .update({ status: "rejected" })
+        .eq("id", requestId);
+      if (error) throw error;
+      await fetchLinkRequests();
+    } catch (e) {
+      alert("Reject failed: " + (e?.message || "Unknown error"));
+    } finally {
+      setLinkActionBusy(null);
+    }
+  }
+
   const filteredMembers = useMemo(() => {
     const s = (search || "").toLowerCase();
     return members.filter((m) => {
-      const n = String(m["customer_name"] || "").toLowerCase();
-      const c = String(m["customer_code"] || "").toLowerCase();
+      const n = String(m.customer_name || m["customer_name"] || "").toLowerCase();
+      const c = String(m.customer_code || m["customer_code"] || "").toLowerCase();
       const p = String(m["Phone"] || "");
       return n.includes(s) || c.includes(s) || p.includes(search || "");
     });
   }, [members, search]);
 
-  if (loading)
+  if (loading) {
     return (
       <div className="p-8 flex justify-center">
         <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
       </div>
     );
+  }
 
   return (
-    <div className="max-w-5xl mx-auto animate-in fade-in duration-500 pb-24 px-3 md:px-8">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-6 mb-6 md:mb-8 pt-4 md:pt-6">
-        <div>
-          <h1 className="text-2xl md:text-4xl font-normal text-slate-800 tracking-tight leading-none">
-            JUJA LOYALTY PROGRAM
-          </h1>
-          <p className="text-slate-400 text-xs md:text-sm font-medium mt-1 md:mt-2">
-            Managing {members.length} loyal customers
-          </p>
-        </div>
+    <div className="max-w-6xl mx-auto pb-24 px-3 md:px-8 space-y-6">
+      <header className="pt-4 md:pt-6">
+        <h1 className="text-2xl md:text-4xl font-normal text-slate-800 tracking-tight">
+          JUJA LOYALTY PROGRAM (Admin)
+        </h1>
+        <p className="text-slate-400 text-xs md:text-sm mt-2">
+          Members: {members.length}
+        </p>
+
+        {notice && (
+          <div className="mt-4 bg-rose-50 border border-rose-100 text-slate-700 rounded-xl p-3 text-sm">
+            {notice}
+          </div>
+        )}
       </header>
 
-      {/* ===================== */}
-      {/* ✅ ADMIN LINK REQUESTS */}
-      {/* ===================== */}
-      <section className="mb-6 md:mb-8">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm md:text-base font-normal text-slate-700 tracking-tight">
-            Admin Approval: Link Requests
+      {/* ✅ MANUAL LINK (always visible) */}
+      <section className="bg-white border border-rose-100 rounded-2xl p-4 md:p-5">
+        <h2 className="text-sm md:text-base font-semibold text-slate-800">
+          Manual Link / Unlink
+        </h2>
+        <p className="text-xs text-slate-500 mt-1">
+          Pick a user profile and a loyalty member, then link them.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+              Select User (profiles)
+            </label>
+            <select
+              value={selectedProfileId}
+              onChange={(e) => setSelectedProfileId(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
+            >
+              <option value="">-- choose user --</option>
+              {profiles.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {(p.full_name || p.email || p.id) +
+                    (p.loyalty_account_id ? " (already linked)" : "")}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+              Select Loyalty Member
+            </label>
+            <select
+              value={selectedMemberId}
+              onChange={(e) => setSelectedMemberId(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
+            >
+              <option value="">-- choose member --</option>
+              {members.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {(m.customer_name || m.customer_code || m.id) +
+                    (m.user_id ? " (already linked)" : "")}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="flex gap-2 mt-4">
+          <button
+            onClick={manualLink}
+            disabled={actionBusy}
+            className="px-4 py-2 rounded-xl bg-[#FC687D] text-white text-xs font-bold disabled:opacity-60"
+          >
+            {actionBusy ? "Working..." : "Link Now"}
+          </button>
+
+          <button
+            onClick={() => {
+              setSelectedProfileId("");
+              setSelectedMemberId("");
+              setNotice("");
+            }}
+            disabled={actionBusy}
+            className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold disabled:opacity-60"
+          >
+            Clear
+          </button>
+        </div>
+      </section>
+
+      {/* ✅ OPTIONAL: Link Requests section */}
+      <section className="bg-white border border-rose-100 rounded-2xl p-4 md:p-5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm md:text-base font-semibold text-slate-800">
+            Link Requests (optional)
           </h2>
           <button
             onClick={fetchLinkRequests}
-            className="px-3 py-2 bg-slate-50 border border-slate-100 text-[10px] md:text-xs font-normal text-slate-500 hover:text-[#FC687D] hover:bg-rose-50 hover:border-rose-100 rounded-lg md:rounded-xl transition-all active:scale-95"
+            className="px-3 py-2 bg-slate-50 border border-slate-100 text-[10px] md:text-xs text-slate-500 rounded-xl active:scale-95"
           >
             Refresh
           </button>
         </div>
 
-        <div className="bg-white rounded-xl md:rounded-[20px] border border-rose-50 shadow-sm p-4 md:p-5">
-          {linkLoading ? (
-            <div className="text-slate-400 text-xs">Loading requests...</div>
-          ) : linkRequests.length === 0 ? (
-            <div className="text-slate-400 font-normal uppercase tracking-[0.15em] text-[10px] md:text-xs">
-              No pending link requests
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {linkRequests.map((req) => (
-                <div
-                  key={req.id}
-                  className="border border-slate-100 rounded-xl p-3 md:p-4 bg-[#FFF9FA]"
-                >
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] md:text-xs font-mono text-slate-500 bg-white/60 px-2 py-0.5 rounded-md border border-rose-100">
-                          Request ID: {req.id}
-                        </span>
-                        <span className="text-slate-300 text-[10px]">•</span>
-                        <span className="text-[10px] md:text-xs text-slate-600">
-                          User ID: <span className="font-mono">{req.user_id || "N/A"}</span>
-                        </span>
-                      </div>
+        {linkLoading ? (
+          <p className="text-xs text-slate-400 mt-3">Loading…</p>
+        ) : linkRequests.length === 0 ? (
+          <p className="text-xs text-slate-400 mt-3">No pending requests.</p>
+        ) : (
+          <div className="mt-3 space-y-3">
+            {linkRequests.map((req) => (
+              <div key={req.id} className="border border-slate-200 rounded-xl p-3">
+                <p className="text-xs text-slate-600">
+                  Request: <span className="font-mono">{req.id}</span>
+                </p>
+                <p className="text-xs text-slate-600 mt-1">
+                  User: <span className="font-mono">{req.user_id || "N/A"}</span>
+                </p>
 
-                      <div className="mt-2 text-[10px] md:text-xs text-slate-500">
-                        Requested Member ID:{" "}
-                        <span className="font-mono">{req.member_id || "Not provided"}</span>
-                        {req.created_at && (
-                          <>
-                            <span className="text-slate-300 mx-2">•</span>
-                            <span>Created: {new Date(req.created_at).toLocaleString()}</span>
-                          </>
-                        )}
-                      </div>
+                {!req.member_id && (
+                  <select
+                    value={selectedMemberByRequestId[req.id] || ""}
+                    onChange={(e) =>
+                      setSelectedMemberByRequestId((prev) => ({
+                        ...prev,
+                        [req.id]: e.target.value,
+                      }))
+                    }
+                    className="mt-2 w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                  >
+                    <option value="">-- choose member --</option>
+                    {members.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {(m.customer_name || m.customer_code || m.id) +
+                          (m.user_id ? " (already linked)" : "")}
+                      </option>
+                    ))}
+                  </select>
+                )}
 
-                      {!req.member_id && (
-                        <div className="mt-3">
-                          <label className="block text-[10px] font-normal uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
-                            Select Member to Link
-                          </label>
-                          <select
-                            value={selectedMemberByRequestId[req.id] || ""}
-                            onChange={(e) =>
-                              setSelectedMemberByRequestId((prev) => ({
-                                ...prev,
-                                [req.id]: e.target.value,
-                              }))
-                            }
-                            className="w-full bg-white border border-rose-100 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
-                          >
-                            <option value="">-- choose member --</option>
-                            {members.map((m) => (
-                              <option key={m.id} value={m.id}>
-                                {m.customer_name || "Unknown"} • {m.customer_code || m.id}
-                                {m.user_id ? " (already linked)" : ""}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2 md:gap-3">
-                      <button
-                        onClick={() => approveLinkRequest(req)}
-                        disabled={linkActionBusy === req.id}
-                        className="px-3 md:px-4 py-2 bg-[#FC687D] text-white text-[10px] md:text-xs font-normal uppercase tracking-widest rounded-lg md:rounded-xl hover:bg-rose-500 transition-all active:scale-95 disabled:opacity-60"
-                      >
-                        {linkActionBusy === req.id ? "Working..." : "Approve"}
-                      </button>
-                      <button
-                        onClick={() => rejectLinkRequest(req.id)}
-                        disabled={linkActionBusy === req.id}
-                        className="px-3 md:px-4 py-2 bg-white border border-slate-200 text-slate-500 text-[10px] md:text-xs font-normal uppercase tracking-widest rounded-lg md:rounded-xl hover:bg-slate-50 transition-all active:scale-95 disabled:opacity-60"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={() => approveLinkRequest(req)}
+                    disabled={linkActionBusy === req.id}
+                    className="px-3 py-2 rounded-xl bg-[#FC687D] text-white text-xs font-bold disabled:opacity-60"
+                  >
+                    {linkActionBusy === req.id ? "Working..." : "Approve"}
+                  </button>
+                  <button
+                    onClick={() => rejectLinkRequest(req.id)}
+                    disabled={linkActionBusy === req.id}
+                    className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold disabled:opacity-60"
+                  >
+                    Reject
+                  </button>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
-      {/* SEARCH */}
-      <div className="relative mb-6 md:mb-8">
+      {/* Search */}
+      <div className="relative">
         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
           🔍
         </span>
         <input
           type="text"
-          placeholder="Search by name, ID, or phone..."
+          placeholder="Search members by name, code, phone..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-3 md:py-3.5 bg-white border border-slate-100 rounded-xl md:rounded-2xl text-xs md:text-sm font-semibold focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all shadow-sm"
+          className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm"
         />
       </div>
 
-      {/* MEMBERS LIST */}
-      <div className="flex flex-col gap-3 md:gap-4">
+      {/* Members list */}
+      <div className="space-y-3">
         {filteredMembers.map((member) => (
           <div
             key={member.id}
-            className="bg-white rounded-xl md:rounded-[20px] border border-rose-50 shadow-sm p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:shadow-md transition-all duration-300 group cursor-default"
+            className="bg-white rounded-2xl border border-rose-100 p-4 flex flex-col md:flex-row md:items-center justify-between gap-3"
           >
-            <div className="flex items-center gap-4 md:gap-5 flex-1">
-              <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gradient-to-br from-rose-50 to-[#FFF9FA] flex items-center justify-center relative overflow-hidden flex-shrink-0 border border-rose-100/50">
-                <span className="text-xl md:text-2xl text-[#FC687D] opacity-80">👤</span>
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <h3 className="font-normal text-slate-800 text-sm md:text-base leading-tight truncate">
-                    {member["customer_name"] || "Unknown Member"}
-                  </h3>
-
-                  {Number(member["Points balance"] || 0) >= 500 && (
-                    <span className="bg-[#FFF9FA] text-[#FC687D] text-[9px] font-normal uppercase tracking-widest px-2 py-0.5 rounded-md border border-rose-100">
-                      VIP
-                    </span>
-                  )}
-
-                  {member.user_id ? (
-                    <span className="bg-green-50 text-green-700 text-[9px] font-normal uppercase tracking-widest px-2 py-0.5 rounded-md border border-green-100">
-                      Linked
-                    </span>
-                  ) : (
-                    <span className="bg-slate-50 text-slate-500 text-[9px] font-normal uppercase tracking-widest px-2 py-0.5 rounded-md border border-slate-100">
-                      Not linked
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-mono font-normal text-slate-500 text-[10px] md:text-xs bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">
-                    {member["customer_code"]}
-                  </span>
-                  <span className="text-slate-300 text-[10px]">•</span>
-                  <span className="text-[10px] md:text-xs font-normal text-slate-500">
-                    {member["Phone"] || "No phone"}
-                  </span>
-
-                  {member.user_id && (
-                    <>
-                      <span className="text-slate-300 text-[10px]">•</span>
-                      <span className="text-[10px] md:text-xs font-normal text-slate-500">
-                        user_id: <span className="font-mono">{member.user_id}</span>
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-slate-800 truncate">
+                {member.customer_name || member["customer_name"] || "Unknown Member"}
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                Code: <span className="font-mono">{member.customer_code || member["customer_code"] || "—"}</span>
+                {" • "}
+                User: <span className="font-mono">{member.user_id || "—"}</span>
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                Points: <span className="font-mono">{member["Points balance"] ?? "0"}</span>
+                {" • "}
+                Visits: <span className="font-mono">{member["Total visits"] ?? 0}</span>
+              </p>
             </div>
 
-            <div className="flex items-center justify-between md:justify-end w-full md:w-auto gap-4 md:gap-8 pt-3 md:pt-0 border-t md:border-none border-slate-50">
-              <div className="flex gap-4 md:gap-6">
-                <div className="text-center md:text-right">
-                  <p className="text-[9px] md:text-[10px] font-normal uppercase tracking-widest text-slate-400 mb-0.5">
-                    Points
-                  </p>
-                  <p className="text-[#FC687D] font-normal text-base md:text-lg leading-none">
-                    {Number(member["Points balance"] || 0).toLocaleString(undefined, {
-                      maximumFractionDigits: 2,
-                    })}
-                  </p>
-                </div>
-
-                <div className="w-px bg-slate-100 hidden md:block" />
-
-                <div className="text-center md:text-right">
-                  <p className="text-[9px] md:text-[10px] font-normal uppercase tracking-widest text-slate-400 mb-0.5">
-                    Visits
-                  </p>
-                  <p className="text-slate-700 font-normal text-base md:text-lg leading-none">
-                    {member["Total visits"] || 0}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1.5 md:gap-2">
+            <div className="flex gap-2">
+              {member.user_id && (
                 <button
-                  onClick={() => openModal(member)}
-                  className="px-3 md:px-4 py-2 bg-slate-50 border border-slate-100 text-[10px] md:text-xs font-normal text-slate-500 hover:text-[#FC687D] hover:bg-rose-50 hover:border-rose-100 rounded-lg md:rounded-xl transition-all active:scale-95"
+                  onClick={() => unlinkMember(member)}
+                  disabled={actionBusy}
+                  className="px-3 py-2 rounded-xl bg-red-50 border border-red-100 text-red-600 text-xs font-bold disabled:opacity-60"
                 >
-                  Edit
+                  Unlink
                 </button>
-
-                {member.user_id && (
-                  <button
-                    onClick={() => unlinkMember(member)}
-                    className="px-3 md:px-4 py-2 bg-red-50 border border-red-100 text-[10px] md:text-xs font-normal text-red-600 hover:bg-red-100 rounded-lg md:rounded-xl transition-all active:scale-95"
-                  >
-                    Unlink
-                  </button>
-                )}
-
-                <button
-                  onClick={() => handleDelete(member.id)}
-                  className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center bg-slate-50 border border-slate-100 text-[10px] md:text-xs text-slate-400 hover:text-red-500 hover:bg-red-50 hover:border-red-100 rounded-lg md:rounded-xl transition-all active:scale-90 md:opacity-0 md:group-hover:opacity-100"
-                >
-                  🗑
-                </button>
-              </div>
+              )}
             </div>
           </div>
         ))}
 
         {filteredMembers.length === 0 && (
-          <div className="text-center py-12 md:py-20 text-slate-400 font-normal uppercase tracking-[0.15em] text-[10px] md:text-xs border border-dashed border-slate-200/60 rounded-xl md:rounded-2xl bg-white/50">
+          <div className="text-center py-12 text-slate-400 text-sm bg-white/60 border border-dashed border-slate-200 rounded-2xl">
             No members found
           </div>
         )}
       </div>
-
-      {/* EDIT MODAL */}
-      {isModalOpen && editingMember && (
-        <div
-          className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 transition-all duration-300"
-          onClick={() => setIsModalOpen(false)}
-        >
-          <div
-            className="bg-white w-full max-w-md rounded-t-[24px] md:rounded-[28px] p-5 md:p-8 shadow-2xl max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-5 md:hidden" />
-
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <h3 className="text-xl md:text-2xl font-normal text-slate-800 tracking-tight">
-                  Edit Member
-                </h3>
-                <p className="font-mono text-[10px] font-normal text-slate-400 mt-1">
-                  {editingMember["customer_code"]}
-                </p>
-              </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSave} className="space-y-4 md:space-y-5">
-              <div>
-                <label className="block text-[10px] font-normal uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={form.customer_name}
-                  onChange={(e) => setForm({ ...form, customer_name: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs md:text-sm font-semibold focus:bg-white focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-normal uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
-                  Phone Number
-                </label>
-                <input
-                  type="text"
-                  value={form.Phone}
-                  onChange={(e) => setForm({ ...form, Phone: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs md:text-sm font-semibold focus:bg-white focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 md:gap-4">
-                <div className="bg-[#FFF9FA] p-3 md:p-4 rounded-xl border border-rose-100">
-                  <label className="block text-[10px] font-normal uppercase tracking-widest text-[#FC687D] mb-2">
-                    Points Balance
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    value={form["Points balance"]}
-                    onChange={(e) => setForm({ ...form, "Points balance": e.target.value })}
-                    className="w-full bg-white border border-rose-200 rounded-lg px-3 py-2 text-sm font-normal text-slate-800 focus:outline-none focus:border-[#FC687D] transition-all text-center"
-                  />
-                </div>
-
-                <div className="bg-slate-50 p-3 md:p-4 rounded-xl border border-slate-100">
-                  <label className="block text-[10px] font-normal uppercase tracking-widest text-slate-500 mb-2">
-                    Total Visits
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    value={form["Total visits"]}
-                    onChange={(e) => setForm({ ...form, "Total visits": e.target.value })}
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-normal text-slate-800 focus:outline-none focus:border-slate-400 transition-all text-center"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-normal uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
-                  Admin Notes / Birthday
-                </label>
-                <textarea
-                  rows="2"
-                  value={form.Note}
-                  onChange={(e) => setForm({ ...form, Note: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs md:text-sm font-normal focus:bg-white focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all resize-none"
-                  placeholder="e.g. Birthday: 1995-12-25"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 pt-2 md:pt-4 mt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="w-full py-3.5 rounded-xl bg-white border border-slate-200 text-slate-500 font-normal uppercase tracking-widest text-[10px] md:text-xs hover:bg-slate-50 transition-all active:scale-95"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-normal uppercase tracking-widest text-[10px] md:text-xs hover:bg-rose-500 transition-all shadow-sm disabled:opacity-70 active:scale-95"
-                >
-                  {saving ? "Saving..." : "Save Changes"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
