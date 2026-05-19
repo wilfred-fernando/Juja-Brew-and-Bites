@@ -98,7 +98,7 @@ export default function AdminDashboard() {
     { title: "Accounts", icon: "👥", desc: "Manage staff and access control.", path: "/admin/accounts" },
   ];
 
-  return (
+ return (
   <main className="p-8 md:p-12 w-full min-h-screen bg-[#FFF5F7]">
 
     {/* HEADER */}
@@ -166,4 +166,4 @@ export default function AdminDashboard() {
 
   </main>
 );
-``}
+``
