@@ -24,6 +24,21 @@ export default function AdminSidebar({
 
   return (
     <>
+      {/* MOBILE HEADER */}
+      <div className="md:hidden flex items-center justify-between p-4 bg-white border-b sticky top-0 z-40">
+        
+        {/* OPEN SIDEBAR BUTTON */}
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="p-2 text-2xl"
+        >
+          ☰
+        </button>
+
+        <span className="font-bold text-sm">Admin Panel</span>
+
+      </div>
+
       {/* MOBILE BACKDROP */}
       {mobileOpen && (
         <div
@@ -32,11 +47,12 @@ export default function AdminSidebar({
         />
       )}
 
-      {/* SIDEBAR */}
+      {/* SIDEBAR */}      
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-[260px] bg-white border-r transition-transform ${
+        className={`fixed inset-y-0 left-0 z-50 w-[260px] bg-white border-r transition-transform duration-300 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         } md:translate-x-0`}
+
       >
         <div className="p-6 flex justify-between items-center">
           <strong>ADMIN</strong>
