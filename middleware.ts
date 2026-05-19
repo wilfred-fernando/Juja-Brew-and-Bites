@@ -6,7 +6,7 @@ export function middleware(req: NextRequest) {
 
   const cleanHost = host.split(":")[0].toLowerCase();
 
-  // ✅ ignore system paths
+  // ✅ SYSTEM FILES
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
@@ -15,8 +15,12 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // ✅ allow login
-  if (pathname.startsWith("/admin/login") || pathname === "/login") {
+  // ✅ ALLOW LOGIN
+  if (
+    pathname.startsWith("/admin/login") ||
+    pathname.startsWith("/pos/login") ||
+    pathname.startsWith("/customer/login")
+  ) {
     return NextResponse.next();
   }
 
@@ -26,15 +30,15 @@ export function middleware(req: NextRequest) {
     "customer.": "/customer",
   };
 
-  const sub = Object.keys(routes).find((k) =>
-    cleanHost.startsWith(k)
+  const subdomain = Object.keys(routes).find((key) =>
+    cleanHost.startsWith(key)
   );
 
-  const base = sub ? routes[sub] : null;
+  const basePath = subdomain ? routes[subdomain] : null;
 
-  if (base && !pathname.startsWith(base)) {
+  if (basePath && !pathname.startsWith(basePath)) {
     const url = req.nextUrl.clone();
-    url.pathname = `${base}${pathname === "/" ? "" : pathname}`;
+    url.pathname = `${basePath}${pathname === "/" ? "" : pathname}`;
     return NextResponse.rewrite(url);
   }
 
