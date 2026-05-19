@@ -99,55 +99,71 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <main className="p-8 md:p-12 w-full min-h-screen bg-[#FFF5F7]">
-      {/* HEADER */}
-      <header className="mb-10">
-        <h1 className="text-4xl font-extrabold text-slate-800 mb-2">
-          Admin Dashboard 👋
-        </h1>
+  <main className="p-8 md:p-12 w-full min-h-screen bg-[#FFF5F7]">
 
-        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
-          Juja Brew &amp; Bites • {user?.email}
-        </p>
-      </header>
+    {/* HEADER */}
+    <header className="mb-10">
+      <h1 className="text-4xl font-extrabold text-slate-800 mb-2">
+        Admin Dashboard 👋
+      </h1>
 
-      {/* GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {dashboardCards.map((card) => (
-          {card.path}
-            <div className="text-4xl mb-4">{card.icon}</div>
+      <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+        Juja Brew & Bites • {user?.email}
+      </p>
+    </header>
 
-            <h3 className="text-xl font-extrabold text-slate-800 mb-2">
-              {card.title}
-            </h3>
+    {/* GRID */}
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
 
-            <p className="text-sm text-slate-500 flex-1">{card.desc}</p>
-          </Link>
-        ))}
+      {dashboardCards.map((card) => (
+        <Link
+          key={card.title}
+          href={card.path}
+          className="bg-white p-8 rounded-[28px] border border-rose-50 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col"
+        >
+          <div className="text-4xl mb-4">{card.icon}</div>
 
-        {/* PUBLIC SITE CARD */}
-        <div className="bg-white p-8 rounded-[28px] border border-rose-100 shadow-sm flex flex-col">
-          <div className="text-4xl mb-4">🌐</div>
-
-          <h3 className="text-xl font-extrabold text-[#FC687D] mb-2">
-            Public Site
+          <h3 className="text-xl font-extrabold text-slate-800 mb-2">
+            {card.title}
           </h3>
 
           <p className="text-sm text-slate-500 flex-1">
-            Preview your customer-facing website and menu.
+            {card.desc}
           </p>
+        </Link>
+      ))}
 
-          <div className="flex gap-3 mt-4">
-            /
-              Home
-            </Link>
+      {/* PUBLIC SITE CARD */}
+      <div className="bg-white p-8 rounded-[28px] border border-rose-100 shadow-sm flex flex-col">
+        <div className="text-4xl mb-4">🌐</div>
 
-            /customer
-              Menu
-            </Link>
-          </div>
+        <h3 className="text-xl font-extrabold text-[#FC687D] mb-2">
+          Public Site
+        </h3>
+
+        <p className="text-sm text-slate-500 flex-1">
+          Preview your customer-facing website and menu.
+        </p>
+
+        <div className="flex gap-3 mt-4">
+          <Link
+            href="/"
+            className="px-4 py-2 text-xs font-bold bg-slate-100 rounded-full"
+          >
+            Home
+          </Link>
+
+          <Link
+            href="/customer"
+            className="px-4 py-2 text-xs font-bold bg-slate-100 rounded-full"
+          >
+            Menu
+          </Link>
         </div>
       </div>
-    </main>
-  );
-}
+
+    </div>
+
+  </main>
+);
+``}
