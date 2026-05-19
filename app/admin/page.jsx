@@ -115,23 +115,26 @@ export default function AdminDashboard() {
     {/* GRID */}
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
 
-      {dashboardCards.map((card) => (
-        <Link
-          key={card.title}
-          href={card.path}
-          className="bg-white p-8 rounded-[28px] border border-rose-50 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col"
-        >
-          <div className="text-4xl mb-4">{card.icon}</div>
+      {dashboardCards.map((card) => {
+        return (
+          <Link
+            key={card.title}
+            href={card.path}
+            className="bg-white p-8 rounded-[28px] border border-rose-50 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col"
+          >
+            <div className="text-4xl mb-4">{card.icon}</div>
 
-          <h3 className="text-xl font-extrabold text-slate-800 mb-2">
-            {card.title}
-          </h3>
+            <h3 className="text-xl font-extrabold text-slate-800 mb-2">
+              {card.title}
+            </h3>
 
-          <p className="text-sm text-slate-500 flex-1">
-            {card.desc}
-          </p>
-        </Link>
-      ))}
+            <p className="text-sm text-slate-500 flex-1">
+              {card.desc}
+            </p>
+          </Link>
+        );
+      })}
+      ``
 
       {/* PUBLIC SITE CARD */}
       <div className="bg-white p-8 rounded-[28px] border border-rose-100 shadow-sm flex flex-col">
