@@ -519,53 +519,41 @@ function OrderTab({ user }) {
 /* ──────────────────────────────────────────────────────────────
    Loyalty Tab (Perks content matches your longer version) [1](https://onedrive.live.com/personal/933e55cc8541ec41/_layouts/15/doc.aspx?resid=eb4cb160-5ac1-4fd9-abe6-dc3829e3f276&cid=933e55cc8541ec41)
 ────────────────────────────────────────────────────────────── */
-function LoyaltyTab({ member, setMember, user }) {
-  const [joining, setJoining] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [showPerks, setShowPerks] = useState(false);
-  const [saving, setSaving] = useState(false);
 
-  const [vouchers, setVouchers] = useState([]);
-  const [loadingVouchers, setLoadingVouchers] = useState(false);
+function LoyaltyTab({ member, setMember, user }) {
+  const [mode, setMode] = useState(null); // "new" or "existing"
+  const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState("");
 
   const [form, setForm] = useState({
-    customer_name: "",
-    Phone: "",
-    City: "",
-    Note: "",
+    name: "",
+    city: "",
+    address: "",
+    phone: "",
+    birthday: "",
   });
 
-  const pts = useMemo(() => parseFloat(member?.["Points balance"] ?? 0) || 0, [member]);
-
-  const join = async () => {
+  // =========================
+  // ✅ NEW MEMBER SIGNUP
+  // =========================
+  const createMember = async () => {
     if (!user?.id) return;
-    setJoining(true);
+
+    setLoading(true);
 
     try {
-      const existing = await supabase
-        .from("loyalty_members")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (existing.data) {
-        setMember(existing.data);
-        setJoining(false);
-        return;
-      }
-
       const payload = {
         user_id: user.id,
-        "Customer ID": genCustomerId(),
-        customer_name: user?.user_metadata?.full_name || "",
-        Email: user?.email || null,
-        Phone: null,
-        City: null,
-        customer_code: genMemberCode(),
+        "Customer ID": Math.floor(1000000 + Math.random() * 9000000).toString(),
+        customer_name: form.name,
+        Email: user.email,
+        Phone: form.phone,
+        Address: form.address,
+        City: form.city,
+        customer_code: `JUJA${Date.now()}`,
         "Points balance": 0,
-        Note: null,
-        "First visit": todayISO(),
-        "Last visit": todayISO(),
+        Note: form.birthday,
+        "First visit": new Date().toISOString(),
         "Total visits": 0,
         "Total spent": 0,
       };
@@ -576,118 +564,149 @@ function LoyaltyTab({ member, setMember, user }) {
         .select()
         .single();
 
-      if (error) alert(error.message);
-      else setMember(data);
-    } catch (e) {
-      console.error(e);
+      if (error) throw error;
+
+      setMember(data);
+      setNotice("✅ Account created!");
+    } catch (err) {
+      setNotice("❌ " + err.message);
     }
 
-    setJoining(false);
+    setLoading(false);
   };
 
-  const startEdit = () => {
-    setForm({
-      customer_name: member?.customer_name || "",
-      Phone: member?.["Phone"] || "",
-      City: member?.["City"] || "",
-      Note: member?.["Note"] || "",
-    });
-    setEditing(true);
-  };
+  // =========================
+  // ✅ EXISTING MEMBER LINK
+  // =========================
+  const requestLink = async () => {
+    setLoading(true);
 
-  const saveEdit = async (e) => {
-    e.preventDefault();
-    if (!member?.id) return;
-
-    setSaving(true);
     try {
-      const updateData = {
-        customer_name: form.customer_name,
-        Phone: form.Phone,
-        City: form.City,
-        Note: form.Note,
-      };
-
-      const { data, error } = await supabase
+      // try match
+      const { data } = await supabase
         .from("loyalty_members")
-        .update(updateData)
-        .eq("id", member.id)
-        .select()
-        .single();
+        .select("*")
+        .ilike("customer_name", form.name)
+        .eq("Note", form.birthday)
+        .maybeSingle();
 
-      if (error) alert(error.message);
-      else {
-        setMember(data);
-        setEditing(false);
+      const matchedId = data?.id || null;
+
+      await supabase.from("loyalty_link_requests").insert({
+        user_id: user.id,
+        input_name: form.name,
+        input_birthday: form.birthday,
+        matched_member_id: matchedId,
+        status: "pending",
+      });
+
+      if (matchedId) {
+        setNotice("✅ Match found! Request sent for approval.");
+      } else {
+        setNotice("⚠️ No match. Admin will review manually.");
       }
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const fmtDate = (iso) => {
-    if (!iso) return "—";
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return iso;
-    return d.toLocaleDateString();
-  };
-
-  useEffect(() => {
-    async function fetchVouchers() {
-      if (!member?.id) return;
-      setLoadingVouchers(true);
-
-      const nowIso = new Date().toISOString();
-      const { data, error } = await supabase
-        .from("vouchers")
-        .select("id, code, reward_text, issued_at, expires_at, status")
-        .eq("member_id", member.id)
-        .eq("status", "active")
-        .gt("expires_at", nowIso)
-        .order("issued_at", { ascending: false });
-
-      if (!error) setVouchers(data || []);
-      setLoadingVouchers(false);
+    } catch (err) {
+      setNotice("❌ " + err.message);
     }
 
-    fetchVouchers();
-  }, [member?.id]);
+    setLoading(false);
+  };
 
-  if (!member) {
+  // =========================
+  // ✅ IF NOT MEMBER
+  // =========================
+  if (!member && !mode) {
     return (
-      <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div>
-          <h2 className="text-2xl md:text-[28px] font-normal text-slate-800 tracking-tight">
-            Loyalty Program
-          </h2>
-          <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">
-            Earn points on every purchase
-          </p>
-        </div>
+      <div className="space-y-4">
+        <h2 className="text-lg font-bold">Join Loyalty</h2>
 
-        <div className="bg-white rounded-2xl md:rounded-[32px] border border-rose-50 shadow-sm p-6 md:p-8 text-center relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-rose-50 rounded-full blur-3xl" />
-          <div
-            className="text-5xl md:text-6xl mb-4 md:mb-6 relative z-10 animate-bounce"
-            style={{ animationDuration: "3s" }}
-          >
-            ⭐
-          </div>
-          <h3 className="text-xl md:text-2xl font-normal text-slate-800 mb-2 relative z-10">
-            Join Juja Rewards
-          </h3>
+        <button
+          onClick={() => setMode("new")}
+          className="w-full py-3 bg-[#FC687D] text-white rounded-xl"
+        >
+          New Member
+        </button>
 
-          <button
-            onClick={join}
-            disabled={joining}
-            className="w-full py-3.5 md:py-4 rounded-xl md:rounded-full font-normal text-[11px] md:text-[13px] uppercase tracking-widest text-white transition-all duration-300 bg-[#FC687D] hover:bg-rose-500 shadow-[0_8px_20px_rgba(252,104,125,0.25)] active:scale-95 disabled:opacity-50"
-          >
-            {joining ? "Creating account…" : "Join For Free →"}
-          </button>
-        </div>
+        <button
+          onClick={() => setMode("existing")}
+          className="w-full py-3 border rounded-xl"
+        >
+          Existing Member
+        </button>
       </div>
     );
   }
+
+  // =========================
+  // ✅ NEW MEMBER FORM
+  // =========================
+  if (!member && mode === "new") {
+    return (
+      <div className="space-y-3">
+        <h3 className="font-bold">Create Account</h3>
+
+        {["name", "city", "address", "phone", "birthday"].map((f) => (
+          <input
+            key={f}
+            placeholder={f}
+            value={form[f]}
+            onChange={(e) => setForm({ ...form, [f]: e.target.value })}
+            className="w-full border p-2 rounded"
+          />
+        ))}
+
+        <button
+          onClick={createMember}
+          disabled={loading}
+          className="w-full py-3 bg-[#FC687D] text-white rounded"
+        >
+          {loading ? "Creating..." : "Create Account"}
+        </button>
+
+        <p className="text-sm">{notice}</p>
+      </div>
+    );
+  }
+
+  // =========================
+  // ✅ EXISTING MEMBER FORM
+  // =========================
+  if (!member && mode === "existing") {
+    return (
+      <div className="space-y-3">
+        <h3 className="font-bold">Link Existing Account</h3>
+
+        <input
+          placeholder="Full Name"
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          className="w-full border p-2 rounded"
+        />
+
+        <input
+          placeholder="Birthday (YYYY-MM-DD)"
+          value={form.birthday}
+          onChange={(e) => setForm({ ...form, birthday: e.target.value })}
+          className="w-full border p-2 rounded"
+        />
+
+        <button
+          onClick={requestLink}
+          disabled={loading}
+          className="w-full py-3 bg-[#FC687D] text-white rounded"
+        >
+          {loading ? "Submitting..." : "Request Link"}
+        </button>
+
+        <p className="text-sm">{notice}</p>
+      </div>
+    );
+  }
+
+  
+  // =========================
+  // ✅ MEMBER DASHBOARD
+  // ========================
 
   const progress = ((pts % 100) / 100) * 100;
   const nextReward = (Math.floor(pts / 100) + 1) * 100;

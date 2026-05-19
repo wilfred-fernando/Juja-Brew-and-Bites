@@ -541,7 +541,7 @@ export default function LoyaltyAdminPage() {
         </h1>
         <p className="text-slate-400 text-xs md:text-sm mt-2">
           ADMIN DASHBOARD
-          Members: {members.length} • Linked: {linkedMembers.length} • Not linked: {unlinkedMembers.length}
+          (Members: {members.length} • Linked: {linkedMembers.length} • Not linked: {unlinkedMembers.length})
         </p>
 
         {notice && (
