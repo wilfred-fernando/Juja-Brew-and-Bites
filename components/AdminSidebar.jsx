@@ -13,8 +13,12 @@ export default function AdminSidebar({
   const MENU = [
     { name: "Dashboard", path: "/admin", icon: "🏠" },
     { name: "Bookings", path: "/admin/bookings", icon: "📅" },
-    { name: "Orders", path: "/admin/orders", icon: "📋" },
+    { name: "Calendar", path: "/admin/calendar", icon: "🗓️" },
+    { name: "Live Orders", path: "/admin/live-orders", icon: "📋" },
+    { name: "POS System", path: "/admin/pos-admin", icon: "🛒" },
     { name: "Menu", path: "/admin/menu", icon: "🧩" },
+    { name: "Loyalty Program", path: "/admin/loyalty", icon: "⭐" },
+    { name: "Promo Codes", path: "/admin/promos", icon: "🎁" },
     { name: "Settings", path: "/admin/settings", icon: "⚙️" },
   ];
 
