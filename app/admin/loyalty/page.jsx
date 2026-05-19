@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 
@@ -6,7 +7,7 @@ export default function LoyaltyAdminPage() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Existing search + edit modal states (kept)
+  // Existing search + edit modal states
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
@@ -19,7 +20,7 @@ export default function LoyaltyAdminPage() {
   });
   const [saving, setSaving] = useState(false);
 
-  // ✅ NEW: Link Requests (admin approval)
+  // ✅ Link Requests (admin approval)
   const [linkRequests, setLinkRequests] = useState([]);
   const [linkLoading, setLinkLoading] = useState(false);
   const [linkActionBusy, setLinkActionBusy] = useState(null); // request id
@@ -40,15 +41,18 @@ export default function LoyaltyAdminPage() {
 
     if (error) {
       alert("Error: " + error.message);
-    } else if (data) {
-      const sortedData = data.sort(
-        (a, b) =>
-          (parseFloat(b["Points balance"] || 0) || 0) -
-          (parseFloat(a["Points balance"] || 0) || 0)
-      );
-      setMembers(sortedData);
+      setMembers([]);
+      setLoading(false);
+      return;
     }
 
+    const sortedData = (data || []).slice().sort((a, b) => {
+      const ap = parseFloat(a["Points balance"] || 0) || 0;
+      const bp = parseFloat(b["Points balance"] || 0) || 0;
+      return bp - ap;
+    });
+
+    setMembers(sortedData);
     setLoading(false);
   }
 
@@ -58,55 +62,45 @@ export default function LoyaltyAdminPage() {
   async function fetchLinkRequests() {
     setLinkLoading(true);
 
-    // Only pending requests need admin approval
     const { data, error } = await supabase
       .from("loyalty_link_requests")
       .select("*")
       .eq("status", "pending");
 
     if (error) {
-      // Don't hard fail the page if table not present; just show admin a message
       console.error(error);
       setLinkRequests([]);
-    } else {
-      // Optional sort by created_at if it exists
-      const sorted =
-        (data || []).slice().sort((a, b) => {
-          const da = a.created_at ? new Date(a.created_at).getTime() : 0;
-          const db = b.created_at ? new Date(b.created_at).getTime() : 0;
-          return db - da;
-        });
-
-      setLinkRequests(sorted);
+      setLinkLoading(false);
+      return;
     }
 
+    const sorted = (data || []).slice().sort((a, b) => {
+      const da = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const db = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return db - da;
+    });
+
+    setLinkRequests(sorted);
     setLinkLoading(false);
   }
 
   // --------------------
-  // OPTIONAL: Search members by name (kept from your file)
-  // --------------------
-  const searchMember = async (name) => {
-    const { data } = await supabase
-      .from("loyalty_members")
-      .select("*")
-      .ilike("customer_name", `%${name}%`);
-    return data;
-  };
-
-  // --------------------
-  // ✅ NEW: APPROVE LINK REQUEST
-  // - Links loyalty_members.user_id = request.user_id
-  // - Marks request approved + matched_member_id
-  // - Safety checks to prevent overwriting wrong links
+  // ✅ APPROVE LINK REQUEST
+  // Updates BOTH:
+  // - loyalty_members.user_id
+  // - profiles.loyalty_account_id
   // --------------------
   const approveLinkRequest = async (request) => {
     const requestId = request.id;
     const userId = request.user_id;
 
-    // request may contain member_id OR admin can choose from dropdown
     const memberId =
       request.member_id || selectedMemberByRequestId[requestId] || null;
+
+    if (!userId) {
+      alert("This request has no user_id. Cannot approve.");
+      return;
+    }
 
     if (!memberId) {
       alert("Please select a member to link for this request.");
@@ -116,7 +110,7 @@ export default function LoyaltyAdminPage() {
     setLinkActionBusy(requestId);
 
     try {
-      // 1) Prevent overwriting: member already linked?
+      // 1) Load loyalty member row (prevent overwriting)
       const { data: memberRow, error: memberErr } = await supabase
         .from("loyalty_members")
         .select("id, user_id, customer_name, customer_code")
@@ -132,25 +126,38 @@ export default function LoyaltyAdminPage() {
         return;
       }
 
-      // 2) Prevent duplicates: user already linked to another member?
-      if (userId) {
-        const { data: existingLink, error: existingErr } = await supabase
+      // 2) Check if user is already linked to another loyalty member
+      const { data: existingMemberLink, error: existingMemberErr } =
+        await supabase
           .from("loyalty_members")
           .select("id, customer_name, customer_code")
           .eq("user_id", userId)
           .maybeSingle();
 
-        // maybeSingle() can still throw error depending on client version;
-        // if error occurs, we treat it as "no existing link"
-        if (!existingErr && existingLink?.id) {
-          alert(
-            `⚠️ This user is already linked to another member (${existingLink.customer_name || "Unknown"} / ${existingLink.customer_code || existingLink.id}). Unlink that first to avoid wrong linking.`
-          );
-          return;
-        }
+      if (!existingMemberErr && existingMemberLink?.id) {
+        alert(
+          `⚠️ This user is already linked to another member (${existingMemberLink.customer_name || "Unknown"} / ${existingMemberLink.customer_code || existingMemberLink.id}). Unlink first.`
+        );
+        return;
       }
 
-      // 3) Link member to user
+      // 3) Check profiles row + prevent overriding loyalty_account_id
+      const { data: profileRow, error: profileErr } = await supabase
+        .from("profiles")
+        .select("id, loyalty_account_id, email, full_name, role")
+        .eq("id", userId)
+        .single();
+
+      if (profileErr) throw profileErr;
+
+      if (profileRow?.loyalty_account_id) {
+        alert(
+          `⚠️ This user already has loyalty_account_id = ${profileRow.loyalty_account_id}. Unlink first.`
+        );
+        return;
+      }
+
+      // 4) Link loyalty member to user
       const { error: linkErr } = await supabase
         .from("loyalty_members")
         .update({ user_id: userId })
@@ -158,7 +165,23 @@ export default function LoyaltyAdminPage() {
 
       if (linkErr) throw linkErr;
 
-      // 4) Update request status
+      // 5) Link profile to loyalty member (your schema column)
+      const { error: profLinkErr } = await supabase
+        .from("profiles")
+        .update({ loyalty_account_id: memberId })
+        .eq("id", userId);
+
+      if (profLinkErr) {
+        // rollback the member link if profile update fails
+        await supabase
+          .from("loyalty_members")
+          .update({ user_id: null })
+          .eq("id", memberId);
+
+        throw profLinkErr;
+      }
+
+      // 6) Mark request approved
       const { error: reqErr } = await supabase
         .from("loyalty_link_requests")
         .update({
@@ -169,7 +192,6 @@ export default function LoyaltyAdminPage() {
 
       if (reqErr) throw reqErr;
 
-      // refresh
       await fetchMembers();
       await fetchLinkRequests();
     } catch (err) {
@@ -180,7 +202,7 @@ export default function LoyaltyAdminPage() {
   };
 
   // --------------------
-  // ✅ NEW: REJECT LINK REQUEST
+  // REJECT LINK REQUEST
   // --------------------
   const rejectLinkRequest = async (requestId) => {
     setLinkActionBusy(requestId);
@@ -201,7 +223,9 @@ export default function LoyaltyAdminPage() {
   };
 
   // --------------------
-  // ✅ NEW: UNLINK (admin can remove wrong linking)
+  // ✅ UNLINK MEMBER (clears BOTH tables)
+  // - loyalty_members.user_id = null
+  // - profiles.loyalty_account_id = null
   // --------------------
   const unlinkMember = async (member) => {
     if (
@@ -211,13 +235,32 @@ export default function LoyaltyAdminPage() {
     )
       return;
 
+    const userId = member?.user_id || null;
+
     try {
-      const { error } = await supabase
+      // 1) Unlink member
+      const { error: unlinkErr } = await supabase
         .from("loyalty_members")
         .update({ user_id: null })
         .eq("id", member.id);
 
-      if (error) throw error;
+      if (unlinkErr) throw unlinkErr;
+
+      // 2) Unlink profile if we know userId
+      if (userId) {
+        const { error: profErr } = await supabase
+          .from("profiles")
+          .update({ loyalty_account_id: null })
+          .eq("id", userId);
+
+        if (profErr) throw profErr;
+      }
+
+      // 3) Safety clean-up: any profile pointing at this loyalty member id
+      await supabase
+        .from("profiles")
+        .update({ loyalty_account_id: null })
+        .eq("loyalty_account_id", member.id);
 
       await fetchMembers();
     } catch (err) {
@@ -226,7 +269,7 @@ export default function LoyaltyAdminPage() {
   };
 
   // --------------------
-  // EDIT MODAL (kept)
+  // EDIT MODAL
   // --------------------
   const openModal = (member) => {
     setEditingMember(member);
@@ -243,31 +286,43 @@ export default function LoyaltyAdminPage() {
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
+
     try {
-      await supabase.from("loyalty_members").update(form).eq("id", editingMember.id);
+      const { error } = await supabase
+        .from("loyalty_members")
+        .update(form)
+        .eq("id", editingMember.id);
+
+      if (error) throw error;
+
       await fetchMembers();
       setIsModalOpen(false);
     } catch (error) {
-      alert("Error saving member: " + error.message);
+      alert("Error saving member: " + (error?.message || "Unknown error"));
     }
+
     setSaving(false);
   };
 
   const handleDelete = async (id) => {
     if (!confirm("Are you sure you want to remove this member? This cannot be undone.")) return;
-    await supabase.from("loyalty_members").delete().eq("id", id);
+    const { error } = await supabase.from("loyalty_members").delete().eq("id", id);
+    if (error) {
+      alert("Delete failed: " + error.message);
+      return;
+    }
     fetchMembers();
   };
 
   // --------------------
-  // FILTER MEMBERS (kept)
+  // FILTER MEMBERS
   // --------------------
   const filteredMembers = useMemo(() => {
+    const s = (search || "").toLowerCase();
     return members.filter((m) => {
-      const n = (m["customer_name"] || "").toLowerCase();
-      const c = (m["customer_code"] || "").toLowerCase();
-      const p = (m["Phone"] || "");
-      const s = (search || "").toLowerCase();
+      const n = String(m["customer_name"] || "").toLowerCase();
+      const c = String(m["customer_code"] || "").toLowerCase();
+      const p = String(m["Phone"] || "");
       return n.includes(s) || c.includes(s) || p.includes(search || "");
     });
   }, [members, search]);
@@ -275,7 +330,7 @@ export default function LoyaltyAdminPage() {
   if (loading)
     return (
       <div className="p-8 flex justify-center">
-        <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full"></div>
+        <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
       </div>
     );
 
@@ -345,7 +400,6 @@ export default function LoyaltyAdminPage() {
                         )}
                       </div>
 
-                      {/* If request doesn't include member_id, admin can select */}
                       {!req.member_id && (
                         <div className="mt-3">
                           <label className="block text-[10px] font-normal uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
@@ -435,7 +489,6 @@ export default function LoyaltyAdminPage() {
                     </span>
                   )}
 
-                  {/* ✅ Link status badge */}
                   {member.user_id ? (
                     <span className="bg-green-50 text-green-700 text-[9px] font-normal uppercase tracking-widest px-2 py-0.5 rounded-md border border-green-100">
                       Linked
@@ -456,7 +509,6 @@ export default function LoyaltyAdminPage() {
                     {member["Phone"] || "No phone"}
                   </span>
 
-                  {/* ✅ show linked user id (optional) */}
                   {member.user_id && (
                     <>
                       <span className="text-slate-300 text-[10px]">•</span>
@@ -482,7 +534,7 @@ export default function LoyaltyAdminPage() {
                   </p>
                 </div>
 
-                <div className="w-px bg-slate-100 hidden md:block"></div>
+                <div className="w-px bg-slate-100 hidden md:block" />
 
                 <div className="text-center md:text-right">
                   <p className="text-[9px] md:text-[10px] font-normal uppercase tracking-widest text-slate-400 mb-0.5">
@@ -502,7 +554,6 @@ export default function LoyaltyAdminPage() {
                   Edit
                 </button>
 
-                {/* ✅ Unlink button only when linked */}
                 {member.user_id && (
                   <button
                     onClick={() => unlinkMember(member)}
@@ -537,7 +588,7 @@ export default function LoyaltyAdminPage() {
           onClick={() => setIsModalOpen(false)}
         >
           <div
-            className="bg-white w-full max-w-md rounded-t-[24px] md:rounded-[28px] p-5 md:p-8 shadow-2xl animate-in slide-in-from-bottom-full md:slide-in-from-bottom-10 md:zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto hide-scrollbar"
+            className="bg-white w-full max-w-md rounded-t-[24px] md:rounded-[28px] p-5 md:p-8 shadow-2xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-5 md:hidden" />
@@ -583,26 +634,6 @@ export default function LoyaltyAdminPage() {
                   onChange={(e) => setForm({ ...form, Phone: e.target.value })}
                   className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs md:text-sm font-semibold focus:bg-white focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
                 />
-              </div>
-
-              {/* READ-ONLY VISIT DATES (kept) */}
-              <div className="grid grid-cols-2 gap-3 md:gap-4">
-                <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100">
-                  <label className="block text-[9px] font-normal uppercase tracking-widest text-slate-400 mb-1">
-                    First Visit
-                  </label>
-                  <p className="text-[11px] md:text-xs font-semibold text-slate-600 truncate">
-                    {editingMember["First visit"] || "N/A"}
-                  </p>
-                </div>
-                <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-100">
-                  <label className="block text-[9px] font-normal uppercase tracking-widest text-slate-400 mb-1">
-                    Last Visit
-                  </label>
-                  <p className="text-[11px] md:text-xs font-semibold text-slate-600 truncate">
-                    {editingMember["Last visit"] || "N/A"}
-                  </p>
-                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3 md:gap-4">
@@ -670,3 +701,4 @@ export default function LoyaltyAdminPage() {
     </div>
   );
 }
+``
