@@ -46,9 +46,8 @@ const PACKAGE_POLICIES = {
         "Additional guests: ₱300 worth of food & drinks per person (maximum of 5 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
       extension: [
-        "Extension maximum of 2 hours:",
-        "Option 1: ₱1,000 worth of food & drinks per hour.",
-        "Option 2: ₱250 per hour.",
+        "Extension maximum of 2 hours:",        
+        "₱250 per hour.",
       ],
     },
     rental_fees_inclusions: {
@@ -81,9 +80,8 @@ const PACKAGE_POLICIES = {
         "Additional guests: ₱300 worth of food & drinks per person (maximum of 5 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
       extension: [
-        "Extension maximum of 2 hours:",
-        "Option 1: ₱1,500 worth of food & drinks per hour.",
-        "Option 2: ₱750 per hour.",
+        "Extension maximum of 2 hours:",        
+        "₱750 per hour.",
       ],
     },
     rental_fees_inclusions: {
@@ -116,9 +114,8 @@ const PACKAGE_POLICIES = {
         "Additional guests: ₱300 worth of food & drinks per person (maximum of 5 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
       extension: [
-        "Extension maximum of 2 hours:",
-        "Option 1: ₱3,000 worth of food & drinks per hour.",
-        "Option 2: ₱1,500 per hour.",
+        "Extension maximum of 2 hours:",        
+        "₱1,500 per hour.",
       ],
     },
     rental_fees_inclusions: {
