@@ -11,7 +11,7 @@ export default function LoyaltyAdminPage() {
   const [loading, setLoading] = useState(true);
 
   // =========================
-  // LIST SEARCH (top search)
+  // LIST SEARCH
   // =========================
   const [search, setSearch] = useState("");
 
@@ -48,6 +48,43 @@ export default function LoyaltyAdminPage() {
   const memberTimer = useRef(null);
 
   // =========================
+  // ✅ CONFIRMATION MODAL (replaces confirm/alert)
+  // =========================
+  const [confirmModal, setConfirmModal] = useState({
+    open: false,
+    type: null, // "unlink" | "delete"
+    payload: null,
+    title: "",
+    message: "",
+    confirmText: "Confirm",
+    tone: "danger", // "danger" | "primary"
+  });
+
+  function openConfirm({ type, payload, title, message, confirmText, tone }) {
+    setConfirmModal({
+      open: true,
+      type,
+      payload,
+      title,
+      message,
+      confirmText: confirmText || "Confirm",
+      tone: tone || "danger",
+    });
+  }
+
+  function closeConfirm() {
+    setConfirmModal({
+      open: false,
+      type: null,
+      payload: null,
+      title: "",
+      message: "",
+      confirmText: "Confirm",
+      tone: "danger",
+    });
+  }
+
+  // =========================
   // INITIAL LOAD
   // =========================
   useEffect(() => {
@@ -63,6 +100,7 @@ export default function LoyaltyAdminPage() {
     if (error) {
       console.error(error);
       setMembers([]);
+      setNotice(`❌ ${error.message}`);
       return;
     }
 
@@ -79,7 +117,6 @@ export default function LoyaltyAdminPage() {
   // SEARCH: Profiles by email/full_name
   // =========================
   useEffect(() => {
-    // debounce
     if (userTimer.current) clearTimeout(userTimer.current);
 
     userTimer.current = setTimeout(async () => {
@@ -101,7 +138,6 @@ export default function LoyaltyAdminPage() {
         return;
       }
 
-      // Prefer admins? NO — keep all, we are linking customers too.
       setUserOptions(data || []);
     }, 250);
 
@@ -121,7 +157,6 @@ export default function LoyaltyAdminPage() {
         return;
       }
 
-      // Search by customer_name or customer_code
       const { data, error } = await supabase
         .from("loyalty_members")
         .select("id,user_id,customer_name,customer_code,Email,Phone")
@@ -170,7 +205,7 @@ export default function LoyaltyAdminPage() {
   );
 
   // =========================
-  // EDIT / DELETE
+  // EDIT
   // =========================
   const openModal = (member) => {
     setEditingMember(member);
@@ -201,42 +236,43 @@ export default function LoyaltyAdminPage() {
 
       await fetchMembers();
       setIsModalOpen(false);
+      setNotice("✅ Changes saved.");
     } catch (err) {
-      alert("Error saving member: " + (err?.message || "Unknown error"));
+      setNotice("❌ Error saving member: " + (err?.message || "Unknown error"));
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm("Remove this loyalty member? This cannot be undone.")) return;
+  // =========================
+  // ✅ DELETE (confirmed)
+  // =========================
+  async function deleteMemberConfirmed(member) {
+    if (!member?.id) return;
 
     setActionBusy(true);
     setNotice("");
 
     try {
-      // If linked, unlink first to keep data consistent
-      const member = members.find((m) => m.id === id);
-      if (member?.user_id) {
-        await unlinkMember(member, { silent: true });
+      // if linked, unlink silently first to keep tables consistent
+      if (member.user_id) {
+        await unlinkMemberConfirmed(member, { silent: true });
       }
 
-      const { error } = await supabase.from("loyalty_members").delete().eq("id", id);
+      const { error } = await supabase.from("loyalty_members").delete().eq("id", member.id);
       if (error) throw error;
 
       await fetchMembers();
+      setNotice("✅ Member deleted.");
     } catch (err) {
-      alert("Delete failed: " + (err?.message || "Unknown error"));
+      setNotice("❌ Delete failed: " + (err?.message || "Unknown error"));
     } finally {
       setActionBusy(false);
     }
-  };
+  }
 
   // =========================
-  // ✅ MANUAL LINK (email/user + loyalty member)
-  // Updates BOTH:
-  // - loyalty_members.user_id
-  // - profiles.loyalty_account_id
+  // ✅ MANUAL LINK
   // =========================
   async function manualLink() {
     setNotice("");
@@ -249,7 +285,7 @@ export default function LoyaltyAdminPage() {
     setActionBusy(true);
 
     try {
-      // 1) Ensure member is not already linked
+      // 1) Ensure member not already linked
       const { data: mRow, error: mErr } = await supabase
         .from("loyalty_members")
         .select("id,user_id,customer_name,customer_code")
@@ -261,12 +297,13 @@ export default function LoyaltyAdminPage() {
         return;
       }
 
-      // 2) Ensure user not linked to other member
+      // 2) Ensure user not linked to another member
       const { data: existingMember, error: exErr } = await supabase
         .from("loyalty_members")
         .select("id,customer_name,customer_code")
         .eq("user_id", selectedUser.id)
         .maybeSingle();
+
       if (!exErr && existingMember?.id) {
         setNotice(
           `⚠️ This user is already linked to ${existingMember.customer_name || "Unknown"} (${existingMember.customer_code || existingMember.id}). Unlink first.`
@@ -301,11 +338,15 @@ export default function LoyaltyAdminPage() {
 
       if (profErr) {
         // rollback
-        await supabase.from("loyalty_members").update({ user_id: null }).eq("id", selectedMember.id);
+        await supabase
+          .from("loyalty_members")
+          .update({ user_id: null })
+          .eq("id", selectedMember.id);
         throw profErr;
       }
 
       setNotice("✅ Linked successfully.");
+
       setSelectedUser(null);
       setSelectedMember(null);
       setUserQuery("");
@@ -315,24 +356,17 @@ export default function LoyaltyAdminPage() {
 
       await fetchMembers();
     } catch (err) {
-      setNotice("Manual link failed: " + (err?.message || "Unknown error"));
+      setNotice("❌ Manual link failed: " + (err?.message || "Unknown error"));
     } finally {
       setActionBusy(false);
     }
   }
 
   // =========================
-  // ✅ UNLINK (clears BOTH tables)
+  // ✅ UNLINK (confirmed)
   // =========================
-  async function unlinkMember(member, { silent = false } = {}) {
+  async function unlinkMemberConfirmed(member, { silent = false } = {}) {
     if (!member?.id) return;
-
-    if (!silent) {
-      const ok = confirm(
-        `Unlink this member?\n\n${member.customer_name || "Member"} (${member.customer_code || member.id})`
-      );
-      if (!ok) return;
-    }
 
     const memberId = member.id;
     const userId = member.user_id;
@@ -351,15 +385,47 @@ export default function LoyaltyAdminPage() {
         .from("profiles")
         .update({ loyalty_account_id: null })
         .eq("id", userId);
+
       if (pErr) throw pErr;
     }
 
     // 3) Safety cleanup: any profile pointing to this loyalty member id
-    await supabase.from("profiles").update({ loyalty_account_id: null }).eq("loyalty_account_id", memberId);
+    await supabase
+      .from("profiles")
+      .update({ loyalty_account_id: null })
+      .eq("loyalty_account_id", memberId);
 
     if (!silent) {
       setNotice("✅ Unlinked successfully.");
       await fetchMembers();
+    }
+  }
+
+  // =========================
+  // ✅ CONFIRM MODAL ACTION
+  // =========================
+  async function handleConfirmAction() {
+    const { type, payload } = confirmModal;
+    if (!payload) return;
+
+    try {
+      setActionBusy(true);
+      setNotice("");
+
+      if (type === "unlink") {
+        await unlinkMemberConfirmed(payload);
+        setNotice("✅ Unlinked successfully.");
+      }
+      if (type === "delete") {
+        await deleteMemberConfirmed(payload);
+      }
+
+      await fetchMembers();
+    } catch (err) {
+      setNotice("❌ Action failed: " + (err?.message || "Unknown error"));
+    } finally {
+      setActionBusy(false);
+      closeConfirm();
     }
   }
 
@@ -418,7 +484,16 @@ export default function LoyaltyAdminPage() {
 
           {member.user_id && (
             <button
-              onClick={() => unlinkMember(member)}
+              onClick={() =>
+                openConfirm({
+                  type: "unlink",
+                  payload: member,
+                  title: "Unlink member?",
+                  message: `This will disconnect the user account from "${member.customer_name || "Member"}" (${member.customer_code || member.id}).`,
+                  confirmText: "Unlink",
+                  tone: "danger",
+                })
+              }
               disabled={actionBusy}
               className="px-3 py-2 bg-red-50 border border-red-100 text-xs text-red-600 rounded-xl hover:bg-red-100 active:scale-95 disabled:opacity-60"
             >
@@ -427,9 +502,18 @@ export default function LoyaltyAdminPage() {
           )}
 
           <button
-            onClick={() => handleDelete(member.id)}
+            onClick={() =>
+              openConfirm({
+                type: "delete",
+                payload: member,
+                title: "Delete loyalty member?",
+                message: `This is permanent. "${member.customer_name || "Member"}" (${member.customer_code || member.id}) will be removed.`,
+                confirmText: "Delete",
+                tone: "danger",
+              })
+            }
             disabled={actionBusy}
-            className="px-3 py-2 bg-white border border-slate-200 text-xs text-slate-500 rounded-xl hover:bg-slate-50 active:scale-95 disabled:opacity-60"
+            className="px-3 py-2 bg-white border border-slate-200 text-xs text-slate-600 rounded-xl hover:bg-slate-50 active:scale-95 disabled:opacity-60"
           >
             Delete
           </button>
@@ -468,9 +552,7 @@ export default function LoyaltyAdminPage() {
 
       {/* ✅ MANUAL LINK */}
       <section className="bg-white border border-rose-100 rounded-2xl p-4 md:p-5">
-        <h2 className="text-sm md:text-base font-semibold text-slate-800">
-          Manual Link
-        </h2>
+        <h2 className="text-sm md:text-base font-semibold text-slate-800">Manual Link</h2>
         <p className="text-xs text-slate-500 mt-1">
           Select a user by email (type to search), then select a loyalty member (type to search), then link.
         </p>
@@ -504,11 +586,10 @@ export default function LoyaltyAdminPage() {
                     }}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-rose-50"
                   >
-                    <div className="font-semibold text-slate-800">
-                      {u.email || "(no email)"}
-                    </div>
+                    <div className="font-semibold text-slate-800">{u.email || "(no email)"}</div>
                     <div className="text-xs text-slate-500">
-                      {u.full_name || u.id} {u.loyalty_account_id ? " • (already linked)" : ""}
+                      {u.full_name || u.id}
+                      {u.loyalty_account_id ? " • (already linked)" : ""}
                     </div>
                   </button>
                 ))}
@@ -554,7 +635,9 @@ export default function LoyaltyAdminPage() {
                       {m.customer_name || "Unknown"} • {m.customer_code || m.id}
                     </div>
                     <div className="text-xs text-slate-500">
-                      {m.user_id ? "(already linked)" : "Not linked"} • {m.Email || ""} {m.Phone ? `• ${m.Phone}` : ""}
+                      {m.user_id ? "(already linked)" : "Not linked"}
+                      {m.Email ? ` • ${m.Email}` : ""}
+                      {m.Phone ? ` • ${m.Phone}` : ""}
                     </div>
                   </button>
                 ))}
@@ -598,9 +681,7 @@ export default function LoyaltyAdminPage() {
 
       {/* LIST SEARCH */}
       <div className="relative">
-        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
-          🔍
-        </span>
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
         <input
           type="text"
           placeholder="Search members by name, code, phone, user_id..."
@@ -642,6 +723,62 @@ export default function LoyaltyAdminPage() {
         )}
       </section>
 
+      {/* ✅ CONFIRM MODAL */}
+      {confirmModal.open && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
+          onClick={closeConfirm}
+        >
+          <div
+            className="bg-white w-full max-w-md rounded-t-[24px] md:rounded-[28px] p-5 md:p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-slate-400">
+                  Confirmation
+                </p>
+                <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">
+                  {confirmModal.title || "Confirm action"}
+                </h3>
+              </div>
+              <button
+                onClick={closeConfirm}
+                className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-sm text-slate-600 mt-3">
+              {confirmModal.message || "Are you sure you want to continue?"}
+            </p>
+
+            <div className="grid grid-cols-2 gap-2 mt-5 pt-4 border-t border-slate-100">
+              <button
+                onClick={closeConfirm}
+                className="w-full py-3 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold active:scale-95"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleConfirmAction}
+                disabled={actionBusy}
+                className={`w-full py-3 rounded-xl text-white text-xs font-bold active:scale-95 disabled:opacity-60 ${
+                  confirmModal.tone === "primary"
+                    ? "bg-[#FC687D] hover:bg-rose-500"
+                    : "bg-red-500 hover:bg-red-600"
+                }`}
+              >
+                {actionBusy ? "Working..." : confirmModal.confirmText}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* EDIT MODAL */}
       {isModalOpen && editingMember && (
         <div
@@ -654,9 +791,7 @@ export default function LoyaltyAdminPage() {
           >
             <div className="flex justify-between items-start mb-5">
               <div>
-                <h3 className="text-xl md:text-2xl font-semibold text-slate-800">
-                  Edit Member
-                </h3>
+                <h3 className="text-xl md:text-2xl font-semibold text-slate-800">Edit Member</h3>
                 <p className="font-mono text-[10px] text-slate-400 mt-1">
                   {editingMember.customer_code || editingMember["customer_code"] || editingMember.id}
                 </p>
