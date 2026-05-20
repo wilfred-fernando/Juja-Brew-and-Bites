@@ -213,7 +213,7 @@ export default function Home() {
             <h2 className="text-4xl md:text-5xl font-extrabold text-slate-800 tracking-tight">Our Menu</h2>
             <div className="w-12 h-[3px] rounded-full bg-[#FC687D] mx-auto mt-4" />
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
+          <div className="h-full flex flex-col">  
             {categories.length > 0
               ? categories.map(cat => {
                   const count = allItems.filter(i => i.category === cat.name).length;
@@ -310,9 +310,9 @@ function FeaturedCard({ item, catEmoji }) {
         transform: hovered ? "translateY(-8px)" : "translateY(0)",
         boxShadow: hovered ? "0 25px 50px rgba(252,104,125,0.12)" : "0 4px 20px rgba(0,0,0,0.03)" }}>
       
-      <div className="relative overflow-hidden m-2 rounded-2xl flex-shrink-0" style={{ height:"210px" }}>
+      <div className="relative overflow-hidden m-2 rounded-2xl flex-shrink-0 aspect-square">
         {item.image_url
-          ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover"
+          ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover object-center"
               style={{ transform: hovered ? "scale(1.08)" : "scale(1)", transition:"transform 0.7s cubic-bezier(0.25,0.46,0.45,0.94)" }} />
           : <div className="w-full h-full flex items-center justify-center text-6xl bg-rose-50"
               style={{ transition:"background 0.5s ease" }}>

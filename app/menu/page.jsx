@@ -253,23 +253,7 @@ export default function PublicMenuPage() {
             </p>
           )}
         </div>
-
-        {/* SEARCH */}
-        <div className="mb-6">
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
-              🔍
-            </span>
-            <input
-              type="text"
-              placeholder="Search all menu items..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:border-[#FC687D]"
-            />
-          </div>
-        </div>
-
+        
         {/* LOADING */}
         {(loading || promoLoading) && (
           <div className="flex justify-center py-16">
@@ -297,7 +281,7 @@ export default function PublicMenuPage() {
                 No items found.
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols- sm:grid-cols- md:grid-cols-4 gap-4">
                 {visibleItems.map((item) => {
                   const bestSeller = !!item.is_featured; // Best Seller from is_featured
                   const mostOrdered = mostOrderedIdSet.has(item.id);
@@ -306,7 +290,7 @@ export default function PublicMenuPage() {
                     <button
                       key={item.id}
                       onClick={() => setSelectedItem(item)}
-                      className="relative text-left bg-white border border-slate-100 rounded-2xl p-3 shadow-sm hover:shadow-md transition active:scale-[0.99]"
+                      className="relative text-left bg-white border border-slate-100 rounded-xl p-2 shadow-sm hover:shadow-md transition active:scale-[0.99]"
                     >
                       {/* Badges */}
                       <div className="absolute top-2 left-2 flex gap-1">
@@ -322,14 +306,18 @@ export default function PublicMenuPage() {
                         )}
                       </div>
 
-                      {/* Image */}
-                      <div className="w-full h-24 rounded-xl bg-[#FFF9FA] border border-rose-50 flex items-center justify-center overflow-hidden mb-3">
-                        {item.image_url ? (
-                          <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-2xl text-rose-200">📷</span>
-                        )}
-                      </div>
+                      {/* Image */}                      
+                        <div className="w-full aspect-square rounded-lg bg-[#FFF9FA] border border-rose-50 flex items-center justify-center overflow-hidden mb-2 sm:mb-3">
+                          {item.image_url ? (
+                            <img
+                              src={item.image_url}
+                              alt={item.name}
+                              className="w-full h-full object-cover object-center"
+                            />
+                          ) : (
+                            <span className="text-xl sm:text-2xl text-rose-200">📷</span>
+                          )}
+                        </div>
 
                       {/* Name */}
                       <p className="text-sm font-bold text-slate-800 leading-tight line-clamp-2">
@@ -342,14 +330,7 @@ export default function PublicMenuPage() {
                           {item.category || "Others"}
                         </p>
                       )}
-
-                      {/* Description */}
-                      {item.description && (
-                        <p className="text-[11px] text-slate-500 mt-1 leading-relaxed line-clamp-2">
-                          {item.description}
-                        </p>
-                      )}
-
+                      
                       {/* Price */}
                       <p className="text-sm text-[#FC687D] font-semibold mt-2">
                         ₱{Number(item.price || 0).toFixed(0)}

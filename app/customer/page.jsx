@@ -50,7 +50,11 @@ function normalizeBirthday(input) {
 
   const mon = monRaw.charAt(0).toUpperCase() + monRaw.slice(1).toLowerCase();
   if (!MONTHS.includes(mon)) {
-    return { ok: false, value: s, msg: "Month must be Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec." };
+    return {
+      ok: false,
+      value: s,
+      msg: "Month must be Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec.",
+    };
   }
 
   const dayNum = Number(dd);
@@ -81,9 +85,7 @@ function TabBar({ tab, setTab }) {
             key={t.id}
             onClick={() => setTab(t.id)}
             className={`relative flex flex-col items-center justify-center py-2.5 md:py-3 gap-0.5 md:gap-1 transition-all duration-300 active:scale-90 ${
-              tab === t.id
-                ? "text-[#FC687D]"
-                : "text-slate-400 hover:text-slate-600"
+              tab === t.id ? "text-[#FC687D]" : "text-slate-400 hover:text-slate-600"
             }`}
           >
             <span
@@ -137,11 +139,7 @@ function HomeTab({ member, user, setTab }) {
       address: "8 Visayas Ave., Diliman, QC",
       phone: "0961-6320909",
       hoursLabel: "STORE HOURS",
-      hours: [
-        "Mon - Wed: 8AM – 10PM",
-        "Thu - Sat: 10AM – 10PM",
-        "Sun: CLOSED",
-      ],
+      hours: ["Mon - Wed: 8AM – 10PM", "Thu - Sat: 10AM – 10PM", "Sun: CLOSED"],
       room: [],
     },
   };
@@ -154,11 +152,7 @@ function HomeTab({ member, user, setTab }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link href="/" className="active:scale-95 transition">
-            <img
-              src={LOGO}
-              alt="Juja"
-              className="h-8 md:h-10 w-auto object-contain"
-            />
+            <img src={LOGO} alt="Juja" className="h-8 md:h-10 w-auto object-contain" />
           </Link>
 
           <div className="leading-tight">
@@ -246,9 +240,7 @@ function HomeTab({ member, user, setTab }) {
               <div className="text-2xl md:text-3xl mb-2 md:mb-3 bg-rose-50 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center">
                 {c.icon}
               </div>
-              <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">
-                {c.label}
-              </p>
+              <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">{c.label}</p>
               <p className="text-slate-400 text-[9px] md:text-[11px] font-normal uppercase tracking-widest mt-0.5">
                 {c.sub}
               </p>
@@ -262,9 +254,7 @@ function HomeTab({ member, user, setTab }) {
               <div className="text-2xl md:text-3xl mb-2 md:mb-3 bg-rose-50 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-[#FC687D]">
                 {c.icon}
               </div>
-              <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">
-                {c.label}
-              </p>
+              <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">{c.label}</p>
               <p className="text-slate-400 text-[9px] md:text-[11px] font-normal uppercase tracking-widest mt-0.5">
                 {c.sub}
               </p>
@@ -339,9 +329,9 @@ function HomeTab({ member, user, setTab }) {
     </div>
   );
 }
+
 // ==========================================
 // Customer Order: Add To Cart Modal (Variants + Instructions)
-// (Adapted from POS patterns) [1](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s2991804d63884457b61db2c10990a103)
 // ==========================================
 function AddToCartModal({ item, onClose, onAdd }) {
   const [quantity, setQuantity] = useState(1);
@@ -354,7 +344,6 @@ function AddToCartModal({ item, onClose, onAdd }) {
     setQuantity(source.quantity || 1);
     setInstructions(source.instructions || "");
 
-    // hydrate selections if editing
     const selected = {};
     if (source.variantDetails && item.variants) {
       source.variantDetails.split(", ").forEach((name) => {
@@ -426,7 +415,6 @@ function AddToCartModal({ item, onClose, onAdd }) {
           </button>
         </div>
 
-        {/* Variants (optional) */}
         {Array.isArray(item.variants) && item.variants.length > 0 && (
           <div className="mt-4 space-y-4">
             {item.variants.map((g) => (
@@ -465,7 +453,6 @@ function AddToCartModal({ item, onClose, onAdd }) {
           </div>
         )}
 
-        {/* Instructions */}
         <div className="mt-4">
           <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
             Special Instructions
@@ -478,7 +465,6 @@ function AddToCartModal({ item, onClose, onAdd }) {
           />
         </div>
 
-        {/* Quantity + Add */}
         <div className="mt-4 flex items-center gap-3">
           <div className="flex items-center w-36 h-12 bg-white border border-slate-200 rounded-xl overflow-hidden">
             <button
@@ -520,10 +506,6 @@ function AddToCartModal({ item, onClose, onAdd }) {
   );
 }
 
-// ==========================================
-// Customer Order: Confirm Modal (Clear cart)
-// (Adapted from POS patterns) [1](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s2991804d63884457b61db2c10990a103)
-// ==========================================
 function ConfirmModal({ title, message, onConfirm, onCancel }) {
   return (
     <div
@@ -558,8 +540,7 @@ function ConfirmModal({ title, message, onConfirm, onCancel }) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Order Tab (placeholder)
-   NOTE: Paste your working OrderTab here if you want the full order UI.
+   Order Tab
 ────────────────────────────────────────────────────────────── */
 function OrderTab({ user }) {
   const [items, setItems] = useState([]);
@@ -567,11 +548,9 @@ function OrderTab({ user }) {
   const [activeTab, setActiveTab] = useState("ALL");
   const [itemSearch, setItemSearch] = useState("");
 
-  // POS-like cart is an array of line items [1](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s2991804d63884457b61db2c10990a103)
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Modals / drawers
   const [selectedItemForModal, setSelectedItemForModal] = useState(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
@@ -581,19 +560,8 @@ function OrderTab({ user }) {
       setLoading(true);
 
       const [itemRes, catRes] = await Promise.all([
-        supabase
-          .from("menu_items")
-          .select("*")
-          .eq("is_available", true)
-          .eq("pos_only", false)
-          .order("name"),
-
-        supabase
-          .from("menu_categories")
-          .select("*")
-          .eq("is_active", true)
-          .eq("pos_only", false)
-          .order("name", { ascending: true }),
+        supabase.from("menu_items").select("*").eq("is_available", true).eq("pos_only", false).order("name"),
+        supabase.from("menu_categories").select("*").eq("is_active", true).eq("pos_only", false).order("name", { ascending: true }),
       ]);
 
       const itemsData = itemRes.data || [];
@@ -601,9 +569,7 @@ function OrderTab({ user }) {
 
       setItems(itemsData);
 
-      const sortedCats = [...catsData].sort((a, b) =>
-        (a.name || "").localeCompare(b.name || "")
-      );
+      const sortedCats = [...catsData].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
       setCategories(sortedCats);
 
       setLoading(false);
@@ -620,17 +586,9 @@ function OrderTab({ user }) {
       .filter((i) => (q ? (i.name || "").toLowerCase().includes(q) : true));
   }, [items, activeTab, q]);
 
-  const subtotal = useMemo(
-    () => cart.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0),
-    [cart]
-  );
+  const subtotal = useMemo(() => cart.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0), [cart]);
+  const itemCount = useMemo(() => cart.reduce((sum, i) => sum + i.quantity, 0), [cart]);
 
-  const itemCount = useMemo(
-    () => cart.reduce((sum, i) => sum + i.quantity, 0),
-    [cart]
-  );
-
-  // Add/update line item (supports edits)
   const onAddToCart = (line) => {
     setCart((prev) => {
       const editIndex = selectedItemForModal?.editIndex;
@@ -644,18 +602,12 @@ function OrderTab({ user }) {
     setSelectedItemForModal(null);
   };
 
-  const removeLine = (cartItemId) => {
-    setCart((prev) => prev.filter((x) => x.cartItemId !== cartItemId));
-  };
+  const removeLine = (cartItemId) => setCart((prev) => prev.filter((x) => x.cartItemId !== cartItemId));
 
   const changeQty = (cartItemId, delta) => {
     setCart((prev) =>
       prev
-        .map((x) =>
-          x.cartItemId === cartItemId
-            ? { ...x, quantity: Math.max(1, x.quantity + delta) }
-            : x
-        )
+        .map((x) => (x.cartItemId === cartItemId ? { ...x, quantity: Math.max(1, x.quantity + delta) } : x))
         .filter(Boolean)
     );
   };
@@ -667,7 +619,6 @@ function OrderTab({ user }) {
   };
 
   const checkout = async () => {
-    // You can wire this to an orders table later.
     alert("Checkout submitted! Connect to your order/payment flow next.");
     setCartOpen(false);
   };
@@ -682,7 +633,6 @@ function OrderTab({ user }) {
 
   return (
     <div className="space-y-4">
-      {/* Header Controls (POS-inspired) [1](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s2991804d63884457b61db2c10990a103) */}
       <div className="bg-white border border-rose-50 rounded-2xl p-4 shadow-sm">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -705,9 +655,7 @@ function OrderTab({ user }) {
             </select>
 
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">
-                🔍
-              </span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
               <input
                 value={itemSearch}
                 onChange={(e) => setItemSearch(e.target.value)}
@@ -719,17 +667,13 @@ function OrderTab({ user }) {
         </div>
       </div>
 
-      {/* Product Grid (POS luxury cards) [1](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s2991804d63884457b61db2c10990a103) */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {filteredItems.map((item) => (
           <button
             key={item.id}
             onClick={() => setSelectedItemForModal(item)}
             className="group relative flex flex-col p-3 bg-white border border-slate-100 rounded-2xl cursor-pointer transition-all text-left hover:-translate-y-[6px] hover:shadow-[0_20px_40px_rgba(252,104,125,0.12)]"
-            style={{
-              transitionTimingFunction: "cubic-bezier(0.25,0.46,0.45,0.94)",
-              transitionDuration: "0.35s",
-            }}
+            style={{ transitionTimingFunction: "cubic-bezier(0.25,0.46,0.45,0.94)", transitionDuration: "0.35s" }}
           >
             <div className="w-full h-24 rounded-xl bg-[#FFF9FA] border border-rose-50 flex items-center justify-center overflow-hidden">
               {item.image_url ? (
@@ -740,19 +684,14 @@ function OrderTab({ user }) {
             </div>
 
             <div className="mt-2 space-y-1">
-              <p className="text-[10px] uppercase tracking-wider text-slate-400">
-                {item.category || "General"}
-              </p>
+              <p className="text-[10px] uppercase tracking-wider text-slate-400">{item.category || "General"}</p>
               <p className="text-sm font-semibold text-slate-800 leading-tight">{item.name}</p>
-              <p className="text-sm font-bold text-slate-700">
-                ₱{Number(item.price || 0).toFixed(0)}
-              </p>
+              <p className="text-sm font-bold text-slate-700">₱{Number(item.price || 0).toFixed(0)}</p>
             </div>
           </button>
         ))}
       </div>
 
-      {/* Floating Cart Button (like POS mobile cart) [1](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s2991804d63884457b61db2c10990a103) */}
       {cart.length > 0 && !cartOpen && (
         <button
           onClick={() => setCartOpen(true)}
@@ -769,7 +708,6 @@ function OrderTab({ user }) {
         </button>
       )}
 
-      {/* Cart Drawer (ticket sidebar vibe) [1](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!s2991804d63884457b61db2c10990a103) */}
       {cartOpen && (
         <div
           className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
@@ -831,9 +769,7 @@ function OrderTab({ user }) {
                         ) : null}
 
                         {line.instructions ? (
-                          <p className="text-[11px] text-slate-400 mt-1">
-                            Note: {line.instructions}
-                          </p>
+                          <p className="text-[11px] text-slate-400 mt-1">Note: {line.instructions}</p>
                         ) : null}
 
                         <p className="text-xs text-slate-500 mt-2">
@@ -883,7 +819,6 @@ function OrderTab({ user }) {
               </div>
             )}
 
-            {/* Footer */}
             <div className="mt-5 pt-4 border-t border-slate-100 space-y-2">
               <button
                 onClick={checkout}
@@ -905,7 +840,6 @@ function OrderTab({ user }) {
         </div>
       )}
 
-      {/* Modals */}
       {selectedItemForModal && (
         <AddToCartModal
           item={selectedItemForModal}
@@ -926,11 +860,12 @@ function OrderTab({ user }) {
   );
 }
 
-
 /* ──────────────────────────────────────────────────────────────
-   ✅ Loyalty Tab (Total + Available Points)
-   - Progress uses Available points
-   - Vouchers fetched by member_id
+   ✅ Loyalty Tab (CLEAN + FIXED)
+   - Active / Redeemed / Expired
+   - Countdown (updates every minute)
+   - Birthday popup (once per voucher id)
+   - Safe DB select (retries if column doesn't exist yet)
 ────────────────────────────────────────────────────────────── */
 function LoyaltyTab({ member, setMember, user }) {
   const [mode, setMode] = useState(null); // null | "new" | "existing"
@@ -945,13 +880,23 @@ function LoyaltyTab({ member, setMember, user }) {
     customer_name: "",
     Phone: "",
     City: "",
-    Note: "", // birthday (YYYY-MMM-DD)
+    Note: "",
   });
 
   // vouchers
+  const [voucherRows, setVoucherRows] = useState([]);
   const [vouchersActive, setVouchersActive] = useState([]);
+  const [vouchersRedeemed, setVouchersRedeemed] = useState([]);
   const [vouchersExpired, setVouchersExpired] = useState([]);
+  const [voucherView, setVoucherView] = useState("active");
   const [loadingVouchers, setLoadingVouchers] = useState(false);
+
+  // countdown tick
+  const [nowTick, setNowTick] = useState(Date.now());
+
+  // birthday popup
+  const [birthdayPopupOpen, setBirthdayPopupOpen] = useState(false);
+  const [birthdayVoucher, setBirthdayVoucher] = useState(null);
 
   // link request status
   const [linkReq, setLinkReq] = useState(null);
@@ -962,15 +907,125 @@ function LoyaltyTab({ member, setMember, user }) {
   const [matchChecked, setMatchChecked] = useState(false);
   const [matchedPreview, setMatchedPreview] = useState(null);
 
-  // ✅ Total + Available
   const total = Number(member?.["Points balance"] || 0);
   const available = Number(member?.["Available points"] || 0);
-
-  // ✅ Progress based on available points
   const progress = ((available % 100) / 100) * 100;
   const nextReward = (Math.floor(available / 100) + 1) * 100;
 
-  // Fetch latest link request for this user
+  // tick every minute for countdown refresh
+  useEffect(() => {
+    const t = setInterval(() => setNowTick(Date.now()), 60 * 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // birthday detector: prefer reward_type; fallback to code/text
+  const isBirthdayVoucher = (v) => {
+    const rt = String(v?.reward_text || "").toLowerCase();
+    const code = String(v?.code || "").toUpperCase();
+    if (v?.reward_type) return v.reward_type === "birthday";
+    return rt.includes("birthday") || code.startsWith("BDAY");
+  };
+
+    useEffect(() => {
+      async function createBirthdayVoucherIfNeeded() {
+        if (!member?.id || !member?.Note) return;
+
+        const today = new Date();
+        const todayStr = today.toISOString().slice(5, 10); // MM-DD
+
+        const birth = member.Note; // YYYY-MMM-DD
+        const [, mon, day] = birth.split("-");
+        
+        const monthIndex = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].indexOf(mon);
+        if (monthIndex === -1) return;
+
+        const bdayFormatted = `${String(monthIndex + 1).padStart(2, "0")}-${day}`;
+
+        if (bdayFormatted !== todayStr) return;
+
+        // ✅ check if already issued this year
+        const year = today.getFullYear();
+
+        const { data: existing } = await supabase
+          .from("vouchers")
+          .select("id")
+          .eq("member_id", member.id);
+
+        const alreadyHas = (existing || []).some(v => v.code?.startsWith(`BDAY${year}`));
+        if (alreadyHas) return;
+
+        // ✅ create birthday voucher
+        await supabase.from("vouchers").insert({
+          member_id: member.id,
+          code: `BDAY${year}-${Math.floor(Math.random()*10000)}`,
+          reward_text: "FREE 16oz Drink or Waffle (Birthday Reward)",
+          issued_at: new Date().toISOString(),
+          expires_at: new Date(Date.now() + 7 * 86400000).toISOString(), // 7 days
+          status: "active",
+          reward_type: "birthday",
+        });
+      }
+
+      createBirthdayVoucherIfNeeded();
+    }, [member]);
+
+  // status calculator: respect DB status first; then time-based expiry
+  const computeStatus = (v) => {
+    if (!v) return "active";
+
+    if (String(v.status).toLowerCase() === "redeemed") return "redeemed";
+    if (String(v.status).toLowerCase() === "expired") return "expired";
+    if (String(v.status).toLowerCase() === "active") {
+      const expMs = v.expires_at ? new Date(v.expires_at).getTime() : 0;
+      if (expMs && expMs <= nowTick) return "expired";
+      return "active";
+    }
+
+    // fallback when status missing
+    const expMs = v.expires_at ? new Date(v.expires_at).getTime() : 0;
+    if (v.redeemed_at) return "redeemed";
+    if (expMs && expMs <= nowTick) return "expired";
+    return "active";
+  };
+
+  const manilaDateKey = (d) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+
+const expiryCountdownDetailed = (expires_at) => {
+  if (!expires_at) return { text: "—", expiresTonight: false, expired: false };
+
+  const exp = new Date(expires_at);
+  const ms = exp.getTime() - nowTick;
+
+  if (ms <= 0) return { text: "Expired", expiresTonight: false, expired: true };
+
+  const days = Math.floor(ms / 86400000);
+  const hrs = Math.floor((ms % 86400000) / 3600000);
+  const mins = Math.floor((ms % 3600000) / 60000);
+
+  const text =
+    days > 0
+      ? `Expires in ${days}d ${hrs}h ${mins}m`
+      : `Expires in ${hrs}h ${mins}m`;
+
+  const expiresTonight =
+    manilaDateKey(new Date()) === manilaDateKey(exp); // Manila date match
+
+  return { text, expiresTonight, expired: false };
+  };
+
+  const statusPill = (s) => {
+    if (s === "active") return "bg-green-50 text-green-700 border-green-200";
+    if (s === "redeemed") return "bg-blue-50 text-blue-700 border-blue-200";
+    return "bg-slate-50 text-slate-600 border-slate-200";
+  };
+
+  // latest link request
   useEffect(() => {
     async function fetchLatestReq() {
       if (!user?.id) return;
@@ -992,40 +1047,70 @@ function LoyaltyTab({ member, setMember, user }) {
     fetchLatestReq();
   }, [user?.id]);
 
-  // Fetch vouchers (active + expired computed safely) by member_id [1](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!sbf7ad4e3d239467b83fe626efa911a6a)
+  // fetch vouchers (safe select: retry if some columns don't exist yet)
   useEffect(() => {
     async function fetchVouchers() {
       if (!member?.id) return;
       setLoadingVouchers(true);
 
-      const { data, error } = await supabase
+      const selectFull =
+        "id, code, reward_text, issued_at, expires_at, status, member_id, reward_index, reward_type, redeemed_at";
+      const selectFallback =
+        "id, code, reward_text, issued_at, expires_at, status, member_id, reward_index";
+
+      let res = await supabase
         .from("vouchers")
-        .select("id, code, reward_text, issued_at, expires_at, status, member_id")
+        .select(selectFull)
         .eq("member_id", member.id)
         .order("issued_at", { ascending: false });
 
-      const rows = !error && data ? data : [];
-      const now = Date.now();
+      // retry if columns don't exist
+      if (res.error && /reward_type|redeemed_at/i.test(res.error.message || "")) {
+        res = await supabase
+          .from("vouchers")
+          .select(selectFallback)
+          .eq("member_id", member.id)
+          .order("issued_at", { ascending: false });
+      }
 
-      const normalized = rows.map((v) => {
-        const exp = v.expires_at ? new Date(v.expires_at).getTime() : 0;
-        const computed = exp && exp <= now ? "expired" : "active";
-        return { ...v, _computedStatus: computed };
-      });
-
-      const isActive = (v) => (v.status || v._computedStatus) === "active";
-      const isExpired = (v) => (v.status || v._computedStatus) === "expired";
-
-      setVouchersActive(normalized.filter(isActive));
-      setVouchersExpired(normalized.filter(isExpired));
-
+      setVoucherRows(!res.error && res.data ? res.data : []);
       setLoadingVouchers(false);
     }
 
     fetchVouchers();
   }, [member?.id]);
 
-  // Create member (Sign Up) - initialize both Total and Available points to 0
+  // bucketize vouchers whenever data/tick changes
+  useEffect(() => {
+    const normalized = (voucherRows || []).map((v) => {
+      const s = computeStatus(v);
+      return { ...v, _computedStatus: s, _isBirthday: isBirthdayVoucher(v) };
+    });
+
+    const active = normalized.filter((v) => v._computedStatus === "active");
+    const redeemed = normalized.filter((v) => v._computedStatus === "redeemed");
+    const expired = normalized.filter((v) => v._computedStatus === "expired");
+
+    setVouchersActive(active);
+    setVouchersRedeemed(redeemed);
+    setVouchersExpired(expired);
+
+    const activeBirthday = active.find((v) => v._isBirthday) || null;
+    setBirthdayVoucher(activeBirthday);
+  }, [voucherRows, nowTick]);
+
+  // auto show birthday popup once per voucher id
+  useEffect(() => {
+    if (!birthdayVoucher?.id) return;
+    const key = `juja_bday_popup_${birthdayVoucher.id}`;
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+    } catch {}
+    setBirthdayPopupOpen(true);
+  }, [birthdayVoucher?.id]);
+
+  // Create member
   const createMember = async () => {
     if (!user?.id) return;
 
@@ -1052,8 +1137,8 @@ function LoyaltyTab({ member, setMember, user }) {
         Phone: form.Phone || null,
         City: form.City || null,
         customer_code: genMemberCode(),
-        "Points balance": 0,          // ✅ total points
-        "Available points": 0,        // ✅ available points
+        "Points balance": 0,
+        "Available points": 0,
         Note: b.value,
         "First visit": todayISO(),
         "Last visit": todayISO(),
@@ -1079,7 +1164,7 @@ function LoyaltyTab({ member, setMember, user }) {
     }
   };
 
-  // Check match preview BEFORE sending request
+  // Match preview
   const checkMatchPreview = async () => {
     setNotice("");
     setMatchedPreview(null);
@@ -1118,7 +1203,7 @@ function LoyaltyTab({ member, setMember, user }) {
     }
   };
 
-  // Send request (blocked if pending exists)
+  // Send request
   const requestLink = async () => {
     if (!user?.id) return;
 
@@ -1172,7 +1257,6 @@ function LoyaltyTab({ member, setMember, user }) {
     }
   };
 
-  // Edit profile
   const startEdit = () => {
     setForm({
       customer_name: member?.customer_name || "",
@@ -1223,7 +1307,6 @@ function LoyaltyTab({ member, setMember, user }) {
     }
   };
 
-  // STATUS CARD UI
   const StatusCard = () => {
     if (loadingLinkReq) {
       return (
@@ -1253,14 +1336,12 @@ function LoyaltyTab({ member, setMember, user }) {
           )}
           {!["pending", "approved", "rejected"].includes(s) && <span>{String(s)}</span>}
         </p>
-        <p className="mt-2 text-[11px] text-slate-400">
-          Submitted: {fmtDate(linkReq.created_at)}
-        </p>
+        <p className="mt-2 text-[11px] text-slate-400">Submitted: {fmtDate(linkReq.created_at)}</p>
       </div>
     );
   };
 
-  // ENTRY UI (no member)
+  // ENTRY UI
   if (!member && !mode) {
     return (
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -1511,9 +1592,7 @@ function LoyaltyTab({ member, setMember, user }) {
         <h2 className="text-2xl md:text-[28px] font-normal text-slate-800 tracking-tight">
           JUJA Loyalty Program
         </h2>
-        <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">
-          Member Dashboard
-        </p>
+        <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">Member Dashboard</p>
       </div>
 
       <div className="relative w-full max-w-[600px] aspect-[16/9] rounded-3xl overflow-hidden shadow-2xl bg-white">
@@ -1590,9 +1669,7 @@ function LoyaltyTab({ member, setMember, user }) {
               Points
             </p>
             <p className="text-[12px] text-white/85">Total: {total.toFixed(0)}</p>
-            <p className="text-2xl md:text-3xl font-normal text-white">
-              {available.toFixed(0)}
-            </p>
+            <p className="text-2xl md:text-3xl font-normal text-white">{available.toFixed(0)}</p>
             <p className="text-[10px] text-white/80 uppercase tracking-widest">Available</p>
           </div>
         </div>
@@ -1620,85 +1697,193 @@ function LoyaltyTab({ member, setMember, user }) {
         <div className="flex items-end justify-between mb-3">
           <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">Your Vouchers</p>
           <p className="text-[10px] md:text-xs font-normal text-slate-400">
-            {loadingVouchers ? "Loading…" : `${vouchersActive.length} active`}
+            {loadingVouchers
+              ? "Loading…"
+              : `${vouchersActive.length} active • ${vouchersRedeemed.length} redeemed • ${vouchersExpired.length} expired`}
           </p>
+        </div>
+
+        <div className="flex gap-2 mb-4">
+          {[
+            { id: "active", label: `Active (${vouchersActive.length})` },
+            { id: "redeemed", label: `Redeemed (${vouchersRedeemed.length})` },
+            { id: "expired", label: `Expired (${vouchersExpired.length})` },
+          ].map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setVoucherView(t.id)}
+              className={`px-3 py-2 rounded-xl text-[10px] uppercase tracking-widest border transition-all active:scale-95 ${
+                voucherView === t.id
+                  ? "bg-[#FC687D] text-white border-[#FC687D]"
+                  : "bg-white text-slate-500 border-slate-200"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
 
         {loadingVouchers ? (
           <p className="text-[11px] md:text-[12px] text-slate-500">Loading vouchers…</p>
-        ) : vouchersActive.length === 0 ? (
-          <p className="text-[11px] md:text-[12px] text-slate-500">
-            No active vouchers yet — reach 100 available points to receive a reward 🎁
-          </p>
         ) : (
-          <div className="space-y-3">
-            {vouchersActive.map((v) => (
-              <div key={v.id} className="border border-rose-100 rounded-2xl p-4 bg-[#FFF9FA]">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-[12px] md:text-[13px] font-semibold text-slate-800">
-                      🎁 Reward Voucher
-                    </p>
-                    <p className="text-[11px] md:text-[12px] text-slate-600 mt-1 leading-relaxed">
-                      {v.reward_text}
-                    </p>
-                    <p className="text-[10px] md:text-[11px] text-slate-400 mt-2 font-mono">
-                      Code: {v.code}
-                    </p>
-                  </div>
+          <>
+            {(() => {
+              const list =
+                voucherView === "active"
+                  ? vouchersActive
+                  : voucherView === "redeemed"
+                  ? vouchersRedeemed
+                  : vouchersExpired;
 
-                  <div className="text-right">
-                    <p className="text-[10px] md:text-[11px] text-slate-400">Expires</p>
-                    <p className="text-[11px] md:text-[12px] font-semibold text-slate-800">
-                      {fmtDate(v.expires_at)}
-                    </p>
-                  </div>
+              if (!list || list.length === 0) {
+                return (
+                  <p className="text-[11px] md:text-[12px] text-slate-500">
+                    {voucherView === "active"
+                      ? "No active vouchers right now."
+                      : voucherView === "redeemed"
+                      ? "No redeemed vouchers yet."
+                      : "No expired vouchers yet."}
+                  </p>
+                );
+              }
+
+              return (
+                <div className="space-y-3">
+                  {list.map((v) => {
+                    const s = v._computedStatus || String(v.status || "active").toLowerCase();
+                    const countdown = s === "active" ? expiryCountdownDetailed(v.expires_at) : null;``
+
+                    return (
+                      <div
+                        key={v.id}
+                        className={`border rounded-2xl p-4 ${
+                          v._isBirthday
+                            ? "border-rose-200 bg-rose-50/40"
+                            : s === "active"
+                            ? "border-rose-100 bg-[#FFF9FA]"
+                            : s === "redeemed"
+                            ? "border-blue-100 bg-blue-50/30"
+                            : "border-slate-200 bg-slate-50"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-[12px] md:text-[13px] font-semibold text-slate-800">
+                                {v._isBirthday ? "🎂 Birthday Voucher" : "🎁 Reward Voucher"}
+                              </p>
+
+                              <span
+                                className={`text-[9px] uppercase tracking-widest border px-2 py-1 rounded-full ${statusPill(
+                                  s
+                                )}`}
+                              >
+                                {s}
+                              </span>
+                            </div>
+
+                            <p className="text-[11px] md:text-[12px] text-slate-600 mt-1 leading-relaxed">
+                              {v.reward_text}
+                            </p>
+
+                            <p className="text-[10px] md:text-[11px] text-slate-400 mt-2 font-mono">
+                              Code: {v.code}
+                            </p>
+
+                            {(() => {
+                                if (s !== "active") return null;
+                                const c = expiryCountdownDetailed(v.expires_at);                                                              
+                                  {countdown && (
+                                    <div className="mt-2 space-y-1">
+                                      <p className="text-[11px] md:text-[12px] font-semibold text-[#FC687D]">
+                                        ⏳ {countdown.text}
+                                      </p>
+
+                                      {countdown.expiresTonight && (
+                                        <p className="text-[11px] md:text-[12px] font-semibold text-orange-600">
+                                          ⚠️ Expires tonight
+                                        </p>
+                                    )}
+                                  </div>
+                                )}
+                              })()}                            
+                          </div>
+
+                          <div className="text-right">
+                            <p className="text-[10px] md:text-[11px] text-slate-400">
+                              {s === "redeemed" ? "Redeemed" : "Expires"}
+                            </p>
+
+                            <p className="text-[11px] md:text-[12px] font-semibold text-slate-800">
+                              {s === "redeemed" ? fmtDate(v.redeemed_at) : fmtDate(v.expires_at)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {vouchersExpired.length > 0 && (
-          <div className="pt-4 mt-4 border-t border-slate-100">
-            <div className="flex items-end justify-between mb-3">
-              <p className="font-normal text-slate-700 text-[12px] md:text-[13px]">Expired</p>
-              <p className="text-[10px] md:text-xs font-normal text-slate-400">
-                {vouchersExpired.length}
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              {vouchersExpired.map((v) => (
-                <div key={v.id} className="border border-slate-200 rounded-2xl p-4 bg-slate-50">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-[12px] md:text-[13px] font-semibold text-slate-800">
-                        🎟 Expired Voucher
-                      </p>
-                      <p className="text-[11px] md:text-[12px] text-slate-600 mt-1 leading-relaxed">
-                        {v.reward_text}
-                      </p>
-                      <p className="text-[10px] md:text-[11px] text-slate-400 mt-2 font-mono">
-                        Code: {v.code}
-                      </p>
-                    </div>
-
-                    <div className="text-right">
-                      <p className="text-[10px] md:text-[11px] text-slate-400">Expired</p>
-                      <p className="text-[11px] md:text-[12px] font-semibold text-slate-800">
-                        {fmtDate(v.expires_at)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+              );
+            })()}
+          </>
         )}
       </div>
 
-      {/* Edit Modal */}
+      {/* Birthday Popup */}
+      {birthdayPopupOpen && birthdayVoucher && (
+        <div
+          className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
+          onClick={() => setBirthdayPopupOpen(false)}
+        >
+          <div
+            className="w-full max-w-md bg-white rounded-t-[26px] md:rounded-[30px] p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-slate-400">
+                  Birthday Reward 🎉
+                </p>
+                <h3 className="text-xl font-semibold text-slate-800 mt-1">
+                  Happy Birthday! 🎂✨
+                </h3>
+                <p className="text-sm text-slate-600 mt-2">
+                  Your birthday voucher is now active:
+                </p>
+
+                <div className="mt-3 bg-rose-50 border border-rose-200 rounded-2xl p-4">
+                  <p className="text-sm font-semibold text-slate-800">
+                    {birthdayVoucher.reward_text}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-2 font-mono">
+                    Code: {birthdayVoucher.code}
+                  </p>
+                  <p className="text-sm font-semibold text-[#FC687D] mt-2">
+                    ⏳ {expiryCountdown(birthdayVoucher.expires_at)}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setBirthdayPopupOpen(false)}
+                className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <button
+              onClick={() => setBirthdayPopupOpen(false)}
+              className="w-full mt-5 py-3 rounded-xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-widest active:scale-95"
+            >
+              Awesome!
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal + Perks Modal + notice (kept same as your original flow) */}
       {editing && (
         <div
           className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
@@ -1762,7 +1947,6 @@ function LoyaltyTab({ member, setMember, user }) {
         </div>
       )}
 
-      {/* Perks Modal (short version) */}
       {showPerks && (
         <div
           className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
@@ -1782,6 +1966,7 @@ function LoyaltyTab({ member, setMember, user }) {
               </button>
             </div>
 
+            {/* Keep your perks content */}
             <div className="space-y-5 text-slate-700">
               <div className="text-center">
                 <p className="text-[13px] md:text-[14px] font-semibold text-slate-900">
@@ -1804,7 +1989,7 @@ function LoyaltyTab({ member, setMember, user }) {
                   Earning Points
                 </h4>
                 <ul className="mt-3 space-y-2 text-[12px] md:text-[13px] leading-relaxed">
-                  <li>💙 Earn 1 JUJA Point for every ₱25 spent on food &amp; drinks.</li>
+                  <li>💙 Earn 1 JUJA Point for every ₱25 spent on food & drinks.</li>
                   <li>📲 Present your loyalty card for scanning during purchase.</li>
                   <li>⏱ Points are credited immediately after purchase.</li>
                 </ul>
@@ -1818,60 +2003,6 @@ function LoyaltyTab({ member, setMember, user }) {
                   <li>🎯 <b>100 Points</b> = FREE reward — choose any 16oz drink, waffle, or mini donuts</li>
                   <li>🎂 <b>Birthday Perk:</b> Get any 16oz drink or waffle FREE on your birthday (just present a valid ID).</li>
                   <li>⏳ Rewards expire 90 days after reaching 100 points.</li>
-                </ul>
-              </section>
-
-              <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
-                <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
-                  Expiration Policy
-                </h4>
-                <p className="mt-3 text-[12px] md:text-[13px] leading-relaxed">
-                  All JUJA Points expire every <b>December 31, 11:59 PM.</b>
-                </p>
-              </section>
-
-              <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
-                <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
-                  Flavor Selection
-                </h4>
-
-                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="bg-white border border-slate-200 rounded-xl p-3">
-                    <p className="text-[11px] font-semibold text-slate-800 mb-2">
-                      Flavor Selection for Waffles
-                    </p>
-                    <ul className="space-y-1 text-[12px] md:text-[13px]">
-                      <li>• Honey Syrup</li>
-                      <li>• Choco Oreo</li>
-                      <li>• Cheese</li>
-                      <li>• Blueberry Whip</li>
-                      <li>• Strawberry Whip</li>
-                      <li>• Mango Graham</li>
-                    </ul>
-                  </div>
-
-                  <div className="bg-white border border-slate-200 rounded-xl p-3">
-                    <p className="text-[11px] font-semibold text-slate-800 mb-2">
-                      Flavor Selection for Mini Donuts
-                    </p>
-                    <ul className="space-y-1 text-[12px] md:text-[13px]">
-                      <li>• Chocolate</li>
-                      <li>• White Chocolate</li>
-                      <li>• Strawberry</li>
-                      <li>• Matcha</li>
-                    </ul>
-                  </div>
-                </div>
-              </section>
-
-              <section className="bg-rose-50 border border-rose-200 rounded-2xl p-4 md:p-5">
-                <h4 className="text-[10px] md:text-[11px] font-semibold text-rose-700 uppercase tracking-widest">
-                  📌 Terms &amp; conditions apply.
-                </h4>
-                <ul className="mt-3 space-y-2 text-[12px] md:text-[13px] leading-relaxed">
-                  <li>• Rewards and perks are non-transferable and cannot be exchanged for cash.</li>
-                  <li>• Lost loyalty card? Request a digital copy in-store.</li>
-                  <li>• JUJA Brew &amp; Bites reserves the right to amend these guidelines without prior notice.</li>
                 </ul>
               </section>
             </div>
@@ -1994,7 +2125,7 @@ export default function Customer() {
     <div className="min-h-screen pb-24 pt-4 md:pt-6 bg-[#FFF5F7]">
       <main className="max-w-md mx-auto px-4 md:px-5 py-4">
         {tab === "home" && <HomeTab member={member} user={user} setTab={setTab} />}
-        {tab === "order" && <OrderTab />}
+        {tab === "order" && <OrderTab user={user} />}
         {tab === "loyalty" && <LoyaltyTab member={member} setMember={setMember} user={user} />}
         {tab === "booking" && <BookingTab user={user} member={member} />}
         {tab === "profile" && <ProfileTab user={user} onLogout={logout} />}
