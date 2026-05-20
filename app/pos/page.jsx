@@ -398,7 +398,6 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
   const [selections, setSelections] = useState({});
   const [instructions, setInstructions] = useState("");
   const [collapsed, setCollapsed] = useState({});
-  
 
   useEffect(() => {
     if (!item) return;
@@ -474,22 +473,37 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
         </p>
       </div>
 
-      <div className="mt-3 flex items-center justify-between bg-white border border-slate-200 rounded-2xl overflow-hidden">
-        <button
-          onClick={() => setQuantity(Math.max(1, quantity - 1))}
-          className="w-14 h-12 text-xl text-slate-400 hover:text-rose-500 transition"
-        >
-          −
-        </button>
-        <div className="flex-1 text-center font-bold text-slate-800">{quantity}</div>
-        <button
-          onClick={() => setQuantity(quantity + 1)}
-          className="w-14 h-12 text-xl text-slate-400 hover:text-rose-500 transition"
-        >
-          +
-        </button>
-      </div>
+      <div className="mt-3">
+        <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+          Quantity
+        </label>
 
+        <input
+          type="number"
+          min="1"
+          value={quantity}
+          onChange={(e) => {
+            const val = e.target.value;
+
+            if (val === "") {
+              setQuantity("");
+              return;
+            }
+
+            const num = Number(val);
+            if (!isNaN(num) && num >= 1) {
+              setQuantity(Math.floor(num));
+            }
+          }}
+          onBlur={() => {
+            if (!quantity || quantity < 1) {
+              setQuantity(1);
+            }
+          }}
+          className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-center text-lg font-bold text-slate-800 outline-none focus:border-[#FC687D]"
+        />
+      </div>
+        
       {Array.isArray(item.variants) && item.variants.length > 0 && (
         <div className="mt-4 space-y-4">
           {item.variants.map((g) => {
