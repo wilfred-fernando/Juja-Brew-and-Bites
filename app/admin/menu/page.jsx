@@ -113,27 +113,16 @@ export default function MenuAdminPage() {
   const handleSave = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
 
-    const isVariable = form.price === "" && optionGroups.length === 0;
-
-      if (!form.name.trim() || !form.category) {
-        alert("Name and Category are required.");
-        return;
-      }
-
-      // ❌ prevent invalid combinations
-      if (form.price === "" && optionGroups.length === 0 && (
-          <p className="text-[10px] text-indigo-500 mt-1">
-            This item will allow ANY price in POS
-          </p>
-        )) {}
-
+    if (!form.name.trim() || !form.category || form.price === "") {
+      alert("Please ensure Name, Category, and Price are filled out.");
+      return;
+    }
 
     setSaving(true);
     try {
       const finalPayload = {
-        ...form, // ✅ includes pos_only now        
-        price: form.price === "" ? null : parseFloat(form.price),
-        is_variable_price: form.price === "" && optionGroups.length === 0,
+        ...form, // ✅ includes pos_only now
+        price: parseFloat(form.price) || 0,
         variants: optionGroups,
       };
 
@@ -198,13 +187,7 @@ export default function MenuAdminPage() {
   };
 
   // --- VARIANT / OPTION HANDLERS ---
-  
-    const addOptionGroup = () => {
-      if (form.price === "") {
-        alert("Set a base price before adding variants.");
-        return;
-      }
-
+  const addOptionGroup = () => {
     setOptionGroups([
       ...optionGroups,
       {
@@ -546,11 +529,7 @@ export default function MenuAdminPage() {
                   </h3>
 
                   <div className="flex items-center gap-2">
-                    <span className="font-normal text-[#FC687D] text-xs md:text-sm">
-                        {item.is_variable_price
-                          ? "Variable"
-                          : `₱{item.price}`}
-                        </span>
+                    <span className="font-normal text-[#FC687D] text-xs md:text-sm">₱{item.price}</span>
                     <span className="text-slate-200 text-[10px]">•</span>
                     <span className="text-[9px] md:text-[10px] font-normal uppercase text-slate-400">{item.category}</span>
                   </div>
