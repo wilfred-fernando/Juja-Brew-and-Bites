@@ -398,7 +398,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
   const [selections, setSelections] = useState({});
   const [instructions, setInstructions] = useState("");
   const [collapsed, setCollapsed] = useState({});
-  const [customBasePrice, setCustomBasePrice] = useState("");
+  
 
   useEffect(() => {
     if (!item) return;
@@ -406,15 +406,6 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
 
     setQuantity(source.quantity || 1);
     setInstructions(source.instructions || "");
-
-    // ✅ Variable price: prefill from existing cart line when editing
-      if (source.is_variable_price) {
-        // when editing a cart line, unitPrice is already the final unit price
-        setCustomBasePrice(String(source.unitPrice ?? ""));
-      } else {
-        setCustomBasePrice("");
-      }
-      ``
 
     const selected = {};
     if (source.variantDetails && item.variants) {
@@ -437,22 +428,6 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
 
   if (!item) return null;
 
-  if (item.is_variable_price && Array.isArray(item.variants) && item.variants.length > 0) {
-  return (
-    <ModalShell open={!!item} onClose={onClose} title="Invalid Setup" subtitle={item.name} z={145}>
-      <p className="text-sm text-slate-600">
-        This item is set as <b>Variable Price</b> but also has variants. Please remove variants or set a base price.
-      </p>
-      <button
-        onClick={onClose}
-        className="w-full mt-4 py-3 rounded-2xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-widest active:scale-95"
-      >
-        Close
-      </button>
-    </ModalShell>
-  );
-}
-
   const toggleOption = (group, opt) => {
     const current = selections[group.id] || [];
     if (!group.isMultiSelect) {
@@ -470,25 +445,12 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
     .flat()
     .reduce((sum, o) => sum + (Number(o.price) || 0), 0);
 
-  const isVariable = !!item.is_variable_price && (!item.variants || item.variants.length === 0);
-
-  const basePrice = isVariable
-    ? Number(customBasePrice || 0)
-    : Number(item.price) || 0;
-
+  const basePrice = Number(item.price) || 0;
   const unitPrice = basePrice + variantPrice;
 
-
-  const variantsOk = (item.variants || []).every(
-  (g) => !g.isRequired || (selections[g.id] || []).length > 0
-);
-
-  const variableOk = !isVariable
-    ? true
-    : customBasePrice !== "" && !isNaN(Number(customBasePrice)) && Number(customBasePrice) > 0;
-
-  const canAdd = variantsOk && variableOk;
-
+  const canAdd = (item.variants || []).every(
+    (g) => !g.isRequired || (selections[g.id] || []).length > 0
+  );
 
   const variantDetails = Object.values(selections)
     .flat()
@@ -511,56 +473,21 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
           {variantPrice > 0 ? ` • +₱${variantPrice.toFixed(0)} variants` : ""}
         </p>
       </div>
-        {isVariable && (
-          <div className="mt-3">
-            <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
-              Enter Price (₱) *
-            </label>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              value={customBasePrice}
-              onChange={(e) => setCustomBasePrice(e.target.value)}
-              placeholder="e.g. 150"
-              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-semibold text-slate-800 outline-none"
-            />
-            <p className="text-[10px] text-slate-400 mt-2">
-              This is a variable-price item. Enter the selling price for this ticket.
-            </p>
-          </div>
-        )}
 
-      <div className="mt-3">
-        <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
-          Quantity
-        </label>
-
-        <input
-          type="number"
-          min="1"
-          value={quantity}
-          onChange={(e) => {
-            const val = e.target.value;
-
-            if (val === "") {
-              setQuantity(""); // allow empty while typing
-              return;
-            }
-
-            const num = Number(val);
-            if (!isNaN(num) && num >= 1) {
-              setQuantity(Math.floor(num));
-            }
-          }}
-          onBlur={() => {
-            // ✅ ensure valid value after leaving field
-            if (!quantity || quantity < 1) {
-              setQuantity(1);
-            }
-          }}
-          className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-center text-lg font-bold text-slate-800 outline-none focus:border-[#FC687D]"
-        />
+      <div className="mt-3 flex items-center justify-between bg-white border border-slate-200 rounded-2xl overflow-hidden">
+        <button
+          onClick={() => setQuantity(Math.max(1, quantity - 1))}
+          className="w-14 h-12 text-xl text-slate-400 hover:text-rose-500 transition"
+        >
+          −
+        </button>
+        <div className="flex-1 text-center font-bold text-slate-800">{quantity}</div>
+        <button
+          onClick={() => setQuantity(quantity + 1)}
+          className="w-14 h-12 text-xl text-slate-400 hover:text-rose-500 transition"
+        >
+          +
+        </button>
       </div>
 
       {Array.isArray(item.variants) && item.variants.length > 0 && (
@@ -643,10 +570,8 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
             quantity,
             variantDetails,
             instructions,
-            is_variable_price: isVariable, // ✅ store flag on the cart line
             cartItemId: item.editData?.cartItemId || Date.now(),
           })
-
         }
         className="w-full mt-4 py-3 rounded-2xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-widest active:scale-95 disabled:opacity-60"
       >
