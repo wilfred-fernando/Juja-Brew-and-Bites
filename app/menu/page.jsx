@@ -22,7 +22,7 @@ export default function PublicMenuPage() {
 
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
-
+  
   // Promo popup
   const [promoOpen, setPromoOpen] = useState(false);
   const [promoLoading, setPromoLoading] = useState(false);
@@ -84,21 +84,27 @@ export default function PublicMenuPage() {
           .from("menu_items")
           .select("*")
           .eq("is_available", true)
+          .or("pos_only.is.null,pos_only.eq.false")  // ✅ null-safe
           .order("name"),
 
-        // menu_categories is used in your menu admin: is_active + name ordering [2](https://onedrive.live.com/?id=ba076f80-c65e-42dc-96cc-444ed2ea9098&cid=933e55cc8541ec41&web=1)
         supabase
           .from("menu_categories")
           .select("*")
           .eq("is_active", true)
+          .or("pos_only.is.null,pos_only.eq.false")  // ✅ null-safe
           .order("name", { ascending: true }),
       ]);
 
       const itemsData = itemRes?.data || [];
-      const catsData = catRes?.data || [];
+      const catsData  = catRes?.data || [];
 
-      setItems(itemsData);
+      // ✅ Only allow items from visible categories
+      const allowedCatNames = new Set(catsData.map(c => c.name));
+      const safeItems = itemsData.filter(i => allowedCatNames.has(i.category));
+
+      // ✅ Apply filtered results
       setCats(catsData);
+      setItems(safeItems);
 
       setLoading(false);
     })();
