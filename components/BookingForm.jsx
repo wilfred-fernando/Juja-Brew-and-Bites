@@ -34,7 +34,7 @@ function stripCitationsAndLinks(text = "") {
 }
 
 /* =====================================================
- PACKAGE POLICIES (1–6) — kept from your file
+ PACKAGE POLICIES (1–6)
 ===================================================== */
 const PACKAGE_POLICIES = {
   1: {
@@ -45,10 +45,7 @@ const PACKAGE_POLICIES = {
       additional_guests:
         "Additional guests: ₱300 worth of food & drinks per person (maximum of 5 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
-      extension: [
-        "Extension maximum of 2 hours:",        
-        "₱250 per hour.",
-      ],
+      extension: ["Extension maximum of 2 hours:", "₱250 per hour."],
     },
     rental_fees_inclusions: {
       rental_fee: "Standard rental fee: ₱3,000 for 3 hours.",
@@ -79,10 +76,7 @@ const PACKAGE_POLICIES = {
       additional_guests:
         "Additional guests: ₱300 worth of food & drinks per person (maximum of 5 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
-      extension: [
-        "Extension maximum of 2 hours:",        
-        "₱750 per hour.",
-      ],
+      extension: ["Extension maximum of 2 hours:", "₱750 per hour."],
     },
     rental_fees_inclusions: {
       rental_fee: "Standard rental fee: ₱7,000 for 3 hours.",
@@ -113,10 +107,7 @@ const PACKAGE_POLICIES = {
       additional_guests:
         "Additional guests: ₱300 worth of food & drinks per person (maximum of 5 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
-      extension: [
-        "Extension maximum of 2 hours:",        
-        "₱1,500 per hour.",
-      ],
+      extension: ["Extension maximum of 2 hours:", "₱1,500 per hour."],
     },
     rental_fees_inclusions: {
       rental_fee: "Standard rental fee: ₱15,000 for 3 hours.",
@@ -145,7 +136,8 @@ const PACKAGE_POLICIES = {
     room_usage: {
       capacity:
         "Capacity: up to 15 Guests (children aged 4 years and below are not counted in the headcount).",
-      additional_guests: "Additional guests: ₱150 per person (maximum of 5 additional guests).",
+      additional_guests:
+        "Additional guests: ₱150 per person (maximum of 5 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
       extension: ["Extension maximum of 2 hours: ₱1,000 per hour."],
     },
@@ -171,7 +163,8 @@ const PACKAGE_POLICIES = {
     room_usage: {
       capacity:
         "Capacity: up to 30 Guests (children aged 4 years and below are not counted in the headcount).",
-      additional_guests: "Additional guests: ₱150 per person (maximum of 5 additional guests).",
+      additional_guests:
+        "Additional guests: ₱150 per person (maximum of 5 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
       extension: ["Extension maximum of 2 hours: ₱1,500 per hour."],
     },
@@ -233,7 +226,7 @@ function toISODate(d) {
 function buildSlotHours() {
   const hours = [];
   for (let h = OPERATING_START_HOUR; h <= 23; h++) hours.push(h);
-  hours.push(24, 25);
+  hours.push(24, 25); // 12AM, 1AM next day
   return hours;
 }
 function labelHour(h) {
@@ -258,19 +251,17 @@ function canChangeBooking(startAtISO) {
   const diffDays = (start.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
   return diffDays >= RESCHEDULE_MIN_DAYS;
 }
-
-/* ✅ global helper */
 function reasonToLabel(reason) {
   if (reason === "available") return "Available";
   if (reason === "booked") return "Booked";
   if (reason === "buffer") return "Buffer";
-  if (reason === "too-soon") return `Too soon (5-hour rule)`;
+  if (reason === "too-soon") return "Too soon (5-hour rule)";
   if (reason === "closed-hours") return "Closed";
   return "Closed";
 }
 
 /**
- * ✅ Slot classification for:
+ * Slot classification for:
  * - Booking duration = 2h59 (+ extension hours)
  * - Buffer = 1 hour before start and 1 hour after end-hour-block (exact slots)
  * - UI-only buffer (DB does not store buffer)
@@ -282,8 +273,12 @@ function classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings }
     const bStart = new Date(b.start_at);
     let bEnd = new Date(b.end_at);
 
-    // if end is exactly on hour, move back 1ms to avoid pushing into next hour
-    if (bEnd.getMinutes() === 0 && bEnd.getSeconds() === 0 && bEnd.getMilliseconds() === 0) {
+    // If end is exactly on hour, move back 1ms to avoid pushing into next hour
+    if (
+      bEnd.getMinutes() === 0 &&
+      bEnd.getSeconds() === 0 &&
+      bEnd.getMilliseconds() === 0
+    ) {
       bEnd = new Date(bEnd.getTime() - 1);
     }
 
@@ -293,9 +288,15 @@ function classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings }
     const bufferBefore = new Date(bStart.getTime() - BUFFER_HOURS * 3600000);
     const bufferAfter = new Date(endHourBlock.getTime() + BUFFER_HOURS * 3600000);
 
-    if (slotStart >= bStart && slotStart <= endHourBlock) return { available: false, reason: "booked" };
-    if (slotStart.getTime() === bufferBefore.getTime()) return { available: false, reason: "buffer" };
-    if (slotStart.getTime() === bufferAfter.getTime()) return { available: false, reason: "buffer" };
+    if (slotStart >= bStart && slotStart <= endHourBlock) {
+      return { available: false, reason: "booked" };
+    }
+    if (slotStart.getTime() === bufferBefore.getTime()) {
+      return { available: false, reason: "buffer" };
+    }
+    if (slotStart.getTime() === bufferAfter.getTime()) {
+      return { available: false, reason: "buffer" };
+    }
   }
 
   if (slotStart < minAllowed) return { available: false, reason: "too-soon" };
@@ -330,6 +331,9 @@ export default function BookingForm({ user, member }) {
 
   const [myBookings, setMyBookings] = useState([]);
   const [loadingMyBookings, setLoadingMyBookings] = useState(false);
+
+  // ✅ Manage UI filter (recommended)
+  const [manageFilter, setManageFilter] = useState("all"); // all | upcoming | past
 
   // ✅ Reschedule state
   const [reschedOpen, setReschedOpen] = useState(false);
@@ -432,7 +436,13 @@ export default function BookingForm({ user, member }) {
       const slotStart = computeDateTime(dateISO, h);
       const slotEnd = new Date(slotStart.getTime() + totalMinutes * 60000);
 
-      const verdict = classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings });
+      const verdict = classifySlot({
+        slotStart,
+        slotEnd,
+        operatingEnd,
+        minAllowed,
+        bookings,
+      });
       return { hour: h, label: labelHour(h), ...verdict };
     });
   }, [slotHours, dateISO, bookings, form.extend, form.extension_hours]);
@@ -448,27 +458,46 @@ export default function BookingForm({ user, member }) {
     return () => URL.revokeObjectURL(url);
   }, [proofFile]);
 
-  // Manage bookings load (upcoming)
+  // ✅ Manage bookings load (ALL: past + upcoming)
   useEffect(() => {
     async function fetchMyBookings() {
       if (!user?.id) return;
       setLoadingMyBookings(true);
+      setNotice(null);
 
-      const nowIso = new Date().toISOString();
       const { data, error } = await supabase
         .from("function_room_bookings")
         .select("*")
         .eq("user_id", user.id)
-        .gte("start_at", nowIso)
-        .order("start_at", { ascending: true });
+        .order("start_at", { ascending: false }); // newest first
 
-      if (!error) setMyBookings(data || []);
+      if (error) setNotice(error.message);
+      else setMyBookings(data || []);
+
       setLoadingMyBookings(false);
     }
     fetchMyBookings();
   }, [user?.id]);
 
-  // Reschedule conflicts
+  // ✅ Split bookings for Manage UI (recommended)
+  const manageGroups = useMemo(() => {
+    const now = new Date();
+    const upcoming = [];
+    const past = [];
+
+    for (const b of myBookings || []) {
+      const isPast = new Date(b.start_at) < now;
+      (isPast ? past : upcoming).push(b);
+    }
+
+    // Upcoming soonest first; past most recent first
+    upcoming.sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
+    past.sort((a, b) => new Date(b.start_at) - new Date(a.start_at));
+
+    return { upcoming, past };
+  }, [myBookings]);
+
+  // Reschedule conflicts (FIXED: correct query + fixed broken code)
   useEffect(() => {
     async function fetchBookingsForReschedDate() {
       if (!reschedOpen || !reschedDateISO) return;
@@ -487,8 +516,17 @@ export default function BookingForm({ user, member }) {
         .lte("start_at", queryEnd)
         .order("start_at", { ascending: true });
 
-      if (!error) setReschedBookings((data || []).filter((x) => x.id !== reschedBooking?.id));
+      if (error) {
+        setNotice(error.message);
+        setReschedBookings([]);
+        return;
+      }
+
+      // Remove the current booking from conflict list
+      const filtered = (data || []).filter((x) => x.id !== reschedBooking?.id);
+      setReschedBookings(filtered);
     }
+
     fetchBookingsForReschedDate();
   }, [reschedOpen, reschedDateISO, reschedBooking?.id]);
 
@@ -541,7 +579,9 @@ export default function BookingForm({ user, member }) {
     const now = new Date();
     const selectedStart = computeDateTime(dateISO, selectedHour);
     const minAllowed = new Date(now.getTime() + MIN_ADVANCE_HOURS * 3600000);
-    if (selectedStart < minAllowed) return `Booking must be at least ${MIN_ADVANCE_HOURS} hours in advance.`;
+    if (selectedStart < minAllowed) {
+      return `Booking must be at least ${MIN_ADVANCE_HOURS} hours in advance.`;
+    }
 
     return null;
   }
@@ -573,7 +613,9 @@ export default function BookingForm({ user, member }) {
 
     try {
       const fileExt = (proofFile.name.split(".").pop() || "jpg").toLowerCase();
-      const path = `${user?.id || "guest"}/${Date.now()}_${Math.random().toString(16).slice(2)}.${fileExt}`;
+      const path = `${user?.id || "guest"}/${Date.now()}_${Math.random()
+        .toString(16)
+        .slice(2)}.${fileExt}`;
 
       const { data: uploadData, error: uploadErr } = await supabase.storage
         .from("booking_proofs")
@@ -585,7 +627,10 @@ export default function BookingForm({ user, member }) {
 
       if (uploadErr) throw uploadErr;
 
-      const { data: pub } = supabase.storage.from("booking_proofs").getPublicUrl(uploadData.path);
+      const { data: pub } = supabase.storage
+        .from("booking_proofs")
+        .getPublicUrl(uploadData.path);
+
       const proofUrl = pub?.publicUrl || null;
 
       const payload = {
@@ -608,27 +653,32 @@ export default function BookingForm({ user, member }) {
         status: "pending",
       };
 
-      const { data: bookingRow, error: bookErr } = await supabase.rpc("create_booking", { data: payload });
+      const { data: bookingRow, error: bookErr } = await supabase.rpc("create_booking", {
+        data: payload,
+      });
+
       if (bookErr) throw bookErr;
 
       try {
         await fetch("/api/booking-notify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ adminEmail: ADMIN_EMAIL, bookingId: bookingRow?.id, proofUrl }),
+          body: JSON.stringify({
+            adminEmail: ADMIN_EMAIL,
+            bookingId: bookingRow?.id,
+            proofUrl,
+          }),
         });
       } catch {}
 
       setSuccessBooking(bookingRow);
       setPayOpen(false);
-
       setProofFile(null);
       setProofPreview(null);
       setSelectedHour(null);
       setTab("availability");
     } catch (e) {
       console.error("❌ FULL ERROR:", e);
-      // friendly overlap message if constraint triggers
       const msg = String(e?.message || "");
       if (msg.includes("no_overlap_function_room")) {
         setNotice("Selected time is no longer available. Please choose another slot.");
@@ -641,14 +691,18 @@ export default function BookingForm({ user, member }) {
     }
   }
 
-  /* ✅ Confirmation UI adapted to your UI style */
+  /* ✅ Confirmation UI */
   if (successBooking) {
     return (
       <div className="min-h-screen bg-[#FFF5F7] flex items-center justify-center px-4">
         <div className="bg-white rounded-[28px] border border-rose-50 shadow-sm p-6 max-w-md w-full space-y-4 animate-in fade-in">
           <div className="text-center space-y-1">
-            <p className="text-[10px] uppercase tracking-widest text-slate-400">Booking Confirmed</p>
-            <h2 className="text-xl font-semibold text-slate-800">Reservation Received ✅</h2>
+            <p className="text-[10px] uppercase tracking-widest text-slate-400">
+              Booking Confirmed
+            </p>
+            <h2 className="text-xl font-semibold text-slate-800">
+              Reservation Received ✅
+            </h2>
           </div>
 
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 text-sm">
@@ -657,10 +711,12 @@ export default function BookingForm({ user, member }) {
               <b>{successBooking.reference_code || successBooking.id}</b>
             </p>
             <p>
-              <span className="text-slate-400">Name:</span> <b>{successBooking.customer_name}</b>
+              <span className="text-slate-400">Name:</span>{" "}
+              <b>{successBooking.customer_name}</b>
             </p>
             <p>
-              <span className="text-slate-400">Date:</span> <b>{successBooking.business_date}</b>
+              <span className="text-slate-400">Date:</span>{" "}
+              <b>{successBooking.business_date}</b>
             </p>
             <p>
               <span className="text-slate-400">Status:</span>{" "}
@@ -681,6 +737,134 @@ export default function BookingForm({ user, member }) {
           >
             Back to Booking
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ helper to render booking card for Manage tab
+  function renderBookingCard(b) {
+    const now = new Date();
+    const isPast = new Date(b.start_at) < now;
+    const allowChange = !isPast && canChangeBooking(b.start_at);
+
+    const statusMap = {
+      confirmed: { text: "Confirmed", color: "bg-green-100 text-green-700" },
+      pending: { text: "Pending", color: "bg-blue-100 text-blue-700" },
+      rejected: { text: "Rejected", color: "bg-red-100 text-red-700" },
+      cancelled_gc: { text: "Gift Certificate", color: "bg-yellow-100 text-yellow-700" },
+    };
+
+    const status = statusMap[b.status] || {
+      text: String(b.status || "Unknown"),
+      color: "bg-slate-100 text-slate-600",
+    };
+
+    return (
+      <div
+        key={b.id}
+        className={`bg-white rounded-2xl border border-rose-50 shadow-sm p-5 transition-all ${
+          isPast ? "opacity-70" : "hover:shadow-md"
+        }`}
+      >
+        <div className="flex justify-between items-start gap-4">
+          <div className="space-y-1 min-w-0">
+            <p className="text-xs tracking-widest text-slate-400 uppercase">Reference</p>
+            <p className="text-sm font-semibold text-slate-800 truncate">
+              {b.reference_code || b.id}
+            </p>
+
+            <p className="text-xs text-slate-500">
+              <b>{b.business_date}</b> • {new Date(b.start_at).toLocaleString()}
+            </p>
+
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <span className={`inline-block px-3 py-1 text-xs rounded-full font-medium ${status.color}`}>
+                {status.text}
+              </span>
+
+              {/* optional quick summary pill (recommended UX) */}
+              <span className="inline-block px-3 py-1 text-xs rounded-full font-medium bg-slate-50 text-slate-600 border border-slate-200">
+                Guests: {b.guest_count || 0} • Ext: {b.extension_hours || 0}h
+              </span>
+            </div>
+
+            {!isPast && !allowChange && (
+              <p className="text-[11px] text-slate-400 mt-2">
+                Changes disabled — must be at least {RESCHEDULE_MIN_DAYS} days before booking.
+              </p>
+            )}
+
+            {isPast && (
+              <p className="text-[11px] text-slate-400 mt-2">
+                Past booking — actions are disabled.
+              </p>
+            )}
+          </div>
+
+          {/* Actions (hidden for past bookings – recommended UX) */}
+          {!isPast && (
+            <div className="flex flex-col gap-2 min-w-[140px]">
+              <button
+                disabled={!allowChange}
+                onClick={() => allowChange && setEditBooking({ ...b })}
+                className={`w-full py-2 rounded-lg text-xs font-medium ${
+                  allowChange
+                    ? "bg-blue-500 text-white hover:bg-blue-600"
+                    : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                }`}
+              >
+                Update
+              </button>
+
+              <button
+                disabled={!allowChange}
+                onClick={() => {
+                  if (!allowChange) return;
+                  setReschedBooking(b);
+                  setReschedDateISO(toISODate(new Date(b.start_at)));
+                  setReschedHour(null);
+                  setReschedOpen(true);
+                }}
+                className={`w-full py-2 rounded-lg text-xs font-medium ${
+                  allowChange
+                    ? "border border-slate-200 bg-white hover:bg-slate-50"
+                    : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                }`}
+              >
+                Reschedule
+              </button>
+
+              <button
+                onClick={async () => {
+                  const ok = confirm(
+                    "Cancel this booking? It will convert into a gift certificate."
+                  );
+                  if (!ok) return;
+
+                  const { error } = await supabase
+                    .from("function_room_bookings")
+                    .update({ status: "cancelled_gc" })
+                    .eq("id", b.id);
+
+                  if (error) {
+                    setNotice(error.message);
+                    return;
+                  }
+
+                  // keep history but update status instead of removing
+                  setMyBookings((prev) =>
+                    prev.map((x) => (x.id === b.id ? { ...x, status: "cancelled_gc" } : x))
+                  );
+
+                  setNotice("✅ Booking cancelled and converted to gift certificate.");
+                }}
+                className="w-full py-2 rounded-lg text-xs font-medium bg-red-500 text-white hover:bg-red-600"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -760,7 +944,9 @@ export default function BookingForm({ user, member }) {
 
                 <select
                   value={form.extension_hours}
-                  onChange={(e) => setForm((f) => ({ ...f, extension_hours: Number(e.target.value) }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, extension_hours: Number(e.target.value) }))
+                  }
                   disabled={form.extend !== "yes"}
                   className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm disabled:opacity-50"
                 >
@@ -786,10 +972,13 @@ export default function BookingForm({ user, member }) {
               {availability.map((s) => {
                 const status = reasonToLabel(s.reason);
                 const statusClass =
-                  s.available ? "text-green-600" :
-                  s.reason === "booked" ? "text-red-500 font-semibold" :
-                  s.reason === "buffer" ? "text-yellow-500 font-semibold" :
-                  "text-slate-400";
+                  s.available
+                    ? "text-green-600"
+                    : s.reason === "booked"
+                    ? "text-red-500 font-semibold"
+                    : s.reason === "buffer"
+                    ? "text-yellow-500 font-semibold"
+                    : "text-slate-400";
 
                 return (
                   <button
@@ -834,7 +1023,9 @@ export default function BookingForm({ user, member }) {
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <p className="text-[12px] uppercase tracking-widest text-slate-400">{p.name}</p>
+                      <p className="text-[12px] uppercase tracking-widest text-slate-400">
+                        {p.name}
+                      </p>
                       <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">
                         ₱{Number(p.rental_fee).toLocaleString()}
                       </h3>
@@ -844,7 +1035,9 @@ export default function BookingForm({ user, member }) {
                           Capacity up to {p.capacity} guests
                         </p>
                         <p className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
-                          {roomRentalOnly ? "Room rental only" : `Consumable: ${formatPeso(consumable || 0)}`}
+                          {roomRentalOnly
+                            ? "Room rental only"
+                            : `Consumable: ${formatPeso(consumable || 0)}`}
                         </p>
                       </div>
                     </div>
@@ -949,7 +1142,9 @@ export default function BookingForm({ user, member }) {
                 type="number"
                 min={1}
                 value={form.guest_count}
-                onChange={(e) => setForm((f) => ({ ...f, guest_count: Number(e.target.value) }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, guest_count: Number(e.target.value) }))
+                }
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
               />
             </div>
@@ -966,127 +1161,72 @@ export default function BookingForm({ user, member }) {
         </div>
       )}
 
-      {/* Manage Booking */}
+      {/* Manage Booking (clean + all past/upcoming + filter + grouped sections) */}
       {tab === "manage" && (
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6">
-            <h3 className="text-lg md:text-xl font-semibold text-slate-800">Manage Booking</h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Update & Reschedule allowed only if at least <b>{RESCHEDULE_MIN_DAYS} days</b> before booking date.
-              Cancellation converts into gift certificate.
-            </p>
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <h3 className="text-xl font-semibold text-slate-800">Manage Your Bookings</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Update or reschedule at least <b>{RESCHEDULE_MIN_DAYS} days</b> before your event.
+                </p>
+              </div>
+
+              {/* Filter (recommended UX) */}
+              <div className="w-full sm:w-auto">
+                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
+                  View
+                </label>
+                <select
+                  value={manageFilter}
+                  onChange={(e) => setManageFilter(e.target.value)}
+                  className="w-full sm:w-[180px] bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                >
+                  <option value="all">All</option>
+                  <option value="upcoming">Upcoming</option>
+                  <option value="past">Past</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           {loadingMyBookings ? (
-            <div className="min-h-[120px] flex items-center justify-center">
-              <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
+            <div className="flex justify-center py-12">
+              <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] rounded-full animate-spin" />
             </div>
           ) : myBookings.length === 0 ? (
-            <div className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6 text-slate-500 text-sm">
-              No upcoming bookings.
+            <div className="bg-white rounded-2xl border border-rose-50 shadow-sm p-6 text-center">
+              <p className="text-slate-500 text-sm">No bookings found.</p>
             </div>
           ) : (
-            myBookings.map((b) => {
-              const allowChange = canChangeBooking(b.start_at);
-
-              const statusText =
-                b.status === "confirmed" ? "✅ Confirmed" :
-                b.status === "rejected" ? "❌ Rejected" :
-                b.status === "cancelled_gc" ? "🎁 Converted to Gift Cert" :
-                b.status === "pending" ? "🕒 Pending" :
-                String(b.status || "—");
-
-              const statusColor =
-                b.status === "confirmed" ? "text-green-600" :
-                b.status === "rejected" ? "text-red-500" :
-                b.status === "cancelled_gc" ? "text-yellow-500" :
-                "text-blue-500";
-
-              return (
-                <div
-                  key={b.id}
-                  className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="text-[10px] uppercase tracking-widest text-slate-400">Reference</p>
-                      <p className="text-sm font-semibold text-slate-800">{b.reference_code || b.id}</p>
-
-                      <p className="text-xs text-slate-500 mt-1">
-                        Date: <b>{b.business_date}</b> • Start:{" "}
-                        <b>{new Date(b.start_at).toLocaleString()}</b>
-                      </p>
-
-                      <p className={`text-xs mt-2 font-semibold ${statusColor}`}>{statusText}</p>
-
-                      {!allowChange && (
-                        <p className="text-[10px] text-slate-400 mt-2">
-                          Updates & reschedule disabled — must be at least {RESCHEDULE_MIN_DAYS} days before booking.
-                        </p>
-                      )}
+            <div className="space-y-6">
+              {(manageFilter === "all" || manageFilter === "upcoming") && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-slate-700">Upcoming</h4>
+                  {manageGroups.upcoming.length === 0 ? (
+                    <div className="bg-white rounded-2xl border border-rose-50 shadow-sm p-6 text-center">
+                      <p className="text-slate-500 text-sm">No upcoming bookings.</p>
                     </div>
-
-                    <div className="flex gap-2 flex-shrink-0">
-                      <button
-                        type="button"
-                        disabled={!allowChange}
-                        onClick={() => allowChange && setEditBooking({ ...b })}
-                        className={`px-4 py-2 rounded-full text-[10px] uppercase tracking-widest active:scale-95 ${
-                          allowChange
-                            ? "bg-blue-500 text-white"
-                            : "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed"
-                        }`}
-                      >
-                        ✏️ Update
-                      </button>
-
-                      <button
-                        type="button"
-                        disabled={!allowChange}
-                        onClick={() => {
-                          if (!allowChange) return;
-                          setReschedBooking(b);
-                          setReschedDateISO(toISODate(new Date(b.start_at)));
-                          setReschedHour(null);
-                          setReschedOpen(true);
-                        }}
-                        className={`px-4 py-2 rounded-full text-[10px] uppercase tracking-widest active:scale-95 ${
-                          allowChange
-                            ? "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
-                            : "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed"
-                        }`}
-                      >
-                        Reschedule
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const ok = confirm("Cancel this booking? It will be converted into a gift certificate.");
-                          if (!ok) return;
-
-                          const { error } = await supabase
-                            .from("function_room_bookings")
-                            .update({ status: "cancelled_gc" })
-                            .eq("id", b.id);
-
-                          if (error) {
-                            setNotice(error.message);
-                            return;
-                          }
-
-                          setMyBookings((prev) => prev.filter((x) => x.id !== b.id));
-                          setNotice("✅ Booking cancelled. It will be converted into a gift certificate.");
-                        }}
-                        className="px-4 py-2 rounded-full bg-red-500 text-white text-[10px] uppercase tracking-widest active:scale-95"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
+                  ) : (
+                    manageGroups.upcoming.map(renderBookingCard)
+                  )}
                 </div>
-              );
-            })
+              )}
+
+              {(manageFilter === "all" || manageFilter === "past") && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-slate-700">Past</h4>
+                  {manageGroups.past.length === 0 ? (
+                    <div className="bg-white rounded-2xl border border-rose-50 shadow-sm p-6 text-center">
+                      <p className="text-slate-500 text-sm">No past bookings.</p>
+                    </div>
+                  ) : (
+                    manageGroups.past.map(renderBookingCard)
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -1118,10 +1258,14 @@ export default function BookingForm({ user, member }) {
               Only package, guests, and event type can be changed. Allowed only if booking is at least {RESCHEDULE_MIN_DAYS} days away.
             </p>
 
-            <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">Package</label>
+            <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+              Package
+            </label>
             <select
               value={editBooking.package_id}
-              onChange={(e) => setEditBooking((prev) => ({ ...prev, package_id: Number(e.target.value) }))}
+              onChange={(e) =>
+                setEditBooking((prev) => ({ ...prev, package_id: Number(e.target.value) }))
+              }
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm mb-3"
             >
               {packages.map((p) => (
@@ -1131,20 +1275,28 @@ export default function BookingForm({ user, member }) {
               ))}
             </select>
 
-            <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">No. of Guests</label>
+            <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+              No. of Guests
+            </label>
             <input
               type="number"
               min={1}
               value={editBooking.guest_count || 1}
-              onChange={(e) => setEditBooking((prev) => ({ ...prev, guest_count: Number(e.target.value) }))}
+              onChange={(e) =>
+                setEditBooking((prev) => ({ ...prev, guest_count: Number(e.target.value) }))
+              }
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm mb-3"
             />
 
-            <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">Event Type</label>
+            <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+              Event Type
+            </label>
             <input
               type="text"
               value={editBooking.event_type || ""}
-              onChange={(e) => setEditBooking((prev) => ({ ...prev, event_type: e.target.value }))}
+              onChange={(e) =>
+                setEditBooking((prev) => ({ ...prev, event_type: e.target.value }))
+              }
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm mb-4"
             />
 
@@ -1185,7 +1337,9 @@ export default function BookingForm({ user, member }) {
                   }
 
                   setMyBookings((prev) =>
-                    prev.map((x) => (x.id === editBooking.id ? { ...x, ...editBooking, status: "pending" } : x))
+                    prev.map((x) =>
+                      x.id === editBooking.id ? { ...x, ...editBooking, status: "pending" } : x
+                    )
                   );
 
                   setEditLoading(false);
@@ -1212,7 +1366,9 @@ export default function BookingForm({ user, member }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg md:text-xl font-semibold text-slate-800">Reschedule Booking</h3>
+              <h3 className="text-lg md:text-xl font-semibold text-slate-800">
+                Reschedule Booking
+              </h3>
               <button
                 type="button"
                 onClick={() => !reschedLoading && setReschedOpen(false)}
@@ -1228,7 +1384,9 @@ export default function BookingForm({ user, member }) {
               </p>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">New Date</label>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
+                  New Date
+                </label>
                 <input
                   type="date"
                   value={reschedDateISO}
@@ -1242,10 +1400,13 @@ export default function BookingForm({ user, member }) {
                 {reschedAvailability.map((s) => {
                   const status = reasonToLabel(s.reason);
                   const statusClass =
-                    s.available ? "text-green-600" :
-                    s.reason === "booked" ? "text-red-500 font-semibold" :
-                    s.reason === "buffer" ? "text-yellow-500 font-semibold" :
-                    "text-slate-400";
+                    s.available
+                      ? "text-green-600"
+                      : s.reason === "booked"
+                      ? "text-red-500 font-semibold"
+                      : s.reason === "buffer"
+                      ? "text-yellow-500 font-semibold"
+                      : "text-slate-400";
 
                   return (
                     <button
@@ -1274,7 +1435,9 @@ export default function BookingForm({ user, member }) {
                 onClick={async () => {
                   if (reschedHour == null) return;
                   if (!canChangeBooking(reschedBooking.start_at)) {
-                    setNotice(`Reschedule allowed only if at least ${RESCHEDULE_MIN_DAYS} days before booking.`);
+                    setNotice(
+                      `Reschedule allowed only if at least ${RESCHEDULE_MIN_DAYS} days before booking.`
+                    );
                     return;
                   }
 
@@ -1341,7 +1504,9 @@ export default function BookingForm({ user, member }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg md:text-xl font-semibold text-slate-800">Secure Your Booking</h3>
+              <h3 className="text-lg md:text-xl font-semibold text-slate-800">
+                Secure Your Booking
+              </h3>
               <button
                 type="button"
                 onClick={() => !submitting && setPayOpen(false)}
@@ -1359,7 +1524,9 @@ export default function BookingForm({ user, member }) {
               </p>
 
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                <p className="text-[11px] uppercase tracking-widest text-slate-500 mb-2">Scan QR to Pay</p>
+                <p className="text-[11px] uppercase tracking-widest text-slate-500 mb-2">
+                  Scan QR to Pay
+                </p>
                 <img
                   src={QR_IMAGE_PATH}
                   alt="Payment QR Code"
@@ -1367,7 +1534,8 @@ export default function BookingForm({ user, member }) {
                 />
 
                 <p className="text-[12px] text-slate-700 mt-3">
-                  After payment, attach screenshot of your payment confirmation to lock in your reservation!
+                  After payment, attach screenshot of your payment confirmation to lock in your
+                  reservation!
                 </p>
 
                 <input
@@ -1380,7 +1548,11 @@ export default function BookingForm({ user, member }) {
 
                 {proofPreview && (
                   <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden">
-                    <img src={proofPreview} alt="Payment proof preview" className="w-full object-cover" />
+                    <img
+                      src={proofPreview}
+                      alt="Payment proof preview"
+                      className="w-full object-cover"
+                    />
                   </div>
                 )}
 
@@ -1424,8 +1596,12 @@ export default function BookingForm({ user, member }) {
                 <div className="space-y-4">
                   <div className="flex items-start justify-between gap-4 mb-2">
                     <div>
-                      <p className="text-[10px] uppercase tracking-widest text-slate-400">Full Details</p>
-                      <h3 className="text-xl md:text-2xl font-semibold text-slate-900 mt-1">{policy.name}</h3>
+                      <p className="text-[10px] uppercase tracking-widest text-slate-400">
+                        Full Details
+                      </p>
+                      <h3 className="text-xl md:text-2xl font-semibold text-slate-900 mt-1">
+                        {policy.name}
+                      </h3>
                     </div>
                     <button
                       type="button"
@@ -1438,7 +1614,9 @@ export default function BookingForm({ user, member }) {
                   </div>
 
                   <div className="bg-white border border-slate-200 rounded-2xl p-4">
-                    <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">1. Room Usage</p>
+                    <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2">
+                      1. Room Usage
+                    </p>
                     <ul className="space-y-2 text-[12px] text-slate-700 leading-relaxed">
                       <li>• {policy.room_usage.capacity}</li>
                       <li>• {policy.room_usage.additional_guests}</li>
@@ -1455,7 +1633,9 @@ export default function BookingForm({ user, member }) {
                     </p>
                     <p className="text-[12px] text-slate-700 mb-3">• {rfi.rental_fee}</p>
 
-                    <p className="text-[11px] uppercase tracking-widest text-slate-500 mb-2">Package Includes</p>
+                    <p className="text-[11px] uppercase tracking-widest text-slate-500 mb-2">
+                      Package Includes
+                    </p>
                     <ul className="space-y-2 text-[12px] text-slate-700 leading-relaxed">
                       {rfi.package_includes.map((x) => (
                         <li key={x}>• {x}</li>
@@ -1475,8 +1655,12 @@ export default function BookingForm({ user, member }) {
                   </div>
 
                   <div className="bg-white border border-rose-200 rounded-2xl p-4">
-                    <p className="text-[10px] uppercase tracking-widest text-rose-600 mb-2">3. Food & Beverages</p>
-                    <p className="text-[12px] text-slate-700 mb-2">• {policy.food_beverages.policy}</p>
+                    <p className="text-[10px] uppercase tracking-widest text-rose-600 mb-2">
+                      3. Food & Beverages
+                    </p>
+                    <p className="text-[12px] text-slate-700 mb-2">
+                      • {policy.food_beverages.policy}
+                    </p>
                     {policy.food_beverages.corkage.length > 0 && (
                       <ul className="space-y-1 text-[12px] text-slate-700 leading-relaxed ml-3">
                         {policy.food_beverages.corkage.map((x) => (
@@ -1485,7 +1669,9 @@ export default function BookingForm({ user, member }) {
                       </ul>
                     )}
                     {policy.food_beverages.notes && (
-                      <p className="text-[12px] text-slate-700 mt-3">• {policy.food_beverages.notes}</p>
+                      <p className="text-[12px] text-slate-700 mt-3">
+                        • {policy.food_beverages.notes}
+                      </p>
                     )}
                   </div>
                 </div>
