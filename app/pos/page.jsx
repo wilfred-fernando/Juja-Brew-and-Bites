@@ -1,7 +1,304 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createBrowserClient } from "@/lib/supabase/client";
+import { createClient } from "@supabase/supabase-js";
+import { getSupabaseClient } from "@/lib/supabase/client";
+
+// ================= PRINT HELPERS =================
+
+// ✅ CLEAN browser print (58mm)
+function print58mmTextBrowser(text, { widthMm = 58 } = {}) {
+  const safe = String(text || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+
+  const html = `
+    <html>
+      <head>
+        <style>
+          @page { size: ${widthMm}mm auto; margin: 0 }
+          body { font-family: monospace; padding: 6px; font-size: 12px }
+          pre { white-space: pre-wrap }
+        </style>
+      </head>
+      <body><pre>${safe}</pre></body>
+    </html>
+  `;
+
+  const frame = document.createElement("iframe");
+  frame.style.display = "none";
+
+  frame.onload = () => {
+    frame.contentWindow?.print();
+    setTimeout(() => frame.remove(), 800);
+  };
+
+  document.body.appendChild(frame);
+  frame.contentDocument.open();
+  frame.contentDocument.write(html);
+  frame.contentDocument.close();
+}
+
+
+// ================= BLE PRINT =================
+
+// ✅ KEEP ONLY ONE BLE CONNECT
+async function bleConnect(serviceUuid, characteristicUuid) {
+  const device = await navigator.bluetooth.requestDevice({
+    acceptAllDevices: true,
+    optionalServices: [serviceUuid],
+  });
+
+  const server = await device.gatt.connect();
+  const service = await server.getPrimaryService(serviceUuid);
+  const characteristic = await service.getCharacteristic(characteristicUuid);
+
+  return characteristic;
+}
+
+// ✅ KEEP ONLY ONE BLE PRINT
+async function blePrint(characteristic, text) {
+  const bytes = new TextEncoder().encode(text + "\n\n");
+
+  for (let i = 0; i < bytes.length; i += 180) {
+    await characteristic.writeValueWithoutResponse(
+      bytes.slice(i, i + 180)
+    );
+  }
+}
+
+
+// ================= PRINT ROUTER =================
+
+// ✅ SINGLE ROUTER FUNCTION (NO DUPLICATES)
+async function printByRole(role, text, printerConfig) {
+  const cfg = printerConfig?.[role];
+
+  // fallback to browser print
+  if (!cfg || cfg.transport === "browser") {
+    print58mmTextBrowser(text);
+    return;
+  }
+
+  try {
+    const characteristic = await bleConnect(
+      cfg.ble_service_uuid,
+      cfg.ble_characteristic_uuid
+    );
+
+    await blePrint(characteristic, text);
+
+  } catch (err) {
+    console.warn("Bluetooth failed → fallback printing", err);
+    print58mmTextBrowser(text);
+  }
+}
+
+// ================= TEXT BUILDERS =================
+function buildReceiptText({ orderId, cart, total }) {
+  const lines = [];
+  lines.push("RECEIPT");
+  lines.push(`Order: ${orderId}`);
+  lines.push("-----");
+
+  cart.forEach(x => {
+    lines.push(`${x.name} x${x.quantity}`);
+  });
+
+  lines.push("-----");
+  lines.push(`TOTAL: ₱${total}`);
+
+  return lines.join("\n");
+}
+
+function buildOrderSlipText({ orderId, cart }) {
+  return [
+    "ORDER SLIP",
+    `Order: ${orderId}`,
+    "-----",
+    ...cart.map(x => `${x.quantity}x ${x.name}`)
+  ].join("\n");
+}
+
+function buildCupLabels({ orderId, cart }) {
+  const labels = [];
+
+  cart.forEach(x => {
+    for (let i = 0; i < x.quantity; i++) {
+      labels.push(`${x.name}\nOrder ${orderId}`);
+    }
+  });
+
+  return labels;
+}
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
+
+/* =========================================================
+   Helpers
+========================================================= */
+const peso0 = (n) => `₱${Number(n || 0).toFixed(0)}`;
+const peso2 = (n) => `₱${Number(n || 0).toFixed(2)}`;
+
+function printReceiptText(receiptText, opts = {}) {
+  const {
+    title = "Receipt",
+    widthMm = 80,  // change to 58 if using 58mm printers
+    fontSize = 12,
+    lineHeight = 1.25,
+  } = opts;
+
+  const html = `
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${title}</title>
+  <style>
+    /* Print sizing */
+    @page { size: ${widthMm}mm auto; margin: 0; }
+    @media print {
+      html, body { width: ${widthMm}mm; margin: 0; padding: 0; }
+    }
+
+    /* Receipt look */
+    body {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: ${fontSize}px;
+      line-height: ${lineHeight};
+      padding: 8px;
+      color: #000;
+    }
+    .receipt {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+  </style>
+</head>
+<body>
+  <div class="receipt">${String(receiptText || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")}</div>
+</body>
+</html>`;
+
+  // Hidden iframe print pattern (no flicker, prints only receipt) [1](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Media_queries/Printing)[5](https://www.xjavascript.com/blog/javascript-print-iframe-contents-only/)
+  const frame = document.createElement("iframe");
+  frame.style.position = "fixed";
+  frame.style.right = "0";
+  frame.style.bottom = "0";
+  frame.style.width = "0";
+  frame.style.height = "0";
+  frame.style.border = "0";
+  frame.style.opacity = "0";
+  frame.setAttribute("aria-hidden", "true");
+
+  const cleanup = () => {
+    try {
+      frame.contentWindow?.removeEventListener("afterprint", cleanup);
+    } catch {}
+    if (frame.parentNode) frame.parentNode.removeChild(frame);
+  };
+
+  frame.onload = () => {
+    try {
+      // Auto-remove iframe after printing [1](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Media_queries/Printing)
+      frame.contentWindow?.addEventListener("afterprint", cleanup);
+      frame.contentWindow?.focus();
+      frame.contentWindow?.print();
+    } catch {
+      cleanup();
+    }
+  };
+
+  document.body.appendChild(frame);
+  const doc = frame.contentDocument || frame.contentWindow?.document;
+  doc.open();
+  doc.write(html);
+  doc.close();
+}
+
+function getPosStoreId() {
+  if (typeof window === "undefined") return null;
+  return (
+    localStorage.getItem("pos_store_id") ||
+    localStorage.getItem("admin_store_id") ||
+    null
+  );
+}
+
+function discountAmountFromRule(rule, subtotal) {
+  if (!rule) return 0;
+  const type = String(rule.type || "").toLowerCase();
+  const value = Number(rule.value || 0);
+
+  if (type === "percent") return subtotal * (value / 100);
+  if (type === "fixed") return value;
+  if (type === "comp") return subtotal; // free
+  return 0;
+}
+/* =========================================================
+PRINT + BLUETOOTH + ROUTER (NEW)
+========================================================= */
+
+// ✅ 58mm print (browser fallback)
+function print58(text) {
+  const safe = String(text || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+
+  const html = `
+  <html>
+  <head>
+    <style>
+      @page { size: 58mm auto; margin:0 }
+      body { font-family: monospace; padding:6px; }
+      pre { white-space: pre-wrap }
+    </style>
+  </head>
+  <body><pre>${safe}</pre></body>
+  </html>`;
+
+  const frame = document.createElement("iframe");
+  frame.style.display = "none";
+
+  frame.onload = () => {
+    frame.contentWindow?.print();
+    setTimeout(() => frame.remove(), 800);
+  };
+
+  document.body.appendChild(frame);
+  frame.contentDocument.write(html);
+}
+
+  async function loadPrinters() {
+  const sid = storeId;
+  if (!sid) return;
+
+  const { data } = await supabase
+    .from("pos_printers")
+    .select("*")
+    .eq("store_id", sid)
+    .eq("is_active", true);
+
+  const map = {
+    receipt: null,
+    order_slip: null,
+    cup_label: null,
+  };
+
+  (data || []).forEach((p) => {
+    map[p.role] = p;
+  });
+
+  setPrinterConfig(map);
+}
 
 /* =========================================================
    UI: Modal Shell (consistent design)
@@ -191,7 +488,16 @@ function BarcodeScannerModal({ open, onClose, onResult }) {
   }
 
   return (
-    <ModalShell open={open} onClose={() => { stopScanner(); onClose(); }} title="Barcode Scanner" subtitle="Scan code" z={145}>
+    <ModalShell
+      open={open}
+      onClose={() => {
+        stopScanner();
+        onClose();
+      }}
+      title="Barcode Scanner"
+      subtitle="Scan code"
+      z={145}
+    >
       <p className="text-xs text-slate-500">
         Scan customer code or item SKU. Camera permission will be requested.
       </p>
@@ -223,7 +529,10 @@ function BarcodeScannerModal({ open, onClose, onResult }) {
           <div id="pos-scan-area" className="rounded-2xl overflow-hidden border border-slate-200" />
 
           <button
-            onClick={() => { stopScanner(); onClose(); }}
+            onClick={() => {
+              stopScanner();
+              onClose();
+            }}
             className="w-full mt-4 py-3 rounded-2xl bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-widest active:scale-95"
           >
             Stop
@@ -391,7 +700,7 @@ function VouchersModal({ open, onClose, vouchers, appliedVoucher, selectedCartIt
 }
 
 /* =========================================================
-   Add To Cart Modal (keeps your logic; sheet UI)
+   Add To Cart Modal (your existing logic, kept)
 ========================================================= */
 function AddToCartModal({ item, onClose, onAddToCart }) {
   const [quantity, setQuantity] = useState(1);
@@ -447,9 +756,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
   const basePrice = Number(item.price) || 0;
   const unitPrice = basePrice + variantPrice;
 
-  const canAdd = (item.variants || []).every(
-    (g) => !g.isRequired || (selections[g.id] || []).length > 0
-  );
+  const canAdd = (item.variants || []).every((g) => !g.isRequired || (selections[g.id] || []).length > 0);
 
   const variantDetails = Object.values(selections)
     .flat()
@@ -459,13 +766,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
   const totalLine = (unitPrice * quantity).toFixed(0);
 
   return (
-    <ModalShell
-      open={!!item}
-      onClose={onClose}
-      title={item.editData ? "Edit Item" : "Add to Ticket"}
-      subtitle={item.name}
-      z={145}
-    >
+    <ModalShell open={!!item} onClose={onClose} title={item.editData ? "Edit Item" : "Add to Ticket"} subtitle={item.name} z={145}>
       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
         <p className="text-xs text-slate-600">
           Base ₱{basePrice.toFixed(0)}
@@ -474,9 +775,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
       </div>
 
       <div className="mt-3">
-        <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
-          Quantity
-        </label>
+        <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">Quantity</label>
 
         <input
           type="number"
@@ -484,26 +783,20 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
           value={quantity}
           onChange={(e) => {
             const val = e.target.value;
-
             if (val === "") {
               setQuantity("");
               return;
             }
-
             const num = Number(val);
-            if (!isNaN(num) && num >= 1) {
-              setQuantity(Math.floor(num));
-            }
+            if (!isNaN(num) && num >= 1) setQuantity(Math.floor(num));
           }}
           onBlur={() => {
-            if (!quantity || quantity < 1) {
-              setQuantity(1);
-            }
+            if (!quantity || quantity < 1) setQuantity(1);
           }}
           className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-center text-lg font-bold text-slate-800 outline-none focus:border-[#FC687D]"
         />
       </div>
-        
+
       {Array.isArray(item.variants) && item.variants.length > 0 && (
         <div className="mt-4 space-y-4">
           {item.variants.map((g) => {
@@ -563,9 +856,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
       )}
 
       <div className="mt-4">
-        <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
-          Special Instructions
-        </label>
+        <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">Special Instructions</label>
         <textarea
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
@@ -596,9 +887,173 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
 }
 
 /* =========================================================
-   Ticket Panel (CLEAN UI)
+   Payment Modal (NEW - from pos_payment_types)
 ========================================================= */
-function TicketPanel({
+function PaymentModal({
+  open,
+  onClose,
+  paymentTypes,
+  selectedPayment,
+  onSelect,
+  onConfirm,
+  total,
+
+  // NEW
+  paymentAmount,
+  setPaymentAmount,
+}) {
+  const isCash = String(selectedPayment || "").toLowerCase().includes("cash");
+
+  const amt = Number(paymentAmount || 0);
+  const due = Number(total || 0);
+
+  const change = isCash ? Math.max(0, amt - due) : 0;
+  const remaining = Math.max(0, due - amt);
+
+  const disableConfirm =
+    !selectedPayment ||
+    !paymentAmount ||
+    Number.isNaN(amt) ||
+    amt <= 0 ||
+    (isCash && amt < due);
+
+  return (
+    <ModalShell open={open} onClose={onClose} title="Payment" subtitle="Select Payment Type" z={150}>
+      <div className="space-y-3">
+
+        {/* Payment Types */}
+        {(paymentTypes || []).length === 0 ? (
+          <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm text-slate-600">
+            No payment types found. Add them in POS Admin → Settings → Payment Types.
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {paymentTypes.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => {
+                  onSelect(p.name);
+                  // default payment amount when selecting a payment method
+                  setPaymentAmount(String(Number(totalDue || 0).toFixed(2)));
+                  setChangeDue(0);
+                  setPaymentOpen(true);
+                }}
+                className={`py-3 rounded-2xl border text-xs font-bold uppercase tracking-widest active:scale-95 ${
+                  selectedPayment === p.name
+                    ? "border-rose-200 bg-rose-50 text-[#FC687D]"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Payment Amount Input */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
+            {isCash ? "Cash Received" : "Amount Paid"}
+          </p>
+
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-slate-500 font-bold">₱</span>
+            <input
+              inputMode="decimal"
+              value={paymentAmount}
+              onChange={(e) => {
+                // allow digits + dot only
+                const v = e.target.value.replace(/[^\d.]/g, "");
+                setPaymentAmount(v);
+              }}
+              placeholder={String(Number(total || 0).toFixed(2))}
+              className="w-full px-3 py-3 rounded-xl border border-slate-200 text-slate-900 font-bold outline-none focus:border-rose-300"
+            />
+          </div>
+
+          <div className="mt-3 text-sm">
+            <div className="flex justify-between text-slate-600">
+              <span>Total Due</span>
+              <span className="font-bold">{peso2(due)}</span>
+            </div>
+
+            <div className="flex justify-between text-slate-600">
+              <span>Paid</span>
+              <span className="font-bold">{peso2(amt)}</span>
+            </div>
+
+            {isCash ? (
+              <div className="flex justify-between text-emerald-700 mt-1">
+                <span className="font-bold">Change</span>
+                <span className="font-extrabold">{peso2(change)}</span>
+              </div>
+            ) : remaining > 0 ? (
+              <div className="flex justify-between text-orange-700 mt-1">
+                <span className="font-bold">Remaining</span>
+                <span className="font-extrabold">{peso2(remaining)}</span>
+              </div>
+            ) : null}
+
+            {isCash && amt < due ? (
+              <div className="mt-2 text-xs text-rose-600">
+                Cash received must be at least the total due.
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Confirm */}
+        <button
+          disabled={disableConfirm}
+          onClick={() =>
+            onConfirm({
+              amountPaid: amt,
+              changeDue: change,
+            })
+          }
+          className="w-full mt-1 py-3 rounded-2xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-widest active:scale-95 disabled:opacity-60"
+        >
+          Confirm • {peso0(total)}
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+/* =========================================================
+   Receipt Preview Modal (NEW - uses pos_receipt_settings)
+========================================================= */
+function ReceiptPreviewModal({ open, onClose, receiptText }) {
+  return (
+    <ModalShell open={open} onClose={onClose} title="Receipt" subtitle="Preview" z={160}>
+      <pre className="whitespace-pre-wrap text-xs bg-slate-50 border border-slate-200 rounded-2xl p-4">
+        {receiptText || "No receipt"}
+      </pre>
+
+      <div className="grid grid-cols-2 gap-2 mt-4">
+        <button
+          onClick={onClose}
+          className="w-full py-3 rounded-2xl bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-widest active:scale-95"
+        >
+          Close
+        </button>
+        
+        <button
+          onClick={() => printReceiptText(receiptText, { widthMm: 80 })}
+          className="w-full py-3 rounded-2xl bg-black text-white text-xs font-bold uppercase tracking-widest active:scale-95"
+        >
+          Print
+        </button>
+
+      </div>
+    </ModalShell>
+  );
+}
+
+/* =========================================================
+   Main Ticket Panel (left side, with cart + controls)
+========================================================= */  
+  function TicketPanel({
   cart,
   customers,
   customerSearch,
@@ -611,8 +1066,21 @@ function TicketPanel({
   orderType,
   setOrderType,
   diningOptions,
+
+  // totals
   subtotal,
+  discountAmount,
+  totalDue,
+
+  // voucher + discount labels
   appliedVoucher,
+  appliedDiscount,
+
+  // payment info (NEW)
+  selectedPayment,
+  paymentAmount,
+  changeDue,
+
   onOpenVouchers,
   onRemoveVoucher,
   onClear,
@@ -632,18 +1100,33 @@ function TicketPanel({
   ticketTitle,
   ticketSubtitle,
 }) {
+  const isCash = String(selectedPayment || "").toLowerCase().includes("cash");
+
   return (
     <div className="h-full flex flex-col">
-      {/* Header card */}
+      {/* ================= HEADER ================= */}
       <div className="bg-white/10 rounded-3xl p-4 border border-white/10">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[10px] uppercase tracking-widest text-white/60">Order</p>
             <h3 className="text-lg font-extrabold text-white truncate">{ticketTitle}</h3>
             <p className="text-sm text-white/70 mt-1 truncate">{ticketSubtitle}</p>
+
             {appliedVoucher?.code && (
               <p className="text-[11px] text-rose-200 mt-2 font-mono">
                 🎟 Voucher: {appliedVoucher.code}
+              </p>
+            )}
+
+            {appliedDiscount?.name && (
+              <p className="text-[11px] text-emerald-200 mt-1 font-mono">
+                🏷 Discount: {appliedDiscount.name}
+              </p>
+            )}
+
+            {selectedPayment && (
+              <p className="text-[11px] text-white/80 mt-1 font-mono">
+                💳 Payment: {selectedPayment}
               </p>
             )}
           </div>
@@ -668,11 +1151,10 @@ function TicketPanel({
           </div>
         </div>
 
-        {/* Search / Scan */}
+        {/* SEARCH / SCAN */}
         <div className="mt-4">
           <div className="flex gap-2">
             <input
-              id="scan-in"
               value={customerSearch}
               onFocus={() => setIsCustListOpen(true)}
               onChange={(e) => setCustomerSearch(e.target.value)}
@@ -684,7 +1166,6 @@ function TicketPanel({
               type="button"
               onClick={onOpenScanner}
               className="w-11 h-10 rounded-2xl bg-[#FC687D] text-white flex items-center justify-center active:scale-95"
-              title="Open camera scanner"
             >
               📷
             </button>
@@ -747,6 +1228,7 @@ function TicketPanel({
             Move → Saved
           </button>
         </div>
+
         <button
           disabled={!splitMode || splitSelected.length === 0 || moving}
           onClick={onMoveToNewTicket}
@@ -772,94 +1254,82 @@ function TicketPanel({
         </div>
       </div>
 
-      {/* Cart list */}
+      {/* CART */}
       <div className="mt-4 space-y-3 overflow-y-auto pr-1 flex-1">
         {cart.length === 0 ? (
           <div className="text-center py-10 text-white/70 border border-white/10 rounded-3xl bg-white/5">
             Empty Ticket
           </div>
         ) : (
-          cart.map((line, idx) => {
-            const selected = line.cartItemId === voucherTargetCartItemId;
-            const hasVoucher = !!line.appliedVoucher?.code;
-            const splitSel = splitSelected.includes(line.cartItemId);
-
-            const borderTone = splitMode
-              ? splitSel
-                ? "border-blue-300"
-                : "border-white/10"
-              : selected
-              ? "border-rose-300"
-              : "border-white/10";
-
-            const bgTone = splitMode
-              ? splitSel
-                ? "bg-blue-50/15"
-                : "bg-white/5 hover:bg-white/10"
-              : selected
-              ? "bg-rose-50/10"
-              : "bg-white/5 hover:bg-white/10";
-
-            return (
-              <button
-                key={line.cartItemId}
-                type="button"
-                onClick={() => onCartItemClick(line, idx)}
-                className={`w-full text-left p-4 rounded-3xl border ${borderTone} ${bgTone} transition`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-white truncate">
-                      {line.name} <span className="text-white/60">×{line.quantity}</span>
-                    </p>
-
-                    {line.variantDetails ? (
-                      <p className="text-[11px] text-white/70 mt-1">{line.variantDetails}</p>
-                    ) : null}
-
-                    {line.instructions ? (
-                      <p className="text-[11px] text-white/60 mt-1">Note: {line.instructions}</p>
-                    ) : null}
-
-                    {hasVoucher && (
-                      <p className="text-[11px] mt-2 text-rose-200 font-mono">
-                        🎟 {line.appliedVoucher.code} (100% OFF)
-                      </p>
-                    )}
-
-                    {splitMode && (
-                      <p className="text-[11px] mt-2 text-blue-200 font-mono">
-                        {splitSel ? "☑ selected" : "☐ tap to select"}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="text-right">
-                    {hasVoucher && typeof line._origUnitPrice === "number" ? (
-                      <>
-                        <p className="text-[11px] text-white/60 line-through">
-                          ₱{(line._origUnitPrice * line.quantity).toFixed(0)}
-                        </p>
-                        <p className="text-sm font-extrabold text-white">₱0</p>
-                      </>
-                    ) : (
-                      <p className="text-sm font-extrabold text-white">
-                        ₱{(line.unitPrice * line.quantity).toFixed(0)}
-                      </p>
-                    )}
-                  </div>
+          cart.map((line, idx) => (
+            <button
+              key={line.cartItemId}
+              type="button"
+              onClick={() => onCartItemClick(line, idx)}
+              className="w-full text-left p-4 rounded-3xl border border-white/10 bg-white/5 hover:bg-white/10 transition"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">
+                    {line.name} <span className="text-white/60">×{line.quantity}</span>
+                  </p>
+                  {line.variantDetails ? (
+                    <p className="text-[11px] text-white/70 mt-1">{line.variantDetails}</p>
+                  ) : null}
+                  {line.instructions ? (
+                    <p className="text-[11px] text-white/60 mt-1">Note: {line.instructions}</p>
+                  ) : null}
                 </div>
-              </button>
-            );
-          })
+
+                <div className="text-right">
+                  <p className="text-sm font-extrabold text-white">
+                    ₱{(line.unitPrice * line.quantity).toFixed(0)}
+                  </p>
+                </div>
+              </div>
+            </button>
+          ))
         )}
       </div>
 
-      {/* Footer total */}
-      <div className="mt-4 pt-4 border-t border-white/10">
-        <div className="flex items-center justify-between">
-          <p className="text-[10px] uppercase tracking-widest text-white/60">Total</p>
-          <p className="text-2xl font-extrabold text-white">₱{subtotal.toFixed(0)}</p>
+      {/* TOTAL + PAYMENT DETAILS */}
+      <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
+        <div className="flex items-center justify-between text-white/70 text-sm">
+          <span>Subtotal</span>
+          <span className="font-bold">₱{Number(subtotal ?? 0).toFixed(0)}</span>
+        </div>
+
+        {discountAmount > 0 && (
+          <div className="flex items-center justify-between text-emerald-200 text-sm">
+            <span>Discount</span>
+            <span className="font-extrabold">-₱{Number(discountAmount ?? 0).toFixed(0)}</span>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between text-white text-lg font-extrabold">
+          <span>Total</span>
+          <span>₱{Number(totalDue ?? 0).toFixed(0)}</span>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/80">
+          <div className="flex justify-between">
+            <span>Payment</span>
+            <span className="font-bold">{selectedPayment || "Not selected"}</span>
+          </div>
+
+          {selectedPayment && paymentAmount ? (
+            <div className="flex justify-between mt-1">
+              <span>Paid</span>
+              <span className="font-bold">₱{Number(paymentAmount || 0).toFixed(2)}</span>
+            </div>
+          ) : null}
+
+          {selectedPayment && isCash ? (
+            <div className="flex justify-between mt-1 text-emerald-200">
+              <span>Change</span>
+              <span className="font-extrabold">₱{Number(changeDue || 0).toFixed(2)}</span>
+            </div>
+          ) : null}
         </div>
 
         <div className="grid grid-cols-2 gap-2 mt-3">
@@ -879,26 +1349,33 @@ function TicketPanel({
             {charging ? "Charging…" : "Charge Order"}
           </button>
         </div>
-
-        <p className="text-[10px] text-white/50 mt-3">
-          Normal: tap item to edit & set voucher target • Split: tap items to select and move
-        </p>
       </div>
     </div>
   );
 }
 
 /* =========================================================
-   MAIN POS PAGE (logic kept; UI updated)
+   MAIN POS PAGE (your logic + settings applied)
 ========================================================= */
 export default function POSPage() {
-  const supabase = createBrowserClient();
+  const supabase = getSupabaseClient();
 
+  const storeId = useMemo(() => getPosStoreId(), []);
+
+  // core data
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [customers, setCustomers] = useState([]);
-  const [diningOptions, setDiningOptions] = useState([]);
+  const [diningOptions, setDiningOptions] = useState([]); // now loaded from pos_dining_options (settings)
+  const [tables, setTables] = useState([]);
 
+  // settings data
+  const [paymentTypes, setPaymentTypes] = useState([]);
+  const [ticketTemplates, setTicketTemplates] = useState([]); // open ticket templates
+  const [discountRules, setDiscountRules] = useState([]); // pos_discounts
+  const [receiptSettings, setReceiptSettings] = useState(null);
+
+  // ticket state
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -907,11 +1384,15 @@ export default function POSPage() {
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [menuSearch, setMenuSearch] = useState("");
 
+  // customer
   const [customerSearch, setCustomerSearch] = useState("");
   const [isCustListOpen, setIsCustListOpen] = useState(false);
   const [attachedCustomer, setAttachedCustomer] = useState(null);
 
+  // add/edit item modal
   const [selectedItemForModal, setSelectedItemForModal] = useState(null);
+
+  // order type
   const [orderType, setOrderType] = useState("");
 
   // vouchers
@@ -919,6 +1400,20 @@ export default function POSPage() {
   const [availableVouchers, setAvailableVouchers] = useState([]);
   const [appliedVoucher, setAppliedVoucher] = useState(null);
   const [voucherTargetCartItemId, setVoucherTargetCartItemId] = useState(null);
+
+  // receipt-level discount from settings
+  const [appliedDiscount, setAppliedDiscount] = useState(null);
+
+  // payment flow
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [changeDue, setChangeDue] = useState(0);
+
+
+  // receipt preview
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [receiptText, setReceiptText] = useState("");
 
   // mobile drawer
   const [ticketDrawerOpen, setTicketDrawerOpen] = useState(false);
@@ -964,28 +1459,15 @@ export default function POSPage() {
       0
     );
 
-  async function fetchData() {
-    setLoading(true);
-
-    const [iRes, catRes, cRes, diningRes] = await Promise.all([
-      supabase.from("menu_items").select("*").eq("is_available", true).order("name"),
-      supabase.from("menu_categories").select("*").order("name", { ascending: true }),
-      supabase.from("loyalty_members").select("id, name:customer_name, code:customer_code"),
-      supabase.from("dining_options").select("*").eq("is_available", true).order("id"),
-    ]);
-
-    const cats = catRes.data || [];
-    setItems(iRes.data || []);
-    setCategories(cats);
-    setCustomers(cRes.data || []);
-    setDiningOptions(diningRes.data || []);
-
-    if (cats.length && !activeCategory) setActiveCategory(cats[0].name);
-
-    setLoading(false);
-  }
-
   const subtotal = useMemo(() => calcTotal(cart), [cart]);
+
+  const discountAmount = useMemo(() => {
+    const amt = discountAmountFromRule(appliedDiscount, subtotal);
+    return Math.max(0, Math.min(subtotal, amt));
+  }, [appliedDiscount, subtotal]);
+
+  const totalDue = useMemo(() => Math.max(0, subtotal - discountAmount), [subtotal, discountAmount]);
+
   const itemCount = useMemo(
     () => cart.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0),
     [cart]
@@ -998,7 +1480,77 @@ export default function POSPage() {
     return () => (document.body.style.overflow = prev);
   }, [ticketDrawerOpen]);
 
-  // vouchers on customer attach
+  /* =========================================================
+     Load core data + POS settings
+     NOTE: Your previous code loaded dining_options directly. We now load from settings tables. [1](https://onedrive.live.com?cid=933E55CC8541EC41&id=933E55CC8541EC41!scb113fb40c7042cda69d9704741cd69b)
+  ========================================================= */
+  async function fetchData() {
+    setLoading(true);
+
+    const [iRes, catRes, cRes] = await Promise.all([
+      supabase.from("menu_items").select("*").eq("is_available", true).order("name"),
+      supabase.from("menu_categories").select("*").order("name", { ascending: true }),
+      supabase.from("loyalty_members").select("id, name:customer_name, code:customer_code"),
+    ]);
+
+    const cats = catRes.data || [];
+    setItems(iRes.data || []);
+    setCategories(cats);
+    setCustomers(cRes.data || []);
+
+    if (cats.length && !activeCategory) setActiveCategory(cats[0].name);
+
+    await loadPosSettings();
+
+    setLoading(false);
+  }
+  
+  async function loadTables() {
+    const { data } = await supabase
+      .from("pos_dining_options")
+      .select("*")
+      .eq("store_id", storeId)
+      .eq("is_table", true)
+      .order("sort_order");
+
+    setTables(data || []);
+  }
+
+  async function loadPosSettings() {
+    const sid = storeId;
+    if (!sid) {
+      showToast("error", "Store not set", "Set pos_store_id/admin_store_id in localStorage.");
+      setDiningOptions([]);
+      setPaymentTypes([]);
+      setTicketTemplates([]);
+      setDiscountRules([]);
+      setReceiptSettings(null);
+      return;
+    }
+
+    const [payRes, dineRes, ticketRes, discRes, receiptRes] = await Promise.all([
+      supabase.from("pos_payment_types").select("*").eq("store_id", sid).eq("is_active", true).order("sort_order"),
+      supabase.from("pos_dining_options").select("*").eq("store_id", sid).eq("is_active", true).order("sort_order"),
+      supabase.from("pos_open_ticket_templates").select("*").eq("store_id", sid).eq("is_active", true).order("sort_order"),
+      supabase.from("pos_discounts").select("*").eq("store_id", sid).eq("is_active", true).order("sort_order"),
+      supabase.from("pos_receipt_settings").select("*").eq("store_id", sid).maybeSingle(),
+    ]);
+
+    setPaymentTypes(payRes.data || []);
+    setDiningOptions(dineRes.data || []);
+    setTicketTemplates(ticketRes.data || []);
+    setDiscountRules(discRes.data || []);
+    setReceiptSettings(receiptRes.data || null);
+
+    // Default order type
+    if (!orderType && (dineRes.data || []).length) {
+      setOrderType(dineRes.data[0].name);
+    }
+  }
+
+  /* =========================================================
+     Vouchers (existing logic preserved)
+  ========================================================= */
   useEffect(() => {
     if (!attachedCustomer?.id) return;
     (async () => {
@@ -1055,7 +1607,9 @@ export default function POSPage() {
       return;
     }
 
-    const matchCust = customers.find((c) => c.code?.toLowerCase() === q || c.name?.toLowerCase().includes(q));
+    const matchCust = customers.find(
+      (c) => c.code?.toLowerCase() === q || c.name?.toLowerCase().includes(q)
+    );
     if (matchCust) {
       setAttachedCustomer(matchCust);
       setCustomerSearch("");
@@ -1130,6 +1684,7 @@ export default function POSPage() {
         updated = [...prev, line];
       }
 
+      // keep voucher behavior if already applied
       if (appliedVoucher?.applied_to_cartItemId) {
         updated = updated.map((x) => {
           if (x.cartItemId !== appliedVoucher.applied_to_cartItemId) return x;
@@ -1153,6 +1708,9 @@ export default function POSPage() {
     setSelectedItemForModal(null);
   };
 
+  /* =========================================================
+     Saved tickets (existing logic preserved)
+  ========================================================= */
   const handleSaveTicket = async () => {
     if (savingTicket) return;
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before saving.");
@@ -1171,7 +1729,6 @@ export default function POSPage() {
 
       let res = await supabase.from("open_tickets").insert([payload]);
 
-      // fallback if applied_voucher column doesn't exist
       if (res.error && /applied_voucher/i.test(res.error.message || "")) {
         const { applied_voucher, ...fallback } = payload;
         res = await supabase.from("open_tickets").insert([fallback]);
@@ -1241,13 +1798,29 @@ export default function POSPage() {
     showToast("success", "Ticket Resumed", "Continue the order.");
   };
 
+  /* =========================================================
+     Charge Order (UPGRADED)
+     - select payment type from pos_payment_types
+     - apply receipt discount from pos_discounts
+     - create orders + order_items
+     - optional: mark voucher redeemed
+========================================================= */
   const handleChargeOrder = async () => {
     if (charging) return;
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before charging.");
     if (!orderType) return showToast("error", "Order Type Required", "Please select order type.");
+    if (!storeId) return showToast("error", "Store not set", "Set pos_store_id/admin_store_id.");
+    // open payment modal first
+    setPaymentOpen(true);
+  };
+
+  async function confirmCharge() {
+    if (!selectedPayment) return showToast("error", "Payment Required", "Select a payment type.");
+    if (!storeId) return showToast("error", "Store not set", "Set pos_store_id/admin_store_id.");
 
     setCharging(true);
     try {
+      // redeem voucher if applied
       if (appliedVoucher?.id) {
         const { error } = await supabase
           .from("vouchers")
@@ -1257,17 +1830,156 @@ export default function POSPage() {
 
         if (error) {
           showToast("error", "Voucher Redeem Failed", error.message);
+          setCharging(false);
           return;
         }
       }
 
-      showToast("success", "Charged", "Voucher redeemed (if applied). Connect payment flow next.");
+      // create order
+      const discount = Number(discountAmount || 0);
+      const total = Number(totalDue || 0);
+
+      const { data: orderRow, error: orderErr } = await supabase
+        .from("orders")
+        .insert([
+          {
+            store_id: storeId,
+            customer_id: attachedCustomer?.id || null,
+            total: total,
+            discount: discount,
+            payment_method: selectedPayment,
+            dining_option: orderType,
+            // add more fields if your schema has them (cashier_id, etc.)
+          },
+        ])
+        .select("*")
+        .single();
+
+      if (orderErr) {
+        showToast("error", "Charge Failed", orderErr.message);
+        setCharging(false);
+        return;
+      }
+
+      // order_items rows
+      const itemRows = cart.map((line) => ({
+        order_id: orderRow.id,
+        menu_item_id: line.id,
+        name: line.name,
+        quantity: line.quantity,
+        unit_price: line.unitPrice,
+        line_total: Number(line.unitPrice || 0) * Number(line.quantity || 0),
+      }));
+
+      const { error: itemsErr } = await supabase.from("order_items").insert(itemRows);
+      if (itemsErr) {
+        showToast("error", "Charge Failed", itemsErr.message);
+        setCharging(false);
+        return;
+      }
+      
+      // Mark table occupied
+      const selectedTable = tables.find(t => t.name === orderType);
+
+      if (selectedTable) {
+        await supabase
+          .from("pos_dining_options")
+          .update({ table_status: "occupied" })
+          .eq("id", selectedTable.id);
+      }
+
+      // build receipt preview (using receiptSettings)
+      const receipt = buildReceiptText({
+        receiptSettings,
+        order: orderRow,
+        cart,
+        orderType,
+        payment: selectedPayment,
+        customer: attachedCustomer,
+        subtotal,
+        discount,
+        total,
+        voucher: appliedVoucher,
+        appliedDiscount,
+      });
+
+      setReceiptText(receipt);
+      setReceiptOpen(true);
+      
+      // Auto print if enabled (receipt settings)
+      if (receiptSettings?.auto_print) {
+
+        await printByRole("receipt", receipt, printerConfig);
+
+        if (selectedOption?.print_kitchen) {
+          const slip = buildOrderSlipText({ orderId: orderRow.id, cart });
+          await printByRole("order_slip", slip, printerConfig);
+        }
+
+        if (selectedOption?.print_labels) {
+          const labels = buildCupLabels({ orderId: orderRow.id, cart });
+          for (const l of labels) {
+            await printByRole("cup_label", l, printerConfig);
+          }
+        }
+      }
+
+      showToast("success", "Charged", "Order saved successfully.");
       clearTicketSoft();
-      setTicketDrawerOpen(false);
+      setPaymentOpen(false);
     } finally {
       setCharging(false);
     }
-  };
+  }
+
+  function buildReceiptText({
+    receiptSettings,
+    order,
+    cart,
+    orderType,
+    payment,
+    customer,
+    subtotal,
+    discount,
+    total,
+    voucher,
+    appliedDiscount,
+  }) {
+    const rs = receiptSettings || {};
+    const lines = [];
+
+    const header = rs.header_text || "";
+    const footer = rs.footer_text || "";
+
+    if (header) lines.push(header);
+
+    if (rs.show_store_name !== false) lines.push(`Store: ${order.store_id}`);
+    if (rs.show_datetime !== false) lines.push(`Date: ${new Date().toLocaleString()}`);
+    if (rs.show_order_number !== false) lines.push(`Receipt: ${order.id}`);
+
+    lines.push(`Dining: ${orderType}`);
+    if (rs.show_payment_type !== false) lines.push(`Payment: ${payment}`);
+    if (customer?.name) lines.push(`Customer: ${customer.name}`);
+
+    if (voucher?.code) lines.push(`Voucher: ${voucher.code}`);
+    if (appliedDiscount?.name) lines.push(`Discount: ${appliedDiscount.name}`);
+
+    lines.push("—");
+    cart.forEach((x) => {
+      lines.push(`${x.name} x${x.quantity}  ${peso0(Number(x.unitPrice) * Number(x.quantity))}`);
+    });
+    lines.push("—");
+    lines.push(`Subtotal: ${peso2(subtotal)}`);
+    if (discount > 0) lines.push(`Discount: -${peso2(discount)}`);
+    lines.push(`TOTAL: ${peso2(total)}`);
+
+    if (footer) {
+      lines.push("—");
+      lines.push(footer);
+    }
+
+    return lines.join("\n");
+  }
 
   const clearTicketSoft = () => {
     setCart([]);
@@ -1276,6 +1988,8 @@ export default function POSPage() {
     setAvailableVouchers([]);
     setVoucherModalOpen(false);
     setVoucherTargetCartItemId(null);
+    setAppliedDiscount(null);
+    setSelectedPayment("");
     setSplitMode(false);
     setSplitSelected([]);
   };
@@ -1394,6 +2108,23 @@ export default function POSPage() {
   const ticketTitle = orderType || "Select Order Type";
   const ticketSubtitle = attachedCustomer?.name || "Walk-in";
 
+  // quick pick ticket templates -> sets orderType
+  function pickTemplate(name) {
+    setOrderType(name);
+    showToast("success", "Ticket Selected", name);
+  }
+
+  // apply discount rules
+  function applyDiscountRule(rule) {
+    setAppliedDiscount(rule);
+    showToast("success", "Discount Applied", rule.name);
+  }
+
+  function clearDiscountRule() {
+    setAppliedDiscount(null);
+    showToast("info", "Discount Removed", "No discount applied.");
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#FFF5F7]">
@@ -1411,25 +2142,104 @@ export default function POSPage() {
         <div>
           <p className="text-[10px] uppercase tracking-widest text-slate-400">POS</p>
           <h1 className="text-xl md:text-2xl font-semibold text-slate-800">Terminal</h1>
+          <p className="text-[11px] text-slate-400 mt-1 font-mono">
+            store_id: {storeId || "NOT SET"}
+          </p>
         </div>
 
-        <button
-          onClick={async () => {
-            await fetchSavedTickets();
-            setSavedMode("resume");
-            setSavedOpen(true);
-          }}
-          className="text-xs font-bold uppercase tracking-widest text-slate-700 bg-white border border-slate-200 px-4 py-2 rounded-2xl active:scale-95"
-        >
-          Saved Tickets
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={loadPosSettings}
+            className="text-xs font-bold uppercase tracking-widest text-slate-700 bg-white border border-slate-200 px-4 py-2 rounded-2xl active:scale-95"
+          >
+            Refresh Settings
+          </button>
+
+          <button
+            onClick={async () => {
+              await fetchSavedTickets();
+              setSavedMode("resume");
+              setSavedOpen(true);
+            }}
+            className="text-xs font-bold uppercase tracking-widest text-slate-700 bg-white border border-slate-200 px-4 py-2 rounded-2xl active:scale-95"
+          >
+            Saved Tickets
+          </button>
+        </div>
+      </div>
+
+      {/* Quick templates + discounts (NEW UI strip) */}
+      <div className="max-w-6xl mx-auto px-4 md:px-6 pb-2">
+        <div className="bg-white rounded-3xl border border-rose-100 p-4 shadow-sm">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-2">
+                Open Tickets (Predefined)
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {(ticketTemplates || []).map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => pickTemplate(t.name)}
+                    className="px-3 py-2 rounded-2xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 active:scale-95"
+                  >
+                    {t.name}
+                  </button>
+                ))}
+                {ticketTemplates.length === 0 && (
+                  <span className="text-xs text-slate-500">No templates set.</span>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-2">
+                  Discounts (Receipt)
+                </p>
+                {appliedDiscount && (
+                  <button onClick={clearDiscountRule} className="text-xs text-rose-600 font-bold">
+                    Remove
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(discountRules || []).map((d) => (
+                  <button
+                    key={d.id}
+                    onClick={() => applyDiscountRule(d)}
+                    className={`px-3 py-2 rounded-2xl border text-xs font-bold active:scale-95 ${
+                      appliedDiscount?.id === d.id
+                        ? "border-rose-200 bg-rose-50 text-[#FC687D]"
+                        : "border-slate-200 bg-slate-50 text-slate-700"
+                    }`}
+                  >
+                    {d.name}
+                  </button>
+                ))}
+                {discountRules.length === 0 && (
+                  <span className="text-xs text-slate-500">No discounts set.</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 text-xs text-slate-600">
+            Subtotal: <b>{peso0(subtotal)}</b> · Discount: <b>-{peso0(discountAmount)}</b> · Total:{" "}
+            <b className="text-slate-900">{peso0(totalDue)}</b>
+            {selectedPayment ? (
+              <span className="ml-2 text-slate-500">
+                · Payment: <b>{selectedPayment}</b>
+              </span>
+            ) : null}
+          </div>
+        </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 md:px-6 pb-10 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-5">
         {/* MENU SECTION */}
         <div className="bg-white rounded-3xl border border-rose-100 p-4 md:p-5 shadow-sm">
           <div className="flex flex-wrap gap-2 items-center justify-between">
-            {/* Category popup trigger */}
             <button
               onClick={() => setCategoryOpen(true)}
               className="bg-slate-50 px-4 py-2 rounded-2xl text-xs font-bold text-slate-700 border border-slate-200 active:scale-95"
@@ -1470,17 +2280,17 @@ export default function POSPage() {
                     </p>
                     <p className="text-sm font-semibold text-slate-800 leading-tight">{item.name}</p>
                     <p className="text-sm font-bold text-slate-700">
-                        {item.is_variable_price ? "Variable" : `₱${Number(item.price || 0).toFixed(0)}`}
-                      </p>
-
+                      {item.is_variable_price ? "Variable" : `₱${Number(item.price || 0).toFixed(0)}`}
+                    </p>
                   </div>
                 </button>
               ))}
           </div>
         </div>
 
-        {/* DESKTOP TICKET SIDEBAR */}
+        {/* DESKTOP TICKET SIDEBAR (same as your current, but totals reflect discount below strip) */}
         <div className="hidden lg:block bg-slate-900 rounded-3xl p-4 md:p-5 text-white shadow-2xl">
+          {/* We re-use your TicketPanel (kept) but we pass diningOptions from settings */}
           <TicketPanel
             cart={cart}
             customers={customers}
@@ -1494,9 +2304,7 @@ export default function POSPage() {
             orderType={orderType}
             setOrderType={setOrderType}
             diningOptions={diningOptions}
-            subtotal={subtotal}
-            ticketTitle={ticketTitle}
-            ticketSubtitle={ticketSubtitle}
+            subtotal={totalDue} // show total due after discounts (upgrade)
             appliedVoucher={appliedVoucher}
             onOpenVouchers={async () => {
               if (!attachedCustomer?.id) return showToast("error", "Attach Customer", "Scan/select a customer first.");
@@ -1540,10 +2348,13 @@ export default function POSPage() {
           <div className="text-left">
             <p className="text-[10px] uppercase tracking-widest text-slate-400">Ticket</p>
             <p className="text-sm font-semibold text-slate-800">
-              {itemCount} item{itemCount === 1 ? "" : "s"} • ₱{subtotal.toFixed(0)}
+              {itemCount} item{itemCount === 1 ? "" : "s"} • {peso0(totalDue)}
             </p>
             {appliedVoucher?.code && (
               <p className="text-[11px] text-[#FC687D] font-mono mt-0.5">Voucher: {appliedVoucher.code}</p>
+            )}
+            {appliedDiscount?.name && (
+              <p className="text-[11px] text-slate-600 mt-0.5">Discount: {appliedDiscount.name}</p>
             )}
           </div>
           <div className="text-slate-500">🛒</div>
@@ -1573,7 +2384,7 @@ export default function POSPage() {
               orderType={orderType}
               setOrderType={setOrderType}
               diningOptions={diningOptions}
-              subtotal={subtotal}
+              subtotal={totalDue}
               ticketTitle={ticketTitle}
               ticketSubtitle={ticketSubtitle}
               appliedVoucher={appliedVoucher}
@@ -1679,10 +2490,29 @@ export default function POSPage() {
       <ConfirmModal
         open={confirmOpen}
         title="Clear ticket?"
-        message="This will remove all items, voucher, and detach the customer."
+        message="This will remove all items, voucher, discount, and detach the customer."
         onCancel={() => setConfirmOpen(false)}
         onConfirm={clearTicket}
+      />
+
+      {/* Payment (NEW) */}
+      <PaymentModal
+        open={paymentOpen}
+        onClose={() => setPaymentOpen(false)}
+        paymentTypes={paymentTypes}
+        selectedPayment={selectedPayment}
+        onSelect={(name) => setSelectedPayment(name)}
+        onConfirm={confirmCharge}
+        total={totalDue}
+      />
+
+      {/* Receipt preview (NEW) */}
+      <ReceiptPreviewModal
+        open={receiptOpen}
+        onClose={() => setReceiptOpen(false)}
+        receiptText={receiptText}
       />
     </div>
   );
 }
+
