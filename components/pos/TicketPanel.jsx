@@ -1,0 +1,276 @@
+"use client";
+
+import { useState } from "react";
+
+export default function TicketPanel({
+  cart = [],
+  handleCodeInput,
+  customers,
+  customerSearch,
+  setCustomerSearch,
+  onSearchKeyDown,
+  onOpenScanner,
+  diningOption,
+  diningOptions,
+  setDiningOption,
+  subtotal = 0,
+  attachedCustomer,
+  appliedVoucher,
+  onOpenVouchers,
+  onRemoveVoucher,
+  onCharge,
+  onSave,
+  onVoidLiveTicket,
+  charging,
+  savingTicket,
+  splitMode,
+  splitSelected = [],
+  onToggleSplit,
+  onMoveToNewTicket,
+  onMoveToSaved,
+  onOpenSavedTicketsModal, // New prop hook linked here
+  onCartItemClick,
+  onCloseMobile,
+}) {
+  const [showManageDropdown, setShowManageDropdown] = useState(false);
+
+  
+    const suggestions =
+    customerSearch.length > 1
+        ? customers.filter(
+            (c) =>
+            c.name?.toLowerCase().includes(customerSearch.toLowerCase()) ||
+            c.code?.toLowerCase().includes(customerSearch.toLowerCase())
+        ).slice(0, 6)
+        : []
+
+
+  return (
+    <div className="flex flex-col h-full text-slate-800 font-sans select-none bg-white p-4 rounded-2xl border border-slate-100 shadow-sm max-h-[85vh]">
+      
+      {/* Minimalist Header Details Block */}
+      <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+        <div className="text-left">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Active Station</span>
+          <h2 className="text-xl font-bold tracking-tight text-slate-800 mt-0.5">
+            {diningOption || "Select Table"}
+          </h2>
+          <p className={`text-xs font-semibold mt-0.5 ${attachedCustomer ? "text-rose-500" : "text-slate-400"}`}>
+            {attachedCustomer ? `👤 ${attachedCustomer.name || attachedCustomer.customer_name}` : "Walk-in Guest"}
+          </p>
+        </div>
+        {onCloseMobile && (
+          <button 
+            onClick={onCloseMobile} 
+            className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
+      {/* Minimalist Search Area Context */}
+      <div className="relative flex gap-2 mb-3">
+        <input
+            value={customerSearch}
+            onChange={(e) => setCustomerSearch(e.target.value)}
+            onKeyDown={onSearchKeyDown}
+            placeholder="Search customer or scan..."
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs"
+        />
+
+        <button
+            onClick={onOpenScanner}
+            className="w-10 bg-slate-50 rounded-xl"
+        >
+            📷
+        </button>
+
+        {/* ✅ Suggestions dropdown */}
+        {suggestions.length > 0 && (
+            <div className="absolute left-0 right-12 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden">
+            {suggestions.map((c) => (
+                <button
+                key={c.id}
+                className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50"
+                onClick={() => {
+                    handleCodeInput(c.name);   // ✅ attach customer
+                    setCustomerSearch("");
+                }}
+                >
+                {c.name}{" "}
+                <span className="text-slate-400">({c.code})</span>
+                </button>
+            ))}
+            </div>
+        )}
+        </div>
+
+        {/* Header with Dining Option Dropdown */}
+            <div className="flex-none pb-3 mb-3 border-b border-slate-100">
+                <div className="relative">
+                <div>
+                 {/* The Missing Dropdown Menu */}
+                    <select 
+                    value={diningOption} 
+                    onChange={(e) => setDiningOption(e.target.value)}
+                    className="w-full py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 tracking-wide"
+                    >
+                    <option value="" disabled>Select Dining Option</option>                    
+                    {diningOptions.map(opt => (
+                        <option key={opt.id} value={opt.name}>{opt.name}</option>
+                    ))}
+                    </select>
+                </div>
+                {onCloseMobile && (
+                    <button onClick={onCloseMobile} className="text-slate-400 hover:text-slate-600">✕</button>
+                )}
+                </div>
+                
+            </div>
+
+      {/* Geometric Dropdown & Action Hub Controllers */}
+      <div className="grid grid-cols-2 gap-2 mb-3 relative z-30">
+        <button
+          onClick={() => (appliedVoucher ? onRemoveVoucher() : onOpenVouchers())}
+          className={`py-2 rounded-xl border text-xs font-semibold tracking-wide transition flex items-center justify-center gap-1.5 active:scale-95 ${
+            appliedVoucher 
+              ? "border-rose-200 bg-rose-50 text-rose-600" 
+              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          🎟️ {appliedVoucher ? "Remove Voucher" : "Apply Voucher"}
+        </button>
+
+        <div className="relative">
+          <button
+            onClick={() => setShowManageDropdown((p) => !p)}
+            className="w-full py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 tracking-wide transition flex items-center justify-center gap-1.5 active:scale-95"
+          >
+            ⚙️ Manage Ticket ▾
+          </button>
+
+          {showManageDropdown && (
+            <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden py-1 z-50">
+              <button
+                onClick={() => { setShowManageDropdown(false); onOpenSavedTicketsModal(); }}
+                className="w-full text-left px-4 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition flex items-center gap-2"
+              >
+                📋 View Saved Tickets
+              </button>
+              <div className="border-t border-slate-100 my-1" />
+              <button
+                onClick={() => { setShowManageDropdown(false); onToggleSplit(); }}
+                className={`w-full text-left px-4 py-2.5 text-xs font-medium hover:bg-slate-50 transition flex items-center gap-2 ${
+                  splitMode ? "text-amber-600 bg-amber-50/50" : "text-slate-700"
+                }`}
+              >
+                {splitMode ? "🚫 Disable Selection Mode" : "✂️ Split Ticket Lines"}
+              </button>
+              <button
+                onClick={() => { setShowManageDropdown(false); onMoveToSaved(); }}
+                disabled={cart.length === 0}
+                className="w-full text-left px-4 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 transition flex items-center gap-2"
+              >
+                📥 Shift items to Saved
+              </button>
+              <button
+                onClick={() => { setShowManageDropdown(false); onMoveToNewTicket(); }}
+                disabled={cart.length === 0}
+                className="w-full text-left px-4 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 transition flex items-center gap-2"
+              >
+                🪑 Shift items to Alternate Table
+              </button>
+              <div className="border-t border-slate-100 my-1" />
+              <button
+                onClick={() => { setShowManageDropdown(false); onVoidLiveTicket(); }}
+                disabled={cart.length === 0}
+                className="w-full text-left px-4 py-2.5 text-xs font-bold text-red-500 hover:bg-red-50 transition disabled:opacity-40 flex items-center gap-2"
+              >
+                🗑️ Void Live Ticket
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Split Selection State Alert Strip */}
+      {splitMode && (
+        <div className="mb-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl px-3 py-2 text-[11px] text-center font-semibold tracking-wide animate-pulse">
+          Tap elements below to link split targets ({splitSelected.length} active)
+        </div>
+      )}
+
+      {/* Lightweight Transparent Feed Cart */}
+      <div className="flex-1 overflow-y-auto space-y-2 pr-1 border-b border-slate-100 pb-3">
+        {cart.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-slate-400 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50 py-10">
+            <span className="text-2xl mb-1.5 opacity-60">☕</span>
+            <p className="text-xs font-medium tracking-wide">Workspace Empty</p>
+          </div>
+        ) : (
+          cart.map((line, idx) => {
+            const isSelectedForSplit = splitSelected.includes(line.cartItemId);
+            return (
+              <div
+                key={line.cartItemId || idx}
+                onClick={() => onCartItemClick(line, idx)}
+                className={`p-3 rounded-xl border transition text-left cursor-pointer flex flex-col gap-1 ${
+                  isSelectedForSplit
+                    ? "border-amber-400 bg-amber-50/60 shadow-sm"
+                    : "border-slate-100 bg-white hover:bg-slate-50/80 shadow-2n"
+                }`}
+              >
+                <div className="flex justify-between items-baseline gap-2">
+                  <p className="text-xs font-semibold text-slate-800 truncate">{line.name}</p>
+                  <p className="text-xs font-bold text-slate-700 font-mono whitespace-nowrap">
+                    ₱{Number(line.unitPrice * line.quantity).toFixed(0)}
+                  </p>
+                </div>
+                
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md font-bold font-mono text-[10px]">
+                    x{line.quantity}
+                  </span>
+                  {line.variantDetails && (
+                    <span className="italic truncate max-w-[170px] text-slate-400 font-medium">
+                      {line.variantDetails}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Checkout Computations Layout Footer */}
+      <div className="mt-3 pt-1 space-y-3 bg-white">
+        <div className="flex justify-between items-baseline">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Balance</span>
+          <span className="font-extrabold text-2xl text-slate-800 tracking-tight font-mono">
+            ₱{Number(subtotal || 0).toFixed(0)}
+          </span>
+        </div>
+
+        {/* Master Execution Action Targets */}
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <button
+            onClick={onSave}
+            disabled={savingTicket || cart.length === 0}
+            className="py-3 text-xs font-bold rounded-xl bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 transition disabled:opacity-40 active:scale-95"
+          >
+            {savingTicket ? "Saving..." : "Save Ticket"}
+          </button>
+          <button
+            onClick={onCharge}
+            disabled={charging || cart.length === 0}
+            className="py-3 text-xs font-bold tracking-wider rounded-xl bg-[#FC687D] hover:bg-[#fa546c] text-white shadow-md shadow-rose-200 transition disabled:opacity-40 active:scale-95 flex items-center justify-center"
+          >
+            {charging ? "Charging..." : "Charge"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

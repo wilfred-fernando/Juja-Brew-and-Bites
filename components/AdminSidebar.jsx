@@ -51,6 +51,7 @@ export default function AdminSidebar({
             { name: "Kitchen Printers", path: "/admin/pos-admin/settings/kitchen-printers" },
             { name: "Dining Options", path: "/admin/pos-admin/settings/dining-options" },
             { name: "Discounts", path: "/admin/pos-admin/settings/discounts" },
+            { name: "Stores & Admin Accounts", path: "/admin/pos-admin/settings/stores" },            
           ],
         },
       ],
@@ -59,7 +60,6 @@ export default function AdminSidebar({
       label: "Business",
       items: [
         { name: "Menu Builder", path: "/admin/menu", icon: "🧩" },
-        { name: "Modifiers", path: "/admin/modifiers", icon: "🧾" },
         { name: "Loyalty", path: "/admin/loyalty", icon: "⭐" },
         { name: "Promos", path: "/admin/promos", icon: "🎁" },
         { name: "Sales", path: "/admin/sales", icon: "💳" },
