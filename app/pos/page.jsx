@@ -30,10 +30,12 @@ function print58mmTextBrowser(text) {
   };
 
   document.body.appendChild(frame);
-  const doc = frame.contentDocument || frame.contentWindow.document;
-  doc.open();
-  doc.write(html);
-  doc.close();
+  const doc = frame.contentDocument || frame.contentWindow?.document;
+  if (doc) {
+    doc.open();
+    doc.write(html);
+    doc.close();
+  }
 }
 
 // ================= BLE PRINT =================
@@ -44,9 +46,9 @@ async function bleConnect(serviceUuid, characteristicUuid) {
     optionalServices: [serviceUuid],
   });
 
-  const server = await device.gatt.connect();
-  const service = await server.getPrimaryService(serviceUuid);
-  const characteristic = await service.getCharacteristic(characteristicUuid);
+  const server = await device.gatt?.connect();
+  const service = await server?.getPrimaryService(serviceUuid);
+  const characteristic = await service?.getCharacteristic(characteristicUuid);
 
   return characteristic;
 }
@@ -55,9 +57,7 @@ async function blePrint(characteristic, text) {
   const bytes = new TextEncoder().encode(text + "\n\n");
 
   for (let i = 0; i < bytes.length; i += 180) {
-    await characteristic.writeValueWithoutResponse(
-      bytes.slice(i, i + 180)
-    );
+    await characteristic.writeValueWithoutResponse(bytes.slice(i, i + 180));
   }
 }
 
@@ -76,7 +76,6 @@ async function printByRole(role, text, printerConfig) {
       cfg.ble_service_uuid,
       cfg.ble_characteristic_uuid
     );
-
     await blePrint(characteristic, text);
   } catch (err) {
     console.warn("Bluetooth failed → fallback printing", err);
@@ -90,7 +89,7 @@ function buildReceiptText({
   receiptSettings,
   order,
   cart,
-  diningOption,
+  diningOptionName,
   payment,
   customer,
   subtotal,
@@ -111,7 +110,7 @@ function buildReceiptText({
   if (rs.show_datetime !== false) lines.push(`Date: ${new Date().toLocaleString()}`);
   if (rs.show_order_number !== false) lines.push(`Receipt: ${order.id}`);
 
-  lines.push(`Dining: ${diningOption}`);
+  lines.push(`Dining: ${diningOptionName || "-"}`);
   if (rs.show_payment_type !== false) lines.push(`Payment: ${payment}`);
   if (customer?.name) lines.push(`Customer: ${customer.name}`);
 
@@ -140,13 +139,13 @@ function buildOrderSlipText({ orderId, cart }) {
     "ORDER SLIP",
     `Order: ${orderId}`,
     "-----",
-    ...cart.map(x => `${x.quantity}x ${x.name}`)
+    ...cart.map((x) => `${x.quantity}x ${x.name}`),
   ].join("\n");
 }
 
 function buildCupLabels({ orderId, cart }) {
   const labels = [];
-  cart.forEach(x => {
+  cart.forEach((x) => {
     for (let i = 0; i < x.quantity; i++) {
       labels.push(`${x.name}\nOrder ${orderId}`);
     }
@@ -154,19 +153,11 @@ function buildCupLabels({ orderId, cart }) {
   return labels;
 }
 
-/* =========================================================
-   Helpers
-========================================================= */
 const peso0 = (n) => `₱${Number(n || 0).toFixed(0)}`;
 const peso2 = (n) => `₱${Number(n || 0).toFixed(2)}`;
 
 function printReceiptText(receiptText, opts = {}) {
-  const {
-    title = "Receipt",
-    widthMm = 80,
-    fontSize = 12,
-    lineHeight = 1.25,
-  } = opts;
+  const { title = "Receipt", widthMm = 80, fontSize = 12, lineHeight = 1.25 } = opts;
 
   const html = `
 <!doctype html>
@@ -180,16 +171,13 @@ function printReceiptText(receiptText, opts = {}) {
       html, body { width: ${widthMm}mm; margin: 0; padding: 0; }
     }
     body {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: ${fontSize}px;
       line-height: ${lineHeight};
       padding: 8px;
       color: #000;
     }
-    .receipt {
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
+    .receipt { white-space: pre-wrap; word-break: break-word; }
   </style>
 </head>
 <body>
@@ -229,18 +217,16 @@ function printReceiptText(receiptText, opts = {}) {
 
   document.body.appendChild(frame);
   const doc = frame.contentDocument || frame.contentWindow?.document;
-  doc.open();
-  doc.write(html);
-  doc.close();
+  if (doc) {
+    doc.open();
+    doc.write(html);
+    doc.close();
+  }
 }
 
 function getPosStoreId() {
   if (typeof window === "undefined") return null;
-  return (
-    localStorage.getItem("pos_store_id") ||
-    localStorage.getItem("admin_store_id") ||
-    null
-  );
+  return localStorage.getItem("pos_store_id") || localStorage.getItem("admin_store_id") || null;
 }
 
 function discountAmountFromRule(rule, subtotal) {
@@ -254,9 +240,8 @@ function discountAmountFromRule(rule, subtotal) {
   return 0;
 }
 
-/* =========================================================
-   UI Components (Modals, Toast, Shell)
-========================================================= */
+// ================= MODALS & SYSTEM UI =================
+
 function ModalShell({ open, onClose, title, subtitle, children, z = 120 }) {
   if (!open) return null;
   return (
@@ -284,7 +269,6 @@ function ModalShell({ open, onClose, title, subtitle, children, z = 120 }) {
             ✕
           </button>
         </div>
-
         <div className="mt-4">{children}</div>
       </div>
     </div>
@@ -321,6 +305,7 @@ function Toast({ toast, onClose }) {
   );
 }
 
+// ================= CONFIRM MODAL =================
 function ConfirmModal({ open, title, message, confirmText = "Confirm", cancelText = "Cancel", onConfirm, onCancel }) {
   return (
     <ModalShell open={open} onClose={onCancel} title="Confirmation" subtitle={title} z={140}>
@@ -430,26 +415,12 @@ function BarcodeScannerModal({ open, onClose, onResult }) {
   }
 
   return (
-    <ModalShell
-      open={open}
-      onClose={() => {
-        stopScanner();
-        onClose();
-      }}
-      title="Barcode Scanner"
-      subtitle="Scan code"
-      z={145}
-    >
-      <p className="text-xs text-slate-500">
-        Scan customer code or item SKU. Camera permission will be requested.
-      </p>
-
+    <ModalShell open={open} onClose={() => { stopScanner(); onClose(); }} title="Barcode Scanner" subtitle="Scan code" z={145}>
+      <p className="text-xs text-slate-500">Scan customer code or item SKU. Camera permission will be requested.</p>
       {step === "intro" && (
         <div className="mt-4 border border-slate-200 rounded-2xl p-4 bg-slate-50">
           <p className="text-sm font-semibold text-slate-800">Permission</p>
-          <p className="text-sm text-slate-600 mt-2">
-            Tap <b>Start Scanner</b>. Your browser will ask for camera access — please allow.
-          </p>
+          <p className="text-sm text-slate-600 mt-2">Tap <b>Start Scanner</b>. Your browser will ask for camera access — please allow.</p>
           <button
             onClick={startScanner}
             className="w-full mt-4 py-3 rounded-2xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-widest active:scale-95"
@@ -458,20 +429,12 @@ function BarcodeScannerModal({ open, onClose, onResult }) {
           </button>
         </div>
       )}
-
       {step === "scanning" && (
         <div className="mt-4">
-          {errMsg && (
-            <div className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-2xl p-3">
-              {errMsg}
-            </div>
-          )}
+          {errMsg && <div className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-2xl p-3">{errMsg}</div>}
           <div id="pos-scan-area" className="rounded-2xl overflow-hidden border border-slate-200" />
           <button
-            onClick={() => {
-              stopScanner();
-              onClose();
-            }}
+            onClick={() => { stopScanner(); onClose(); }}
             className="w-full mt-4 py-3 rounded-2xl bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-widest active:scale-95"
           >
             Stop
@@ -493,11 +456,8 @@ function SavedTicketsModal({ open, onClose, tickets, onSelect, onRefresh, onVoid
           ↻ Refresh
         </button>
       </div>
-
       {tickets.length === 0 ? (
-        <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 text-sm">
-          No saved tickets.
-        </div>
+        <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 text-sm">No saved tickets.</div>
       ) : (
         <div className="space-y-2">
           {tickets.map((t) => (
@@ -505,12 +465,8 @@ function SavedTicketsModal({ open, onClose, tickets, onSelect, onRefresh, onVoid
               <div className="flex justify-between items-start gap-3">
                 <div className="min-w-0 text-left">
                   <p className="font-semibold text-slate-800 truncate">{t.order_type || t.ticket_name}</p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Items: {(t.items || []).length} • ₱{Number(t.total_amount || 0).toFixed(0)}
-                  </p>
-                  <p className="text-[11px] text-slate-400 mt-1 truncate">
-                    Customer: {t._customerName || "Walk-in"}
-                  </p>
+                  <p className="text-xs text-slate-500 mt-1">Items: {(t.items || []).length} • ₱{Number(t.total_amount || 0).toFixed(0)}</p>
+                  <p className="text-[11px] text-slate-400 mt-1 truncate">Customer: {t._customerName || "Walk-in"}</p>
                 </div>
                 <button
                   type="button"
@@ -531,7 +487,6 @@ function SavedTicketsModal({ open, onClose, tickets, onSelect, onRefresh, onVoid
           ))}
         </div>
       )}
-
       <button
         onClick={onClose}
         className="w-full mt-4 py-3 rounded-2xl bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-widest active:scale-95"
@@ -557,9 +512,7 @@ function DiningOptionModal({ open, onClose, options, onPick }) {
           </button>
         ))}
       </div>
-      <button onClick={onClose} className="w-full mt-4 py-3 bg-black text-white rounded-xl">
-        Close
-      </button>
+      <button onClick={onClose} className="w-full mt-4 py-3 bg-black text-white rounded-xl">Close</button>
     </ModalShell>
   );
 }
@@ -568,14 +521,8 @@ function VouchersModal({ open, onClose, vouchers, appliedVoucher, selectedCartIt
   return (
     <ModalShell open={open} onClose={onClose} title="Vouchers" subtitle="Apply Voucher" z={145}>
       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-        <p className="text-xs text-slate-600">
-          Target item:{" "}
-          <span className="font-semibold text-slate-800">
-            {selectedCartItem ? selectedCartItem.name : "None (tap an item first)"}
-          </span>
-        </p>
+        <p className="text-xs text-slate-600">Target item: <span className="font-semibold text-slate-800">{selectedCartItem ? selectedCartItem.name : "None (tap an item first)"}</span></p>
       </div>
-
       {appliedVoucher && (
         <div className="mt-3 p-4 rounded-2xl border border-rose-200 bg-rose-50">
           <p className="text-[10px] font-bold uppercase tracking-widest text-rose-600">Applied</p>
@@ -588,12 +535,9 @@ function VouchersModal({ open, onClose, vouchers, appliedVoucher, selectedCartIt
           </button>
         </div>
       )}
-
       <div className="mt-3 space-y-2">
         {vouchers.length === 0 ? (
-          <div className="p-4 rounded-2xl border border-slate-200 bg-white text-slate-500 text-sm">
-            No active vouchers.
-          </div>
+          <div className="p-4 rounded-2xl border border-slate-200 bg-white text-slate-500 text-sm">No active vouchers.</div>
         ) : (
           vouchers.map((v) => {
             const disabled = !selectedCartItem;
@@ -615,7 +559,6 @@ function VouchersModal({ open, onClose, vouchers, appliedVoucher, selectedCartIt
           })
         )}
       </div>
-
       <button
         onClick={onClose}
         className="w-full mt-4 py-3 rounded-2xl bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-widest active:scale-95"
@@ -691,12 +634,8 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
   return (
     <ModalShell open={!!item} onClose={onClose} title={item.editData ? "Edit Item" : "Add to Ticket"} subtitle={item.name} z={145}>
       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-        <p className="text-xs text-slate-600">
-          Base ₱{basePrice.toFixed(0)}
-          {variantPrice > 0 ? ` • +₱${variantPrice.toFixed(0)} variants` : ""}
-        </p>
+        <p className="text-xs text-slate-600">Base ₱{basePrice.toFixed(0)}{variantPrice > 0 ? ` • +₱${variantPrice.toFixed(0)} variants` : ""}</p>
       </div>
-
       <div className="mt-3">
         <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">Quantity</label>
         <input
@@ -729,13 +668,8 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
               <div key={g.id} className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-bold text-slate-700">
-                      {g.name} {g.isRequired ? <span className="text-rose-500">*</span> : null}
-                    </p>
-                    <p className="text-[10px] text-slate-400">
-                      {g.isMultiSelect ? "Multi-select" : "Single-select"}
-                      {selectedCount > 0 ? ` • Selected: ${selectedCount}` : ""}
-                    </p>
+                    <p className="text-xs font-bold text-slate-700">{g.name} {g.isRequired ? <span className="text-rose-500">*</span> : null}</p>
+                    <p className="text-[10px] text-slate-400">{g.isMultiSelect ? "Multi-select" : "Single-select"}{selectedCount > 0 ? ` • Selected: ${selectedCount}` : ""}</p>
                   </div>
                   {!g.isRequired && (
                     <button
@@ -747,7 +681,6 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
                     </button>
                   )}
                 </div>
-
                 {!isCollapsed && (
                   <div className="space-y-2">
                     {(g.options || []).map((o) => {
@@ -762,9 +695,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
                           }`}
                         >
                           <span className="font-medium text-slate-800">{o.name}</span>
-                          <span className="text-slate-500 text-xs">
-                            {Number(o.price) > 0 ? `+₱${Number(o.price).toFixed(0)}` : "—"}
-                          </span>
+                          <span className="text-slate-500 text-xs">{Number(o.price) > 0 ? `+₱${Number(o.price).toFixed(0)}` : "—"}</span>
                         </button>
                       );
                     })}
@@ -851,9 +782,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
         )}
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
-            {isCash ? "Cash Received" : "Amount Paid"}
-          </p>
+          <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">{isCash ? "Cash Received" : "Amount Paid"}</p>
           <div className="mt-2 flex items-center gap-2">
             <span className="text-slate-500 font-bold">₱</span>
             <input
@@ -890,9 +819,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
             ) : null}
 
             {isCash && amt < due ? (
-              <div className="mt-2 text-xs text-rose-600">
-                Cash received must be at least the total due.
-              </div>
+              <div className="mt-2 text-xs text-rose-600">Cash received must be at least the total due.</div>
             ) : null}
           </div>
         </div>
@@ -912,9 +839,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
 function ReceiptPreviewModal({ open, onClose, receiptText }) {
   return (
     <ModalShell open={open} onClose={onClose} title="Receipt" subtitle="Preview" z={160}>
-      <pre className="whitespace-pre-wrap text-xs bg-slate-50 border border-slate-200 rounded-2xl p-4">
-        {receiptText || "No receipt"}
-      </pre>
+      <pre className="whitespace-pre-wrap text-xs bg-slate-50 border border-slate-200 rounded-2xl p-4">{receiptText || "No receipt"}</pre>
       <div className="grid grid-cols-2 gap-2 mt-4">
         <button
           onClick={onClose}
@@ -933,46 +858,30 @@ function ReceiptPreviewModal({ open, onClose, receiptText }) {
   );
 }
 
-/* =========================================================
-   MAIN POS PAGE
-========================================================= */
+// ================= MAIN TERMINAL SCREEN =================
+
 export default function POSPage() {
   const supabase = getSupabaseClient();
   const [storeId, setStoreId] = useState(null);
 
-    useEffect(() => {
-      // initialize from localStorage on first mount
-      setStoreId(getPosStoreId());
-    }, []);
-
-  // Printer Configuration Lookups
-  const [printerConfig, setPrinterConfig] = useState({
-    receipt: null,
-    order_slip: null,
-    cup_label: null,
-  });
-
-  // Base Data Streams
+  const [printerConfig, setPrinterConfig] = useState({ receipt: null, order_slip: null, cup_label: null });
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [diningOptions, setDiningOptions] = useState([]);
-  const [tables, setTables] = useState([]);
+  const [tables] = useState([]);
 
-  // Managed Setup Options
   const [paymentTypes, setPaymentTypes] = useState([]);
-  const [ticketTemplates, setTicketTemplates] = useState([]);
-  const [discountRules, setDiscountRules] = useState([]);
+  const [, setTicketTemplates] = useState([]);
+  const [, setDiscountRules] = useState([]);
   const [receiptSettings, setReceiptSettings] = useState(null);
 
-  // Live Working States
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState(""); 
+  const [activeCategory, setActiveCategory] = useState("");
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [menuSearch, setMenuSearch] = useState("");
 
-  // Targets and Filters
   const [customerSearch, setCustomerSearch] = useState("");
   const [isCustListOpen, setIsCustListOpen] = useState(false);
   const [attachedCustomer, setAttachedCustomer] = useState(null);
@@ -980,22 +889,18 @@ export default function POSPage() {
   const [diningOption, setDiningOption] = useState("");
   const hasInitializedDining = useRef(false);
 
-  // Discounts & Vouchers
   const [voucherModalOpen, setVoucherModalOpen] = useState(false);
   const [availableVouchers, setAvailableVouchers] = useState([]);
   const [appliedVoucher, setAppliedVoucher] = useState(null);
   const [voucherTargetCartItemId, setVoucherTargetCartItemId] = useState(null);
   const [appliedDiscount, setAppliedDiscount] = useState(null);
 
-  // Modal Workflow Toggles
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
-  const [changeDue, setChangeDue] = useState(0);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [receiptText, setReceiptText] = useState("");
 
-  // UI Flow Layout Modals
   const [ticketDrawerOpen, setTicketDrawerOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
@@ -1005,19 +910,24 @@ export default function POSPage() {
   const [splitSelected, setSplitSelected] = useState([]);
   const [diningOptionPickOpen, setDiningOptionPickOpen] = useState(false);
 
-  // Process Locking Flags
   const [toast, setToast] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [charging, setCharging] = useState(false);
   const [savingTicket, setSavingTicket] = useState(false);
   const [moving, setMoving] = useState(false);
 
+  const selectedDining = useMemo(
+    () => (diningOptions || []).find((d) => String(d.id) === String(diningOption)) || null,
+    [diningOptions, diningOption]
+  );
+
+  const diningOptionName = selectedDining?.name || "";
+
   const showToast = (type, title, message) => {
     setToast({ type, title, message });
     setTimeout(() => setToast(null), 2200);
   };
 
-  // Math Transformations
   const calcTotal = (lines) =>
     (lines || []).reduce((sum, i) => sum + (Number(i.unitPrice) || 0) * (Number(i.quantity) || 0), 0);
 
@@ -1047,58 +957,45 @@ export default function POSPage() {
   }, [attachedCustomer?.id]);
 
   useEffect(() => {
-  const init = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
 
-    if (!session) {
-      window.location.href = "/login";
-      return;
-    }
+      if (!session) {
+        window.location.href = "/login";
+        return;
+      }
 
-    // ✅ pull store_id + role from profiles
-    const { data: profile, error: pErr } = await supabase
-      .from("profiles")
-      .select("id, role, store_id, full_name")
-      .eq("id", session.user.id)
-      .single();
+      const { data: profile, error: pErr } = await supabase
+        .from("profiles")
+        .select("id, role, store_id, full_name")
+        .eq("id", session.user.id)
+        .single();
 
-    if (pErr) {
-      console.error("PROFILE ERROR FULL:", JSON.stringify(pErr, null, 2));
-      showToast("error", "Profile Error", "Failed to load profile");
-      return;
-    }
+      if (pErr || !profile) {
+        console.error("Profile Trace Error:", pErr);
+        showToast("error", "Profile Error", "Failed to resolve terminal footprint.");
+        return;
+      }
 
-    const role = String(profile?.role || "").toLowerCase();
-    if (role !== "cashier" && role !== "admin") {
-      await supabase.auth.signOut();
-      window.location.href = "/login";
-      return;
-    }
+      const role = String(profile?.role || "").toLowerCase();
+      if (role !== "cashier" && role !== "admin") {
+        await supabase.auth.signOut();
+        window.location.href = "/login";
+        return;
+      }
 
-    
-    if (!profile) {
-      showToast("error", "No Profile", "User profile not found");
-      return;
-    }
+      const activeStoreId = profile.store_id;
+      localStorage.setItem("pos_store_id", activeStoreId);
+      setStoreId(activeStoreId);
 
+      await fetchData(activeStoreId);
+    };
 
-    // ✅ persist + set state
-    localStorage.setItem("pos_store_id", profile.store_id);
-    setStoreId(profile.store_id);
+    init();
+  }, []);
 
-    // ✅ load POS data after store is known
-    await fetchData(profile.store_id);
-  };
-
-  init();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []);
-
-  // System Core Data Layer Logic
-  async function loadPrinters() {
-    const sid = storeId;
+  async function loadPrinters(sid) {
     if (!sid) return;
-
     const { data, error } = await supabase
       .from("pos_printers")
       .select("*")
@@ -1106,7 +1003,7 @@ export default function POSPage() {
       .eq("is_active", true);
 
     if (error) {
-      showToast("error", "Printer Load Failed", error.message);
+      showToast("error", "Printer Error", error.message);
       return;
     }
 
@@ -1114,122 +1011,84 @@ export default function POSPage() {
     (data || []).forEach((p) => { map[p.role] = p; });
     setPrinterConfig(map);
   }
-  // FETCH VOUCHERS WITH ACTIVE STATUS AND NOT EXPIRED
-    async function fetchActiveVouchers(memberId) {
-      const now = Date.now();
 
-      let res = await supabase
+  async function fetchActiveVouchers(memberId) {
+    const now = Date.now();
+    let res = await supabase
+      .from("vouchers")
+      .select("id, code, reward_text, expires_at, status, reward_type, member_id")
+      .eq("member_id", memberId)
+      .order("issued_at", { ascending: false });
+
+    if (res.error && /reward_type/i.test(res.error.message || "")) {
+      res = await supabase
         .from("vouchers")
-        .select("id, code, reward_text, expires_at, status, reward_type, member_id")
+        .select("id, code, reward_text, expires_at, status, member_id")
         .eq("member_id", memberId)
         .order("issued_at", { ascending: false });
-
-      // fallback if reward_type column missing
-      if (res.error && /reward_type/i.test(res.error.message || "")) {
-        res = await supabase
-          .from("vouchers")
-          .select("id, code, reward_text, expires_at, status, member_id")
-          .eq("member_id", memberId)
-          .order("issued_at", { ascending: false });
-      }
-
-      const rows = !res.error && res.data ? res.data : [];
-
-      const normalized = rows
-        .map((x) => ({
-          ...x,
-          reward_type:
-            x.reward_type ||
-            (String(x.code || "").toUpperCase().startsWith("BDAY")
-              ? "birthday"
-              : "reward"),
-        }))
-        .filter((x) => String(x.status || "active").toLowerCase() === "active")
-        .filter((x) => {
-          if (!x.expires_at) return true;
-          const expMs = new Date(x.expires_at).getTime();
-          return !isNaN(expMs) && expMs > now;
-        });
-
-      setAvailableVouchers(normalized);
-      return normalized;
     }
 
-  async function loadPosSettings() {
-  const sid = storeId;
-  if (!sid) return;
-
-  const normalize = (s) => String(s ?? "").trim().toLowerCase();
-
-  const mergeGlobalThenStore = (rows) => {
-    const map = new Map();
-
-    // 1) global first
-    (rows || [])
-      .filter((r) => r.store_id == null)
-      .forEach((r) => {
-        const key = normalize(r.name);
-        if (!key) return;
-        map.set(key, r);
+    const rows = !res.error && res.data ? res.data : [];
+    const normalized = rows
+      .map((x) => ({
+        ...x,
+        reward_type: x.reward_type || (String(x.code || "").toUpperCase().startsWith("BDAY") ? "birthday" : "reward"),
+      }))
+      .filter((x) => String(x.status || "active").toLowerCase() === "active")
+      .filter((x) => {
+        if (!x.expires_at) return true;
+        const expMs = new Date(x.expires_at).getTime();
+        return !isNaN(expMs) && expMs > now;
       });
 
-    // 2) store overrides global
-    (rows || [])
-      .filter((r) => r.store_id === sid)
-      .forEach((r) => {
-        const key = normalize(r.name);
-        if (!key) return;
-        map.set(key, r);
-      });
-
-    return Array.from(map.values()).sort((a, b) => {
-      const so = (a.sort_order ?? 0) - (b.sort_order ?? 0);
-      if (so !== 0) return so;
-      return new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime();
-    });
-  };
-
-  const [payRes, dineRes, ticketRes, discRes, receiptRes] = await Promise.all([
-    // PAYMENT TYPES: global + store
-    supabase
-      .from("pos_payment_types")
-      .select("*")
-      .or(`store_id.eq.${sid},store_id.is.null`)
-      .eq("is_active", true)
-      .order("sort_order", { ascending: true })
-      .order("created_at", { ascending: true }),
-
-    // DINING OPTIONS: currently global (no store filter). Keep as-is unless you add store_id later.
-    supabase.from("dining_options").select("*").eq("is_available", true),
-
-    // TICKET TEMPLATES: store-specific (correct)
-    supabase.from("pos_open_ticket_templates").select("*").eq("store_id", sid),
-
-    // DISCOUNTS: store-specific (see note below if you want global)
-    supabase.from("pos_discounts").select("*").eq("store_id", sid),
-
-    // RECEIPT SETTINGS: store-specific (correct)
-    supabase.from("pos_receipt_settings").select("*").eq("store_id", sid).maybeSingle(),
-  ]);
-
-  console.log("Session user:", session.user?.id);
-
-  // ✅ merge store overrides global
-  const mergedPaymentTypes = mergeGlobalThenStore(payRes.data || []);
-  setPaymentTypes(mergedPaymentTypes);
-
-  setDiningOptions(dineRes.data || []);
-  setTicketTemplates(ticketRes.data || []);
-  setDiscountRules(discRes.data || []);
-  setReceiptSettings(receiptRes.data || null);
-
-  if (!hasInitializedDining.current && (dineRes.data || []).length > 0) {
-    setDiningOption(dineRes.data[0].name);
-    hasInitializedDining.current = true;
+    setAvailableVouchers(normalized);
+    return normalized;
   }
-}
 
-  async function fetchData() {
+  async function loadPosSettings(sid) {
+    if (!sid) return;
+    const normalize = (s) => String(s ?? "").trim().toLowerCase();
+
+    const mergeGlobalThenStore = (rows) => {
+      const map = new Map();
+      (rows || []).filter((r) => r.store_id == null).forEach((r) => {
+        const key = normalize(r.name);
+        if (key) map.set(key, r);
+      });
+      (rows || []).filter((r) => r.store_id === sid).forEach((r) => {
+        const key = normalize(r.name);
+        if (key) map.set(key, r);
+      });
+      return Array.from(map.values()).sort((a, b) => {
+        const so = (a.sort_order ?? 0) - (b.sort_order ?? 0);
+        if (so !== 0) return so;
+        return new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime();
+      });
+    };
+
+    const [payRes, dineRes, ticketRes, discRes, receiptRes] = await Promise.all([
+      supabase.from("pos_payment_types").select("*").or(`store_id.eq.${sid},store_id.is.null`).eq("is_active", true),
+      supabase.from("pos_dining_options").select("*").eq("store_id", sid).eq("is_active", true).order("sort_order", { ascending: true }),
+      supabase.from("pos_open_ticket_templates").select("*").eq("store_id", sid),
+      supabase.from("pos_discounts").select("*").eq("store_id", sid),
+      supabase.from("pos_receipt_settings").select("*").eq("store_id", sid).maybeSingle(),
+    ]);
+
+    const mergedPaymentTypes = mergeGlobalThenStore(payRes.data || []);
+    setPaymentTypes(mergedPaymentTypes);
+    setDiningOptions(dineRes.data || []);
+    setTicketTemplates(ticketRes.data || []);
+    setDiscountRules(discRes.data || []);
+    setReceiptSettings(receiptRes.data || null);
+
+    if (!hasInitializedDining.current && (dineRes.data || []).length > 0) {
+      setDiningOption(dineRes.data[0].id);
+      hasInitializedDining.current = true;
+    }
+  }
+
+  async function fetchData(sid) {
+    if (!sid) return;
     setLoading(true);
     try {
       const [iRes, catRes, cRes] = await Promise.all([
@@ -1245,8 +1104,8 @@ export default function POSPage() {
 
       if (cats.length && !activeCategory) setActiveCategory(cats[0].name);
 
-      await loadPosSettings();
-      await loadPrinters();
+      await loadPosSettings(sid);
+      await loadPrinters(sid);
     } catch (e) {
       showToast("error", "Loading Error", e.message);
     } finally {
@@ -1264,7 +1123,7 @@ export default function POSPage() {
       .maybeSingle();
 
     if (data) {
-      setOriginalTicketId(data.id); 
+      setOriginalTicketId(data.id);
       setCart(data.items || []);
       const linkedCustomer = customers.find((c) => c.id === data.customer_id);
       setAttachedCustomer(linkedCustomer || null);
@@ -1276,34 +1135,39 @@ export default function POSPage() {
     }
   }
 
-  async function handleDiningChange(value) {
-    setDiningOption(value);
-    await loadDiningOptionOrder(value);
+  async function handleDiningChange(optionId) {
+    setDiningOption(optionId);
+    const opt = (diningOptions || []).find((d) => String(d.id) === String(optionId));
+    const name = opt?.name || "";
+
+    if (!name) {
+      setOriginalTicketId(null);
+      setCart([]);
+      setAttachedCustomer(null);
+      return;
+    }
+
+    await loadDiningOptionOrder(name);
   }
 
   async function saveTableOrder() {
     if (!diningOption) return;
+    const name = diningOptionName;
+    if (!name) return;
 
     const payload = {
-      ticket_name: diningOption,
-      order_type: diningOption,
+      ticket_name: name,
+      order_type: name,
       customer_id: attachedCustomer?.id || null,
       items: cart,
       total_amount: Number(subtotal || 0),
     };
 
     if (originalTicketId) {
-      const { error } = await supabase
-        .from("open_tickets")
-        .update(payload)
-        .eq("id", originalTicketId);
-
+      const { error } = await supabase.from("open_tickets").update(payload).eq("id", originalTicketId);
       if (error) throw error;
     } else {
-      const { error } = await supabase
-        .from("open_tickets")
-        .insert([payload]);
-
+      const { error } = await supabase.from("open_tickets").insert([payload]);
       if (error) throw error;
     }
   }
@@ -1349,12 +1213,12 @@ export default function POSPage() {
     showToast("success", "Ticket Voided", "Ticket removed successfully.");
   }
 
-  // ================= STANDALONE RESUME TRACKER =================
-
   async function resumeTicket(t) {
-    setOriginalTicketId(t.id); 
+    setOriginalTicketId(t.id);
     setCart(t.items || []);
-    setDiningOption(t.order_type || t.ticket_name || "");
+    const name = t.order_type || t.ticket_name || "";
+    const opt = (diningOptions || []).find((d) => d.name === name);
+    setDiningOption(opt?.id || "");
     const c = customers.find((x) => x.id === t.customer_id);
     setAttachedCustomer(c || null);
 
@@ -1377,21 +1241,19 @@ export default function POSPage() {
     showToast("success", "Ticket Resumed", "Continue the order.");
   }
 
-  // ================= PARKED AND PAID CLEANERS =================
-
   async function handleSaveTicket() {
     if (savingTicket) return;
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before saving.");
     if (!diningOption) return showToast("error", "Dining Option Required", "Please select a dining option.");
 
-    const confirmSave = confirm(`Are you sure you want to park this current ticket to "${diningOption}"?`);
+    const confirmSave = confirm(`Are you sure you want to park this current ticket to "${diningOptionName || "Dining Option"}"?`);
     if (!confirmSave) return;
 
     setSavingTicket(true);
     try {
       await saveTableOrder();
       showToast("success", "Saved", "Ticket updated in system.");
-      clearTicketSoft(); 
+      clearTicketSoft();
     } catch (err) {
       console.error("Save failed:", err);
       showToast("error", "Database Sync Failed", err.message || "An error occurred.");
@@ -1403,14 +1265,16 @@ export default function POSPage() {
   async function handleVoidCurrentTicket() {
     if (cart.length === 0) return showToast("error", "Empty Ticket", "No items to void.");
     if (!diningOption) return showToast("error", "Dining Option Required", "No explicit table option linked.");
+    if (!diningOptionName) return showToast("error", "Dining Option Required", "Please select a dining option.");
 
-    const confirmVoid = confirm(`Void entire current live ticket for "${diningOption}"? This clears all items permanently.`);
+    const confirmVoid = confirm(`Void entire current live ticket for "${diningOptionName}"? This clears all items permanently.`);
     if (!confirmVoid) return;
 
     setSavingTicket(true);
     try {
       await supabase.from("open_tickets").delete().eq("order_type", diningOption);
-      clearTicketSoft(); 
+      await supabase.from("open_tickets").delete().eq("order_type", diningOptionName);
+      clearTicketSoft();
       showToast("success", "Live Ticket Voided", "Order scrubbed successfully.");
     } catch (err) {
       showToast("error", "Void Failed", err.message);
@@ -1423,22 +1287,21 @@ export default function POSPage() {
     if (charging) return;
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before charging.");
     if (!diningOption) return showToast("error", "Dining Option Required", "Please select a dining option.");
-    if (!storeId) return showToast("error", "Store not set", "Set pos_store_id/admin_store_id.");
+    if (!diningOptionName) return showToast("error", "Dining Option Required", "Please select a dining option.");
+    if (!storeId) return showToast("error", "Store not set", "Set workspace identifier strings.");
     setPaymentOpen(true);
   }
-
-  // ================= EXCEL COMPLIANT DATA INSERTS =================
 
   async function confirmCharge() {
     if (charging) return;
     if (!selectedPayment) return showToast("error", "Payment Required", "Select a payment type.");
-    if (!storeId) return showToast("error", "Store not set", "Set pos_store_id/admin_store_id.");
+    if (!storeId) return showToast("error", "Store not set", "Store code identifier mismatch.");
     if (!diningOption) return showToast("error", "Dining Option Required", "Please select a dining option.");
+    if (!diningOptionName) return showToast("error", "Dining Option Required", "Please select a dining option.");
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before charging.");
 
     setCharging(true);
     try {
-      // 1. Handle voucher state updates if any
       if (appliedVoucher?.id) {
         const { error } = await supabase
           .from("vouchers")
@@ -1451,7 +1314,6 @@ export default function POSPage() {
       const discount = Number(discountAmount || 0);
       const total = Number(totalDue || 0);
 
-      // 2. Original System Logic: Save standard operational order row
       const { data: orderRow, error: orderErr } = await supabase
         .from("orders")
         .insert([{
@@ -1460,7 +1322,7 @@ export default function POSPage() {
           total,
           discount,
           payment_method: selectedPayment,
-          dining_option: diningOption,
+          dining_option: diningOptionName,
         }])
         .select("*")
         .single();
@@ -1477,12 +1339,8 @@ export default function POSPage() {
       const { error: itemsErr } = await supabase.from("order_items").insert(itemRows);
       if (itemsErr) return showToast("error", "Charge Failed", itemsErr.message);
 
-      // =================================================================
-      // EXCEL LOG COMPLIANCE ENGINE (NEW)
-      // =================================================================
-      
+      // ================= EXCEL LOG ENGINE =================
       const now = new Date();
-      // Generates "M/D/YY h:mm AM/PM" matching "5/20/26 10:11 PM"
       const excelTimestamp = now.toLocaleString('en-US', {
         year: '2-digit',
         month: 'numeric',
@@ -1492,19 +1350,14 @@ export default function POSPage() {
         hour12: true
       }).replace(/,/g, '');
 
-      // Generates standard sequence id pattern matching your sheet logs
       const generatedReceiptNumber = `2-${Math.floor(1000 + Math.random() * 9000)}`;
-
-      // Calculate aggregated sums
       const calculatedGrossSales = cart.reduce((sum, item) => sum + (Number(item.unitPrice || 0) * Number(item.quantity || 0)), 0);
       const calculatedNetSales = calculatedGrossSales - discount;
-      
-      // Map item descriptions comma separated: "2 x Grass Jelly MT (R)"
+
       const csvDescriptionString = cart
         .map(item => `${item.quantity} x ${item.name}${item.variantDetails ? ` (${item.variantDetails})` : ''}`)
         .join(', ');
 
-      // Build Master Receipt record schema (receipts.csv format)
       const masterReceiptLogPayload = {
         date: excelTimestamp,
         receipt_number: generatedReceiptNumber,
@@ -1518,7 +1371,7 @@ export default function POSPage() {
         gross_profit: calculatedNetSales.toFixed(2),
         payment_type: selectedPayment,
         description: csvDescriptionString,
-        dining_option: diningOption || "TAKEOUT",
+        dining_option: diningOptionName || "TAKEOUT",
         pos: "Cashier - Main",
         store: storeId,
         cashier_name: "Owner",
@@ -1527,16 +1380,11 @@ export default function POSPage() {
         status: "Closed"
       };
 
-      // Push master log row to Supabase receipts historical database table
-      const { error: masterLogError } = await supabase
-        .from("receipts")
-        .insert([masterReceiptLogPayload]);
+      const { error: masterLogError } = await supabase.from("receipts").insert([masterReceiptLogPayload]);
       if (masterLogError) console.warn("Excel Master Log insertion error: ", masterLogError.message);
 
-      // Build individual item lines data table (receipts-by-item.csv format)
       const itemBreakdownLogPayloads = cart.map((item) => {
         const itemGross = Number(item.unitPrice || 0) * Number(item.quantity || 0);
-        // Pro-rate any general discount rule evenly among items lines
         const lineProRatedDiscount = cart.length > 0 ? (discount / cart.length) : 0;
         const itemNet = itemGross - lineProRatedDiscount;
 
@@ -1549,14 +1397,14 @@ export default function POSPage() {
           item: item.name,
           variant: item.variantDetails || "R",
           modifiers_applied: item.instructions || "",
-          quantity: Number(item.quantity || 0).toFixed(3), // Saves as '1.000' format
+          quantity: Number(item.quantity || 0).toFixed(3),
           gross_sales: itemGross.toFixed(2),
           discounts: lineProRatedDiscount.toFixed(2),
           net_sales: itemNet.toFixed(2),
           cost_of_goods: "0.00",
           gross_profit: itemNet.toFixed(2),
           taxes: "0.00",
-          dining_option: diningOption || "TAKEOUT",
+          dining_option: diningOptionName || "TAKEOUT",
           pos: "Cashier - Main",
           store: storeId,
           cashier_name: "Owner",
@@ -1567,29 +1415,20 @@ export default function POSPage() {
         };
       });
 
-      // Push item breakdown records into Supabase receipts_by_item database table
-      const { error: itemsLogError } = await supabase
-        .from("receipts_by_item")
-        .insert(itemBreakdownLogPayloads);
+      const { error: itemsLogError } = await supabase.from("receipts_by_item").insert(itemBreakdownLogPayloads);
       if (itemsLogError) console.warn("Excel Item Log insertion error: ", itemsLogError.message);
 
-      // =================================================================
-
-      // 3. Clear downstream peripheral statuses
-      const selectedOption = (diningOptions || []).find((d) => d.name === diningOption) || {};
-      const selectedTable = (tables || []).find((t) => t.name === diningOption);
+      const selectedOption = selectedDining || {};
+      const selectedTable = (tables || []).find((t) => t.name === diningOptionName);
       if (selectedTable) {
-        await supabase
-          .from("dining_options")
-          .update({ table_status: "free" })
-          .eq("id", selectedTable.id);
+        await supabase.from("dining_options").update({ table_status: "free" }).eq("id", selectedTable.id);
       }
 
       const receipt = buildReceiptText({
         receiptSettings,
         order: orderRow,
         cart,
-        diningOption,
+        diningOptionName,
         payment: selectedPayment,
         customer: attachedCustomer,
         subtotal,
@@ -1616,13 +1455,9 @@ export default function POSPage() {
         }
       }
 
-      await supabase
-        .from("open_tickets")
-        .delete()
-        .eq("order_type", diningOption);
-
+      await supabase.from("open_tickets").delete().eq("order_type", diningOptionName);
       showToast("success", "Charged Successfully", "Transaction saved and synced to logs.");
-      clearTicketSoft(); 
+      clearTicketSoft();
       setPaymentOpen(false);
     } catch (err) {
       console.error("Execution failed:", err);
@@ -1632,7 +1467,6 @@ export default function POSPage() {
     }
   }
 
-  // FIXED RELIABLE LOWERCASE NORMALIZATION LOOKUP STREAM
   const handleCodeInput = (raw) => {
     const q = String(raw || "").trim().toLowerCase();
     if (!q) return;
@@ -1645,11 +1479,11 @@ export default function POSPage() {
     }
 
     const matchCust = customers.find(
-      (c) => 
-        (c.code && String(c.code).toLowerCase() === q) || 
+      (c) =>
+        (c.code && String(c.code).toLowerCase() === q) ||
         (c.name && String(c.name).toLowerCase().includes(q))
     );
-    
+
     if (matchCust) {
       setAttachedCustomer(matchCust);
       setCustomerSearch("");
@@ -1746,7 +1580,7 @@ export default function POSPage() {
 
   const clearTicketSoft = () => {
     setCart([]);
-    setAttachedCustomer(null); 
+    setAttachedCustomer(null);
     setCustomerSearch("");
     setAppliedVoucher(null);
     setAvailableVouchers([]);
@@ -1876,206 +1710,168 @@ export default function POSPage() {
   };
 
   const selectedCartItem = useMemo(() => cart.find((x) => x.cartItemId === voucherTargetCartItemId) || null, [cart, voucherTargetCartItemId]);
-  const ticketTitle = diningOption || "Select Dining Option";
+  const ticketTitle = diningOptionName || "Select Dining Option";
   const ticketSubtitle = attachedCustomer?.name ? `Loyalty Member: ${attachedCustomer.name}` : "Walk-in Customer";
 
-  function pickTemplate(name) {
-    setDiningOption(name);
-    showToast("success", "Ticket Selected", name);
-  }
+  return (
+    <div className="min-h-screen bg-[#FFF5F7] pb-24 lg:pb-0 font-sans antialiased">
+      <Toast toast={toast} onClose={() => setToast(null)} />
 
-  function applyDiscountRule(rule) {
-    setAppliedDiscount(rule);
-    showToast("success", "Discount Applied", rule.name);
-  }
-
-  function clearDiscountRule() {
-    setAppliedDiscount(null);
-    showToast("info", "Discount Removed", "No discount applied.");
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FFF5F7]">
-        <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
-      </div>
-    );
-  }
-
-            return (
-            <div className="min-h-screen bg-[#FFF5F7] pb-24 lg:pb-0">
-
-              {/* ✅ SINGLE CENTER CONTAINER */}
-              <div className="max-w-7xl mx-auto px-4 md:px-6">
-
-                {/* ✅ HEADER */}
-                <div className="py-5 flex items-center justify-between">
-
-                  <div>
-                    <h1 className="text-xl md:text-2xl font-bold text-slate-800">
-                      POS Terminal
-                    </h1>
-                    <p className="text-[11px] text-slate-400 mt-0.5 font-mono">
-                      store_id: {storeId || "NOT SET"}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-slate-500 font-semibold">
-                      {typeof window !== "undefined" ? localStorage.getItem("cashier_name") : ""}
-                    </span>
-
-                    <button
-                      onClick={async () => {
-                        await supabase.auth.signOut();
-                        localStorage.removeItem("pos_store_id");
-                        localStorage.removeItem("cashier_name");
-                        window.location.href = "/login";
-                      }}
-                      className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700"
-                    >
-                      Logout
-                    </button>
-                  </div>
-
-                </div>
-
-                {/* ✅ YOUR GRID (IMPORTANT: remove max-w from here) */}
-                <div className="pb-10 grid grid-cols-2 lg:grid-cols-[1fr_100px] gap-1">
-                 
-                </div>
-              </div>
-            
-
-      {/* Complete Row / Metrics Strip Layout Nodes Cleaned and Dropped Completely */}
-
-      <div className="max-w-full mx-auto px-4 md:px-6 pb-10 grid grid-cols-2 lg:grid-cols-[1fr_420px] gap-1">
-        
-        {/* Menu Catalog View Panel */}
-        <div className="bg-white rounded-2xl border border-rose-100 p-4 md:p-5 shadow-sm h-full">
-          <div className="flex flex-wrap gap-2 items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 md:px-6">
+        {/* HEADER BAR */}
+        <div className="py-5 flex items-center justify-between border-b border-rose-100 bg-white rounded-b-2xl px-4">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-slate-800">POS Terminal</h1>
+            <p className="text-[11px] text-slate-400 mt-0.5 font-mono">store_id: {storeId || "NOT SET"}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-slate-500 font-semibold">
+              {typeof window !== "undefined" ? localStorage.getItem("cashier_name") : ""}
+            </span>
             <button
-              onClick={() => setCategoryOpen(true)}
-              className="bg-slate-50 px-4 py-2.5 rounded-1xl text-xs font-bold text-slate-700 border border-slate-200 active:scale-95 transition"
-              type="button"
+              onClick={async () => {
+                await supabase.auth.signOut();
+                if (typeof window !== "undefined") {
+                  localStorage.removeItem("pos_store_id");
+                  localStorage.removeItem("cashier_name");
+                }
+                window.location.href = "/login";
+              }}
+              className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
             >
-              {activeCategory || "Select Category"} ▾
+              Logout
             </button>
-            <input
-              value={menuSearch}
-              onChange={(e) => setMenuSearch(e.target.value)}
-              placeholder="Search menu catalogue..."
-              className="w-full max-w-[240px] px-4 py-2.5 bg-slate-50 rounded-1xl text-xs outline-none focus:bg-white focus:border-rose-200 border border-slate-200 transition font-medium text-slate-700"
+          </div>
+        </div>
+
+        {/* TERMINAL BODY WORKSPACE */}
+        <div className="mt-5 pb-10 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-4">
+          
+          {/* CATALOG PANELS */}
+          <div className="bg-white rounded-2xl border border-rose-100 p-4 md:p-5 shadow-sm">
+            <div className="flex flex-wrap gap-2 items-center justify-between">
+              <button
+                onClick={() => setCategoryOpen(true)}
+                className="bg-slate-50 px-4 py-2.5 rounded-2xl text-xs font-bold text-slate-700 border border-slate-200 active:scale-95 transition"
+                type="button"
+              >
+                {activeCategory || "Select Category"} ▾
+              </button>
+              <input
+                value={menuSearch}
+                onChange={(e) => setMenuSearch(e.target.value)}
+                placeholder="Search menu catalogue..."
+                className="w-full max-w-[240px] px-4 py-2.5 bg-slate-50 rounded-2xl text-xs outline-none focus:bg-white focus:border-rose-200 border border-slate-200 transition font-medium text-slate-700"
+              />
+            </div>
+
+            <div className="mt-5 grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3">
+              {items
+                .filter((i) => i.category === activeCategory)
+                .filter((i) => (i.name || "").toLowerCase().includes(menuSearch.toLowerCase()))
+                .map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => setSelectedItemForModal(item)}
+                    className="group relative flex flex-col p-3 bg-white border border-slate-100 rounded-2xl cursor-pointer transition-all text-left hover:-translate-y-[4px] hover:shadow-lg"
+                  >
+                    <div className="w-full aspect-square bg-[#FFF9FA] border border-rose-50 flex items-center justify-center overflow-hidden rounded-2xl">
+                      {item.image_url ? (
+                        <img src={item.image_url} alt={item.name} className="w-full h-full object-contain p-2" />
+                      ) : (
+                        <span className="text-2xl opacity-40">📷</span>
+                      )}
+                    </div>
+                    <div className="mt-2.5 space-y-0.5">
+                      <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">{item.category || "General"}</p>
+                      <p className="text-sm font-semibold text-slate-800 leading-tight truncate">{item.name}</p>
+                      <p className="text-xs font-bold text-rose-500/90">{item.is_variable_price ? "Variable" : `₱${Number(item.price || 0).toFixed(0)}`}</p>
+                    </div>
+                  </button>
+                ))}
+            </div>
+          </div>
+
+          {/* SIDEBAR TICKET INTERACTION LAYER */}
+          <div className="hidden lg:block h-full">
+            <TicketPanel
+              cart={cart}
+              customers={customers}
+              customerSearch={customerSearch}
+              setCustomerSearch={setCustomerSearch}
+              isCustListOpen={isCustListOpen}
+              setIsCustListOpen={setIsCustListOpen}
+              onSearchKeyDown={onSearchKeyDown}
+              handleCodeInput={handleCodeInput}
+              onOpenScanner={() => setScannerOpen(true)}
+              diningOptions={diningOptions}
+              diningOption={diningOption}
+              setDiningOption={handleDiningChange}
+              subtotal={totalDue}
+              ticketTitle={ticketTitle}
+              ticketSubtitle={ticketSubtitle}
+              attachedCustomer={attachedCustomer}
+              appliedVoucher={appliedVoucher}
+              onOpenVouchers={async () => {
+                if (!attachedCustomer?.id) return showToast("error", "Attach Customer", "Scan/select a customer first.");
+                const v = await fetchActiveVouchers(attachedCustomer.id);
+                setVoucherModalOpen(true);
+                if (v.length === 0) showToast("info", "No Vouchers", "No active vouchers for this customer.");
+              }}
+              onRemoveVoucher={removeAppliedVoucher}
+              onClear={() => setConfirmOpen(true)}
+              onCharge={handleChargeOrder}
+              onSave={handleSaveTicket}
+              onVoidLiveTicket={handleVoidCurrentTicket}
+              onOpenSavedTicketsModal={async () => {
+                await fetchSavedTickets();
+                setSavedMode("resume");
+                setSavedOpen(true);
+              }}
+              charging={charging}
+              savingTicket={savingTicket}
+              voucherTargetCartItemId={voucherTargetCartItemId}
+              splitMode={splitMode}
+              splitSelected={splitSelected}
+              onToggleSplit={toggleSplit}
+              onMoveToNewTicket={moveToNewTicketPickType}
+              onMoveToSaved={openMoveToSaved}
+              moving={moving}
+              onCartItemClick={(line, idx) => {
+                if (splitMode) {
+                  toggleSplitSelect(line.cartItemId);
+                  return;
+                }
+                setVoucherTargetCartItemId(line.cartItemId);
+                const base = items.find((i) => i.id === line.id) || null;
+                if (!base) return;
+                setSelectedItemForModal({ ...base, editData: line, editIndex: idx });
+              }}
             />
           </div>
 
-          <div className="mt-5 grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3">
-            {items
-              .filter((i) => i.category === activeCategory)
-              .filter((i) => (i.name || "").toLowerCase().includes(menuSearch.toLowerCase()))
-              .map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => setSelectedItemForModal(item)}
-                  className="group relative flex flex-col p- bg-white border border-slate-100 rounded-1xl cursor-pointer transition-all text-left hover:-translate-y-[4px] hover:shadow-[0_40px_40px_rgba(252,104,125,0.08)]"
-                >
-                  <div className="w-full aspect-square bg-[#FFF9FA] border border-rose-50 flex items-center justify-center overflow-hidden rounded-2xl">
-                    {item.image_url ? (
-                      <img src={item.image_url} alt={item.name} className="w-full h-full object-contain p-2 animate-fadeIn" />
-                    ) : (
-                      <span className="text-2xl opacity-40">📷</span>
-                    )}
-                  </div>
-                  <div className="mt-2.5 space-y-0.5">
-                    <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">{item.category || "General"}</p>
-                    <p className="text-sm font-semibold text-slate-800 leading-tight truncate">{item.name}</p>
-                    <p className="text-xs font-bold text-rose-500/90">{item.is_variable_price ? "Variable" : `₱${Number(item.price || 0).toFixed(0)}`}</p>
-                  </div>
-                </button>
-              ))}
-          </div>
-        </div>
-
-        {/* Dynamic Minimalist Sidebar Panel */}
-        <div className="hidden lg:block h-full">
-          <TicketPanel
-            cart={cart}
-            customers={customers}
-            customerSearch={customerSearch}
-            setCustomerSearch={setCustomerSearch}
-            isCustListOpen={isCustListOpen}
-            setIsCustListOpen={setIsCustListOpen}
-            onSearchKeyDown={onSearchKeyDown}
-            handleCodeInput={handleCodeInput}
-            onOpenScanner={() => setScannerOpen(true)}
-            diningOptions={diningOptions}
-            diningOption={diningOption}
-            setDiningOption={handleDiningChange}
-            subtotal={totalDue}
-            ticketTitle={ticketTitle}
-            ticketSubtitle={ticketSubtitle}
-            attachedCustomer={attachedCustomer}
-            appliedVoucher={appliedVoucher}
-            onOpenVouchers={async () => {
-              if (!attachedCustomer?.id) return showToast("error", "Attach Customer", "Scan/select a customer first.");
-              const v = await fetchActiveVouchers(attachedCustomer.id);
-              setVoucherModalOpen(true);
-              if (v.length === 0) showToast("info", "No Vouchers", "No active vouchers for this customer.");
-            }}
-            onRemoveVoucher={removeAppliedVoucher}
-            onClear={() => setConfirmOpen(true)}
-            onCharge={handleChargeOrder}
-            onSave={handleSaveTicket}
-            onVoidLiveTicket={handleVoidCurrentTicket}
-            onOpenSavedTicketsModal={async () => {
-              await fetchSavedTickets();
-              setSavedMode("resume");
-              setSavedOpen(true);
-            }}
-            charging={charging}
-            savingTicket={savingTicket}
-            voucherTargetCartItemId={voucherTargetCartItemId}
-            splitMode={splitMode}
-            splitSelected={splitSelected}
-            onToggleSplit={toggleSplit}
-            onMoveToNewTicket={moveToNewTicketPickType}
-            onMoveToSaved={openMoveToSaved}
-            moving={moving}
-            onCartItemClick={(line, idx) => {
-              if (splitMode) {
-                toggleSplitSelect(line.cartItemId);
-                return;
-              }
-              setVoucherTargetCartItemId(line.cartItemId);
-              const base = items.find((i) => i.id === line.id) || null;
-              if (!base) return;
-              setSelectedItemForModal({ ...base, editData: line, editIndex: idx });
-            }}
-          />
         </div>
       </div>
 
-      {/* Mobile Footers */}
+      {/* MOBILE HUD LAYER */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-rose-100 shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
         <button
           onClick={() => setTicketDrawerOpen(true)}
-          className="w-full px-4 py-4 flex items-center justify-between active:scale-[0.99]"
+          className="w-full px-4 py-4 flex items-center justify-between"
         >
           <div className="text-left">
             <p className="text-[10px] uppercase tracking-widest text-slate-400">Live Balance</p>
             <p className="text-sm font-semibold text-slate-800">{itemCount} item{itemCount === 1 ? "" : "s"} • {peso0(totalDue)}</p>
             {attachedCustomer?.name && <p className="text-[11px] text-rose-500 font-semibold tracking-wide">Customer: {attachedCustomer.name}</p>}
-            {appliedVoucher?.code && <p className="text-[11px] text-[#FC687D] font-mono mt-0.5">Voucher: {appliedVoucher.code}</p>}
-            {appliedDiscount?.name && <p className="text-[11px] text-slate-600 mt-0.5">Discount: {appliedDiscount.name}</p>}
           </div>
           <div className="text-slate-500">🛒</div>
         </button>
       </div>
 
-      {/* Mobile Side Sheet Drawer */}
+      {/* MOBILE SHEET INJECTIONS */}
       {ticketDrawerOpen && (
         <div className="fixed inset-0 z-[90] bg-black/40 backdrop-blur-sm flex items-end" onClick={() => setTicketDrawerOpen(false)}>
-          <div className="w-full max-h-[88vh] bg-slate-900 text-white rounded-t-3xl p-4 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-h-[88vh] bg-white rounded-t-3xl p-4 overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <TicketPanel
               cart={cart}
               customers={customers}
@@ -2135,7 +1931,7 @@ export default function POSPage() {
         </div>
       )}
 
-      {/* Floating Dialog Portals */}
+      {/* PORTALS LAYER */}
       <CategoryModal open={categoryOpen} onClose={() => setCategoryOpen(false)} categories={categories} active={activeCategory} onSelect={setActiveCategory} />
       <BarcodeScannerModal open={scannerOpen} onClose={() => setScannerOpen(false)} onResult={(txt) => handleCodeInput(txt)} />
       <SavedTicketsModal

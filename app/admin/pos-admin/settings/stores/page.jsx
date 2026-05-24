@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
-
 import {
   DndContext,
   closestCenter,
@@ -75,7 +74,7 @@ function Toast({ toast }) {
   );
 }
 
-/* ----------------------------- Sortable Row ----------------------------- */
+/* ----------------------------- Sortable Row (stores only) ----------------------------- */
 
 function SortableRow({ id, left, right, disabled }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -119,13 +118,21 @@ export default function Page() {
   const [stores, setStores] = useState([]);
   const [cashiers, setCashiers] = useState([]);
 
+  // ✅ super admin store filter toggle
+  const [storeFilter, setStoreFilter] = useState("ALL");
+
+  // ✅ current user context
+  const [userRole, setUserRole] = useState(null);
+  const [userStoreId, setUserStoreId] = useState(null);
+
   const [toast, setToast] = useState(null);
   const [busyKey, setBusyKey] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  ); // dnd-kit recommended setup [1](https://github.com/dnd-kit/docs/blob/master/presets/sortable/README.md)[2](https://deepwiki.com/dnd-kit/docs/6.1-overview-and-usage)
+  );
 
   const showToast = (type, message) => {
     setToast({ type, message });
@@ -134,8 +141,69 @@ export default function Page() {
 
   const normalize = (s) => String(s ?? "").trim().toLowerCase();
 
-  /* ----------------------------- Load ----------------------------- */
-  async function load() {
+  const storeNameById = useMemo(() => {
+    const m = {};
+    (stores || []).forEach((s) => {
+      m[s.id] = s.name;
+    });
+    return m;
+  }, [stores]);
+
+  /* ----------------------------- Session + role bootstrap ----------------------------- */
+  async function ensureSessionAndRole() {
+    const { data: { session } } = await supabase.auth.getSession();
+
+    console.log("ADMIN SESSION:", session);
+
+    if (!session) {
+      showToast("error", "Not logged in. Redirecting…");
+      window.location.href = "/admin/login";
+      return { ok: false };
+    }
+
+    const uid = session.user.id;
+
+    // fetch role + store_id for current user
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("role, store_id")
+      .eq("id", uid)
+      .maybeSingle();
+
+    if (error) {
+      console.error(error);
+      showToast("error", error.message);
+      return { ok: false };
+    }
+
+    const role = String(profile?.role || "").toLowerCase();
+    const sid = profile?.store_id || null;
+
+    setUserRole(role);
+    setUserStoreId(sid);
+
+    // lock filter for non-super-admin
+    if (role !== "super_admin") {
+      if (sid) setStoreFilter(sid);
+      else setStoreFilter("ALL");
+    } else {
+      // super_admin: keep current selection (default ALL)
+      setStoreFilter((prev) => prev || "ALL");
+    }
+
+    return { ok: true, role, sid };
+  }
+
+  /* ----------------------------- Load data ----------------------------- */
+  async function loadAll() {
+    setLoading(true);
+
+    const auth = await ensureSessionAndRole();
+    if (!auth.ok) {
+      setLoading(false);
+      return;
+    }
+
     // STORES
     const sRes = await supabase
       .from("stores")
@@ -147,33 +215,57 @@ export default function Page() {
       console.error(sRes.error);
       showToast("error", sRes.error.message);
       setStores([]);
+      setLoading(false);
       return;
     }
     setStores(sRes.data || []);
 
-    // CASHIERS (join store name)
-    const cRes = await supabase
-      .from("cashiers")
-      .select(`
-        id, name, pin, store_id, is_active, sort_order, created_at,
-        stores(name)
-      `)
-      .order("sort_order", { ascending: true })
-      .order("created_at", { ascending: true });
+    // CASHIERS (profiles role=cashier) with store filter
+    let q = supabase
+      .from("profiles")
+      .select("id, full_name, role, store_id, must_change_password, created_at")
+      .eq("role", "cashier");
+
+    const role = String(auth.role || "").toLowerCase();
+
+    if (role === "super_admin") {
+      if (storeFilter !== "ALL") q = q.eq("store_id", storeFilter);
+    } else {
+      // non-super-admin: force to their store_id if present
+      if (auth.sid) q = q.eq("store_id", auth.sid);
+      else q = q.eq("store_id", "__NO_STORE__"); // returns none if no store_id
+    }
+
+    const cRes = await q.order("created_at", { ascending: true });
+
+    console.log("CASHIERS DATA:", cRes.data);
+    console.log("CASHIERS ERROR:", cRes.error);
 
     if (cRes.error) {
       console.error(cRes.error);
       showToast("error", cRes.error.message);
       setCashiers([]);
+      setLoading(false);
       return;
     }
+
     setCashiers(cRes.data || []);
+    setLoading(false);
   }
 
+  // initial load
   useEffect(() => {
-    load();
+    loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // reload when super admin changes filter
+  useEffect(() => {
+    if (!userRole) return;
+    if (String(userRole).toLowerCase() !== "super_admin") return;
+    loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeFilter]);
 
   /* ----------------------------- Add Store ----------------------------- */
   const [newStoreName, setNewStoreName] = useState("");
@@ -183,7 +275,6 @@ export default function Page() {
     const name = newStoreName.trim();
     if (!name) return showToast("warn", "Store name is required.");
 
-    // optional UX duplicate check (by name)
     const dup = stores.some((s) => normalize(s.name) === normalize(name));
     if (dup) return showToast("warn", `"${name}" already exists.`);
 
@@ -195,6 +286,7 @@ export default function Page() {
     ]);
 
     setBusyKey(null);
+
     if (error) {
       console.error(error);
       showToast("error", error.message);
@@ -203,7 +295,7 @@ export default function Page() {
 
     setNewStoreName("");
     showToast("success", "Store added.");
-    load();
+    loadAll();
   }
 
   /* ----------------------------- Edit Store ----------------------------- */
@@ -226,7 +318,6 @@ export default function Page() {
     const name = storeEditName.trim();
     if (!name) return showToast("warn", "Store name is required.");
 
-    // prevent renaming to existing store name
     const dup = stores.some((s) => s.id !== storeEditRow.id && normalize(s.name) === normalize(name));
     if (dup) return showToast("warn", `"${name}" already exists.`);
 
@@ -248,7 +339,7 @@ export default function Page() {
     setStoreEditOpen(false);
     setStoreEditRow(null);
     showToast("success", "Store updated.");
-    load();
+    loadAll();
   }
 
   async function deleteStore(row) {
@@ -266,7 +357,7 @@ export default function Page() {
     }
 
     showToast("success", "Store deleted.");
-    load();
+    loadAll();
   }
 
   async function toggleStoreActive(row) {
@@ -282,8 +373,9 @@ export default function Page() {
       showToast("error", error.message);
       return;
     }
+
     showToast("success", row.is_active ? "Store deactivated." : "Store activated.");
-    load();
+    loadAll();
   }
 
   /* ----------------------------- Drag sort Stores ----------------------------- */
@@ -303,7 +395,6 @@ export default function Page() {
     }));
     setStores(next);
 
-    // upsert FULL rows to avoid NOT NULL issues (name is required)
     const payload = next.map((r) => ({
       id: r.id,
       name: r.name,
@@ -314,91 +405,106 @@ export default function Page() {
 
     const { error } = await supabase
       .from("stores")
-      .upsert(payload, { onConflict: "id", defaultToNull: false }); // recommended option [3](https://github.com/orgs/supabase/discussions/15730)
+      .upsert(payload, { onConflict: "id", defaultToNull: false });
 
     if (error) {
       console.error(error);
       showToast("error", error.message);
-      load();
+      loadAll();
     } else {
       showToast("success", "Store order saved.");
     }
   }
 
-  /* ----------------------------- Add Cashier ----------------------------- */
+  /* ----------------------------- Add Cashier (API) ----------------------------- */
   const [newCashierStore, setNewCashierStore] = useState("");
   const [newCashierName, setNewCashierName] = useState("");
   const [newCashierEmail, setNewCashierEmail] = useState("");
 
   async function addCashier() {
-  const email = newCashierEmail.trim().toLowerCase();
-  const name = newCashierName.trim();
+    const email = newCashierEmail.trim().toLowerCase();
+    const name = newCashierName.trim();
 
-  if (!newCashierStore) return showToast("warn", "Select a store.");
-  if (!name) return showToast("warn", "Cashier name is required.");
-  if (!email) return showToast("warn", "Cashier email is required.");
+    if (!newCashierStore) return showToast("warn", "Select a store.");
+    if (!name) return showToast("warn", "Cashier name is required.");
+    if (!email) return showToast("warn", "Cashier email is required.");
 
-  setBusyKey("ADD_CASHIER");
+    setBusyKey("ADD_CASHIER");
 
-  const res = await fetch("/api/admin/create-cashier", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      email,
-      full_name: name,
-      store_id: newCashierStore,
-    }),
-  });
+    let text = "";
+    try {
+      const res = await fetch("/api/admin/create-cashier", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          full_name: name,
+          store_id: newCashierStore,
+        }),
+      });
 
-  const json = await res.json();
-  setBusyKey(null);
+      text = await res.text();
 
-  if (!res.ok) {
-    showToast("error", json.error || "Failed to create cashier");
-    return;
+      let json;
+      try {
+        json = JSON.parse(text);
+      } catch {
+        setBusyKey(null);
+        console.error("API returned non-JSON:", text);
+        showToast("error", "Server error (non-JSON response). Check API logs.");
+        return;
+      }
+
+      setBusyKey(null);
+
+      if (!res.ok) {
+        showToast("error", json.error || "Failed to create cashier");
+        return;
+      }
+
+      showToast("success", "Cashier created. Default password: Juja@123456");
+      setNewCashierName("");
+      setNewCashierEmail("");
+      setNewCashierStore("");
+      loadAll();
+    } catch (err) {
+      setBusyKey(null);
+      console.error("Add cashier failed:", err, text);
+      showToast("error", "Failed to fetch API. Check network/logs.");
+    }
   }
 
-  showToast("success", "Cashier created. Default password: Juja@123456");
-
-  setNewCashierName("");
-  setNewCashierEmail("");
-  setNewCashierStore("");
-
-  load();
-}
-
-  /* ----------------------------- Edit Cashier ----------------------------- */
+  /* ----------------------------- Edit Cashier (profiles) ----------------------------- */
   const [cashierEditOpen, setCashierEditOpen] = useState(false);
   const [cashierEditRow, setCashierEditRow] = useState(null);
   const [cashierEditStore, setCashierEditStore] = useState("");
   const [cashierEditName, setCashierEditName] = useState("");
-  const [cashierEditPin, setCashierEditPin] = useState("");
-  const [cashierEditActive, setCashierEditActive] = useState(true);
+  const [cashierEditMustChange, setCashierEditMustChange] = useState(false);
 
   function openEditCashier(row) {
     setCashierEditRow(row);
     setCashierEditStore(row.store_id ?? "");
-    setCashierEditName(row.name ?? "");
-    setCashierEditPin(row.pin ?? "");
-    setCashierEditActive(!!row.is_active);
+    setCashierEditName(row.full_name ?? "");
+    setCashierEditMustChange(!!row.must_change_password);
     setCashierEditOpen(true);
   }
 
   async function saveEditCashier() {
     if (!cashierEditRow?.id) return;
+
     const name = cashierEditName.trim();
-    if (!cashierEditStore) return showToast("warn", "Select a store.");
     if (!name) return showToast("warn", "Cashier name is required.");
+    if (!cashierEditStore) return showToast("warn", "Select a store.");
 
     setBusyKey(`CASHIER_${cashierEditRow.id}`);
 
     const { error } = await supabase
-      .from("cashiers")
+      .from("profiles")
       .update({
+        full_name: name,
         store_id: cashierEditStore,
-        name,
-        pin: cashierEditPin || null,
-        is_active: cashierEditActive,
+        must_change_password: cashierEditMustChange,
+        role: "cashier",
       })
       .eq("id", cashierEditRow.id);
 
@@ -413,32 +519,14 @@ export default function Page() {
     setCashierEditOpen(false);
     setCashierEditRow(null);
     showToast("success", "Cashier updated.");
-    load();
+    loadAll();
   }
 
-  async function deleteCashier(row) {
-    const ok = confirm(`Delete cashier "${row.name}"? This cannot be undone.`);
-    if (!ok) return;
-
-    setBusyKey(`CASHIER_${row.id}`);
-    const { error } = await supabase.from("cashiers").delete().eq("id", row.id);
-    setBusyKey(null);
-
-    if (error) {
-      console.error(error);
-      showToast("error", error.message);
-      return;
-    }
-
-    showToast("success", "Cashier deleted.");
-    load();
-  }
-
-  async function toggleCashierActive(row) {
+  async function forcePasswordChange(row) {
     setBusyKey(`CASHIER_${row.id}`);
     const { error } = await supabase
-      .from("cashiers")
-      .update({ is_active: !row.is_active })
+      .from("profiles")
+      .update({ must_change_password: true })
       .eq("id", row.id);
     setBusyKey(null);
 
@@ -447,51 +535,41 @@ export default function Page() {
       showToast("error", error.message);
       return;
     }
-    showToast("success", row.is_active ? "Cashier deactivated." : "Cashier activated.");
-    load();
+
+    showToast("success", "Cashier will be asked to change password on next login.");
+    loadAll();
   }
 
-  /* ----------------------------- Drag sort Cashiers ----------------------------- */
-  const cashierIds = useMemo(() => cashiers.map((c) => c.id), [cashiers]);
+  async function disableCashier(row) {
+    const ok = confirm(`Disable cashier "${row.full_name}"?`);
+    if (!ok) return;
 
-  async function onCashierDragEnd(event) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const oldIndex = cashiers.findIndex((x) => x.id === active.id);
-    const newIndex = cashiers.findIndex((x) => x.id === over.id);
-    if (oldIndex < 0 || newIndex < 0) return;
-
-    const next = arrayMove([...cashiers], oldIndex, newIndex).map((r, idx) => ({
-      ...r,
-      sort_order: idx,
-    }));
-    setCashiers(next);
-
-    // upsert FULL rows to avoid NOT NULL issues (name/store_id likely required)
-    const payload = next.map((r) => ({
-      id: r.id,
-      store_id: r.store_id,
-      name: r.name,
-      pin: r.pin ?? null,
-      is_active: !!r.is_active,
-      sort_order: r.sort_order ?? 0,
-    }));
-
+    setBusyKey(`CASHIER_${row.id}`);
     const { error } = await supabase
-      .from("cashiers")
-      .upsert(payload, { onConflict: "id", defaultToNull: false }); // recommended option [3](https://github.com/orgs/supabase/discussions/15730)
+      .from("profiles")
+      .update({ role: "cashier_disabled" })
+      .eq("id", row.id);
+    setBusyKey(null);
 
     if (error) {
       console.error(error);
       showToast("error", error.message);
-      load();
-    } else {
-      showToast("success", "Cashier order saved.");
+      return;
     }
+
+    showToast("success", "Cashier disabled.");
+    loadAll();
   }
 
-  /* --------------------------------- UI --------------------------------- */
+  /* ----------------------------- Render ----------------------------- */
+
+  if (loading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-[#FFF5F7]">
+        <div className="w-10 h-10 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -499,11 +577,11 @@ export default function Page() {
         <div>
           <h1 className="font-bold text-xl text-slate-900">Stores & Cashiers</h1>
           <p className="text-sm text-slate-500">
-            Manage stores and cashier accounts (drag to sort, edit, delete).
+            Super Admin can filter cashiers by store. Admins are locked to their assigned store.
           </p>
         </div>
         <button
-          onClick={load}
+          onClick={loadAll}
           className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 active:scale-95"
           type="button"
         >
@@ -520,12 +598,17 @@ export default function Page() {
           <span className="text-xs text-slate-500">Drag handle to reorder</span>
         </div>
 
-        {/* add store */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
           <input
             value={newStoreName}
             onChange={(e) => setNewStoreName(e.target.value)}
             placeholder="Store name"
+            className="px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-rose-300"
+          />
+          <input
+            value={newStoreTz}
+            onChange={(e) => setNewStoreTz(e.target.value)}
+            placeholder="Timezone (e.g., Asia/Manila)"
             className="px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-rose-300"
           />
           <button
@@ -538,15 +621,10 @@ export default function Page() {
           </button>
         </div>
 
-        {/* store list */}
         {stores.length === 0 ? (
           <div className="text-sm text-slate-500">No stores found.</div>
         ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={onStoreDragEnd}
-          >
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onStoreDragEnd}>
             <SortableContext items={storeIds} strategy={verticalListSortingStrategy}>
               <div className="space-y-2">
                 {stores.map((s) => {
@@ -560,7 +638,7 @@ export default function Page() {
                         <div className="min-w-0">
                           <div className="font-semibold text-slate-900 truncate">{s.name}</div>
                           <div className="text-xs text-slate-500">
-                            sort_order:{" "}
+                            {s.timezone || "—"} • sort_order:{" "}
                             <span className="font-mono">{s.sort_order ?? 0}</span>
                           </div>
                         </div>
@@ -618,12 +696,32 @@ export default function Page() {
 
       {/* ----------------------------- CASHIERS ----------------------------- */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <h2 className="font-bold text-slate-900">Cashiers</h2>
-          <span className="text-xs text-slate-500">Drag handle to reorder</span>
+
+          {/* ✅ SUPER ADMIN FILTER TOGGLE */}
+          {String(userRole || "").toLowerCase() === "super_admin" && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                Filter:
+              </span>
+              <select
+                value={storeFilter}
+                onChange={(e) => setStoreFilter(e.target.value)}
+                className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm"
+              >
+                <option value="ALL">All Stores</option>
+                {stores.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
-        {/* add cashier */}
+        {/* Add cashier */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
           <select
             value={newCashierStore}
@@ -648,7 +746,7 @@ export default function Page() {
           <input
             value={newCashierEmail}
             onChange={(e) => setNewCashierEmail(e.target.value)}
-            placeholder="Cashier email (e.g. name@email.com"
+            placeholder="Cashier email (e.g. name@email.com)"
             className="px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-rose-300"
           />
 
@@ -666,78 +764,67 @@ export default function Page() {
         {cashiers.length === 0 ? (
           <div className="text-sm text-slate-500">No cashiers found.</div>
         ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={onCashierDragEnd}
-          >
-            <SortableContext items={cashierIds} strategy={verticalListSortingStrategy}>
-              <div className="space-y-2">
-                {cashiers.map((c) => {
-                  const disabled = busyKey === `CASHIER_${c.id}`;
-                  return (
-                    <SortableRow
-                      key={c.id}
-                      id={c.id}
-                      disabled={!c.is_active}
-                      left={
-                        <div className="min-w-0">
-                          <div className="font-semibold text-slate-900 truncate">{c.name}</div>
-                          <div className="text-xs text-slate-500">
-                            Store: <span className="font-semibold">{c.stores?.name || "—"}</span>
-                            {" • "}
-                            sort_order: <span className="font-mono">{c.sort_order ?? 0}</span>
-                          </div>
-                        </div>
-                      }
-                      right={
-                        <>
-                          <button
-                            type="button"
-                            disabled={disabled}
-                            onClick={() => toggleCashierActive(c)}
-                            className={[
-                              "px-3 py-2 rounded-lg text-xs font-bold border active:scale-95 transition",
-                              c.is_active
-                                ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
-                                : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100",
-                              disabled ? "opacity-50 cursor-not-allowed" : "",
-                            ].join(" ")}
-                          >
-                            {c.is_active ? "ACTIVE" : "INACTIVE"}
-                          </button>
+          <div className="space-y-2">
+            {cashiers.map((c) => {
+              const disabled = busyKey === `CASHIER_${c.id}`;
+              const storeName = storeNameById[c.store_id] || "—";
 
-                          <button
-                            type="button"
-                            disabled={disabled}
-                            onClick={() => openEditCashier(c)}
-                            className={[
-                              "px-3 py-2 rounded-lg text-xs font-bold border border-slate-200 text-slate-700 hover:bg-slate-50 active:scale-95",
-                              disabled ? "opacity-50 cursor-not-allowed" : "",
-                            ].join(" ")}
-                          >
-                            Edit
-                          </button>
+              return (
+                <div
+                  key={c.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3"
+                >
+                  <div className="min-w-0">
+                    <div className="font-semibold text-slate-900 truncate">{c.full_name}</div>
+                    <div className="text-xs text-slate-500 truncate">
+                      Store: <span className="font-semibold">{storeName}</span>
+                      {" • "}
+                      Must change password:{" "}
+                      <span className="font-mono">{c.must_change_password ? "true" : "false"}</span>
+                    </div>
+                  </div>
 
-                          <button
-                            type="button"
-                            disabled={disabled}
-                            onClick={() => deleteCashier(c)}
-                            className={[
-                              "px-3 py-2 rounded-lg text-xs font-bold border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 active:scale-95",
-                              disabled ? "opacity-50 cursor-not-allowed" : "",
-                            ].join(" ")}
-                          >
-                            Delete
-                          </button>
-                        </>
-                      }
-                    />
-                  );
-                })}
-              </div>
-            </SortableContext>
-          </DndContext>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => forcePasswordChange(c)}
+                      className={[
+                        "px-3 py-2 rounded-lg text-xs font-bold border border-slate-200 text-slate-700 hover:bg-slate-50 active:scale-95",
+                        disabled ? "opacity-50 cursor-not-allowed" : "",
+                      ].join(" ")}
+                    >
+                      Force PW Change
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => openEditCashier(c)}
+                      className={[
+                        "px-3 py-2 rounded-lg text-xs font-bold border border-slate-200 text-slate-700 hover:bg-slate-50 active:scale-95",
+                        disabled ? "opacity-50 cursor-not-allowed" : "",
+                      ].join(" ")}
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => disableCashier(c)}
+                      className={[
+                        "px-3 py-2 rounded-lg text-xs font-bold border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 active:scale-95",
+                        disabled ? "opacity-50 cursor-not-allowed" : "",
+                      ].join(" ")}
+                    >
+                      Disable
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 
@@ -806,7 +893,7 @@ export default function Page() {
       <Modal
         open={cashierEditOpen}
         title="Edit Cashier"
-        subtitle={cashierEditRow?.name ? `Editing: ${cashierEditRow.name}` : ""}
+        subtitle={cashierEditRow?.full_name ? `Editing: ${cashierEditRow.full_name}` : ""}
         onClose={() => {
           setCashierEditOpen(false);
           setCashierEditRow(null);
@@ -838,22 +925,13 @@ export default function Page() {
             className="w-full px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-rose-300"
           />
 
-          <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-            PIN (optional)
-          </label>
-          <input
-            value={cashierEditPin}
-            onChange={(e) => setCashierEditPin(e.target.value)}
-            className="w-full px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-rose-300"
-          />
-
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <input
               type="checkbox"
-              checked={cashierEditActive}
-              onChange={(e) => setCashierEditActive(e.target.checked)}
+              checked={cashierEditMustChange}
+              onChange={(e) => setCashierEditMustChange(e.target.checked)}
             />
-            Active
+            Must change password on next login
           </label>
 
           <div className="flex gap-2 justify-end pt-2">

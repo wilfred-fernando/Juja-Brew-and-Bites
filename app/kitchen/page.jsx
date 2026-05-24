@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase/client";
+
+const supabase = getSupabaseClient();
 
 export default function KitchenDisplay() {
   const [orders, setOrders] = useState([]);

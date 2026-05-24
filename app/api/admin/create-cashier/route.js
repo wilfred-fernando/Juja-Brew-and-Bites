@@ -2,50 +2,66 @@ import { createClient } from "@supabase/supabase-js";
 
 export async function POST(req) {
   try {
-    const body = await req.json();
+    const { email, full_name, store_id } = await req.json();
 
-    const { email, full_name, store_id } = body;
-
-    if (!email || !store_id) {
-      return Response.json(
-        { error: "email and store_id required" },
-        { status: 400 }
-      );
-    }
+    console.log("Creating cashier:", email);
 
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
-    const { data, error } =
+    // ✅ Create user
+    const { data, error: createErr } =
       await supabaseAdmin.auth.admin.createUser({
         email,
         password: "Juja@123456",
         email_confirm: true,
       });
 
-    if (error) {
-      return Response.json({ error: error.message }, { status: 400 });
+    if (createErr) {
+      console.error("CREATE ERROR:", createErr);
+      return Response.json({ error: createErr.message }, { status: 500 });
     }
 
+    // ✅ ALSO INSERT INTO CASHIERS TABLE
+    const { error: cashierErr } = await supabaseAdmin
+      .from("profiles")
+      .insert({
+        id: userId, // important: match auth id
+        full_name: full_name,
+        role: "cashier",
+        store_id: store_id,
+        is_active: true,
+        sort_order: 0,
+      });
+
+if (cashierErr) {
+  console.error("CASHIER INSERT ERROR:", cashierErr);
+}
     const userId = data.user.id;
 
-    await supabaseAdmin
+    // ✅ UPSERT profile (safer)
+    const { error: profileErr } = await supabaseAdmin
       .from("profiles")
-      .update({
+      .upsert({
+        id: userId,
         full_name,
         role: "cashier",
         store_id,
         must_change_password: true,
-      })
-      .eq("id", userId);
+      });
+
+    if (profileErr) {
+      console.error("PROFILE ERROR:", profileErr);
+      return Response.json({ error: profileErr.message }, { status: 500 });
+    }
+
+    console.log("✅ Cashier created:", userId);
 
     return Response.json({ success: true });
   } catch (err) {
-    return Response.json(
-      { error: err.message },
-      { status: 500 }
-    );
+    console.error("API CRASH:", err);
+    return Response.json({ error: err.message }, { status: 500 });
   }
 }

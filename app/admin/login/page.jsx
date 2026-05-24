@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase/client";
+
+const supabase = getSupabaseClient();
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
@@ -16,7 +18,7 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      // 1. LOGIN USER
+      // ✅ LOGIN
       const { data, error: authError } =
         await supabase.auth.signInWithPassword({
           email,
@@ -27,9 +29,7 @@ export default function AdminLoginPage() {
 
       const user = data.user;
 
-      // 2. GET ROLE FROM PROFILES (Safe Version)
-      // .maybeSingle() prevents the "Cannot coerce/force JSON" error 
-      // by returning null instead of crashing if no row is found.
+      // ✅ GET PROFILE
       const { data: profile, error: profileError } =
         await supabase
           .from("profiles")
@@ -39,32 +39,29 @@ export default function AdminLoginPage() {
 
       if (profileError) throw profileError;
 
-      // Default to "customer" if no profile record exists yet
       const role = profile?.role || "customer";
 
-      // 3. SMART REDIRECT
-const currentHost = window.location.hostname; // e.g., "pos.jujabrewandbites.com"
+      // ✅ DEBUG SESSION
+      const { data: sessionData } = await supabase.auth.getSession();
+      console.log("ADMIN SESSION:", sessionData);
 
-if (role === "admin" || role === "super_admin") {
-  // If they are already on a specific subdomain (like pos), don't move them!
-  if (currentHost.startsWith("pos.")) {
-    window.location.href = "https://pos.jujabrewandbites.com";
-  } else {
-    window.location.href = "https://admin.jujabrewandbites.com";
-  }
-  return;
-}
+      // ✅ ADMIN REDIRECT (FIXED)
+      if (role === "admin" || role === "super_admin") {
+        window.location.href = "/admin/pos-admin/settings/stores";
+        return;
+      }
 
-      // 4. DEFAULT (CUSTOMER)
+      // ✅ DEFAULT
       window.location.href = "https://jujabrewandbites.com";
 
     } catch (err) {
       console.error("Login Error:", err);
-      // Friendly error mapping
-      const message = err.message === "Invalid login credentials" 
-        ? "Incorrect email or password." 
-        : err.message;
-      
+
+      const message =
+        err.message === "Invalid login credentials"
+          ? "Incorrect email or password."
+          : err.message;
+
       setError(message);
       setLoading(false);
     }
@@ -108,11 +105,12 @@ if (role === "admin" || role === "super_admin") {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-4 bg-[#FC687D] text-white rounded-full font-bold shadow-lg shadow-rose-100 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
+            className="w-full py-4 bg-[#FC687D] text-white rounded-full font-bold shadow-lg shadow-rose-100 active:scale-95 transition-all disabled:opacity-50"
           >
             {loading ? "Verifying..." : "Enter Portal →"}
           </button>
         </form>
+
       </div>
     </div>
   );

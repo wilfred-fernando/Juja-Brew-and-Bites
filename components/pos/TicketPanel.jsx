@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 export default function TicketPanel({
   cart = [],
@@ -28,40 +28,58 @@ export default function TicketPanel({
   onToggleSplit,
   onMoveToNewTicket,
   onMoveToSaved,
-  onOpenSavedTicketsModal, // New prop hook linked here
+  onOpenSavedTicketsModal,
   onCartItemClick,
   onCloseMobile,
 }) {
   const [showManageDropdown, setShowManageDropdown] = useState(false);
 
-  
-    const suggestions =
-    customerSearch.length > 1
-        ? customers.filter(
-            (c) =>
-            c.name?.toLowerCase().includes(customerSearch.toLowerCase()) ||
-            c.code?.toLowerCase().includes(customerSearch.toLowerCase())
-        ).slice(0, 6)
-        : []
+  /* ✅ FIX: find selected dining option (ID → name mapping) */
+  const selectedDining = useMemo(() => {
+    return diningOptions.find((d) => d.id === diningOption);
+  }, [diningOptions, diningOption]);
 
+  /* ✅ customer suggestions */
+  const suggestions =
+    customerSearch.length > 1
+      ? customers
+          .filter(
+            (c) =>
+              c.name?.toLowerCase().includes(customerSearch.toLowerCase()) ||
+              c.code?.toLowerCase().includes(customerSearch.toLowerCase())
+          )
+          .slice(0, 6)
+      : [];
 
   return (
-    <div className="flex flex-col h-full text-slate-800 font-sans select-none bg-white p-4 rounded-2xl border border-slate-100 shadow-sm max-h-[85vh]">
-      
-      {/* Minimalist Header Details Block */}
+    <div className="flex flex-col h-full text-slate-800 font-sans select-none bg-white p-4 rounded-xl border border-slate-100 shadow-sm max-h-[85vh]">
+
+      {/* Header */}
       <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
         <div className="text-left">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Active Station</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            Active Station
+          </span>
+
+          {/* ✅ FIX: show name instead of ID */}
           <h2 className="text-xl font-bold tracking-tight text-slate-800 mt-0.5">
-            {diningOption || "Select Table"}
+            {selectedDining?.name || "Select Table"}
           </h2>
-          <p className={`text-xs font-semibold mt-0.5 ${attachedCustomer ? "text-rose-500" : "text-slate-400"}`}>
-            {attachedCustomer ? `👤 ${attachedCustomer.name || attachedCustomer.customer_name}` : "Walk-in Guest"}
+
+          <p
+            className={`text-xs font-semibold mt-0.5 ${
+              attachedCustomer ? "text-rose-500" : "text-slate-400"
+            }`}
+          >
+            {attachedCustomer
+              ? `👤 ${attachedCustomer.name || attachedCustomer.customer_name}`
+              : "Walk-in Guest"}
           </p>
         </div>
+
         {onCloseMobile && (
-          <button 
-            onClick={onCloseMobile} 
+          <button
+            onClick={onCloseMobile}
             className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition"
           >
             ✕
@@ -69,80 +87,89 @@ export default function TicketPanel({
         )}
       </div>
 
-      {/* Minimalist Search Area Context */}
+      {/* Customer Search */}
       <div className="relative flex gap-2 mb-3">
         <input
-            value={customerSearch}
-            onChange={(e) => setCustomerSearch(e.target.value)}
-            onKeyDown={onSearchKeyDown}
-            placeholder="Search customer or scan..."
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs"
+          value={customerSearch}
+          onChange={(e) => setCustomerSearch(e.target.value)}
+          onKeyDown={onSearchKeyDown}
+          placeholder="Search customer or scan..."
+          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs"
         />
 
         <button
-            onClick={onOpenScanner}
-            className="w-10 bg-slate-50 rounded-xl"
+          onClick={onOpenScanner}
+          className="w-10 bg-slate-50 rounded-xl"
         >
-            📷
+          📷
         </button>
 
-        {/* ✅ Suggestions dropdown */}
         {suggestions.length > 0 && (
-            <div className="absolute left-0 right-12 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden">
+          <div className="absolute left-0 right-12 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden">
             {suggestions.map((c) => (
-                <button
+              <button
                 key={c.id}
                 className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50"
                 onClick={() => {
-                    handleCodeInput(c.name);   // ✅ attach customer
-                    setCustomerSearch("");
+                  handleCodeInput(c.name);
+                  setCustomerSearch("");
                 }}
-                >
-                {c.name}{" "}
-                <span className="text-slate-400">({c.code})</span>
-                </button>
+              >
+                {c.name} <span className="text-slate-400">({c.code})</span>
+              </button>
             ))}
-            </div>
+          </div>
         )}
-        </div>
+      </div>
 
-        {/* Header with Dining Option Dropdown */}
+            {/* ✅ Repaired Dining Options Dropdown Component */}
             <div className="flex-none pb-3 mb-3 border-b border-slate-100">
-                <div className="relative">
-                <div>
-                 {/* The Missing Dropdown Menu */}
-                    <select 
-                    value={diningOption} 
-                    onChange={(e) => setDiningOption(e.target.value)}
-                    className="w-full py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 tracking-wide"
-                    >
-                    <option value="" disabled>Select Dining Option</option>                    
-                    {diningOptions.map(opt => (
-                        <option key={opt.id} value={opt.name}>{opt.name}</option>
-                    ))}
-                    </select>
-                </div>
-                {onCloseMobile && (
-                    <button onClick={onCloseMobile} className="text-slate-400 hover:text-slate-600">✕</button>
+            <label className="block text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-1.5">
+                Serving Destination
+            </label>
+            <select
+                value={diningOption || ""}
+                onChange={(e) => {
+                const selectedValue = e.target.value;
+                setDiningOption(selectedValue);
+                }}
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 tracking-wide outline-none focus:border-rose-200 transition"
+            >
+                <option value="" disabled>
+                Select Dining Option
+                </option>
+
+                {/* ✅ Direct mapping against pre-filtered database arrays to circumvent schema field mismatches */}
+                {Array.isArray(diningOptions) && diningOptions.length > 0 ? (
+                diningOptions.map((opt) => (
+                    <option key={String(opt.id)} value={String(opt.id)}>
+                    {opt.name}
+                    </option>
+                ))
+                ) : (
+                <option disabled value="">
+                    ⚠️ No options loaded (Check Admin Settings)
+                </option>
                 )}
-                </div>
-                
+            </select>
             </div>
 
-      {/* Geometric Dropdown & Action Hub Controllers */}
+      {/* Controls */}
       <div className="grid grid-cols-2 gap-2 mb-3 relative z-30">
         <button
-          onClick={() => (appliedVoucher ? onRemoveVoucher() : onOpenVouchers())}
-          className={`py-2 rounded-xl border text-xs font-semibold tracking-wide transition flex items-center justify-center gap-1.5 active:scale-95 ${
-            appliedVoucher 
-              ? "border-rose-200 bg-rose-50 text-rose-600" 
+          onClick={() =>
+            appliedVoucher ? onRemoveVoucher() : onOpenVouchers()
+          }
+          className={`py-2 rounded-xl border text-xs font-semibold flex items-center justify-center ${
+            appliedVoucher
+              ? "border-rose-200 bg-rose-50 text-rose-600"
               : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
           }`}
         >
           🎟️ {appliedVoucher ? "Remove Voucher" : "Apply Voucher"}
         </button>
 
-        <div className="relative">
+         <div className="relative">
           <button
             onClick={() => setShowManageDropdown((p) => !p)}
             className="w-full py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 tracking-wide transition flex items-center justify-center gap-1.5 active:scale-95"
@@ -200,6 +227,7 @@ export default function TicketPanel({
           Tap elements below to link split targets ({splitSelected.length} active)
         </div>
       )}
+
 
       {/* Lightweight Transparent Feed Cart */}
       <div className="flex-1 overflow-y-auto space-y-2 pr-1 border-b border-slate-100 pb-3">

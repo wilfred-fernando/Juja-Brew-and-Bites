@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { getSupabaseClient } from "@/lib/supabase/client"; // same style as your existing login [1](https://onedrive.live.com/?id=219bb63d-8ce2-4de9-9056-8e2421f08ae5&cid=933e55cc8541ec41&web=1)
+import { getSupabaseClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const supabase = getSupabaseClient();
@@ -18,7 +18,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // ✅ sign in with email + password [2](https://supabase.com/docs/reference/javascript/auth-signinwithpassword)
+      // ✅ 1. Login
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -29,45 +29,46 @@ export default function LoginPage() {
       const userId = data.user?.id;
       if (!userId) throw new Error("Login succeeded but user is missing.");
 
-      // ✅ load profile (role + store assignment)
+      // ✅ 2. Load profile INCLUDING must_change_password
       const { data: profile, error: pErr } = await supabase
         .from("profiles")
-        .select("id, role, store_id, full_name")
+        .select("id, role, store_id, full_name, must_change_password")
         .eq("id", userId)
-        .single();
+        .maybeSingle();
 
       if (pErr) throw pErr;
 
-      
-      // ✅ Force chanege password on first login
-      if (profile.must_change_password) {
+      console.log("PROFILE:", profile);
+
+      // ✅ ✅ ✅ 3. FORCE CHANGE PASSWORD (FIXED)
+      if (profile?.must_change_password === true) {
         window.location.href = "/pos/change-password";
         return;
       }
 
-
-      // ✅ enforce cashier access (adjust if you want admins to open POS too)
+      // ✅ 4. Role check
       const role = String(profile?.role || "").toLowerCase();
       if (role !== "cashier" && role !== "admin") {
         await supabase.auth.signOut();
         throw new Error("This account is not allowed to use the POS.");
       }
 
-      // ✅ store_id required for POS settings (payment types, printers, etc.)
+      // ✅ 5. Store required
       if (!profile?.store_id) {
         await supabase.auth.signOut();
-        throw new Error("No store assigned to this account. Ask admin to assign a store.");
+        throw new Error("No store assigned. Ask admin.");
       }
 
-      // ✅ set pos_store_id so your existing POS code can use it
+      // ✅ 6. Save POS settings
       localStorage.setItem("pos_store_id", profile.store_id);
 
-      // optional: store cashier name
-      if (profile?.full_name) localStorage.setItem("cashier_name", profile.full_name);
+      if (profile?.full_name) {
+        localStorage.setItem("cashier_name", profile.full_name);
+      }
 
-      
-      // ✅ go to POS terminal
+      // ✅ 7. Go to POS
       window.location.href = "/pos";
+
     } catch (err) {
       setErrorMsg(err?.message || "Login failed.");
     } finally {
@@ -86,11 +87,11 @@ export default function LoginPage() {
           <p className="text-sm text-slate-500">Sign in with email and password.</p>
         </div>
 
-        {errorMsg ? (
+        {errorMsg && (
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
             {errorMsg}
           </div>
-        ) : null}
+        )}
 
         <div className="space-y-2">
           <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
