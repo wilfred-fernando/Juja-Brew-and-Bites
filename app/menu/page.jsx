@@ -1,22 +1,135 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
+// One clean declaration using your client factory function
 const supabase = getSupabaseClient();
 
-/**
- * Public Menu Page
- * ✅ Category dropdown (filter mode)
- * ✅ Search searches ALL items (ignores category while typing)
- * ✅ Shows item description
- * ✅ Promo popup BEFORE menu loads (once per day)
- * ✅ Best Seller badge (uses is_featured)
- * ✅ Most Ordered badge (only if an order metric field exists; marks top items)
- * ✅ Variant selection modal (2-column options)
- * ❌ No quantity / notes / reset
- */
+const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
 
+// ─── Shared Nav (Integrated Perfectly) ───────────────────────────────────────
+function Nav({ active }) {
+  const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [loginUrl, setLoginUrl] = useState("https://customer.jujabrewandbites.com/login");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+      setLoginUrl(isLocal ? "http://customer.localhost:3000/login" : "https://customer.jujabrewandbites.com/login");
+    }
+    
+    const fn = () => setScrolled(window.scrollY > 40);
+    window.addEventListener("scroll", fn);
+    return () => window.removeEventListener("scroll", fn);
+  }, []);
+
+  const links = [
+    ["home", "Home", "/"],
+    ["menu", "Menu", "/menu"],
+    ["promo", "Promos", "/promos"],
+    ["function room", "Function Room", "/function-room"],
+    ["about", "About Us", "/about"]
+  ];
+
+  return (
+    <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${
+      scrolled ? "bg-white/95 backdrop-blur-2xl shadow-[0_1px_30px_rgba(0,0,0,0.05)]" : "bg-transparent"
+    }`}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between h-20">
+        <Link href="/" className="flex-shrink-0">
+          <img src={LOGO} alt="Juja" className="h-12 sm:h-14 md:h-16 w-auto object-contain transition-all duration-300 hover:scale-105 drop-shadow-sm" />
+        </Link>
+
+        {/* Desktop Links */}
+        <div className="hidden md:flex items-center gap-8">
+          {links.map(([id, label, href]) => (
+            <Link key={id} href={href}
+              className={`relative text-[11px] lg:text-[12px] font-semibold uppercase tracking-[0.18em] transition-all duration-300 group pb-1 ${
+                active === id ? "text-[#FC687D]" : "text-slate-600 hover:text-slate-900"
+              }`}>
+              {label}
+              <span className={`absolute bottom-0 left-0 h-[2px] rounded-full bg-gradient-to-r from-[#FC687D] to-rose-400 transition-all duration-350 ${
+                active === id ? "w-full" : "w-0 group-hover:w-full"
+              }`} />
+            </Link>
+          ))}
+        </div>
+
+        {/* Desktop CTA */}
+        <div className="hidden md:flex items-center gap-3">
+          <Link 
+            href={loginUrl}
+            className="text-[11px] font-semibold uppercase tracking-widest px-5 py-2.5 rounded-full border border-slate-200 text-slate-500 hover:border-[#FC687D] hover:text-[#FC687D] hover:bg-rose-50 transition-all duration-300"
+          >
+            Login
+          </Link>          
+        </div>
+
+        {/* Mobile Toggle */}
+        <button className="md:hidden p-2 text-slate-800" onClick={() => setOpen(!open)} aria-label="Toggle Menu">
+          <div className="w-5 space-y-[5px]">
+            <span className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${open ? "rotate-45 translate-y-[7px]" : ""}`} />
+            <span className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${open ? "opacity-0" : ""}`} />
+            <span className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${open ? "-rotate-45 -translate-y-[7px]" : ""}`} />
+          </div>
+        </button>
+      </div>
+
+      {/* Mobile Menu Dropdown */}
+      {open && (
+        <div className="md:hidden bg-white/98 backdrop-blur-xl border-t border-slate-100 shadow-2xl px-6 py-6 flex flex-col gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
+          {links.map(([, l, h]) => (
+            <Link key={l} href={h} onClick={() => setOpen(false)}
+              className="text-slate-800 font-medium uppercase tracking-widest text-xs hover:text-[#FC687D] transition py-2 border-b border-slate-50">{l}</Link>
+          ))}
+          <Link href={loginUrl} onClick={() => setOpen(false)}
+              className="text-slate-800 font-medium uppercase tracking-widest text-xs hover:text-[#FC687D] transition py-2 border-b border-slate-50">Login</Link>          
+        </div>
+      )}
+    </nav>
+  );
+}
+
+// ─── Shared Footer ────────────────────────────────────────────────────────────
+function Footer() {
+  return (
+    <footer className="bg-slate-900 text-slate-400 pt-20 pb-10 px-6">
+      <div className="max-w-6xl mx-auto grid sm:grid-cols-2 md:grid-cols-3 gap-10 md:gap-14 mb-14">
+        <div className="sm:col-span-2 md:col-span-1">
+          <img src={LOGO} alt="Juja" className="h-14 w-auto object-contain mb-5 brightness-0 invert opacity-60" />
+          <p className="text-slate-400 text-sm leading-relaxed max-w-sm">Your premier destination for specialty brews and artisan bites in the heart of Quezon City.</p>
+        </div>
+        <div>
+          <p className="text-white/60 font-semibold mb-5 uppercase text-[10px] tracking-[0.3em]">Explore</p>
+          <div className="space-y-3">
+            {[["Home","/"],["Menu","/menu"],["Promos","/promos"],["About Us","/about"],["Order Online","/order"]].map(([l,h]) => (
+              <Link key={l} href={h}
+                className="block text-slate-400 hover:text-[#FC687D] transition-colors duration-200 text-sm tracking-wide">{l}</Link>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="text-white/60 font-semibold mb-5 uppercase text-[10px] tracking-[0.3em]">Find Us</p>
+          <div className="space-y-3.5 text-sm text-slate-400">
+            <p className="flex gap-3 items-start"><span className="text-[#FC687D] mt-0.5 flex-shrink-0">📍</span>36D Visayas Ave., Pasong Tamo, Quezon City</p>
+            <p className="flex gap-3"><span className="text-[#FC687D] flex-shrink-0">📞</span>0939-9228383</p>
+            <p className="flex gap-3"><span className="text-[#FC687D] flex-shrink-0">🕙</span>Store: 10AM – 12MN daily</p>
+            <p className="flex gap-3"><span className="text-[#FC687D] flex-shrink-0">🏠</span>Function Room: 10AM – 2AM</p>
+          </div>
+        </div>
+      </div>
+      <div className="max-w-6xl mx-auto pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
+        <p className="text-slate-500 text-[11px] tracking-[0.2em] uppercase">© {new Date().getFullYear()} Juja Brew & Bites® · All rights reserved</p>
+        <p className="text-slate-500 text-[11px] tracking-wider uppercase">Quezon City · Philippines</p>
+      </div>
+    </footer>
+  );
+}
+
+// ─── Public Menu Page ─────────────────────────────────────────────────────────
 export default function PublicMenuPage() {
   const [items, setItems] = useState([]);
   const [cats, setCats] = useState([]);
@@ -46,7 +159,6 @@ export default function PublicMenuPage() {
     (async () => {
       setPromoLoading(true);
 
-      // promo_codes table used in your admin promos page: code/discount/type/min_order/active [1](https://onedrive.live.com/?id=d547be6a-0d1c-4337-b252-2217378a6677&cid=933e55cc8541ec41&web=1)
       const { data, error } = await supabase
         .from("promo_codes")
         .select("*")
@@ -86,25 +198,24 @@ export default function PublicMenuPage() {
           .from("menu_items")
           .select("*")
           .eq("is_available", true)
-          .or("pos_only.is.null,pos_only.eq.false")  // ✅ null-safe
+          .or("pos_only.is.null,pos_only.eq.false")
           .order("name"),
 
         supabase
           .from("menu_categories")
           .select("*")
           .eq("is_active", true)
-          .or("pos_only.is.null,pos_only.eq.false")  // ✅ null-safe
+          .or("pos_only.is.null,pos_only.eq.false")
           .order("name", { ascending: true }),
       ]);
 
       const itemsData = itemRes?.data || [];
       const catsData  = catRes?.data || [];
 
-      // ✅ Only allow items from visible categories
+      // Only allow items from visible categories
       const allowedCatNames = new Set(catsData.map(c => c.name));
       const safeItems = itemsData.filter(i => allowedCatNames.has(i.category));
 
-      // ✅ Apply filtered results
       setCats(catsData);
       setItems(safeItems);
 
@@ -160,9 +271,7 @@ export default function PublicMenuPage() {
     return new Set(scored.map((x) => x.id));
   }, [items, metricKey]);
 
-  // ─────────────────────────────────────────────
-  // Promo Modal
-  // ─────────────────────────────────────────────
+  // ─── Promo Modal ────────────────────────────────────────────────────────────
   const PromoModal = () => {
     if (!promoOpen) return null;
 
@@ -223,11 +332,9 @@ export default function PublicMenuPage() {
     );
   };
 
-  // ─────────────────────────────────────────────
-  // UI
-  // ─────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#FFF5F7] pb-16">
+    <div className="min-h-screen bg-[#FFF5F7] pb-16 pt-24 md:pt-28">
+      <Nav active="menu" />
       <PromoModal />
 
       {selectedItem && (
@@ -241,7 +348,7 @@ export default function PublicMenuPage() {
           <p className="text-sm text-slate-400 mt-1">Browse all available items</p>
         </div>
 
-        {/* CATEGORY DROPDOWN (disabled while searching across ALL) */}
+        {/* CATEGORY DROPDOWN */}
         <div className="mb-4">
           <select
             value={selectedCategory}
@@ -291,7 +398,7 @@ export default function PublicMenuPage() {
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
                 {visibleItems.map((item) => {
-                  const bestSeller = !!item.is_featured; // Best Seller from is_featured
+                  const bestSeller = !!item.is_featured;
                   const mostOrdered = mostOrderedIdSet.has(item.id);
 
                   return (
@@ -315,17 +422,17 @@ export default function PublicMenuPage() {
                       </div>
 
                       {/* Image */}                      
-                        <div className="w-full aspect-square rounded-lg bg-[#FFF9FA] border border-rose-50 flex items-center justify-center overflow-hidden mb-2 sm:mb-3">
-                          {item.image_url ? (
-                            <img
-                              src={item.image_url}
-                              alt={item.name}
-                              className="w-full h-full object-cover object-center"
-                            />
-                          ) : (
-                            <span className="text-xl sm:text-2xl text-rose-200">📷</span>
-                          )}
-                        </div>
+                      <div className="w-full aspect-square rounded-lg bg-[#FFF9FA] border border-rose-50 flex items-center justify-center overflow-hidden mb-2 sm:mb-3">
+                        {item.image_url ? (
+                          <img
+                            src={item.image_url}
+                            alt={item.name}
+                            className="w-full h-full object-cover object-center"
+                          />
+                        ) : (
+                          <span className="text-xl sm:text-2xl text-rose-200">📷</span>
+                        )}
+                      </div>
 
                       {/* Name */}
                       <p className="text-sm font-bold text-slate-800 leading-tight line-clamp-2">
@@ -355,14 +462,13 @@ export default function PublicMenuPage() {
           </>
         )}
       </div>
+      <Footer />
     </div>
   );
 }
 
 /* ──────────────────────────────────────────────────────────────
    Variant Modal
-   ✅ 2-column options layout
-   ❌ No qty / notes / reset
 ────────────────────────────────────────────────────────────── */
 function VariantModal({ item, onClose }) {
   const [selections, setSelections] = useState({});
@@ -370,7 +476,6 @@ function VariantModal({ item, onClose }) {
   const variants = Array.isArray(item?.variants) ? item.variants : [];
 
   useEffect(() => {
-    // default required groups to first option (smooth UX)
     const defaults = {};
     variants.forEach((g) => {
       if (g?.isRequired && Array.isArray(g.options) && g.options.length > 0) {
@@ -378,7 +483,6 @@ function VariantModal({ item, onClose }) {
       }
     });
     setSelections(defaults);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.id]);
 
   const toggleOption = (group, opt) => {
@@ -430,7 +534,7 @@ function VariantModal({ item, onClose }) {
 
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500"
+            className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400"
             aria-label="Close"
           >
             ✕
@@ -451,7 +555,6 @@ function VariantModal({ item, onClose }) {
                   </p>
                 </div>
 
-                {/* ✅ 2-column grid */}
                 <div className="grid grid-cols-2 gap-2">
                   {(g.options || []).map((o) => {
                     const sel = (selections[g.id] || []).find((x) => x.id === o.id);

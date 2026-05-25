@@ -261,6 +261,154 @@ function reasonToLabel(reason) {
   if (reason === "closed-hours") return "Closed";
   return "Closed";
 }
+// ✅ NEW: Availability-only widget (safe to reuse on public pages)
+// - Shows slot grid
+// - Calls onSelectSlot({ dateISO, hour }) when a slot is picked
+export function BookingAvailabilityOnly({
+  initialDateISO,
+  extensionEnabled = false,
+  extensionHours = 0,
+  onSelectSlot,
+}) {
+  const supabase = getSupabaseClient?.() || null; 
+  // If your BookingForm.jsx uses `const supabase = ...` at top-level,
+  // remove this line and just use the existing `supabase`.
+
+  const [dateISO, setDateISO] = useState(
+    initialDateISO || toISODate(new Date())
+  );
+  const [bookings, setBookings] = useState([]);
+  const [loadingBookings, setLoadingBookings] = useState(false);
+  const [notice, setNotice] = useState(null);
+
+  const slotHours = useMemo(() => buildSlotHours(), []);
+
+  // Fetch bookings (overlap-safe query)
+  useEffect(() => {
+    async function fetchBookingsForDate() {
+      setLoadingBookings(true);
+      setNotice(null);
+
+      const dayStart = computeDateTime(dateISO, OPERATING_START_HOUR);
+      const dayEnd = computeDateTime(dateISO, 26); // up to 2AM next day
+
+      const queryStart = new Date(dayStart.getTime() - BUFFER_HOURS * 3600000).toISOString();
+      const queryEnd = new Date(dayEnd.getTime() + BUFFER_HOURS * 3600000).toISOString();
+
+      const { data, error } = await supabase
+        .from("function_room_bookings")
+        .select("id, start_at, end_at, status")
+        .in("status", ["pending", "confirmed"])
+        // ✅ overlap rule: booking.start < windowEnd AND booking.end > windowStart
+        .lt("start_at", queryEnd)
+        .gt("end_at", queryStart)
+        .order("start_at", { ascending: true });
+
+      if (error) {
+        setNotice(error.message);
+        setBookings([]);
+      } else {
+        setBookings(data || []);
+      }
+      setLoadingBookings(false);
+    }
+
+    if (supabase) fetchBookingsForDate();
+  }, [dateISO]);
+
+  const availability = useMemo(() => {
+    const ext = extensionEnabled ? Number(extensionHours || 0) : 0;
+    const totalMinutes = BASE_BOOKING_MINUTES + ext * 60;
+
+    const now = new Date();
+    const minAllowed = new Date(now.getTime() + MIN_ADVANCE_HOURS * 3600000);
+    const operatingEnd = computeDateTime(dateISO, 26);
+
+    return slotHours.map((h) => {
+      const slotStart = computeDateTime(dateISO, h);
+      const slotEnd = new Date(slotStart.getTime() + totalMinutes * 60000);
+
+      const verdict = classifySlot({
+        slotStart,
+        slotEnd,
+        operatingEnd,
+        minAllowed,
+        bookings,
+      });
+
+      return { hour: h, label: labelHour(h), ...verdict };
+    });
+  }, [slotHours, dateISO, bookings, extensionEnabled, extensionHours]);
+
+  return (
+    <div className="space-y-4">
+      {notice ? (
+        <div className="bg-rose-50 border border-rose-100 text-rose-600 font-medium rounded-2xl p-4 text-xs">
+          ⚠️ {stripCitationsAndLinks(notice)}
+        </div>
+      ) : null}
+
+      <div className="flex items-center justify-between gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+        <div className="space-y-1">
+          <label className="block text-[10px] uppercase tracking-widest text-slate-400">
+            Target Reservation Day
+          </label>
+          <input
+            type="date"
+            value={dateISO}
+            min={toISODate(new Date())}
+            onChange={(e) => setDateISO(e.target.value)}
+            className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-normal text-slate-700 focus:outline-none focus:border-[#FC687D]"
+          />
+        </div>
+        <div className="text-right">
+          <div className="text-[10px] font-normal uppercase text-slate-400">
+            Duration
+          </div>
+          <div className="text-[15px] font-bold uppercase tracking-widest text-slate-800">
+            3 Hours          
+          </div>
+        </div>
+      </div>
+
+      {loadingBookings ? (
+        <div className="py-10 flex justify-center">
+          <div className="w-8 h-8 border-4 border-rose-100 border-t-[#FC687D] animate-spin rounded-full" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          {availability.map((s) => {
+            const status = reasonToLabel(s.reason);
+
+            const cls =
+                  s.available ? "text-green-600" :
+                  s.reason === "booked" ? "text-red-500 font-semibold" :
+                  s.reason === "buffer" ? "text-yellow-500 font-semibold" :
+                  "text-slate-400";
+
+            return (
+              <button
+                key={s.hour}
+                disabled={!s.available}
+                onClick={() => s.available && onSelectSlot?.({ dateISO, hour: s.hour })}
+                className={`p-3 rounded-xl border text-xs font-normal transition-all text-left ${cls}`}
+                type="button"
+                title={status}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span>{s.label}</span>
+                  <span className="text-[10px] font-normal uppercase tracking-wider text-slate-400">
+                    {status}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * Slot classification for:

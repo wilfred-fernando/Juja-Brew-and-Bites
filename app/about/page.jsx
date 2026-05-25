@@ -20,6 +20,7 @@ function Nav({ active }) {
     ["home", "Home", "/"],
     ["menu", "Menu", "/menu"],
     ["promo", "Promos", "/promo"],
+    ["function room", "Function Room", "/function-room"],
     ["about", "About Us", "/about"],
   ];
 
@@ -50,11 +51,7 @@ function Nav({ active }) {
           <Link href="/login"
             className="text-[11px] font-bold uppercase tracking-widest px-5 py-2.5 rounded-full border border-slate-200 text-slate-500 hover:border-[#FC687D] hover:text-[#FC687D] hover:bg-rose-50 transition-all duration-300">
             Login
-          </Link>
-          <Link href="/order"
-            className="text-[11px] font-normal uppercase tracking-widest px-7 py-3 rounded-full bg-[#FC687D] text-white hover:bg-rose-500 hover:shadow-[0_6px_20px_rgba(252,104,125,0.4)] hover:-translate-y-0.5 transition-all duration-300 shadow-md">
-            Order Now →
-          </Link>
+          </Link>         
         </div>
 
         <button className="md:hidden p-2" onClick={() => setOpen(!open)}>
