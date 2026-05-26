@@ -232,7 +232,7 @@ function Footer() {
           <div className="space-y- text-slate-400 leading-relaxed">
             <p>📍 36D Visayas Ave., Pasong Tamo, QC</p>
             <p>📞 0939-9228383</p>
-            <p className="text-slate-500 text-[11px]">Store: 10AM–12MN · Function: 10AM–2AM</p>
+            <p className="text-slate-500 text-[11px]">Store: 10AM–12MN · Function Room: 10AM–2AM</p>
           </div>
         </div>
 

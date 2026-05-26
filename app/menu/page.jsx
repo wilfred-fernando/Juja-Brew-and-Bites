@@ -97,34 +97,50 @@ function Nav({ active }) {
 // ─── Shared Footer ────────────────────────────────────────────────────────────
 function Footer() {
   return (
-    <footer className="bg-slate-900 text-slate-400 pt-20 pb-10 px-6">
-      <div className="max-w-6xl mx-auto grid sm:grid-cols-2 md:grid-cols-3 gap-10 md:gap-14 mb-14">
-        <div className="sm:col-span-2 md:col-span-1">
-          <img src={LOGO} alt="Juja" className="h-14 w-auto object-contain mb-5 brightness-0 invert opacity-60" />
-          <p className="text-slate-400 text-sm leading-relaxed max-w-sm">Your premier destination for specialty brews and artisan bites in the heart of Quezon City.</p>
+    // Replaced large margin-top and padding-top with tight, proportional paddings suitable for a viewport container
+    <footer className="bg-slate-900 text-slate-400 py-6 md:py-8 px-6 flex-none">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10 mb-4 md:mb-6">
+        {/* Brand Block */}
+        <div className="flex flex-col justify-center">
+          <img
+            src={LOGO}
+            alt="Juja"
+            className="h-10 w-auto object-contain mb-3 brightness-0 invert opacity-60 self-start"
+          />
+          <p className="text-slate-400 text-xs leading-relaxed max-w-sm">
+            Your premier destination for specialty brews and artisan bites in Quezon City.
+          </p>
         </div>
-        <div>
-          <p className="text-white/60 font-semibold mb-5 uppercase text-[10px] tracking-[0.3em]">Explore</p>
-          <div className="space-y-3">
-            {[["Home","/"],["Menu","/menu"],["Promos","/promos"],["About Us","/about"],["Order Online","/order"]].map(([l,h]) => (
-              <Link key={l} href={h}
-                className="block text-slate-400 hover:text-[#FC687D] transition-colors duration-200 text-sm tracking-wide">{l}</Link>
-            ))}
+
+        {/* Branch 1: Pasong Tamo */}
+        <div className="text-xs">
+          <p className="text-[#FC687D] font-bold mb-2 uppercase text-[10px] tracking-[0.2em]">
+            Pasong Tamo Branch
+          </p>
+          <div className="space-y- text-slate-400 leading-relaxed">
+            <p>📍 36D Visayas Ave., Pasong Tamo, QC</p>
+            <p>📞 0939-9228383</p>
+            <p className="text-slate-500 text-[11px]">Store: 10AM–12MN · Function Room: 10AM–2AM</p>
           </div>
         </div>
-        <div>
-          <p className="text-white/60 font-semibold mb-5 uppercase text-[10px] tracking-[0.3em]">Find Us</p>
-          <div className="space-y-3.5 text-sm text-slate-400">
-            <p className="flex gap-3 items-start"><span className="text-[#FC687D] mt-0.5 flex-shrink-0">📍</span>36D Visayas Ave., Pasong Tamo, Quezon City</p>
-            <p className="flex gap-3"><span className="text-[#FC687D] flex-shrink-0">📞</span>0939-9228383</p>
-            <p className="flex gap-3"><span className="text-[#FC687D] flex-shrink-0">🕙</span>Store: 10AM – 12MN daily</p>
-            <p className="flex gap-3"><span className="text-[#FC687D] flex-shrink-0">🏠</span>Function Room: 10AM – 2AM</p>
+
+        {/* Branch 2: Diliman */}
+        <div className="text-xs">
+          <p className="text-[#FC687D] font-bold mb-2 uppercase text-[10px] tracking-[0.2em]">
+            Diliman Branch
+          </p>
+          <div className="space-y-1 text-slate-400 leading-relaxed">
+            <p>📍 8 Visayas Ave., Diliman, QC</p>
+            <p>📞 0961-6320909</p>
+            <p className="text-slate-500 text-[11px]">Mon-Wed: 8AM–10PM · Thu-Sat: 10AM–10PM</p>
           </div>
         </div>
       </div>
-      <div className="max-w-6xl mx-auto pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
-        <p className="text-slate-500 text-[11px] tracking-[0.2em] uppercase">© {new Date().getFullYear()} Juja Brew & Bites® · All rights reserved</p>
-        <p className="text-slate-500 text-[11px] tracking-wider uppercase">Quezon City · Philippines</p>
+
+      {/* Footer Bottom Metadata Bar */}
+      <div className="max-w-7xl mx-auto pt-4 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center text-slate-500 text-[10px] tracking-wider uppercase">
+        <p>© {new Date().getFullYear()} Juja Brew &amp; Bites® · All rights reserved</p>
+        <p>Quezon City · Philippines</p>
       </div>
     </footer>
   );
