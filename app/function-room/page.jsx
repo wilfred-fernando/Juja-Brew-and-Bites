@@ -361,155 +361,148 @@ export default function FunctionRoomPage() {
   }
 
   return (
-    // Locked master layout boundaries to screen viewport metrics (h-screen w-screen overflow-hidden)
-    <div className="h-screen w-screen overflow-hidden flex flex-col bg-white">
+    <div className="min-h-screen bg-white pb-16 pt-24 md:pt-28">
       <Nav active="function room" />
 
-      {/* ─── SCROLLABLE MAIN APPARATUS WORKSPACE FIELD ─── */}
-      {/* flex-1 absorbs leftover size, overflow-y-auto traps internal scrolling, pt-20 clears fixed nav */}
-      <main className="flex-1 min-h-0 overflow-y-auto pt-20 pb-6">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 space-y-6 md:space-y-8">
-          
-          {/* Header (Adjusted paddings for better vertical optimization) */}
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-slate-100">
-            <div>
-              <p className="text-xs text-rose-500 font-semibold">Private Bookings</p>
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-800 mt-1">
-                Function Room
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-                Check availability and reserve your slot.
-              </p>
-            </div>
-
-            <button
-              onClick={() => {
-                setPickedSlot(null);
-                setBookingModalOpen(true);
-              }}
-              className="px-5 py-2.5 rounded-xl bg-[#FC687D] hover:bg-rose-500 text-white text-[11px] font-bold uppercase tracking-widest shadow-md shadow-rose-100 active:scale-[0.99] transition-transform"
-              type="button"
-            >
-              Check Availability
-            </button>
-          </div>
-
-          {/* Hero Specs Card */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-4 md:p-6">
-            <h2 className="text-base sm:text-lg font-semibold text-slate-800">
-              Host your event at Juja
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">
-              Ideal for birthdays, meetings, private gatherings, and milestone celebrations.
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 space-y-10">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-slate-100">
+          <div>
+            <p className="text-xs text-rose-500 font-semibold">Private Bookings</p>
+            <h1 className="text-2xl sm:text-3xl font-semibold text-slate-800 mt-2">
+              Function Room
+            </h1>
+            <p className="text-sm text-slate-400 mt-1">
+              Check availability and reserve your slot.
             </p>
-
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
-              {keySpecs.map((s) => (
-                <div
-                  key={s.title}
-                  className="bg-slate-50 border border-slate-100 rounded-xl p-3.5"
-                >
-                  <div className="text-xl">{s.icon}</div>
-                  <div className="text-xs sm:text-sm font-bold text-slate-800 mt-1.5">
-                    {s.title}
-                  </div>
-                  <div className="text-[11px] text-slate-500 mt-0.5 leading-tight">{s.desc}</div>
-                </div>
-              ))}
-            </div>
           </div>
 
-          {/* Rates & Packages Block (Untouched internally as requested) */}
-          <div className="bg-white rounded-3xl border border-slate-100 p-6 sm:p-8">
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div>
-                <h3 className="text-lg font-semibold text-slate-800">Rates & Packages</h3>
-                <p className="text-sm text-slate-500 mt-1">Choose the package that fits your event.</p>
-              </div>
-
-              <div className="inline-flex bg-slate-50 border border-slate-200/60 p-1 rounded-full shadow-inner">
-                <button
-                  onClick={() => setSelectedPackage("consumable")}
-                  className={`px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider transition ${
-                    selectedPackage === "consumable"
-                      ? "bg-[#FC687D] text-white shadow-sm"
-                      : "text-slate-500 hover:text-slate-800"
-                  }`}
-                  type="button"
-                >
-                  Consumable
-                </button>
-                <button
-                  onClick={() => setSelectedPackage("celebration")}
-                  className={`px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider transition ${
-                    selectedPackage === "celebration"
-                      ? "bg-[#FC687D] text-white shadow-sm"
-                      : "text-slate-500 hover:text-slate-800"
-                  }`}
-                  type="button"
-                >
-                  Room Only
-                </button>
-              </div>
-            </div>
-
-            {/* 3-Column Grid View for Balanced Desktop Layout */}
-            <div className="mt-6 grid md:grid-cols-3 gap-6">
-              {packages[selectedPackage].map((pkg, index) => (
-                <div 
-                  key={index} 
-                  className="bg-slate-50 border border-slate-100 rounded-3xl p-5 sm:p-6 flex flex-col justify-between items-start min-h-[420px]"
-                >
-                  <div className="w-full">
-                    <span className="inline-block text-[10px] font-bold uppercase tracking-widest text-[#FC687D] bg-rose-50 border border-rose-100 px-3 py-1 rounded-full">
-                      {pkg.hours}
-                    </span>
-
-                    <h4 className="text-lg font-semibold text-slate-800 mt-3">
-                      {pkg.title}
-                    </h4>
-                    <p className="text-xs text-slate-500 mt-2">
-                      {pkg.subtitle}
-                    </p>
-
-                    <ul className="mt-4 space-y-2">
-                      {pkg.features.map((feat, idx) => (
-                        <li key={idx} className="flex items-start gap-2 text-xs text-slate-600">
-                          <span className="text-[#FC687D] mt-[1px]">✔</span>
-                          <span>{feat}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="w-full pt-4 mt-6 border-t border-slate-200/60">
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                      Base Rate
-                    </div>
-                    <div className="text-2xl font-semibold text-[#FC687D] mt-1">
-                      {pkg.rate}
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        setPickedSlot(null);
-                        setBookingModalOpen(true);
-                      }}
-                      className="w-full mt-4 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-widest shadow-md active:scale-[0.99] transition-transform"
-                      type="button"
-                    >
-                      Check Availability
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
+          <button
+            onClick={() => {
+              setPickedSlot(null);
+              setBookingModalOpen(true);
+            }}
+            className="px-6 py-3 rounded-2xl bg-[#FC687D] hover:bg-rose-500 text-white text-xs font-bold uppercase tracking-widest shadow-md shadow-rose-100 active:scale-[0.99]"
+            type="button"
+          >
+            Check Availability
+          </button>
         </div>
-      </main>
 
-      {/* Availability Popup Modal Layer Block */}
+        {/* Hero Card */}
+        <div className="bg-white rounded-3xl border border-slate-100 p-6 sm:p-8">
+          <h2 className="text-lg sm:text-xl font-semibold text-slate-800">
+            Host your event at Juja
+          </h2>
+          <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+            Ideal for birthdays, meetings, private gatherings, and milestone celebrations.
+          </p>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
+            {keySpecs.map((s) => (
+              <div
+                key={s.title}
+                className="bg-slate-50 border border-slate-100 rounded-2xl p-4"
+              >
+                <div className="text-2xl">{s.icon}</div>
+                <div className="text-sm font-semibold text-slate-800 mt-2">
+                  {s.title}
+                </div>
+                <div className="text-xs text-slate-500 mt-1">{s.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Rates & Packages */}
+        <div className="bg-white rounded-3xl border border-slate-100 p-6 sm:p-8">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-800">Rates & Packages</h3>
+              <p className="text-sm text-slate-500 mt-1">Choose the package that fits your event.</p>
+            </div>
+
+            <div className="inline-flex bg-slate-50 border border-slate-200/60 p-1 rounded-full shadow-inner">
+              <button
+                onClick={() => setSelectedPackage("consumable")}
+                className={`px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider transition ${
+                  selectedPackage === "consumable"
+                    ? "bg-[#FC687D] text-white shadow-sm"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+                type="button"
+              >
+                Consumable
+              </button>
+              <button
+                onClick={() => setSelectedPackage("celebration")}
+                className={`px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider transition ${
+                  selectedPackage === "celebration"
+                    ? "bg-[#FC687D] text-white shadow-sm"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+                type="button"
+              >
+                Room Only
+              </button>
+            </div>
+          </div>
+
+          {/* 3-Column Grid View for Balanced Desktop Layout */}
+          <div className="mt-6 grid md:grid-cols-3 gap-6">
+            {packages[selectedPackage].map((pkg, index) => (
+              <div 
+                key={index} 
+                className="bg-slate-50 border border-slate-100 rounded-3xl p-5 sm:p-6 flex flex-col justify-between items-start min-h-[420px]"
+              >
+                <div className="w-full">
+                  <span className="inline-block text-[10px] font-bold uppercase tracking-widest text-[#FC687D] bg-rose-50 border border-rose-100 px-3 py-1 rounded-full">
+                    {pkg.hours}
+                  </span>
+
+                  <h4 className="text-lg font-semibold text-slate-800 mt-3">
+                    {pkg.title}
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-2">
+                    {pkg.subtitle}
+                  </p>
+
+                  <ul className="mt-4 space-y-2">
+                    {pkg.features.map((feat, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-xs text-slate-600">
+                        <span className="text-[#FC687D] mt-[1px]">✔</span>
+                        <span>{feat}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="w-full pt-4 mt-6 border-t border-slate-200/60">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                    Base Rate
+                  </div>
+                  <div className="text-2xl font-semibold text-[#FC687D] mt-1">
+                    {pkg.rate}
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setPickedSlot(null);
+                      setBookingModalOpen(true);
+                    }}
+                    className="w-full mt-4 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-widest shadow-md active:scale-[0.99] transition-transform"
+                    type="button"
+                  >
+                    Check Availability
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Availability Modal */}
       <ModalShell
         open={bookingModalOpen}
         onClose={() => setBookingModalOpen(false)}
@@ -518,6 +511,7 @@ export default function FunctionRoomPage() {
         z={160}
       >
         <div className="space-y-4">
+          {/* HEADER INFO */}
           <div className="bg-white rounded-2xl border border-rose-50 shadow-sm p-4">
             <p className="text-[11px] text-slate-500 font-normal">
               Select a date and choose an available time slot.
@@ -527,22 +521,29 @@ export default function FunctionRoomPage() {
             </p>
           </div>
 
+          {/* AVAILABILITY PANEL */}
           <div className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6 space-y-4">
             <BookingAvailabilityOnly onSelectSlot={handleSelectSlot} />
           </div>
 
+          {/* SELECTED SLOT */}
           {pickedSlot && (
             <div className="text-[10px] uppercase tracking-widest text-slate-400 font-normal">
-              <div className="text-slate-800 font-normal">Selected Slot</div>
+              <div className="text-slate-800 font-normal">
+                Selected Slot
+              </div>
+
               <div className="text-[10px] uppercase tracking-widest text-slate-400 mt-0.5 font-normal">
                 Date: {pickedSlot.dateISO} · Hour Code: {pickedSlot.hour}
               </div>
+
               <div className="mt-2 text-xs text-slate-500 normal-case tracking-normal font-normal">
                 This selection will continue after login
               </div>
             </div>
           )}
 
+          {/* ACTIONS */}
           <div className="pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-2">
             {!sessionUser ? (
               <button
@@ -568,6 +569,7 @@ export default function FunctionRoomPage() {
             </button>
           </div>
 
+          {/* FOOTER */}
           <p className="text-[11px] text-slate-400 text-center font-normal">
             Need help? Call/text 0939-9228383
           </p>

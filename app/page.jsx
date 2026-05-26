@@ -35,10 +35,11 @@ function Nav({ active }) {
   ];
 
   return (
+    // Changed from fixed to relative/flex-none so it takes layout space predictably without causing overflows
     <nav className="relative w-full z-50 bg-white/95 backdrop-blur-2xl shadow-[0_1px_30px_rgba(0,0,0,0.05)] flex-none">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between h-14 md:h-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between h-16 md:h-20">
         <Link href="/" className="flex-shrink-0">
-          <img src={LOGO} alt="Juja" className="h-8 sm:h-10 md:h-11 w-auto object-contain transition-all duration-300 hover:scale-105" />
+          <img src={LOGO} alt="Juja" className="h-10 sm:h-12 md:h-14 w-auto object-contain transition-all duration-300 hover:scale-105 drop-shadow-sm" />
         </Link>
 
         {/* Desktop Links */}
@@ -60,7 +61,7 @@ function Nav({ active }) {
         <div className="hidden md:flex items-center gap-3">
           <Link 
             href={loginUrl}
-            className="text-[11px] font-semibold uppercase tracking-widest px-5 py-1.5 rounded-full border border-slate-200 text-slate-500 hover:border-[#FC687D] hover:text-[#FC687D] transition-all duration-300"
+            className="text-[11px] font-semibold uppercase tracking-widest px-5 py-2 rounded-full border border-slate-200 text-slate-500 hover:border-[#FC687D] hover:text-[#FC687D] hover:bg-rose-50 transition-all duration-300"
           >
             Login
           </Link>          
@@ -68,17 +69,17 @@ function Nav({ active }) {
 
         {/* Mobile Toggle */}
         <button className="md:hidden p-2 text-slate-800" onClick={() => setOpen(!open)} aria-label="Toggle Menu">
-          <div className="w-5 space-y-[4px]">
-            <span className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${open ? "rotate-45 translate-y-[6px]" : ""}`} />
+          <div className="w-5 space-y-[5px]">
+            <span className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${open ? "rotate-45 translate-y-[7px]" : ""}`} />
             <span className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${open ? "opacity-0" : ""}`} />
-            <span className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${open ? "-rotate-45 -translate-y-[6px]" : ""}`} />
+            <span className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${open ? "-rotate-45 -translate-y-[7px]" : ""}`} />
           </div>
         </button>
       </div>
 
       {/* Mobile Menu Dropdown */}
       {open && (
-        <div className="absolute top-14 left-0 w-full z-50 md:hidden bg-white/98 backdrop-blur-xl border-t border-slate-100 shadow-2xl px-6 py-4 flex flex-col gap-2">
+        <div className="absolute top-16 left-0 w-full z-50 md:hidden bg-white/98 backdrop-blur-xl border-t border-slate-100 shadow-2xl px-6 py-4 flex flex-col gap-2 animate-in fade-in slide-in-from-top-4 duration-300">
           {links.map(([, l, h]) => (
             <Link key={l} href={h} onClick={() => setOpen(false)}
               className="text-slate-800 font-medium uppercase tracking-widest text-xs hover:text-[#FC687D] transition py-1.5 border-b border-slate-50">{l}</Link>
@@ -114,7 +115,7 @@ function Footer() {
           <p className="text-[#FC687D] font-bold mb-2 uppercase text-[10px] tracking-[0.2em]">
             Pasong Tamo Branch
           </p>
-          <div className="space-y- text-slate-400 leading-relaxed">
+          <div className="space-y-1 text-slate-400 leading-relaxed">
             <p>📍 36D Visayas Ave., Pasong Tamo, QC</p>
             <p>📞 0939-9228383</p>
             <p className="text-slate-500 text-[11px]">Store: 10AM–12MN · Function: 10AM–2AM</p>
