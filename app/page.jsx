@@ -115,7 +115,7 @@ function Footer() {
           <p className="text-[#FC687D] font-bold mb-2 uppercase text-[10px] tracking-[0.2em]">
             Pasong Tamo Branch
           </p>
-          <div className="space-y-1 text-slate-400 leading-relaxed">
+          <div className="space-y- text-slate-400 leading-relaxed">
             <p>📍 36D Visayas Ave., Pasong Tamo, QC</p>
             <p>📞 0939-9228383</p>
             <p className="text-slate-500 text-[11px]">Store: 10AM–12MN · Function: 10AM–2AM</p>
