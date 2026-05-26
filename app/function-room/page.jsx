@@ -165,6 +165,7 @@ function Nav({ active }) {
 ───────────────────────────────────────────────────────────── */
 function Footer() {
   return (
+    // Replaced large margin-top and padding-top with tight, proportional paddings suitable for a viewport container
     <footer className="bg-slate-900 text-slate-400 py-6 md:py-8 px-6 flex-none">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10 mb-4 md:mb-6">
         {/* Brand Block */}
