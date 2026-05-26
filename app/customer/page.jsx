@@ -5,9 +5,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 
-import { getSupabaseClient } from "@/lib/supabase/client";
-
-const supabase = getSupabaseClient();
+import { supabase } from "@/lib/supabase";
 import BookingTab from "@/components/BookingForm";
 
 const Barcode = dynamic(() => import("react-barcode"), { ssr: false });
@@ -990,35 +988,12 @@ function LoyaltyTab({ member, setMember, user }) {
     return "active";
   };
 
-  const manilaDateKey = (d) =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Manila",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(d);
-
-const expiryCountdownDetailed = (expires_at) => {
-  if (!expires_at) return { text: "—", expiresTonight: false, expired: false };
-
-  const exp = new Date(expires_at);
-  const ms = exp.getTime() - nowTick;
-
-  if (ms <= 0) return { text: "Expired", expiresTonight: false, expired: true };
-
-  const days = Math.floor(ms / 86400000);
-  const hrs = Math.floor((ms % 86400000) / 3600000);
-  const mins = Math.floor((ms % 3600000) / 60000);
-
-  const text =
-    days > 0
-      ? `Expires in ${days}d ${hrs}h ${mins}m`
-      : `Expires in ${hrs}h ${mins}m`;
-
-  const expiresTonight =
-    manilaDateKey(new Date()) === manilaDateKey(exp); // Manila date match
-
-  return { text, expiresTonight, expired: false };
+  const expiryCountdown = (expires_at) => {
+    if (!expires_at) return "—";
+    const ms = new Date(expires_at).getTime() - nowTick;
+    if (ms <= 0) return "Expired";
+    const days = Math.ceil(ms / 86400000);
+    return days <= 1 ? "Expires in 1 day" : `Expires in ${days} days`;
   };
 
   const statusPill = (s) => {
@@ -1753,7 +1728,7 @@ const expiryCountdownDetailed = (expires_at) => {
                 <div className="space-y-3">
                   {list.map((v) => {
                     const s = v._computedStatus || String(v.status || "active").toLowerCase();
-                    const countdown = s === "active" ? expiryCountdownDetailed(v.expires_at) : null;``
+                    const countdown = s === "active" ? expiryCountdown(v.expires_at) : null;
 
                     return (
                       <div
@@ -1792,23 +1767,11 @@ const expiryCountdownDetailed = (expires_at) => {
                               Code: {v.code}
                             </p>
 
-                            {(() => {
-                                if (s !== "active") return null;
-                                const c = expiryCountdownDetailed(v.expires_at);                                                              
-                                  {countdown && (
-                                    <div className="mt-2 space-y-1">
-                                      <p className="text-[11px] md:text-[12px] font-semibold text-[#FC687D]">
-                                        ⏳ {countdown.text}
-                                      </p>
-
-                                      {countdown.expiresTonight && (
-                                        <p className="text-[11px] md:text-[12px] font-semibold text-orange-600">
-                                          ⚠️ Expires tonight
-                                        </p>
-                                    )}
-                                  </div>
-                                )}
-                              })()}                            
+                            {countdown && (
+                              <p className="text-[11px] md:text-[12px] mt-2 font-semibold text-[#FC687D]">
+                                ⏳ {countdown}
+                              </p>
+                            )}
                           </div>
 
                           <div className="text-right">

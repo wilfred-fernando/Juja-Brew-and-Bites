@@ -56,6 +56,7 @@ function ModalShell({ open, onClose, title, subtitle, children, z = 140 }) {
 /* ─────────────────────────────────────────────────────────────
    Shared Nav (softened typography to match BookingForm panels)
 ───────────────────────────────────────────────────────────── */
+// ─── Shared Nav ───────────────────────────────────────────────────────────────
 function Nav({ active }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -63,15 +64,13 @@ function Nav({ active }) {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const isLocal =
-        window.location.hostname === "localhost" ||
-        window.location.hostname === "127.0.0.1";
+      const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
       setLoginUrl(isLocal ? "http://customer.localhost:3000/login" : "https://customer.jujabrewandbites.com/login");
-
-      const fn = () => setScrolled(window.scrollY > 40);
-      window.addEventListener("scroll", fn);
-      return () => window.removeEventListener("scroll", fn);
     }
+    
+    const fn = () => setScrolled(window.scrollY > 40);
+    window.addEventListener("scroll", fn);
+    return () => window.removeEventListener("scroll", fn);
   }, []);
 
   const links = [
@@ -79,50 +78,33 @@ function Nav({ active }) {
     ["menu", "Menu", "/menu"],
     ["promo", "Promos", "/promos"],
     ["function room", "Function Room", "/function-room"],
-    ["about", "About Us", "/about"],
-  ];
-
-  const mobileLinks = [
-    ["Home", "/"],
-    ["Menu", "/menu"],
-    ["Promos", "/promos"],
-    ["Function Room", "/function-room"],
-    ["About Us", "/about"],
+    ["about", "About Us", "/about"]
   ];
 
   return (
-    <nav
-      className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-        scrolled ? "bg-white/95 backdrop-blur-xl border-b border-slate-100" : "bg-transparent"
-      }`}
-    >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 flex items-center justify-between h-20">
-        <Link href="/" className="flex-shrink-0" aria-label="Home">
-          <img
-            src={LOGO}
-            alt="Juja"
-            className="h-12 sm:h-14 w-auto object-contain transition-transform duration-200 hover:scale-[1.02]"
-          />
+    <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${
+      scrolled ? "bg-white/95 backdrop-blur-2xl shadow-[0_1px_30px_rgba(0,0,0,0.05)]" : "bg-transparent"
+    }`}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between h-20">
+        <Link href="/" className="flex-shrink-0">
+          <img src={LOGO} alt="Juja" className="h-12 sm:h-14 md:h-16 w-auto object-contain transition-all duration-300 hover:scale-105 drop-shadow-sm" />
         </Link>
 
+        {/* Desktop Links */}
         <div className="hidden md:flex items-center gap-8">
           {links.map(([id, label, href]) => (
-            <Link
-              key={id}
-              href={href}
-              className={`relative text-[12px] font-semibold tracking-wide transition-colors pb-1 ${
+            <Link key={id} href={href}
+              className={`relative text-[11px] lg:text-[12px] font-semibold uppercase tracking-[0.18em] transition-all duration-300 group pb-1 ${
                 active === id ? "text-[#FC687D]" : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
+              }`}>
               {label}
-              <span
-                className={`absolute bottom-0 left-0 h-[2px] rounded-full bg-[#FC687D] transition-all duration-300 ${
-                  active === id ? "w-full" : "w-0 group-hover:w-full"
-                }`}
-              />
+              <span className={`absolute bottom-0 left-0 h-[2px] rounded-full bg-gradient-to-r from-[#FC687D] to-rose-400 transition-all duration-350 ${
+                active === id ? "w-full" : "w-0 group-hover:w-full"
+              }`} />
             </Link>
           ))}
         </div>
+
 
         <div className="hidden md:flex items-center gap-3">
           <Link
