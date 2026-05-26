@@ -40,7 +40,10 @@ function stripCitationsAndLinks(text = "") {
 ===================================================== */
 const PACKAGE_POLICIES = {
   1: {
+    id: 1,
     name: "Package 1",
+    rental_fee: 3000,
+    capacity: 15,
     room_usage: {
       capacity:
         "Capacity: up to 15 Guests (children aged 4 years and below are not counted in the headcount).",
@@ -71,7 +74,10 @@ const PACKAGE_POLICIES = {
     },
   },
   2: {
+    id: 2,
     name: "Package 2",
+    rental_fee: 7000,
+    capacity: 30,
     room_usage: {
       capacity:
         "Capacity: up to 30 Guests (children aged 4 years and below are not counted in the headcount).",
@@ -102,7 +108,10 @@ const PACKAGE_POLICIES = {
     },
   },
   3: {
+    id: 3,
     name: "Package 3",
+    rental_fee: 15000,
+    capacity: 60,
     room_usage: {
       capacity:
         "Capacity: up to 60 Guests (children aged 4 years and below are not counted in the headcount).",
@@ -134,7 +143,10 @@ const PACKAGE_POLICIES = {
     },
   },
   4: {
+    id: 4,
     name: "Package 4",
+    rental_fee: 2500,
+    capacity: 15,
     room_usage: {
       capacity:
         "Capacity: up to 15 Guests (children aged 4 years and below are not counted in the headcount).",
@@ -161,7 +173,10 @@ const PACKAGE_POLICIES = {
     },
   },
   5: {
+    id: 5,
     name: "Package 5",
+    rental_fee: 3500,
+    capacity: 30,
     room_usage: {
       capacity:
         "Capacity: up to 30 Guests (children aged 4 years and below are not counted in the headcount).",
@@ -188,7 +203,10 @@ const PACKAGE_POLICIES = {
     },
   },
   6: {
+    id: 6,
     name: "Package 6",
+    rental_fee: 8000,
+    capacity: 60,
     room_usage: {
       capacity:
         "Capacity: up to 60 Guests (children aged 4 years and below are not counted in the headcount).",
@@ -261,19 +279,13 @@ function reasonToLabel(reason) {
   if (reason === "closed-hours") return "Closed";
   return "Closed";
 }
-// ✅ NEW: Availability-only widget (safe to reuse on public pages)
-// - Shows slot grid
-// - Calls onSelectSlot({ dateISO, hour }) when a slot is picked
+
 export function BookingAvailabilityOnly({
   initialDateISO,
   extensionEnabled = false,
   extensionHours = 0,
   onSelectSlot,
 }) {
-  const supabase = getSupabaseClient?.() || null; 
-  // If your BookingForm.jsx uses `const supabase = ...` at top-level,
-  // remove this line and just use the existing `supabase`.
-
   const [dateISO, setDateISO] = useState(
     initialDateISO || toISODate(new Date())
   );
@@ -283,14 +295,13 @@ export function BookingAvailabilityOnly({
 
   const slotHours = useMemo(() => buildSlotHours(), []);
 
-  // Fetch bookings (overlap-safe query)
   useEffect(() => {
     async function fetchBookingsForDate() {
       setLoadingBookings(true);
       setNotice(null);
 
       const dayStart = computeDateTime(dateISO, OPERATING_START_HOUR);
-      const dayEnd = computeDateTime(dateISO, 26); // up to 2AM next day
+      const dayEnd = computeDateTime(dateISO, 26);
 
       const queryStart = new Date(dayStart.getTime() - BUFFER_HOURS * 3600000).toISOString();
       const queryEnd = new Date(dayEnd.getTime() + BUFFER_HOURS * 3600000).toISOString();
@@ -299,7 +310,6 @@ export function BookingAvailabilityOnly({
         .from("function_room_bookings")
         .select("id, start_at, end_at, status")
         .in("status", ["pending", "confirmed"])
-        // ✅ overlap rule: booking.start < windowEnd AND booking.end > windowStart
         .lt("start_at", queryEnd)
         .gt("end_at", queryStart)
         .order("start_at", { ascending: true });
@@ -313,7 +323,7 @@ export function BookingAvailabilityOnly({
       setLoadingBookings(false);
     }
 
-    if (supabase) fetchBookingsForDate();
+    fetchBookingsForDate();
   }, [dateISO]);
 
   const availability = useMemo(() => {
@@ -410,12 +420,6 @@ export function BookingAvailabilityOnly({
   );
 }
 
-/**
- * Slot classification for:
- * - Booking duration = 2h59 (+ extension hours)
- * - Buffer = 1 hour before start and 1 hour after end-hour-block (exact slots)
- * - UI-only buffer (DB does not store buffer)
- */
 function classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings }) {
   if (slotEnd > operatingEnd) return { available: false, reason: "closed-hours" };
 
@@ -423,7 +427,6 @@ function classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings }
     const bStart = new Date(b.start_at);
     let bEnd = new Date(b.end_at);
 
-    // If end is exactly on hour, move back 1ms to avoid pushing into next hour
     if (
       bEnd.getMinutes() === 0 &&
       bEnd.getSeconds() === 0 &&
@@ -459,8 +462,8 @@ function classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings }
 export default function BookingForm({ user, member }) {
   const [tab, setTab] = useState("availability"); // availability | packages | book | manage
 
-  const [packages, setPackages] = useState([]);
-  const [loadingPackages, setLoadingPackages] = useState(true);
+  // ✅ FIX: Load directly from local file config instead of calling database table
+  const packages = useMemo(() => Object.values(PACKAGE_POLICIES), []);
 
   const [dateISO, setDateISO] = useState(() => toISODate(new Date()));
   const [bookings, setBookings] = useState([]);
@@ -482,10 +485,8 @@ export default function BookingForm({ user, member }) {
   const [myBookings, setMyBookings] = useState([]);
   const [loadingMyBookings, setLoadingMyBookings] = useState(false);
 
-  // ✅ Manage UI filter (recommended)
   const [manageFilter, setManageFilter] = useState("all"); // all | upcoming | past
 
-  // ✅ Reschedule state
   const [reschedOpen, setReschedOpen] = useState(false);
   const [reschedBooking, setReschedBooking] = useState(null);
   const [reschedDateISO, setReschedDateISO] = useState(() => toISODate(new Date()));
@@ -493,11 +494,9 @@ export default function BookingForm({ user, member }) {
   const [reschedLoading, setReschedLoading] = useState(false);
   const [reschedBookings, setReschedBookings] = useState([]);
 
-  // ✅ Update booking info state
   const [editBooking, setEditBooking] = useState(null);
   const [editLoading, setEditLoading] = useState(false);
 
-  // Book Now form
   const [form, setForm] = useState({
     name: "",
     event_type: "",
@@ -509,7 +508,6 @@ export default function BookingForm({ user, member }) {
     extension_hours: 0,
   });
 
-  // Autofill profile
   useEffect(() => {
     setForm((f) => ({
       ...f,
@@ -519,33 +517,13 @@ export default function BookingForm({ user, member }) {
     }));
   }, [member, user]);
 
-  // Load packages
-  useEffect(() => {
-    async function fetchPackages() {
-      setLoadingPackages(true);
-      setNotice(null);
-
-      const { data, error } = await supabase
-        .from("function_room_packages")
-        .select("*")
-        .eq("is_active", true)
-        .order("id", { ascending: true });
-
-      if (error) setNotice(error.message);
-      else setPackages(data || []);
-      setLoadingPackages(false);
-    }
-    fetchPackages();
-  }, []);
-
-  // Load bookings for availability (pending + confirmed)
   useEffect(() => {
     async function fetchBookingsForDate() {
       setLoadingBookings(true);
       setNotice(null);
 
       const dayStart = computeDateTime(dateISO, OPERATING_START_HOUR);
-      const dayEnd = computeDateTime(dateISO, 26); // 2AM next day
+      const dayEnd = computeDateTime(dateISO, 26);
 
       const queryStart = new Date(dayStart.getTime() - BUFFER_HOURS * 3600000).toISOString();
       const queryEnd = new Date(dayEnd.getTime() + BUFFER_HOURS * 3600000).toISOString();
@@ -573,7 +551,6 @@ export default function BookingForm({ user, member }) {
 
   const slotHours = useMemo(() => buildSlotHours(), []);
 
-  // Availability (2h59 + extension)
   const availability = useMemo(() => {
     const ext = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
     const totalMinutes = BASE_BOOKING_MINUTES + ext * 60;
@@ -597,7 +574,6 @@ export default function BookingForm({ user, member }) {
     });
   }, [slotHours, dateISO, bookings, form.extend, form.extension_hours]);
 
-  // Proof preview
   useEffect(() => {
     if (!proofFile) {
       setProofPreview(null);
@@ -608,7 +584,6 @@ export default function BookingForm({ user, member }) {
     return () => URL.revokeObjectURL(url);
   }, [proofFile]);
 
-  // ✅ Manage bookings load (ALL: past + upcoming)
   useEffect(() => {
     async function fetchMyBookings() {
       if (!user?.id) return;
@@ -619,7 +594,7 @@ export default function BookingForm({ user, member }) {
         .from("function_room_bookings")
         .select("*")
         .eq("user_id", user.id)
-        .order("start_at", { ascending: false }); // newest first
+        .order("start_at", { ascending: false });
 
       if (error) setNotice(error.message);
       else setMyBookings(data || []);
@@ -629,7 +604,6 @@ export default function BookingForm({ user, member }) {
     fetchMyBookings();
   }, [user?.id]);
 
-  // ✅ Split bookings for Manage UI (recommended)
   const manageGroups = useMemo(() => {
     const now = new Date();
     const upcoming = [];
@@ -640,14 +614,12 @@ export default function BookingForm({ user, member }) {
       (isPast ? past : upcoming).push(b);
     }
 
-    // Upcoming soonest first; past most recent first
     upcoming.sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
     past.sort((a, b) => new Date(b.start_at) - new Date(a.start_at));
 
     return { upcoming, past };
   }, [myBookings]);
 
-  // Reschedule conflicts (FIXED: correct query + fixed broken code)
   useEffect(() => {
     async function fetchBookingsForReschedDate() {
       if (!reschedOpen || !reschedDateISO) return;
@@ -672,7 +644,6 @@ export default function BookingForm({ user, member }) {
         return;
       }
 
-      // Remove the current booking from conflict list
       const filtered = (data || []).filter((x) => x.id !== reschedBooking?.id);
       setReschedBookings(filtered);
     }
@@ -680,7 +651,6 @@ export default function BookingForm({ user, member }) {
     fetchBookingsForReschedDate();
   }, [reschedOpen, reschedDateISO, reschedBooking?.id]);
 
-  // Reschedule availability grid
   const reschedAvailability = useMemo(() => {
     if (!reschedOpen || !reschedBooking) return [];
 
@@ -792,7 +762,7 @@ export default function BookingForm({ user, member }) {
         business_date: dateISO,
         start_at: start.toISOString(),
         end_at: end.toISOString(),
-        duration_hours: 3, // DB compatibility; end_at is authoritative
+        duration_hours: 3,
         extension_hours: extensionHours,
         guest_count: Number(form.guest_count),
         contact_number: form.contact_number.trim(),
@@ -841,7 +811,6 @@ export default function BookingForm({ user, member }) {
     }
   }
 
-  /* ✅ Confirmation UI */
   if (successBooking) {
     return (
       <div className="min-h-screen bg-[#FFF5F7] flex items-center justify-center px-4">
@@ -892,7 +861,6 @@ export default function BookingForm({ user, member }) {
     );
   }
 
-  // ✅ helper to render booking card for Manage tab
   function renderBookingCard(b) {
     const now = new Date();
     const isPast = new Date(b.start_at) < now;
@@ -933,7 +901,6 @@ export default function BookingForm({ user, member }) {
                 {status.text}
               </span>
 
-              {/* optional quick summary pill (recommended UX) */}
               <span className="inline-block px-3 py-1 text-xs rounded-full font-medium bg-slate-50 text-slate-600 border border-slate-200">
                 Guests: {b.guest_count || 0} • Ext: {b.extension_hours || 0}h
               </span>
@@ -952,7 +919,6 @@ export default function BookingForm({ user, member }) {
             )}
           </div>
 
-          {/* Actions (hidden for past bookings – recommended UX) */}
           {!isPast && (
             <div className="flex flex-col gap-2 min-w-[140px]">
               <button
@@ -1002,7 +968,6 @@ export default function BookingForm({ user, member }) {
                     return;
                   }
 
-                  // keep history but update status instead of removing
                   setMyBookings((prev) =>
                     prev.map((x) => (x.id === b.id ? { ...x, status: "cancelled_gc" } : x))
                   );
@@ -1033,7 +998,6 @@ export default function BookingForm({ user, member }) {
         </p>
       </div>
 
-      {/* Dropdown navigation */}
       <div className="w-full max-w-xs">
         <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
           Select Option
@@ -1155,71 +1119,65 @@ export default function BookingForm({ user, member }) {
       {/* Packages */}
       {tab === "packages" && (
         <div className="space-y-3">
-          {loadingPackages ? (
-            <div className="min-h-[120px] flex items-center justify-center">
-              <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
-            </div>
-          ) : (
-            packages.map((p) => {
-              const pid = Number(p.id);
-              const policy = PACKAGE_POLICIES[pid];
-              const consumable = policy?.rental_fees_inclusions?.consumable_amount ?? null;
-              const roomRentalOnly = policy?.rental_fees_inclusions?.room_rental_only ?? false;
+          {packages.map((p) => {
+            const pid = Number(p.id);
+            const policy = PACKAGE_POLICIES[pid];
+            const consumable = policy?.rental_fees_inclusions?.consumable_amount ?? null;
+            const roomRentalOnly = policy?.rental_fees_inclusions?.room_rental_only ?? false;
 
-              return (
-                <div
-                  key={p.id}
-                  className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="text-[12px] uppercase tracking-widest text-slate-400">
-                        {p.name}
+            return (
+              <div
+                key={p.id}
+                className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-[12px] uppercase tracking-widest text-slate-400">
+                      {p.name}
+                    </p>
+                    <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">
+                      ₱{Number(p.rental_fee).toLocaleString()}
+                    </h3>
+
+                    <div className="mt-2 space-y-1 min-w-0">
+                      <p className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
+                        Capacity up to {p.capacity} guests
                       </p>
-                      <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">
-                        ₱{Number(p.rental_fee).toLocaleString()}
-                      </h3>
-
-                      <div className="mt-2 space-y-1 min-w-0">
-                        <p className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
-                          Capacity up to {p.capacity} guests
-                        </p>
-                        <p className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
-                          {roomRentalOnly
-                            ? "Room rental only"
-                            : `Consumable: ${formatPeso(consumable || 0)}`}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDetailsPkg(p);
-                          setDetailsOpen(true);
-                        }}
-                        className="px-4 py-2 rounded-full bg-white border border-slate-200 text-slate-700 text-[10px] uppercase tracking-widest hover:bg-slate-50 active:scale-95"
-                      >
-                        Full Details
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setForm((f) => ({ ...f, package_id: String(p.id) }));
-                          setTab("book");
-                        }}
-                        className="px-4 py-2 rounded-full bg-[#FC687D] text-white text-[10px] uppercase tracking-widest active:scale-95"
-                      >
-                        Choose
-                      </button>
+                      <p className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
+                        {roomRentalOnly
+                          ? "Room rental only"
+                          : `Consumable: ${formatPeso(consumable || 0)}`}
+                      </p>
                     </div>
                   </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDetailsPkg(p);
+                        setDetailsOpen(true);
+                      }}
+                      className="px-4 py-2 rounded-full bg-white border border-slate-200 text-slate-700 text-[10px] uppercase tracking-widest hover:bg-slate-50 active:scale-95"
+                    >
+                      Full Details
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForm((f) => ({ ...f, package_id: String(p.id) }));
+                        setTab("book");
+                      }}
+                      className="px-4 py-2 rounded-full bg-[#FC687D] text-white text-[10px] uppercase tracking-widest active:scale-95"
+                    >
+                      Choose
+                    </button>
+                  </div>
                 </div>
-              );
-            })
-          )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -1311,7 +1269,7 @@ export default function BookingForm({ user, member }) {
         </div>
       )}
 
-      {/* Manage Booking (clean + all past/upcoming + filter + grouped sections) */}
+      {/* Manage Booking */}
       {tab === "manage" && (
         <div className="space-y-4">
           <div className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6">
@@ -1323,7 +1281,6 @@ export default function BookingForm({ user, member }) {
                 </p>
               </div>
 
-              {/* Filter (recommended UX) */}
               <div className="w-full sm:w-auto">
                 <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">
                   View
@@ -1381,7 +1338,7 @@ export default function BookingForm({ user, member }) {
         </div>
       )}
 
-      {/* ✅ Update Booking Modal */}
+      {/* Update Booking Modal */}
       {editBooking && (
         <div
           className="fixed inset-0 z-[97] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
@@ -1505,7 +1462,7 @@ export default function BookingForm({ user, member }) {
         </div>
       )}
 
-      {/* ✅ Reschedule Modal */}
+      {/* Reschedule Modal */}
       {reschedOpen && reschedBooking && (
         <div
           className="fixed inset-0 z-[96] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
