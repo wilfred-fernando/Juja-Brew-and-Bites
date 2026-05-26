@@ -1,20 +1,133 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { getSupabaseClient } from "@/lib/supabase/client";
 
-// Mock or import your supabase client instance here
-const supabase = (typeof globalThis !== "undefined" && globalThis.supabase) || {
-  from: () => ({
-    select: () => ({
-      eq: () => ({ limit: () => Promise.resolve({ data: [] }) }),
-    }),
-  }),
-};
+// --- Constants ---
+const supabase = getSupabaseClient();
 
-const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
+const LOGO =
+  "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
 
-// ─── Shared Nav ───────────────────────────────────────────────────────────────
+export default function PromoPage() {
+  const [promos, setPromos] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchPromos() {
+      try {
+        const { data } = await supabase
+          .from("promotions")
+          .select("*")
+          .eq("is_active", true);
+
+        setPromos(data || []);
+      } catch (error) {
+        console.error("Error fetching promos:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchPromos();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-slate-50/50 text-slate-800 font-sans flex flex-col justify-between">
+      <div>
+        {/* Shared Nav Component (Active ID: 'promo') */}
+        <Nav active="promo" />
+
+        {/* Main Content Area */}
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-12 pt-28 pb-16">
+          
+          {/* Header Typography Section */}
+          <div className="text-center max-w-2xl mx-auto mb-16 mt-6">
+            <span className="text-[10px] uppercase tracking-[0.25em] text-[#FC687D] bg-[#FC687D]/10 px-4 py-1.5 rounded-full font-semibold">
+              Exclusive Perks
+            </span>
+            <h1 className="text-3xl sm:text-4xl font-normal tracking-tight text-slate-800 mt-4 mb-4">
+              Deals &amp; Promotions
+            </h1>
+            <p className="text-slate-500 text-sm sm:text-base font-normal leading-relaxed">
+              Explore our latest limited-time treats. Click on any active offer to apply the savings directly to your checkout.
+            </p>
+          </div>
+
+          {/* Skeleton Loading State */}
+          {isLoading && (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3].map((n) => (
+                <div 
+                  key={n} 
+                  className="h-48 bg-slate-100 rounded-2xl border border-slate-200/60 animate-pulse" 
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Empty State Block */}
+          {!isLoading && promos.length === 0 && (
+            <div className="text-center py-16 border border-dashed border-slate-200 rounded-2xl bg-white max-w-md mx-auto shadow-sm">
+              <span className="text-3xl">✨</span>
+              <h3 className="mt-4 text-sm font-medium text-slate-700 tracking-wide">No Active Promotions</h3>
+              <p className="mt-1.5 text-xs text-slate-400 max-w-xs mx-auto">
+                We are mixing up brand new recipes and offers. Follow us or check back soon!
+              </p>
+            </div>
+          )}
+
+          {/* Promos Cards Grid Layout */}
+          {!isLoading && promos.length > 0 && (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              { promos.map((p) => (
+                <div
+                  key={p.id}
+                  className="group relative flex flex-col justify-between border border-slate-100 rounded-2xl p-6 bg-white shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_30px_rgba(0,0,0,0.06)] transition-all duration-300 hover:-translate-y-1"
+                >
+                  <div>
+                    {/* Voucher Code Tag */}
+                    <div className="mb-4">
+                      <span className="font-mono text-[11px] font-bold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-md uppercase tracking-wider border border-slate-200/70">
+                        {p.code}
+                      </span>
+                    </div>
+
+                    <h3 className="font-semibold text-base text-slate-800 leading-snug group-hover:text-[#FC687D] transition-colors duration-200">
+                      {p.title}
+                    </h3>
+                    
+                    <p className="text-xs text-slate-400 mt-2 leading-relaxed line-clamp-3">
+                      {p.description}
+                    </p>
+                  </div>
+
+                  <div className="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between">
+                    <Link
+                      href={`/customer?tab=order&promo=${p.code}`}
+                      className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#FC687D] group-hover:text-rose-400 transition-colors duration-200"
+                    >
+                      <span>Claim Code</span>
+                      <span className="transform group-hover:translate-x-1 transition-transform duration-200">→</span>
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* Shared Footer Component */}
+      <Footer />
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+    Shared Nav (Pure JavaScript Syntax)
+───────────────────────────────────────────────────────────── */
 function Nav({ active }) {
   const [open, setOpen] = useState(false);
   const [loginUrl, setLoginUrl] = useState("https://customer.jujabrewandbites.com/login");
@@ -91,7 +204,9 @@ function Nav({ active }) {
   );
 }
 
-// ─── Shared Footer ────────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────────────────────
+    Shared Footer
+───────────────────────────────────────────────────────────── */
 function Footer() {
   return (
     // Replaced large margin-top and padding-top with tight, proportional paddings suitable for a viewport container
@@ -140,60 +255,5 @@ function Footer() {
         <p>Quezon City · Philippines</p>
       </div>
     </footer>
-  );
-}
-
-export default function Home() {
-  return (
-    <div className="h-screen w-screen overflow-hidden flex flex-col bg-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
-      <Nav active="home" />
-
-      {/* ═══ HERO ═══ */}
-      <section className="relative flex-1 flex items-center justify-center overflow-hidden bg-gradient-to-b from-[#FFF5F7] to-white p-6">
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-1/4 left-1/10 w-[400px] md:w-[600px] h-[400px] md:h-[600px] rounded-full opacity-25"
-            style={{ background: "radial-gradient(circle,#FC687D 0%,transparent 65%)", filter: "blur(90px)" }} />
-        </div>
-
-        {/* Increased space-y layout to spread elements out organically within the newly reclaimed screen real estate */}
-        <div className="relative z-10 text-center max-w-5xl mx-auto flex flex-col items-center justify-center h-full space-y-5 md:space-y-7">
-          
-          {/* Increased logo size significantly (from max md:h-28 to md:h-48) */}
-          <img src={LOGO} alt="Juja Brew & Bites"
-            className="h-24 sm:h-36 md:h-44 lg:h-48 w-auto object-contain mx-auto drop-shadow-md transition-all duration-300" />
-            
-          {/* Bumped up description and pill text scaling */}
-          <p className="text-slate-500 text-sm sm:text-base md:text-lg lg:text-xl max-w-2xl mx-auto font-medium tracking-wide">
-            Chicken · Milk Tea · Coffee · Waffle · Rice in a Box
-          </p>
-
-          <div className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full text-[10px] md:text-[11px] font-bold uppercase tracking-[0.25em] bg-white text-[#FC687D] border border-rose-100 shadow-sm">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#FC687D] animate-pulse" />
-            food · drinks · Quezon City
-          </div>
-
-          {/* Drastically expanded typography sizes (from md:text-5xl to text-5xl/md:text-7xl/lg:text-8xl) */}
-          <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black leading-[0.95] tracking-tight text-slate-800 uppercase">
-            brewing with<br />
-            <span className="text-[#FC687D] relative">gratitude</span>
-          </h1>
-
-          {/* Slightly larger, bold CTA interactive targets */}
-          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto pt-3">
-            <Link href="/order"
-              className="w-full sm:w-auto px-10 py-4 rounded-full font-bold text-xs md:text-sm text-center uppercase tracking-widest text-white transition-all duration-300 bg-[#FC687D] shadow-[0_10px_25px_rgba(252,104,125,0.3)] hover:bg-rose-500 hover:-translate-y-0.5">
-              Order Online →
-            </Link>
-            <Link href="/menu"
-              className="w-full sm:w-auto px-10 py-4 rounded-full font-bold text-xs md:text-sm text-center uppercase tracking-widest bg-white text-slate-700 border border-slate-200 hover:border-[#FC687D] hover:text-[#FC687D] hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
-              View Full Menu
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer element takes its static height and locks itself to the bottom */}
-      <Footer />
-    </div>
   );
 }

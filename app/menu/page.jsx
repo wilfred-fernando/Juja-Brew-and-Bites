@@ -4,15 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
-// One clean declaration using your client factory function
 const supabase = getSupabaseClient();
 
 const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
 
-// ─── Shared Nav (Integrated Perfectly) ───────────────────────────────────────
+// ─── Shared Nav (Compact Height Locked) ───────────────────────────────────────
 function Nav({ active }) {
   const [open, setOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
   const [loginUrl, setLoginUrl] = useState("https://customer.jujabrewandbites.com/login");
 
   useEffect(() => {
@@ -20,10 +18,6 @@ function Nav({ active }) {
       const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
       setLoginUrl(isLocal ? "http://customer.localhost:3000/login" : "https://customer.jujabrewandbites.com/login");
     }
-    
-    const fn = () => setScrolled(window.scrollY > 40);
-    window.addEventListener("scroll", fn);
-    return () => window.removeEventListener("scroll", fn);
   }, []);
 
   const links = [
@@ -35,12 +29,10 @@ function Nav({ active }) {
   ];
 
   return (
-    <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${
-      scrolled ? "bg-white/95 backdrop-blur-2xl shadow-[0_1px_30px_rgba(0,0,0,0.05)]" : "bg-transparent"
-    }`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between h-20">
+    <nav className="relative w-full z-50 bg-white/95 backdrop-blur-2xl shadow-[0_1px_30px_rgba(0,0,0,0.05)] flex-none">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between h-14 md:h-16">
         <Link href="/" className="flex-shrink-0">
-          <img src={LOGO} alt="Juja" className="h-12 sm:h-14 md:h-16 w-auto object-contain transition-all duration-300 hover:scale-105 drop-shadow-sm" />
+          <img src={LOGO} alt="Juja" className="h-8 sm:h-10 md:h-11 w-auto object-contain transition-all duration-300 hover:scale-105" />
         </Link>
 
         {/* Desktop Links */}
@@ -62,7 +54,7 @@ function Nav({ active }) {
         <div className="hidden md:flex items-center gap-3">
           <Link 
             href={loginUrl}
-            className="text-[11px] font-semibold uppercase tracking-widest px-5 py-2.5 rounded-full border border-slate-200 text-slate-500 hover:border-[#FC687D] hover:text-[#FC687D] hover:bg-rose-50 transition-all duration-300"
+            className="text-[11px] font-semibold uppercase tracking-widest px-5 py-1.5 rounded-full border border-slate-200 text-slate-500 hover:border-[#FC687D] hover:text-[#FC687D] transition-all duration-300"
           >
             Login
           </Link>          
@@ -70,60 +62,76 @@ function Nav({ active }) {
 
         {/* Mobile Toggle */}
         <button className="md:hidden p-2 text-slate-800" onClick={() => setOpen(!open)} aria-label="Toggle Menu">
-          <div className="w-5 space-y-[5px]">
-            <span className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${open ? "rotate-45 translate-y-[7px]" : ""}`} />
+          <div className="w-5 space-y-[4px]">
+            <span className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${open ? "rotate-45 translate-y-[6px]" : ""}`} />
             <span className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${open ? "opacity-0" : ""}`} />
-            <span className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${open ? "-rotate-45 -translate-y-[7px]" : ""}`} />
+            <span className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${open ? "-rotate-45 -translate-y-[6px]" : ""}`} />
           </div>
         </button>
       </div>
 
       {/* Mobile Menu Dropdown */}
       {open && (
-        <div className="md:hidden bg-white/98 backdrop-blur-xl border-t border-slate-100 shadow-2xl px-6 py-6 flex flex-col gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
+        <div className="absolute top-14 left-0 w-full z-50 md:hidden bg-white/98 backdrop-blur-xl border-t border-slate-100 shadow-2xl px-6 py-4 flex flex-col gap-2">
           {links.map(([, l, h]) => (
             <Link key={l} href={h} onClick={() => setOpen(false)}
-              className="text-slate-800 font-medium uppercase tracking-widest text-xs hover:text-[#FC687D] transition py-2 border-b border-slate-50">{l}</Link>
+              className="text-slate-800 font-medium uppercase tracking-widest text-xs hover:text-[#FC687D] transition py-1.5 border-b border-slate-50">{l}</Link>
           ))}
           <Link href={loginUrl} onClick={() => setOpen(false)}
-              className="text-slate-800 font-medium uppercase tracking-widest text-xs hover:text-[#FC687D] transition py-2 border-b border-slate-50">Login</Link>          
+              className="text-slate-800 font-medium uppercase tracking-widest text-xs hover:text-[#FC687D] transition py-1.5 border-b border-slate-50">Login</Link>          
         </div>
       )}
     </nav>
   );
 }
 
-// ─── Shared Footer ────────────────────────────────────────────────────────────
+// ─── Shared Footer (Compact Fixed Footprint) ──────────────────────────────────
 function Footer() {
   return (
-    <footer className="bg-slate-900 text-slate-400 pt-20 pb-10 px-6">
-      <div className="max-w-6xl mx-auto grid sm:grid-cols-2 md:grid-cols-3 gap-10 md:gap-14 mb-14">
-        <div className="sm:col-span-2 md:col-span-1">
-          <img src={LOGO} alt="Juja" className="h-14 w-auto object-contain mb-5 brightness-0 invert opacity-60" />
-          <p className="text-slate-400 text-sm leading-relaxed max-w-sm">Your premier destination for specialty brews and artisan bites in the heart of Quezon City.</p>
+    // Replaced large margin-top and padding-top with tight, proportional paddings suitable for a viewport container
+    <footer className="bg-slate-900 text-slate-400 py-6 md:py-8 px-6 flex-none">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10 mb-4 md:mb-6">
+        {/* Brand Block */}
+        <div className="flex flex-col justify-center">
+          <img
+            src={LOGO}
+            alt="Juja"
+            className="h-10 w-auto object-contain mb-3 brightness-0 invert opacity-60 self-start"
+          />
+          <p className="text-slate-400 text-xs leading-relaxed max-w-sm">
+            Your premier destination for specialty brews and artisan bites in Quezon City.
+          </p>
         </div>
-        <div>
-          <p className="text-white/60 font-semibold mb-5 uppercase text-[10px] tracking-[0.3em]">Explore</p>
-          <div className="space-y-3">
-            {[["Home","/"],["Menu","/menu"],["Promos","/promos"],["About Us","/about"],["Order Online","/order"]].map(([l,h]) => (
-              <Link key={l} href={h}
-                className="block text-slate-400 hover:text-[#FC687D] transition-colors duration-200 text-sm tracking-wide">{l}</Link>
-            ))}
+
+        {/* Branch 1: Pasong Tamo */}
+        <div className="text-xs">
+          <p className="text-[#FC687D] font-bold mb-2 uppercase text-[10px] tracking-[0.2em]">
+            Pasong Tamo Branch
+          </p>
+          <div className="space-y- text-slate-400 leading-relaxed">
+            <p>📍 36D Visayas Ave., Pasong Tamo, QC</p>
+            <p>📞 0939-9228383</p>
+            <p className="text-slate-500 text-[11px]">Store: 10AM–12MN · Function: 10AM–2AM</p>
           </div>
         </div>
-        <div>
-          <p className="text-white/60 font-semibold mb-5 uppercase text-[10px] tracking-[0.3em]">Find Us</p>
-          <div className="space-y-3.5 text-sm text-slate-400">
-            <p className="flex gap-3 items-start"><span className="text-[#FC687D] mt-0.5 flex-shrink-0">📍</span>36D Visayas Ave., Pasong Tamo, Quezon City</p>
-            <p className="flex gap-3"><span className="text-[#FC687D] flex-shrink-0">📞</span>0939-9228383</p>
-            <p className="flex gap-3"><span className="text-[#FC687D] flex-shrink-0">🕙</span>Store: 10AM – 12MN daily</p>
-            <p className="flex gap-3"><span className="text-[#FC687D] flex-shrink-0">🏠</span>Function Room: 10AM – 2AM</p>
+
+        {/* Branch 2: Diliman */}
+        <div className="text-xs">
+          <p className="text-[#FC687D] font-bold mb-2 uppercase text-[10px] tracking-[0.2em]">
+            Diliman Branch
+          </p>
+          <div className="space-y-1 text-slate-400 leading-relaxed">
+            <p>📍 8 Visayas Ave., Diliman, QC</p>
+            <p>📞 0961-6320909</p>
+            <p className="text-slate-500 text-[11px]">Mon-Wed: 8AM–10PM · Thu-Sat: 10AM–10PM</p>
           </div>
         </div>
       </div>
-      <div className="max-w-6xl mx-auto pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
-        <p className="text-slate-500 text-[11px] tracking-[0.2em] uppercase">© {new Date().getFullYear()} Juja Brew & Bites® · All rights reserved</p>
-        <p className="text-slate-500 text-[11px] tracking-wider uppercase">Quezon City · Philippines</p>
+
+      {/* Footer Bottom Metadata Bar */}
+      <div className="max-w-7xl mx-auto pt-4 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center text-slate-500 text-[10px] tracking-wider uppercase">
+        <p>© {new Date().getFullYear()} Juja Brew &amp; Bites® · All rights reserved</p>
+        <p>Quezon City · Philippines</p>
       </div>
     </footer>
   );
@@ -138,27 +146,22 @@ export default function PublicMenuPage() {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   
-  // Promo popup
   const [promoOpen, setPromoOpen] = useState(false);
   const [promoLoading, setPromoLoading] = useState(false);
   const [promo, setPromo] = useState(null);
-
-  // Variant modal
   const [selectedItem, setSelectedItem] = useState(null);
 
   const todayKey = useMemo(() => {
-    const iso = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const iso = new Date().toISOString().slice(0, 10);
     return `juja_promo_seen_${iso}`;
   }, []);
 
-  // 1) Promo popup first (once per day), before loading menu
   useEffect(() => {
     const seen = typeof window !== "undefined" ? localStorage.getItem(todayKey) : "1";
     if (seen) return;
 
     (async () => {
       setPromoLoading(true);
-
       const { data, error } = await supabase
         .from("promo_codes")
         .select("*")
@@ -170,29 +173,21 @@ export default function PublicMenuPage() {
       if (!error && data) {
         setPromo(data);
         setPromoOpen(true);
-      } else {
-        setPromo(null);
-        setPromoOpen(false);
       }
-
       setPromoLoading(false);
     })();
   }, [todayKey]);
 
   const closePromo = () => {
-    try {
-      localStorage.setItem(todayKey, "1");
-    } catch {}
+    try { localStorage.setItem(todayKey, "1"); } catch {}
     setPromoOpen(false);
   };
 
-  // 2) Fetch menu ONLY after promo closes (or promo not shown)
   useEffect(() => {
     if (promoOpen) return;
 
     (async () => {
       setLoading(true);
-
       const [itemRes, catRes] = await Promise.all([
         supabase
           .from("menu_items")
@@ -200,7 +195,6 @@ export default function PublicMenuPage() {
           .eq("is_available", true)
           .or("pos_only.is.null,pos_only.eq.false")
           .order("name"),
-
         supabase
           .from("menu_categories")
           .select("*")
@@ -211,52 +205,40 @@ export default function PublicMenuPage() {
 
       const itemsData = itemRes?.data || [];
       const catsData  = catRes?.data || [];
-
-      // Only allow items from visible categories
       const allowedCatNames = new Set(catsData.map(c => c.name));
       const safeItems = itemsData.filter(i => allowedCatNames.has(i.category));
 
       setCats(catsData);
       setItems(safeItems);
-
       setLoading(false);
     })();
   }, [promoOpen]);
 
-  // 3) Categories list: prefer menu_categories, fallback to items
   const categoryList = useMemo(() => {
     const fromCats = (cats || []).map((c) => c?.name).filter(Boolean);
     const fallback = Array.from(new Set((items || []).map((i) => i.category || "Others")));
-    const list = fromCats.length ? fromCats : fallback;
-    return Array.from(new Set(list));
+    return Array.from(new Set(fromCats.length ? fromCats : fallback));
   }, [cats, items]);
 
-  // default category
   useEffect(() => {
     if (!selectedCategory && categoryList.length > 0) {
       setSelectedCategory(categoryList[0]);
     }
   }, [categoryList, selectedCategory]);
 
-  // 4) Search across ALL items
   const q = search.trim().toLowerCase();
 
   const visibleItems = useMemo(() => {
     if (!items?.length) return [];
-    if (q) {
-      return items.filter((i) => (i.name || "").toLowerCase().includes(q));
-    }
+    if (q) return items.filter((i) => (i.name || "").toLowerCase().includes(q));
     const cat = selectedCategory || categoryList[0] || "";
     return items.filter((i) => (i.category || "Others") === cat);
   }, [items, q, selectedCategory, categoryList]);
 
-  // 5) Most Ordered badge (only if dataset has an order metric)
   const metricKey = useMemo(() => {
     const candidates = ["times_ordered", "order_count", "orders_count", "total_orders"];
     for (const k of candidates) {
       if ((items || []).some((it) => typeof it?.[k] === "number")) return k;
-      if ((items || []).some((it) => !isNaN(Number(it?.[k])) && it?.[k] !== null && it?.[k] !== undefined))
-        return k;
     }
     return null;
   }, [items]);
@@ -267,212 +249,162 @@ export default function PublicMenuPage() {
       .map((it) => ({ id: it.id, v: Number(it?.[metricKey] || 0) }))
       .filter((x) => x.id && x.v > 0)
       .sort((a, b) => b.v - a.v)
-      .slice(0, 8); // top 8 in dataset
+      .slice(0, 8);
     return new Set(scored.map((x) => x.id));
   }, [items, metricKey]);
 
-  // ─── Promo Modal ────────────────────────────────────────────────────────────
-  const PromoModal = () => {
-    if (!promoOpen) return null;
-
-    const code = promo?.code || "PROMO";
-    const type = promo?.type || "";
-    const discount = promo?.discount ?? "";
-    const minOrder = promo?.min_order ?? 0;
-
-    const prettyDiscount =
-      type === "percent" ? `${discount}% OFF` : type === "fixed" ? `₱${discount} OFF` : `${discount}`;
-
-    return (
-      <div
-        className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-6"
-        onClick={closePromo}
-      >
-        <div
-          className="w-full max-w-md bg-white rounded-t-[26px] md:rounded-[30px] p-6 shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[10px] uppercase tracking-widest text-slate-400">Promo</p>
-              <h3 className="text-xl font-bold text-slate-800 mt-1">🎁 Limited Offer</h3>
-              <p className="text-sm text-slate-600 mt-2">
-                Use code <span className="font-mono font-bold text-[#FC687D]">{code}</span>{" "}
-                {prettyDiscount ? `— ${prettyDiscount}` : ""}.
-              </p>
-              {Number(minOrder) > 0 && (
-                <p className="text-xs text-slate-500 mt-2">
-                  Minimum order: <span className="font-semibold">₱{Number(minOrder).toFixed(0)}</span>
+  return (
+    // Outer Frame locked to screen viewport dimensions (h-screen w-screen overflow-hidden)
+    <div className="h-screen w-screen overflow-hidden flex flex-col bg-[#FFF5F7]" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <Nav active="menu" />
+      
+      {/* 1) PROMO POPUP CONDITIONAL */}
+      {promoOpen && (
+        <div className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-6" onClick={closePromo}>
+          <div className="w-full max-w-md bg-white rounded-t-[26px] md:rounded-[30px] p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-slate-400">Promo</p>
+                <h3 className="text-xl font-bold text-slate-800 mt-1">🎁 Limited Offer</h3>
+                <p className="text-sm text-slate-600 mt-2">
+                  Use code <span className="font-mono font-bold text-[#FC687D]">{promo?.code || "PROMO"}</span> — {promo?.type === "percent" ? `${promo?.discount}% OFF` : `₱${promo?.discount} OFF`}.
                 </p>
-              )}
+              </div>
+              <button onClick={closePromo} className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500">✕</button>
             </div>
-
-            <button
-              onClick={closePromo}
-              className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500"
-              aria-label="Close"
-            >
-              ✕
-            </button>
-          </div>
-
-          <div className="mt-5">
-            <button
-              onClick={closePromo}
-              className="w-full py-3 rounded-xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-widest active:scale-95"
-            >
-              View Menu
-            </button>
-            <p className="text-[10px] text-slate-400 mt-3 text-center">
-              This promo shows once per day.
-            </p>
+            <div className="mt-5">
+              <button onClick={closePromo} className="w-full py-3 rounded-xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-widest">View Menu</button>
+            </div>
           </div>
         </div>
-      </div>
-    );
-  };
+      )}
 
-  return (
-    <div className="min-h-screen bg-[#FFF5F7] pb-16 pt-24 md:pt-28">
-      <Nav active="menu" />
-      <PromoModal />
-
+      {/* 2) SELECTION MODAL LAYER */}
       {selectedItem && (
         <VariantModal item={selectedItem} onClose={() => setSelectedItem(null)} />
       )}
 
-      <div className="max-w-6xl mx-auto px-4 md:px-6 py-6">
-        {/* HEADER */}
-        <div className="mb-4">
-          <h1 className="text-3xl md:text-4xl font-bold text-slate-800">Our Menu</h1>
-          <p className="text-sm text-slate-400 mt-1">Browse all available items</p>
+      {/* 3) CENTRAL APPARATUS VIEWPORT (Absorbs available remaining space via flex-1) */}
+      <div className="flex-1 max-w-6xl w-full mx-auto px-4 md:px-6 py-4 flex flex-col min-h-0">
+        
+        {/* Header Block (Fixed Size Frame) */}
+        <div className="mb-3 flex-none flex items-center justify-between">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-slate-800">Our Menu</h1>
+            <p className="text-[11px] text-slate-400">Browse all available items</p>
+          </div>
+          
+          {/* Optional inline live search box input can go here down the line */}
+          <div className="w-1/3 max-w-xs">
+            <input 
+              type="text" 
+              placeholder="Search item..." 
+              value={search} 
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-white text-xs border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#FC687D]"
+            />
+          </div>
         </div>
 
-        {/* CATEGORY DROPDOWN */}
-        <div className="mb-4">
+        {/* Dropdown Options Row Block */}
+        <div className="mb-3 flex-none">
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
             disabled={!!q}
-            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 disabled:opacity-60"
+            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-60"
           >
             {categoryList.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
+              <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>
-          {q && (
-            <p className="text-[11px] text-slate-400 mt-2">
-              Searching across all categories (category filter ignored)
-            </p>
-          )}
         </div>
         
-        {/* LOADING */}
-        {(loading || promoLoading) && (
-          <div className="flex justify-center py-16">
-            <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
-          </div>
-        )}
-
-        {/* EMPTY */}
-        {!loading && !promoOpen && items.length === 0 && (
-          <p className="text-center text-slate-400">No items available</p>
-        )}
-
-        {/* GRID */}
-        {!loading && !promoOpen && items.length > 0 && (
-          <>
-            <div className="flex items-end justify-between mb-3">
-              <h2 className="text-lg font-semibold text-slate-800 uppercase tracking-wider">
-                {q ? "Search results" : (selectedCategory || "Menu")}
-              </h2>
-              <p className="text-xs text-slate-400">{visibleItems.length} item(s)</p>
+        {/* 4) DYNAMICALLY SCROLLING INNER GRID SPACE */}
+        {/* flex-1 + min-h-0 + overflow-y-auto traps scrolling mechanics purely within this grid wrapper */}
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1 custom-scrollbar">
+          {(loading || promoLoading) ? (
+            <div className="flex justify-center items-center h-full">
+              <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
             </div>
-
-            {visibleItems.length === 0 ? (
-              <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-slate-500">
-                No items found.
+          ) : items.length === 0 ? (
+            <p className="text-center text-slate-400 pt-10 text-xs">No items available</p>
+          ) : (
+            <>
+              <div className="flex items-end justify-between mb-2">
+                <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  {q ? "Search results" : (selectedCategory || "Menu")}
+                </h2>
+                <p className="text-[11px] text-slate-400">{visibleItems.length} item(s)</p>
               </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
-                {visibleItems.map((item) => {
-                  const bestSeller = !!item.is_featured;
-                  const mostOrdered = mostOrderedIdSet.has(item.id);
 
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => setSelectedItem(item)}
-                      className="relative text-left bg-white border border-slate-100 rounded-xl p-2 shadow-sm hover:shadow-md transition active:scale-[0.99]"
-                    >
-                      {/* Badges */}
-                      <div className="absolute top-2 left-2 flex gap-1">
-                        {bestSeller && (
-                          <span className="px-2 py-1 rounded-full bg-[#FC687D] text-white text-[9px] font-bold uppercase tracking-widest shadow">
-                            Best Seller
-                          </span>
-                        )}
-                        {mostOrdered && (
-                          <span className="px-2 py-1 rounded-full bg-slate-900 text-white text-[9px] font-bold uppercase tracking-widest shadow">
-                            Most Ordered
-                          </span>
-                        )}
-                      </div>
+              {visibleItems.length === 0 ? (
+                <div className="bg-white border border-slate-200 rounded-xl p-6 text-center text-xs text-slate-500">
+                  No items found.
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 sm:gap-3 pb-4">
+                  {visibleItems.map((item) => {
+                    const bestSeller = !!item.is_featured;
+                    const mostOrdered = mostOrderedIdSet.has(item.id);
 
-                      {/* Image */}                      
-                      <div className="w-full aspect-square rounded-lg bg-[#FFF9FA] border border-rose-50 flex items-center justify-center overflow-hidden mb-2 sm:mb-3">
-                        {item.image_url ? (
-                          <img
-                            src={item.image_url}
-                            alt={item.name}
-                            className="w-full h-full object-cover object-center"
-                          />
-                        ) : (
-                          <span className="text-xl sm:text-2xl text-rose-200">📷</span>
-                        )}
-                      </div>
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setSelectedItem(item)}
+                        className="relative text-left bg-white border border-slate-100 rounded-xl p-2 shadow-sm hover:shadow-md transition active:scale-[0.99] flex flex-col justify-between"
+                      >
+                        <div>
+                          {/* Badges container */}
+                          <div className="absolute top-1.5 left-1.5 flex flex-col gap-0.5 z-10">
+                            {bestSeller && (
+                              <span className="px-1.5 py-0.5 rounded bg-[#FC687D] text-white text-[8px] font-bold uppercase tracking-wider shadow-sm">
+                                Best Seller
+                              </span>
+                            )}
+                            {mostOrdered && (
+                              <span className="px-1.5 py-0.5 rounded bg-slate-900 text-white text-[8px] font-bold uppercase tracking-wider shadow-sm">
+                                Most Ordered
+                              </span>
+                            )}
+                          </div>
 
-                      {/* Name */}
-                      <p className="text-sm font-bold text-slate-800 leading-tight line-clamp-2">
-                        {item.name}
-                      </p>
+                          {/* Product Image Frame */}
+                          <div className="w-full aspect-square rounded-lg bg-[#FFF9FA] border border-rose-50 flex items-center justify-center overflow-hidden mb-1.5">
+                            {item.image_url ? (
+                              <img src={item.image_url} alt={item.name} className="w-full h-full object-cover object-center" />
+                            ) : (
+                              <span className="text-sm text-rose-200">📷</span>
+                            )}
+                          </div>
 
-                      {/* Category label when searching */}
-                      {q && (
-                        <p className="text-[10px] uppercase tracking-wider text-slate-400 mt-1">
-                          {item.category || "Others"}
-                        </p>
-                      )}
-                      
-                      {/* Price */}
-                      <p className="text-sm text-[#FC687D] font-semibold mt-2">
-                        ₱{Number(item.price || 0).toFixed(0)}
-                      </p>
-
-                      <p className="text-[10px] text-slate-400 mt-2 uppercase tracking-widest">
-                        Tap for options
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </>
-        )}
+                          <p className="text-xs font-bold text-slate-800 leading-tight line-clamp-2">{item.name}</p>
+                        </div>
+                        
+                        <div className="mt-1.5 flex items-center justify-between w-full">
+                          <p className="text-xs text-[#FC687D] font-bold">₱{Number(item.price || 0).toFixed(0)}</p>
+                          <span className="text-[9px] text-slate-400 uppercase tracking-tight bg-slate-50 px-1 py-0.5 rounded">Options</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
+
       <Footer />
     </div>
   );
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Variant Modal
+    Variant Selection Overlay Modal Box
 ────────────────────────────────────────────────────────────── */
 function VariantModal({ item, onClose }) {
   const [selections, setSelections] = useState({});
-
   const variants = Array.isArray(item?.variants) ? item.variants : [];
 
   useEffect(() => {
@@ -498,64 +430,32 @@ function VariantModal({ item, onClose }) {
     }
   };
 
-  const variantPrice =
-    Object.values(selections)
-      .flat()
-      .reduce((sum, o) => sum + (Number(o.price) || 0), 0) || 0;
-
+  const variantPrice = Object.values(selections).flat().reduce((sum, o) => sum + (Number(o.price) || 0), 0) || 0;
   const totalPrice = (Number(item.price) || 0) + variantPrice;
-
-  const requiredOk = variants.every(
-    (g) => !g.isRequired || (selections[g.id] || []).length > 0
-  );
+  const requiredOk = variants.every((g) => !g.isRequired || (selections[g.id] || []).length > 0);
 
   return (
-    <div
-      className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md bg-white rounded-t-[26px] md:rounded-[30px] p-5 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-4">
+    <div className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4" onClick={onClose}>
+      <div className="w-full max-w-md bg-white rounded-t-[26px] md:rounded-[30px] p-5 shadow-2xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-4 flex-none">
           <div>
             <p className="text-[10px] uppercase tracking-widest text-slate-400">Options</p>
-            <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">{item.name}</h3>
-            <p className="text-sm text-[#FC687D] font-semibold mt-2">
-              ₱{Number(totalPrice).toFixed(0)}
-            </p>
-            {item.description && (
-              <p className="text-[12px] text-slate-500 mt-2 leading-relaxed">
-                {item.description}
-              </p>
-            )}
+            <h3 className="text-base font-bold text-slate-800 mt-0.5">{item.name}</h3>
+            <p className="text-sm text-[#FC687D] font-bold mt-1">₱{Number(totalPrice).toFixed(0)}</p>
           </div>
-
-          <button
-            onClick={onClose}
-            className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400"
-            aria-label="Close"
-          >
-            ✕
-          </button>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 text-xs">✕</button>
         </div>
 
-        {/* Variants */}
-        {variants.length > 0 ? (
-          <div className="mt-5 space-y-5">
-            {variants.map((g) => (
-              <div key={g.id} className="space-y-2">
+        {/* Scrollable interior variant lists container */}
+        <div className="flex-1 overflow-y-auto my-3 pr-1 space-y-4 text-xs">
+          {variants.length > 0 ? (
+            variants.map((g) => (
+              <div key={g.id} className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold text-slate-700">
-                    {g.name} {g.isRequired ? <span className="text-rose-500">*</span> : null}
-                  </p>
-                  <p className="text-[10px] text-slate-400">
-                    {g.isMultiSelect ? "Multi" : "Single"}
-                  </p>
+                  <p className="font-bold text-slate-700">{g.name} {g.isRequired && <span className="text-rose-500">*</span>}</p>
+                  <p className="text-[9px] text-slate-400 uppercase">{g.isMultiSelect ? "Multi" : "Single"}</p>
                 </div>
-
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-1.5">
                   {(g.options || []).map((o) => {
                     const sel = (selections[g.id] || []).find((x) => x.id === o.id);
                     return (
@@ -563,38 +463,27 @@ function VariantModal({ item, onClose }) {
                         key={o.id}
                         type="button"
                         onClick={() => toggleOption(g, o)}
-                        className={`p-3 rounded-xl border text-sm text-left transition-all ${
-                          sel ? "border-rose-300 bg-rose-50/40" : "border-slate-200 bg-white"
-                        }`}
+                        className={`p-2.5 rounded-xl border text-left transition-all ${sel ? "border-rose-300 bg-rose-50/40" : "border-slate-200 bg-white"}`}
                       >
-                        <div className="font-medium text-slate-800 leading-tight">{o.name}</div>
-                        <div className="text-[11px] text-slate-500 mt-1">
-                          {Number(o.price) > 0 ? `+₱${Number(o.price).toFixed(0)}` : "—"}
-                        </div>
+                        <div className="font-semibold text-slate-800 leading-tight">{o.name}</div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">{Number(o.price) > 0 ? `+₱${Number(o.price).toFixed(0)}` : "Included"}</div>
                       </button>
                     );
                   })}
                 </div>
               </div>
-            ))}
-
-            {!requiredOk && (
-              <p className="text-xs text-rose-600">
-                Please select required options (*).
-              </p>
-            )}
-          </div>
-        ) : (
-          <div className="mt-5 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm text-slate-600">
-            No variants/options for this item.
-          </div>
-        )}
+            ))
+          ) : (
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-500 text-center">No customization variants available.</div>
+          )}
+        </div>
 
         <button
           onClick={onClose}
-          className="w-full mt-6 py-3 rounded-xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-widest active:scale-95"
+          disabled={!requiredOk}
+          className="w-full py-2.5 rounded-xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-widest disabled:opacity-50 flex-none"
         >
-          Close
+          Confirm Options
         </button>
       </div>
     </div>

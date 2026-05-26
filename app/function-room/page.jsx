@@ -11,7 +11,7 @@ const LOGO =
   "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
 
 /* ─────────────────────────────────────────────────────────────
-   Shared Modal Shell (matches BookingForm look & feel)
+    Shared Modal Shell (matches BookingForm look & feel)
 ───────────────────────────────────────────────────────────── */
 function ModalShell({ open, onClose, title, subtitle, children, z = 140 }) {
   if (!open) return null;
@@ -54,9 +54,8 @@ function ModalShell({ open, onClose, title, subtitle, children, z = 140 }) {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   Shared Nav (softened typography to match BookingForm panels)
+    Shared Nav (softened typography to match BookingForm panels)
 ───────────────────────────────────────────────────────────── */
-// ─── Shared Nav ───────────────────────────────────────────────────────────────
 function Nav({ active }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -79,6 +78,14 @@ function Nav({ active }) {
     ["promo", "Promos", "/promos"],
     ["function room", "Function Room", "/function-room"],
     ["about", "About Us", "/about"]
+  ];
+
+  const mobileLinks = [
+    ["Home", "/"],
+    ["Menu", "/menu"],
+    ["Promos", "/promos"],
+    ["Function Room", "/function-room"],
+    ["About Us", "/about"]
   ];
 
   return (
@@ -105,7 +112,6 @@ function Nav({ active }) {
           ))}
         </div>
 
-
         <div className="hidden md:flex items-center gap-3">
           <Link
             href={loginUrl}
@@ -122,21 +128,9 @@ function Nav({ active }) {
           type="button"
         >
           <div className="w-5 space-y-[5px]">
-            <span
-              className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${
-                open ? "rotate-45 translate-y-[7px]" : ""
-              }`}
-            />
-            <span
-              className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${
-                open ? "opacity-0" : ""
-              }`}
-            />
-            <span
-              className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${
-                open ? "-rotate-45 -translate-y-[7px]" : ""
-              }`}
-            />
+            <span className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${open ? "rotate-45 translate-y-[7px]" : ""}`} />
+            <span className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${open ? "opacity-0" : ""}`} />
+            <span className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${open ? "-rotate-45 -translate-y-[7px]" : ""}`} />
           </div>
         </button>
       </div>
@@ -167,60 +161,52 @@ function Nav({ active }) {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   Shared Footer (kept consistent with your current style)
+    Shared Footer (kept consistent with your current style)
 ───────────────────────────────────────────────────────────── */
 function Footer() {
   return (
-    <footer className="bg-slate-900 text-slate-400 pt-16 pb-10 px-6 mt-20">
-      <div className="max-w-6xl mx-auto grid sm:grid-cols-2 md:grid-cols-3 gap-10 mb-12">
-        <div>
+    <footer className="bg-slate-900 text-slate-400 py-6 md:py-8 px-6 flex-none">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10 mb-4 md:mb-6">
+        {/* Brand Block */}
+        <div className="flex flex-col justify-center">
           <img
             src={LOGO}
             alt="Juja"
-            className="h-14 w-auto object-contain mb-5 brightness-0 invert opacity-60"
+            className="h-10 w-auto object-contain mb-3 brightness-0 invert opacity-60 self-start"
           />
-          <p className="text-slate-400 text-sm leading-relaxed max-w-sm">
+          <p className="text-slate-400 text-xs leading-relaxed max-w-sm">
             Your premier destination for specialty brews and artisan bites in Quezon City.
           </p>
         </div>
 
-        <div>
-          <p className="text-white/60 font-semibold mb-5 uppercase text-[10px] tracking-[0.3em]">
-            Explore
+        {/* Branch 1: Pasong Tamo */}
+        <div className="text-xs">
+          <p className="text-[#FC687D] font-bold mb-2 uppercase text-[10px] tracking-[0.2em]">
+            Pasong Tamo Branch
           </p>
-          <div className="space-y-3 text-sm">
-            {[
-              ["Home", "/"],
-              ["Menu", "/menu"],
-              ["Promos", "/promos"],
-              ["Function Room", "/function-room"],
-              ["About Us", "/about"],
-            ].map(([l, href]) => (
-              <Link
-                key={l}
-                href={href}
-                className="block text-slate-400 hover:text-[#FC687D] transition-colors"
-              >
-                {l}
-              </Link>
-            ))}
+          <div className="space-y- text-slate-400 leading-relaxed">
+            <p>📍 36D Visayas Ave., Pasong Tamo, QC</p>
+            <p>📞 0939-9228383</p>
+            <p className="text-slate-500 text-[11px]">Store: 10AM–12MN · Function: 10AM–2AM</p>
           </div>
         </div>
 
-        <div>
-          <p className="text-white/60 font-semibold mb-5 uppercase text-[10px] tracking-[0.3em]">
-            Find Us
+        {/* Branch 2: Diliman */}
+        <div className="text-xs">
+          <p className="text-[#FC687D] font-bold mb-2 uppercase text-[10px] tracking-[0.2em]">
+            Diliman Branch
           </p>
-          <div className="space-y-3.5 text-sm text-slate-400">
-            <p>📍 36D Visayas Ave., Pasong Tamo, Quezon City</p>
-            <p>📞 0939-9228383</p>
-            <p>🕙 Function Room Availability: 10AM – 2AM daily</p>
+          <div className="space-y-1 text-slate-400 leading-relaxed">
+            <p>📍 8 Visayas Ave., Diliman, QC</p>
+            <p>📞 0961-6320909</p>
+            <p className="text-slate-500 text-[11px]">Mon-Wed: 8AM–10PM · Thu-Sat: 10AM–10PM</p>
           </div>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center text-slate-500 text-[11px] tracking-wider uppercase">
-        <p>© {new Date().getFullYear()} Juja Brew &amp; Bites®</p>
+      {/* Footer Bottom Metadata Bar */}
+      <div className="max-w-7xl mx-auto pt-4 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center text-slate-500 text-[10px] tracking-wider uppercase">
+        <p>© {new Date().getFullYear()} Juja Brew &amp; Bites® · All rights reserved</p>
         <p>Quezon City · Philippines</p>
       </div>
     </footer>
@@ -228,7 +214,7 @@ function Footer() {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   Main Page
+    Main Page
 ───────────────────────────────────────────────────────────── */
 export default function FunctionRoomPage() {
   const supabase = getSupabaseClient();
@@ -265,39 +251,95 @@ export default function FunctionRoomPage() {
   }, []);
 
   const keySpecs = [
-    { icon: "👥", title: "Capacity", desc: "Up to 30–40 guests comfortably seated" },
+    { icon: "👥", title: "Capacity", desc: "Up to 60 guests" },
     { icon: "⚡", title: "Amenities", desc: "Wi‑Fi, sound system, smart TV & KTV ready" },
     { icon: "⏰", title: "Hours", desc: "10:00 AM up to 2:00 AM daily" },
     { icon: "❄️", title: "Comfort", desc: "Fully air‑conditioned private space" },
   ];
 
   const packages = {
-    consumable: {
-      title: "Consumable Tier",
-      rate: "₱8,000",
-      hours: "3 Hours Exclusive Use",
-      subtitle: "100% consumable for food & drinks.",
-      features: [
-        "Private access to the function room",
-        "Order from the full menu catalog",
-        "Flexible seating arrangements",
-        "Basic multimedia access",
-        "₱1,500 per succeeding extension hour",
-      ],
-    },
-    celebration: {
-      title: "Celebration Package",
-      rate: "₱15,000",
-      hours: "4 Hours Exclusive Use",
-      subtitle: "Curated set for smooth event flow.",
-      features: [
-        "Premium catering trays",
-        "Signature group platters (Pasta/Chicken/Rice)",
-        "Brewed coffees or Milk Tea variants",
-        "Invitation design support",
-        "Dedicated service assistant",
-      ],
-    },
+    consumable: [
+      {
+        title: "Package 1",
+        rate: "₱3,000",
+        hours: "3 Hours Exclusive Use",
+        subtitle: "₱2,500 consumable for food & drinks.",
+        features: [          
+          "Capacity: up to 15 Guests ",  
+          "Private use of function room",
+          "Order from the full menu catalog",
+          "Use of entertainment amenities: Videoke, YouTube & Netflix",
+          "₱250 per succeeding extension hour",
+        ],
+      },
+      {
+        title: "Package 2",
+        rate: "₱7,000",
+        hours: "3 Hours Exclusive Use",
+        subtitle: "₱5,500 consumable for food & drinks.",
+        features: [
+          "Capacity: up to 30 Guests ",  
+          "Private use of function room",
+          "Order from the full menu catalog",
+          "Use of entertainment amenities: Videoke, YouTube & Netflix",
+          "₱750 per succeeding extension hour",
+        ],
+      },
+      {
+        title: "Package 3",
+        rate: "₱15,000",
+        hours: "3 Hours Exclusive Use",
+        subtitle: "₱12,000 consumable for food & drinks.",
+        features: [
+          "Capacity: up to 60 Guests ",
+          "Exclusive use of the entire store",
+          "Order from the full menu catalog",
+          "Use of entertainment amenities: Videoke, YouTube & Netflix",
+          "₱1,500 per succeeding extension hour",
+        ],
+      },
+    ],
+    celebration: [
+      {
+        title: "Package 4",
+        rate: "₱2,500",
+        hours: "3 Hours Exclusive Use",
+        subtitle: "Room rental only",
+        features: [
+          "Capacity: up to 15 Guests",
+          "Private use of function room",
+          "Inclusive of corkage for food and drinks",
+          "Use of entertainment amenities: Videoke, YouTube & Netflix",
+          "Extension: ₱1,000 per hour",
+        ],
+      },
+      {
+        title: "Package 5",
+        rate: "₱3,500",
+        hours: "3 Hours Exclusive Use",
+        subtitle: "Room rental only",
+        features: [
+          "Capacity: up to 30 Guests",
+          "Private use of function room",
+          "Inclusive of corkage for food and drinks",
+          "Use of entertainment amenities: Videoke, YouTube & Netflix",
+          "Extension: ₱1,500 per hour",
+        ],
+      },
+      {
+        title: "Package 6",
+        rate: "₱8,000",
+        hours: "3 Hours Exclusive Use",
+        subtitle: "Room rental only",
+        features: [
+          "Capacity: up to 60 Guests",
+          "Exclusive use of the entire store",
+          "Inclusive of corkage for food and drinks",
+          "Use of entertainment amenities: Videoke, YouTube & Netflix",
+          "Extension: ₱2,500 per hour",
+        ],
+      },
+    ],
   };
 
   function handleSelectSlot({ dateISO, hour }) {
@@ -318,144 +360,155 @@ export default function FunctionRoomPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white pb-16 pt-24 md:pt-28">
+    // Locked master layout boundaries to screen viewport metrics (h-screen w-screen overflow-hidden)
+    <div className="h-screen w-screen overflow-hidden flex flex-col bg-white">
       <Nav active="function room" />
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 space-y-10">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-slate-100">
-          <div>
-            <p className="text-xs text-rose-500 font-semibold">Private Bookings</p>
-            <h1 className="text-2xl sm:text-3xl font-semibold text-slate-800 mt-2">
-              Function Room
-            </h1>
-            <p className="text-sm text-slate-400 mt-1">
-              Check availability and reserve your slot.
-            </p>
-          </div>
-
-          <button
-            onClick={() => {
-              setPickedSlot(null);
-              setBookingModalOpen(true);
-            }}
-            className="px-6 py-3 rounded-2xl bg-[#FC687D] hover:bg-rose-500 text-white text-xs font-bold uppercase tracking-widest shadow-md shadow-rose-100 active:scale-[0.99]"
-            type="button"
-          >
-            Check Availability
-          </button>
-        </div>
-
-        {/* Hero Card */}
-        <div className="bg-white rounded-3xl border border-slate-100 p-6 sm:p-8">
-          <h2 className="text-lg sm:text-xl font-semibold text-slate-800">
-            Host your event at Juja
-          </h2>
-          <p className="text-sm text-slate-500 mt-2 leading-relaxed">
-            Ideal for birthdays, meetings, private gatherings, and milestone celebrations.
-          </p>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
-            {keySpecs.map((s) => (
-              <div
-                key={s.title}
-                className="bg-slate-50 border border-slate-100 rounded-2xl p-4"
-              >
-                <div className="text-2xl">{s.icon}</div>
-                <div className="text-sm font-semibold text-slate-800 mt-2">
-                  {s.title}
-                </div>
-                <div className="text-xs text-slate-500 mt-1">{s.desc}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Rates & Packages */}
-        <div className="bg-white rounded-3xl border border-slate-100 p-6 sm:p-8">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
+      {/* ─── SCROLLABLE MAIN APPARATUS WORKSPACE FIELD ─── */}
+      {/* flex-1 absorbs leftover size, overflow-y-auto traps internal scrolling, pt-20 clears fixed nav */}
+      <main className="flex-1 min-h-0 overflow-y-auto pt-20 pb-6">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 space-y-6 md:space-y-8">
+          
+          {/* Header (Adjusted paddings for better vertical optimization) */}
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-slate-100">
             <div>
-              <h3 className="text-lg font-semibold text-slate-800">Rates & Packages</h3>
-              <p className="text-sm text-slate-500 mt-1">Choose the package that fits your event.</p>
+              <p className="text-xs text-rose-500 font-semibold">Private Bookings</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-800 mt-1">
+                Function Room
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
+                Check availability and reserve your slot.
+              </p>
             </div>
 
-            <div className="inline-flex bg-slate-50 border border-slate-200/60 p-1 rounded-full shadow-inner">
-              <button
-                onClick={() => setSelectedPackage("consumable")}
-                className={`px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider transition ${
-                  selectedPackage === "consumable"
-                    ? "bg-[#FC687D] text-white shadow-sm"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-                type="button"
-              >
-                Consumable
-              </button>
-              <button
-                onClick={() => setSelectedPackage("celebration")}
-                className={`px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider transition ${
-                  selectedPackage === "celebration"
-                    ? "bg-[#FC687D] text-white shadow-sm"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-                type="button"
-              >
-                Celebration
-              </button>
+            <button
+              onClick={() => {
+                setPickedSlot(null);
+                setBookingModalOpen(true);
+              }}
+              className="px-5 py-2.5 rounded-xl bg-[#FC687D] hover:bg-rose-500 text-white text-[11px] font-bold uppercase tracking-widest shadow-md shadow-rose-100 active:scale-[0.99] transition-transform"
+              type="button"
+            >
+              Check Availability
+            </button>
+          </div>
+
+          {/* Hero Specs Card */}
+          <div className="bg-white rounded-2xl border border-slate-100 p-4 md:p-6">
+            <h2 className="text-base sm:text-lg font-semibold text-slate-800">
+              Host your event at Juja
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">
+              Ideal for birthdays, meetings, private gatherings, and milestone celebrations.
+            </p>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+              {keySpecs.map((s) => (
+                <div
+                  key={s.title}
+                  className="bg-slate-50 border border-slate-100 rounded-xl p-3.5"
+                >
+                  <div className="text-xl">{s.icon}</div>
+                  <div className="text-xs sm:text-sm font-bold text-slate-800 mt-1.5">
+                    {s.title}
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5 leading-tight">{s.desc}</div>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="mt-6 bg-slate-50 border border-slate-100 rounded-3xl p-5 sm:p-6 grid md:grid-cols-5 gap-6 items-start">
-            <div className="md:col-span-3">
-              <span className="inline-block text-[10px] font-bold uppercase tracking-widest text-[#FC687D] bg-rose-50 border border-rose-100 px-3 py-1 rounded-full">
-                {packages[selectedPackage].hours}
-              </span>
+          {/* Rates & Packages Block (Untouched internally as requested) */}
+          <div className="bg-white rounded-3xl border border-slate-100 p-6 sm:p-8">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-800">Rates & Packages</h3>
+                <p className="text-sm text-slate-500 mt-1">Choose the package that fits your event.</p>
+              </div>
 
-              <h4 className="text-xl font-semibold text-slate-800 mt-3">
-                {packages[selectedPackage].title}
-              </h4>
-              <p className="text-sm text-slate-500 mt-2">
-                {packages[selectedPackage].subtitle}
-              </p>
-
-              <ul className="mt-4 space-y-2">
-                {packages[selectedPackage].features.map((feat, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-sm text-slate-600">
-                    <span className="text-[#FC687D] mt-[1px]">✔</span>
-                    <span>{feat}</span>
-                  </li>
-                ))}
-              </ul>
+              <div className="inline-flex bg-slate-50 border border-slate-200/60 p-1 rounded-full shadow-inner">
+                <button
+                  onClick={() => setSelectedPackage("consumable")}
+                  className={`px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider transition ${
+                    selectedPackage === "consumable"
+                      ? "bg-[#FC687D] text-white shadow-sm"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                  type="button"
+                >
+                  Consumable
+                </button>
+                <button
+                  onClick={() => setSelectedPackage("celebration")}
+                  className={`px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider transition ${
+                    selectedPackage === "celebration"
+                      ? "bg-[#FC687D] text-white shadow-sm"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                  type="button"
+                >
+                  Room Only
+                </button>
+              </div>
             </div>
 
-            <div className="md:col-span-2 md:border-l border-slate-200/60 md:pl-6">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                Base Rate
-              </div>
-              <div className="text-4xl font-semibold text-[#FC687D] mt-2">
-                {packages[selectedPackage].rate}
-              </div>
+            {/* 3-Column Grid View for Balanced Desktop Layout */}
+            <div className="mt-6 grid md:grid-cols-3 gap-6">
+              {packages[selectedPackage].map((pkg, index) => (
+                <div 
+                  key={index} 
+                  className="bg-slate-50 border border-slate-100 rounded-3xl p-5 sm:p-6 flex flex-col justify-between items-start min-h-[420px]"
+                >
+                  <div className="w-full">
+                    <span className="inline-block text-[10px] font-bold uppercase tracking-widest text-[#FC687D] bg-rose-50 border border-rose-100 px-3 py-1 rounded-full">
+                      {pkg.hours}
+                    </span>
 
-              <button
-                onClick={() => {
-                  setPickedSlot(null);
-                  setBookingModalOpen(true);
-                }}
-                className="w-full mt-5 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-widest shadow-md active:scale-[0.99]"
-                type="button"
-              >
-                Check Availability
-              </button>
+                    <h4 className="text-lg font-semibold text-slate-800 mt-3">
+                      {pkg.title}
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-2">
+                      {pkg.subtitle}
+                    </p>
 
-              <p className="text-xs text-slate-500 mt-3">
-                Booking is completed in the customer portal.
-              </p>
+                    <ul className="mt-4 space-y-2">
+                      {pkg.features.map((feat, idx) => (
+                        <li key={idx} className="flex items-start gap-2 text-xs text-slate-600">
+                          <span className="text-[#FC687D] mt-[1px]">✔</span>
+                          <span>{feat}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="w-full pt-4 mt-6 border-t border-slate-200/60">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                      Base Rate
+                    </div>
+                    <div className="text-2xl font-semibold text-[#FC687D] mt-1">
+                      {pkg.rate}
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setPickedSlot(null);
+                        setBookingModalOpen(true);
+                      }}
+                      className="w-full mt-4 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-widest shadow-md active:scale-[0.99] transition-transform"
+                      type="button"
+                    >
+                      Check Availability
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
+
         </div>
-      </div>
+      </main>
 
-      {/* ✅ Availability Modal (Clean regular text styles applied) */}
+      {/* Availability Popup Modal Layer Block */}
       <ModalShell
         open={bookingModalOpen}
         onClose={() => setBookingModalOpen(false)}
@@ -464,7 +517,6 @@ export default function FunctionRoomPage() {
         z={160}
       >
         <div className="space-y-4">
-          {/* HEADER INFO */}
           <div className="bg-white rounded-2xl border border-rose-50 shadow-sm p-4">
             <p className="text-[11px] text-slate-500 font-normal">
               Select a date and choose an available time slot.
@@ -474,29 +526,22 @@ export default function FunctionRoomPage() {
             </p>
           </div>
 
-          {/* AVAILABILITY PANEL */}
           <div className="bg-white rounded-2xl md:rounded-[28px] border border-rose-50 shadow-sm p-5 md:p-6 space-y-4">
             <BookingAvailabilityOnly onSelectSlot={handleSelectSlot} />
           </div>
 
-          {/* SELECTED SLOT */}
           {pickedSlot && (
             <div className="text-[10px] uppercase tracking-widest text-slate-400 font-normal">
-              <div className="text-slate-800 font-normal">
-                Selected Slot
-              </div>
-
+              <div className="text-slate-800 font-normal">Selected Slot</div>
               <div className="text-[10px] uppercase tracking-widest text-slate-400 mt-0.5 font-normal">
                 Date: {pickedSlot.dateISO} · Hour Code: {pickedSlot.hour}
               </div>
-
               <div className="mt-2 text-xs text-slate-500 normal-case tracking-normal font-normal">
                 This selection will continue after login
               </div>
             </div>
           )}
 
-          {/* ACTIONS */}
           <div className="pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-2">
             {!sessionUser ? (
               <button
@@ -522,7 +567,6 @@ export default function FunctionRoomPage() {
             </button>
           </div>
 
-          {/* FOOTER */}
           <p className="text-[11px] text-slate-400 text-center font-normal">
             Need help? Call/text 0939-9228383
           </p>
