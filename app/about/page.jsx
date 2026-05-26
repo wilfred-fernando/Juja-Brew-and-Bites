@@ -5,7 +5,7 @@ import Link from "next/link";
 
 const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
 
-// ─── Shared Nav (Left untouched as requested) ───────────────────────────────────
+// ─── Shared Nav ───────────────────────────────────────────────────────────────
 function Nav({ active }) {
   const [open, setOpen] = useState(false);
   const [loginUrl, setLoginUrl] = useState("https://customer.jujabrewandbites.com/login");
@@ -82,9 +82,10 @@ function Nav({ active }) {
   );
 }
 
-// ─── Shared Footer (Left untouched as requested) ─────────────────────────────────
+// ─── Shared Footer ────────────────────────────────────────────────────────────
 function Footer() {
   return (
+    // Replaced large margin-top and padding-top with tight, proportional paddings suitable for a viewport container
     <footer className="bg-slate-900 text-slate-400 py-6 md:py-8 px-6 flex-none">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10 mb-4 md:mb-6">
         {/* Brand Block */}
@@ -136,81 +137,71 @@ function Footer() {
 // ─── Main About Page ──────────────────────────────────────────────────────────
 export default function About() {
   return (
-    <div className="h-screen w-screen overflow-hidden flex flex-col bg-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div className="min-h-screen bg-white" style={{ fontFamily:"'Inter',system-ui,sans-serif" }}>
       <Nav active="about" />
 
-      {/* ═══ DYNAMIC MAIN CONTAINER ═══ */}
-      {/* flex-1 takes remaining height, overflow-y-auto ensures content flows naturally inside if squeezed */}
-      <main className="flex-1 min-h-0 overflow-y-auto flex flex-col">
+      {/* ═══ SOFT HERO ═══ */}
+      <div className="relative overflow-hidden bg-[#FFF5F7]" style={{ paddingTop:"7.5rem", paddingBottom:"5rem", borderBottom: "1px solid #ffe4e6" }}>
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[180px] pointer-events-none"
+          style={{ background:"radial-gradient(ellipse,rgba(252,104,125,0.15) 0%,transparent 70%)", filter:"blur(55px)" }} />
+        <div className="absolute inset-0 opacity-[0.03]"
+          style={{ backgroundImage:"radial-gradient(rgba(252,104,125,0.8) 1px,transparent 1px)", backgroundSize:"26px 26px" }} />
         
-        {/* ═══ REVERTED ORIGINAL SOFT HERO DESIGN ═══ */}
-        {/* Restored the styling layout footprint exactly as requested */}
-        <div className="relative overflow-hidden bg-[#FFF5F7] flex-none" style={{ paddingTop: "4rem", paddingBottom: "3.5rem", borderBottom: "1px solid #ffe4e6" }}>
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[180px] pointer-events-none"
-            style={{ background: "radial-gradient(ellipse,rgba(252,104,125,0.15) 0%,transparent 70%)", filter: "blur(55px)" }} />
-          <div className="absolute inset-0 opacity-[0.03]"
-            style={{ backgroundImage: "radial-gradient(rgba(252,104,125,0.8) 1px,transparent 1px)", backgroundSize: "26px 26px" }} />
-          
-          <div className="relative z-10 max-w-3xl mx-auto px-6 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <img src={LOGO} alt="Juja" className="h-16 md:h-20 w-auto object-contain mx-auto mb-4 drop-shadow-sm" />
-            <div className="inline-flex items-center gap-2 mb-3 px-4 py-1.5 rounded-full text-[10px] font-normal uppercase tracking-[0.25em] bg-white text-[#FC687D] border border-rose-100 shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#FC687D] animate-pulse" />
-              Our Story
-            </div>
-            <h1 className="text-3xl md:text-5xl font-extrabold text-slate-800 tracking-tight mb-3">
-              About <span className="text-[#FC687D]">Juja</span> 주자
-            </h1>
-            <p className="text-slate-500 text-xs md:text-sm font-medium max-w-md mx-auto leading-relaxed">
-              A cozy hangout where great brews meet amazing bites — all served with Korean-inspired warmth.
+        <div className="relative z-10 max-w-3xl mx-auto px-6 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <img src={LOGO} alt="Juja" className="h-24 md:h-28 w-auto object-contain mx-auto mb-6 drop-shadow-sm" />
+          <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full text-[10px] font-normal uppercase tracking-[0.25em] bg-white text-[#FC687D] border border-rose-100 shadow-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#FC687D] animate-pulse" />
+            Our Story
+          </div>
+          <h1 className="text-4xl md:text-6xl font-extrabold text-slate-800 tracking-tight mb-4">
+            About <span className="text-[#FC687D]">Juja</span> 주자
+          </h1>
+          <p className="text-slate-500 text-sm font-medium max-w-md mx-auto leading-relaxed">
+            A cozy hangout where great brews meet amazing bites — all served with Korean-inspired warmth.
+          </p>
+        </div>
+      </div>
+
+      {/* ═══ STORY ═══ */}
+      <section className="py-24 px-6 bg-white">
+        <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-16 items-center">
+          <div className="animate-in fade-in slide-in-from-left-8 duration-700">
+            <p className="text-[#FC687D] uppercase tracking-[0.25em] text-[10px] font-normal mb-3">Who We Are</p>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-slate-800 tracking-tight mb-6 leading-tight">
+              Born from a Passion<br />for Good Food
+            </h2>
+            <p className="text-slate-500 mb-5 font-medium leading-relaxed text-sm">
+              Juja 주자 Brew & Bites is your neighborhood cafe and food hub, born from a deep love for great food and
+              even better company. We blend Filipino comfort food with Korean-inspired flavors to create an experience that's uniquely ours.
+            </p>
+            <p className="text-slate-500 mb-5 font-medium leading-relaxed text-sm">
+              Whether you're grabbing a quick milk tea, feasting on our famous unli wings, or celebrating a special event
+              in our function room — Juja is always the place to be.
+            </p>
+            <p className="text-slate-500 font-medium leading-relaxed text-sm">
+              Every visit should feel like coming home — warm, satisfying, and worth sharing with people you love.
             </p>
           </div>
-        </div>
-
-        {/* ═══ STORY CONTENT SECTION ═══ */}
-        {/* Adjusted padding slightly to balance vertical allocation across laptops and displays */}
-        <section className="py-8 md:py-12 px-6 bg-white flex-1 flex items-center">
-          <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-8 md:gap-16 items-center w-full">
-            <div className="animate-in fade-in slide-in-from-left-8 duration-700 space-y-3">
-              <div>
-                <p className="text-[#FC687D] uppercase tracking-[0.25em] text-[10px] font-normal mb-1">Who We Are</p>
-                <h2 className="text-xl md:text-3xl font-extrabold text-slate-800 tracking-tight leading-tight">
-                  Born from a Passion<br />for Good Food
-                </h2>
+          <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-right-8 duration-700">
+            {[
+              { num:"170+", label:"Menu Items", icon:"🍽" },
+              { num:"11", label:"Categories", icon:"📋" },
+              { num:"Daily", label:"Fresh & Open", icon:"🕙" },
+              { num:"🤍", label:"Made with Love", icon:"" },
+            ].map(s => (
+              <div key={s.label}
+                className="group bg-[#FFF5F7] rounded-3xl p-6 text-center border border-rose-50
+                  hover:bg-[#FC687D] hover:shadow-[0_8px_20px_rgba(252,104,125,0.2)] hover:-translate-y-1
+                  transition-all duration-300">
+                <div className="text-3xl font-normal text-[#FC687D] mb-1 group-hover:text-white transition-colors">{s.num}</div>
+                <div className="text-slate-400 text-[11px] font-bold group-hover:text-rose-100 transition-colors uppercase tracking-widest">{s.label}</div>
               </div>
-              <p className="text-slate-500 font-medium leading-relaxed text-xs md:text-sm">
-                Juja 주자 Brew & Bites is your neighborhood cafe and food hub, born from a deep love for great food and
-                even better company. We blend Filipino comfort food with Korean-inspired flavors to create an experience that's uniquely ours.
-              </p>
-              <p className="text-slate-500 font-medium leading-relaxed text-xs md:text-sm">
-                Whether you're grabbing a quick milk tea, feasting on our famous unli wings, or celebrating a special event
-                in our function room — Juja is always the place to be.
-              </p>
-              <p className="text-slate-500 font-medium leading-relaxed text-xs md:text-sm">
-                Every visit should feel like coming home — warm, satisfying, and worth sharing with people you love.
-              </p>
-            </div>
-            
-            {/* Stats Matrix Grid Layout */}
-            <div className="grid grid-cols-2 gap-3.5 animate-in fade-in slide-in-from-right-8 duration-700">
-              {[
-                { num: "170+", label: "Menu Items" },
-                { num: "11", label: "Categories" },
-                { num: "Daily", label: "Fresh & Open" },
-                { num: "🤍", label: "Made with Love" },
-              ].map(s => (
-                <div key={s.label}
-                  className="group bg-[#FFF5F7] rounded-2xl p-4 md:p-5 text-center border border-rose-50
-                    hover:bg-[#FC687D] hover:shadow-[0_8px_20px_rgba(252,104,125,0.15)] hover:-translate-y-0.5
-                    transition-all duration-300">
-                  <div className="text-2xl font-bold text-[#FC687D] mb-0.5 group-hover:text-white transition-colors">{s.num}</div>
-                  <div className="text-slate-400 text-[9px] md:text-[10px] font-bold group-hover:text-rose-100 transition-colors uppercase tracking-widest">{s.label}</div>
-                </div>
-              ))}
-            </div>
+            ))}
           </div>
-        </section>
-      </main>
+        </div>
+      </section>
 
+    
       <Footer />
     </div>
   );
