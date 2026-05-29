@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import TicketPanel from "@/components/pos/TicketPanel";
 
+// Initialize Supabase Client instance cleanly at layout bundle level
+const supabaseGlobalInstance = getSupabaseClient();
+
 // ================= PRINT HELPERS =================
 
 function print58mmTextBrowser(text) {
@@ -224,22 +227,6 @@ function printReceiptText(receiptText, opts = {}) {
   }
 }
 
-function getPosStoreId() {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("pos_store_id") || localStorage.getItem("admin_store_id") || null;
-}
-
-function discountAmountFromRule(rule, subtotal) {
-  if (!rule) return 0;
-  const type = String(rule.type || "").toLowerCase();
-  const value = Number(rule.value || 0);
-
-  if (type === "percent") return subtotal * (value / 100);
-  if (type === "fixed") return value;
-  if (type === "comp") return subtotal;
-  return 0;
-}
-
 // ================= MODALS & SYSTEM UI =================
 
 function ModalShell({ open, onClose, title, subtitle, children, z = 120 }) {
@@ -247,23 +234,23 @@ function ModalShell({ open, onClose, title, subtitle, children, z = 120 }) {
   return (
     <div
       style={{ zIndex: z }}
-      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 animate-fadeIn"
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md bg-white rounded-t-3xl md:rounded-3xl p-5 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-md bg-white rounded-t-3xl md:rounded-3xl p-5 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-4 duration-300 md:zoom-in-95"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
           <div className="min-w-0">
             <p className="text-[10px] uppercase tracking-widest text-slate-400">{title}</p>
             {subtitle ? (
-              <h3 className="text-lg font-semibold text-slate-800 mt-1 truncate">{subtitle}</h3>
+              <h3 className="text-lg font-bold text-slate-800 mt-0.5 truncate">{subtitle}</h3>
             ) : null}
           </div>
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500"
+            className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500 font-semibold"
             aria-label="Close"
           >
             ✕
@@ -287,15 +274,15 @@ function Toast({ toast, onClose }) {
       : "bg-slate-900";
 
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150] px-4">
-      <div className={`${tone} text-white rounded-2xl shadow-2xl px-4 py-3 flex items-start gap-3 max-w-[520px]`}>
-        <div className="text-sm leading-snug">
-          <div className="font-semibold">{toast.title || "Notice"}</div>
-          {toast.message ? <div className="text-white/90 mt-0.5">{toast.message}</div> : null}
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150] px-4 w-full max-w-md">
+      <div className={`${tone} text-white rounded-2xl shadow-2xl px-4 py-3 flex items-start gap-3 w-full animate-in fade-in slide-in-from-top-4`}>
+        <div className="text-sm leading-snug flex-1">
+          <div className="font-bold">{toast.title || "Notice"}</div>
+          {toast.message ? <div className="text-white/90 text-xs mt-0.5">{toast.message}</div> : null}
         </div>
         <button
           onClick={onClose}
-          className="ml-auto w-8 h-8 rounded-xl bg-white/10 hover:bg-white/15 flex items-center justify-center"
+          className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/15 flex items-center justify-center font-bold text-xs"
           aria-label="Close toast"
         >
           ✕
@@ -305,21 +292,20 @@ function Toast({ toast, onClose }) {
   );
 }
 
-// ================= CONFIRM MODAL =================
 function ConfirmModal({ open, title, message, confirmText = "Confirm", cancelText = "Cancel", onConfirm, onCancel }) {
   return (
     <ModalShell open={open} onClose={onCancel} title="Confirmation" subtitle={title} z={140}>
-      <p className="text-sm text-slate-600">{message}</p>
-      <div className="grid grid-cols-2 gap-2 mt-5 pt-4 border-t border-slate-100">
+      <p className="text-sm font-medium text-slate-600 leading-relaxed">{message}</p>
+      <div className="grid grid-cols-2 gap-3 mt-5 pt-4 border-t border-slate-100">
         <button
           onClick={onCancel}
-          className="w-full py-3 rounded-2xl bg-white border border-slate-200 text-slate-600 text-xs font-bold active:scale-95"
+          className="w-full py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 text-xs font-bold active:scale-95 transition"
         >
           {cancelText}
         </button>
         <button
           onClick={onConfirm}
-          className="w-full py-3 rounded-2xl bg-[#FC687D] text-white text-xs font-bold active:scale-95"
+          className="w-full py-3 rounded-xl bg-[#FC687D] text-white text-xs font-bold active:scale-95 transition shadow-sm"
         >
           {confirmText}
         </button>
@@ -331,7 +317,7 @@ function ConfirmModal({ open, title, message, confirmText = "Confirm", cancelTex
 function CategoryModal({ open, onClose, categories, active, onSelect }) {
   return (
     <ModalShell open={open} onClose={onClose} title="Category" subtitle="Select Category" z={140}>
-      <div className="space-y-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {(categories || []).map((cat) => {
           const isActive = active === cat.name;
           return (
@@ -341,13 +327,13 @@ function CategoryModal({ open, onClose, categories, active, onSelect }) {
                 onSelect(cat.name);
                 onClose();
               }}
-              className={`w-full text-left p-4 rounded-2xl border transition ${
+              className={`w-full text-left p-3.5 rounded-xl border font-bold text-sm transition ${
                 isActive
-                  ? "border-rose-200 bg-rose-50"
-                  : "border-slate-200 bg-slate-50 hover:bg-slate-100"
+                  ? "border-rose-400 bg-rose-50 text-rose-900"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
               }`}
             >
-              <p className="text-sm font-semibold text-slate-800">{cat.name}</p>
+              {cat.name}
             </button>
           );
         })}
@@ -394,7 +380,7 @@ function BarcodeScannerModal({ open, onClose, onResult }) {
 
         const scanner = new Html5QrcodeScanner(
           "pos-scan-area",
-          { fps: 10, qrbox: { width: 260, height: 260 } },
+          { fps: 10, qrbox: { width: 240, height: 240 } },
           false
         );
 
@@ -416,14 +402,14 @@ function BarcodeScannerModal({ open, onClose, onResult }) {
 
   return (
     <ModalShell open={open} onClose={() => { stopScanner(); onClose(); }} title="Barcode Scanner" subtitle="Scan code" z={145}>
-      <p className="text-xs text-slate-500">Scan customer code or item SKU. Camera permission will be requested.</p>
+      <p className="text-xs text-slate-500 font-medium">Scan customer code or item SKU. Camera permissions are required.</p>
       {step === "intro" && (
-        <div className="mt-4 border border-slate-200 rounded-2xl p-4 bg-slate-50">
-          <p className="text-sm font-semibold text-slate-800">Permission</p>
-          <p className="text-sm text-slate-600 mt-2">Tap <b>Start Scanner</b>. Your browser will ask for camera access — please allow.</p>
+        <div className="mt-4 border border-slate-200 rounded-xl p-4 bg-slate-50">
+          <p className="text-sm font-bold text-slate-800">Camera Access Requested</p>
+          <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">Tap start below and grant permission to activate the live layout scanning lens window.</p>
           <button
             onClick={startScanner}
-            className="w-full mt-4 py-3 rounded-2xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-widest active:scale-95"
+            className="w-full mt-4 h-11 rounded-xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-wider"
           >
             Start Scanner
           </button>
@@ -431,13 +417,13 @@ function BarcodeScannerModal({ open, onClose, onResult }) {
       )}
       {step === "scanning" && (
         <div className="mt-4">
-          {errMsg && <div className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-2xl p-3">{errMsg}</div>}
-          <div id="pos-scan-area" className="rounded-2xl overflow-hidden border border-slate-200" />
+          {errMsg && <div className="mb-3 text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl p-3 font-semibold">{errMsg}</div>}
+          <div id="pos-scan-area" className="rounded-xl overflow-hidden border border-slate-200 shadow-inner" />
           <button
             onClick={() => { stopScanner(); onClose(); }}
-            className="w-full mt-4 py-3 rounded-2xl bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-widest active:scale-95"
+            className="w-full mt-4 h-11 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider"
           >
-            Stop
+            Cancel
           </button>
         </div>
       )}
@@ -448,30 +434,30 @@ function BarcodeScannerModal({ open, onClose, onResult }) {
 function SavedTicketsModal({ open, onClose, tickets, onSelect, onRefresh, onVoid, mode = "resume" }) {
   return (
     <ModalShell open={open} onClose={onClose} title="Saved Tickets" subtitle={mode === "move" ? "Move Items" : "Resume"} z={145}>
-      <div className="flex gap-2 mb-3">
+      <div className="flex mb-3">
         <button
           onClick={onRefresh}
-          className="px-3 py-2 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 active:scale-95"
+          className="px-4 h-9 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
         >
-          ↻ Refresh
+          ↻ Refresh List
         </button>
       </div>
       {tickets.length === 0 ? (
-        <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 text-sm">No saved tickets.</div>
+        <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 text-xs font-medium">No parked orders located.</div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
           {tickets.map((t) => (
-            <div key={t.id} className="p-4 border rounded-2xl bg-white">
+            <div key={t.id} className="p-3.5 border rounded-xl bg-white shadow-sm hover:border-rose-100 transition">
               <div className="flex justify-between items-start gap-3">
                 <div className="min-w-0 text-left">
-                  <p className="font-semibold text-slate-800 truncate">{t.order_type || t.ticket_name}</p>
-                  <p className="text-xs text-slate-500 mt-1">Items: {(t.items || []).length} • ₱{Number(t.total_amount || 0).toFixed(0)}</p>
-                  <p className="text-[11px] text-slate-400 mt-1 truncate">Customer: {t._customerName || "Walk-in"}</p>
+                  <p className="font-bold text-slate-800 text-sm truncate">{t.order_type || t.ticket_name}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Lines: {(t.items || []).length} • <span className="font-bold text-slate-700">₱{Number(t.total_amount || 0).toFixed(0)}</span></p>
+                  <p className="text-[11px] font-medium text-slate-400 mt-1 truncate">Client: {t._customerName || "Walk-in"}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => onVoid(t)}
-                  className="text-xs text-red-600 font-bold tracking-wider hover:text-red-700 transition"
+                  className="text-xs text-red-500 font-bold hover:text-red-700 transition px-2 py-1 bg-red-50 rounded-md"
                 >
                   VOID
                 </button>
@@ -479,9 +465,9 @@ function SavedTicketsModal({ open, onClose, tickets, onSelect, onRefresh, onVoid
               <button
                 type="button"
                 onClick={() => onSelect(t)}
-                className="mt-3 w-full text-left p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100/80 text-xs font-semibold text-slate-700 transition"
+                className="mt-3 w-full text-center h-9 rounded-lg bg-slate-50 hover:bg-rose-50 hover:text-[#FC687D] text-xs font-bold text-slate-700 transition"
               >
-                {mode === "move" ? "Move here" : "Resume Ticket"}
+                {mode === "move" ? "Move selected lines here" : "Resume This Order"}
               </button>
             </div>
           ))}
@@ -489,7 +475,7 @@ function SavedTicketsModal({ open, onClose, tickets, onSelect, onRefresh, onVoid
       )}
       <button
         onClick={onClose}
-        className="w-full mt-4 py-3 rounded-2xl bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-widest active:scale-95"
+        className="w-full mt-4 h-11 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider"
       >
         Close
       </button>
@@ -501,18 +487,18 @@ function DiningOptionModal({ open, onClose, options, onPick }) {
   if (!open) return null;
   return (
     <ModalShell open={open} onClose={onClose} title="New Ticket" subtitle="Select Dining Option" z={145}>
-      <div className="space-y-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {(options || []).map((opt) => (
           <button
             key={opt.id || opt.name}
             onClick={() => onPick(opt.name)}
-            className="w-full text-left p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50"
+            className="w-full text-left p-3.5 rounded-xl border border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 transition"
           >
             {opt.name}
           </button>
         ))}
       </div>
-      <button onClick={onClose} className="w-full mt-4 py-3 bg-black text-white rounded-xl">Close</button>
+      <button onClick={onClose} className="w-full mt-4 h-11 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-wider">Close</button>
     </ModalShell>
   );
 }
@@ -520,24 +506,24 @@ function DiningOptionModal({ open, onClose, options, onPick }) {
 function VouchersModal({ open, onClose, vouchers, appliedVoucher, selectedCartItem, onApply, onRemove }) {
   return (
     <ModalShell open={open} onClose={onClose} title="Vouchers" subtitle="Apply Voucher" z={145}>
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-        <p className="text-xs text-slate-600">Target item: <span className="font-semibold text-slate-800">{selectedCartItem ? selectedCartItem.name : "None (tap an item first)"}</span></p>
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 mb-3">
+        <p className="text-xs text-slate-500 font-medium">Target selected line: <span className="font-bold text-slate-800">{selectedCartItem ? selectedCartItem.name : "None selected (tap a line item first)"}</span></p>
       </div>
       {appliedVoucher && (
-        <div className="mt-3 p-4 rounded-2xl border border-rose-200 bg-rose-50">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-rose-600">Applied</p>
-          <p className="text-sm font-semibold text-slate-800 mt-1">{appliedVoucher.code}</p>
+        <div className="mb-3 p-3.5 rounded-xl border border-rose-200 bg-rose-50/50">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-rose-600">Active Coupon</p>
+          <p className="text-sm font-bold text-slate-800 mt-0.5">{appliedVoucher.code}</p>
           <button
             onClick={onRemove}
-            className="mt-3 w-full py-2.5 rounded-2xl bg-white border border-slate-200 text-slate-700 text-xs font-bold active:scale-95"
+            className="mt-2.5 w-full h-9 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-bold"
           >
-            Remove Voucher
+            Remove Voucher discount
           </button>
         </div>
       )}
-      <div className="mt-3 space-y-2">
+      <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
         {vouchers.length === 0 ? (
-          <div className="p-4 rounded-2xl border border-slate-200 bg-white text-slate-500 text-sm">No active vouchers.</div>
+          <div className="p-4 rounded-xl border border-slate-200 bg-white text-slate-400 text-xs font-medium text-center">No structural active vouchers found.</div>
         ) : (
           vouchers.map((v) => {
             const disabled = !selectedCartItem;
@@ -546,13 +532,13 @@ function VouchersModal({ open, onClose, vouchers, appliedVoucher, selectedCartIt
                 key={v.id}
                 disabled={disabled}
                 onClick={() => onApply(v)}
-                className="w-full text-left p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition disabled:opacity-50"
+                className="w-full text-left p-3.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition disabled:opacity-40"
               >
-                <p className="text-sm font-semibold text-slate-800">{v.code}</p>
-                <p className="text-xs text-slate-500 mt-1">{v.reward_text}</p>
-                <p className="text-[11px] text-slate-400 mt-2">
-                  {v.reward_type === "birthday" ? "🎂 Birthday" : "🎁 Reward"}
-                  {v.expires_at ? ` • Expires ${new Date(v.expires_at).toLocaleString()}` : ""}
+                <p className="text-sm font-bold text-slate-800">{v.code}</p>
+                <p className="text-xs text-slate-500 mt-0.5 font-medium">{v.reward_text}</p>
+                <p className="text-[10px] text-slate-400 mt-2 font-semibold">
+                  {v.reward_type === "birthday" ? "🎂 Birthday Special" : "🎁 Points Voucher"}
+                  {v.expires_at ? ` • Exp: ${new Date(v.expires_at).toLocaleDateString()}` : ""}
                 </p>
               </button>
             );
@@ -561,7 +547,7 @@ function VouchersModal({ open, onClose, vouchers, appliedVoucher, selectedCartIt
       </div>
       <button
         onClick={onClose}
-        className="w-full mt-4 py-3 rounded-2xl bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-widest active:scale-95"
+        className="w-full mt-4 h-11 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider"
       >
         Close
       </button>
@@ -632,57 +618,53 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
   const totalLine = (unitPrice * quantity).toFixed(0);
 
   return (
-    <ModalShell open={!!item} onClose={onClose} title={item.editData ? "Edit Item" : "Add to Ticket"} subtitle={item.name} z={145}>
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-        <p className="text-xs text-slate-600">Base ₱{basePrice.toFixed(0)}{variantPrice > 0 ? ` • +₱${variantPrice.toFixed(0)} variants` : ""}</p>
+    <ModalShell open={!!item} onClose={onClose} title={item.editData ? "Modify Line Item" : "Configure Item Add"} subtitle={item.name} z={145}>
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-semibold text-slate-600">
+        Base ₱{basePrice.toFixed(0)}{variantPrice > 0 ? ` • Modifiers: +₱${variantPrice.toFixed(0)}` : ""}
       </div>
-      <div className="mt-3">
-        <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">Quantity</label>
+      
+      <div className="mt-4">
+        <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1">Quantity Selection</label>
         <input
           type="number"
           min="1"
           value={quantity}
           onChange={(e) => {
             const val = e.target.value;
-            if (val === "") {
-              setQuantity("");
-              return;
-            }
+            if (val === "") { setQuantity(""); return; }
             const num = Number(val);
             if (!isNaN(num) && num >= 1) setQuantity(Math.floor(num));
           }}
-          onBlur={() => {
-            if (!quantity || quantity < 1) setQuantity(1);
-          }}
-          className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-center text-lg font-bold text-slate-800 outline-none focus:border-[#FC687D]"
+          onBlur={() => { if (!quantity || quantity < 1) setQuantity(1); }}
+          className="w-full h-11 bg-white border border-slate-200 rounded-xl text-center text-base font-bold text-slate-800 outline-none focus:border-[#FC687D]"
         />
       </div>
 
       {Array.isArray(item.variants) && item.variants.length > 0 && (
-        <div className="mt-4 space-y-4">
+        <div className="mt-4 space-y-4 max-h-[30vh] overflow-y-auto pr-1">
           {item.variants.map((g) => {
             const isCollapsed = !!collapsed[g.id];
             const selectedCount = (selections[g.id] || []).length;
 
             return (
-              <div key={g.id} className="space-y-2">
+              <div key={g.id} className="space-y-2 border-b border-slate-50 pb-2">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-bold text-slate-700">{g.name} {g.isRequired ? <span className="text-rose-500">*</span> : null}</p>
-                    <p className="text-[10px] text-slate-400">{g.isMultiSelect ? "Multi-select" : "Single-select"}{selectedCount > 0 ? ` • Selected: ${selectedCount}` : ""}</p>
+                    <p className="text-[10px] text-slate-400 font-semibold">{g.isMultiSelect ? "Multi-select" : "Single-select"}{selectedCount > 0 ? ` • Active: ${selectedCount}` : ""}</p>
                   </div>
                   {!g.isRequired && (
                     <button
                       type="button"
                       onClick={() => setCollapsed((p) => ({ ...p, [g.id]: !p[g.id] }))}
-                      className="text-[10px] font-bold uppercase tracking-widest px-3 py-2 rounded-2xl border border-slate-200 text-slate-600 bg-white active:scale-95"
+                      className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg border border-slate-200 text-slate-500 bg-white"
                     >
-                      {isCollapsed ? "Show" : "Hide"}
+                      {isCollapsed ? "Expand" : "Collapse"}
                     </button>
                   )}
                 </div>
                 {!isCollapsed && (
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                     {(g.options || []).map((o) => {
                       const sel = (selections[g.id] || []).find((x) => x.id === o.id);
                       return (
@@ -690,12 +672,12 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
                           key={o.id}
                           type="button"
                           onClick={() => toggleOption(g, o)}
-                          className={`w-full flex items-center justify-between p-3 rounded-2xl border text-sm transition-all ${
-                            sel ? "border-rose-300 bg-rose-50" : "border-slate-200 bg-white hover:bg-slate-50"
+                          className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold transition-all text-left ${
+                            sel ? "border-rose-400 bg-rose-50 text-rose-900" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                           }`}
                         >
-                          <span className="font-medium text-slate-800">{o.name}</span>
-                          <span className="text-slate-500 text-xs">{Number(o.price) > 0 ? `+₱${Number(o.price).toFixed(0)}` : "—"}</span>
+                          <span>{o.name}</span>
+                          <span className="text-slate-400 text-[11px]">{Number(o.price) > 0 ? `+₱${Number(o.price).toFixed(0)}` : "FREE"}</span>
                         </button>
                       );
                     })}
@@ -708,12 +690,12 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
       )}
 
       <div className="mt-4">
-        <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">Special Instructions</label>
+        <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1">Special Instructions</label>
         <textarea
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
-          placeholder="Add specific notes..."
-          className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none h-20 resize-none"
+          placeholder="Less sweetener, separate packing, modifiers info..."
+          className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none h-16 resize-none font-medium text-slate-700"
         />
       </div>
 
@@ -730,9 +712,9 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
             cartItemId: item.editData?.cartItemId || Date.now(),
           })
         }
-        className="w-full mt-4 py-3 rounded-2xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-widest active:scale-95 disabled:opacity-60"
+        className="w-full mt-5 h-12 rounded-xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-wider shadow-sm transition disabled:opacity-50"
       >
-        {item.editData ? `Save • ₱${totalLine}` : `Add • ₱${totalLine}`}
+        {item.editData ? `Save Changes • ₱${totalLine}` : `Append to order • ₱${totalLine}`}
       </button>
     </ModalShell>
   );
@@ -749,16 +731,16 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
   const disableConfirm =
     !selectedPayment ||
     !paymentAmount ||
-    Number.isNaN(amt) ||
+    isNaN(amt) ||
     amt <= 0 ||
     (isCash && amt < due);
 
   return (
     <ModalShell open={open} onClose={onClose} title="Payment" subtitle="Select Payment Type" z={150}>
-      <div className="space-y-3">
+      <div className="space-y-4">
         {(paymentTypes || []).length === 0 ? (
-          <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm text-slate-600">
-            No payment types found. Add them in POS Admin → Settings → Payment Types.
+          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
+            No system configurations available for merchant settlement modes.
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2">
@@ -769,10 +751,10 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
                   onSelect(p.name);
                   setPaymentAmount(String(Number(due || 0).toFixed(2)));
                 }}
-                className={`py-3 rounded-2xl border text-xs font-bold uppercase tracking-widest active:scale-95 ${
+                className={`h-11 rounded-xl border text-xs font-bold uppercase tracking-wider transition ${
                   selectedPayment === p.name
-                    ? "border-rose-200 bg-rose-50 text-[#FC687D]"
-                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    ? "border-rose-300 bg-rose-50 text-[#FC687D]"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                 }`}
               >
                 {p.name}
@@ -781,55 +763,45 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
           </div>
         )}
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">{isCash ? "Cash Received" : "Amount Paid"}</p>
-          <div className="mt-2 flex items-center gap-2">
-            <span className="text-slate-500 font-bold">₱</span>
-            <input
-              inputMode="decimal"
-              value={paymentAmount}
-              onChange={(e) => {
-                const v = e.target.value.replace(/[^\d.]/g, "");
-                setPaymentAmount(v);
-              }}
-              placeholder={String(Number(total || 0).toFixed(2))}
-              className="w-full px-3 py-3 rounded-xl border border-slate-200 text-slate-900 font-bold outline-none focus:border-rose-300"
-            />
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3 shadow-inner">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest font-extrabold text-slate-400">{isCash ? "Cash Collected tender" : "Processing Value"}</p>
+            <div className="mt-1.5 flex items-center gap-2 bg-white px-3 h-11 border border-slate-200 rounded-lg">
+              <span className="text-slate-400 font-bold text-sm">₱</span>
+              <input
+                inputMode="decimal"
+                value={paymentAmount}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^\d.]/g, "");
+                  setPaymentAmount(v);
+                }}
+                placeholder={String(Number(total || 0).toFixed(2))}
+                className="w-full bg-transparent font-bold text-slate-800 text-sm outline-none"
+              />
+            </div>
           </div>
 
-          <div className="mt-3 text-sm">
-            <div className="flex justify-between text-slate-600">
-              <span>Total Due</span>
-              <span className="font-bold">{peso2(due)}</span>
-            </div>
-            <div className="flex justify-between text-slate-600">
-              <span>Paid</span>
-              <span className="font-bold">{peso2(amt)}</span>
-            </div>
+          <div className="text-xs space-y-1.5 pt-2 border-t border-slate-200/60 font-semibold text-slate-600">
+            <div className="flex justify-between"><span>Bill Total Due</span><span className="text-slate-900 font-bold">{peso2(due)}</span></div>
+            <div className="flex justify-between"><span>Tendered</span><span>{peso2(amt)}</span></div>
             {isCash ? (
-              <div className="flex justify-between text-emerald-700 mt-1">
-                <span className="font-bold">Change</span>
-                <span className="font-extrabold">{peso2(change)}</span>
+              <div className="flex justify-between text-emerald-600 font-bold border-t border-dashed border-slate-200 pt-1.5 mt-1">
+                <span>Change Allocation</span>
+                <span className="text-sm font-extrabold">{peso2(change)}</span>
               </div>
             ) : remaining > 0 ? (
-              <div className="flex justify-between text-orange-700 mt-1">
-                <span className="font-bold">Remaining</span>
-                <span className="font-extrabold">{peso2(remaining)}</span>
-              </div>
+              <div className="flex justify-between text-orange-600"><span>Unsettled Margin</span><span className="font-bold">{peso2(remaining)}</span></div>
             ) : null}
-
-            {isCash && amt < due ? (
-              <div className="mt-2 text-xs text-rose-600">Cash received must be at least the total due.</div>
-            ) : null}
+            {isCash && amt < due ? <p className="text-[10px] text-red-500 font-bold mt-1">⚠️ Warning: Tendered value lower than order subtotal due.</p> : null}
           </div>
         </div>
 
         <button
           disabled={disableConfirm}
           onClick={() => onConfirm({ amountPaid: amt, changeDue: change })}
-          className="w-full mt-1 py-3 rounded-2xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-widest active:scale-95 disabled:opacity-60"
+          className="w-full h-12 rounded-xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-wider shadow-sm transition disabled:opacity-40"
         >
-          Confirm • {peso0(total)}
+          Finalize Transaction • {peso0(total)}
         </button>
       </div>
     </ModalShell>
@@ -838,31 +810,47 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
 
 function ReceiptPreviewModal({ open, onClose, receiptText }) {
   return (
-    <ModalShell open={open} onClose={onClose} title="Receipt" subtitle="Preview" z={160}>
-      <pre className="whitespace-pre-wrap text-xs bg-slate-50 border border-slate-200 rounded-2xl p-4">{receiptText || "No receipt"}</pre>
-      <div className="grid grid-cols-2 gap-2 mt-4">
+    <ModalShell open={open} onClose={onClose} title="Receipt Printout" subtitle="Slip Log Preview" z={160}>
+      <pre className="whitespace-pre-wrap text-xs bg-slate-900 text-slate-100 font-mono rounded-xl p-4 shadow-inner max-h-[40vh] overflow-y-auto">{receiptText || "No active buffer logged."}</pre>
+      <div className="grid grid-cols-2 gap-3 mt-4">
         <button
           onClick={onClose}
-          className="w-full py-3 rounded-2xl bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-widest active:scale-95"
+          className="w-full h-11 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 text-xs font-bold uppercase tracking-wider"
         >
-          Close
+          Dismiss
         </button>
         <button
           onClick={() => printReceiptText(receiptText, { widthMm: 80 })}
-          className="w-full py-3 rounded-2xl bg-black text-white text-xs font-bold uppercase tracking-widest active:scale-95"
+          className="w-full h-11 rounded-xl bg-slate-900 text-white text-xs font-bold uppercase tracking-wider shadow-sm"
         >
-          Print
+          Print Thermal
         </button>
       </div>
     </ModalShell>
   );
 }
+// ================= PRINT HELPERS / TEXT BUILDERS END =================
 
+function discountAmountFromRule(rule, subtotal) {
+  if (!rule) return 0;
+  const type = String(rule.type || "").toLowerCase();
+  const value = Number(rule.value || 0);
+
+  if (type === "percent") return subtotal * (value / 100);
+  if (type === "fixed") return value;
+  if (type === "comp") return subtotal;
+  return 0;
+}
 // ================= MAIN TERMINAL SCREEN =================
 
 export default function POSPage() {
   const supabase = getSupabaseClient();
   const [storeId, setStoreId] = useState(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // PWA Add To Home Screen Hook States
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
 
   const [printerConfig, setPrinterConfig] = useState({ receipt: null, order_slip: null, cup_label: null });
   const [items, setItems] = useState([]);
@@ -941,6 +929,117 @@ export default function POSPage() {
   const totalDue = useMemo(() => Math.max(0, subtotal - discountAmount), [subtotal, discountAmount]);
   const itemCount = useMemo(() => cart.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0), [cart]);
 
+  const selectedCartItem = useMemo(() => cart.find((x) => x.cartItemId === voucherTargetCartItemId) || null, [cart, voucherTargetCartItemId]);
+  const ticketTitle = diningOptionName || "Select Dining Option";
+  const ticketSubtitle = attachedCustomer?.name ? `Loyalty Member: ${attachedCustomer.name}` : "Walk-in Customer";
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // ================= PWA INSTALLATION EVENT HANDLER =================
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      // Prevent standard browser trigger overlay automatically
+      e.preventDefault();
+      // Cache event payload locally inside dynamic component states
+      setInstallPrompt(e);
+      setShowInstallBanner(true);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+
+    // Close banner if the terminal environment discovers it is already running standalone
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      setShowInstallBanner(false);
+    }
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleExecuteInstall = async () => {
+    if (!installPrompt) return;
+    
+    // Open standard browser system prompt modal window overlay
+    installPrompt.prompt();
+    
+    const { outcome } = await installPrompt.userChoice;
+    console.log(`PWA native setup dialogue window complete selection outcome: ${outcome}`);
+    
+    // Clear back buffer allocation tracking cleanly
+    setInstallPrompt(null);
+    setShowInstallBanner(false);
+  };
+
+  // REALTIME LISTENER: Vetted connection logic to capture live web order alerts
+  useEffect(() => {
+    if (!storeId) return;
+
+    console.log("📡 Initializing permanent live web checkout tracking channel for store ID:", storeId);
+
+    const channel = supabaseGlobalInstance
+      .channel("pos-incoming-web-orders")
+      .on(
+        "postgres_changes",
+        { 
+          event: "INSERT", 
+          schema: "public", 
+          table: "orders" 
+        },
+        (payload) => {
+          const incomingOrder = payload.new;
+          console.log("🔔 Database row insert intercepted by POS page:", incomingOrder);
+
+          const isTargetedBranch = String(incomingOrder.branch_id).trim().toLowerCase() === String(storeId).trim().toLowerCase();
+
+          if (isTargetedBranch) {
+            console.log("🎯 Order matched this station code parameters successfully!", incomingOrder);
+            
+            showToast(
+              "success", 
+              "Incoming Web Order 🍽️", 
+              `New order placed by customer: ${incomingOrder.customer_name || "Web Client"}`
+            );
+            
+            try {
+              const alertSound = new Audio("/sounds/notification.mp3");
+              alertSound.play();
+            } catch (audioErr) {
+              console.warn("Audio Context message warning: Browser playback requires client element interaction pass:", audioErr);
+            }
+          } else {
+            console.log(`⏭️ Order skipped: Intended for branch "${incomingOrder.branch_id}", but this station is running "${storeId}"`);
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log("🛰️ Realtime channel handshake registration status:", status);
+      });
+
+    return () => {
+      supabaseGlobalInstance.removeChannel(channel);
+    };
+  }, [storeId]);
+
+  // TEMPORARY GLOBAL DEBUG LISTENER
+  useEffect(() => {
+    const channel = supabase
+      .channel("pos-global-debug")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "orders" },
+        (payload) => {
+          console.log("🚨 DEBUG SNOOPER INTERCEPTED ROW:", payload.new);
+          alert(`Order Detected! Branch column value is: ${payload.new.branch_id}`);
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   useEffect(() => {
     if (!ticketDrawerOpen) return;
     const prev = document.body.style.overflow;
@@ -950,10 +1049,14 @@ export default function POSPage() {
 
   useEffect(() => {
     if (!attachedCustomer?.id) return;
+    let isActive = true;
+
     (async () => {
       const v = await fetchActiveVouchers(attachedCustomer.id);
-      if (v.length > 0) setVoucherModalOpen(true);
+      if (v.length > 0 && isActive) setVoucherModalOpen(true);
     })();
+
+    return () => { isActive = false; };
   }, [attachedCustomer?.id]);
 
   useEffect(() => {
@@ -1339,15 +1442,9 @@ export default function POSPage() {
       const { error: itemsErr } = await supabase.from("order_items").insert(itemRows);
       if (itemsErr) return showToast("error", "Charge Failed", itemsErr.message);
 
-      // ================= EXCEL LOG ENGINE =================
       const now = new Date();
       const excelTimestamp = now.toLocaleString('en-US', {
-        year: '2-digit',
-        month: 'numeric',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
+        year: '2-digit', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
       }).replace(/,/g, '');
 
       const generatedReceiptNumber = `2-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -1418,24 +1515,9 @@ export default function POSPage() {
       const { error: itemsLogError } = await supabase.from("receipts_by_item").insert(itemBreakdownLogPayloads);
       if (itemsLogError) console.warn("Excel Item Log insertion error: ", itemsLogError.message);
 
-      const selectedOption = selectedDining || {};
-      const selectedTable = (tables || []).find((t) => t.name === diningOptionName);
-      if (selectedTable) {
-        await supabase.from("dining_options").update({ table_status: "free" }).eq("id", selectedTable.id);
-      }
-
       const receipt = buildReceiptText({
-        receiptSettings,
-        order: orderRow,
-        cart,
-        diningOptionName,
-        payment: selectedPayment,
-        customer: attachedCustomer,
-        subtotal,
-        discount,
-        total,
-        voucher: appliedVoucher,
-        appliedDiscount,
+        receiptSettings, order: orderRow, cart, diningOptionName, payment: selectedPayment,
+        customer: attachedCustomer, subtotal, discount, total, voucher: appliedVoucher, appliedDiscount,
       });
 
       setReceiptText(receipt);
@@ -1443,11 +1525,11 @@ export default function POSPage() {
 
       if (receiptSettings?.auto_print) {
         await printByRole("receipt", receipt, printerConfig);
-        if (selectedOption.print_kitchen) {
+        if (selectedDining?.print_kitchen) {
           const slip = buildOrderSlipText({ orderId: orderRow.id, cart });
           await printByRole("order_slip", slip, printerConfig);
         }
-        if (selectedOption.print_labels) {
+        if (selectedDining?.print_labels) {
           const labels = buildCupLabels({ orderId: orderRow.id, cart });
           for (const l of labels) {
             await printByRole("cup_label", l, printerConfig);
@@ -1545,39 +1627,6 @@ export default function POSPage() {
     showToast("info", "Voucher Removed", "Voucher discount removed.");
   };
 
-  const onAddToCart = (line) => {
-    setCart((prev) => {
-      const editIndex = selectedItemForModal?.editIndex;
-      let updated;
-
-      if (editIndex !== undefined && editIndex !== null) {
-        updated = [...prev];
-        updated[editIndex] = { ...prev[editIndex], ...line };
-      } else {
-        updated = [...prev, line];
-      }
-
-      if (appliedVoucher?.applied_to_cartItemId) {
-        updated = updated.map((x) => {
-          if (x.cartItemId !== appliedVoucher.applied_to_cartItemId) return x;
-          const orig = typeof x._origUnitPrice === "number" ? x._origUnitPrice : x.unitPrice;
-          return {
-            ...x,
-            _origUnitPrice: orig,
-            unitPrice: 0,
-            appliedVoucher: {
-              id: appliedVoucher.id,
-              code: appliedVoucher.code,
-              reward_text: appliedVoucher.reward_text,
-            },
-          };
-        });
-      }
-      return updated;
-    });
-    setSelectedItemForModal(null);
-  };
-
   const clearTicketSoft = () => {
     setCart([]);
     setAttachedCustomer(null);
@@ -1656,9 +1705,10 @@ export default function POSPage() {
 
       setSplitSelected([]);
       setSplitMode(false);
-      showToast("success", "Moved", `Items moved to new ticket: ${newType}`);
+      setSavedOpen(false);
+      showToast("success", "Moved", "Items moved to selected saved ticket.");
     } catch (err) {
-      showToast("error", "Move Error", err.message);
+      showToast("error", "Merge Error", err.message);
     } finally {
       setMoving(false);
     }
@@ -1704,30 +1754,87 @@ export default function POSPage() {
       setSplitMode(false);
       setSavedOpen(false);
       showToast("success", "Moved", "Items moved to selected saved ticket.");
+    } catch (err) {
+      showToast("error", "Merge Error", err.message);
     } finally {
       setMoving(false);
     }
   };
 
-  const selectedCartItem = useMemo(() => cart.find((x) => x.cartItemId === voucherTargetCartItemId) || null, [cart, voucherTargetCartItemId]);
-  const ticketTitle = diningOptionName || "Select Dining Option";
-  const ticketSubtitle = attachedCustomer?.name ? `Loyalty Member: ${attachedCustomer.name}` : "Walk-in Customer";
+  const onAddToCart = (addedLineItem) => {
+    setCart((prevCart) => {
+      const existsIdx = prevCart.findIndex(
+        (x) =>
+          x.id === addedLineItem.id &&
+          x.variantDetails === addedLineItem.variantDetails &&
+          x.instructions === addedLineItem.instructions &&
+          !x.appliedVoucher
+      );
+
+      if (selectedItemForModal?.editData) {
+        return prevCart.map((item, idx) =>
+          idx === selectedItemForModal.editIndex ? addedLineItem : item
+        );
+      }
+
+      if (existsIdx > -1) {
+        return prevCart.map((item, idx) =>
+          idx === existsIdx
+            ? { ...item, quantity: item.quantity + addedLineItem.quantity }
+            : item
+        );
+      }
+
+      return [...prevCart, addedLineItem];
+    });
+
+    setSelectedItemForModal(null);
+    showToast("success", "Item Added", addedLineItem.name);
+  };
 
   return (
-    <div className="min-h-screen bg-[#FFF5F7] pb-24 lg:pb-0 font-sans antialiased">
+    <div className="min-h-screen bg-[#FFF5F7] pb-24 lg:pb-0 font-sans antialiased text-slate-800">
       <Toast toast={toast} onClose={() => setToast(null)} />
 
-      <div className="max-w-7xl mx-auto px-4 md:px-6">
-        {/* HEADER BAR */}
-        <div className="py-5 flex items-center justify-between border-b border-rose-100 bg-white rounded-b-2xl px-4">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold text-slate-800">POS Terminal</h1>
-            <p className="text-[11px] text-slate-400 mt-0.5 font-mono">store_id: {storeId || "NOT SET"}</p>
+      {/* PERSISTENT PWA INSTALLATION TRIGGER BANNER LAYOUT */}
+      {showInstallBanner && (
+        <div className="bg-gradient-to-r from-rose-500 to-[#FC687D] text-white py-2 px-4 shadow-sm flex items-center justify-between text-xs font-semibold select-none animate-in slide-in-from-top duration-300">
+          <div className="flex items-center gap-2">
+            <span>📱</span>
+            <span>Run Juja POS directly as a fast desktop app on your terminal setup window dashboard footprint.</span>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-500 font-semibold">
-              {typeof window !== "undefined" ? localStorage.getItem("cashier_name") : ""}
-            </span>
+          <div className="flex items-center gap-2 font-bold uppercase tracking-wider">
+            <button 
+              onClick={handleExecuteInstall} 
+              className="bg-white text-slate-900 rounded-lg px-3 py-1 text-[11px] active:scale-95 transition"
+            >
+              Add To Screen
+            </button>
+            <button 
+              onClick={() => setShowInstallBanner(false)} 
+              className="text-white/80 hover:text-white px-2 py-1 text-sm font-normal"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-[1600px] mx-auto p-3 sm:p-4 lg:p-6 transition-all">
+        
+        {/* HEADER BAR */}
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-rose-100 bg-white rounded-b-2xl p-4 shadow-sm mb-4 lg:mb-6">
+          <div>
+            <h1 className="text-xl lg:text-2xl font-black text-slate-800 tracking-tight">Juja POS Terminal</h1>
+            <p className="text-[10px] text-slate-400 font-mono mt-0.5 tracking-wider uppercase">Store Ref Footprint: {storeId || "DISCONNECTED"}</p>
+          </div>
+          <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-50">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-xs text-slate-600 font-bold tracking-wide">
+                {isMounted && typeof window !== "undefined" ? (localStorage.getItem("cashier_name") || "Operator") : ""}
+              </span>
+            </div>
             <button
               onClick={async () => {
                 await supabase.auth.signOut();
@@ -1737,63 +1844,79 @@ export default function POSPage() {
                 }
                 window.location.href = "/login";
               }}
-              className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+              className="h-9 px-4 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600 hover:bg-red-50 hover:text-red-500 transition"
             >
-              Logout
+              Sign Out
             </button>
           </div>
-        </div>
+        </header>
 
-        {/* TERMINAL BODY WORKSPACE */}
-        <div className="mt-5 pb-10 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-4">
+        {/* MAIN TERMINAL RESPONSIVE GRID LAYOUT FLOW */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_450px] gap-4 lg:gap-6 items-start">
           
-          {/* CATALOG PANELS */}
-          <div className="bg-white rounded-2xl border border-rose-100 p-4 md:p-5 shadow-sm">
-            <div className="flex flex-wrap gap-2 items-center justify-between">
+          {/* CATALOG AND MENU SHELF VIEW PANELS */}
+          <div className="bg-white rounded-2xl border border-rose-100 p-4 shadow-sm space-y-4">
+            
+            {/* Catalog Controller Sorting filters bars */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-50 pb-3">
               <button
                 onClick={() => setCategoryOpen(true)}
-                className="bg-slate-50 px-4 py-2.5 rounded-2xl text-xs font-bold text-slate-700 border border-slate-200 active:scale-95 transition"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100/70 transition flex items-center justify-between gap-3"
                 type="button"
               >
-                {activeCategory || "Select Category"} ▾
+                <span>Category: <span className="text-[#FC687D]">{activeCategory || "None"}</span></span>
+                <span>▼</span>
               </button>
-              <input
-                value={menuSearch}
-                onChange={(e) => setMenuSearch(e.target.value)}
-                placeholder="Search menu catalogue..."
-                className="w-full max-w-[240px] px-4 py-2.5 bg-slate-50 rounded-2xl text-xs outline-none focus:bg-white focus:border-rose-200 border border-slate-200 transition font-medium text-slate-700"
-              />
+              
+              <div className="relative w-full sm:w-64">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
+                <input
+                  value={menuSearch}
+                  onChange={(e) => setMenuSearch(e.target.value)}
+                  placeholder="Search catalogue items..."
+                  className="w-full pl-9 pr-4 py-2.5 bg-slate-50 rounded-xl text-xs font-semibold text-slate-700 outline-none border border-slate-200 focus:bg-white focus:border-rose-200 transition"
+                />
+              </div>
             </div>
 
-            <div className="mt-5 grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3">
-              {items
-                .filter((i) => i.category === activeCategory)
-                .filter((i) => (i.name || "").toLowerCase().includes(menuSearch.toLowerCase()))
-                .map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => setSelectedItemForModal(item)}
-                    className="group relative flex flex-col p-3 bg-white border border-slate-100 rounded-2xl cursor-pointer transition-all text-left hover:-translate-y-[4px] hover:shadow-lg"
-                  >
-                    <div className="w-full aspect-square bg-[#FFF9FA] border border-rose-50 flex items-center justify-center overflow-hidden rounded-2xl">
-                      {item.image_url ? (
-                        <img src={item.image_url} alt={item.name} className="w-full h-full object-contain p-2" />
-                      ) : (
-                        <span className="text-2xl opacity-40">📷</span>
-                      )}
-                    </div>
-                    <div className="mt-2.5 space-y-0.5">
-                      <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">{item.category || "General"}</p>
-                      <p className="text-sm font-semibold text-slate-800 leading-tight truncate">{item.name}</p>
-                      <p className="text-xs font-bold text-rose-500/90">{item.is_variable_price ? "Variable" : `₱${Number(item.price || 0).toFixed(0)}`}</p>
-                    </div>
-                  </button>
-                ))}
-            </div>
+            {/* Scaled Responsive Multi-Column Item Grid */}
+            {loading ? (
+              <div className="py-24 text-center"><div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full mx-auto" /></div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[calc(100vh-270px)] overflow-y-auto pr-1">
+                {items
+                  .filter((i) => i.category === activeCategory)
+                  .filter((i) => (i.name || "").toLowerCase().includes(menuSearch.toLowerCase()))
+                  .map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => setSelectedItemForModal(item)}
+                      className="group bg-white border border-slate-100 rounded-2xl p-2.5 text-left hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex flex-col h-full justify-between"
+                    >
+                      <div className="w-full">
+                        <div className="w-full aspect-square bg-[#FFF9FA] border border-rose-50/50 flex items-center justify-center overflow-hidden rounded-xl relative">
+                          {item.image_url ? (
+                            <img src={item.image_url} alt={item.name} className="w-full h-full object-cover p-1 group-hover:scale-102 transition" />
+                          ) : (
+                            <span className="text-2xl text-rose-200/50">📷</span>
+                          )}
+                        </div>
+                        <div className="mt-2.5 px-0.5">
+                          <p className="text-[9px] uppercase font-extrabold tracking-wider text-[#FC687D]">{item.category || "General"}</p>
+                          <p className="text-xs font-bold text-slate-800 leading-tight truncate mt-1">{item.name}</p>
+                        </div>
+                      </div>
+                      <p className="text-xs font-black text-slate-800 mt-2 px-0.5 pt-2 border-t border-slate-50 w-full">
+                        {item.is_variable_price ? "Variable Price" : `₱${Number(item.price || 0).toFixed(0)}`}
+                      </p>
+                    </button>
+                  ))}
+              </div>
+            )}
           </div>
 
-          {/* SIDEBAR TICKET INTERACTION LAYER */}
-          <div className="hidden lg:block h-full">
+          {/* SIDEBAR TICKET INTERACTION LAYER PANEL */}
+          <aside className="hidden lg:block bg-white border border-rose-100 rounded-2xl p-4 shadow-sm sticky top-6 max-h-[calc(100vh-140px)] overflow-y-auto">
             <TicketPanel
               cart={cart}
               customers={customers}
@@ -1838,100 +1961,111 @@ export default function POSPage() {
               onMoveToSaved={openMoveToSaved}
               moving={moving}
               onCartItemClick={(line, idx) => {
-                if (splitMode) {
-                  toggleSplitSelect(line.cartItemId);
-                  return;
-                }
+                if (splitMode) { toggleSplitSelect(line.cartItemId); return; }
                 setVoucherTargetCartItemId(line.cartItemId);
                 const base = items.find((i) => i.id === line.id) || null;
                 if (!base) return;
                 setSelectedItemForModal({ ...base, editData: line, editIndex: idx });
               }}
             />
-          </div>
+          </aside>
 
         </div>
       </div>
 
-      {/* MOBILE HUD LAYER */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-rose-100 shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
+      {/* MOBILE HUD INTERFACE BOTTOM FLOATING TRIGGER ACTION LAYER FOOTER */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900 text-white shadow-[0_-8px_30px_rgba(0,0,0,0.15)] px-4 py-3 pb-safe border-t border-slate-800">
         <button
           onClick={() => setTicketDrawerOpen(true)}
-          className="w-full px-4 py-4 flex items-center justify-between"
+          className="w-full h-12 bg-[#FC687D] hover:bg-rose-500 rounded-xl px-4 flex items-center justify-between transition shadow-md active:scale-[0.99]"
         >
-          <div className="text-left">
-            <p className="text-[10px] uppercase tracking-widest text-slate-400">Live Balance</p>
-            <p className="text-sm font-semibold text-slate-800">{itemCount} item{itemCount === 1 ? "" : "s"} • {peso0(totalDue)}</p>
-            {attachedCustomer?.name && <p className="text-[11px] text-rose-500 font-semibold tracking-wide">Customer: {attachedCustomer.name}</p>}
+          <div className="flex items-center gap-2.5">
+            <span className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center text-xs font-black">{itemCount}</span>
+            <div className="text-left leading-tight">
+              <p className="text-[10px] uppercase font-bold tracking-wider text-rose-100">Review Ticket Balance</p>
+              <p className="text-sm font-black">{peso0(totalDue)}</p>
+            </div>
           </div>
-          <div className="text-slate-500">🛒</div>
+          <span className="text-xs font-bold uppercase tracking-wider bg-black/10 px-2.5 py-1 rounded-lg">View Cart 🛒</span>
         </button>
       </div>
 
-      {/* MOBILE SHEET INJECTIONS */}
+      {/* MOBILE DRILLDOWN OVERLAY SLIDEUP DRAWER FOR TOUCH DEVICES */}
       {ticketDrawerOpen && (
-        <div className="fixed inset-0 z-[90] bg-black/40 backdrop-blur-sm flex items-end" onClick={() => setTicketDrawerOpen(false)}>
-          <div className="w-full max-h-[88vh] bg-white rounded-t-3xl p-4 overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <TicketPanel
-              cart={cart}
-              customers={customers}
-              customerSearch={customerSearch}
-              setCustomerSearch={setCustomerSearch}
-              isCustListOpen={isCustListOpen}
-              setIsCustListOpen={setIsCustListOpen}
-              onSearchKeyDown={onSearchKeyDown}
-              handleCodeInput={handleCodeInput}
-              onOpenScanner={() => setScannerOpen(true)}
-              diningOptions={diningOptions}
-              diningOption={diningOption}
-              setDiningOption={handleDiningChange}
-              subtotal={totalDue}
-              ticketTitle={ticketTitle}
-              ticketSubtitle={ticketSubtitle}
-              attachedCustomer={attachedCustomer}
-              appliedVoucher={appliedVoucher}
-              onOpenVouchers={async () => {
-                if (!attachedCustomer?.id) return showToast("error", "Attach Customer", "Scan/select a customer first.");
-                const v = await fetchActiveVouchers(attachedCustomer.id);
-                setVoucherModalOpen(true);
-                if (v.length === 0) showToast("info", "No Vouchers", "No active vouchers for this customer.");
-              }}
-              onRemoveVoucher={removeAppliedVoucher}
-              onClear={() => setConfirmOpen(true)}
-              onCharge={handleChargeOrder}
-              onSave={handleSaveTicket}
-              onVoidLiveTicket={handleVoidCurrentTicket}
-              onOpenSavedTicketsModal={async () => {
-                await fetchSavedTickets();
-                setSavedMode("resume");
-                setSavedOpen(true);
-              }}
-              charging={charging}
-              savingTicket={savingTicket}
-              voucherTargetCartItemId={voucherTargetCartItemId}
-              splitMode={splitMode}
-              splitSelected={splitSelected}
-              onToggleSplit={toggleSplit}
-              onMoveToNewTicket={moveToNewTicketPickType}
-              onMoveToSaved={openMoveToSaved}
-              moving={moving}
-              onCartItemClick={(line, idx) => {
-                if (splitMode) {
-                  toggleSplitSelect(line.cartItemId);
-                  return;
-                }
-                setVoucherTargetCartItemId(line.cartItemId);
-                const base = items.find((i) => i.id === line.id) || null;
-                if (!base) return;
-                setSelectedItemForModal({ ...base, editData: line, editIndex: idx });
-              }}
-              onCloseMobile={() => setTicketDrawerOpen(false)}
-            />
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end lg:hidden animate-in fade-in duration-200" onClick={() => setTicketDrawerOpen(false)}>
+          <div className="w-full max-h-[85vh] bg-white rounded-t-[2rem] p-4 pb-safe overflow-y-auto shadow-2xl animate-in slide-in-from-bottom duration-300 flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🛒</span>
+                <h3 className="font-black text-slate-800 text-base">Active Order Ticket</h3>
+              </div>
+              <button
+                onClick={() => setTicketDrawerOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto">
+              <TicketPanel
+                cart={cart}
+                customers={customers}
+                customerSearch={customerSearch}
+                setCustomerSearch={setCustomerSearch}
+                isCustListOpen={isCustListOpen}
+                setIsCustListOpen={setIsCustListOpen}
+                onSearchKeyDown={onSearchKeyDown}
+                handleCodeInput={handleCodeInput}
+                onOpenScanner={() => setScannerOpen(true)}
+                diningOptions={diningOptions}
+                diningOption={diningOption}
+                setDiningOption={handleDiningChange}
+                subtotal={totalDue}
+                ticketTitle={ticketTitle}
+                ticketSubtitle={ticketSubtitle}
+                attachedCustomer={attachedCustomer}
+                appliedVoucher={appliedVoucher}
+                onOpenVouchers={async () => {
+                  if (!attachedCustomer?.id) return showToast("error", "Attach Customer", "Scan/select a customer first.");
+                  const v = await fetchActiveVouchers(attachedCustomer.id);
+                  setVoucherModalOpen(true);
+                  if (v.length === 0) showToast("info", "No Vouchers", "No active vouchers for this customer.");
+                }}
+                onRemoveVoucher={removeAppliedVoucher}
+                onClear={() => setConfirmOpen(true)}
+                onCharge={handleChargeOrder}
+                onSave={handleSaveTicket}
+                onVoidLiveTicket={handleVoidCurrentTicket}
+                onOpenSavedTicketsModal={async () => {
+                  await fetchSavedTickets();
+                  setSavedMode("resume");
+                  setSavedOpen(true);
+                }}
+                charging={charging}
+                savingTicket={savingTicket}
+                voucherTargetCartItemId={voucherTargetCartItemId}
+                splitMode={splitMode}
+                splitSelected={splitSelected}
+                onToggleSplit={toggleSplit}
+                onMoveToNewTicket={moveToNewTicketPickType}
+                onMoveToSaved={openMoveToSaved}
+                moving={moving}
+                onCartItemClick={(line, idx) => {
+                  if (splitMode) { toggleSplitSelect(line.cartItemId); return; }
+                  setVoucherTargetCartItemId(line.cartItemId);
+                  const base = items.find((i) => i.id === line.id) || null;
+                  if (!base) return;
+                  setSelectedItemForModal({ ...base, editData: line, editIndex: idx });
+                }}
+                onCloseMobile={() => setTicketDrawerOpen(false)}
+              />
+            </div>
           </div>
         </div>
       )}
 
-      {/* PORTALS LAYER */}
+      {/* PORTALS LAYER MODAL SYSTEMS OVERLAYS */}
       <CategoryModal open={categoryOpen} onClose={() => setCategoryOpen(false)} categories={categories} active={activeCategory} onSelect={setActiveCategory} />
       <BarcodeScannerModal open={scannerOpen} onClose={() => setScannerOpen(false)} onResult={(txt) => handleCodeInput(txt)} />
       <SavedTicketsModal
@@ -1956,7 +2090,15 @@ export default function POSPage() {
         onApply={(v) => { applyVoucherToTicket(v); setVoucherModalOpen(false); }}
         onRemove={() => { removeAppliedVoucher(); setVoucherModalOpen(false); }}
       />
-      {selectedItemForModal && <AddToCartModal item={selectedItemForModal} onClose={() => setSelectedItemForModal(null)} onAddToCart={onAddToCart} />}
+      
+      {selectedItemForModal && (
+        <AddToCartModal 
+          item={selectedItemForModal} 
+          onClose={() => setSelectedItemForModal(null)} 
+          onAddToCart={onAddToCart} 
+        />
+      )}
+      
       <ConfirmModal open={confirmOpen} title="Clear live workspace?" message="This will remove un-saved current entries from active memory." onCancel={() => setConfirmOpen(false)} onConfirm={clearTicket} />
       <PaymentModal open={paymentOpen} onClose={() => setPaymentOpen(false)} paymentTypes={paymentTypes} selectedPayment={selectedPayment} onSelect={(name) => setSelectedPayment(name)} onConfirm={confirmCharge} total={totalDue} paymentAmount={paymentAmount} setPaymentAmount={setPaymentAmount} />
       <ReceiptPreviewModal open={receiptOpen} onClose={() => setReceiptOpen(false)} receiptText={receiptText} />

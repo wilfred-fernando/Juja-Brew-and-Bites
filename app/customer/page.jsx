@@ -33,7 +33,6 @@ function fmtDate(iso) {
   return d.toLocaleDateString();
 }
 
-// Birthday format: YYYY-MMM-DD (e.g. 1995-Dec-25)
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function normalizeBirthday(input) {
   const s = String(input || "").trim();
@@ -66,9 +65,9 @@ function normalizeBirthday(input) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Bottom Tab Bar
+    Responsive Sidebar / Bottom Tab Navigation
 ────────────────────────────────────────────────────────────── */
-function TabBar({ tab, setTab }) {
+function AppNavigation({ tab, setTab }) {
   const tabs = [
     { id: "home", icon: "🏠", label: "Home" },
     { id: "order", icon: "🍽️", label: "Order" },
@@ -78,43 +77,65 @@ function TabBar({ tab, setTab }) {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-rose-50 pb-safe shadow-[0_-4px_24px_rgba(252,104,125,0.05)]">
-      <div className="max-w-md mx-auto grid grid-cols-5 px-1 md:px-2">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`relative flex flex-col items-center justify-center py-2.5 md:py-3 gap-0.5 md:gap-1 transition-all duration-300 active:scale-90 ${
-              tab === t.id ? "text-[#FC687D]" : "text-slate-400 hover:text-slate-600"
-            }`}
-          >
-            <span
-              className={`text-[20px] md:text-[22px] leading-none transition-transform duration-300 ${
-                tab === t.id ? "scale-110 -translate-y-1" : ""
+    <>
+      {/* Mobile & Tablet Bottom Tab Bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-rose-50 pb-safe shadow-[0_-4px_24px_rgba(252,104,125,0.05)] lg:hidden">
+        <div className="max-w-xl mx-auto grid grid-cols-5 px-2">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`relative flex flex-col items-center justify-center py-3 gap-1 transition-all duration-300 active:scale-90 ${
+                tab === t.id ? "text-[#FC687D]" : "text-slate-400 hover:text-slate-600"
               }`}
             >
-              {t.icon}
-            </span>
-            <span
-              className={`text-[8px] md:text-[9px] font-normal uppercase tracking-widest ${
-                tab === t.id ? "text-[#FC687D]" : "text-slate-400"
-              }`}
-            >
-              {t.label}
-            </span>
+              <span className={`text-[22px] leading-none transition-transform duration-300 ${tab === t.id ? "scale-110 -translate-y-0.5" : ""}`}>
+                {t.icon}
+              </span>
+              <span className={`text-[9px] font-medium uppercase tracking-widest ${tab === t.id ? "text-[#FC687D]" : "text-slate-400"}`}>
+                {t.label}
+              </span>
+              {tab === t.id && (
+                <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-[#FC687D]" />
+              )}
+            </button>
+          ))}
+        </div>
+      </nav>
 
-            {tab === t.id && (
-              <span className="absolute bottom-1 w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-[#FC687D]" />
-            )}
-          </button>
-        ))}
-      </div>
-    </nav>
+      {/* Desktop Persistent Left Sidebar Layout */}
+      <aside className="hidden lg:flex flex-col fixed top-0 left-0 h-screen w-64 bg-white border-r border-rose-50 p-6 z-50">
+        <div className="flex items-center gap-3 mb-8 px-2">
+          <img src={LOGO} alt="Juja Logo" className="h-10 w-auto object-contain" />
+          <div className="leading-tight">
+            <h1 className="text-xs font-bold uppercase tracking-widest text-[#FC687D]">Juja</h1>
+            <p className="text-[10px] uppercase text-slate-400 tracking-wider">Brew & Bites</p>
+          </div>
+        </div>
+
+        <nav className="flex-1 space-y-1">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${
+                tab === t.id
+                  ? "bg-[#FFF5F7] text-[#FC687D]"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              }`}
+            >
+              <span className="text-xl leading-none">{t.icon}</span>
+              <span className="tracking-wide">{t.label}</span>
+            </button>
+          ))}
+        </nav>
+      </aside>
+    </>
   );
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Home Tab
+    Home Tab
 ────────────────────────────────────────────────────────────── */
 function HomeTab({ member, user, setTab }) {
   const availablePts = parseFloat(member?.["Available points"] ?? 0) || 0;
@@ -147,192 +168,181 @@ function HomeTab({ member, user, setTab }) {
   const active = BRANCHES[branch];
 
   return (
-    <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Brand block */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Brand Header block */}
+      <div className="flex items-center justify-between bg-white rounded-2xl p-4 border border-rose-50 shadow-sm lg:hidden">
         <div className="flex items-center gap-3">
           <Link href="/" className="active:scale-95 transition">
-            <img src={LOGO} alt="Juja" className="h-8 md:h-10 w-auto object-contain" />
+            <img src={LOGO} alt="Juja" className="h-9 w-auto object-contain" />
           </Link>
-
           <div className="leading-tight">
-            <p className="text-[10px] md:text-[11px] uppercase tracking-widest text-slate-400">
-              Juja Brew & Bites
-            </p>
-            <p className="text-[12px] md:text-[13px] text-slate-600 font-semibold">
-              {user?.email}
-            </p>
+            <p className="text-[10px] uppercase tracking-widest text-slate-400">Juja Brew & Bites</p>
+            <p className="text-xs text-slate-600 font-semibold truncate max-w-[200px]">{user?.email}</p>
           </div>
         </div>
       </div>
 
-      {/* Hero Welcome Card */}
-      <div className="bg-white rounded-2xl md:rounded-[32px] p-5 md:p-6 border border-rose-100 shadow-[0_4px_20px_rgba(252,104,125,0.06)] relative overflow-hidden">
-        <div
-          className="absolute top-0 right-0 w-40 h-40 md:w-48 md:h-48 pointer-events-none opacity-20"
-          style={{
-            background: "radial-gradient(circle,#FC687D,transparent 65%)",
-            filter: "blur(40px)",
-          }}
-        />
-
-        <div className="relative z-10">
-          <p className="text-[#FC687D] text-[9px] md:text-[10px] font-normal uppercase tracking-[0.25em] mb-1">
-            Welcome back 👋
-          </p>
-          <h2 className="text-2xl md:text-3xl font-normal text-slate-800 leading-tight mb-1 tracking-tight">
-            {member?.customer_name || user?.user_metadata?.full_name || "Coffee Lover"}
-          </h2>
-
-          {member?.customer_code && (
-            <p className="text-slate-400 text-[10px] md:text-xs font-mono tracking-wider font-normal">
-              {member.customer_code}
-            </p>
-          )}
-
-          {member && (
-            <div className="flex gap-4 md:gap-6 mt-4 md:mt-6 bg-[#FFF9FA] p-3 md:p-4 rounded-xl md:rounded-2xl border border-rose-50 inline-flex">
-              <div>
-                <p className="text-[#FC687D] font-normal text-xl md:text-2xl leading-none">
-                  {availablePts.toFixed(0)}
-                </p>
-                <p className="text-slate-500 text-[9px] md:text-[10px] uppercase font-normal tracking-widest mt-1">
-                  Available
-                </p>
-              </div>
-              <div className="w-px bg-rose-100" />
-              <div>
-                <p className="text-slate-800 font-normal text-xl md:text-2xl leading-none">
-                  {totalPts.toFixed(0)}
-                </p>
-                <p className="text-slate-500 text-[9px] md:text-[10px] uppercase font-normal tracking-widest mt-1">
-                  Total
-                </p>
-              </div>
-              <div className="w-px bg-rose-100" />
-              <div>
-                <p className="text-slate-800 font-normal text-xl md:text-2xl leading-none">
-                  {visits.toFixed(0)}
-                </p>
-                <p className="text-slate-500 text-[9px] md:text-[10px] uppercase font-normal tracking-widest mt-1">
-                  Visits
-                </p>
-              </div>
+      {/* Main Responsive Layout Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        {/* Welcome & Balance Core Cards */}
+        <div className="md:col-span-2 space-y-6">
+          <div className="bg-white rounded-2xl md:rounded-[32px] p-6 border border-rose-100 shadow-[0_4px_20px_rgba(252,104,125,0.04)] relative overflow-hidden h-full flex flex-col justify-between">
+            <div
+              className="absolute top-0 right-0 w-64 h-64 pointer-events-none opacity-20"
+              style={{
+                background: "radial-gradient(circle,#FC687D,transparent 65%)",
+                filter: "blur(50px)",
+              }}
+            />
+            <div className="relative z-10">
+              <p className="text-[#FC687D] text-[10px] font-semibold uppercase tracking-[0.25em] mb-1">
+                Welcome back 👋
+              </p>
+              <h2 className="text-2xl md:text-3xl font-medium text-slate-800 leading-tight tracking-tight">
+                {member?.customer_name || user?.user_metadata?.full_name || "Coffee Lover"}
+              </h2>
+              {member?.customer_code && (
+                <p className="text-slate-400 text-xs font-mono tracking-wider mt-1">{member.customer_code}</p>
+              )}
             </div>
+
+            {member && (
+              <div className="grid grid-cols-3 gap-2 mt-8 bg-[#FFF9FA] p-4 rounded-2xl border border-rose-50">
+                <div className="text-center md:text-left">
+                  <p className="text-[#FC687D] font-bold text-xl md:text-2xl lg:text-3xl leading-none">
+                    {availablePts.toFixed(0)}
+                  </p>
+                  <p className="text-slate-500 text-[9px] uppercase font-semibold tracking-widest mt-1.5">Available</p>
+                </div>
+                <div className="text-center md:text-left border-l border-rose-100 pl-2">
+                  <p className="text-slate-800 font-bold text-xl md:text-2xl lg:text-3xl leading-none">
+                    {totalPts.toFixed(0)}
+                  </p>
+                  <p className="text-slate-500 text-[9px] uppercase font-semibold tracking-widest mt-1.5">Total</p>
+                </div>
+                <div className="text-center md:text-left border-l border-rose-100 pl-2">
+                  <p className="text-slate-800 font-bold text-xl md:text-2xl lg:text-3xl leading-none">
+                    {visits.toFixed(0)}
+                  </p>
+                  <p className="text-slate-500 text-[9px] uppercase font-semibold tracking-widest mt-1.5">Visits</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Desktop Profile Status Card */}
+        <div className="hidden md:block bg-white rounded-2xl border border-rose-50 p-6 shadow-sm">
+          <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-4">Authenticated As</p>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center text-lg">👤</div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-800 truncate">{user?.email}</p>
+              <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Verified Client</p>
+            </div>
+          </div>
+          <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs text-slate-500">
+            📍 High-speed ordering, bookings and point monitoring features are completely operational.
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Action Grid Section */}
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">Quick Shortcuts</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { icon: "🍽️", label: "Order Food", sub: "Browse menu", tab: "order" },
+            { icon: "⭐", label: "Loyalty", sub: "Rewards", tab: "loyalty" },
+            { icon: "🗓", label: "Book Room", sub: "Function room", tab: "booking" },
+            { icon: "🎁", label: "Promos", sub: "Deals & offers", href: "/promo" },
+          ].map((c) =>
+            c.href ? (
+              <Link
+                key={c.label}
+                href={c.href}
+                className="bg-white rounded-2xl p-5 border border-rose-50 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300"
+              >
+                <div className="text-2xl mb-3 bg-rose-50 w-12 h-12 rounded-full flex items-center justify-center">
+                  {c.icon}
+                </div>
+                <p className="font-semibold text-slate-800 text-sm md:text-base">{c.label}</p>
+                <p className="text-slate-400 text-[10px] font-medium uppercase tracking-widest mt-1">{c.sub}</p>
+              </Link>
+            ) : (
+              <button
+                key={c.label}
+                onClick={() => setTab(c.tab)}
+                className="bg-white rounded-2xl p-5 border border-rose-50 shadow-sm text-left hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 w-full"
+              >
+                <div className="text-2xl mb-3 bg-rose-50 w-12 h-12 rounded-full flex items-center justify-center text-[#FC687D]">
+                  {c.icon}
+                </div>
+                <p className="font-semibold text-slate-800 text-sm md:text-base">{c.label}</p>
+                <p className="text-slate-400 text-[10px] font-medium uppercase tracking-widest mt-1">{c.sub}</p>
+              </button>
+            )
           )}
         </div>
       </div>
 
-      {/* Quick Action Grid */}
-      <div className="grid grid-cols-2 gap-3 md:gap-4">
-        {[
-          { icon: "🍽️", label: "Order Food", sub: "Browse menu", tab: "order" },
-          { icon: "⭐", label: "Loyalty", sub: "Rewards", tab: "loyalty" },
-          { icon: "🗓", label: "Book Room", sub: "Function room", tab: "booking" },
-          { icon: "🎁", label: "Promos", sub: "Deals & offers", href: "/promo" },
-        ].map((c) =>
-          c.href ? (
-            <Link
-              key={c.label}
-              href={c.href}
-              className="bg-white rounded-xl md:rounded-[24px] p-4 md:p-5 border border-rose-50 shadow-sm hover:shadow-md active:scale-95 transition-all duration-300"
-            >
-              <div className="text-2xl md:text-3xl mb-2 md:mb-3 bg-rose-50 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center">
-                {c.icon}
-              </div>
-              <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">{c.label}</p>
-              <p className="text-slate-400 text-[9px] md:text-[11px] font-normal uppercase tracking-widest mt-0.5">
-                {c.sub}
-              </p>
-            </Link>
-          ) : (
-            <button
-              key={c.label}
-              onClick={() => setTab(c.tab)}
-              className="bg-white rounded-xl md:rounded-[24px] p-4 md:p-5 border border-rose-50 shadow-sm text-left hover:shadow-md active:scale-95 transition-all duration-300"
-            >
-              <div className="text-2xl md:text-3xl mb-2 md:mb-3 bg-rose-50 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-[#FC687D]">
-                {c.icon}
-              </div>
-              <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">{c.label}</p>
-              <p className="text-slate-400 text-[9px] md:text-[11px] font-normal uppercase tracking-widest mt-0.5">
-                {c.sub}
-              </p>
-            </button>
-          )
-        )}
-      </div>
-
-      {/* Visit Us */}
-      <div className="bg-white rounded-xl md:rounded-[24px] p-5 border border-rose-50 shadow-sm">
-        <p className="text-[9px] md:text-[10px] font-normal uppercase tracking-widest text-slate-400 mb-3">
-          Visit Us
-        </p>
-
-        <div className="flex gap-2 mb-4">
-          {Object.entries(BRANCHES).map(([key, b]) => (
-            <button
-              key={key}
-              onClick={() => setBranch(key)}
-              className={`flex-1 py-2 rounded-xl text-[10px] md:text-[11px] uppercase tracking-widest border transition-all active:scale-95 ${
-                branch === key
-                  ? "bg-[#FC687D] text-white border-[#FC687D]"
-                  : "bg-white text-slate-500 border-slate-200"
-              }`}
-            >
-              {b.buttonLabel}
-            </button>
-          ))}
+      {/* Visit Us Block Section */}
+      <div className="bg-white rounded-2xl p-6 border border-rose-50 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-100 pb-4 mb-4 gap-4">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Our Outlets</p>
+            <h3 className="text-lg font-semibold text-slate-800">Visit Juja Outlets</h3>
+          </div>
+          <div className="flex gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200 self-start md:self-auto">
+            {Object.entries(BRANCHES).map(([key, b]) => (
+              <button
+                key={key}
+                onClick={() => setBranch(key)}
+                className={`px-4 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all ${
+                  branch === key
+                    ? "bg-[#FC687D] text-white shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                {b.buttonLabel}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <p className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest mb-3">
-          {active.name}
-        </p>
-
-        <div className="space-y-2.5 text-[11px] md:text-[13px] text-slate-600 font-normal">
-          <p className="flex gap-3">
-            <span>📍</span>
-            {active.address}
-          </p>
-          <p className="flex gap-3">
-            <span>📞</span>
-            {active.phone}
-          </p>
-
-          <p className="flex gap-3 items-start">
-            <span>🕙</span>
-            <span>
-              <span className="font-semibold text-slate-700">{active.hoursLabel}:</span>
-              <br />
-              {active.hours.map((line) => (
-                <span key={line} className="block">
-                  {line}
-                </span>
-              ))}
-            </span>
-          </p>
-
-          {active.room.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+          <div className="space-y-3.5 text-sm text-slate-600 font-medium">
+            <p className="text-xs font-bold text-slate-800 uppercase tracking-widest">{active.name}</p>
+            <p className="flex gap-3 items-start"><span className="text-base">📍</span>{active.address}</p>
+            <p className="flex gap-3 items-start"><span className="text-base">📞</span>{active.phone}</p>
+          </div>
+          <div className="space-y-3 bg-[#FFF9FA] border border-rose-50/50 p-4 rounded-xl text-sm text-slate-600">
             <p className="flex gap-3 items-start">
-              <span>🕙</span>
+              <span className="text-base">🕙</span>
               <span>
-                {active.room.map((line) => (
-                  <span key={line} className="block text-slate-500">
-                    {line}
-                  </span>
-                ))}
+                <span className="font-bold text-slate-800 uppercase tracking-wider text-xs block mb-1">{active.hoursLabel}</span>
+                {active.hours.map((line) => <span key={line} className="block font-medium">{line}</span>)}
               </span>
             </p>
-          )}
+            {active.room.length > 0 && (
+              <p className="flex gap-3 items-start border-t border-rose-100/60 pt-2 mt-2">
+                <span className="text-base">🏢</span>
+                <span>
+                  {active.room.map((line) => <span key={line} className="block text-slate-500 font-medium">{line}</span>)}
+                </span>
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// ==========================================
-// Customer Order: Add To Cart Modal (Variants + Instructions)
-// ==========================================
+/* ──────────────────────────────────────────────────────────────
+    Customer Order: Add To Cart Modal View
+────────────────────────────────────────────────────────────── */
 function AddToCartModal({ item, onClose, onAdd }) {
   const [quantity, setQuantity] = useState(1);
   const [selections, setSelections] = useState({});
@@ -390,45 +400,44 @@ function AddToCartModal({ item, onClose, onAdd }) {
 
   return (
     <div
-      className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
+      className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md bg-white rounded-t-[26px] md:rounded-[30px] p-5 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-lg bg-white rounded-t-[26px] md:rounded-[24px] p-6 shadow-2xl max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom md:fade-in duration-300"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-slate-400">Add to Cart</p>
-            <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">{item.name}</h3>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Add to Selection</p>
+            <h3 className="text-xl font-bold text-slate-800 mt-0.5">{item.name}</h3>
+            <p className="text-sm font-semibold text-slate-500 mt-1">
               Base ₱{Number(item.price || 0).toFixed(0)}
               {variantPrice > 0 ? ` • +₱${variantPrice.toFixed(0)} variants` : ""}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500"
-            aria-label="Close"
+            className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500 font-bold"
           >
             ✕
           </button>
         </div>
 
         {Array.isArray(item.variants) && item.variants.length > 0 && (
-          <div className="mt-4 space-y-4">
+          <div className="mt-4 space-y-5">
             {item.variants.map((g) => (
               <div key={g.id} className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold text-slate-700">
+                  <p className="text-sm font-bold text-slate-700">
                     {g.name} {g.isRequired ? <span className="text-rose-500">*</span> : null}
                   </p>
-                  <p className="text-[10px] text-slate-400">
+                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
                     {g.isMultiSelect ? "Multi-select" : "Single-select"}
                   </p>
                 </div>
 
-                <div className="space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {(g.options || []).map((o) => {
                     const sel = (selections[g.id] || []).find((x) => x.id === o.id);
                     return (
@@ -436,13 +445,13 @@ function AddToCartModal({ item, onClose, onAdd }) {
                         key={o.id}
                         type="button"
                         onClick={() => toggleOption(g, o)}
-                        className={`w-full flex items-center justify-between p-3 rounded-xl border text-sm transition-all ${
-                          sel ? "border-rose-300 bg-rose-50/40" : "border-slate-200 bg-white"
+                        className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-sm font-medium transition-all text-left ${
+                          sel ? "border-rose-400 bg-rose-50/40 text-rose-900" : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
                         }`}
                       >
-                        <span className="font-medium text-slate-800">{o.name}</span>
-                        <span className="text-slate-500 text-xs">
-                          {Number(o.price) > 0 ? `+₱${Number(o.price).toFixed(0)}` : "—"}
+                        <span>{o.name}</span>
+                        <span className="text-xs text-slate-400">
+                          {Number(o.price) > 0 ? `+₱${Number(o.price).toFixed(0)}` : "FREE"}
                         </span>
                       </button>
                     );
@@ -453,30 +462,30 @@ function AddToCartModal({ item, onClose, onAdd }) {
           </div>
         )}
 
-        <div className="mt-4">
-          <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+        <div className="mt-5">
+          <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1">
             Special Instructions
           </label>
           <textarea
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
-            placeholder="Add specific notes..."
-            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none h-20 resize-none focus:bg-slate-100/50 transition-all"
+            placeholder="E.g., less ice, sweetener options, etc..."
+            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none h-20 resize-none focus:bg-white focus:border-rose-300 transition-all font-medium"
           />
         </div>
 
-        <div className="mt-4 flex items-center gap-3">
-          <div className="flex items-center w-36 h-12 bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="mt-6 flex flex-col sm:flex-row items-center gap-4 pt-4 border-t border-slate-100">
+          <div className="flex items-center w-full sm:w-36 h-12 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-inner">
             <button
               onClick={() => setQuantity(Math.max(1, quantity - 1))}
-              className="w-12 h-full text-xl text-slate-400 hover:text-rose-500 transition-colors"
+              className="w-12 h-full text-xl text-slate-400 hover:text-rose-500 font-bold transition-colors"
             >
               −
             </button>
             <div className="flex-1 text-center font-bold text-slate-800">{quantity}</div>
             <button
               onClick={() => setQuantity(quantity + 1)}
-              className="w-12 h-full text-xl text-slate-400 hover:text-rose-500 transition-colors"
+              className="w-12 h-full text-xl text-slate-400 hover:text-rose-500 font-bold transition-colors"
             >
               +
             </button>
@@ -495,10 +504,10 @@ function AddToCartModal({ item, onClose, onAdd }) {
                 cartItemId: item.editData?.cartItemId || Date.now(),
               })
             }
-            className="flex-1 py-3 rounded-xl text-white text-sm font-semibold shadow-lg transition-all active:scale-[0.98] disabled:opacity-60"
+            className="w-full sm:flex-1 h-12 rounded-xl text-white text-sm font-bold shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
             style={{ backgroundColor: "#FC687D" }}
           >
-            {canAdd ? `Add • ₱${(unitPrice * quantity).toFixed(0)}` : "Select required options"}
+            {canAdd ? `Add To Basket • ₱${(unitPrice * quantity).toFixed(0)}` : "Select Required Configurations"}
           </button>
         </div>
       </div>
@@ -509,27 +518,27 @@ function AddToCartModal({ item, onClose, onAdd }) {
 function ConfirmModal({ title, message, onConfirm, onCancel }) {
   return (
     <div
-      className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
+      className="fixed inset-0 z-[120] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-md bg-white rounded-t-[26px] md:rounded-[30px] p-5 md:p-6 shadow-2xl"
+        className="w-full max-w-sm bg-white rounded-t-[26px] md:rounded-[20px] p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <p className="text-[10px] uppercase tracking-widest text-slate-400">Confirmation</p>
-        <h3 className="text-lg font-semibold text-slate-800 mt-1">{title}</h3>
-        <p className="text-sm text-slate-600 mt-3">{message}</p>
+        <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Confirmation Required</p>
+        <h3 className="text-lg font-bold text-slate-800 mt-0.5">{title}</h3>
+        <p className="text-sm text-slate-500 mt-2.5 font-medium leading-relaxed">{message}</p>
 
-        <div className="grid grid-cols-2 gap-2 mt-5 pt-4 border-t border-slate-100">
+        <div className="grid grid-cols-2 gap-3 mt-6 pt-4 border-t border-slate-100">
           <button
             onClick={onCancel}
-            className="w-full py-3 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold active:scale-95"
+            className="w-full py-3 rounded-xl bg-slate-50 border border-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-100 transition"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className="w-full py-3 rounded-xl bg-[#FC687D] text-white text-xs font-bold active:scale-95"
+            className="w-full py-3 rounded-xl bg-[#FC687D] text-white text-xs font-bold shadow-sm hover:bg-rose-500 transition"
           >
             Confirm
           </button>
@@ -540,9 +549,9 @@ function ConfirmModal({ title, message, onConfirm, onCancel }) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Order Tab
+    Order Tab (With Branch Selection & Realtime POS Sync)
 ────────────────────────────────────────────────────────────── */
-function OrderTab({ user }) {
+function OrderTab({ user, member }) {
   const [items, setItems] = useState([]);
   const [cats, setCategories] = useState([]);
   const [activeTab, setActiveTab] = useState("ALL");
@@ -550,36 +559,33 @@ function OrderTab({ user }) {
 
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedBranch, setSelectedBranch] = useState("pasongtamo"); // Default branch
 
   const [selectedItemForModal, setSelectedItemForModal] = useState(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
 
-  useEffect(() => {
+  const BRANCH_LABELS = {
+    pasongtamo: "Pasong Tamo Branch (36D Visayas Ave.)",
+    diliman: "Diliman Branch (8 Visayas Ave.)",
+  };
+
+    useEffect(() => {
     async function fetchMenu() {
       setLoading(true);
-
       const [itemRes, catRes] = await Promise.all([
         supabase.from("menu_items").select("*").eq("is_available", true).eq("pos_only", false).order("name"),
         supabase.from("menu_categories").select("*").eq("is_active", true).eq("pos_only", false).order("name", { ascending: true }),
       ]);
-
-      const itemsData = itemRes.data || [];
-      const catsData = catRes.data || [];
-
-      setItems(itemsData);
-
-      const sortedCats = [...catsData].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-      setCategories(sortedCats);
-
+      setItems(itemRes.data || []);
+      setCategories([...(catRes.data || [])].sort((a, b) => (a.name || "").localeCompare(b.name || "")));
       setLoading(false);
     }
-
     fetchMenu();
   }, []);
 
   const q = itemSearch.trim().toLowerCase();
-
   const filteredItems = useMemo(() => {
     return items
       .filter((i) => (activeTab === "ALL" ? true : i.category === activeTab))
@@ -603,238 +609,306 @@ function OrderTab({ user }) {
   };
 
   const removeLine = (cartItemId) => setCart((prev) => prev.filter((x) => x.cartItemId !== cartItemId));
-
   const changeQty = (cartItemId, delta) => {
     setCart((prev) =>
-      prev
-        .map((x) => (x.cartItemId === cartItemId ? { ...x, quantity: Math.max(1, x.quantity + delta) } : x))
-        .filter(Boolean)
+      prev.map((x) => (x.cartItemId === cartItemId ? { ...x, quantity: Math.max(1, x.quantity + delta) } : x))
     );
   };
-
   const clearCart = () => {
     setCart([]);
     setConfirmClear(false);
     setCartOpen(false);
   };
 
+  // Sends the structured payload straight into the Database for POS tracking
   const checkout = async () => {
-    alert("Checkout submitted! Connect to your order/payment flow next.");
+  if (!user?.id) {
+    alert("❌ Check out failed: No active user session detected.");
+    return;
+  }
+  if (cart.length === 0) {
+    alert("❌ Basket is empty.");
+    return;
+  }
+
+  setIsSubmitting(true);
+
+  // 1. Build payload explicitly
+  const orderPayload = {
+    user_id: user.id,
+    customer_name: member?.customer_name || user?.user_metadata?.full_name || "Web Customer",
+    branch_id: selectedBranch,
+    items: cart, 
+    subtotal: Number(subtotal),
+    status: "pending", 
+  };
+
+  // 2. Debug log exactly what we are sending out to the console
+  console.log("🚀 Sending order payload to Supabase...", orderPayload);
+
+  try {
+    const { data, error, status, statusText } = await supabase
+      .from("orders")
+      .insert([orderPayload])
+      .select(); // Forces database to return the freshly minted row back
+
+    if (error) {
+      console.error("❌ Supabase Database API Error:", error);
+      throw error;
+    }
+
+    // 3. Log what the database responded with
+    console.log("✅ Database Response Status:", status, statusText);
+    console.log("📦 Row inserted data:", data);
+
+    if (!data || data.length === 0) {
+      alert("⚠️ Request processed, but database returned 0 rows. Check Supabase RLS policies!");
+      return;
+    }
+
+    alert(`🎉 Order sent to POS! Reference ID: ${data[0].id.slice(0,8)}`);
+    setCart([]); 
     setCartOpen(false);
+  } catch (err) {
+    console.error("❌ High-level try/catch failure:", err);
+    alert(`❌ Order failed to send: ${err.message || "Network Timeout"}`);
+  } finally {
+    setIsSubmitting(false);
+  }
   };
 
   if (loading) {
     return (
-      <div className="p-6 flex justify-center">
-        <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
+      <div className="p-12 flex justify-center">
+        <div className="w-9 h-9 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
       </div>
     );
   }
 
-  return (
-    <div className="space-y-4">
-      <div className="bg-white border border-rose-50 rounded-2xl p-4 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-[10px] uppercase tracking-widest text-slate-400">Menu</p>
-            <p className="text-base font-semibold text-slate-800">Order</p>
+  const CartInnerListing = () => (
+    <div className="flex flex-col h-full justify-between">
+      <div className="flex-1 space-y-3 overflow-y-auto max-h-[40vh] lg:max-h-[50vh] pr-1">
+        {cart.length === 0 ? (
+          <div className="flex flex-col items-center justify-center text-center py-12 px-4 text-slate-400 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+            <span className="text-3xl mb-2">🛒</span>
+            <p className="text-sm font-semibold">Your cart is empty</p>
           </div>
+        ) : (
+          cart.map((line, idx) => (
+            <div
+              key={line.cartItemId}
+              onClick={() => {
+                const base = items.find((i) => i.id === line.id) || {};
+                setSelectedItemForModal({ ...base, editData: line, editIndex: idx });
+              }}
+              className="w-full text-left border border-slate-200 bg-white rounded-xl p-3 hover:border-rose-200 transition cursor-pointer flex flex-col justify-between gap-2"
+            >
+              <div className="min-w-0">
+                <div className="flex justify-between items-start">
+                  <p className="text-sm font-bold text-slate-800 truncate max-w-[70%]">{line.name}</p>
+                  <p className="text-sm font-bold text-slate-800">₱{(line.unitPrice * line.quantity).toFixed(0)}</p>
+                </div>
+                {line.variantDetails && <p className="text-xs text-slate-400 mt-0.5 italic">{line.variantDetails}</p>}
+                {line.instructions && <p className="text-xs text-[#FC687D] font-medium mt-1">Note: {line.instructions}</p>}
+              </div>
 
-          <div className="flex gap-2">
+              <div className="flex items-center justify-between border-t border-slate-50 pt-2 mt-1">
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); removeLine(line.cartItemId); }}
+                  className="text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 px-2.5 py-1 rounded-lg"
+                >
+                  Delete
+                </button>
+                <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    onClick={() => changeQty(line.cartItemId, -1)}
+                    className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center font-bold text-slate-600"
+                  >
+                    −
+                  </button>
+                  <span className="text-xs font-bold text-slate-800 px-1">{line.quantity}</span>
+                  <button
+                    type="button"
+                    onClick={() => changeQty(line.cartItemId, 1)}
+                    className="w-7 h-7 rounded-lg bg-[#FC687D] flex items-center justify-center font-bold text-white"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {cart.length > 0 && (
+        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <label className="block text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-1.5">
+              Select Pickup Store Branch
+            </label>
+            <select
+              value={selectedBranch}
+              onChange={(e) => setSelectedBranch(e.target.value)}
+              className="w-full bg-white border border-slate-200 px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 outline-none cursor-pointer focus:border-[#FC687D]"
+            >
+              {/* Use your exact store UUID string as the option value */}
+              <option value="bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e">
+                Pasong Tamo Branch (36D Visayas Ave.)
+              </option>
+              
+              {/* Replace this with your second store's actual UUID once you pull it from profiles */}
+              <option value="e916bee8-3770-4650-9b46-d2e7d3ad49e6">
+                Diliman Branch (8 Visayas Ave.)
+              </option>
+            </select>
+
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500 font-medium">Subtotal Amount</span>
+              <span className="font-bold text-slate-800 text-lg">₱{subtotal.toFixed(0)}</span>
+            </div>
+            <button
+              onClick={checkout}
+              disabled={isSubmitting}
+              className="w-full h-11 rounded-xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-rose-500 transition disabled:opacity-50"
+            >
+              {isSubmitting ? "Processing Checkout..." : "Send Order to POS"}
+            </button>
+            <button
+              onClick={() => setConfirmClear(true)}
+              disabled={isSubmitting}
+              className="w-full h-11 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 text-xs font-bold uppercase tracking-wider hover:bg-slate-100 transition"
+            >
+              Reset Basket
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="lg:grid lg:grid-cols-3 lg:gap-8 items-start">
+      <div className="lg:col-span-2 space-y-5">
+        <div className="bg-white border border-rose-50 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Fresh Selection</p>
+            <h2 className="text-lg font-bold text-slate-800">Order Menu</h2>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
             <select
               value={activeTab}
               onChange={(e) => setActiveTab(e.target.value)}
-              className="bg-slate-50 px-3 py-2 rounded-xl text-xs outline-none border border-slate-200"
+              className="bg-slate-50 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 outline-none border border-slate-200 cursor-pointer"
             >
               <option value="ALL">All Categories</option>
               {cats.map((cat) => (
-                <option key={cat.id} value={cat.name}>
-                  {cat.name}
-                </option>
+                <option key={cat.id} value={cat.name}>{cat.name}</option>
               ))}
             </select>
-
-            <div className="relative">
+            <div className="relative flex-1 sm:flex-initial">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
               <input
                 value={itemSearch}
                 onChange={(e) => setItemSearch(e.target.value)}
-                placeholder="Search items..."
-                className="pl-8 pr-3 py-2 bg-slate-50 rounded-xl text-xs outline-none border border-slate-200 w-[160px]"
+                placeholder="Search..."
+                className="pl-8 pr-3 py-2 bg-slate-50 rounded-xl text-xs font-medium text-slate-800 outline-none border border-slate-200 w-full sm:w-[150px]"
               />
             </div>
           </div>
         </div>
+
+        {filteredItems.length === 0 ? (
+          <div className="bg-white rounded-2xl p-12 text-center text-slate-400 border border-slate-100">
+            ❌ No matching available products located.
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {filteredItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setSelectedItemForModal(item)}
+                className="group bg-white border border-slate-100 rounded-2xl p-3 text-left hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex flex-col h-full justify-between"
+              >
+                <div>
+                  <div className="w-full h-28 sm:h-32 rounded-xl bg-[#FFF9FA] border border-rose-50/50 flex items-center justify-center overflow-hidden">
+                    {item.image_url ? (
+                      <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-3xl text-rose-200/40">📷</span>
+                    )}
+                  </div>
+                  <div className="mt-3">
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-[#FC687D] bg-rose-50 px-2 py-0.5 rounded-md">
+                      {item.category || "General"}
+                    </span>
+                    <p className="text-sm font-bold text-slate-800 leading-tight mt-1.5">
+                      {item.name}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-sm font-extrabold text-slate-800 mt-3 pt-2 border-t border-slate-50">
+                  ₱{Number(item.price || 0).toFixed(0)}
+                </p>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        {filteredItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setSelectedItemForModal(item)}
-            className="group relative flex flex-col p-3 bg-white border border-slate-100 rounded-2xl cursor-pointer transition-all text-left hover:-translate-y-[6px] hover:shadow-[0_20px_40px_rgba(252,104,125,0.12)]"
-            style={{ transitionTimingFunction: "cubic-bezier(0.25,0.46,0.45,0.94)", transitionDuration: "0.35s" }}
-          >
-            <div className="w-full h-24 rounded-xl bg-[#FFF9FA] border border-rose-50 flex items-center justify-center overflow-hidden">
-              {item.image_url ? (
-                <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-2xl text-rose-200/50">📷</span>
-              )}
-            </div>
-
-            <div className="mt-2 space-y-1">
-              <p className="text-[10px] uppercase tracking-wider text-slate-400">{item.category || "General"}</p>
-              <p className="text-sm font-semibold text-slate-800 leading-tight">{item.name}</p>
-              <p className="text-sm font-bold text-slate-700">₱{Number(item.price || 0).toFixed(0)}</p>
-            </div>
-          </button>
-        ))}
-      </div>
+      <aside className="hidden lg:block bg-white border border-rose-50 rounded-2xl p-5 shadow-sm sticky top-6 h-[calc(100vh-140px)]">
+        <div className="border-b border-slate-100 pb-3 mb-4">
+          <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
+            <span>🛒</span> Shopping Basket
+          </h3>
+          <p className="text-xs text-slate-400 mt-0.5">{itemCount} items configured</p>
+        </div>
+        <div className="h-[calc(100%-70px)]">
+          <CartInnerListing />
+        </div>
+      </aside>
 
       {cart.length > 0 && !cartOpen && (
         <button
           onClick={() => setCartOpen(true)}
-          className="fixed bottom-[88px] left-4 right-4 md:left-auto md:right-6 md:w-[360px] z-40 bg-slate-900 text-white flex items-center justify-between px-5 py-4 rounded-2xl shadow-2xl active:scale-[0.98] transition-all"
+          className="fixed bottom-[88px] left-4 right-4 z-40 bg-slate-900 text-white flex items-center justify-between px-5 py-4 rounded-xl shadow-xl lg:hidden"
         >
-          <div>
-            <p className="text-[10px] uppercase tracking-widest text-slate-300">Current Cart</p>
-            <p className="text-sm font-semibold">{itemCount} item(s)</p>
+          <div className="text-left">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Current Order</p>
+            <p className="text-sm font-bold">{itemCount} Selected Item(s)</p>
           </div>
-          <div className="text-right">
-            <p className="text-lg font-bold">₱{subtotal.toFixed(0)}</p>
-            <p className="text-xs text-slate-300">🛒 View</p>
+          <div className="text-right flex items-center gap-2">
+            <span className="text-base font-extrabold text-[#FC687D]">₱{subtotal.toFixed(0)}</span>
+            <span className="text-xs bg-white/10 px-2.5 py-1 rounded-lg">View 🛒</span>
           </div>
         </button>
       )}
 
       {cartOpen && (
         <div
-          className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
+          className="fixed inset-0 z-[85] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 lg:hidden"
           onClick={() => setCartOpen(false)}
         >
           <div
-            className="w-full max-w-md bg-white rounded-t-[26px] md:rounded-[30px] p-5 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+            className="w-full max-w-md bg-white rounded-t-[24px] md:rounded-[20px] p-5 shadow-2xl max-h-[85vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-4 mb-4">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
               <div>
-                <p className="text-[10px] uppercase tracking-widest text-slate-400">Cart</p>
-                <h3 className="text-lg font-semibold text-slate-800 mt-1">
-                  ₱{subtotal.toFixed(0)} • {itemCount} item(s)
-                </h3>
+                <h3 className="font-bold text-slate-800 text-base">Your Basket</h3>
+                <p className="text-xs text-slate-400">{itemCount} items</p>
               </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setConfirmClear(true)}
-                  className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500"
-                  title="Clear cart"
-                >
-                  ✕
-                </button>
-                <button
-                  onClick={() => setCartOpen(false)}
-                  className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500"
-                  aria-label="Close"
-                >
-                  ↩
-                </button>
-              </div>
+              <button
+                onClick={() => setCartOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500"
+              >
+                ✕
+              </button>
             </div>
-
-            {cart.length === 0 ? (
-              <div className="text-center py-10 text-slate-400 border border-dashed border-slate-200 rounded-2xl">
-                Empty cart
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {cart.map((line, idx) => (
-                  <button
-                    key={line.cartItemId}
-                    onClick={() => {
-                      const base = items.find((i) => i.id === line.id) || {};
-                      setSelectedItemForModal({ ...base, editData: line, editIndex: idx });
-                    }}
-                    className="w-full text-left border border-slate-200 rounded-2xl p-3 hover:bg-slate-50/60 transition"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-800 truncate">
-                          {line.name} <span className="text-slate-400">×{line.quantity}</span>
-                        </p>
-
-                        {line.variantDetails ? (
-                          <p className="text-[11px] text-slate-500 mt-1">{line.variantDetails}</p>
-                        ) : null}
-
-                        {line.instructions ? (
-                          <p className="text-[11px] text-slate-400 mt-1">Note: {line.instructions}</p>
-                        ) : null}
-
-                        <p className="text-xs text-slate-500 mt-2">
-                          ₱{Number(line.unitPrice).toFixed(0)} each • Subtotal ₱
-                          {(line.unitPrice * line.quantity).toFixed(0)}
-                        </p>
-                      </div>
-
-                      <div className="flex flex-col items-end gap-2">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeLine(line.cartItemId);
-                          }}
-                          className="text-[10px] font-bold uppercase tracking-widest text-red-600 bg-red-50 border border-red-100 px-3 py-2 rounded-xl active:scale-95"
-                        >
-                          Remove
-                        </button>
-
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              changeQty(line.cartItemId, -1);
-                            }}
-                            className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-700 font-bold active:scale-95"
-                          >
-                            −
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              changeQty(line.cartItemId, +1);
-                            }}
-                            className="w-9 h-9 rounded-xl bg-[#FC687D] flex items-center justify-center text-white font-bold active:scale-95"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="mt-5 pt-4 border-t border-slate-100 space-y-2">
-              <button
-                onClick={checkout}
-                disabled={cart.length === 0}
-                className="w-full py-3 rounded-xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-widest active:scale-95 disabled:opacity-60"
-              >
-                Checkout
-              </button>
-
-              <button
-                onClick={() => setConfirmClear(true)}
-                disabled={cart.length === 0}
-                className="w-full py-3 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-widest active:scale-95 disabled:opacity-60"
-              >
-                Clear Cart
-              </button>
+            <div className="overflow-y-auto flex-1">
+              <CartInnerListing />
             </div>
           </div>
         </div>
@@ -850,8 +924,8 @@ function OrderTab({ user }) {
 
       {confirmClear && (
         <ConfirmModal
-          title="Clear cart?"
-          message="This will remove all items from your cart."
+          title="Reset Shopping Basket?"
+          message="Are you certain you wish to discard items?"
           onCancel={() => setConfirmClear(false)}
           onConfirm={clearCart}
         />
@@ -861,14 +935,10 @@ function OrderTab({ user }) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   ✅ Loyalty Tab (CLEAN + FIXED)
-   - Active / Redeemed / Expired
-   - Countdown (updates every minute)
-   - Birthday popup (once per voucher id)
-   - Safe DB select (retries if column doesn't exist yet)
+    Loyalty Tab
 ────────────────────────────────────────────────────────────── */
 function LoyaltyTab({ member, setMember, user }) {
-  const [mode, setMode] = useState(null); // null | "new" | "existing"
+  const [mode, setMode] = useState(null); 
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
 
@@ -876,33 +946,20 @@ function LoyaltyTab({ member, setMember, user }) {
   const [showPerks, setShowPerks] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [form, setForm] = useState({
-    customer_name: "",
-    Phone: "",
-    City: "",
-    Note: "",
-  });
+  const [form, setForm] = useState({ customer_name: "", Phone: "", City: "", Note: "" });
 
-  // vouchers
-  const [voucherRows, setVoucherRows] = useState([]);
   const [vouchersActive, setVouchersActive] = useState([]);
   const [vouchersRedeemed, setVouchersRedeemed] = useState([]);
   const [vouchersExpired, setVouchersExpired] = useState([]);
   const [voucherView, setVoucherView] = useState("active");
   const [loadingVouchers, setLoadingVouchers] = useState(false);
 
-  // countdown tick
   const [nowTick, setNowTick] = useState(Date.now());
-
-  // birthday popup
   const [birthdayPopupOpen, setBirthdayPopupOpen] = useState(false);
   const [birthdayVoucher, setBirthdayVoucher] = useState(null);
-
-  // link request status
   const [linkReq, setLinkReq] = useState(null);
   const [loadingLinkReq, setLoadingLinkReq] = useState(false);
 
-  // match preview
   const [checkingMatch, setCheckingMatch] = useState(false);
   const [matchChecked, setMatchChecked] = useState(false);
   const [matchedPreview, setMatchedPreview] = useState(null);
@@ -912,13 +969,11 @@ function LoyaltyTab({ member, setMember, user }) {
   const progress = ((available % 100) / 100) * 100;
   const nextReward = (Math.floor(available / 100) + 1) * 100;
 
-  // tick every minute for countdown refresh
   useEffect(() => {
     const t = setInterval(() => setNowTick(Date.now()), 60 * 1000);
     return () => clearInterval(t);
   }, []);
 
-  // birthday detector: prefer reward_type; fallback to code/text
   const isBirthdayVoucher = (v) => {
     const rt = String(v?.reward_text || "").toLowerCase();
     const code = String(v?.code || "").toUpperCase();
@@ -926,53 +981,39 @@ function LoyaltyTab({ member, setMember, user }) {
     return rt.includes("birthday") || code.startsWith("BDAY");
   };
 
-    useEffect(() => {
-      async function createBirthdayVoucherIfNeeded() {
-        if (!member?.id || !member?.Note) return;
+  useEffect(() => {
+    async function createBirthdayVoucherIfNeeded() {
+      if (!member?.id || !member?.Note) return;
+      const today = new Date();
+      const todayStr = today.toISOString().slice(5, 10); 
+      const birth = member.Note; 
+      const [, mon, day] = birth.split("-");
+      const monthIndex = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].indexOf(mon);
+      if (monthIndex === -1) return;
 
-        const today = new Date();
-        const todayStr = today.toISOString().slice(5, 10); // MM-DD
+      const bdayFormatted = `${String(monthIndex + 1).padStart(2, "0")}-${day}`;
+      if (bdayFormatted !== todayStr) return;
 
-        const birth = member.Note; // YYYY-MMM-DD
-        const [, mon, day] = birth.split("-");
-        
-        const monthIndex = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].indexOf(mon);
-        if (monthIndex === -1) return;
+      const year = today.getFullYear();
+      const { data: existing } = await supabase.from("vouchers").select("id").eq("member_id", member.id);
+      const alreadyHas = (existing || []).some(v => v.code?.startsWith(`BDAY${year}`));
+      if (alreadyHas) return;
 
-        const bdayFormatted = `${String(monthIndex + 1).padStart(2, "0")}-${day}`;
+      await supabase.from("vouchers").insert({
+        member_id: member.id,
+        code: `BDAY${year}-${Math.floor(Math.random()*10000)}`,
+        reward_text: "FREE 16oz Drink or Waffle (Birthday Reward)",
+        issued_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 7 * 86400000).toISOString(), 
+        status: "active",
+        reward_type: "birthday",
+      });
+    }
+    createBirthdayVoucherIfNeeded();
+  }, [member]);
 
-        if (bdayFormatted !== todayStr) return;
-
-        // ✅ check if already issued this year
-        const year = today.getFullYear();
-
-        const { data: existing } = await supabase
-          .from("vouchers")
-          .select("id")
-          .eq("member_id", member.id);
-
-        const alreadyHas = (existing || []).some(v => v.code?.startsWith(`BDAY${year}`));
-        if (alreadyHas) return;
-
-        // ✅ create birthday voucher
-        await supabase.from("vouchers").insert({
-          member_id: member.id,
-          code: `BDAY${year}-${Math.floor(Math.random()*10000)}`,
-          reward_text: "FREE 16oz Drink or Waffle (Birthday Reward)",
-          issued_at: new Date().toISOString(),
-          expires_at: new Date(Date.now() + 7 * 86400000).toISOString(), // 7 days
-          status: "active",
-          reward_type: "birthday",
-        });
-      }
-
-      createBirthdayVoucherIfNeeded();
-    }, [member]);
-
-  // status calculator: respect DB status first; then time-based expiry
   const computeStatus = (v) => {
     if (!v) return "active";
-
     if (String(v.status).toLowerCase() === "redeemed") return "redeemed";
     if (String(v.status).toLowerCase() === "expired") return "expired";
     if (String(v.status).toLowerCase() === "active") {
@@ -980,1069 +1021,273 @@ function LoyaltyTab({ member, setMember, user }) {
       if (expMs && expMs <= nowTick) return "expired";
       return "active";
     }
-
-    // fallback when status missing
-    const expMs = v.expires_at ? new Date(v.expires_at).getTime() : 0;
-    if (v.redeemed_at) return "redeemed";
-    if (expMs && expMs <= nowTick) return "expired";
     return "active";
   };
 
   const manilaDateKey = (d) =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Manila",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(d);
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
 
-const expiryCountdownDetailed = (expires_at) => {
-  if (!expires_at) return { text: "—", expiresTonight: false, expired: false };
-
-  const exp = new Date(expires_at);
-  const ms = exp.getTime() - nowTick;
-
-  if (ms <= 0) return { text: "Expired", expiresTonight: false, expired: true };
-
-  const days = Math.floor(ms / 86400000);
-  const hrs = Math.floor((ms % 86400000) / 3600000);
-  const mins = Math.floor((ms % 3600000) / 60000);
-
-  const text =
-    days > 0
-      ? `Expires in ${days}d ${hrs}h ${mins}m`
-      : `Expires in ${hrs}h ${mins}m`;
-
-  const expiresTonight =
-    manilaDateKey(new Date()) === manilaDateKey(exp); // Manila date match
-
-  return { text, expiresTonight, expired: false };
+  const expiryCountdownDetailed = (expires_at) => {
+    if (!expires_at) return { text: "—", expiresTonight: false };
+    const exp = new Date(expires_at);
+    const ms = exp.getTime() - nowTick;
+    if (ms <= 0) return { text: "Expired", expiresTonight: false };
+    const days = Math.floor(ms / 86400000);
+    const hrs = Math.floor((ms % 86400000) / 3600000);
+    const mins = Math.floor((ms % 3600000) / 60000);
+    return {
+      text: days > 0 ? `Expires in ${days}d ${hrs}h` : `Expires in ${hrs}h ${mins}m`,
+      expiresTonight: manilaDateKey(new Date()) === manilaDateKey(exp),
+    };
   };
 
-  const statusPill = (s) => {
-    if (s === "active") return "bg-green-50 text-green-700 border-green-200";
-    if (s === "redeemed") return "bg-blue-50 text-blue-700 border-blue-200";
-    return "bg-slate-50 text-slate-600 border-slate-200";
-  };
-
-  // latest link request
-  useEffect(() => {
-    async function fetchLatestReq() {
-      if (!user?.id) return;
-      setLoadingLinkReq(true);
-
-      const { data, error } = await supabase
-        .from("loyalty_link_requests")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (!error) setLinkReq(data || null);
-
-      setLoadingLinkReq(false);
-    }
-
-    fetchLatestReq();
-  }, [user?.id]);
-
-  // fetch vouchers (safe select: retry if some columns don't exist yet)
   useEffect(() => {
     async function fetchVouchers() {
       if (!member?.id) return;
       setLoadingVouchers(true);
-
-      const selectFull =
-        "id, code, reward_text, issued_at, expires_at, status, member_id, reward_index, reward_type, redeemed_at";
-      const selectFallback =
-        "id, code, reward_text, issued_at, expires_at, status, member_id, reward_index";
-
-      let res = await supabase
-        .from("vouchers")
-        .select(selectFull)
-        .eq("member_id", member.id)
-        .order("issued_at", { ascending: false });
-
-      // retry if columns don't exist
-      if (res.error && /reward_type|redeemed_at/i.test(res.error.message || "")) {
-        res = await supabase
-          .from("vouchers")
-          .select(selectFallback)
-          .eq("member_id", member.id)
-          .order("issued_at", { ascending: false });
-      }
-
-      setVoucherRows(!res.error && res.data ? res.data : []);
+      const { data } = await supabase.from("vouchers").select("*").eq("member_id", member.id).order("issued_at", { ascending: false });
+      const rows = data || [];
+      
+      const normalized = rows.map((v) => ({ ...v, _computedStatus: computeStatus(v), _isBirthday: isBirthdayVoucher(v) }));
+      setVouchersActive(normalized.filter(v => v._computedStatus === "active"));
+      setVouchersRedeemed(normalized.filter(v => v._computedStatus === "redeemed"));
+      setVouchersExpired(normalized.filter(v => v._computedStatus === "expired"));
       setLoadingVouchers(false);
     }
-
     fetchVouchers();
-  }, [member?.id]);
+  }, [member?.id, nowTick]);
 
-  // bucketize vouchers whenever data/tick changes
-  useEffect(() => {
-    const normalized = (voucherRows || []).map((v) => {
-      const s = computeStatus(v);
-      return { ...v, _computedStatus: s, _isBirthday: isBirthdayVoucher(v) };
-    });
-
-    const active = normalized.filter((v) => v._computedStatus === "active");
-    const redeemed = normalized.filter((v) => v._computedStatus === "redeemed");
-    const expired = normalized.filter((v) => v._computedStatus === "expired");
-
-    setVouchersActive(active);
-    setVouchersRedeemed(redeemed);
-    setVouchersExpired(expired);
-
-    const activeBirthday = active.find((v) => v._isBirthday) || null;
-    setBirthdayVoucher(activeBirthday);
-  }, [voucherRows, nowTick]);
-
-  // auto show birthday popup once per voucher id
-  useEffect(() => {
-    if (!birthdayVoucher?.id) return;
-    const key = `juja_bday_popup_${birthdayVoucher.id}`;
-    try {
-      if (localStorage.getItem(key)) return;
-      localStorage.setItem(key, "1");
-    } catch {}
-    setBirthdayPopupOpen(true);
-  }, [birthdayVoucher?.id]);
-
-  // Create member
   const createMember = async () => {
     if (!user?.id) return;
-
     const b = normalizeBirthday(form.Note);
-    if (!b.ok) {
-      setNotice("⚠️ " + b.msg);
-      return;
-    }
-
-    if (!form.customer_name || !form.City || !form.Phone) {
-      setNotice("⚠️ Please complete all fields.");
-      return;
-    }
-
+    if (!b.ok) { setNotice("⚠️ " + b.msg); return; }
+    if (!form.customer_name || !form.City || !form.Phone) { setNotice("⚠️ Please complete all fields."); return; }
+    
     setLoading(true);
-    setNotice("");
-
     try {
-      const payload = {
-        user_id: user.id,
-        "Customer ID": genCustomerId(),
-        customer_name: form.customer_name,
-        Email: user.email ?? null,
-        Phone: form.Phone || null,
-        City: form.City || null,
-        customer_code: genMemberCode(),
-        "Points balance": 0,
-        "Available points": 0,
-        Note: b.value,
-        "First visit": todayISO(),
-        "Last visit": todayISO(),
-        "Total visits": 0,
-        "Total spent": 0,
-      };
-
-      const { data, error } = await supabase
-        .from("loyalty_members")
-        .insert([payload])
-        .select()
-        .single();
-
+      const { data, error } = await supabase.from("loyalty_members").insert([{
+        user_id: user.id, "Customer ID": genCustomerId(), customer_name: form.customer_name,
+        Email: user.email, Phone: form.Phone, City: form.City, customer_code: genMemberCode(),
+        "Points balance": 0, "Available points": 0, Note: b.value, first_visit: todayISO()
+      }]).select().single();
       if (error) throw error;
-
       setMember(data);
-      setNotice("✅ Account created!");
       setMode(null);
-    } catch (err) {
-      setNotice("❌ " + (err?.message || "Unable to create account"));
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { setNotice("❌ " + err.message); }
+    setLoading(false);
   };
 
-  // Match preview
   const checkMatchPreview = async () => {
-    setNotice("");
-    setMatchedPreview(null);
-    setMatchChecked(false);
-
-    if (!form.customer_name || !form.Note) {
-      setNotice("⚠️ Enter your full name and birthday first.");
-      return;
-    }
-
     const b = normalizeBirthday(form.Note);
-    if (!b.ok) {
-      setNotice("⚠️ " + b.msg);
-      return;
-    }
-
-    setForm((f) => ({ ...f, Note: b.value }));
+    if (!b.ok) { setNotice("⚠️ " + b.msg); return; }
     setCheckingMatch(true);
-
-    try {
-      const { data, error } = await supabase
-        .from("loyalty_members")
-        .select('id, customer_name, customer_code, Phone, City, Note, "Points balance", "Available points"')
-        .ilike("customer_name", form.customer_name)
-        .eq("Note", b.value)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      setMatchedPreview(data || null);
-      setMatchChecked(true);
-    } catch (err) {
-      setNotice("❌ Match check failed: " + (err?.message || "Unknown error"));
-    } finally {
-      setCheckingMatch(false);
-    }
+    const { data } = await supabase.from("loyalty_members").select("*").ilike("customer_name", form.customer_name).eq("Note", b.value).maybeSingle();
+    setMatchedPreview(data || null);
+    setMatchChecked(true);
+    setCheckingMatch(false);
   };
 
-  // Send request
   const requestLink = async () => {
-    if (!user?.id) return;
-
-    if (linkReq?.status === "pending") {
-      setNotice("⚠️ You already have a pending request. Please wait for approval.");
-      return;
-    }
-
-    if (!form.customer_name || !form.Note) {
-      setNotice("⚠️ Please enter your full name and birthday.");
-      return;
-    }
-
     const b = normalizeBirthday(form.Note);
-    if (!b.ok) {
-      setNotice("⚠️ " + b.msg);
-      return;
-    }
-
-    if (!matchChecked) {
-      setNotice("⚠️ Please tap “Check Match” first to review the matched account.");
-      return;
-    }
-
-    setLoading(true);
-    setNotice("");
-
-    try {
-      const matchedId = matchedPreview?.id || null;
-
-      const { data: inserted, error } = await supabase
-        .from("loyalty_link_requests")
-        .insert({
-          user_id: user.id,
-          input_name: form.customer_name,
-          input_birthday: b.value,
-          matched_member_id: matchedId,
-          status: "pending",
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setLinkReq(inserted);
-      setNotice("✅ Request submitted! Please wait for admin approval.");
-    } catch (err) {
-      setNotice("❌ " + (err?.message || "Request failed"));
-    } finally {
-      setLoading(false);
-    }
+    const { data, error } = await supabase.from("loyalty_link_requests").insert({
+      user_id: user.id, input_name: form.customer_name, input_birthday: b.value, matched_member_id: matchedPreview?.id || null, status: "pending"
+    }).select().single();
+    if (!error) setLinkReq(data);
   };
 
-  const startEdit = () => {
-    setForm({
-      customer_name: member?.customer_name || "",
-      Phone: member?.["Phone"] || "",
-      City: member?.["City"] || "",
-      Note: member?.["Note"] || "",
-    });
-    setEditing(true);
-  };
-
-  const saveEdit = async (e) => {
-    e.preventDefault();
-    if (!member?.id) return;
-
-    const b = normalizeBirthday(form.Note);
-    if (!b.ok) {
-      setNotice("⚠️ " + b.msg);
-      return;
-    }
-
-    setSaving(true);
-    setNotice("");
-
-    try {
-      const updateData = {
-        customer_name: form.customer_name,
-        Phone: form.Phone,
-        City: form.City,
-        Note: b.value,
-      };
-
-      const { data, error } = await supabase
-        .from("loyalty_members")
-        .update(updateData)
-        .eq("id", member.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setMember(data);
-      setEditing(false);
-      setNotice("✅ Profile updated.");
-    } catch (err) {
-      setNotice("❌ " + (err?.message || "Update failed"));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const StatusCard = () => {
-    if (loadingLinkReq) {
-      return (
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-sm text-slate-500">
-          Checking link request status…
-        </div>
-      );
-    }
-    if (!linkReq) return null;
-
-    const s = linkReq.status;
-
-    return (
-      <div className="bg-white border border-rose-100 rounded-xl p-4 text-sm">
-        <p className="font-semibold text-slate-800">Link Request Status</p>
-        <p className="mt-1 text-slate-600">
-          {s === "pending" && <span className="text-yellow-600">⏳ Pending approval</span>}
-          {s === "approved" && linkReq.approved_at && (
-            <span className="text-green-600">
-              ✅ Approved on {new Date(linkReq.approved_at).toLocaleString()}
-            </span>
-          )}
-          {s === "rejected" && linkReq.rejected_at && (
-            <span className="text-red-600">
-              ❌ Rejected on {new Date(linkReq.rejected_at).toLocaleString()}
-            </span>
-          )}
-          {!["pending", "approved", "rejected"].includes(s) && <span>{String(s)}</span>}
-        </p>
-        <p className="mt-2 text-[11px] text-slate-400">Submitted: {fmtDate(linkReq.created_at)}</p>
-      </div>
-    );
-  };
-
-  // ENTRY UI
   if (!member && !mode) {
     return (
-      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <StatusCard />
-
-        <div className="bg-gradient-to-br from-[#FFF9FA] to-rose-50 border border-rose-100 rounded-2xl p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-800">⭐ Juja Rewards</h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Earn points and enjoy exclusive rewards every time you visit.
-          </p>
-
-          <div className="mt-4 space-y-2 text-sm">
-            <div className="flex items-center gap-2">
-              <span>🎯</span>
-              <span>100 points = FREE drink or waffle</span>
+      <div className="max-w-2xl mx-auto space-y-6 py-6 animate-in fade-in duration-300">
+        <div className="bg-gradient-to-br from-[#FFF9FA] to-rose-50 border border-rose-100 rounded-2xl p-6 shadow-sm">
+          <h2 className="text-xl font-bold text-slate-800">⭐ Juja Rewards Program</h2>
+          <p className="text-sm text-slate-600 mt-1">Earn points and enjoy exclusive rewards every time you grab bites or brews.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+            <div className="bg-white p-4 rounded-xl border border-rose-100/60">
+              <span className="text-xl block mb-1">🎯</span>
+              <p className="text-xs font-bold text-slate-700">100 Points Reward</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Free 16oz handcrafted beverage or signature grid waffle.</p>
             </div>
-            <div className="flex items-center gap-2">
-              <span>🎂</span>
-              <span>Birthday reward (free drink)</span>
+            <div className="bg-white p-4 rounded-xl border border-rose-100/60">
+              <span className="text-xl block mb-1">🎂</span>
+              <p className="text-xs font-bold text-slate-700">Birthday Perk</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Complementary reward allocated automatically during birthdates.</p>
             </div>
-            <div className="flex items-center gap-2">
-              <span>⚡</span>
-              <span>Earn points instantly on every purchase</span>
+            <div className="bg-white p-4 rounded-xl border border-rose-100/60">
+              <span className="text-xl block mb-1">⚡</span>
+              <p className="text-xs font-bold text-slate-700">Fast Accumulation</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Acquire 1 point per ₱25 currency allocation dynamically.</p>
             </div>
           </div>
-
-          <div className="mt-4 text-xs text-slate-400">💡 1 point for every ₱25 spent</div>
         </div>
-
-        <div className="space-y-3">
-          <button
-            onClick={() => {
-              setMode("new");
-              setNotice("");
-            }}
-            className="w-full py-3 bg-[#FC687D] text-white rounded-2xl font-semibold text-sm shadow-sm active:scale-95"
-          >
-            ⭐ Sign Up
-          </button>
-
-          <button
-            onClick={() => {
-              setMode("existing");
-              setNotice("");
-              setMatchChecked(false);
-              setMatchedPreview(null);
-            }}
-            className="w-full py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl font-semibold text-sm active:scale-95"
-          >
-            🔗 Link Existing Account
-          </button>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button onClick={() => setMode("new")} className="flex-1 h-12 bg-[#FC687D] text-white font-bold text-sm rounded-xl shadow-sm hover:bg-rose-500 transition">Sign Up Program</button>
+          <button onClick={() => setMode("existing")} className="flex-1 h-12 bg-white border border-slate-200 text-slate-700 font-bold text-sm rounded-xl hover:bg-slate-50 transition">Link Existing Loyalty Card</button>
         </div>
-
-        {notice && (
-          <div className="bg-white border border-rose-100 rounded-xl p-3 text-sm text-slate-600">
-            {notice}
-          </div>
-        )}
       </div>
     );
   }
 
-  // SIGN UP FORM
-  if (!member && mode === "new") {
+  if (!member && (mode === "new" || mode === "existing")) {
     return (
-      <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-800">Sign Up</h2>
-          <p className="text-sm text-slate-500 mt-1">Create your Juja Rewards membership.</p>
-        </div>
-
+      <div className="max-w-md mx-auto bg-white p-6 border border-slate-100 rounded-2xl shadow-sm space-y-4">
+        <h3 className="text-lg font-bold text-slate-800 uppercase tracking-wide">{mode === "new" ? "Create Membership Account" : "Verify Profile Identity"}</h3>
         <div className="space-y-3">
-          <input
-            placeholder="Full Name"
-            value={form.customer_name}
-            onChange={(e) => setForm((f) => ({ ...f, customer_name: e.target.value }))}
-            className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"
-          />
-          <input
-            placeholder="City"
-            value={form.City}
-            onChange={(e) => setForm((f) => ({ ...f, City: e.target.value }))}
-            className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"
-          />
-          <input
-            placeholder="Contact Number"
-            value={form.Phone}
-            onChange={(e) => setForm((f) => ({ ...f, Phone: e.target.value }))}
-            className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"
-          />
-          <input
-            placeholder="Birthday (YYYY-MMM-DD) e.g. 1995-Dec-25"
-            value={form.Note}
-            onChange={(e) => setForm((f) => ({ ...f, Note: e.target.value }))}
-            className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"
-          />
+          <input placeholder="Full Registration Name" value={form.customer_name} onChange={(e)=>setForm({...form, customer_name: e.target.value})} className="w-full border border-slate-200 px-4 py-3 rounded-xl text-sm font-medium outline-none" />
+          <input placeholder="Birthday (YYYY-MMM-DD) e.g., 1995-Dec-25" value={form.Note} onChange={(e)=>setForm({...form, Note: e.target.value})} className="w-full border border-slate-200 px-4 py-3 rounded-xl text-sm font-mono outline-none" />
+          {mode === "new" && (
+            <>
+              <input placeholder="City Location" value={form.City} onChange={(e)=>setForm({...form, City: e.target.value})} className="w-full border border-slate-200 px-4 py-3 rounded-xl text-sm font-medium outline-none" />
+              <input placeholder="Mobile Contact Number" value={form.Phone} onChange={(e)=>setForm({...form, Phone: e.target.value})} className="w-full border border-slate-200 px-4 py-3 rounded-xl text-sm font-medium outline-none" />
+            </>
+          )}
         </div>
-
-        <div className="flex gap-2">
-          <button
-            onClick={() => setMode(null)}
-            className="flex-1 py-3 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold"
-            disabled={loading}
-          >
-            Back
-          </button>
-          <button
-            onClick={createMember}
-            className="flex-1 py-3 rounded-xl bg-[#FC687D] text-white text-xs font-bold disabled:opacity-60"
-            disabled={loading}
-          >
-            {loading ? "Creating..." : "Create Account"}
-          </button>
+        <div className="flex gap-2 pt-2">
+          <button onClick={()=>setMode(null)} className="flex-1 py-3 bg-slate-50 border border-slate-100 text-slate-600 font-bold rounded-xl text-xs uppercase tracking-wider">Back</button>
+          {mode === "new" ? (
+            <button onClick={createMember} disabled={loading} className="flex-1 py-3 bg-[#FC687D] text-white font-bold rounded-xl text-xs uppercase tracking-wider">{loading ? "Saving..." : "Register Card"}</button>
+          ) : (
+            <button onClick={checkMatchPreview} disabled={checkingMatch} className="flex-1 py-3 bg-slate-800 text-white font-bold rounded-xl text-xs uppercase tracking-wider">Check System Match</button>
+          )}
         </div>
-
-        {notice && (
-          <div className="bg-white border border-rose-100 rounded-xl p-3 text-sm text-slate-600">
-            {notice}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // EXISTING LINK FORM
-  if (!member && mode === "existing") {
-    const pendingBlock = linkReq?.status === "pending";
-
-    return (
-      <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <StatusCard />
-
-        <div>
-          <h2 className="text-xl font-semibold text-slate-800">Link Existing Account</h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Enter your full name and birthday (YYYY-MMM-DD). We’ll show the matched account for confirmation before sending.
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          <input
-            placeholder="Full Name"
-            value={form.customer_name}
-            onChange={(e) => {
-              setForm((f) => ({ ...f, customer_name: e.target.value }));
-              setMatchChecked(false);
-              setMatchedPreview(null);
-            }}
-            className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"
-            disabled={pendingBlock}
-          />
-          <input
-            placeholder="Birthday (YYYY-MMM-DD) e.g. 1995-Dec-25"
-            value={form.Note}
-            onChange={(e) => {
-              setForm((f) => ({ ...f, Note: e.target.value }));
-              setMatchChecked(false);
-              setMatchedPreview(null);
-            }}
-            className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"
-            disabled={pendingBlock}
-          />
-
-          <button
-            onClick={checkMatchPreview}
-            disabled={pendingBlock || checkingMatch}
-            className="w-full py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold active:scale-95 disabled:opacity-60"
-          >
-            {checkingMatch ? "Checking…" : "Check Match"}
-          </button>
-        </div>
-
-        {matchChecked && (
-          <div className="rounded-2xl border p-4 bg-white">
+        {matchChecked && mode === "existing" && (
+          <div className="border border-slate-100 bg-slate-50 p-4 rounded-xl mt-2 text-center text-xs">
             {matchedPreview ? (
-              <>
-                <p className="text-sm font-semibold text-slate-800">Match Found ✅</p>
-                <p className="text-xs text-slate-500 mt-1">
-                  Please confirm this is your loyalty account before sending the request.
-                </p>
-
-                <div className="mt-3 bg-[#FFF9FA] border border-rose-100 rounded-xl p-3">
-                  <div className="font-semibold text-slate-800">
-                    {matchedPreview.customer_name} •{" "}
-                    <span className="font-mono">{matchedPreview.customer_code}</span>
-                  </div>
-                  <div className="text-xs text-slate-600 mt-1">
-                    Phone: <span className="font-mono">{matchedPreview.Phone || "—"}</span> • City:{" "}
-                    <span className="font-mono">{matchedPreview.City || "—"}</span>
-                  </div>
-                  <div className="text-xs text-slate-600 mt-1">
-                    Birthday: <span className="font-mono">{matchedPreview.Note || "—"}</span>
-                  </div>
-                  <div className="text-xs text-slate-600 mt-1">
-                    Total: <span className="font-mono">{matchedPreview["Points balance"] ?? "0"}</span> • Available:{" "}
-                    <span className="font-mono">{matchedPreview["Available points"] ?? "0"}</span>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="text-sm font-semibold text-slate-800">No match found</p>
-                <p className="text-xs text-slate-500 mt-1">
-                  You can still send a request—admin will review and link manually.
-                </p>
-              </>
-            )}
-          </div>
-        )}
-
-        <div className="flex gap-2">
-          <button
-            onClick={() => setMode(null)}
-            className="flex-1 py-3 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold"
-            disabled={loading}
-          >
-            Back
-          </button>
-
-          <button
-            onClick={requestLink}
-            className="flex-1 py-3 rounded-xl bg-[#FC687D] text-white text-xs font-bold disabled:opacity-60"
-            disabled={loading || pendingBlock}
-          >
-            {pendingBlock ? "Pending…" : loading ? "Submitting..." : "Send Request"}
-          </button>
-        </div>
-
-        {pendingBlock && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-xs text-yellow-700">
-            You already have a pending request. You can’t submit another until it’s approved/rejected.
-          </div>
-        )}
-
-        {notice && (
-          <div className="bg-white border border-rose-100 rounded-xl p-3 text-sm text-slate-600">
-            {notice}
+              <div>
+                <p className="text-green-600 font-bold">Profile identified matching criteria. ✅</p>
+                <button onClick={requestLink} className="mt-3 w-full py-2 bg-[#FC687D] text-white rounded-lg font-bold">Submit Sync Authorization Link</button>
+              </div>
+            ) : <p className="text-red-500 font-semibold">No pre-existing dynamic customer references located matching metrics.</p>}
           </div>
         )}
       </div>
     );
   }
 
-  // MEMBER DASHBOARD
   return (
-    <div className="space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div>
-        <h2 className="text-2xl md:text-[28px] font-normal text-slate-800 tracking-tight">
-          JUJA Loyalty Program
-        </h2>
-        <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">Member Dashboard</p>
-      </div>
-
-      <div className="relative w-full max-w-[600px] aspect-[16/9] rounded-3xl overflow-hidden shadow-2xl bg-white">
-        <img
-          src="/images/loyalty-card-bg.jpg"
-          alt="Loyalty Card Background"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        <div className="relative z-10 h-full w-full flex flex-col p-[5%]">
-          <div className="flex items-end justify-between w-full h-[50%] mt-[10px]">
-            <div className="w-[70%] bg-white flex flex-col items-center justify-center rounded-lg shadow-sm p-2 relative top-[90px]">
-              <Barcode
-                value={member?.customer_code || "JUJA000000"}
-                background="transparent"
-                lineColor="#003399"
-                width={1.4}
-                height={70}
-                displayValue
-                fontSize={14}
-                margin={0}
-              />
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in duration-300">
+      <div className="md:col-span-1 space-y-4">
+        {/* Passcode / Membership layout passcard item block */}
+        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 rounded-2xl p-5 text-white relative overflow-hidden shadow-md">
+          <div className="relative z-10 flex flex-col justify-between h-full min-h-[160px]">
+            <div>
+              <p className="text-[9px] uppercase tracking-[0.2em] text-rose-300 font-bold">Juja Digital Membership Pass</p>
+              <h4 className="text-lg font-bold tracking-tight mt-1 truncate">{member?.customer_name}</h4>
             </div>
-            <div className="w-[58%] h-full pointer-events-none" />
+            <div className="bg-white p-2.5 rounded-lg inline-block self-center shadow-md border border-slate-100 mt-4">
+              <Barcode value={member?.customer_code || "JUJA000000"} background="transparent" lineColor="#0f172a" width={1.2} height={50} displayValue fontSize={11} margin={0} />
+            </div>
+          </div>
+        </div>
+
+        {/* Dynamic metrics card tracking view module stack */}
+        <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm grid grid-cols-3 md:grid-cols-1 gap-2">
+          <div className="p-2 bg-rose-50/40 border border-rose-100/50 rounded-lg text-center md:text-left md:flex md:justify-between md:items-center">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block md:inline">Balance</span>
+            <span className="text-lg font-extrabold text-[#FC687D] block">{available.toFixed(0)} pts</span>
+          </div>
+          <div className="p-2 bg-slate-50 border border-slate-100 rounded-lg text-center md:text-left md:flex md:justify-between md:items-center">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block md:inline">Visits</span>
+            <span className="text-sm font-bold text-slate-700 block">{member?.["Total visits"] || 0}</span>
+          </div>
+          <div className="p-2 bg-slate-50 border border-slate-100 rounded-lg text-center md:text-left md:flex md:justify-between md:items-center">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block md:inline">Location</span>
+            <span className="text-xs font-bold text-slate-700 block truncate max-w-[80px] md:max-w-none">{member?.["City"] || "—"}</span>
           </div>
         </div>
       </div>
 
-      <div
-        className="rounded-2xl md:rounded-[32px] overflow-hidden shadow-[0_10px_30px_rgba(252,104,125,0.2)]"
-        style={{ background: "linear-gradient(135deg, #FC687D 0%, #f43f5e 100%)" }}
-      >
-        <div className="px-5 py-5 md:px-6 md:py-7 uppercase text-center border-b border-white/20 relative">
-          <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-white/10 rounded-full blur-2xl" />
-          <h3 className="text-xl md:text-2xl font-normal text-white tracking-tight">
-            {member?.customer_name || "Juja Member"}
-          </h3>
-        </div>
-
-        <div className="px-5 py-5 md:px-6 md:py-6 space-y-3 border-b border-white/20 bg-black/5">
-          {[
-            { icon: "📞", value: member?.["Phone"] || "—" },
-            { icon: "📍", value: member?.["City"] || "—" },
-            { icon: "▦", value: member?.customer_code || "—" },
-            { icon: "🎂", value: member?.["Note"] || "—" },
-          ].map((row) => (
-            <div key={row.icon} className="flex items-center gap-3">
-              <span className="text-lg text-white/60 w-6 text-center">{row.icon}</span>
-              <span className="text-white text-[13px] md:text-[15px] font-semibold truncate">
-                {row.value}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        <div className="px-5 py-5 md:px-6 md:py-6 flex justify-between items-center bg-black/10">
-          <div className="flex gap-1.5">
-            <button
-              onClick={startEdit}
-              className="text-[9px] md:text-[11px] leading-none font-normal uppercase tracking-[0.14em] text-white/85 hover:text-white transition-all bg-white/10 px-4 py-2 md:px-5 md:py-2.5 rounded-full border border-white/20 active:scale-95"
-            >
-              Edit Profile
-            </button>
-
-            <button
-              onClick={() => setShowPerks(true)}
-              className="text-[9px] md:text-[11px] leading-none font-normal uppercase tracking-[0.14em] text-white hover:text-white transition-all bg-white/20 px-4 py-2 md:px-5 md:py-2.5 rounded-full border border-white/20 active:scale-95"
-            >
-              View Perks
-            </button>
+      {/* Main Column Body Tracking Vouchers And Lists */}
+      <div className="md:col-span-2 space-y-6">
+        <div className="bg-white border border-rose-50 rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+            <h3 className="font-bold text-slate-800 text-sm">Reward Progress Milestone</h3>
+            <span className="text-xs font-bold text-slate-400">{available.toFixed(0)} / {nextReward} pts</span>
           </div>
-
-          <div className="text-right">
-            <p className="text-white/80 text-[9px] md:text-[10px] uppercase tracking-widest mb-1">
-              Points
-            </p>
-            <p className="text-[12px] text-white/85">Total: {total.toFixed(0)}</p>
-            <p className="text-2xl md:text-3xl font-normal text-white">{available.toFixed(0)}</p>
-            <p className="text-[10px] text-white/80 uppercase tracking-widest">Available</p>
+          <div className="w-full h-3 bg-slate-100 border border-slate-200/60 rounded-full overflow-hidden">
+            <div className="h-full bg-[#FC687D] rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
           </div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-xl md:rounded-[24px] p-5 md:p-6 border border-rose-50 shadow-sm">
-        <div className="flex justify-between items-end mb-3">
-          <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">Points Progress</p>
-          <p className="text-[10px] md:text-xs font-normal text-slate-400">
-            {available.toFixed(0)} / {nextReward} pts (Available)
-          </p>
+          <p className="text-xs font-medium text-slate-500 mt-2.5">🎁 Only {(nextReward - available).toFixed(0)} additional points required to qualify for subsequent product voucher allocation metrics.</p>
         </div>
 
-        <div className="w-full h-2.5 md:h-3 bg-slate-100 rounded-full overflow-hidden mb-3 border border-slate-200">
-          <div className="h-full rounded-full bg-[#FC687D]" style={{ width: `${progress}%` }} />
-        </div>
-
-        <p className="text-[10px] md:text-[11px] font-normal text-slate-500">
-          {(nextReward - available).toFixed(0)} more available points until your next reward 🎁
-        </p>
-      </div>
-
-      {/* Vouchers */}
-      <div className="bg-white rounded-xl md:rounded-[24px] p-5 md:p-6 border border-rose-50 shadow-sm">
-        <div className="flex items-end justify-between mb-3">
-          <p className="font-normal text-slate-800 text-[13px] md:text-[15px]">Your Vouchers</p>
-          <p className="text-[10px] md:text-xs font-normal text-slate-400">
-            {loadingVouchers
-              ? "Loading…"
-              : `${vouchersActive.length} active • ${vouchersRedeemed.length} redeemed • ${vouchersExpired.length} expired`}
-          </p>
-        </div>
-
-        <div className="flex gap-2 mb-4">
-          {[
-            { id: "active", label: `Active (${vouchersActive.length})` },
-            { id: "redeemed", label: `Redeemed (${vouchersRedeemed.length})` },
-            { id: "expired", label: `Expired (${vouchersExpired.length})` },
-          ].map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setVoucherView(t.id)}
-              className={`px-3 py-2 rounded-xl text-[10px] uppercase tracking-widest border transition-all active:scale-95 ${
-                voucherView === t.id
-                  ? "bg-[#FC687D] text-white border-[#FC687D]"
-                  : "bg-white text-slate-500 border-slate-200"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        {loadingVouchers ? (
-          <p className="text-[11px] md:text-[12px] text-slate-500">Loading vouchers…</p>
-        ) : (
-          <>
-            {(() => {
-              const list =
-                voucherView === "active"
-                  ? vouchersActive
-                  : voucherView === "redeemed"
-                  ? vouchersRedeemed
-                  : vouchersExpired;
-
-              if (!list || list.length === 0) {
-                return (
-                  <p className="text-[11px] md:text-[12px] text-slate-500">
-                    {voucherView === "active"
-                      ? "No active vouchers right now."
-                      : voucherView === "redeemed"
-                      ? "No redeemed vouchers yet."
-                      : "No expired vouchers yet."}
-                  </p>
-                );
-              }
-
-              return (
-                <div className="space-y-3">
-                  {list.map((v) => {
-                    const s = v._computedStatus || String(v.status || "active").toLowerCase();
-                    const countdown = s === "active" ? expiryCountdownDetailed(v.expires_at) : null;``
-
-                    return (
-                      <div
-                        key={v.id}
-                        className={`border rounded-2xl p-4 ${
-                          v._isBirthday
-                            ? "border-rose-200 bg-rose-50/40"
-                            : s === "active"
-                            ? "border-rose-100 bg-[#FFF9FA]"
-                            : s === "redeemed"
-                            ? "border-blue-100 bg-blue-50/30"
-                            : "border-slate-200 bg-slate-50"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="text-[12px] md:text-[13px] font-semibold text-slate-800">
-                                {v._isBirthday ? "🎂 Birthday Voucher" : "🎁 Reward Voucher"}
-                              </p>
-
-                              <span
-                                className={`text-[9px] uppercase tracking-widest border px-2 py-1 rounded-full ${statusPill(
-                                  s
-                                )}`}
-                              >
-                                {s}
-                              </span>
-                            </div>
-
-                            <p className="text-[11px] md:text-[12px] text-slate-600 mt-1 leading-relaxed">
-                              {v.reward_text}
-                            </p>
-
-                            <p className="text-[10px] md:text-[11px] text-slate-400 mt-2 font-mono">
-                              Code: {v.code}
-                            </p>
-
-                            {(() => {
-                                if (s !== "active") return null;
-                                const c = expiryCountdownDetailed(v.expires_at);                                                              
-                                  {countdown && (
-                                    <div className="mt-2 space-y-1">
-                                      <p className="text-[11px] md:text-[12px] font-semibold text-[#FC687D]">
-                                        ⏳ {countdown.text}
-                                      </p>
-
-                                      {countdown.expiresTonight && (
-                                        <p className="text-[11px] md:text-[12px] font-semibold text-orange-600">
-                                          ⚠️ Expires tonight
-                                        </p>
-                                    )}
-                                  </div>
-                                )}
-                              })()}                            
-                          </div>
-
-                          <div className="text-right">
-                            <p className="text-[10px] md:text-[11px] text-slate-400">
-                              {s === "redeemed" ? "Redeemed" : "Expires"}
-                            </p>
-
-                            <p className="text-[11px] md:text-[12px] font-semibold text-slate-800">
-                              {s === "redeemed" ? fmtDate(v.redeemed_at) : fmtDate(v.expires_at)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-          </>
-        )}
-      </div>
-
-      {/* Birthday Popup */}
-      {birthdayPopupOpen && birthdayVoucher && (
-        <div
-          className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
-          onClick={() => setBirthdayPopupOpen(false)}
-        >
-          <div
-            className="w-full max-w-md bg-white rounded-t-[26px] md:rounded-[30px] p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[10px] uppercase tracking-widest text-slate-400">
-                  Birthday Reward 🎉
-                </p>
-                <h3 className="text-xl font-semibold text-slate-800 mt-1">
-                  Happy Birthday! 🎂✨
-                </h3>
-                <p className="text-sm text-slate-600 mt-2">
-                  Your birthday voucher is now active:
-                </p>
-
-                <div className="mt-3 bg-rose-50 border border-rose-200 rounded-2xl p-4">
-                  <p className="text-sm font-semibold text-slate-800">
-                    {birthdayVoucher.reward_text}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-2 font-mono">
-                    Code: {birthdayVoucher.code}
-                  </p>
-                  <p className="text-sm font-semibold text-[#FC687D] mt-2">
-                    ⏳ {expiryCountdown(birthdayVoucher.expires_at)}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setBirthdayPopupOpen(false)}
-                className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500"
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-
-            <button
-              onClick={() => setBirthdayPopupOpen(false)}
-              className="w-full mt-5 py-3 rounded-xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-widest active:scale-95"
-            >
-              Awesome!
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Modal + Perks Modal + notice (kept same as your original flow) */}
-      {editing && (
-        <div
-          className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
-          onClick={() => setEditing(false)}
-        >
-          <div
-            className="w-full max-w-md mx-auto bg-white rounded-t-[24px] md:rounded-[32px] p-5 md:p-8 pb-8 md:pb-12 max-h-[90vh] overflow-y-auto shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center mb-5">
-              <h3 className="text-xl md:text-2xl font-normal text-slate-800 tracking-tight">
-                Edit Profile
-              </h3>
-              <button
-                onClick={() => setEditing(false)}
-                className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={saveEdit} className="space-y-4">
-              {[
-                ["customer_name", "Full Name", "text", "Your full name"],
-                ["Phone", "Phone Number", "tel", "09XX XXX XXXX"],
-                ["City", "City", "text", "e.g. QC"],
-                ["Note", "Birthday (YYYY-MMM-DD)", "text", "1995-Dec-25"],
-              ].map(([key, lbl, type, ph]) => (
-                <div key={key}>
-                  <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1.5 ml-1">
-                    {lbl}
-                  </label>
-                  <input
-                    type={type}
-                    value={form[key] ?? ""}
-                    placeholder={ph}
-                    onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs md:text-sm font-semibold text-slate-800 focus:outline-none focus:border-[#FC687D] focus:bg-white focus:ring-1 focus:ring-rose-100 transition-all"
-                  />
-                </div>
+        {/* Voucher Container Interface Frame element */}
+        <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3 mb-4">
+            <h3 className="font-bold text-slate-800 text-sm">System Voucher Passports</h3>
+            <div className="flex gap-1 bg-slate-50 border border-slate-200 p-0.5 rounded-xl self-start sm:self-auto">
+              {["active", "redeemed", "expired"].map((categoryKey) => (
+                <button
+                  key={categoryKey}
+                  onClick={() => setVoucherView(categoryKey)}
+                  className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all ${
+                    voucherView === categoryKey ? "bg-white text-slate-800 shadow-sm border border-slate-200/40" : "text-slate-400 hover:text-slate-600"
+                  }`}
+                >
+                  {categoryKey}
+                </button>
               ))}
-
-              <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setEditing(false)}
-                  className="w-full py-3 rounded-xl bg-white border border-slate-200 text-slate-500 uppercase tracking-widest text-[10px] hover:bg-slate-50 active:scale-95"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="w-full py-3 rounded-xl bg-[#FC687D] text-white uppercase tracking-widest text-[10px] hover:bg-rose-500 active:scale-95 disabled:opacity-70"
-                >
-                  {saving ? "Saving…" : "Save Changes"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showPerks && (
-        <div
-          className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
-          onClick={() => setShowPerks(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-2xl bg-white rounded-t-[28px] md:rounded-[32px] p-6 md:p-8 max-h-[90vh] overflow-y-auto"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl md:text-2xl font-normal text-slate-800">Perks</h3>
-              <button
-                onClick={() => setShowPerks(false)}
-                className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Keep your perks content */}
-            <div className="space-y-5 text-slate-700">
-              <div className="text-center">
-                <p className="text-[13px] md:text-[14px] font-semibold text-slate-900">
-                  🎉 LOYALTY PROGRAM 🎉
-                </p>
-              </div>
-
-              <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
-                <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
-                  Registration
-                </h4>
-                <ul className="mt-3 space-y-2 text-[12px] md:text-[13px] leading-relaxed">
-                  <li>✅ FREE to join — no fees, no hidden charges.</li>
-                  <li>Sign up in-store and get your JUJA Loyalty Card instantly.</li>
-                </ul>
-              </section>
-
-              <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
-                <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
-                  Earning Points
-                </h4>
-                <ul className="mt-3 space-y-2 text-[12px] md:text-[13px] leading-relaxed">
-                  <li>💙 Earn 1 JUJA Point for every ₱25 spent on food & drinks.</li>
-                  <li>📲 Present your loyalty card for scanning during purchase.</li>
-                  <li>⏱ Points are credited immediately after purchase.</li>
-                </ul>
-              </section>
-
-              <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4 md:p-5">
-                <h4 className="text-[10px] md:text-[11px] font-semibold text-slate-800 uppercase tracking-widest">
-                  Redeeming Rewards
-                </h4>
-                <ul className="mt-3 space-y-2 text-[12px] md:text-[13px] leading-relaxed">
-                  <li>🎯 <b>100 Points</b> = FREE reward — choose any 16oz drink, waffle, or mini donuts</li>
-                  <li>🎂 <b>Birthday Perk:</b> Get any 16oz drink or waffle FREE on your birthday (just present a valid ID).</li>
-                  <li>⏳ Rewards expire 90 days after reaching 100 points.</li>
-                </ul>
-              </section>
             </div>
           </div>
-        </div>
-      )}
 
-      {notice && (
-        <div className="bg-white border border-rose-100 rounded-xl p-3 text-sm text-slate-600">
-          {notice}
+          {/* List framework inner renderer engine layout content segment block */}
+          {(() => {
+            const currentArraySource = voucherView === "active" ? vouchersActive : voucherView === "redeemed" ? vouchersRedeemed : vouchersExpired;
+            if (currentArraySource.length === 0) {
+              return <div className="text-center py-8 text-slate-400 text-xs font-medium">No vouchers allocated inside this ledger.</div>;
+            }
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {currentArraySource.map((v) => {
+                  const countdownObj = voucherView === "active" ? expiryCountdownDetailed(v.expires_at) : null;
+                  return (
+                    <div key={v.id} className={`border p-3.5 rounded-xl flex flex-col justify-between ${v._isBirthday ? "bg-rose-50/30 border-rose-100" : "bg-white border-slate-200/70"}`}>
+                      <div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-slate-800 truncate">{v._isBirthday ? "🎂 Birthday Special" : "🎁 Points Reward"}</span>
+                          {countdownObj?.expiresTonight && <span className="bg-amber-50 text-amber-700 text-[9px] font-extrabold uppercase border border-amber-200 px-1.5 rounded">Expiring</span>}
+                        </div>
+                        <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">{v.reward_text}</p>
+                      </div>
+                      <div className="border-t border-slate-50 pt-2.5 mt-3 flex items-center justify-between text-[10px] font-mono text-slate-400">
+                        <span>Code: {v.code}</span>
+                        <span className="font-sans font-bold text-slate-500">{voucherView === "active" ? "Exp: " + fmtDate(v.expires_at) : voucherView === "redeemed" ? "Used" : "Expired"}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
-      )}
+      </div>
     </div>
   );
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Profile Tab
+    Profile Tab
 ────────────────────────────────────────────────────────────── */
 function ProfileTab({ user, onLogout }) {
   return (
-    <div className="space-y-4 md:space-y-6 animate-in fade-in duration-500">
-      <div className="bg-white rounded-2xl md:rounded-[32px] border border-rose-50 shadow-sm p-5 md:p-6">
-        <div className="flex items-center gap-4 mb-5">
-          <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-rose-50 flex items-center justify-center text-2xl md:text-3xl">
-            👤
-          </div>
-          <div>
-            <p className="font-normal text-slate-800 text-base md:text-lg">{user?.email}</p>
-            <p className="text-slate-400 text-[9px] md:text-[10px] font-normal uppercase tracking-widest">
-              Juja Member
-            </p>
-          </div>
+    <div className="max-w-md mx-auto animate-in fade-in duration-300 py-4">
+      <div className="bg-white rounded-2xl border border-rose-50 shadow-sm p-6 text-center">
+        <div className="w-20 h-20 rounded-full bg-rose-50 flex items-center justify-center text-4xl mx-auto mb-4 border border-rose-100/50">
+          👤
+        </div>
+        <h3 className="text-lg font-bold text-slate-800 truncate max-w-full mb-1">{user?.email}</h3>
+        <span className="text-[10px] uppercase font-bold tracking-widest bg-rose-50 text-[#FC687D] px-3 py-1 rounded-full border border-rose-100/40">
+          Juja Member Portal
+        </span>
+
+        <div className="border-t border-slate-100 my-6 pt-4 text-left space-y-3 text-xs text-slate-500 font-medium">
+          <p className="flex justify-between"><span>User System ID:</span> <span className="font-mono text-slate-700">{user?.id?.slice(0, 12)}...</span></p>
+          <p className="flex justify-between"><span>Session Authorization:</span> <span className="text-green-600 font-bold">Active Token</span></p>
         </div>
 
         <button
           onClick={onLogout}
-          className="w-full py-3.5 rounded-xl bg-slate-50 text-slate-500 font-normal text-[10px] md:text-[11px] uppercase tracking-widest hover:bg-rose-50 hover:text-[#FC687D] active:scale-95 transition-all"
+          className="w-full h-11 bg-slate-50 hover:bg-red-50 hover:text-red-600 text-slate-500 font-bold text-xs uppercase tracking-wider rounded-xl border border-slate-100 transition"
         >
-          Sign Out
+          Sign Out of Session
         </button>
       </div>
     </div>
@@ -2050,7 +1295,7 @@ function ProfileTab({ user, onLogout }) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Main Customer Page
+    Main Responsive Customer Hub Page Controller
 ────────────────────────────────────────────────────────────── */
 export default function Customer() {
   const [user, setUser] = useState(null);
@@ -2080,7 +1325,7 @@ export default function Customer() {
 
         if (mData) setMember(mData);
       } catch (e) {
-        console.warn("No member profile", e);
+        console.warn("No active member profiles registered.", e);
       }
 
       setLoading(false);
@@ -2111,7 +1356,7 @@ export default function Customer() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#FFF5F7]">
-        <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
+        <div className="w-9 h-9 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
       </div>
     );
   }
@@ -2122,16 +1367,18 @@ export default function Customer() {
   };
 
   return (
-    <div className="min-h-screen pb-24 pt-4 md:pt-6 bg-[#FFF5F7]">
-      <main className="max-w-md mx-auto px-4 md:px-5 py-4">
+    <div className="min-h-screen bg-[#FFF5F7] text-slate-800 antialiased flex flex-col lg:flex-row">
+      {/* Universal Shared Desktop-Sidebar / Mobile-Tab Navigation Controller */}
+      <AppNavigation tab={tab} setTab={setTab} />
+
+      {/* Primary Scrollable Workspace viewport frame component */}
+      <main className="flex-1 overflow-x-hidden min-h-screen pb-28 pt-4 md:pt-8 px-4 sm:px-6 lg:pl-72 lg:pr-8 max-w-7xl mx-auto w-full transition-all">
         {tab === "home" && <HomeTab member={member} user={user} setTab={setTab} />}
         {tab === "order" && <OrderTab user={user} />}
         {tab === "loyalty" && <LoyaltyTab member={member} setMember={setMember} user={user} />}
         {tab === "booking" && <BookingTab user={user} member={member} />}
         {tab === "profile" && <ProfileTab user={user} onLogout={logout} />}
       </main>
-
-      <TabBar tab={tab} setTab={setTab} />
     </div>
   );
 }
