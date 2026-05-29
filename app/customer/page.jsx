@@ -232,7 +232,7 @@ function HomeTab({ member, user, setTab }) {
           </div>
         </div>
 
-        {/* Next.js View Context Profile Column Card Component */}
+        {/* Desktop Profile Status Card */}
         <div className="hidden md:block bg-white rounded-2xl border border-rose-50 p-6 shadow-sm">
           <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-4">Authenticated As</p>
           <div className="flex items-center gap-3 mb-6">
@@ -560,7 +560,7 @@ function OrderTab({ user, member }) {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedBranch, setSelectedBranch] = useState("bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e");
+  const [selectedBranch, setSelectedBranch] = useState("bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e"); // Default branch UUID
 
   const [selectedItemForModal, setSelectedItemForModal] = useState(null);
   const [cartOpen, setCartOpen] = useState(false);
@@ -668,14 +668,6 @@ function OrderTab({ user, member }) {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="p-12 flex justify-center">
-        <div className="w-9 h-9 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
-      </div>
-    );
-  }
-
   const CartInnerListing = () => (
     <div className="flex flex-col h-full justify-between">
       <div className="flex-1 space-y-3 overflow-y-auto max-h-[40vh] lg:max-h-[50vh] pr-1">
@@ -736,23 +728,23 @@ function OrderTab({ user, member }) {
 
       {cart.length > 0 && (
         <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-            <label className="block text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-1.5">
-              Select Pickup Store Branch
-            </label>
-            <select
-              value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value)}
-              className="w-full bg-white border border-slate-200 px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 outline-none cursor-pointer focus:border-[#FC687D]"
-            >
-              <option value="bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e">
-                Pasong Tamo Branch (36D Visayas Ave.)
-              </option>
-              <option value="e916bee8-3770-4650-9b46-d2e7d3ad49e6">
-                Diliman Branch (8 Visayas Ave.)
-              </option>
-            </select>
+          <label className="block text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-1.5">
+            Select Pickup Store Branch
+          </label>
+          <select
+            value={selectedBranch}
+            onChange={(e) => setSelectedBranch(e.target.value)}
+            className="w-full bg-white border border-slate-200 px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 outline-none cursor-pointer focus:border-[#FC687D]"
+          >
+            <option value="bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e">
+              Pasong Tamo Branch (36D Visayas Ave.)
+            </option>
+            <option value="e916bee8-3770-4650-9b46-d2e7d3ad49e6">
+              Diliman Branch (8 Visayas Ave.)
+            </option>
+          </select>
 
-          <div className="space-y-2">
+          <div className="space-y-2 mt-3">
             <div className="flex justify-between text-sm">
               <span className="text-slate-500 font-medium">Subtotal Amount</span>
               <span className="font-bold text-slate-800 text-lg">₱{subtotal.toFixed(0)}</span>
@@ -930,10 +922,6 @@ function LoyaltyTab({ member, setMember, user }) {
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
 
-  const [editing, setEditing] = useState(false);
-  const [showPerks, setShowPerks] = useState(false);
-  const [saving, setSaving] = useState(false);
-
   const [form, setForm] = useState({ customer_name: "", Phone: "", City: "", Note: "" });
 
   const [vouchersActive, setVouchersActive] = useState([]);
@@ -943,16 +931,11 @@ function LoyaltyTab({ member, setMember, user }) {
   const [loadingVouchers, setLoadingVouchers] = useState(false);
 
   const [nowTick, setNowTick] = useState(Date.now());
-  const [birthdayPopupOpen, setBirthdayPopupOpen] = useState(false);
-  const [birthdayVoucher, setBirthdayVoucher] = useState(null);
-  const [linkReq, setLinkReq] = useState(null);
-  const [loadingLinkReq, setLoadingLinkReq] = useState(false);
 
   const [checkingMatch, setCheckingMatch] = useState(false);
   const [matchChecked, setMatchChecked] = useState(false);
   const [matchedPreview, setMatchedPreview] = useState(null);
 
-  const total = Number(member?.["Points balance"] || 0);
   const available = Number(member?.["Available points"] || 0);
   const progress = ((available % 100) / 100) * 100;
   const nextReward = (Math.floor(available / 100) + 1) * 100;
@@ -1077,10 +1060,12 @@ function LoyaltyTab({ member, setMember, user }) {
 
   const requestLink = async () => {
     const b = normalizeBirthday(form.Note);
-    const { data, error } = await supabase.from("loyalty_link_requests").insert({
+    const { error } = await supabase.from("loyalty_link_requests").insert({
       user_id: user.id, input_name: form.customer_name, input_birthday: b.value, matched_member_id: matchedPreview?.id || null, status: "pending"
     }).select().single();
-    if (!error) setLinkReq(data);
+    if (!error) {
+      alert("✅ Authorization sync request logged effectively.");
+    }
   };
 
   if (!member && !mode) {
@@ -1119,6 +1104,7 @@ function LoyaltyTab({ member, setMember, user }) {
     return (
       <div className="max-w-md mx-auto bg-white p-6 border border-slate-100 rounded-2xl shadow-sm space-y-4">
         <h3 className="text-lg font-bold text-slate-800 uppercase tracking-wide">{mode === "new" ? "Create Membership Account" : "Verify Profile Identity"}</h3>
+        {notice && <p className="text-xs font-semibold text-rose-500 bg-rose-50 p-2.5 rounded-lg">{notice}</p>}
         <div className="space-y-3">
           <input placeholder="Full Registration Name" value={form.customer_name} onChange={(e)=>setForm({...form, customer_name: e.target.value})} className="w-full border border-slate-200 px-4 py-3 rounded-xl text-sm font-medium outline-none" />
           <input placeholder="Birthday (YYYY-MMM-DD) e.g., 1995-Dec-25" value={form.Note} onChange={(e)=>setForm({...form, Note: e.target.value})} className="w-full border border-slate-200 px-4 py-3 rounded-xl text-sm font-mono outline-none" />
@@ -1154,6 +1140,7 @@ function LoyaltyTab({ member, setMember, user }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in duration-300">
       <div className="md:col-span-1 space-y-4">
+        {/* Passcode / Membership layout passcard item block */}
         <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 rounded-2xl p-5 text-white relative overflow-hidden shadow-md">
           <div className="relative z-10 flex flex-col justify-between h-full min-h-[160px]">
             <div>
@@ -1166,6 +1153,7 @@ function LoyaltyTab({ member, setMember, user }) {
           </div>
         </div>
 
+        {/* Dynamic metrics card tracking view module stack */}
         <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm grid grid-cols-3 md:grid-cols-1 gap-2">
           <div className="p-2 bg-rose-50/40 border border-rose-100/50 rounded-lg text-center md:text-left md:flex md:justify-between md:items-center">
             <span className="text-[10px] uppercase font-bold text-slate-400 block md:inline">Balance</span>
@@ -1217,6 +1205,9 @@ function LoyaltyTab({ member, setMember, user }) {
           {/* List framework inner renderer engine layout content segment block */}
           {(() => {
             const currentArraySource = voucherView === "active" ? vouchersActive : voucherView === "redeemed" ? vouchersRedeemed : vouchersExpired;
+            if (loadingVouchers) {
+              return <div className="text-center py-8 text-xs text-slate-400">Loading values...</div>;
+            }
             if (currentArraySource.length === 0) {
               return <div className="text-center py-8 text-slate-400 text-xs font-medium">No vouchers allocated inside this ledger.</div>;
             }
@@ -1281,7 +1272,7 @@ function ProfileTab({ user, onLogout }) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-    Main Responsive Customer Hub Page Controller
+    Main Responsive Customer Hub Page Controller (Includes PWA Prompt)
 ────────────────────────────────────────────────────────────── */
 export default function Customer() {
   const [user, setUser] = useState(null);
@@ -1290,8 +1281,8 @@ export default function Customer() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // PWA Add To Home Screen Installer States
-  const [installPrompt, setInstallPrompt] = useState(null);
+  // PWA Add to Home Screen states
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
 
   useEffect(() => {
@@ -1324,34 +1315,7 @@ export default function Customer() {
     loadData();
   }, [router]);
 
-  // ================= PWA INSTALL LIFECYCLE LISTENERS =================
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e) => {
-      e.preventDefault();
-      setInstallPrompt(e);
-      setShowInstallBanner(true);
-    };
-
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setShowInstallBanner(false);
-    }
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-    };
-  }, []);
-
-  const handleTriggerInstallPrompt = async () => {
-    if (!installPrompt) return;
-    installPrompt.prompt();
-    const { outcome } = await installPrompt.userChoice;
-    console.log(`Customer portal installation window choice tracking metric: ${outcome}`);
-    setInstallPrompt(null);
-    setShowInstallBanner(false);
-  };
-
+  // Realtime update handler
   useEffect(() => {
     if (!user?.id) return;
 
@@ -1360,8 +1324,9 @@ export default function Customer() {
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "loyalty_members" },
+        { filter: `user_id=eq.${user.id}` },
         (payload) => {
-          if (payload?.new?.user_id === user.id) setMember(payload.new);
+          if (payload?.new) setMember(payload.new);
         }
       )
       .subscribe();
@@ -1370,6 +1335,47 @@ export default function Customer() {
       supabase.removeChannel(channel);
     };
   }, [user]);
+
+  // Capture PWA installation trigger metrics
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      // Prevent browser default behavior from interrupting page metrics
+      e.preventDefault();
+      // Store event globally to execute on manual selection click
+      setDeferredPrompt(e);
+      
+      // Confirm that the user hasn't explicitly muted or closed out app installation tips before
+      const isBannerDismissed = localStorage.getItem("juja_pwa_dismissed") === "true";
+      if (!isBannerDismissed) {
+        setShowInstallBanner(true);
+      }
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const triggerPwaInstallation = async () => {
+    if (!deferredPrompt) return;
+    
+    // Fire user response selection screen
+    deferredPrompt.prompt();
+    
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`📦 PWA prompt choice logged: ${outcome}`);
+    
+    // Clear deferred container tracking data
+    setDeferredPrompt(null);
+    setShowInstallBanner(false);
+  };
+
+  const closeInstallBannerForever = () => {
+    localStorage.setItem("juja_pwa_dismissed", "true");
+    setShowInstallBanner(false);
+  };
 
   if (loading) {
     return (
@@ -1385,45 +1391,47 @@ export default function Customer() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF5F7] text-slate-800 antialiased flex flex-col relative">
-      
-      {/* UNIVERSAL PWA MOBILE/DESKTOP CUSTOMER INSTALL BAR LINK */}
+    <div className="min-h-screen bg-[#FFF5F7] text-slate-800 antialiased flex flex-col lg:flex-row">
+      {/* Universal Shared Navigation Layout */}
+      <AppNavigation tab={tab} setTab={setTab} />
+
+      {/* Primary Scrollable Workspace Viewport */}
+      <main className="flex-1 overflow-x-hidden min-h-screen pb-32 pt-4 md:pt-8 px-4 sm:px-6 lg:pl-72 lg:pr-8 max-w-7xl mx-auto w-full transition-all">
+        {tab === "home" && <HomeTab member={member} user={user} setTab={setTab} />}
+        {tab === "order" && <OrderTab user={user} member={member} />}
+        {tab === "loyalty" && <LoyaltyTab member={member} setMember={setMember} user={user} />}
+        {tab === "booking" && <BookingTab user={user} member={member} />}
+        {tab === "profile" && <ProfileTab user={user} onLogout={logout} />}
+      </main>
+
+      {/* Modern, Aesthetic PWA App Banner Layer */}
       {showInstallBanner && (
-        <div className="bg-gradient-to-r from-rose-500 to-[#FC687D] text-white py-2.5 px-4 text-xs font-semibold shadow-sm flex items-center justify-between z-[60] sticky top-0 transition-all animate-in slide-in-from-top duration-300">
-          <div className="flex items-center gap-2">
-            <span>✨</span>
-            <span>Install the <b>Juja Member App</b> on your screen for fast ordering and live loyalty point updates!</span>
+        <div className="fixed bottom-[84px] md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96 z-[90] bg-white border border-rose-100 p-4 rounded-2xl shadow-[0_10px_30px_rgba(252,104,125,0.12)] flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-300">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl border border-rose-50 flex items-center justify-center bg-[#FFF9FA] overflow-hidden shrink-0">
+              <img src={LOGO} alt="Juja App Logo" className="w-8 h-8 object-contain" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-800">Install Juja App</p>
+              <p className="text-[10px] text-slate-400 font-medium">Order faster & manage your loyalty pass directly on your device home screen.</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={handleTriggerInstallPrompt} 
-              className="bg-white text-slate-900 rounded-lg px-3 py-1 font-bold uppercase tracking-wider text-[10px] shadow-sm active:scale-95 transition"
+          <div className="flex flex-col gap-1.5 shrink-0">
+            <button
+              onClick={triggerPwaInstallation}
+              className="px-3 py-1.5 bg-[#FC687D] hover:bg-rose-500 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg shadow-sm transition"
             >
-              Install App
+              Install
             </button>
-            <button 
-              onClick={() => setShowInstallBanner(false)} 
-              className="text-white/80 hover:text-white px-2 py-0.5 text-base font-normal leading-none"
+            <button
+              onClick={closeInstallBannerForever}
+              className="text-[9px] uppercase tracking-wider text-slate-400 hover:text-slate-600 font-bold text-center"
             >
-              ✕
+              Dismiss
             </button>
           </div>
         </div>
       )}
-
-      <div className="flex flex-col lg:flex-row flex-1">
-        {/* Universal Shared Desktop-Sidebar / Mobile-Tab Navigation Controller */}
-        <AppNavigation tab={tab} setTab={setTab} />
-
-        {/* Primary Scrollable Workspace viewport frame component */}
-        <main className="flex-1 overflow-x-hidden min-h-screen pb-28 pt-4 md:pt-8 px-4 sm:px-6 lg:pl-72 lg:pr-8 max-w-7xl mx-auto w-full transition-all">
-          {tab === "home" && <HomeTab member={member} user={user} setTab={setTab} />}
-          {tab === "order" && <OrderTab user={user} member={member} />}
-          {tab === "loyalty" && <LoyaltyTab member={member} setMember={setMember} user={user} />}
-          {tab === "booking" && <BookingTab user={user} member={member} />}
-          {tab === "profile" && <ProfileTab user={user} onLogout={logout} />}
-        </main>
-      </div>
     </div>
   );
 }
