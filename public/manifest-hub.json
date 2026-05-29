@@ -1,10 +1,10 @@
 {
-  "name": "Juja POS Terminal",
-  "short_name": "Juja POS",
-  "description": "Juja Brew and Bites Merchant POS Station",
-  "start_url": "/pos",
+  "name": "Juja Brew & Bites",
+  "short_name": "Juja Hub",
+  "description": "Order specialty brews, delicious bites, and manage your dynamic loyalty rewards pass.",
+  "start_url": "/",
   "display": "standalone",
-  "orientation": "landscape",
+  "orientation": "portrait",
   "background_color": "#FFF5F7",
   "theme_color": "#FC687D",
   "icons": [

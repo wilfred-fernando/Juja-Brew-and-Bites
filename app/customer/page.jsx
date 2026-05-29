@@ -1140,7 +1140,7 @@ function LoyaltyTab({ member, setMember, user }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in duration-300">
       <div className="md:col-span-1 space-y-4">
-        {/* Passcode / Membership layout passcard item block */}
+        {/* Passcode / Membership passcard block */}
         <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 rounded-2xl p-5 text-white relative overflow-hidden shadow-md">
           <div className="relative z-10 flex flex-col justify-between h-full min-h-[160px]">
             <div>
@@ -1285,7 +1285,17 @@ export default function Customer() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
 
+  // Core Authentication & Dynamic Manifest Swap Loop
   useEffect(() => {
+    // Override standard root layout manifest to match customer specifications
+    let link = document.querySelector("link[rel='manifest']");
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "manifest";
+      document.head.appendChild(link);
+    }
+    link.href = "/manifest-hub.json";
+
     async function loadData() {
       const { data } = await supabase.auth.getSession();
       const session = data?.session;
@@ -1336,7 +1346,7 @@ export default function Customer() {
     };
   }, [user]);
 
-  // Capture PWA installation trigger metrics
+  // Capture PWA installation prompts exclusively for smartphones
   useEffect(() => {
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
@@ -1360,7 +1370,7 @@ export default function Customer() {
     
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    console.log(`📦 PWA prompt choice logged: ${outcome}`);
+    console.log(`📦 Customer home installation choice logged: ${outcome}`);
     
     setDeferredPrompt(null);
     setShowInstallBanner(false);
@@ -1386,10 +1396,10 @@ export default function Customer() {
 
   return (
     <div className="min-h-screen bg-[#FFF5F7] text-slate-800 antialiased flex flex-col lg:flex-row">
-      {/* Universal Shared Navigation Layout */}
+      {/* Universal Navigation Layout Component */}
       <AppNavigation tab={tab} setTab={setTab} />
 
-      {/* Primary Scrollable Workspace Viewport */}
+      {/* Primary Scrollable Workspace Viewport Layout Frame */}
       <main className="flex-1 overflow-x-hidden min-h-screen pb-32 pt-4 md:pt-8 px-4 sm:px-6 lg:pl-72 lg:pr-8 max-w-7xl mx-auto w-full transition-all">
         {tab === "home" && <HomeTab member={member} user={user} setTab={setTab} />}
         {tab === "order" && <OrderTab user={user} member={member} />}
@@ -1398,7 +1408,7 @@ export default function Customer() {
         {tab === "profile" && <ProfileTab user={user} onLogout={logout} />}
       </main>
 
-      {/* Beautiful, Corrected Brand PWA App Banner Layer */}
+      {/* Modern, Aesthetic Customer PWA App Banner Slideover */}
       {showInstallBanner && (
         <div className="fixed bottom-[84px] md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96 z-[90] bg-white border border-rose-100 p-4 rounded-2xl shadow-[0_10px_30px_rgba(252,104,125,0.12)] flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-300">
           <div className="flex items-center gap-3">
