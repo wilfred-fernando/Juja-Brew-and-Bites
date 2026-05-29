@@ -1416,7 +1416,7 @@ export default function Customer() {
               <img src={LOGO} alt="Juja App Logo" className="w-8 h-8 object-contain" />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-800">Install Juja Brew & Bites</p>
+              <p className="text-xs font-bold text-slate-800">Save Juja Brew & Bites®</p>
               <p className="text-[10px] text-slate-400 font-medium">Order faster & manage your loyalty pass directly on your device home screen.</p>
             </div>
           </div>
@@ -1425,7 +1425,7 @@ export default function Customer() {
               onClick={triggerPwaInstallation}
               className="px-3 py-1.5 bg-[#FC687D] hover:bg-rose-500 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg shadow-sm transition"
             >
-              Install
+              Save
             </button>
             <button
               onClick={closeInstallBannerForever}
