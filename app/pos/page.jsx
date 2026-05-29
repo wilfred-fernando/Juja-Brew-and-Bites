@@ -555,6 +555,9 @@ function VouchersModal({ open, onClose, vouchers, appliedVoucher, selectedCartIt
   );
 }
 
+/* ──────────────────────────────────────────────────────────────
+    AddToCartModal Configuration Component
+────────────────────────────────────────────────────────────── */
 function AddToCartModal({ item, onClose, onAddToCart }) {
   const [quantity, setQuantity] = useState(1);
   const [selections, setSelections] = useState({});
@@ -829,7 +832,79 @@ function ReceiptPreviewModal({ open, onClose, receiptText }) {
     </ModalShell>
   );
 }
-// ================= PRINT HELPERS / TEXT BUILDERS END =================
+
+/* ──────────────────────────────────────────────────────────────
+    NEW MODULE: Interactive Incoming Order Intercept overlay
+────────────────────────────────────────────────────────────── */
+function IncomingOrderModal({ open, order, onAccept, onEdit, onReject }) {
+  if (!open || !order) return null;
+
+  return (
+    <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="w-full max-w-lg bg-white rounded-[2rem] p-6 shadow-2xl animate-in zoom-in-95 duration-300 border border-rose-100 flex flex-col max-h-[90vh]">
+        
+        {/* Urgent Header */}
+        <div className="flex items-center gap-3 border-b border-rose-50 pb-4">
+          <div className="w-12 h-12 bg-rose-50 text-2xl flex items-center justify-center rounded-2xl animate-bounce shrink-0">
+            🛎️
+          </div>
+          <div>
+            <span className="text-[10px] font-extrabold tracking-[0.2em] text-[#FC687D] uppercase block animate-pulse">High Priority Transaction</span>
+            <h3 className="text-xl font-black text-slate-800 leading-tight">Incoming Remote Order</h3>
+          </div>
+        </div>
+
+        {/* Customer Profiles Breakdown metadata block */}
+        <div className="mt-4 bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2.5 text-xs text-slate-600 font-semibold shadow-inner">
+          <p className="text-[10px] uppercase tracking-widest text-slate-400 font-extrabold mb-1">Customer Overview</p>
+          <div className="flex justify-between"><span>Name Reference</span><span className="text-slate-900 font-bold">{order.customer_name || "Web Guest"}</span></div>
+          <div className="flex justify-between"><span>System User ID</span><span className="font-mono text-slate-700">{order.user_id?.slice(0,12)}...</span></div>
+          <div className="flex justify-between border-t border-slate-200/60 pt-2 text-slate-900 text-sm">
+            <span>Subtotal Calculated</span>
+            <span className="font-black text-[#FC687D]">₱{Number(order.subtotal || 0).toFixed(0)}</span>
+          </div>
+        </div>
+
+        {/* Item Configurations Sublist */}
+        <div className="mt-4 flex-1 overflow-y-auto border border-slate-100 rounded-2xl p-3 bg-white space-y-2">
+          <p className="text-[10px] uppercase tracking-widest text-slate-400 font-extrabold px-1 mb-1">Items Summary</p>
+          {Array.isArray(order.items) && order.items.map((line, idx) => (
+            <div key={line.cartItemId || idx} className="p-3 border border-slate-100 rounded-xl bg-[#FFF9FA]/40 flex flex-col gap-1">
+              <div className="flex justify-between text-xs font-bold text-slate-800">
+                <span className="truncate max-w-[75%]">{line.name} <span className="text-[#FC687D]">x{line.quantity}</span></span>
+                <span>₱{(Number(line.unitPrice || 0) * Number(line.quantity || 0)).toFixed(0)}</span>
+              </div>
+              {line.variantDetails && <p className="text-[11px] text-slate-400 font-medium italic">Modifiers: {line.variantDetails}</p>}
+              {line.instructions && <p className="text-[11px] text-[#FC687D] font-bold mt-0.5">Note: {line.instructions}</p>}
+            </div>
+          ))}
+        </div>
+
+        {/* Trigger Controls Dashboard */}
+        <div className="grid grid-cols-3 gap-3 mt-6 pt-4 border-t border-slate-100">
+          <button
+            onClick={onReject}
+            className="h-12 rounded-xl bg-red-50 border border-red-100 text-red-600 font-black text-xs uppercase tracking-wider active:scale-95 transition"
+          >
+            Reject ✕
+          </button>
+          <button
+            onClick={onEdit}
+            className="h-12 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-wider active:scale-95 transition"
+          >
+            Edit ✏️
+          </button>
+          <button
+            onClick={onAccept}
+            className="h-12 rounded-xl bg-[#FC687D] hover:bg-rose-500 text-white font-black text-xs uppercase tracking-wider active:scale-95 transition shadow-sm"
+          >
+            Accept ✓
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function discountAmountFromRule(rule, subtotal) {
   if (!rule) return 0;
@@ -841,6 +916,7 @@ function discountAmountFromRule(rule, subtotal) {
   if (type === "comp") return subtotal;
   return 0;
 }
+
 // ================= MAIN TERMINAL SCREEN =================
 
 export default function POSPage() {
@@ -852,12 +928,16 @@ export default function POSPage() {
   const [installPrompt, setInstallPrompt] = useState(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
 
+  // Incoming Order Realtime states
+  const [incomingOrder, setIncomingOrder] = useState(null);
+  const [incomingOrderModalOpen, setIncomingOrderModalOpen] = useState(false);
+  const audioIntervalRef = useRef(null);
+
   const [printerConfig, setPrinterConfig] = useState({ receipt: null, order_slip: null, cup_label: null });
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [diningOptions, setDiningOptions] = useState([]);
-  const [tables] = useState([]);
 
   const [paymentTypes, setPaymentTypes] = useState([]);
   const [, setTicketTemplates] = useState([]);
@@ -913,7 +993,7 @@ export default function POSPage() {
 
   const showToast = (type, title, message) => {
     setToast({ type, title, message });
-    setTimeout(() => setToast(null), 2200);
+    setTimeout(() => setToast(null), 3500);
   };
 
   const calcTotal = (lines) =>
@@ -940,16 +1020,13 @@ export default function POSPage() {
   // ================= PWA INSTALLATION EVENT HANDLER =================
   useEffect(() => {
     const handleBeforeInstallPrompt = (e) => {
-      // Prevent standard browser trigger overlay automatically
       e.preventDefault();
-      // Cache event payload locally inside dynamic component states
       setInstallPrompt(e);
       setShowInstallBanner(true);
     };
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
-    // Close banner if the terminal environment discovers it is already running standalone
     if (window.matchMedia("(display-mode: standalone)").matches) {
       setShowInstallBanner(false);
     }
@@ -961,69 +1038,171 @@ export default function POSPage() {
 
   const handleExecuteInstall = async () => {
     if (!installPrompt) return;
-    
-    // Open standard browser system prompt modal window overlay
     installPrompt.prompt();
-    
     const { outcome } = await installPrompt.userChoice;
-    console.log(`PWA native setup dialogue window complete selection outcome: ${outcome}`);
-    
-    // Clear back buffer allocation tracking cleanly
+    console.log(`PWA native setup user decision: ${outcome}`);
     setInstallPrompt(null);
     setShowInstallBanner(false);
   };
 
-  // REALTIME LISTENER: Vetted connection logic to capture live web order alerts
+  // ================= CONTINUOUS LOOP AUDIO NOTIFICATION SYSTEM CONTROLLER =================
+  const startContinuousAlertChime = () => {
+    // Clear out any stray loops to prevent double overlay audio stacking
+    stopContinuousAlertChime();
+
+    const triggerPlay = () => {
+      try {
+        const audio = new Audio("/sounds/notification.mp3");
+        audio.play().catch(e => console.log("Audio play deferred until page touch interaction context is set:", e));
+      } catch (err) {
+        console.warn("Chime loop execution trace warning:", err);
+      }
+    };
+
+    // Immediate initial pulse layout signal
+    triggerPlay();
+    // Re-ping every 2.5 seconds continuously until state flags resolve
+    audioIntervalRef.current = setInterval(triggerPlay, 2500);
+  };
+
+  const stopContinuousAlertChime = () => {
+    if (audioIntervalRef.current) {
+      clearInterval(audioIntervalRef.current);
+      audioIntervalRef.current = null;
+    }
+  };
+
+  // Cleanup loop audio hook if component unmounts entirely
+  useEffect(() => {
+    return () => stopContinuousAlertChime();
+  }, []);
+
+  // ================= DYNAMIC REALTIME CUSTOMER ORDER EVENT LISTENER =================
   useEffect(() => {
     if (!storeId) return;
 
-    console.log("📡 Initializing permanent live web checkout tracking channel for store ID:", storeId);
+    console.log(`📡 Connecting low-latency WebSocket broadcast channel to [store-alerts:${storeId}]`);
 
-    const channel = supabaseGlobalInstance
-      .channel("pos-incoming-web-orders")
-      .on(
-        "postgres_changes",
-        { 
-          event: "INSERT", 
-          schema: "public", 
-          table: "orders" 
-        },
-        (payload) => {
-          const incomingOrder = payload.new;
-          console.log("🔔 Database row insert intercepted by POS page:", incomingOrder);
+    const alertListenerChannel = supabaseGlobalInstance
+      .channel(`store-alerts:${storeId}`)
+      .on("broadcast", { event: "NEW_CUSTOMER_ORDER" }, (response) => {
+        const order = response.payload;
+        console.log("🚨 WebSocket Broadcast intercepted order payload:", order);
 
-          const isTargetedBranch = String(incomingOrder.branch_id).trim().toLowerCase() === String(storeId).trim().toLowerCase();
+        // Map remote payload variables to live component intercept modals states
+        setIncomingOrder(order);
+        setIncomingOrderModalOpen(true);
 
-          if (isTargetedBranch) {
-            console.log("🎯 Order matched this station code parameters successfully!", incomingOrder);
-            
-            showToast(
-              "success", 
-              "Incoming Web Order 🍽️", 
-              `New order placed by customer: ${incomingOrder.customer_name || "Web Client"}`
-            );
-            
-            try {
-              const alertSound = new Audio("/sounds/notification.mp3");
-              alertSound.play();
-            } catch (audioErr) {
-              console.warn("Audio Context message warning: Browser playback requires client element interaction pass:", audioErr);
-            }
-          } else {
-            console.log(`⏭️ Order skipped: Intended for branch "${incomingOrder.branch_id}", but this station is running "${storeId}"`);
-          }
-        }
-      )
+        // Initiate continuous looping siren immediately
+        startContinuousAlertChime();
+      })
       .subscribe((status) => {
-        console.log("🛰️ Realtime channel handshake registration status:", status);
+        console.log(`🛰 * store-alerts status update: ${status}`);
       });
 
     return () => {
-      supabaseGlobalInstance.removeChannel(channel);
+      supabaseGlobalInstance.removeChannel(alertListenerChannel);
     };
   }, [storeId]);
 
-  // TEMPORARY GLOBAL DEBUG LISTENER
+  // ================= INTERCEPT OVERLAY lifecycle actions dashboards =================
+  // ================= INTERCEPT OVERLAY lifecycle actions dashboards =================
+  const acceptIncomingWebOrder = async () => {
+    if (!incomingOrder) return;
+    stopContinuousAlertChime();
+
+    try {
+      // Resolve table formatting options mapping. Fallback to delivery template default row value
+      const targetTicketType = incomingOrder.dining_option || "WEB DELIVERY";
+
+      // 1. Cross-reference the string name with loaded loyalty customers to capture their primary key ID
+      const matchedLoyaltyProfile = (customers || []).find(
+        (c) => String(c.name).trim().toLowerCase() === String(incomingOrder.customer_name).trim().toLowerCase()
+      );
+
+      const computedCustomerId = matchedLoyaltyProfile ? matchedLoyaltyProfile.id : null;
+      
+      // 2. Generate ticket name string, attaching the clear customer profile metadata context
+      const structuredTicketName = `${targetTicketType} - ${incomingOrder.customer_name || "Web Client"}`;
+
+      const openTicketPayload = {
+        ticket_name: structuredTicketName, // e.g., "TAKEOUT - Wilfr"
+        order_type: targetTicketType,       // Standard dining option reference constraint
+        customer_id: computedCustomerId,    // Links directly to loyalty pass records for points accumulation
+        items: incomingOrder.items || [],
+        total_amount: Number(incomingOrder.subtotal || 0),
+      };
+
+      // Direct write into Open Tickets table matching parked items architecture schema
+      const { error } = await supabase.from("open_tickets").insert([openTicketPayload]);
+      if (error) throw error;
+
+      // Update system state indices table parameters
+      const { error: statusUpdateError } = await supabase
+        .from("orders")
+        .update({ status: "accepted" })
+        .eq("id", incomingOrder.order_id);
+      
+      if (statusUpdateError) console.warn("Supabase tracking index status step warning:", statusUpdateError.message);
+
+      showToast(
+        "success", 
+        "Web Order Parked ✓", 
+        `Ticket successfully accepted under customer profile: ${incomingOrder.customer_name || "Guest"}`
+      );
+      
+      await fetchSavedTickets(); // Refreshes register display panel instantly
+    } catch (err) {
+      console.error("Web order acceptance cascade execution crash:", err);
+      showToast("error", "Acceptance Sync Failed", err.message);
+    } finally {
+      setIncomingOrderModalOpen(false);
+      setIncomingOrder(null);
+    }
+  };
+
+  const editIncomingWebOrder = () => {
+    if (!incomingOrder) return;
+    stopContinuousAlertChime();
+
+    // Map payload attributes directly into active working register cache states memory
+    setCart(incomingOrder.items || []);
+    setOriginalTicketId(null); // Fresh workspace iteration flag
+
+    // Try linking membership card profiles back dynamically
+    const linkedCustomer = customers.find((c) => c.name === incomingOrder.customer_name);
+    if (linkedCustomer) setAttachedCustomer(linkedCustomer);
+
+    showToast("info", "Order Loaded Into Register", "Modifiers loaded. Tweak active layout lines now inside workspace terminal frame.");
+    
+    setIncomingOrderModalOpen(false);
+    setIncomingOrder(null);
+  };
+
+  const rejectIncomingWebOrder = async () => {
+    if (!incomingOrder) return;
+    const confirmCancel = confirm("Are you completely certain you want to REJECT and scrub this customer order entry?");
+    if (!confirmCancel) return;
+
+    stopContinuousAlertChime();
+
+    try {
+      const { error } = await supabase
+        .from("orders")
+        .update({ status: "rejected" })
+        .eq("id", incomingOrder.order_id);
+
+      if (error) throw error;
+      showToast("warn", "Order Refused", "Remote order cancelled and updated flags inside log tracking rows.");
+    } catch (err) {
+      showToast("error", "Reject Sync Failed", err.message);
+    } finally {
+      setIncomingOrderModalOpen(false);
+      setIncomingOrder(null);
+    }
+  };
+
+  // ================= CORE BACKGROUND LOGISTICS FUNCTIONS =================
   useEffect(() => {
     const channel = supabase
       .channel("pos-global-debug")
@@ -1032,7 +1211,6 @@ export default function POSPage() {
         { event: "INSERT", schema: "public", table: "orders" },
         (payload) => {
           console.log("🚨 DEBUG SNOOPER INTERCEPTED ROW:", payload.new);
-          alert(`Order Detected! Branch column value is: ${payload.new.branch_id}`);
         }
       )
       .subscribe();
@@ -1368,7 +1546,6 @@ export default function POSPage() {
   async function handleVoidCurrentTicket() {
     if (cart.length === 0) return showToast("error", "Empty Ticket", "No items to void.");
     if (!diningOption) return showToast("error", "Dining Option Required", "No explicit table option linked.");
-    if (!diningOptionName) return showToast("error", "Dining Option Required", "Please select a dining option.");
 
     const confirmVoid = confirm(`Void entire current live ticket for "${diningOptionName}"? This clears all items permanently.`);
     if (!confirmVoid) return;
@@ -1389,9 +1566,7 @@ export default function POSPage() {
   async function handleChargeOrder() {
     if (charging) return;
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before charging.");
-    if (!diningOption) return showToast("error", "Dining Option Required", "Please select a dining option.");
-    if (!diningOptionName) return showToast("error", "Dining Option Required", "Please select a dining option.");
-    if (!storeId) return showToast("error", "Store not set", "Set workspace identifier strings.");
+    if (!diningOption || !diningOptionName) return showToast("error", "Dining Option Required", "Please select a dining option.");
     setPaymentOpen(true);
   }
 
@@ -1399,8 +1574,7 @@ export default function POSPage() {
     if (charging) return;
     if (!selectedPayment) return showToast("error", "Payment Required", "Select a payment type.");
     if (!storeId) return showToast("error", "Store not set", "Store code identifier mismatch.");
-    if (!diningOption) return showToast("error", "Dining Option Required", "Please select a dining option.");
-    if (!diningOptionName) return showToast("error", "Dining Option Required", "Please select a dining option.");
+    if (!diningOption || !diningOptionName) return showToast("error", "Dining Option Required", "Please select a dining option.");
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before charging.");
 
     setCharging(true);
@@ -1801,7 +1975,7 @@ export default function POSPage() {
         <div className="bg-gradient-to-r from-rose-500 to-[#FC687D] text-white py-2 px-4 shadow-sm flex items-center justify-between text-xs font-semibold select-none animate-in slide-in-from-top duration-300">
           <div className="flex items-center gap-2">
             <span>📱</span>
-            <span>Run Juja POS directly as a fast desktop app on your terminal setup window dashboard footprint.</span>
+            <span>Run Juja POS directly as a standalone hardware desktop app window.</span>
           </div>
           <div className="flex items-center gap-2 font-bold uppercase tracking-wider">
             <button 
@@ -1826,7 +2000,7 @@ export default function POSPage() {
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-rose-100 bg-white rounded-b-2xl p-4 shadow-sm mb-4 lg:mb-6">
           <div>
             <h1 className="text-xl lg:text-2xl font-black text-slate-800 tracking-tight">Juja POS Terminal</h1>
-            <p className="text-[10px] text-slate-400 font-mono mt-0.5 tracking-wider uppercase">Store Ref Footprint: {storeId || "DISCONNECTED"}</p>
+            <p className="text-[10px] text-slate-400 font-mono mt-0.5 tracking-wider uppercase">Store ID: {storeId || "DISCONNECTED"}</p>
           </div>
           <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-50">
             <div className="flex items-center gap-2">
@@ -1883,7 +2057,7 @@ export default function POSPage() {
             {loading ? (
               <div className="py-24 text-center"><div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full mx-auto" /></div>
             ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-4 gap-3 max-h-[calc(100vh-270px)] overflow-y-auto pr-1">
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[calc(100vh-270px)] overflow-y-auto pr-1">
                 {items
                   .filter((i) => i.category === activeCategory)
                   .filter((i) => (i.name || "").toLowerCase().includes(menuSearch.toLowerCase()))
@@ -1916,7 +2090,7 @@ export default function POSPage() {
           </div>
 
           {/* SIDEBAR TICKET INTERACTION LAYER PANEL */}
-          <aside className="hidden lg:block bg-white border border-rose-100 rounded-2xl p-4 shadow-sm sticky top-6 max-h-[calc(100vh-140px)] overflow-y-auto">
+          <div className="hidden lg:block bg-white border border-rose-100 rounded-2xl p-4 shadow-sm sticky top-6 max-h-[calc(100vh-140px)] overflow-y-auto">
             <TicketPanel
               cart={cart}
               customers={customers}
@@ -1968,7 +2142,7 @@ export default function POSPage() {
                 setSelectedItemForModal({ ...base, editData: line, editIndex: idx });
               }}
             />
-          </aside>
+          </div>
 
         </div>
       </div>
@@ -2066,6 +2240,13 @@ export default function POSPage() {
       )}
 
       {/* PORTALS LAYER MODAL SYSTEMS OVERLAYS */}
+      <IncomingOrderModal 
+        open={incomingOrderModalOpen} 
+        order={incomingOrder} 
+        onAccept={acceptIncomingWebOrder} 
+        onEdit={editIncomingWebOrder} 
+        onReject={rejectIncomingWebOrder} 
+      />
       <CategoryModal open={categoryOpen} onClose={() => setCategoryOpen(false)} categories={categories} active={activeCategory} onSelect={setActiveCategory} />
       <BarcodeScannerModal open={scannerOpen} onClose={() => setScannerOpen(false)} onResult={(txt) => handleCodeInput(txt)} />
       <SavedTicketsModal

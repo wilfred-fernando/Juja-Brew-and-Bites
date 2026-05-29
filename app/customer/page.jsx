@@ -18,6 +18,18 @@ function genMemberCode() {
   return `JUJA${new Date().getFullYear()}${n}`;
 }
 
+function getManilaDateString(offsetDays = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return d.toISOString().split("T")[0];
+}
+
+function getManilaTimeString(offsetMinutes = 30) {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() + offsetMinutes);
+  return d.toTimeString().split(" ")[0].slice(0, 5);
+}
+
 function genCustomerId() {
   return String(Math.floor(1000000 + Math.random() * 9000000));
 }
@@ -71,6 +83,7 @@ function AppNavigation({ tab, setTab }) {
   const tabs = [
     { id: "home", icon: "🏠", label: "Home" },
     { id: "order", icon: "🍽️", label: "Order" },
+    { id: "history", icon: "📦", label: "Tracker" },
     { id: "loyalty", icon: "⭐", label: "Loyalty" },
     { id: "booking", icon: "🗓", label: "Book" },
     { id: "profile", icon: "👤", label: "Profile" },
@@ -80,7 +93,7 @@ function AppNavigation({ tab, setTab }) {
     <>
       {/* Mobile & Tablet Bottom Tab Bar */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-rose-50 pb-safe shadow-[0_-4px_24px_rgba(252,104,125,0.05)] lg:hidden">
-        <div className="max-w-xl mx-auto grid grid-cols-5 px-2">
+        <div className="max-w-xl mx-auto grid grid-cols-6 px-1">
           {tabs.map((t) => (
             <button
               key={t.id}
@@ -89,10 +102,10 @@ function AppNavigation({ tab, setTab }) {
                 tab === t.id ? "text-[#FC687D]" : "text-slate-400 hover:text-slate-600"
               }`}
             >
-              <span className={`text-[22px] leading-none transition-transform duration-300 ${tab === t.id ? "scale-110 -translate-y-0.5" : ""}`}>
+              <span className={`text-[20px] leading-none transition-transform duration-300 ${tab === t.id ? "scale-110 -translate-y-0.5" : ""}`}>
                 {t.icon}
               </span>
-              <span className={`text-[9px] font-medium uppercase tracking-widest ${tab === t.id ? "text-[#FC687D]" : "text-slate-400"}`}>
+              <span className={`text-[8px] font-bold uppercase tracking-wider ${tab === t.id ? "text-[#FC687D]" : "text-slate-400"}`}>
                 {t.label}
               </span>
               {tab === t.id && (
@@ -169,7 +182,6 @@ function HomeTab({ member, user, setTab }) {
 
   return (
     <div className="space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Brand Header block */}
       <div className="flex items-center justify-between bg-white rounded-2xl p-4 border border-rose-50 shadow-sm lg:hidden">
         <div className="flex items-center gap-3">
           <Link href="/" className="active:scale-95 transition">
@@ -182,10 +194,7 @@ function HomeTab({ member, user, setTab }) {
         </div>
       </div>
 
-      {/* Main Responsive Layout Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
-        {/* Welcome & Balance Core Cards */}
         <div className="md:col-span-2 space-y-6">
           <div className="bg-white rounded-2xl md:rounded-[32px] p-6 border border-rose-100 shadow-[0_4px_20px_rgba(252,104,125,0.04)] relative overflow-hidden h-full flex flex-col justify-between">
             <div
@@ -232,14 +241,13 @@ function HomeTab({ member, user, setTab }) {
           </div>
         </div>
 
-        {/* Desktop Profile Status Card */}
         <div className="hidden md:block bg-white rounded-2xl border border-rose-50 p-6 shadow-sm">
-          <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-4">Authenticated As</p>
+          <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-4">App Status</p>
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center text-lg">👤</div>
+            <div className="w-10 h-10 rounded-full bg-[#FFF5F7] flex items-center justify-center text-lg text-[#FC687D]">✨</div>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-800 truncate">{user?.email}</p>
-              <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Verified Client</p>
+              <p className="text-xs font-bold text-slate-800">Automatic Updates</p>
+              <p className="text-[10px] text-emerald-600 uppercase tracking-wider font-bold">Enabled & Live</p>
             </div>
           </div>
           <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs text-slate-500">
@@ -248,46 +256,30 @@ function HomeTab({ member, user, setTab }) {
         </div>
       </div>
 
-      {/* Quick Action Grid Section */}
       <div>
         <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">Quick Shortcuts</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { icon: "🍽️", label: "Order Food", sub: "Browse menu", tab: "order" },
+            { icon: "📦", label: "Tracker", sub: "Order Status", tab: "history" },
             { icon: "⭐", label: "Loyalty", sub: "Rewards", tab: "loyalty" },
             { icon: "🗓", label: "Book Room", sub: "Function room", tab: "booking" },
-            { icon: "🎁", label: "Promos", sub: "Deals & offers", href: "/promo" },
-          ].map((c) =>
-            c.href ? (
-              <Link
-                key={c.label}
-                href={c.href}
-                className="bg-white rounded-2xl p-5 border border-rose-50 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300"
-              >
-                <div className="text-2xl mb-3 bg-rose-50 w-12 h-12 rounded-full flex items-center justify-center">
-                  {c.icon}
-                </div>
-                <p className="font-semibold text-slate-800 text-sm md:text-base">{c.label}</p>
-                <p className="text-slate-400 text-[10px] font-medium uppercase tracking-widest mt-1">{c.sub}</p>
-              </Link>
-            ) : (
-              <button
-                key={c.label}
-                onClick={() => setTab(c.tab)}
-                className="bg-white rounded-2xl p-5 border border-rose-50 shadow-sm text-left hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 w-full"
-              >
-                <div className="text-2xl mb-3 bg-rose-50 w-12 h-12 rounded-full flex items-center justify-center text-[#FC687D]">
-                  {c.icon}
-                </div>
-                <p className="font-semibold text-slate-800 text-sm md:text-base">{c.label}</p>
-                <p className="text-slate-400 text-[10px] font-medium uppercase tracking-widest mt-1">{c.sub}</p>
-              </button>
-            )
-          )}
+          ].map((c) => (
+            <button
+              key={c.label}
+              onClick={() => setTab(c.tab)}
+              className="bg-white rounded-2xl p-5 border border-rose-50 shadow-sm text-left hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 w-full"
+            >
+              <div className="text-2xl mb-3 bg-rose-50 w-12 h-12 rounded-full flex items-center justify-center text-[#FC687D]">
+                {c.icon}
+              </div>
+              <p className="font-semibold text-slate-800 text-sm md:text-base">{c.label}</p>
+              <p className="text-slate-400 text-[10px] font-medium uppercase tracking-widest mt-1">{c.sub}</p>
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Visit Us Block Section */}
       <div className="bg-white rounded-2xl p-6 border border-rose-50 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-100 pb-4 mb-4 gap-4">
           <div>
@@ -485,7 +477,7 @@ function AddToCartModal({ item, onClose, onAdd }) {
             <div className="flex-1 text-center font-bold text-slate-800">{quantity}</div>
             <button
               onClick={() => setQuantity(quantity + 1)}
-              className="w-12 h-full text-xl text-slate-400 hover:text-rose-500 font-bold transition-colors"
+              className="w-12 h-full text-rose-400 hover:text-rose-500 font-bold transition-colors"
             >
               +
             </button>
@@ -515,6 +507,129 @@ function AddToCartModal({ item, onClose, onAdd }) {
   );
 }
 
+/* ──────────────────────────────────────────────────────────────
+    Interactive Checkout Confirmation Drawer
+────────────────────────────────────────────────────────────── */
+function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems, isSubmitting }) {
+  const [diningOption, setDiningOption] = useState("TAKEOUT");
+  const [fulfillmentDate, setFulfillmentDate] = useState(getManilaDateString(0));
+  const [fulfillmentTime, setFulfillmentTime] = useState(getManilaTimeString(30));
+
+  if (!open) return null;
+
+  const isValidTime = fulfillmentTime && fulfillmentTime.trim() !== "";
+  const potentialPointsEarned = Math.floor(subtotal / 25);
+
+  return (
+    <div className="fixed inset-0 z-[150] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4">
+      <div 
+        className="w-full max-w-md bg-white rounded-t-[32px] md:rounded-[24px] p-6 shadow-2xl max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="border-b border-slate-100 pb-3 mb-4">
+          <p className="text-[10px] uppercase font-bold tracking-widest text-[#FC687D]">Fulfillment Verification</p>
+          <h3 className="text-xl font-bold text-slate-800 mt-0.5">Confirm Your Order</h3>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2">
+              Fulfillment Method
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: "TAKEOUT", label: "Pick-up", icon: "🛍️" },
+                { id: "DINEIN", label: "Dine-In", icon: "🍽️" },
+                { id: "DELIVERY", label: "Delivery", icon: "🛵" },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setDiningOption(opt.id)}
+                  className={`py-3 rounded-xl border flex flex-col items-center justify-center gap-1.5 font-bold text-xs transition ${
+                    diningOption === opt.id
+                      ? "border-[#FC687D] bg-rose-50/40 text-[#FC687D]"
+                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  <span className="text-base">{opt.icon}</span>
+                  <span>{opt.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1.5">
+                Target Date
+              </label>
+              <input
+                type="date"
+                min={getManilaDateString(0)}
+                value={fulfillmentDate}
+                onChange={(e) => setFulfillmentDate(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-[#FC687D]"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1.5">
+                Target Time
+              </label>
+              <input
+                type="time"
+                value={fulfillmentTime}
+                onChange={(e) => setFulfillmentTime(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-[#FC687D]"
+              />
+            </div>
+          </div>
+
+          <div className="bg-emerald-50/60 border border-emerald-100 rounded-xl p-3 flex items-center justify-between text-xs text-emerald-800 font-medium">
+            <span className="flex items-center gap-2">⭐ <span>Rewards Points Earned</span></span>
+            <span className="font-extrabold text-sm text-emerald-700">+{potentialPointsEarned} pts</span>
+          </div>
+
+          <div className="bg-[#FFF9FA] border border-rose-50/60 p-4 rounded-2xl space-y-2 mt-2">
+            <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1">Items Summary</p>
+            <div className="max-h-24 overflow-y-auto space-y-1.5 pr-1">
+              {cartItems.map((line, idx) => (
+                <div key={line.cartItemId || idx} className="flex justify-between text-xs font-medium text-slate-600">
+                  <span className="truncate max-w-[75%]">{line.name} <span className="text-[#FC687D]">x{line.quantity}</span></span>
+                  <span className="font-semibold text-slate-800">₱{(line.unitPrice * line.quantity).toFixed(0)}</span>
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-rose-100/60 pt-2.5 mt-2 flex justify-between items-baseline">
+              <span className="text-xs font-bold text-slate-700">Total Settlement Margin</span>
+              <span className="text-xl font-black text-[#FC687D]">₱{subtotal.toFixed(0)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mt-6 pt-4 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="w-full py-3 bg-slate-50 border border-slate-200 text-slate-600 font-bold rounded-xl text-xs uppercase tracking-wider"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => onConfirm({ diningOption, fulfillmentDate, fulfillmentTime })}
+            disabled={isSubmitting || !isValidTime}
+            className="w-full py-3 bg-[#FC687D] hover:bg-rose-500 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-md disabled:opacity-40"
+          >
+            {isSubmitting ? "Sending..." : "Submit to POS ✓"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ConfirmModal({ title, message, onConfirm, onCancel }) {
   return (
     <div
@@ -532,7 +647,7 @@ function ConfirmModal({ title, message, onConfirm, onCancel }) {
         <div className="grid grid-cols-2 gap-3 mt-6 pt-4 border-t border-slate-100">
           <button
             onClick={onCancel}
-            className="w-full py-3 rounded-xl bg-slate-50 border border-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-100 transition"
+            className="w-full py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-100 transition"
           >
             Cancel
           </button>
@@ -549,9 +664,9 @@ function ConfirmModal({ title, message, onConfirm, onCancel }) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-    Order Tab (With Branch Selection & Realtime POS Sync)
+    Order Tab (Now Focused 100% On Smooth Menu & Basket Selection)
 ────────────────────────────────────────────────────────────── */
-function OrderTab({ user, member }) {
+function OrderTab({ user, member, onCheckoutSuccess }) {
   const [items, setItems] = useState([]);
   const [cats, setCategories] = useState([]);
   const [activeTab, setActiveTab] = useState("ALL");
@@ -560,11 +675,12 @@ function OrderTab({ user, member }) {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedBranch, setSelectedBranch] = useState("bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e"); // Default branch UUID
+  const [selectedBranch, setSelectedBranch] = useState("bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e");
 
   const [selectedItemForModal, setSelectedItemForModal] = useState(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
 
   useEffect(() => {
     async function fetchMenu() {
@@ -615,16 +731,13 @@ function OrderTab({ user, member }) {
     setCartOpen(false);
   };
 
-  const checkout = async () => {
-    if (!user?.id) {
-      alert("❌ Check out failed: No active user session detected.");
-      return;
-    }
-    if (cart.length === 0) {
-      alert("❌ Basket is empty.");
-      return;
-    }
+  const handleOpenCheckoutValidation = () => {
+    if (!user?.id) return alert("❌ Session expired: Sign in to submit orders.");
+    if (cart.length === 0) return alert("❌ Basket selection empty.");
+    setConfirmationOpen(true);
+  };
 
+  const executeOrderSubmission = async (fulfillmentMetadata) => {
     setIsSubmitting(true);
 
     const orderPayload = {
@@ -634,35 +747,50 @@ function OrderTab({ user, member }) {
       items: cart, 
       subtotal: Number(subtotal),
       status: "pending", 
+      dining_option: fulfillmentMetadata.diningOption, 
+      fulfillment_date: fulfillmentMetadata.fulfillmentDate,
+      fulfillment_time: fulfillmentMetadata.fulfillmentTime
     };
 
-    console.log("🚀 Sending order payload to Supabase...", orderPayload);
-
     try {
-      const { data, error, status, statusText } = await supabase
+      const { data, error } = await supabase
         .from("orders")
         .insert([orderPayload])
         .select();
 
-      if (error) {
-        console.error("❌ Supabase Database API Error:", error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log("✅ Database Response Status:", status, statusText);
-      console.log("📦 Row inserted data:", data);
+      const freshWebOrderRow = data[0];
 
-      if (!data || data.length === 0) {
-        alert("⚠️ Request processed, but database returned 0 rows. Check Supabase RLS policies!");
-        return;
-      }
+      const alertBroadcastChannelInstance = supabase.channel(`store-alerts:${selectedBranch}`);
+      await alertBroadcastChannelInstance.subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await alertBroadcastChannelInstance.send({
+            type: "broadcast",
+            event: "NEW_CUSTOMER_ORDER",
+            payload: {
+              order_id: freshWebOrderRow.id,
+              customer_name: freshWebOrderRow.customer_name,
+              subtotal: freshWebOrderRow.subtotal,
+              item_count: itemCount,
+              dining_option: freshWebOrderRow.dining_option,
+              fulfillment_date: freshWebOrderRow.fulfillment_date,
+              fulfillment_time: freshWebOrderRow.fulfillment_time,
+              timestamp: new Date().toISOString()
+            }
+          });
+          supabase.removeChannel(alertBroadcastChannelInstance);
+        }
+      });
 
-      alert(`🎉 Order sent to POS! Reference ID: ${data[0].id.slice(0,8)}`);
-      setCart([]); 
+      alert(`🎉 Order sent to POS! Method: ${fulfillmentMetadata.diningOption} @ ${fulfillmentMetadata.fulfillmentTime}\nYou earned +${Math.floor(subtotal / 25)} loyalty points upon payment collection!`);
+      setCart([]);
+      setConfirmationOpen(false);
       setCartOpen(false);
+      if (onCheckoutSuccess) onCheckoutSuccess();
     } catch (err) {
-      console.error("❌ High-level try/catch failure:", err);
-      alert(`❌ Order failed to send: ${err.message || "Network Timeout"}`);
+      console.error("Critical submission failure loop trace:", err);
+      alert(`❌ Submission Error: ${err.message || "Network Connection Failure"}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -670,7 +798,7 @@ function OrderTab({ user, member }) {
 
   const CartInnerListing = () => (
     <div className="flex flex-col h-full justify-between">
-      <div className="flex-1 space-y-3 overflow-y-auto max-h-[40vh] lg:max-h-[50vh] pr-1">
+      <div className="flex-1 space-y-3 overflow-y-auto max-h-[45vh] lg:max-h-[60vh] pr-1">
         {cart.length === 0 ? (
           <div className="flex flex-col items-center justify-center text-center py-12 px-4 text-slate-400 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
             <span className="text-3xl mb-2">🛒</span>
@@ -679,7 +807,7 @@ function OrderTab({ user, member }) {
         ) : (
           cart.map((line, idx) => (
             <div
-              key={line.cartItemId}
+              key={line.cartItemId || idx}
               onClick={() => {
                 const base = items.find((i) => i.id === line.id) || {};
                 setSelectedItemForModal({ ...base, editData: line, editIndex: idx });
@@ -727,7 +855,7 @@ function OrderTab({ user, member }) {
       </div>
 
       {cart.length > 0 && (
-        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 mt-4">
           <label className="block text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-1.5">
             Select Pickup Store Branch
           </label>
@@ -750,15 +878,13 @@ function OrderTab({ user, member }) {
               <span className="font-bold text-slate-800 text-lg">₱{subtotal.toFixed(0)}</span>
             </div>
             <button
-              onClick={checkout}
-              disabled={isSubmitting}
-              className="w-full h-11 rounded-xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-rose-500 transition disabled:opacity-50"
+              onClick={handleOpenCheckoutValidation}
+              className="w-full h-11 rounded-xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-rose-500 transition"
             >
-              {isSubmitting ? "Processing Checkout..." : "Send Order to POS"}
+              Configure Fulfillment
             </button>
             <button
               onClick={() => setConfirmClear(true)}
-              disabled={isSubmitting}
               className="w-full h-11 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 text-xs font-bold uppercase tracking-wider hover:bg-slate-100 transition"
             >
               Reset Basket
@@ -770,8 +896,8 @@ function OrderTab({ user, member }) {
   );
 
   return (
-    <div className="lg:grid lg:grid-cols-3 lg:gap-8 items-start">
-      <div className="lg:col-span-2 space-y-5">
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
+      <div className="space-y-5">
         <div className="bg-white border border-rose-50 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Fresh Selection</p>
@@ -781,7 +907,7 @@ function OrderTab({ user, member }) {
             <select
               value={activeTab}
               onChange={(e) => setActiveTab(e.target.value)}
-              className="bg-slate-50 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 outline-none border border-slate-200 cursor-pointer"
+              className="bg-slate-50 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 outline-none border border-slate-200 pointer-events-auto cursor-pointer"
             >
               <option value="ALL">All Categories</option>
               {cats.map((cat) => (
@@ -813,11 +939,11 @@ function OrderTab({ user, member }) {
                 className="group bg-white border border-slate-100 rounded-2xl p-3 text-left hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex flex-col h-full justify-between"
               >
                 <div>
-                  <div className="w-full h-28 sm:h-32 rounded-xl bg-[#FFF9FA] border border-rose-50/50 flex items-center justify-center overflow-hidden">
+                  <div className="w-full aspect-video rounded-xl bg-[#FFF9FA] border border-rose-50/50 flex items-center justify-center overflow-hidden">
                     {item.image_url ? (
                       <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
                     ) : (
-                      <span className="text-3xl text-rose-200/40">📷</span>
+                      <span className="text-2xl text-rose-200/40">📷</span>
                     )}
                   </div>
                   <div className="mt-3">
@@ -882,7 +1008,7 @@ function OrderTab({ user, member }) {
               </div>
               <button
                 onClick={() => setCartOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500"
+                className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400"
               >
                 ✕
               </button>
@@ -909,6 +1035,89 @@ function OrderTab({ user, member }) {
           onCancel={() => setConfirmClear(false)}
           onConfirm={clearCart}
         />
+      )}
+
+      <OrderConfirmationModal
+        open={confirmationOpen}
+        onClose={() => setConfirmationOpen(false)}
+        onConfirm={executeOrderSubmission}
+        subtotal={subtotal}
+        cartItems={cart}
+        isSubmitting={isSubmitting}
+      />
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────
+    NEW DETACHED TAB MODULE: Tracker / Order Pipeline History 📦
+────────────────────────────────────────────────────────────── */
+function TrackerTab({ orders, loadingOrders }) {
+  const getStatusColor = (status) => {
+    switch (String(status).toLowerCase()) {
+      case "pending": return "bg-amber-50 border-amber-200 text-amber-700";
+      case "accepted": return "bg-emerald-50 border-emerald-200 text-emerald-700";
+      case "rejected": return "bg-rose-50 border-rose-200 text-rose-700";
+      default: return "bg-slate-50 border-slate-200 text-slate-600";
+    }
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto bg-white rounded-2xl border border-slate-100 p-5 shadow-sm animate-in fade-in duration-300">
+      <div className="border-b border-slate-100 pb-3 mb-5">
+        <h3 className="font-black text-slate-800 text-base flex items-center gap-2">
+          <span>📦</span> Live Pipeline & Order History
+        </h3>
+        <p className="text-[11px] text-slate-400 mt-0.5">Track your live orders and view points earned at Juja Brew & Bites.</p>
+      </div>
+
+      {loadingOrders ? (
+        <div className="py-16 text-center flex justify-center">
+          <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
+        </div>
+      ) : orders.length === 0 ? (
+        <div className="text-center py-16 px-4 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+          <span className="text-3xl block mb-2">🍽️</span>
+          <p className="text-sm font-semibold">No recent order records located.</p>
+          <p className="text-xs text-slate-400 mt-1">Your orders will automatically appear here once submitted.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {orders.map((order) => (
+            <div key={order.id} className="border border-slate-200 rounded-xl p-4 bg-white shadow-sm flex flex-col gap-3 transition hover:border-rose-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-slate-800 font-mono">ORDER ID: #{order.id.slice(0, 8).toUpperCase()}</p>
+                  <p className="text-[10px] text-slate-400 font-medium mt-0.5">{order.created_at ? new Date(order.created_at).toLocaleString() : ""}</p>
+                </div>
+                <span className={`px-2.5 py-0.5 border rounded-md text-[10px] font-black uppercase tracking-wider ${getStatusColor(order.status)}`}>
+                  {order.status || "Pending"}
+                </span>
+              </div>
+
+              <div className="text-xs text-slate-600 space-y-1.5 bg-slate-50/70 p-3 rounded-lg border border-slate-100">
+                {Array.isArray(order.items) && order.items.map((line, idx) => (
+                  <div key={line.cartItemId || idx} className="flex justify-between items-baseline font-medium">
+                    <span className="truncate max-w-[80%] text-slate-700">{line.name} <span className="text-[#FC687D] font-bold">x{line.quantity}</span></span>
+                    <span className="font-mono text-[11px]">₱{(line.unitPrice * line.quantity).toFixed(0)}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-500 pt-1">
+                <div className="flex items-center gap-2">
+                  <span className="uppercase tracking-wide font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-700 text-[10px]">{order.dining_option || "Takeout"}</span>
+                  {String(order.status).toLowerCase() === "accepted" && (
+                    <span className="text-emerald-700 font-black bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 text-[10px]">
+                      ⭐ +{Math.floor(Number(order.subtotal || 0) / 25)} pts Earned
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm font-black text-slate-800">Total Charged: ₱{Number(order.subtotal || 0).toFixed(0)}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -1053,7 +1262,7 @@ function LoyaltyTab({ member, setMember, user }) {
     if (!b.ok) { setNotice("⚠️ " + b.msg); return; }
     setCheckingMatch(true);
     const { data } = await supabase.from("loyalty_members").select("*").ilike("customer_name", form.customer_name).eq("Note", b.value).maybeSingle();
-    setMatchedPreview(data || null);
+    matchedPreview = data || null;
     setMatchChecked(true);
     setCheckingMatch(false);
   };
@@ -1140,7 +1349,6 @@ function LoyaltyTab({ member, setMember, user }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in duration-300">
       <div className="md:col-span-1 space-y-4">
-        {/* Passcode / Membership passcard block */}
         <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 rounded-2xl p-5 text-white relative overflow-hidden shadow-md">
           <div className="relative z-10 flex flex-col justify-between h-full min-h-[160px]">
             <div>
@@ -1153,7 +1361,6 @@ function LoyaltyTab({ member, setMember, user }) {
           </div>
         </div>
 
-        {/* Dynamic metrics card tracking view module stack */}
         <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm grid grid-cols-3 md:grid-cols-1 gap-2">
           <div className="p-2 bg-rose-50/40 border border-rose-100/50 rounded-lg text-center md:text-left md:flex md:justify-between md:items-center">
             <span className="text-[10px] uppercase font-bold text-slate-400 block md:inline">Balance</span>
@@ -1170,7 +1377,6 @@ function LoyaltyTab({ member, setMember, user }) {
         </div>
       </div>
 
-      {/* Main Column Body Tracking Vouchers And Lists */}
       <div className="md:col-span-2 space-y-6">
         <div className="bg-white border border-rose-50 rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
@@ -1183,7 +1389,6 @@ function LoyaltyTab({ member, setMember, user }) {
           <p className="text-xs font-medium text-slate-500 mt-2.5">🎁 Only {(nextReward - available).toFixed(0)} additional points required to qualify for subsequent product voucher allocation metrics.</p>
         </div>
 
-        {/* Voucher Container Interface Frame element */}
         <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3 mb-4">
             <h3 className="font-bold text-slate-800 text-sm">System Voucher Passports</h3>
@@ -1202,7 +1407,6 @@ function LoyaltyTab({ member, setMember, user }) {
             </div>
           </div>
 
-          {/* List framework inner renderer engine layout content segment block */}
           {(() => {
             const currentArraySource = voucherView === "active" ? vouchersActive : voucherView === "redeemed" ? vouchersRedeemed : vouchersExpired;
             if (loadingVouchers) {
@@ -1241,7 +1445,7 @@ function LoyaltyTab({ member, setMember, user }) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-    Profile Tab
+    Clean Profile Tab
 ────────────────────────────────────────────────────────────── */
 function ProfileTab({ user, onLogout }) {
   return (
@@ -1281,13 +1485,54 @@ export default function Customer() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // PWA Add to Home Screen states
+  const [orders, setOrders] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
 
-  // Core Authentication & Dynamic Manifest Swap Loop
+  const fetchOrderHistory = async (userId) => {
+    if (!userId) return;
+    setLoadingOrders(true);
+    try {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+
+      if (!error && data) {
+        setOrders(data);
+      }
+    } catch (err) {
+      console.warn("Unable to sync log metrics:", err);
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
+
+  // ================= PWA INTERACTIVE AUTO-UPDATE SYSTEM HOOK =================
   useEffect(() => {
-    // Override standard root layout manifest to match customer specifications
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+
+    navigator.serviceWorker.ready.then((registration) => {
+      registration.update();
+
+      registration.onupdatefound = () => {
+        const installingWorker = registration.installing;
+        if (!installingWorker) return;
+
+        installingWorker.onstatechange = () => {
+          if (installingWorker.state === "installed" && navigator.serviceWorker.controller) {
+            console.log("⚡ New application package version detected. Executing background autoupdate...");
+            window.location.reload();
+          }
+        };
+      };
+    });
+  }, []);
+
+  useEffect(() => {
     let link = document.querySelector("link[rel='manifest']");
     if (!link) {
       link = document.createElement("link");
@@ -1306,6 +1551,7 @@ export default function Customer() {
       }
 
       setUser(session.user);
+      await fetchOrderHistory(session.user.id);
 
       try {
         const { data: mData } = await supabase
@@ -1325,11 +1571,10 @@ export default function Customer() {
     loadData();
   }, [router]);
 
-  // Realtime update handler
   useEffect(() => {
     if (!user?.id) return;
 
-    const channel = supabase
+    const loyaltyChannel = supabase
       .channel("loyalty-live-update")
       .on(
         "postgres_changes",
@@ -1341,12 +1586,32 @@ export default function Customer() {
       )
       .subscribe();
 
+    const ordersChannel = supabase
+      .channel("customer-orders-live-status")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        { filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            setOrders((prev) => [payload.new, ...prev]);
+          } else if (payload.eventType === "UPDATE") {
+            setOrders((prev) =>
+              prev.map((o) => (o.id === payload.new.id ? payload.new : o))
+            );
+          } else if (payload.eventType === "DELETE") {
+            setOrders((prev) => prev.filter((o) => o.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(loyaltyChannel);
+      supabase.removeChannel(ordersChannel);
     };
   }, [user]);
 
-  // Capture PWA installation prompts exclusively for smartphones
   useEffect(() => {
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
@@ -1396,19 +1661,23 @@ export default function Customer() {
 
   return (
     <div className="min-h-screen bg-[#FFF5F7] text-slate-800 antialiased flex flex-col lg:flex-row">
-      {/* Universal Navigation Layout Component */}
       <AppNavigation tab={tab} setTab={setTab} />
 
-      {/* Primary Scrollable Workspace Viewport Layout Frame */}
       <main className="flex-1 overflow-x-hidden min-h-screen pb-32 pt-4 md:pt-8 px-4 sm:px-6 lg:pl-72 lg:pr-8 max-w-7xl mx-auto w-full transition-all">
         {tab === "home" && <HomeTab member={member} user={user} setTab={setTab} />}
-        {tab === "order" && <OrderTab user={user} member={member} />}
+        {tab === "order" && (
+          <OrderTab 
+            user={user} 
+            member={member} 
+            onCheckoutSuccess={() => setTab("history")} // Automatically switches tabs upon submission
+          />
+        )}
+        {tab === "history" && <TrackerTab orders={orders} loadingOrders={loadingOrders} />}
         {tab === "loyalty" && <LoyaltyTab member={member} setMember={setMember} user={user} />}
         {tab === "booking" && <BookingTab user={user} member={member} />}
         {tab === "profile" && <ProfileTab user={user} onLogout={logout} />}
       </main>
 
-      {/* Modern, Aesthetic Customer PWA App Banner Slideover */}
       {showInstallBanner && (
         <div className="fixed bottom-[84px] md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96 z-[90] bg-white border border-rose-100 p-4 rounded-2xl shadow-[0_10px_30px_rgba(252,104,125,0.12)] flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-300">
           <div className="flex items-center gap-3">
@@ -1416,7 +1685,7 @@ export default function Customer() {
               <img src={LOGO} alt="Juja App Logo" className="w-8 h-8 object-contain" />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-800">Save Juja Brew & Bites®</p>
+              <p className="text-xs font-bold text-slate-800">Install Juja Brew & Bites</p>
               <p className="text-[10px] text-slate-400 font-medium">Order faster & manage your loyalty pass directly on your device home screen.</p>
             </div>
           </div>
@@ -1425,7 +1694,7 @@ export default function Customer() {
               onClick={triggerPwaInstallation}
               className="px-3 py-1.5 bg-[#FC687D] hover:bg-rose-500 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg shadow-sm transition"
             >
-              Save
+              Install
             </button>
             <button
               onClick={closeInstallBannerForever}
