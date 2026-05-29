@@ -232,7 +232,7 @@ function HomeTab({ member, user, setTab }) {
           </div>
         </div>
 
-        {/* Desktop Profile Status Card */}
+        {/* Next.js View Context Profile Column Card Component */}
         <div className="hidden md:block bg-white rounded-2xl border border-rose-50 p-6 shadow-sm">
           <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-4">Authenticated As</p>
           <div className="flex items-center gap-3 mb-6">
@@ -560,18 +560,13 @@ function OrderTab({ user, member }) {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedBranch, setSelectedBranch] = useState("pasongtamo"); // Default branch
+  const [selectedBranch, setSelectedBranch] = useState("bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e");
 
   const [selectedItemForModal, setSelectedItemForModal] = useState(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
 
-  const BRANCH_LABELS = {
-    pasongtamo: "Pasong Tamo Branch (36D Visayas Ave.)",
-    diliman: "Diliman Branch (8 Visayas Ave.)",
-  };
-
-    useEffect(() => {
+  useEffect(() => {
     async function fetchMenu() {
       setLoading(true);
       const [itemRes, catRes] = await Promise.all([
@@ -620,61 +615,57 @@ function OrderTab({ user, member }) {
     setCartOpen(false);
   };
 
-  // Sends the structured payload straight into the Database for POS tracking
   const checkout = async () => {
-  if (!user?.id) {
-    alert("❌ Check out failed: No active user session detected.");
-    return;
-  }
-  if (cart.length === 0) {
-    alert("❌ Basket is empty.");
-    return;
-  }
-
-  setIsSubmitting(true);
-
-  // 1. Build payload explicitly
-  const orderPayload = {
-    user_id: user.id,
-    customer_name: member?.customer_name || user?.user_metadata?.full_name || "Web Customer",
-    branch_id: selectedBranch,
-    items: cart, 
-    subtotal: Number(subtotal),
-    status: "pending", 
-  };
-
-  // 2. Debug log exactly what we are sending out to the console
-  console.log("🚀 Sending order payload to Supabase...", orderPayload);
-
-  try {
-    const { data, error, status, statusText } = await supabase
-      .from("orders")
-      .insert([orderPayload])
-      .select(); // Forces database to return the freshly minted row back
-
-    if (error) {
-      console.error("❌ Supabase Database API Error:", error);
-      throw error;
+    if (!user?.id) {
+      alert("❌ Check out failed: No active user session detected.");
+      return;
     }
-
-    // 3. Log what the database responded with
-    console.log("✅ Database Response Status:", status, statusText);
-    console.log("📦 Row inserted data:", data);
-
-    if (!data || data.length === 0) {
-      alert("⚠️ Request processed, but database returned 0 rows. Check Supabase RLS policies!");
+    if (cart.length === 0) {
+      alert("❌ Basket is empty.");
       return;
     }
 
-    alert(`🎉 Order sent to POS! Reference ID: ${data[0].id.slice(0,8)}`);
-    setCart([]); 
-    setCartOpen(false);
-  } catch (err) {
-    console.error("❌ High-level try/catch failure:", err);
-    alert(`❌ Order failed to send: ${err.message || "Network Timeout"}`);
-  } finally {
-    setIsSubmitting(false);
-  }
+    setIsSubmitting(true);
+
+    const orderPayload = {
+      user_id: user.id,
+      customer_name: member?.customer_name || user?.user_metadata?.full_name || "Web Customer",
+      branch_id: selectedBranch,
+      items: cart, 
+      subtotal: Number(subtotal),
+      status: "pending", 
+    };
+
+    console.log("🚀 Sending order payload to Supabase...", orderPayload);
+
+    try {
+      const { data, error, status, statusText } = await supabase
+        .from("orders")
+        .insert([orderPayload])
+        .select();
+
+      if (error) {
+        console.error("❌ Supabase Database API Error:", error);
+        throw error;
+      }
+
+      console.log("✅ Database Response Status:", status, statusText);
+      console.log("📦 Row inserted data:", data);
+
+      if (!data || data.length === 0) {
+        alert("⚠️ Request processed, but database returned 0 rows. Check Supabase RLS policies!");
+        return;
+      }
+
+      alert(`🎉 Order sent to POS! Reference ID: ${data[0].id.slice(0,8)}`);
+      setCart([]); 
+      setCartOpen(false);
+    } catch (err) {
+      console.error("❌ High-level try/catch failure:", err);
+      alert(`❌ Order failed to send: ${err.message || "Network Timeout"}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -753,12 +744,9 @@ function OrderTab({ user, member }) {
               onChange={(e) => setSelectedBranch(e.target.value)}
               className="w-full bg-white border border-slate-200 px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 outline-none cursor-pointer focus:border-[#FC687D]"
             >
-              {/* Use your exact store UUID string as the option value */}
               <option value="bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e">
                 Pasong Tamo Branch (36D Visayas Ave.)
               </option>
-              
-              {/* Replace this with your second store's actual UUID once you pull it from profiles */}
               <option value="e916bee8-3770-4650-9b46-d2e7d3ad49e6">
                 Diliman Branch (8 Visayas Ave.)
               </option>
@@ -1166,7 +1154,6 @@ function LoyaltyTab({ member, setMember, user }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in duration-300">
       <div className="md:col-span-1 space-y-4">
-        {/* Passcode / Membership layout passcard item block */}
         <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 rounded-2xl p-5 text-white relative overflow-hidden shadow-md">
           <div className="relative z-10 flex flex-col justify-between h-full min-h-[160px]">
             <div>
@@ -1179,7 +1166,6 @@ function LoyaltyTab({ member, setMember, user }) {
           </div>
         </div>
 
-        {/* Dynamic metrics card tracking view module stack */}
         <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm grid grid-cols-3 md:grid-cols-1 gap-2">
           <div className="p-2 bg-rose-50/40 border border-rose-100/50 rounded-lg text-center md:text-left md:flex md:justify-between md:items-center">
             <span className="text-[10px] uppercase font-bold text-slate-400 block md:inline">Balance</span>
@@ -1304,6 +1290,10 @@ export default function Customer() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  // PWA Add To Home Screen Installer States
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+
   useEffect(() => {
     async function loadData() {
       const { data } = await supabase.auth.getSession();
@@ -1333,6 +1323,34 @@ export default function Customer() {
 
     loadData();
   }, [router]);
+
+  // ================= PWA INSTALL LIFECYCLE LISTENERS =================
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+      setShowInstallBanner(true);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      setShowInstallBanner(false);
+    }
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleTriggerInstallPrompt = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    console.log(`Customer portal installation window choice tracking metric: ${outcome}`);
+    setInstallPrompt(null);
+    setShowInstallBanner(false);
+  };
 
   useEffect(() => {
     if (!user?.id) return;
@@ -1367,18 +1385,45 @@ export default function Customer() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF5F7] text-slate-800 antialiased flex flex-col lg:flex-row">
-      {/* Universal Shared Desktop-Sidebar / Mobile-Tab Navigation Controller */}
-      <AppNavigation tab={tab} setTab={setTab} />
+    <div className="min-h-screen bg-[#FFF5F7] text-slate-800 antialiased flex flex-col relative">
+      
+      {/* UNIVERSAL PWA MOBILE/DESKTOP CUSTOMER INSTALL BAR LINK */}
+      {showInstallBanner && (
+        <div className="bg-gradient-to-r from-rose-500 to-[#FC687D] text-white py-2.5 px-4 text-xs font-semibold shadow-sm flex items-center justify-between z-[60] sticky top-0 transition-all animate-in slide-in-from-top duration-300">
+          <div className="flex items-center gap-2">
+            <span>✨</span>
+            <span>Install the <b>Juja Member App</b> on your screen for fast ordering and live loyalty point updates!</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handleTriggerInstallPrompt} 
+              className="bg-white text-slate-900 rounded-lg px-3 py-1 font-bold uppercase tracking-wider text-[10px] shadow-sm active:scale-95 transition"
+            >
+              Install App
+            </button>
+            <button 
+              onClick={() => setShowInstallBanner(false)} 
+              className="text-white/80 hover:text-white px-2 py-0.5 text-base font-normal leading-none"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
-      {/* Primary Scrollable Workspace viewport frame component */}
-      <main className="flex-1 overflow-x-hidden min-h-screen pb-28 pt-4 md:pt-8 px-4 sm:px-6 lg:pl-72 lg:pr-8 max-w-7xl mx-auto w-full transition-all">
-        {tab === "home" && <HomeTab member={member} user={user} setTab={setTab} />}
-        {tab === "order" && <OrderTab user={user} />}
-        {tab === "loyalty" && <LoyaltyTab member={member} setMember={setMember} user={user} />}
-        {tab === "booking" && <BookingTab user={user} member={member} />}
-        {tab === "profile" && <ProfileTab user={user} onLogout={logout} />}
-      </main>
+      <div className="flex flex-col lg:flex-row flex-1">
+        {/* Universal Shared Desktop-Sidebar / Mobile-Tab Navigation Controller */}
+        <AppNavigation tab={tab} setTab={setTab} />
+
+        {/* Primary Scrollable Workspace viewport frame component */}
+        <main className="flex-1 overflow-x-hidden min-h-screen pb-28 pt-4 md:pt-8 px-4 sm:px-6 lg:pl-72 lg:pr-8 max-w-7xl mx-auto w-full transition-all">
+          {tab === "home" && <HomeTab member={member} user={user} setTab={setTab} />}
+          {tab === "order" && <OrderTab user={user} member={member} />}
+          {tab === "loyalty" && <LoyaltyTab member={member} setMember={setMember} user={user} />}
+          {tab === "booking" && <BookingTab user={user} member={member} />}
+          {tab === "profile" && <ProfileTab user={user} onLogout={logout} />}
+        </main>
+      </div>
     </div>
   );
 }

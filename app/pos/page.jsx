@@ -1883,7 +1883,7 @@ export default function POSPage() {
             {loading ? (
               <div className="py-24 text-center"><div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full mx-auto" /></div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[calc(100vh-270px)] overflow-y-auto pr-1">
+              <div className="grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-4 gap-3 max-h-[calc(100vh-270px)] overflow-y-auto pr-1">
                 {items
                   .filter((i) => i.category === activeCategory)
                   .filter((i) => (i.name || "").toLowerCase().includes(menuSearch.toLowerCase()))
