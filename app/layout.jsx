@@ -3,6 +3,7 @@ import "./style.css";
 export const metadata = {
   title: "Juja Brew and Bites®",
   description: "Premium Coffee, Tea, and Exquisite Bites",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({ children }) {
