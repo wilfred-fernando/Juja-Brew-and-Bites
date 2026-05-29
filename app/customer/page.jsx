@@ -1272,7 +1272,7 @@ function ProfileTab({ user, onLogout }) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-    Main Responsive Customer Hub Page Controller (Includes PWA Prompt)
+    Main Responsive Customer Hub Page Controller
 ────────────────────────────────────────────────────────────── */
 export default function Customer() {
   const [user, setUser] = useState(null);
@@ -1339,12 +1339,9 @@ export default function Customer() {
   // Capture PWA installation trigger metrics
   useEffect(() => {
     const handleBeforeInstallPrompt = (e) => {
-      // Prevent browser default behavior from interrupting page metrics
       e.preventDefault();
-      // Store event globally to execute on manual selection click
       setDeferredPrompt(e);
       
-      // Confirm that the user hasn't explicitly muted or closed out app installation tips before
       const isBannerDismissed = localStorage.getItem("juja_pwa_dismissed") === "true";
       if (!isBannerDismissed) {
         setShowInstallBanner(true);
@@ -1361,13 +1358,10 @@ export default function Customer() {
   const triggerPwaInstallation = async () => {
     if (!deferredPrompt) return;
     
-    // Fire user response selection screen
     deferredPrompt.prompt();
-    
     const { outcome } = await deferredPrompt.userChoice;
     console.log(`📦 PWA prompt choice logged: ${outcome}`);
     
-    // Clear deferred container tracking data
     setDeferredPrompt(null);
     setShowInstallBanner(false);
   };
@@ -1404,7 +1398,7 @@ export default function Customer() {
         {tab === "profile" && <ProfileTab user={user} onLogout={logout} />}
       </main>
 
-      {/* Modern, Aesthetic PWA App Banner Layer */}
+      {/* Beautiful, Corrected Brand PWA App Banner Layer */}
       {showInstallBanner && (
         <div className="fixed bottom-[84px] md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96 z-[90] bg-white border border-rose-100 p-4 rounded-2xl shadow-[0_10px_30px_rgba(252,104,125,0.12)] flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-300">
           <div className="flex items-center gap-3">
@@ -1412,7 +1406,7 @@ export default function Customer() {
               <img src={LOGO} alt="Juja App Logo" className="w-8 h-8 object-contain" />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-800">Install Juja App</p>
+              <p className="text-xs font-bold text-slate-800">Install Juja Brew & Bites</p>
               <p className="text-[10px] text-slate-400 font-medium">Order faster & manage your loyalty pass directly on your device home screen.</p>
             </div>
           </div>
