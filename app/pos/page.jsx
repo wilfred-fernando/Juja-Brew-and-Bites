@@ -271,7 +271,7 @@ function Toast({ toast, onClose }) {
       ? "bg-red-600"
       : toast.type === "warn"
       ? "bg-orange-600"
-      : "bg-slate-900";
+      : "bg-rose-950";
 
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150] px-4 w-full max-w-md">
@@ -292,11 +292,17 @@ function Toast({ toast, onClose }) {
   );
 }
 
-const TARGET_WEB_STATUSES = ["pending", "accepted", "ready", "Pending", "Accepted", "Ready"];
+const TARGET_WEB_STATUSES = ["pending", "accepted", "ready", "completed", "Pending", "Accepted", "Ready", "Completed"];
 const calcLoyaltyPoints = (amount) => Number(((Number(amount) || 0) * 0.04).toFixed(2));
 
 function playPosAlertSound() {
   if (typeof window === "undefined") return;
+  const audio = new Audio("/sound/notification.mp3");
+  audio.volume = 0.95;
+  audio.play().catch(() => playGeneratedPosTone());
+}
+
+function playGeneratedPosTone() {
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
@@ -520,6 +526,7 @@ function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onD
     if (s === "completed") return "bg-slate-100 text-slate-600 border-slate-200";
     return "bg-rose-50 text-rose-700 border-rose-200";
   };
+  const activeOrders = orders.filter((order) => String(order.status || "").toLowerCase() !== "completed");
 
   return (
     <ModalShell open={open} onClose={onClose} title="Web Orders" subtitle="Pending & Accepted" z={145}>
@@ -531,16 +538,17 @@ function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onD
           ↻ Refresh List
         </button>
       </div>
-      {orders.length === 0 ? (
+      {activeOrders.length === 0 ? (
         <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 text-xs font-medium">
           No pending or accepted web orders located.
         </div>
       ) : (
         <div className="space-y-2 max-h-[52vh] overflow-y-auto pr-1">
-          {orders.map((order) => {
+          {activeOrders.map((order) => {
             const status = String(order.status || "accepted").toLowerCase();
             const readyDisabled = status === "ready" || status === "completed";
             const deliveredDisabled = status === "completed";
+            const total = Number(order.total || order.subtotal || 0);
 
             return (
               <div key={order.id} className="p-3.5 border rounded-xl bg-white shadow-sm hover:border-rose-100 transition">
@@ -548,7 +556,7 @@ function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onD
                   <div className="min-w-0 text-left">
                     <p className="font-bold text-slate-800 text-sm truncate">{order.customer_name || "Web Customer"}</p>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Lines: {(order.items || []).length} • <span className="font-bold text-slate-700">₱{Number(order.subtotal || order.total || 0).toFixed(0)}</span>
+                      Lines: {(order.items || []).length} • <span className="font-bold text-slate-700">₱{total.toFixed(2)}</span>
                     </p>
                     <p className="text-[11px] font-medium text-slate-400 mt-1 truncate">
                       {order.dining_option || "Web order"} {order.fulfillment_time ? `• ${order.fulfillment_time}` : ""}
@@ -563,7 +571,7 @@ function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onD
                   <button
                     type="button"
                     onClick={() => onEdit(order)}
-                    className="h-9 rounded-lg bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition"
+                    className="h-9 rounded-lg bg-rose-50 hover:bg-rose-100 text-xs font-bold text-rose-700 transition"
                   >
                     Edit
                   </button>
@@ -614,7 +622,7 @@ function DiningOptionModal({ open, onClose, options, onPick }) {
           </button>
         ))}
       </div>
-      <button onClick={onClose} className="w-full mt-4 h-11 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-wider">Close</button>
+      <button onClick={onClose} className="w-full mt-4 h-11 bg-rose-950 text-white rounded-xl font-bold text-xs uppercase tracking-wider">Close</button>
     </ModalShell>
   );
 }
@@ -702,7 +710,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
     setSelections(selected);
 
     const c = {};
-    (item.variants || []).forEach((g) => (c[g.id] = false));
+    (item.variants || []).filter((g) => g.isAvailable !== false && g.is_available !== false).forEach((g) => (c[g.id] = false));
     setCollapsed(c);
   }, [item]);
 
@@ -727,7 +735,8 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
 
   const basePrice = Number(item.price) || 0;
   const unitPrice = basePrice + variantPrice;
-  const canAdd = (item.variants || []).every((g) => !g.isRequired || (selections[g.id] || []).length > 0);
+  const availableVariantGroups = (item.variants || []).filter((g) => g.isAvailable !== false && g.is_available !== false);
+  const canAdd = availableVariantGroups.every((g) => !g.isRequired || (selections[g.id] || []).length > 0);
 
   const variantDetails = Object.values(selections)
     .flat()
@@ -759,9 +768,9 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
         />
       </div>
 
-      {Array.isArray(item.variants) && item.variants.length > 0 && (
+      {availableVariantGroups.length > 0 && (
         <div className="mt-4 space-y-4 max-h-[30vh] overflow-y-auto pr-1">
-          {item.variants.map((g) => {
+          {availableVariantGroups.map((g) => {
             const isCollapsed = !!collapsed[g.id];
             const selectedCount = (selections[g.id] || []).length;
 
@@ -784,7 +793,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
                 </div>
                 {!isCollapsed && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                    {(g.options || []).map((o) => {
+                    {(g.options || []).filter((o) => o.isAvailable !== false && o.is_available !== false).map((o) => {
                       const sel = (selections[g.id] || []).find((x) => x.id === o.id);
                       return (
                         <button
@@ -840,26 +849,109 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
 }
 
 function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, onConfirm, total, paymentAmount, setPaymentAmount }) {
+  const [useSplitPayment, setUseSplitPayment] = useState(false);
+  const [splitPayments, setSplitPayments] = useState([]);
   const isCash = String(selectedPayment || "").toLowerCase().includes("cash");
   const amt = Number(paymentAmount || 0);
   const due = Number(total || 0);
+  const availableTypes = paymentTypes || [];
+
+  useEffect(() => {
+    if (!open) return;
+    setUseSplitPayment(false);
+    setSplitPayments([
+      { id: "split-1", method: availableTypes[0]?.name || selectedPayment || "", amount: "" },
+      { id: "split-2", method: availableTypes[1]?.name || availableTypes[0]?.name || selectedPayment || "", amount: "" },
+    ]);
+  }, [open, selectedPayment, paymentTypes]);
 
   const change = isCash ? Math.max(0, amt - due) : 0;
   const remaining = Math.max(0, due - amt);
+  const splitTotal = splitPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const splitRemaining = Math.max(0, due - splitTotal);
+  const splitChange = Math.max(0, splitTotal - due);
+  const splitReady = splitPayments.length > 1 && splitPayments.every((p) => p.method && Number(p.amount || 0) > 0) && splitTotal >= due;
 
   const disableConfirm =
-    !selectedPayment ||
-    !paymentAmount ||
-    isNaN(amt) ||
-    amt <= 0 ||
-    (isCash && amt < due);
+    useSplitPayment
+      ? !splitReady
+      : !selectedPayment ||
+        !paymentAmount ||
+        isNaN(amt) ||
+        amt <= 0 ||
+        (isCash && amt < due);
+
+  const updateSplitPayment = (idx, patch) => {
+    setSplitPayments((prev) => prev.map((row, i) => (i === idx ? { ...row, ...patch } : row)));
+  };
+
+  const addSplitRow = () => {
+    setSplitPayments((prev) => [
+      ...prev,
+      { id: `split-${Date.now()}`, method: availableTypes[0]?.name || "", amount: "" },
+    ]);
+  };
+
+  const removeSplitRow = (idx) => {
+    setSplitPayments((prev) => (prev.length <= 2 ? prev : prev.filter((_, i) => i !== idx)));
+  };
 
   return (
     <ModalShell open={open} onClose={onClose} title="Payment" subtitle="Select Payment Type" z={150}>
       <div className="space-y-4">
+        <div className="flex items-center justify-between rounded-xl border border-rose-100 bg-rose-50/60 px-3 py-2">
+          <div>
+            <p className="text-xs font-black text-slate-800">Split Payment</p>
+            <p className="text-[10px] font-semibold text-slate-500">Use two or more payment methods.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setUseSplitPayment((v) => !v)}
+            className={`h-7 w-12 rounded-full p-1 transition ${useSplitPayment ? "bg-[#FC687D]" : "bg-slate-200"}`}
+            aria-label="Toggle split payment"
+          >
+            <span className={`block h-5 w-5 rounded-full bg-white shadow-sm transition ${useSplitPayment ? "translate-x-5" : ""}`} />
+          </button>
+        </div>
+
         {(paymentTypes || []).length === 0 ? (
           <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
             No system configurations available for merchant settlement modes.
+          </div>
+        ) : useSplitPayment ? (
+          <div className="space-y-2">
+            {splitPayments.map((row, idx) => (
+              <div key={row.id} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center rounded-xl border border-slate-200 bg-white p-2">
+                <select
+                  value={row.method}
+                  onChange={(e) => updateSplitPayment(idx, { method: e.target.value })}
+                  className="h-10 rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-bold text-slate-700 outline-none"
+                >
+                  {availableTypes.map((p) => <option key={p.id || p.name} value={p.name}>{p.name}</option>)}
+                </select>
+                <div className="flex items-center gap-1 h-10 rounded-lg border border-slate-200 bg-slate-50 px-2">
+                  <span className="text-slate-400 font-bold text-xs">₱</span>
+                  <input
+                    inputMode="decimal"
+                    value={row.amount}
+                    onChange={(e) => updateSplitPayment(idx, { amount: e.target.value.replace(/[^\d.]/g, "") })}
+                    className="w-full bg-transparent text-xs font-bold text-slate-800 outline-none"
+                    placeholder="0.00"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeSplitRow(idx)}
+                  disabled={splitPayments.length <= 2}
+                  className="h-10 w-10 rounded-lg border border-slate-200 text-slate-400 font-black disabled:opacity-30"
+                >
+                  x
+                </button>
+              </div>
+            ))}
+            <button type="button" onClick={addSplitRow} className="w-full h-9 rounded-xl border border-dashed border-rose-200 bg-rose-50 text-[10px] font-black uppercase tracking-wider text-[#FC687D]">
+              Add Payment Line
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2">
@@ -902,8 +994,13 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
 
           <div className="text-xs space-y-1.5 pt-2 border-t border-slate-200/60 font-semibold text-slate-600">
             <div className="flex justify-between"><span>Bill Total Due</span><span className="text-slate-900 font-bold">{peso2(due)}</span></div>
-            <div className="flex justify-between"><span>Tendered</span><span>{peso2(amt)}</span></div>
-            {isCash ? (
+            <div className="flex justify-between"><span>Tendered</span><span>{peso2(useSplitPayment ? splitTotal : amt)}</span></div>
+            {useSplitPayment ? (
+              <>
+                {splitRemaining > 0 ? <div className="flex justify-between text-orange-600"><span>Remaining</span><span className="font-bold">{peso2(splitRemaining)}</span></div> : null}
+                {splitChange > 0 ? <div className="flex justify-between text-emerald-600"><span>Over Tender</span><span className="font-bold">{peso2(splitChange)}</span></div> : null}
+              </>
+            ) : isCash ? (
               <div className="flex justify-between text-emerald-600 font-bold border-t border-dashed border-slate-200 pt-1.5 mt-1">
                 <span>Change Allocation</span>
                 <span className="text-sm font-extrabold">{peso2(change)}</span>
@@ -911,13 +1008,19 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
             ) : remaining > 0 ? (
               <div className="flex justify-between text-orange-600"><span>Unsettled Margin</span><span className="font-bold">{peso2(remaining)}</span></div>
             ) : null}
-            {isCash && amt < due ? <p className="text-[10px] text-red-500 font-bold mt-1">⚠️ Warning: Tendered value lower than order subtotal due.</p> : null}
+            {!useSplitPayment && isCash && amt < due ? <p className="text-[10px] text-red-500 font-bold mt-1">Warning: Tendered value lower than order subtotal due.</p> : null}
           </div>
         </div>
 
         <button
           disabled={disableConfirm}
-          onClick={() => onConfirm({ amountPaid: amt, changeDue: change })}
+          onClick={() => onConfirm(useSplitPayment
+            ? {
+                payments: splitPayments.map((p) => ({ method: p.method, amount: Number(p.amount || 0) })),
+                amountPaid: splitTotal,
+                changeDue: splitChange,
+              }
+            : { amountPaid: amt, changeDue: change })}
           className="w-full h-12 rounded-xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-wider shadow-sm transition disabled:opacity-40"
         >
           Finalize Transaction • {peso0(total)}
@@ -930,7 +1033,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
 function ReceiptPreviewModal({ open, onClose, receiptText }) {
   return (
     <ModalShell open={open} onClose={onClose} title="Receipt Printout" subtitle="Slip Log Preview" z={160}>
-      <pre className="whitespace-pre-wrap text-xs bg-slate-900 text-slate-100 font-mono rounded-xl p-4 shadow-inner max-h-[40vh] overflow-y-auto">{receiptText || "No active buffer logged."}</pre>
+      <pre className="whitespace-pre-wrap text-xs bg-rose-950 text-rose-50 font-mono rounded-xl p-4 shadow-inner max-h-[40vh] overflow-y-auto">{receiptText || "No active buffer logged."}</pre>
       <div className="grid grid-cols-2 gap-3 mt-4">
         <button
           onClick={onClose}
@@ -940,7 +1043,7 @@ function ReceiptPreviewModal({ open, onClose, receiptText }) {
         </button>
         <button
           onClick={() => printReceiptText(receiptText, { widthMm: 80 })}
-          className="w-full h-11 rounded-xl bg-slate-900 text-white text-xs font-bold uppercase tracking-wider shadow-sm"
+          className="w-full h-11 rounded-xl bg-rose-950 text-white text-xs font-bold uppercase tracking-wider shadow-sm"
         >
           Print Thermal
         </button>
@@ -956,7 +1059,7 @@ function IncomingOrderModal({ open, order, onAccept, onEdit, onReject }) {
   if (!open || !order) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[200] bg-rose-950/60 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="w-full max-w-lg bg-white rounded-[2rem] p-6 shadow-2xl animate-in zoom-in-95 duration-300 border border-rose-100 flex flex-col max-h-[90vh]">
         
         {/* Urgent Header */}
@@ -1097,6 +1200,20 @@ export default function POSPage() {
   const [splitMode, setSplitMode] = useState(false);
   const [splitSelected, setSplitSelected] = useState([]);
   const [diningOptionPickOpen, setDiningOptionPickOpen] = useState(false);
+  const [posMenuOpen, setPosMenuOpen] = useState(false);
+  const [managementOpen, setManagementOpen] = useState(false);
+  const [managementView, setManagementView] = useState("receipts");
+  const [receiptRows, setReceiptRows] = useState([]);
+  const [receiptItemRows, setReceiptItemRows] = useState([]);
+  const [receiptRefunds, setReceiptRefunds] = useState({});
+  const [selectedReceiptNumber, setSelectedReceiptNumber] = useState("");
+  const [startingCash, setStartingCash] = useState("");
+  const [printerForm, setPrinterForm] = useState({
+    name: "",
+    role: "receipt",
+    service_uuid: "",
+    characteristic_uuid: "",
+  });
 
   const [toast, setToast] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -1135,6 +1252,57 @@ export default function POSPage() {
   const selectedCartItem = useMemo(() => cart.find((x) => x.cartItemId === voucherTargetCartItemId) || null, [cart, voucherTargetCartItemId]);
   const ticketTitle = activeWebOrderId ? `Web Order: #${activeWebOrderId.slice(0,8).toUpperCase()}` : (diningOptionName || "Select Dining Option");
   const ticketSubtitle = attachedCustomer?.name ? `Loyalty Member: ${attachedCustomer.name}` : "Walk-in Customer";
+  const selectedReceipt = useMemo(
+    () => receiptRows.find((row) => row.receipt_number === selectedReceiptNumber) || receiptRows[0] || null,
+    [receiptRows, selectedReceiptNumber]
+  );
+  const selectedReceiptItems = useMemo(
+    () => receiptItemRows.filter((row) => row.receipt_number === selectedReceipt?.receipt_number),
+    [receiptItemRows, selectedReceipt]
+  );
+  const shiftSummary = useMemo(() => {
+    const rows = receiptRows || [];
+    const isRefunded = (r) => String(r.status || "").toLowerCase().includes("refund");
+    const paymentTotal = (needle) =>
+      rows
+        .filter((r) => String(r.payment_type || "").toLowerCase().includes(needle.toLowerCase()))
+        .filter((r) => !isRefunded(r))
+        .reduce((sum, r) => sum + Number(r.total_collected || 0), 0);
+    const cashPayments = paymentTotal("cash");
+    const cashRefunds = rows
+      .filter((r) => String(r.payment_type || "").toLowerCase().includes("cash"))
+      .filter(isRefunded)
+      .reduce((sum, r) => sum + Number(r.total_collected || 0), 0);
+    return {
+      cashPayments,
+      cashRefunds,
+      expectedCash: Number(startingCash || 0) + cashPayments - cashRefunds,
+      payments: {
+        Gcash: paymentTotal("gcash"),
+        QRPH: paymentTotal("qrph"),
+        GrabFood: paymentTotal("grabfood"),
+        "Grab Dine Out": paymentTotal("grab dine out"),
+        Card: paymentTotal("card"),
+        Panda: paymentTotal("panda"),
+      },
+    };
+  }, [receiptRows, startingCash]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      setReceiptRefunds(JSON.parse(localStorage.getItem("pos_receipt_refunds") || "{}"));
+    } catch {
+      setReceiptRefunds({});
+    }
+  }, []);
+
+  const saveReceiptRefunds = (next) => {
+    setReceiptRefunds(next);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("pos_receipt_refunds", JSON.stringify(next));
+    }
+  };
 
   useEffect(() => {
     setIsMounted(true);
@@ -1530,7 +1698,7 @@ export default function POSPage() {
     setLoading(true);
     try {
       const [iRes, catRes, cRes] = await Promise.all([
-        supabase.from("menu_items").select("*").eq("is_available", true).order("name"),
+        supabase.from("menu_items").select("*").order("name"),
         supabase.from("menu_categories").select("*").order("name", { ascending: true }),
         supabase.from("loyalty_members").select("id, name:customer_name, code:customer_code"),
       ]);
@@ -1732,6 +1900,42 @@ export default function POSPage() {
     showToast("success", "Order Completed", `Web order completed. Loyalty points: +${pointsEarned.toFixed(2)}.`);
   }
 
+  async function createPointRewardVouchers(memberId, lifetimePoints) {
+    if (!memberId) return;
+    const earnedVoucherCount = Math.floor(Number(lifetimePoints || 0) / 100);
+    if (earnedVoucherCount <= 0) return;
+
+    const { data: existing, error } = await supabase
+      .from("vouchers")
+      .select("id, code, reward_text, reward_type")
+      .eq("member_id", memberId);
+    if (error) return;
+
+    const existingPointsVouchers = (existing || []).filter((v) => {
+      const code = String(v.code || "").toUpperCase();
+      const rewardText = String(v.reward_text || "").toLowerCase();
+      return v.reward_type === "points" || code.startsWith("PTS") || rewardText.includes("100 points");
+    }).length;
+    const missingCount = earnedVoucherCount - existingPointsVouchers;
+    if (missingCount <= 0) return;
+
+    const now = Date.now();
+    const rows = Array.from({ length: missingCount }, (_, idx) => {
+      const voucherNumber = existingPointsVouchers + idx + 1;
+      return {
+        member_id: memberId,
+        code: `PTS100-${voucherNumber}-${Math.floor(1000 + Math.random() * 9000)}`,
+        reward_text: "FREE 16oz Drink or Waffle (100 Points Reward)",
+        issued_at: new Date(now).toISOString(),
+        expires_at: new Date(now + 90 * 86400000).toISOString(),
+        status: "active",
+        reward_type: "points",
+      };
+    });
+
+    await supabase.from("vouchers").insert(rows);
+  }
+
   async function awardWebOrderLoyaltyPoints(order, pointsEarned) {
     if (!order?.user_id || !pointsEarned) return;
 
@@ -1747,18 +1951,161 @@ export default function POSPage() {
       const currentBalance = Number(member["Points balance"] || 0);
       const currentAvailable = Number(member["Available points"] || 0);
       const currentVisits = Number(member["Total visits"] || 0);
+      const nextBalance = Number((currentBalance + pointsEarned).toFixed(2));
+      const nextAvailable = Number((currentAvailable + pointsEarned).toFixed(2));
 
       await supabase
         .from("loyalty_members")
         .update({
-          "Points balance": Number((currentBalance + pointsEarned).toFixed(2)),
-          "Available points": Number((currentAvailable + pointsEarned).toFixed(2)),
+          "Points balance": nextBalance,
+          "Available points": nextAvailable,
           "Total visits": currentVisits + 1,
         })
         .eq("id", member.id);
+
+      await createPointRewardVouchers(member.id, nextBalance);
     } catch (err) {
       console.warn("Loyalty point update skipped:", err);
     }
+  }
+
+  async function fetchReceiptLogs() {
+    const receiptRes = await supabase
+      .from("orders")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(120);
+    if (receiptRes.error) {
+      showToast("error", "Receipts Failed", receiptRes.error.message);
+      return;
+    }
+
+    let refunds = receiptRefunds;
+    if (typeof window !== "undefined") {
+      try {
+        refunds = JSON.parse(localStorage.getItem("pos_receipt_refunds") || "{}");
+      } catch {
+        refunds = {};
+      }
+    }
+    const rows = (receiptRes.data || []).map((order) => ({
+      ...order,
+      receipt_number: String(order.id),
+      date: order.created_at ? new Date(order.created_at).toLocaleString() : "",
+      gross_sales: Number(order.total || 0) + Number(order.discount || 0),
+      discounts: Number(order.discount || 0),
+      net_sales: Number(order.total || 0),
+      total_collected: Number(order.total || 0),
+      payment_type: order.payment_method || "Other",
+      description: order.dining_option || "POS Order",
+      status: refunds[String(order.id)]?.receipt || "Closed",
+    }));
+    setReceiptRows(rows);
+    const activeReceipt = selectedReceiptNumber || rows[0]?.receipt_number || "";
+    setSelectedReceiptNumber(activeReceipt);
+
+    const receiptNumbers = rows.map((r) => r.receipt_number).filter(Boolean);
+    if (receiptNumbers.length === 0) {
+      setReceiptItemRows([]);
+      return;
+    }
+
+    const itemRes = await supabase
+      .from("order_items")
+      .select("*")
+      .in("order_id", receiptNumbers);
+    if (!itemRes.error) {
+      setReceiptItemRows((itemRes.data || []).map((item) => ({
+        ...item,
+        receipt_number: String(item.order_id),
+        item: item.name,
+        net_sales: item.line_total,
+        gross_sales: item.line_total,
+        status: refunds[String(item.order_id)]?.items?.[item.id || item.name] || "Closed",
+      })));
+    }
+  }
+
+  function openManagement(view) {
+    setManagementView(view);
+    setPosMenuOpen(false);
+    setManagementOpen(true);
+    if (view === "receipts" || view === "shift") fetchReceiptLogs();
+  }
+
+  async function refundReceipt(receipt) {
+    if (!receipt?.receipt_number) return;
+    const key = String(receipt.receipt_number);
+    const next = { ...receiptRefunds, [key]: { ...(receiptRefunds[key] || {}), receipt: "Refunded" } };
+    saveReceiptRefunds(next);
+    setReceiptRows((prev) => prev.map((row) => row.receipt_number === key ? { ...row, status: "Refunded" } : row));
+    setReceiptItemRows((prev) => prev.map((row) => row.receipt_number === key ? { ...row, status: "Refunded" } : row));
+    showToast("success", "Receipt Refunded", receipt.receipt_number);
+  }
+
+  async function refundReceiptItem(itemRow) {
+    if (!itemRow?.receipt_number || !itemRow?.item) return;
+    const receiptKey = String(itemRow.receipt_number);
+    const itemKey = itemRow.id || itemRow.item;
+    const next = {
+      ...receiptRefunds,
+      [receiptKey]: {
+        ...(receiptRefunds[receiptKey] || {}),
+        receipt: receiptRefunds[receiptKey]?.receipt === "Refunded" ? "Refunded" : "Partial Refund",
+        items: { ...(receiptRefunds[receiptKey]?.items || {}), [itemKey]: "Refunded" },
+      },
+    };
+    saveReceiptRefunds(next);
+    setReceiptRows((prev) => prev.map((row) => row.receipt_number === receiptKey && row.status !== "Refunded" ? { ...row, status: "Partial Refund" } : row));
+    setReceiptItemRows((prev) => prev.map((row) => row.receipt_number === receiptKey && (row.id || row.item) === itemKey ? { ...row, status: "Refunded" } : row));
+    showToast("success", "Item Refunded", itemRow.item);
+  }
+
+  async function toggleMenuItemAvailability(item) {
+    if (!item?.id) return;
+    const nextAvailable = item.is_available === false;
+    const { error } = await supabase
+      .from("menu_items")
+      .update({ is_available: nextAvailable })
+      .eq("id", item.id);
+    if (error) return showToast("error", "Item Update Failed", error.message);
+    setItems((prev) => prev.map((row) => (row.id === item.id ? { ...row, is_available: nextAvailable } : row)));
+  }
+
+  async function toggleVariantGroupAvailability(item, groupIndex) {
+    const groups = Array.isArray(item?.variants) ? [...item.variants] : [];
+    if (!item?.id || !groups[groupIndex]) return;
+    const current = groups[groupIndex].isAvailable ?? groups[groupIndex].is_available ?? true;
+    groups[groupIndex] = { ...groups[groupIndex], isAvailable: !current, is_available: !current };
+    const { error } = await supabase
+      .from("menu_items")
+      .update({ variants: groups })
+      .eq("id", item.id);
+    if (error) return showToast("error", "Option Update Failed", error.message);
+    setItems((prev) => prev.map((row) => (row.id === item.id ? { ...row, variants: groups } : row)));
+  }
+
+  async function addBluetoothPrinter() {
+    if (!storeId) return showToast("error", "Store Missing", "Store profile is not loaded.");
+    if (!printerForm.name.trim()) return showToast("error", "Printer Name Required", "Enter a printer name.");
+    const { error } = await supabase.from("pos_printers").insert([{
+      store_id: storeId,
+      name: printerForm.name.trim(),
+      role: printerForm.role,
+      transport: "ble",
+      ble_service_uuid: printerForm.service_uuid.trim() || null,
+      ble_characteristic_uuid: printerForm.characteristic_uuid.trim() || null,
+      is_active: true,
+    }]);
+    if (error) return showToast("error", "Printer Save Failed", error.message);
+    setPrinterForm({ name: "", role: "receipt", service_uuid: "", characteristic_uuid: "" });
+    await loadPrinters(storeId);
+    showToast("success", "Bluetooth Printer Added", "Printer saved to POS settings.");
+  }
+
+  function closeShift() {
+    localStorage.setItem("pos_shift_closed_at", new Date().toISOString());
+    showToast("success", "Shift Closed", "Cash drawer and sales summary are ready for review.");
   }
 
   async function voidTicket(ticketId) {
@@ -1875,9 +2222,13 @@ export default function POSPage() {
     setPaymentOpen(true);
   }
 
-  async function confirmCharge() {
+  async function confirmCharge(paymentPayload = {}) {
     if (charging) return;
-    if (!selectedPayment) return showToast("error", "Payment Required", "Select a payment type.");
+    const splitPaymentsPayload = Array.isArray(paymentPayload.payments) ? paymentPayload.payments.filter((p) => p.method && Number(p.amount || 0) > 0) : [];
+    const paymentLabel = splitPaymentsPayload.length > 0
+      ? splitPaymentsPayload.map((p) => `${p.method} ${peso2(p.amount)}`).join(" + ")
+      : selectedPayment;
+    if (!paymentLabel) return showToast("error", "Payment Required", "Select a payment type.");
     if (!storeId) return showToast("error", "Store not set", "Store code identifier mismatch.");
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before charging.");
 
@@ -1902,7 +2253,7 @@ export default function POSPage() {
           customer_id: attachedCustomer?.id || null,
           total,
           discount,
-          payment_method: selectedPayment,
+          payment_method: paymentLabel,
           dining_option: diningOptionName || "WEB_ORDER",
         }])
         .select("*")
@@ -1920,81 +2271,9 @@ export default function POSPage() {
       const { error: itemsErr } = await supabase.from("order_items").insert(itemRows);
       if (itemsErr) return showToast("error", "Charge Failed", itemsErr.message);
 
-      const now = new Date();
-      const excelTimestamp = now.toLocaleString('en-US', {
-        year: '2-digit', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
-      }).replace(/,/g, '');
-
       const generatedReceiptNumber = activeWebOrderId 
         ? `WEB-${activeWebOrderId.slice(0, 5).toUpperCase()}` 
         : `2-${Math.floor(1000 + Math.random() * 9000)}`;
-
-      const calculatedGrossSales = cart.reduce((sum, item) => sum + (Number(item.unitPrice || item.price || 0) * Number(item.quantity || 0)), 0);
-      const calculatedNetSales = calculatedGrossSales - discount;
-
-      const csvDescriptionString = cart
-        .map(item => `${item.quantity} x ${item.name}${item.variantDetails ? ` (${item.variantDetails})` : ''}`)
-        .join(', ');
-
-      const masterReceiptLogPayload = {
-        date: excelTimestamp,
-        receipt_number: generatedReceiptNumber,
-        receipt_type: "Sale",
-        gross_sales: calculatedGrossSales.toFixed(2),
-        discounts: discount.toFixed(2),
-        net_sales: calculatedNetSales.toFixed(2),
-        taxes: "0.00",
-        total_collected: total.toFixed(2),
-        cost_of_goods: "0.00",
-        gross_profit: calculatedNetSales.toFixed(2),
-        payment_type: selectedPayment,
-        description: csvDescriptionString,
-        dining_option: diningOptionName || "WEB_ORDER",
-        pos: "Cashier - Main",
-        store: storeId,
-        cashier_name: "Owner",
-        customer_name: attachedCustomer?.name || "",
-        customer_contacts: "",
-        status: "Closed"
-      };
-
-      const { error: masterLogError } = await supabase.from("receipts").insert([masterReceiptLogPayload]);
-      if (masterLogError) console.warn("Excel Master Log insertion error: ", masterLogError.message);
-
-      const itemBreakdownLogPayloads = cart.map((item) => {
-        const itemGross = Number(item.unitPrice || item.price || 0) * Number(item.quantity || 0);
-        const lineProRatedDiscount = cart.length > 0 ? (discount / cart.length) : 0;
-        const itemNet = itemGross - lineProRatedDiscount;
-
-        return {
-          date: excelTimestamp,
-          receipt_number: generatedReceiptNumber,
-          receipt_type: "Sale",
-          category: item.category || "GENERAL",
-          sku: item.sku || "10000",
-          item: item.name,
-          variant: item.variantDetails || "R",
-          modifiers_applied: item.instructions || "",
-          quantity: Number(item.quantity || 0).toFixed(3),
-          gross_sales: itemGross.toFixed(2),
-          discounts: lineProRatedDiscount.toFixed(2),
-          net_sales: itemNet.toFixed(2),
-          cost_of_goods: "0.00",
-          gross_profit: itemNet.toFixed(2),
-          taxes: "0.00",
-          dining_option: diningOptionName || "WEB_ORDER",
-          pos: "Cashier - Main",
-          store: storeId,
-          cashier_name: "Owner",
-          customer_name: attachedCustomer?.name || "",
-          customer_contacts: "",
-          comment: "",
-          status: "Closed"
-        };
-      });
-
-      const { error: itemsLogError } = await supabase.from("receipts_by_item").insert(itemBreakdownLogPayloads);
-      if (itemsLogError) console.warn("Excel Item Log insertion error: ", itemsLogError.message);
 
       // If updating an active web order, close out its row state inside web_orders table
       if (activeWebOrderId) {
@@ -2020,7 +2299,7 @@ export default function POSPage() {
       }
 
       const receipt = buildReceiptText({
-        receiptSettings, order: { ...orderRow, id: generatedReceiptNumber }, cart, diningOptionName: diningOptionName || "WEB ORDER", payment: selectedPayment,
+        receiptSettings, order: { ...orderRow, id: generatedReceiptNumber }, cart, diningOptionName: diningOptionName || "WEB ORDER", payment: paymentLabel,
         customer: attachedCustomer, subtotal, discount, total, voucher: appliedVoucher, appliedDiscount,
       });
 
@@ -2296,6 +2575,17 @@ export default function POSPage() {
     showToast("success", "Item Added", addedLineItem.name);
   };
 
+  const cashierName = isMounted && typeof window !== "undefined" ? (localStorage.getItem("cashier_name") || "Operator") : "Operator";
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("pos_store_id");
+      localStorage.removeItem("cashier_name");
+      window.location.href = "/login";
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#FFF5F7] pb-24 lg:pb-0 font-sans antialiased text-slate-800">
       <Toast toast={toast} onClose={() => setToast(null)} />
@@ -2325,41 +2615,234 @@ export default function POSPage() {
       )}
 
       <div className="max-w-[1600px] mx-auto p-3 sm:p-4 lg:p-6 transition-all">
-        
-        {/* HEADER BAR */}
-        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-rose-100 bg-white rounded-b-2xl p-4 shadow-sm mb-4 lg:mb-6">
-          <div>
-            <h1 className="text-xl lg:text-2xl font-black text-slate-800 tracking-tight">Juja POS Terminal</h1>
-            <p className="text-[10px] text-slate-400 font-mono mt-0.5 tracking-wider uppercase">Store ID: {storeId || "DISCONNECTED"}</p>
-          </div>
-          <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-50">
-            <div className="flex items-center gap-2 relative">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-xs text-slate-600 font-bold tracking-wide mr-2">
-                {isMounted && typeof window !== "undefined" ? (localStorage.getItem("cashier_name") || "Operator") : ""}
-              </span>
-              {pendingCount > 0 && (
-                <span className="bg-[#FC687D] text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-pulse">
-                  {pendingCount} NEW
-                </span>
-              )}
-            </div>
-            
+        <div className="relative mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="relative">
             <button
-              onClick={async () => {
-                await supabase.auth.signOut();
-                if (typeof window !== "undefined") {
-                  localStorage.removeItem("pos_store_id");
-                  localStorage.removeItem("cashier_name");
-                }
-                window.location.href = "/login";
-              }}
-              className="h-9 px-4 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600 hover:bg-red-50 hover:text-red-500 transition"
+              type="button"
+              onClick={() => setPosMenuOpen((v) => !v)}
+              className="h-11 px-4 rounded-xl bg-[#FC687D] text-white text-xs font-black uppercase tracking-wider shadow-sm flex items-center gap-2"
             >
-              Sign Out
+              <span className="text-base leading-none">☰</span>
+              POS Menu
+              {pendingCount > 0 && <span className="rounded-full bg-white text-[#FC687D] px-2 py-0.5 text-[10px]">{pendingCount}</span>}
             </button>
+
+            {posMenuOpen && (
+              <div className="absolute left-0 top-12 z-50 w-[min(92vw,360px)] rounded-2xl border border-rose-100 bg-white p-3 shadow-xl">
+                <div className="rounded-xl bg-rose-50 border border-rose-100 px-3 py-2 mb-3">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-rose-400">Cashier</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-black text-slate-800 truncate">{cashierName || "Operator"}</p>
+                    <button
+                      type="button"
+                      onClick={signOut}
+                      className="h-8 px-3 rounded-lg bg-white border border-rose-100 text-[10px] font-black uppercase tracking-wider text-rose-600"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    ["receipts", "Receipts"],
+                    ["shift", "Shift"],
+                    ["items", "Items"],
+                    ["settings", "Settings"],
+                  ].map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => openManagement(key)}
+                      className={`h-10 rounded-xl border text-xs font-black uppercase tracking-wider ${
+                        managementView === key
+                          ? "border-rose-300 bg-rose-50 text-[#FC687D]"
+                          : "border-slate-200 bg-white text-slate-600"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        </header>
+        </div>
+
+        {managementOpen && (
+          <div className="fixed inset-0 z-[140] bg-rose-950/45 backdrop-blur-sm p-3 sm:p-6 flex items-center justify-center" onClick={() => setManagementOpen(false)}>
+            <div className="w-full max-w-5xl max-h-[88vh] overflow-y-auto rounded-2xl border border-rose-100 bg-white p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-rose-50 pb-3 mb-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-[#FC687D]">POS Control</p>
+              <h2 className="text-sm font-black text-slate-800">
+                {managementView === "receipts" ? "Receipts" : managementView === "shift" ? "Shift" : managementView === "items" ? "Items" : "Settings"}
+              </h2>
+            </div>
+            <div className="flex items-center gap-2">
+              {(managementView === "receipts" || managementView === "shift") && (
+                <button type="button" onClick={fetchReceiptLogs} className="h-9 px-3 rounded-xl bg-rose-50 border border-rose-100 text-[10px] font-black uppercase tracking-wider text-[#FC687D]">
+                  Refresh
+                </button>
+              )}
+              <button type="button" onClick={() => setManagementOpen(false)} className="h-9 w-9 rounded-xl bg-slate-100 text-slate-500 font-black">
+                x
+              </button>
+            </div>
+          </div>
+
+          {managementView === "receipts" && (
+            <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {receiptRows.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 p-4 text-xs font-semibold text-slate-400">No receipts found.</div>
+                ) : receiptRows.map((r) => (
+                  <button
+                    key={r.receipt_number}
+                    type="button"
+                    onClick={() => setSelectedReceiptNumber(r.receipt_number)}
+                    className={`w-full rounded-xl border p-3 text-left transition ${
+                      selectedReceipt?.receipt_number === r.receipt_number ? "border-rose-300 bg-rose-50" : "border-slate-100 bg-white hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-black text-slate-800 truncate">{r.receipt_number}</p>
+                      <span className="text-[10px] font-black text-[#FC687D]">{peso2(r.total_collected || r.net_sales || 0)}</span>
+                    </div>
+                    <p className="text-[10px] font-semibold text-slate-400 truncate">{r.date || ""} · {r.status || "Closed"}</p>
+                  </button>
+                ))}
+              </div>
+
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 min-h-56">
+                {!selectedReceipt ? (
+                  <p className="text-xs font-semibold text-slate-400">Select a receipt to see details.</p>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <h3 className="text-base font-black text-slate-800">{selectedReceipt.receipt_number}</h3>
+                        <p className="text-xs font-semibold text-slate-500">{selectedReceipt.description || "Receipt details"}</p>
+                      </div>
+                      <button type="button" onClick={() => refundReceipt(selectedReceipt)} className="h-9 px-3 rounded-xl bg-red-50 border border-red-100 text-[10px] font-black uppercase tracking-wider text-red-600">
+                        Refund Receipt
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                      <div className="rounded-lg bg-white border border-slate-100 p-2"><span className="block text-[9px] font-black uppercase text-slate-400">Gross</span><b>{peso2(selectedReceipt.gross_sales || 0)}</b></div>
+                      <div className="rounded-lg bg-white border border-slate-100 p-2"><span className="block text-[9px] font-black uppercase text-slate-400">Discount</span><b>{peso2(selectedReceipt.discounts || 0)}</b></div>
+                      <div className="rounded-lg bg-white border border-slate-100 p-2"><span className="block text-[9px] font-black uppercase text-slate-400">Net</span><b>{peso2(selectedReceipt.net_sales || 0)}</b></div>
+                      <div className="rounded-lg bg-white border border-slate-100 p-2"><span className="block text-[9px] font-black uppercase text-slate-400">Payment</span><b>{selectedReceipt.payment_type || "-"}</b></div>
+                    </div>
+                    <div className="space-y-2">
+                      {selectedReceiptItems.map((row, idx) => (
+                        <div key={`${row.receipt_number}-${row.item}-${idx}`} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-slate-100 bg-white p-2">
+                          <div>
+                            <p className="text-xs font-black text-slate-800">{row.item}</p>
+                            <p className="text-[10px] font-semibold text-slate-400">Qty {row.quantity} · {peso2(row.net_sales || row.gross_sales || 0)} · {row.status || "Closed"}</p>
+                          </div>
+                          <button type="button" onClick={() => refundReceiptItem(row)} className="h-8 px-3 rounded-lg border border-red-100 bg-red-50 text-[10px] font-black uppercase tracking-wider text-red-600">
+                            Refund Item
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {managementView === "shift" && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-3">
+                <h3 className="text-sm font-black text-slate-800">Cash Drawer</h3>
+                <label className="block">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Starting Cash</span>
+                  <input value={startingCash} onChange={(e) => setStartingCash(e.target.value.replace(/[^\d.]/g, ""))} inputMode="decimal" className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none" placeholder="0.00" />
+                </label>
+                {[
+                  ["Cash payments", shiftSummary.cashPayments],
+                  ["Cash refunds", shiftSummary.cashRefunds],
+                  ["Expected cash amount", shiftSummary.expectedCash],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex justify-between rounded-lg bg-white border border-slate-100 p-2 text-xs font-bold">
+                    <span className="text-slate-500">{label}</span><span>{peso2(value)}</span>
+                  </div>
+                ))}
+                <button type="button" onClick={closeShift} className="w-full h-10 rounded-xl bg-[#FC687D] text-white text-xs font-black uppercase tracking-wider">Close Shift</button>
+              </div>
+
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-3">
+                <h3 className="text-sm font-black text-slate-800">Sales Summary</h3>
+                {Object.entries(shiftSummary.payments).map(([label, value]) => (
+                  <div key={label} className="flex justify-between rounded-lg bg-white border border-slate-100 p-2 text-xs font-bold">
+                    <span className="text-slate-500">{label}</span><span>{peso2(value)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {managementView === "items" && (
+            <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+              {items.map((item) => (
+                <div key={item.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-black text-slate-800 truncate">{item.name}</p>
+                      <p className="text-[10px] font-semibold text-slate-400">{item.category || "General"}</p>
+                    </div>
+                    <button type="button" onClick={() => toggleMenuItemAvailability(item)} className={`h-8 px-3 rounded-full text-[10px] font-black uppercase tracking-wider ${item.is_available === false ? "bg-slate-200 text-slate-500" : "bg-emerald-50 text-emerald-600 border border-emerald-100"}`}>
+                      {item.is_available === false ? "Off" : "On"}
+                    </button>
+                  </div>
+                  {Array.isArray(item.variants) && item.variants.length > 0 && (
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {item.variants.map((group, idx) => {
+                        const enabled = (group.isAvailable ?? group.is_available ?? true) !== false;
+                        return (
+                          <button key={group.id || group.name || idx} type="button" onClick={() => toggleVariantGroupAvailability(item, idx)} className={`rounded-lg border p-2 text-left ${enabled ? "border-rose-100 bg-white" : "border-slate-200 bg-slate-100"}`}>
+                            <span className="block text-xs font-black text-slate-700 truncate">{group.name || `Option Group ${idx + 1}`}</span>
+                            <span className={`text-[10px] font-black uppercase ${enabled ? "text-[#FC687D]" : "text-slate-400"}`}>{enabled ? "Available" : "Unavailable"}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {managementView === "settings" && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-3">
+                <h3 className="text-sm font-black text-slate-800">Printers</h3>
+                <input value={printerForm.name} onChange={(e) => setPrinterForm((p) => ({ ...p, name: e.target.value }))} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none" placeholder="Bluetooth printer name" />
+                <select value={printerForm.role} onChange={(e) => setPrinterForm((p) => ({ ...p, role: e.target.value }))} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none">
+                  <option value="receipt">Receipt</option>
+                  <option value="order_slip">Order Slip</option>
+                  <option value="cup_label">Cup Label</option>
+                </select>
+                <input value={printerForm.service_uuid} onChange={(e) => setPrinterForm((p) => ({ ...p, service_uuid: e.target.value }))} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none" placeholder="Service UUID" />
+                <input value={printerForm.characteristic_uuid} onChange={(e) => setPrinterForm((p) => ({ ...p, characteristic_uuid: e.target.value }))} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none" placeholder="Characteristic UUID" />
+                <button type="button" onClick={addBluetoothPrinter} className="w-full h-10 rounded-xl bg-[#FC687D] text-white text-xs font-black uppercase tracking-wider">Add Bluetooth Printer</button>
+              </div>
+              <div className="rounded-xl border border-slate-100 bg-white p-4">
+                <h3 className="text-sm font-black text-slate-800 mb-3">Active Printers</h3>
+                {Object.entries(printerConfig).map(([role, printer]) => (
+                  <div key={role} className="flex justify-between rounded-lg border border-slate-100 p-2 text-xs font-bold mb-2">
+                    <span className="text-slate-500 capitalize">{role.replace("_", " ")}</span>
+                    <span className="text-slate-800 truncate max-w-[180px]">{printer?.name || "Not set"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+            </div>
+          </div>
+        )}
 
         {/* MAIN TERMINAL RESPONSIVE GRID LAYOUT FLOW */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_450px] gap-4 lg:gap-6 items-start">
@@ -2389,38 +2872,56 @@ export default function POSPage() {
               </div>
             </div>
 
-            {/* Scaled Responsive Multi-Column Item Grid */}
+            {/* Loyverse-style category rail and product tile grid */}
             {loading ? (
               <div className="py-24 text-center"><div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full mx-auto" /></div>
             ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[calc(100vh-270px)] overflow-y-auto pr-1">
-                {items
-                  .filter((i) => i.category === activeCategory)
-                  .filter((i) => (i.name || "").toLowerCase().includes(menuSearch.toLowerCase()))
-                  .map((item) => (
+              <div className="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-3">
+                <div className="hidden md:block rounded-xl border border-rose-100 bg-rose-50/40 p-2 max-h-[calc(100vh-190px)] overflow-y-auto">
+                  {categories.map((cat) => (
                     <button
-                      key={item.id}
-                      onClick={() => setSelectedItemForModal(item)}
-                      className="group bg-white border border-slate-100 rounded-2xl p-2.5 text-left hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex flex-col h-full justify-between"
+                      key={cat.id || cat.name}
+                      type="button"
+                      onClick={() => setActiveCategory(cat.name)}
+                      className={`w-full min-h-11 rounded-lg px-3 mb-1 text-left text-xs font-black transition ${
+                        activeCategory === cat.name ? "bg-[#FC687D] text-white shadow-sm" : "bg-white text-slate-600 hover:bg-rose-50"
+                      }`}
                     >
-                      <div className="w-full">
-                        <div className="w-full aspect-square bg-[#FFF9FA] border border-rose-50/50 flex items-center justify-center overflow-hidden rounded-xl relative">
-                          {item.image_url ? (
-                            <img src={item.image_url} alt={item.name} className="w-full h-full object-cover p-1 group-hover:scale-102 transition" />
-                          ) : (
-                            <span className="text-2xl text-rose-200/50">📷</span>
-                          )}
-                        </div>
-                        <div className="mt-2.5 px-0.5">
-                          <p className="text-[9px] uppercase font-extrabold tracking-wider text-[#FC687D]">{item.category || "General"}</p>
-                          <p className="text-xs font-bold text-slate-800 leading-tight truncate mt-1">{item.name}</p>
-                        </div>
-                      </div>
-                      <p className="text-xs font-black text-slate-800 mt-2 px-0.5 pt-2 border-t border-slate-50 w-full">
-                        {item.is_variable_price ? "Variable Price" : `₱${Number(item.price || 0).toFixed(0)}`}
-                      </p>
+                      {cat.name}
                     </button>
                   ))}
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[calc(100vh-190px)] overflow-y-auto pr-1">
+                  {items
+                    .filter((i) => i.category === activeCategory)
+                    .filter((i) => i.is_available !== false)
+                    .filter((i) => (i.name || "").toLowerCase().includes(menuSearch.toLowerCase()))
+                    .map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => setSelectedItemForModal(item)}
+                        className="group bg-white border border-slate-100 rounded-xl p-2.5 text-left hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-md transition-all duration-200 flex flex-col h-full justify-between"
+                      >
+                        <div className="w-full">
+                          <div className="w-full aspect-square bg-[#FFF9FA] border border-rose-50/50 flex items-center justify-center overflow-hidden rounded-lg relative">
+                            {item.image_url ? (
+                              <img src={item.image_url} alt={item.name} className="w-full h-full object-cover p-1 group-hover:scale-102 transition" />
+                            ) : (
+                              <span className="text-2xl text-rose-200/50">📷</span>
+                            )}
+                          </div>
+                          <div className="mt-2.5 px-0.5">
+                            <p className="text-[9px] uppercase font-extrabold tracking-wider text-[#FC687D]">{item.category || "General"}</p>
+                            <p className="text-xs font-bold text-slate-800 leading-tight truncate mt-1">{item.name}</p>
+                          </div>
+                        </div>
+                        <p className="text-xs font-black text-slate-800 mt-2 px-0.5 pt-2 border-t border-slate-50 w-full">
+                          {item.is_variable_price ? "Variable Price" : `₱${Number(item.price || 0).toFixed(0)}`}
+                        </p>
+                      </button>
+                    ))}
+                </div>
               </div>
             )}
           </div>
@@ -2484,7 +2985,7 @@ export default function POSPage() {
       </div>
 
       {/* MOBILE HUD INTERFACE BOTTOM FLOATING TRIGGER ACTION LAYER FOOTER */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900 text-white shadow-[0_-8px_30px_rgba(0,0,0,0.15)] px-4 py-3 pb-safe border-t border-slate-800">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-rose-950 text-white shadow-[0_-8px_30px_rgba(252,104,125,0.22)] px-4 py-3 pb-safe border-t border-rose-800">
         <button
           onClick={() => setTicketDrawerOpen(true)}
           className="w-full h-12 bg-[#FC687D] hover:bg-rose-500 rounded-xl px-4 flex items-center justify-between transition shadow-md active:scale-[0.99]"

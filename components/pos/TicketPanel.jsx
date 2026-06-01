@@ -56,7 +56,8 @@ export default function TicketPanel({
     <div className="flex flex-col h-full text-slate-800 font-sans select-none bg-white p-4 rounded-xl border border-slate-100 shadow-sm max-h-[85vh]">
 
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+      <div className="pb-3 mb-3 border-b border-rose-100 space-y-3">
+        <div className="flex items-center justify-between">
         <div className="text-left">
           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
             Active Station
@@ -86,6 +87,7 @@ export default function TicketPanel({
             ✕
           </button>
         )}
+        </div>
       </div>
 
       {/* Customer Search */}

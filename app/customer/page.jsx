@@ -14,9 +14,18 @@ const LOGO =
   "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
 
 const loyaltyPoints = (amount) => Number(((Number(amount) || 0) * 0.04).toFixed(2));
+const ALERT_SOUND_SRC = "/sound/notification.mp3";
 
 function playCustomerAlertSound(status = "ready") {
   if (typeof window === "undefined") return;
+  const audio = new Audio(ALERT_SOUND_SRC);
+  audio.volume = status === "ready" ? 0.95 : 0.75;
+  audio.play().catch(() => {
+    playGeneratedCustomerTone(status);
+  });
+}
+
+function playGeneratedCustomerTone(status = "ready") {
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
@@ -113,7 +122,6 @@ function AppNavigation({ tab, setTab }) {
     { id: "home", icon: "🏠", label: "Home" },
     { id: "order", icon: "🍽️", label: "Order" },
     { id: "history", icon: "📦", label: "Tracker" },
-    { id: "receipts", icon: "🧾", label: "Receipts" },
     { id: "loyalty", icon: "⭐", label: "Loyalty" },
     { id: "booking", icon: "🗓", label: "Book" },
     { id: "profile", icon: "👤", label: "Profile" },
@@ -123,7 +131,7 @@ function AppNavigation({ tab, setTab }) {
     <>
       {/* Mobile & Tablet Bottom Tab Bar */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-rose-50 pb-safe shadow-[0_-4px_24px_rgba(252,104,125,0.05)] lg:hidden">
-        <div className="max-w-xl mx-auto grid grid-cols-7 px-1">
+        <div className="max-w-xl mx-auto grid grid-cols-6 px-1">
           {tabs.map((t) => (
             <button
               key={t.id}
@@ -1010,7 +1018,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       {cart.length > 0 && !cartOpen && (
         <button
           onClick={() => setCartOpen(true)}
-          className="fixed bottom-[88px] left-4 right-4 z-40 bg-slate-900 text-white flex items-center justify-between px-5 py-4 rounded-xl shadow-xl lg:hidden"
+          className="fixed bottom-[88px] left-4 right-4 z-40 bg-rose-950 text-white flex items-center justify-between px-5 py-4 rounded-xl shadow-xl lg:hidden"
         >
           <div className="text-left">
             <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Current Order</p>
@@ -1159,81 +1167,6 @@ function TrackerTab({ orders, loadingOrders }) {
 /* ──────────────────────────────────────────────────────────────
     Loyalty Tab
 ────────────────────────────────────────────────────────────── */
-function CompletedReceiptsTab({ orders, loadingOrders }) {
-  const completed = (orders || []).filter((order) => String(order.status || "").toLowerCase() === "completed");
-
-  return (
-    <div className="max-w-3xl mx-auto bg-white rounded-2xl border border-slate-100 p-5 shadow-sm animate-in fade-in duration-300">
-      <div className="border-b border-slate-100 pb-3 mb-5">
-        <h3 className="font-black text-slate-800 text-base flex items-center gap-2">
-          <span>🧾</span> Completed Order Receipts
-        </h3>
-        <p className="text-[11px] text-slate-400 mt-0.5">Review completed web orders, totals, and loyalty points earned.</p>
-      </div>
-
-      {loadingOrders ? (
-        <div className="py-16 text-center flex justify-center">
-          <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
-        </div>
-      ) : completed.length === 0 ? (
-        <div className="text-center py-16 px-4 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-          <span className="text-3xl block mb-2">🧾</span>
-          <p className="text-sm font-semibold">No completed receipts yet.</p>
-          <p className="text-xs text-slate-400 mt-1">Completed orders will appear here after delivery or pickup is closed.</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {completed.map((order) => {
-            const total = Number(order.total || order.subtotal || 0);
-            const points = loyaltyPoints(total);
-            return (
-              <div key={order.id} className="border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden">
-                <div className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-widest text-rose-200 font-bold">Receipt</p>
-                    <p className="font-mono text-xs font-bold">#{String(order.id).slice(0, 8).toUpperCase()}</p>
-                  </div>
-                  <span className="text-[10px] uppercase tracking-widest bg-white/10 border border-white/10 px-2.5 py-1 rounded-md font-bold">
-                    Completed
-                  </span>
-                </div>
-
-                <div className="p-4 space-y-3">
-                  <div className="text-xs text-slate-500 flex flex-wrap gap-2">
-                    <span>{order.created_at ? new Date(order.created_at).toLocaleString() : "No date"}</span>
-                    <span>•</span>
-                    <span>{order.dining_option || "Web Order"}</span>
-                  </div>
-
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-1.5">
-                    {(order.items || []).map((line, idx) => (
-                      <div key={line.cartItemId || idx} className="flex justify-between gap-3 text-xs font-medium text-slate-700">
-                        <span className="truncate">{line.quantity} x {line.name}</span>
-                        <span className="font-mono">₱{(Number(line.unitPrice || 0) * Number(line.quantity || 0)).toFixed(2)}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div className="rounded-xl border border-slate-100 bg-white p-3">
-                      <p className="uppercase tracking-widest text-slate-400 text-[9px] font-bold">Total Paid</p>
-                      <p className="text-lg font-black text-slate-800 mt-1">₱{total.toFixed(2)}</p>
-                    </div>
-                    <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
-                      <p className="uppercase tracking-widest text-emerald-600 text-[9px] font-bold">Loyalty Points</p>
-                      <p className="text-lg font-black text-emerald-700 mt-1">+{points.toFixed(2)}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function LoyaltyTab({ member, setMember, user }) {
   const [mode, setMode] = useState(null); 
   const [loading, setLoading] = useState(false);
@@ -1269,6 +1202,12 @@ function LoyaltyTab({ member, setMember, user }) {
     return rt.includes("birthday") || code.startsWith("BDAY");
   };
 
+  const isPointsVoucher = (v) => {
+    const rt = String(v?.reward_text || "").toLowerCase();
+    const code = String(v?.code || "").toUpperCase();
+    return v?.reward_type === "points" || code.startsWith("PTS") || rt.includes("100 points");
+  };
+
   useEffect(() => {
     async function createBirthdayVoucherIfNeeded() {
       if (!member?.id || !member?.Note) return;
@@ -1299,6 +1238,44 @@ function LoyaltyTab({ member, setMember, user }) {
     }
     createBirthdayVoucherIfNeeded();
   }, [member]);
+
+  useEffect(() => {
+    async function createPointsVouchersIfNeeded() {
+      if (!member?.id) return;
+      const lifetimePoints = Number(member?.["Points balance"] || member?.["Available points"] || 0);
+      const earnedVoucherCount = Math.floor(lifetimePoints / 100);
+      if (earnedVoucherCount <= 0) return;
+
+      const { data: existing, error } = await supabase
+        .from("vouchers")
+        .select("id, code, reward_text, reward_type")
+        .eq("member_id", member.id);
+      if (error) return;
+
+      const existingPointsVouchers = (existing || []).filter(isPointsVoucher).length;
+      const missingCount = earnedVoucherCount - existingPointsVouchers;
+      if (missingCount <= 0) return;
+
+      const now = Date.now();
+      const rows = Array.from({ length: missingCount }, (_, idx) => {
+        const voucherNumber = existingPointsVouchers + idx + 1;
+        return {
+          member_id: member.id,
+          code: `PTS100-${voucherNumber}-${Math.floor(1000 + Math.random() * 9000)}`,
+          reward_text: "FREE 16oz Drink or Waffle (100 Points Reward)",
+          issued_at: new Date(now).toISOString(),
+          expires_at: new Date(now + 90 * 86400000).toISOString(),
+          status: "active",
+          reward_type: "points",
+        };
+      });
+
+      await supabase.from("vouchers").insert(rows);
+      setNowTick(Date.now());
+    }
+
+    createPointsVouchersIfNeeded();
+  }, [member?.id, member?.["Points balance"], member?.["Available points"]]);
 
   const computeStatus = (v) => {
     if (!v) return "active";
@@ -1394,8 +1371,8 @@ function LoyaltyTab({ member, setMember, user }) {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
             <div className="bg-white p-4 rounded-xl border border-rose-100/60">
               <span className="text-xl block mb-1">🎯</span>
-              <p className="text-xs font-bold text-slate-700">100 Points Reward</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">Free 16oz handcrafted beverage or signature grid waffle.</p>
+              <p className="text-xs font-bold text-slate-700">100 Points Voucher</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Created automatically at every 100 points and valid for 90 days.</p>
             </div>
             <div className="bg-white p-4 rounded-xl border border-rose-100/60">
               <span className="text-xl block mb-1">🎂</span>
@@ -1457,13 +1434,16 @@ function LoyaltyTab({ member, setMember, user }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in duration-300">
       <div className="md:col-span-1 space-y-4">
-        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 rounded-2xl p-5 text-white relative overflow-hidden shadow-md">
+        <div
+          className="rounded-2xl p-5 text-white relative overflow-hidden shadow-md bg-rose-950 bg-contain bg-center bg-no-repeat aspect-[1.586/1] min-h-[180px]"
+          style={{ backgroundImage: "linear-gradient(135deg, rgba(136,19,55,0.78), rgba(244,63,94,0.32)), url('/images/loyalty-card-bg.jpg')" }}
+        >
           <div className="relative z-10 flex flex-col justify-between h-full min-h-[160px]">
             <div>
               <p className="text-[9px] uppercase tracking-[0.2em] text-rose-300 font-bold">Juja Digital Membership Pass</p>
               <h4 className="text-lg font-bold tracking-tight mt-1 truncate">{member?.customer_name}</h4>
             </div>
-            <div className="bg-white p-2.5 rounded-lg inline-block self-center shadow-md border border-slate-100 mt-4">
+            <div className="bg-white p-2 rounded-lg inline-block self-start shadow-md border border-slate-100 mt-auto">
               <Barcode value={member?.customer_code || "JUJA000000"} background="transparent" lineColor="#0f172a" width={1.2} height={50} displayValue fontSize={11} margin={0} />
             </div>
           </div>
@@ -1599,6 +1579,7 @@ export default function Customer() {
 
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const readyAlertIntervalRef = useRef(null);
 
   // Application UI internal toast context states register caching memory
   const [toast, setToast] = useState(null);
@@ -1779,6 +1760,23 @@ export default function Customer() {
     setShowInstallBanner(false);
   };
 
+  const stopReadyAlertSound = () => {
+    if (readyAlertIntervalRef.current) {
+      clearInterval(readyAlertIntervalRef.current);
+      readyAlertIntervalRef.current = null;
+    }
+  };
+
+  const startReadyAlertSound = () => {
+    stopReadyAlertSound();
+    playCustomerAlertSound("ready");
+    readyAlertIntervalRef.current = setInterval(() => playCustomerAlertSound("ready"), 3000);
+  };
+
+  useEffect(() => {
+    return () => stopReadyAlertSound();
+  }, []);
+
   const notifyOrderStatus = (order) => {
     const status = String(order?.status || "").toLowerCase();
     if (status !== "ready" && status !== "completed") return;
@@ -1789,7 +1787,12 @@ export default function Customer() {
 
     const orderIdShort = order.id.slice(0, 8).toUpperCase();
     const points = loyaltyPoints(order.total || order.subtotal).toFixed(2);
-    playCustomerAlertSound(status);
+    if (status === "ready") {
+      startReadyAlertSound();
+    } else {
+      stopReadyAlertSound();
+      playCustomerAlertSound(status);
+    }
     
     // 1. High Visibility In-App Toast Alert Layout Mutation Trigger
     showToast(
@@ -1844,7 +1847,7 @@ export default function Customer() {
               <p className="text-white/90 text-xs mt-1 font-medium leading-relaxed">{toast.message}</p>
             </div>
             <button 
-              onClick={() => setToast(null)} 
+              onClick={() => { stopReadyAlertSound(); setToast(null); }} 
               className="w-6 h-6 rounded-lg bg-white/10 hover:bg-white/15 flex items-center justify-center text-xs font-bold text-white/70 hover:text-white"
             >
               ✕
@@ -1865,7 +1868,6 @@ export default function Customer() {
           />
         )}
         {tab === "history" && <TrackerTab orders={orders} loadingOrders={loadingOrders} />}
-        {tab === "receipts" && <CompletedReceiptsTab orders={orders} loadingOrders={loadingOrders} />}
         {tab === "loyalty" && <LoyaltyTab member={member} setMember={setMember} user={user} />}
         {tab === "booking" && <BookingTab user={user} member={member} />}
         {tab === "profile" && <ProfileTab user={user} onLogout={logout} />}
