@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -109,7 +109,7 @@ function buildReceiptText({
 
   if (header) lines.push(header);
 
-  if (rs.show_store_name !== false) lines.push(`Store: ${order.store_id}`);
+  if (rs.show_store_name !== false) lines.push(`Store: ${order.store_id || order.branch_id}`);
   if (rs.show_datetime !== false) lines.push(`Date: ${new Date().toLocaleString()}`);
   if (rs.show_order_number !== false) lines.push(`Receipt: ${order.id}`);
 
@@ -292,6 +292,35 @@ function Toast({ toast, onClose }) {
   );
 }
 
+const TARGET_WEB_STATUSES = ["pending", "accepted", "ready", "Pending", "Accepted", "Ready"];
+const calcLoyaltyPoints = (amount) => Number(((Number(amount) || 0) * 0.04).toFixed(2));
+
+function playPosAlertSound() {
+  if (typeof window === "undefined") return;
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.22, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.65);
+    gain.connect(ctx.destination);
+
+    [740, 988, 740].forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      osc.type = "square";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.16);
+      osc.connect(gain);
+      osc.start(ctx.currentTime + idx * 0.16);
+      osc.stop(ctx.currentTime + idx * 0.16 + 0.12);
+    });
+    setTimeout(() => ctx.close(), 800);
+  } catch (err) {
+    console.warn("POS alert sound skipped:", err);
+  }
+}
+
 function ConfirmModal({ open, title, message, confirmText = "Confirm", cancelText = "Cancel", onConfirm, onCancel }) {
   return (
     <ModalShell open={open} onClose={onCancel} title="Confirmation" subtitle={title} z={140}>
@@ -471,6 +500,93 @@ function SavedTicketsModal({ open, onClose, tickets, onSelect, onRefresh, onVoid
               </button>
             </div>
           ))}
+        </div>
+      )}
+      <button
+        onClick={onClose}
+        className="w-full mt-4 h-11 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider"
+      >
+        Close
+      </button>
+    </ModalShell>
+  );
+}
+
+function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onDelivered }) {
+  const statusClass = (status) => {
+    const s = String(status || "").toLowerCase();
+    if (s === "pending") return "bg-amber-50 text-amber-700 border-amber-200";
+    if (s === "ready") return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    if (s === "completed") return "bg-slate-100 text-slate-600 border-slate-200";
+    return "bg-rose-50 text-rose-700 border-rose-200";
+  };
+
+  return (
+    <ModalShell open={open} onClose={onClose} title="Web Orders" subtitle="Pending & Accepted" z={145}>
+      <div className="flex mb-3">
+        <button
+          onClick={onRefresh}
+          className="px-4 h-9 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
+        >
+          ↻ Refresh List
+        </button>
+      </div>
+      {orders.length === 0 ? (
+        <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 text-xs font-medium">
+          No pending or accepted web orders located.
+        </div>
+      ) : (
+        <div className="space-y-2 max-h-[52vh] overflow-y-auto pr-1">
+          {orders.map((order) => {
+            const status = String(order.status || "accepted").toLowerCase();
+            const readyDisabled = status === "ready" || status === "completed";
+            const deliveredDisabled = status === "completed";
+
+            return (
+              <div key={order.id} className="p-3.5 border rounded-xl bg-white shadow-sm hover:border-rose-100 transition">
+                <div className="flex justify-between items-start gap-3">
+                  <div className="min-w-0 text-left">
+                    <p className="font-bold text-slate-800 text-sm truncate">{order.customer_name || "Web Customer"}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Lines: {(order.items || []).length} • <span className="font-bold text-slate-700">₱{Number(order.subtotal || order.total || 0).toFixed(0)}</span>
+                    </p>
+                    <p className="text-[11px] font-medium text-slate-400 mt-1 truncate">
+                      {order.dining_option || "Web order"} {order.fulfillment_time ? `• ${order.fulfillment_time}` : ""}
+                    </p>
+                  </div>
+                  <span className={`px-2 py-1 rounded-md border text-[10px] font-black uppercase tracking-wider ${statusClass(order.status)}`}>
+                    {order.status}
+                  </span>
+                </div>
+
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onEdit(order)}
+                    className="h-9 rounded-lg bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    disabled={readyDisabled}
+                    onClick={() => onReady(order)}
+                    className="h-9 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-xs font-bold text-emerald-700 transition disabled:opacity-40"
+                  >
+                    Ready
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deliveredDisabled}
+                    onClick={() => onDelivered(order)}
+                    className="h-9 rounded-lg bg-[#FC687D] hover:bg-rose-500 text-xs font-bold text-white transition disabled:opacity-40"
+                  >
+                    Delivered
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
       <button
@@ -850,7 +966,7 @@ function IncomingOrderModal({ open, order, onAccept, onEdit, onReject }) {
           </div>
           <div>
             <span className="text-[10px] font-extrabold tracking-[0.2em] text-[#FC687D] uppercase block animate-pulse">High Priority Transaction</span>
-            <h3 className="text-xl font-black text-slate-800 leading-tight">Incoming Remote Order</h3>
+            <h3 className="text-xl font-black text-slate-800 warmth-tight">Incoming Remote Order</h3>
           </div>
         </div>
 
@@ -861,7 +977,7 @@ function IncomingOrderModal({ open, order, onAccept, onEdit, onReject }) {
           <div className="flex justify-between"><span>System User ID</span><span className="font-mono text-slate-700">{order.user_id?.slice(0,12)}...</span></div>
           <div className="flex justify-between border-t border-slate-200/60 pt-2 text-slate-900 text-sm">
             <span>Subtotal Calculated</span>
-            <span className="font-black text-[#FC687D]">₱{Number(order.subtotal || 0).toFixed(0)}</span>
+            <span className="font-black text-[#FC687D]">₱{Number(order.subtotal || order.total || 0).toFixed(0)}</span>
           </div>
         </div>
 
@@ -872,7 +988,7 @@ function IncomingOrderModal({ open, order, onAccept, onEdit, onReject }) {
             <div key={line.cartItemId || idx} className="p-3 border border-slate-100 rounded-xl bg-[#FFF9FA]/40 flex flex-col gap-1">
               <div className="flex justify-between text-xs font-bold text-slate-800">
                 <span className="truncate max-w-[75%]">{line.name} <span className="text-[#FC687D]">x{line.quantity}</span></span>
-                <span>₱{(Number(line.unitPrice || 0) * Number(line.quantity || 0)).toFixed(0)}</span>
+                <span>₱{(Number(line.unitPrice || line.price || 0) * Number(line.quantity || 0)).toFixed(0)}</span>
               </div>
               {line.variantDetails && <p className="text-[11px] text-slate-400 font-medium italic">Modifiers: {line.variantDetails}</p>}
               {line.instructions && <p className="text-[11px] text-[#FC687D] font-bold mt-0.5">Note: {line.instructions}</p>}
@@ -922,6 +1038,7 @@ function discountAmountFromRule(rule, subtotal) {
 export default function POSPage() {
   const supabase = getSupabaseClient();
   const [storeId, setStoreId] = useState(null);
+  const [pendingCount, setPendingCount] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
 
   // PWA Add To Home Screen Hook States
@@ -932,6 +1049,7 @@ export default function POSPage() {
   const [incomingOrder, setIncomingOrder] = useState(null);
   const [incomingOrderModalOpen, setIncomingOrderModalOpen] = useState(false);
   const audioIntervalRef = useRef(null);
+  const seenIncomingOrderIds = useRef(new Set());
 
   const [printerConfig, setPrinterConfig] = useState({ receipt: null, order_slip: null, cup_label: null });
   const [items, setItems] = useState([]);
@@ -974,6 +1092,8 @@ export default function POSPage() {
   const [savedOpen, setSavedOpen] = useState(false);
   const [savedTickets, setSavedTickets] = useState([]);
   const [savedMode, setSavedMode] = useState("resume");
+  const [webOrdersOpen, setWebOrdersOpen] = useState(false);
+  const [webOrders, setWebOrders] = useState([]);
   const [splitMode, setSplitMode] = useState(false);
   const [splitSelected, setSplitSelected] = useState([]);
   const [diningOptionPickOpen, setDiningOptionPickOpen] = useState(false);
@@ -983,6 +1103,9 @@ export default function POSPage() {
   const [charging, setCharging] = useState(false);
   const [savingTicket, setSavingTicket] = useState(false);
   const [moving, setMoving] = useState(false);
+
+  // New persistent pointer reference state to bind edited web orders back cleanly
+  const [activeWebOrderId, setActiveWebOrderId] = useState(null);
 
   const selectedDining = useMemo(
     () => (diningOptions || []).find((d) => String(d.id) === String(diningOption)) || null,
@@ -997,7 +1120,7 @@ export default function POSPage() {
   };
 
   const calcTotal = (lines) =>
-    (lines || []).reduce((sum, i) => sum + (Number(i.unitPrice) || 0) * (Number(i.quantity) || 0), 0);
+    (lines || []).reduce((sum, i) => sum + (Number(i.unitPrice || i.price || 0) * Number(i.quantity || 0)), 0);
 
   const subtotal = useMemo(() => calcTotal(cart), [cart]);
 
@@ -1010,12 +1133,25 @@ export default function POSPage() {
   const itemCount = useMemo(() => cart.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0), [cart]);
 
   const selectedCartItem = useMemo(() => cart.find((x) => x.cartItemId === voucherTargetCartItemId) || null, [cart, voucherTargetCartItemId]);
-  const ticketTitle = diningOptionName || "Select Dining Option";
+  const ticketTitle = activeWebOrderId ? `Web Order: #${activeWebOrderId.slice(0,8).toUpperCase()}` : (diningOptionName || "Select Dining Option");
   const ticketSubtitle = attachedCustomer?.name ? `Loyalty Member: ${attachedCustomer.name}` : "Walk-in Customer";
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  async function fetchPendingCount(sid) {
+    if (!sid) return;
+    const { count, error } = await supabase
+      .from("web_orders")
+      .select('*', { count: 'exact', head: true })
+      .in("status", ["pending", "Pending"])
+      .eq("branch_id", sid);
+
+    if (!error) {
+      setPendingCount(count || 0);
+    }
+  }
 
   // ================= PWA INSTALLATION EVENT HANDLER =================
   useEffect(() => {
@@ -1047,21 +1183,13 @@ export default function POSPage() {
 
   // ================= CONTINUOUS LOOP AUDIO NOTIFICATION SYSTEM CONTROLLER =================
   const startContinuousAlertChime = () => {
-    // Clear out any stray loops to prevent double overlay audio stacking
     stopContinuousAlertChime();
 
     const triggerPlay = () => {
-      try {
-        const audio = new Audio("/sounds/notification.mp3");
-        audio.play().catch(e => console.log("Audio play deferred until page touch interaction context is set:", e));
-      } catch (err) {
-        console.warn("Chime loop execution trace warning:", err);
-      }
+      playPosAlertSound();
     };
 
-    // Immediate initial pulse layout signal
     triggerPlay();
-    // Re-ping every 2.5 seconds continuously until state flags resolve
     audioIntervalRef.current = setInterval(triggerPlay, 2500);
   };
 
@@ -1072,7 +1200,6 @@ export default function POSPage() {
     }
   };
 
-  // Cleanup loop audio hook if component unmounts entirely
   useEffect(() => {
     return () => stopContinuousAlertChime();
   }, []);
@@ -1081,80 +1208,92 @@ export default function POSPage() {
   useEffect(() => {
     if (!storeId) return;
 
-    console.log(`📡 Connecting low-latency WebSocket broadcast channel to [store-alerts:${storeId}]`);
+    console.log(`📡 Connecting web order alerts for store ${storeId}`);
 
-    const alertListenerChannel = supabaseGlobalInstance
-      .channel(`store-alerts:${storeId}`)
-      .on("broadcast", { event: "NEW_CUSTOMER_ORDER" }, (response) => {
-        const order = response.payload;
-        console.log("🚨 WebSocket Broadcast intercepted order payload:", order);
+    const showIncomingOrder = async (orderLike) => {
+      const incomingId = orderLike?.id || orderLike?.order_id;
+      if (!incomingId) return;
+      if (seenIncomingOrderIds.current.has(incomingId)) return;
 
-        // Map remote payload variables to live component intercept modals states
-        setIncomingOrder(order);
-        setIncomingOrderModalOpen(true);
+      let order = orderLike;
+      if (!order.items) {
+        const { data } = await supabase
+          .from("web_orders")
+          .select("*")
+          .eq("id", incomingId)
+          .maybeSingle();
+        if (data) order = data;
+      }
 
-        // Initiate continuous looping siren immediately
-        startContinuousAlertChime();
-      })
-      .subscribe((status) => {
-        console.log(`🛰 * store-alerts status update: ${status}`);
-      });
+      const currentStatus = String(order?.status || "pending").toLowerCase();
+      if (currentStatus !== "pending") return;
+
+      seenIncomingOrderIds.current.add(incomingId);
+      setIncomingOrder(order);
+      setIncomingOrderModalOpen(true);
+      fetchPendingCount(storeId);
+      fetchAcceptedWebOrders();
+      startContinuousAlertChime();
+    };
+
+    const dbChannel = supabase
+      .channel(`web-orders-db:${storeId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "web_orders",
+        },
+        (payload) => {
+          const incomingStore = payload.new?.branch_id;
+          if (String(incomingStore) === String(storeId)) {
+            showIncomingOrder(payload.new || {});
+          }
+        }
+      )
+      .subscribe();
+
+    const branchAlertIds = Array.from(
+      new Set([
+        storeId,
+        "bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e",
+        "e916bee8-3770-4650-9b46-d2e7d3ad49e6",
+      ].filter(Boolean))
+    );
+
+    const broadcastChannels = branchAlertIds.map((branchId) =>
+      supabase
+        .channel(`store-alerts:${branchId}`)
+        .on("broadcast", { event: "NEW_CUSTOMER_ORDER" }, (response) => {
+          showIncomingOrder(response.payload || {});
+        })
+        .subscribe()
+    );
 
     return () => {
-      supabaseGlobalInstance.removeChannel(alertListenerChannel);
+      supabase.removeChannel(dbChannel);
+      broadcastChannels.forEach((channel) => supabase.removeChannel(channel));
     };
-  }, [storeId]);
+  }, [storeId, supabase]);
 
-  // ================= INTERCEPT OVERLAY lifecycle actions dashboards =================
   // ================= INTERCEPT OVERLAY lifecycle actions dashboards =================
   const acceptIncomingWebOrder = async () => {
     if (!incomingOrder) return;
     stopContinuousAlertChime();
 
     try {
-      // Resolve table formatting options mapping. Fallback to delivery template default row value
-      const targetTicketType = incomingOrder.dining_option || "WEB DELIVERY";
-
-      // 1. Cross-reference the string name with loaded loyalty customers to capture their primary key ID
-      const matchedLoyaltyProfile = (customers || []).find(
-        (c) => String(c.name).trim().toLowerCase() === String(incomingOrder.customer_name).trim().toLowerCase()
-      );
-
-      const computedCustomerId = matchedLoyaltyProfile ? matchedLoyaltyProfile.id : null;
-      
-      // 2. Generate ticket name string, attaching the clear customer profile metadata context
-      const structuredTicketName = `${targetTicketType} - ${incomingOrder.customer_name || "Web Client"}`;
-
-      const openTicketPayload = {
-        ticket_name: structuredTicketName, // e.g., "TAKEOUT - Wilfr"
-        order_type: targetTicketType,       // Standard dining option reference constraint
-        customer_id: computedCustomerId,    // Links directly to loyalty pass records for points accumulation
-        items: incomingOrder.items || [],
-        total_amount: Number(incomingOrder.subtotal || 0),
-      };
-
-      // Direct write into Open Tickets table matching parked items architecture schema
-      const { error } = await supabase.from("open_tickets").insert([openTicketPayload]);
-      if (error) throw error;
-
-      // Update system state indices table parameters
-      const { error: statusUpdateError } = await supabase
-        .from("orders")
+      const { error: updateErr } = await supabase
+        .from("web_orders")
         .update({ status: "accepted" })
-        .eq("id", incomingOrder.order_id);
-      
-      if (statusUpdateError) console.warn("Supabase tracking index status step warning:", statusUpdateError.message);
+        .eq("id", incomingOrder.id);
+      if (updateErr) throw updateErr;
 
-      showToast(
-        "success", 
-        "Web Order Parked ✓", 
-        `Ticket successfully accepted under customer profile: ${incomingOrder.customer_name || "Guest"}`
-      );
-      
-      await fetchSavedTickets(); // Refreshes register display panel instantly
+      await fetchPendingCount(storeId);
+      await fetchAcceptedWebOrders();
+      showToast("success", "Order Accepted", "Web order moved to accepted web orders.");
     } catch (err) {
-      console.error("Web order acceptance cascade execution crash:", err);
-      showToast("error", "Acceptance Sync Failed", err.message);
+      showToast("error", "Acceptance Failed", err.message);
     } finally {
       setIncomingOrderModalOpen(false);
       setIncomingOrder(null);
@@ -1165,15 +1304,15 @@ export default function POSPage() {
     if (!incomingOrder) return;
     stopContinuousAlertChime();
 
-    // Map payload attributes directly into active working register cache states memory
+    // Route attributes into workspace memory cache tracking rows
     setCart(incomingOrder.items || []);
-    setOriginalTicketId(null); // Fresh workspace iteration flag
+    setOriginalTicketId(null);
+    setActiveWebOrderId(incomingOrder.id); // Secure the unique ID link 
 
-    // Try linking membership card profiles back dynamically
     const linkedCustomer = customers.find((c) => c.name === incomingOrder.customer_name);
     if (linkedCustomer) setAttachedCustomer(linkedCustomer);
 
-    showToast("info", "Order Loaded Into Register", "Modifiers loaded. Tweak active layout lines now inside workspace terminal frame.");
+    showToast("info", "Web Order Loaded", "Modifiers loaded inside active register workspace frame.");
     
     setIncomingOrderModalOpen(false);
     setIncomingOrder(null);
@@ -1188,11 +1327,12 @@ export default function POSPage() {
 
     try {
       const { error } = await supabase
-        .from("orders")
+        .from("web_orders")
         .update({ status: "rejected" })
-        .eq("id", incomingOrder.order_id);
+        .eq("id", incomingOrder.id);
 
       if (error) throw error;
+      await fetchPendingCount(storeId);
       showToast("warn", "Order Refused", "Remote order cancelled and updated flags inside log tracking rows.");
     } catch (err) {
       showToast("error", "Reject Sync Failed", err.message);
@@ -1208,11 +1348,27 @@ export default function POSPage() {
       .channel("pos-global-debug")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "orders" },
+        { event: "*", schema: "public", table: "web_orders" },
         (payload) => {
           console.log("🚨 DEBUG SNOOPER INTERCEPTED ROW:", payload.new);
+          const orderStore = payload.new?.branch_id;
+          if (String(orderStore) === String(storeId)) {
+            fetchPendingCount(storeId);
+            fetchAcceptedWebOrders();
+          }
         }
       )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [storeId]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('open_tickets_changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'open_tickets' }, () => {
+        fetchSavedTickets(); 
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
@@ -1269,6 +1425,7 @@ export default function POSPage() {
       localStorage.setItem("pos_store_id", activeStoreId);
       setStoreId(activeStoreId);
 
+      await fetchPendingCount(activeStoreId); 
       await fetchData(activeStoreId);
     };
 
@@ -1406,6 +1563,7 @@ export default function POSPage() {
     if (data) {
       setOriginalTicketId(data.id);
       setCart(data.items || []);
+      setActiveWebOrderId(null); // Clear web tracking context when switching to a physical table
       const linkedCustomer = customers.find((c) => c.id === data.customer_id);
       setAttachedCustomer(linkedCustomer || null);
       showToast("info", "Table Loaded", optionName);
@@ -1413,6 +1571,7 @@ export default function POSPage() {
       setOriginalTicketId(null);
       setCart([]);
       setAttachedCustomer(null);
+      setActiveWebOrderId(null);
     }
   }
 
@@ -1425,6 +1584,7 @@ export default function POSPage() {
       setOriginalTicketId(null);
       setCart([]);
       setAttachedCustomer(null);
+      setActiveWebOrderId(null);
       return;
     }
 
@@ -1432,6 +1592,20 @@ export default function POSPage() {
   }
 
   async function saveTableOrder() {
+    if (activeWebOrderId) {
+      // Direct rewrite update to keep the active web order synchronized 
+      const { error } = await supabase
+        .from("web_orders")
+        .update({
+          items: cart,
+          subtotal: Number(subtotal),
+          total: Number(subtotal)
+        })
+        .eq("id", activeWebOrderId);
+      if (error) throw error;
+      return;
+    }
+
     if (!diningOption) return;
     const name = diningOptionName;
     if (!name) return;
@@ -1480,6 +1654,113 @@ export default function POSPage() {
     setSavedTickets(enriched);
   }
 
+  async function fetchAcceptedWebOrders() {
+    if (!storeId) return;
+
+    const { data, error } = await supabase
+      .from("web_orders")
+      .select("*")
+      .in("status", TARGET_WEB_STATUSES)
+      .eq("branch_id", storeId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      showToast("error", "Web Orders Failed", error.message);
+      setWebOrders([]);
+      return;
+    }
+
+    setWebOrders(data || []);
+  }
+
+  async function openAcceptedWebOrders() {
+    await fetchAcceptedWebOrders();
+    setWebOrdersOpen(true);
+  }
+
+  function editAcceptedWebOrder(order) {
+    setCart(order.items || []);
+    setOriginalTicketId(null);
+    setActiveWebOrderId(order.id); // Secure tracking context parameter link
+
+    const optionName = order.dining_option || "";
+    const option = (diningOptions || []).find((d) => String(d.name).toLowerCase() === String(optionName).toLowerCase());
+    setDiningOption(option?.id || "");
+    const customer = customers.find(
+      (c) =>
+        c.id === order.customer_id ||
+        String(c.name || "").toLowerCase() === String(order.customer_name || "").toLowerCase()
+    );
+    setAttachedCustomer(customer || null);
+    setWebOrdersOpen(false);
+    showToast("info", "Web Order Loaded", "Edit the order in the active ticket workspace.");
+  }
+
+  async function markWebOrderReady(order) {
+    if (!order?.id) return;
+
+    const { error } = await supabase
+      .from("web_orders")
+      .update({ status: "ready" })
+      .eq("id", order.id);
+
+    if (error) {
+      showToast("error", "Ready Failed", error.message);
+      return;
+    }
+
+    await fetchAcceptedWebOrders();
+    showToast("success", "Customer Alert Sent", "Order status is now ready for pickup or delivery.");
+  }
+
+  async function markWebOrderDelivered(order) {
+    if (!order?.id) return;
+    const pointsEarned = calcLoyaltyPoints(order.total || order.subtotal);
+
+    const { error } = await supabase
+      .from("web_orders")
+      .update({ status: "completed" })
+      .eq("id", order.id);
+
+    if (error) {
+      showToast("error", "Completion Failed", error.message);
+      return;
+    }
+
+    await awardWebOrderLoyaltyPoints(order, pointsEarned);
+    await fetchAcceptedWebOrders();
+    showToast("success", "Order Completed", `Web order completed. Loyalty points: +${pointsEarned.toFixed(2)}.`);
+  }
+
+  async function awardWebOrderLoyaltyPoints(order, pointsEarned) {
+    if (!order?.user_id || !pointsEarned) return;
+
+    try {
+      const { data: member, error: findErr } = await supabase
+        .from("loyalty_members")
+        .select("*")
+        .eq("user_id", order.user_id)
+        .maybeSingle();
+
+      if (findErr || !member) return;
+
+      const currentBalance = Number(member["Points balance"] || 0);
+      const currentAvailable = Number(member["Available points"] || 0);
+      const currentVisits = Number(member["Total visits"] || 0);
+
+      await supabase
+        .from("loyalty_members")
+        .update({
+          "Points balance": Number((currentBalance + pointsEarned).toFixed(2)),
+          "Available points": Number((currentAvailable + pointsEarned).toFixed(2)),
+          "Total visits": currentVisits + 1,
+        })
+        .eq("id", member.id);
+    } catch (err) {
+      console.warn("Loyalty point update skipped:", err);
+    }
+  }
+
   async function voidTicket(ticketId) {
     if (!ticketId) return;
     const confirmVoid = confirm("Void this saved ticket? This cannot be undone.");
@@ -1497,6 +1778,7 @@ export default function POSPage() {
   async function resumeTicket(t) {
     setOriginalTicketId(t.id);
     setCart(t.items || []);
+    setActiveWebOrderId(null); // This layout block references physical tickets, clear web target references
     const name = t.order_type || t.ticket_name || "";
     const opt = (diningOptions || []).find((d) => d.name === name);
     setDiningOption(opt?.id || "");
@@ -1525,15 +1807,19 @@ export default function POSPage() {
   async function handleSaveTicket() {
     if (savingTicket) return;
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before saving.");
-    if (!diningOption) return showToast("error", "Dining Option Required", "Please select a dining option.");
+    if (!activeWebOrderId && !diningOption) return showToast("error", "Dining Option Required", "Please select a dining option.");
 
-    const confirmSave = confirm(`Are you sure you want to park this current ticket to "${diningOptionName || "Dining Option"}"?`);
+    const promptMessage = activeWebOrderId 
+      ? "Save adjustments directly back to this active web order?" 
+      : `Are you sure you want to park this current ticket to "${diningOptionName || "Dining Option"}"?`;
+
+    const confirmSave = confirm(promptMessage);
     if (!confirmSave) return;
 
     setSavingTicket(true);
     try {
       await saveTableOrder();
-      showToast("success", "Saved", "Ticket updated in system.");
+      showToast("success", "Saved successfully", activeWebOrderId ? "Web order values updated." : "Ticket updated in system.");
       clearTicketSoft();
     } catch (err) {
       console.error("Save failed:", err);
@@ -1545,6 +1831,23 @@ export default function POSPage() {
 
   async function handleVoidCurrentTicket() {
     if (cart.length === 0) return showToast("error", "Empty Ticket", "No items to void.");
+    
+    if (activeWebOrderId) {
+      const confirmWebVoid = confirm("Completely scrub and cancel this live web order transaction entry?");
+      if (!confirmWebVoid) return;
+      setSavingTicket(true);
+      try {
+        await supabase.from("web_orders").update({ status: "rejected" }).eq("id", activeWebOrderId);
+        clearTicketSoft();
+        showToast("warn", "Web Order Cancelled", "Order updated to rejected status rows.");
+      } catch (err) {
+        showToast("error", "Cancellation Failed", err.message);
+      } finally {
+        setSavingTicket(false);
+      }
+      return;
+    }
+
     if (!diningOption) return showToast("error", "Dining Option Required", "No explicit table option linked.");
 
     const confirmVoid = confirm(`Void entire current live ticket for "${diningOptionName}"? This clears all items permanently.`);
@@ -1566,7 +1869,9 @@ export default function POSPage() {
   async function handleChargeOrder() {
     if (charging) return;
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before charging.");
-    if (!diningOption || !diningOptionName) return showToast("error", "Dining Option Required", "Please select a dining option.");
+    if (!activeWebOrderId && (!diningOption || !diningOptionName)) {
+      return showToast("error", "Dining Option Required", "Please select a dining option.");
+    }
     setPaymentOpen(true);
   }
 
@@ -1574,7 +1879,6 @@ export default function POSPage() {
     if (charging) return;
     if (!selectedPayment) return showToast("error", "Payment Required", "Select a payment type.");
     if (!storeId) return showToast("error", "Store not set", "Store code identifier mismatch.");
-    if (!diningOption || !diningOptionName) return showToast("error", "Dining Option Required", "Please select a dining option.");
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before charging.");
 
     setCharging(true);
@@ -1599,7 +1903,7 @@ export default function POSPage() {
           total,
           discount,
           payment_method: selectedPayment,
-          dining_option: diningOptionName,
+          dining_option: diningOptionName || "WEB_ORDER",
         }])
         .select("*")
         .single();
@@ -1621,8 +1925,11 @@ export default function POSPage() {
         year: '2-digit', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
       }).replace(/,/g, '');
 
-      const generatedReceiptNumber = `2-${Math.floor(1000 + Math.random() * 9000)}`;
-      const calculatedGrossSales = cart.reduce((sum, item) => sum + (Number(item.unitPrice || 0) * Number(item.quantity || 0)), 0);
+      const generatedReceiptNumber = activeWebOrderId 
+        ? `WEB-${activeWebOrderId.slice(0, 5).toUpperCase()}` 
+        : `2-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      const calculatedGrossSales = cart.reduce((sum, item) => sum + (Number(item.unitPrice || item.price || 0) * Number(item.quantity || 0)), 0);
       const calculatedNetSales = calculatedGrossSales - discount;
 
       const csvDescriptionString = cart
@@ -1642,7 +1949,7 @@ export default function POSPage() {
         gross_profit: calculatedNetSales.toFixed(2),
         payment_type: selectedPayment,
         description: csvDescriptionString,
-        dining_option: diningOptionName || "TAKEOUT",
+        dining_option: diningOptionName || "WEB_ORDER",
         pos: "Cashier - Main",
         store: storeId,
         cashier_name: "Owner",
@@ -1655,7 +1962,7 @@ export default function POSPage() {
       if (masterLogError) console.warn("Excel Master Log insertion error: ", masterLogError.message);
 
       const itemBreakdownLogPayloads = cart.map((item) => {
-        const itemGross = Number(item.unitPrice || 0) * Number(item.quantity || 0);
+        const itemGross = Number(item.unitPrice || item.price || 0) * Number(item.quantity || 0);
         const lineProRatedDiscount = cart.length > 0 ? (discount / cart.length) : 0;
         const itemNet = itemGross - lineProRatedDiscount;
 
@@ -1675,7 +1982,7 @@ export default function POSPage() {
           cost_of_goods: "0.00",
           gross_profit: itemNet.toFixed(2),
           taxes: "0.00",
-          dining_option: diningOptionName || "TAKEOUT",
+          dining_option: diningOptionName || "WEB_ORDER",
           pos: "Cashier - Main",
           store: storeId,
           cashier_name: "Owner",
@@ -1689,8 +1996,31 @@ export default function POSPage() {
       const { error: itemsLogError } = await supabase.from("receipts_by_item").insert(itemBreakdownLogPayloads);
       if (itemsLogError) console.warn("Excel Item Log insertion error: ", itemsLogError.message);
 
+      // If updating an active web order, close out its row state inside web_orders table
+      if (activeWebOrderId) {
+        const { data: activeWebOrder } = await supabase
+          .from("web_orders")
+          .select("*")
+          .eq("id", activeWebOrderId)
+          .maybeSingle();
+
+        await supabase
+          .from("web_orders")
+          .update({ 
+            status: "completed",
+            items: cart,
+            subtotal: Number(subtotal),
+            total: Number(subtotal)
+          })
+          .eq("id", activeWebOrderId);
+
+        await awardWebOrderLoyaltyPoints(activeWebOrder, calcLoyaltyPoints(total));
+      } else {
+        await supabase.from("open_tickets").delete().eq("order_type", diningOptionName);
+      }
+
       const receipt = buildReceiptText({
-        receiptSettings, order: orderRow, cart, diningOptionName, payment: selectedPayment,
+        receiptSettings, order: { ...orderRow, id: generatedReceiptNumber }, cart, diningOptionName: diningOptionName || "WEB ORDER", payment: selectedPayment,
         customer: attachedCustomer, subtotal, discount, total, voucher: appliedVoucher, appliedDiscount,
       });
 
@@ -1699,19 +2029,18 @@ export default function POSPage() {
 
       if (receiptSettings?.auto_print) {
         await printByRole("receipt", receipt, printerConfig);
-        if (selectedDining?.print_kitchen) {
-          const slip = buildOrderSlipText({ orderId: orderRow.id, cart });
+        if (selectedDining?.print_kitchen || activeWebOrderId) {
+          const slip = buildOrderSlipText({ orderId: generatedReceiptNumber, cart });
           await printByRole("order_slip", slip, printerConfig);
         }
-        if (selectedDining?.print_labels) {
-          const labels = buildCupLabels({ orderId: orderRow.id, cart });
+        if (selectedDining?.print_labels || activeWebOrderId) {
+          const labels = buildCupLabels({ orderId: generatedReceiptNumber, cart });
           for (const l of labels) {
             await printByRole("cup_label", l, printerConfig);
           }
         }
       }
 
-      await supabase.from("open_tickets").delete().eq("order_type", diningOptionName);
       showToast("success", "Charged Successfully", "Transaction saved and synced to logs.");
       clearTicketSoft();
       setPaymentOpen(false);
@@ -1814,6 +2143,7 @@ export default function POSPage() {
     setSplitMode(false);
     setSplitSelected([]);
     setOriginalTicketId(null);
+    setActiveWebOrderId(null); // Clear tracking target references safely
   };
 
   const clearTicket = () => {
@@ -2003,12 +2333,18 @@ export default function POSPage() {
             <p className="text-[10px] text-slate-400 font-mono mt-0.5 tracking-wider uppercase">Store ID: {storeId || "DISCONNECTED"}</p>
           </div>
           <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-50">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 relative">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-xs text-slate-600 font-bold tracking-wide">
+              <span className="text-xs text-slate-600 font-bold tracking-wide mr-2">
                 {isMounted && typeof window !== "undefined" ? (localStorage.getItem("cashier_name") || "Operator") : ""}
               </span>
+              {pendingCount > 0 && (
+                <span className="bg-[#FC687D] text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-pulse">
+                  {pendingCount} NEW
+                </span>
+              )}
             </div>
+            
             <button
               onClick={async () => {
                 await supabase.auth.signOut();
@@ -2120,6 +2456,7 @@ export default function POSPage() {
               onCharge={handleChargeOrder}
               onSave={handleSaveTicket}
               onVoidLiveTicket={handleVoidCurrentTicket}
+              onOpenWebOrdersModal={openAcceptedWebOrders}
               onOpenSavedTicketsModal={async () => {
                 await fetchSavedTickets();
                 setSavedMode("resume");
@@ -2143,7 +2480,6 @@ export default function POSPage() {
               }}
             />
           </div>
-
         </div>
       </div>
 
@@ -2211,6 +2547,7 @@ export default function POSPage() {
                 onCharge={handleChargeOrder}
                 onSave={handleSaveTicket}
                 onVoidLiveTicket={handleVoidCurrentTicket}
+                onOpenWebOrdersModal={openAcceptedWebOrders}
                 onOpenSavedTicketsModal={async () => {
                   await fetchSavedTickets();
                   setSavedMode("resume");
@@ -2260,6 +2597,15 @@ export default function POSPage() {
           else resumeTicket(t);
         }}
         onVoid={(t) => voidTicket(t.id)}
+      />
+      <WebOrdersModal
+        open={webOrdersOpen}
+        onClose={() => setWebOrdersOpen(false)}
+        orders={webOrders}
+        onRefresh={fetchAcceptedWebOrders}
+        onEdit={editAcceptedWebOrder}
+        onReady={markWebOrderReady}
+        onDelivered={markWebOrderDelivered}
       />
       <DiningOptionModal open={diningOptionPickOpen} onClose={() => setDiningOptionPickOpen(false)} options={diningOptions} onPick={createNewTicketWithItems} />
       <VouchersModal

@@ -73,7 +73,7 @@ export function useIdleLogout({
     document.addEventListener("visibilitychange", onVis);
 
     return () => {
-      events.forEach((evt) => window.removeEventListener(evt, bump as any));
+      events.forEach((evt) => window.removeEventListener(evt, bump));
       window.removeEventListener("storage", onStorage);
       document.removeEventListener("visibilitychange", onVis);
       clearInterval(interval);

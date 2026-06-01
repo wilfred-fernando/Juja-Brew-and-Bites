@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -12,6 +12,35 @@ const Barcode = dynamic(() => import("react-barcode"), { ssr: false });
 
 const LOGO =
   "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
+
+const loyaltyPoints = (amount) => Number(((Number(amount) || 0) * 0.04).toFixed(2));
+
+function playCustomerAlertSound(status = "ready") {
+  if (typeof window === "undefined") return;
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const notes = status === "completed" ? [660, 880, 990] : [880, 1175, 1568];
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.72);
+    gain.connect(ctx.destination);
+
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.12);
+      osc.connect(gain);
+      osc.start(ctx.currentTime + idx * 0.12);
+      osc.stop(ctx.currentTime + idx * 0.12 + 0.22);
+    });
+    setTimeout(() => ctx.close(), 900);
+  } catch (err) {
+    console.warn("Customer alert sound skipped:", err);
+  }
+}
 
 function genMemberCode() {
   const n = String(Math.floor(Math.random() * 999999) + 1).padStart(6, "0");
@@ -84,6 +113,7 @@ function AppNavigation({ tab, setTab }) {
     { id: "home", icon: "🏠", label: "Home" },
     { id: "order", icon: "🍽️", label: "Order" },
     { id: "history", icon: "📦", label: "Tracker" },
+    { id: "receipts", icon: "🧾", label: "Receipts" },
     { id: "loyalty", icon: "⭐", label: "Loyalty" },
     { id: "booking", icon: "🗓", label: "Book" },
     { id: "profile", icon: "👤", label: "Profile" },
@@ -93,7 +123,7 @@ function AppNavigation({ tab, setTab }) {
     <>
       {/* Mobile & Tablet Bottom Tab Bar */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-rose-50 pb-safe shadow-[0_-4px_24px_rgba(252,104,125,0.05)] lg:hidden">
-        <div className="max-w-xl mx-auto grid grid-cols-6 px-1">
+        <div className="max-w-xl mx-auto grid grid-cols-7 px-1">
           {tabs.map((t) => (
             <button
               key={t.id}
@@ -434,8 +464,8 @@ function AddToCartModal({ item, onClose, onAdd }) {
                     const sel = (selections[g.id] || []).find((x) => x.id === o.id);
                     return (
                       <button
-                        key={o.id}
                         type="button"
+                        key={o.id}
                         onClick={() => toggleOption(g, o)}
                         className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-sm font-medium transition-all text-left ${
                           sel ? "border-rose-400 bg-rose-50/40 text-rose-900" : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
@@ -518,7 +548,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems,
   if (!open) return null;
 
   const isValidTime = fulfillmentTime && fulfillmentTime.trim() !== "";
-  const potentialPointsEarned = Math.floor(subtotal / 25);
+  const potentialPointsEarned = loyaltyPoints(subtotal);
 
   return (
     <div className="fixed inset-0 z-[150] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4">
@@ -587,7 +617,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems,
 
           <div className="bg-emerald-50/60 border border-emerald-100 rounded-xl p-3 flex items-center justify-between text-xs text-emerald-800 font-medium">
             <span className="flex items-center gap-2">⭐ <span>Rewards Points Earned</span></span>
-            <span className="font-extrabold text-sm text-emerald-700">+{potentialPointsEarned} pts</span>
+            <span className="font-extrabold text-sm text-emerald-700">+{potentialPointsEarned.toFixed(2)} pts</span>
           </div>
 
           <div className="bg-[#FFF9FA] border border-rose-50/60 p-4 rounded-2xl space-y-2 mt-2">
@@ -746,44 +776,44 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       branch_id: selectedBranch,
       items: cart, 
       subtotal: Number(subtotal),
+      total: Number(subtotal),
       status: "pending", 
       dining_option: fulfillmentMetadata.diningOption, 
-      fulfillment_date: fulfillmentMetadata.fulfillmentDate,
-      fulfillment_time: fulfillmentMetadata.fulfillmentTime
+      fulfillment_time: `${fulfillmentMetadata.fulfillmentDate} ${fulfillmentMetadata.fulfillmentTime}`
     };
 
     try {
       const { data, error } = await supabase
-        .from("orders")
+        .from("web_orders")
         .insert([orderPayload])
         .select();
 
       if (error) throw error;
-
       const freshWebOrderRow = data[0];
 
       const alertBroadcastChannelInstance = supabase.channel(`store-alerts:${selectedBranch}`);
-      await alertBroadcastChannelInstance.subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
-          await alertBroadcastChannelInstance.send({
+      alertBroadcastChannelInstance.subscribe((status, err) => {
+        if (!err && status === "SUBSCRIBED") {
+          alertBroadcastChannelInstance.send({
             type: "broadcast",
             event: "NEW_CUSTOMER_ORDER",
             payload: {
+              ...freshWebOrderRow,
               order_id: freshWebOrderRow.id,
               customer_name: freshWebOrderRow.customer_name,
               subtotal: freshWebOrderRow.subtotal,
               item_count: itemCount,
               dining_option: freshWebOrderRow.dining_option,
-              fulfillment_date: freshWebOrderRow.fulfillment_date,
               fulfillment_time: freshWebOrderRow.fulfillment_time,
               timestamp: new Date().toISOString()
             }
+          }).then(() => {
+            supabase.removeChannel(alertBroadcastChannelInstance);
           });
-          supabase.removeChannel(alertBroadcastChannelInstance);
         }
       });
 
-      alert(`🎉 Order sent to POS! Method: ${fulfillmentMetadata.diningOption} @ ${fulfillmentMetadata.fulfillmentTime}\nYou earned +${Math.floor(subtotal / 25)} loyalty points upon payment collection!`);
+      alert(`🎉 Order sent to POS! Method: ${fulfillmentMetadata.diningOption} @ ${fulfillmentMetadata.fulfillmentTime}\nEstimated loyalty points: +${loyaltyPoints(subtotal).toFixed(2)} upon payment collection.`);
       setCart([]);
       setConfirmationOpen(false);
       setCartOpen(false);
@@ -792,6 +822,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       console.error("Critical submission failure loop trace:", err);
       alert(`❌ Submission Error: ${err.message || "Network Connection Failure"}`);
     } finally {
+      setConfirmationOpen(false);
       setIsSubmitting(false);
     }
   };
@@ -845,7 +876,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
                     onClick={() => changeQty(line.cartItemId, 1)}
                     className="w-7 h-7 rounded-lg bg-[#FC687D] flex items-center justify-center font-bold text-white"
                   >
-                    +
+                     +
                   </button>
                 </div>
               </div>
@@ -896,7 +927,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
   );
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 items-start">
       <div className="space-y-5">
         <div className="bg-white border border-rose-50 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -931,7 +962,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
             ❌ No matching available products located.
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-4 gap-3 sm:gap-4">
             {filteredItems.map((item) => (
               <button
                 key={item.id}
@@ -939,7 +970,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
                 className="group bg-white border border-slate-100 rounded-2xl p-3 text-left hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex flex-col h-full justify-between"
               >
                 <div>
-                  <div className="w-full aspect-video rounded-xl bg-[#FFF9FA] border border-rose-50/50 flex items-center justify-center overflow-hidden">
+                  <div className="w-full aspect-square rounded-xl bg-[#FFF9FA] border border-rose-50/50 flex items-center justify-center overflow-hidden">
                     {item.image_url ? (
                       <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
                     ) : (
@@ -947,15 +978,15 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
                     )}
                   </div>
                   <div className="mt-3">
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-[#FC687D] bg-rose-50 px-2 py-0.5 rounded-md">
+                    <span className="text-[9px] font-normal uppercase tracking-wider text-[#FC687D] bg-rose-50 px-2 py-0.5 rounded-md">
                       {item.category || "General"}
                     </span>
-                    <p className="text-sm font-bold text-slate-800 leading-tight mt-1.5">
+                    <p className="text-sm font-normal text-slate-800 leading-tight mt-1.5">
                       {item.name}
                     </p>
                   </div>
                 </div>
-                <p className="text-sm font-extrabold text-slate-800 mt-3 pt-2 border-t border-slate-50">
+                <p className="text-sm font-normal text-slate-800 mt-3 pt-2 border-t border-slate-50">
                   ₱{Number(item.price || 0).toFixed(0)}
                 </p>
               </button>
@@ -1057,6 +1088,8 @@ function TrackerTab({ orders, loadingOrders }) {
     switch (String(status).toLowerCase()) {
       case "pending": return "bg-amber-50 border-amber-200 text-amber-700";
       case "accepted": return "bg-emerald-50 border-emerald-200 text-emerald-700";
+      case "ready": return "bg-sky-50 border-sky-200 text-sky-700";
+      case "completed": return "bg-slate-100 border-slate-200 text-slate-600";
       case "rejected": return "bg-rose-50 border-rose-200 text-rose-700";
       default: return "bg-slate-50 border-slate-200 text-slate-600";
     }
@@ -1066,7 +1099,7 @@ function TrackerTab({ orders, loadingOrders }) {
     <div className="max-w-3xl mx-auto bg-white rounded-2xl border border-slate-100 p-5 shadow-sm animate-in fade-in duration-300">
       <div className="border-b border-slate-100 pb-3 mb-5">
         <h3 className="font-black text-slate-800 text-base flex items-center gap-2">
-          <span>📦</span> Live Pipeline & Order History
+          <span>📦</span> Live Order & Order History
         </h3>
         <p className="text-[11px] text-slate-400 mt-0.5">Track your live orders and view points earned at Juja Brew & Bites.</p>
       </div>
@@ -1107,9 +1140,9 @@ function TrackerTab({ orders, loadingOrders }) {
               <div className="flex items-center justify-between text-xs font-semibold text-slate-500 pt-1">
                 <div className="flex items-center gap-2">
                   <span className="uppercase tracking-wide font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-700 text-[10px]">{order.dining_option || "Takeout"}</span>
-                  {String(order.status).toLowerCase() === "accepted" && (
+                  {(String(order.status).toLowerCase() === "accepted" || String(order.status).toLowerCase() === "completed") && (
                     <span className="text-emerald-700 font-black bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 text-[10px]">
-                      ⭐ +{Math.floor(Number(order.subtotal || 0) / 25)} pts Earned
+                      ⭐ +{loyaltyPoints(order.subtotal).toFixed(2)} pts Earned
                     </span>
                   )}
                 </div>
@@ -1126,6 +1159,81 @@ function TrackerTab({ orders, loadingOrders }) {
 /* ──────────────────────────────────────────────────────────────
     Loyalty Tab
 ────────────────────────────────────────────────────────────── */
+function CompletedReceiptsTab({ orders, loadingOrders }) {
+  const completed = (orders || []).filter((order) => String(order.status || "").toLowerCase() === "completed");
+
+  return (
+    <div className="max-w-3xl mx-auto bg-white rounded-2xl border border-slate-100 p-5 shadow-sm animate-in fade-in duration-300">
+      <div className="border-b border-slate-100 pb-3 mb-5">
+        <h3 className="font-black text-slate-800 text-base flex items-center gap-2">
+          <span>🧾</span> Completed Order Receipts
+        </h3>
+        <p className="text-[11px] text-slate-400 mt-0.5">Review completed web orders, totals, and loyalty points earned.</p>
+      </div>
+
+      {loadingOrders ? (
+        <div className="py-16 text-center flex justify-center">
+          <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
+        </div>
+      ) : completed.length === 0 ? (
+        <div className="text-center py-16 px-4 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+          <span className="text-3xl block mb-2">🧾</span>
+          <p className="text-sm font-semibold">No completed receipts yet.</p>
+          <p className="text-xs text-slate-400 mt-1">Completed orders will appear here after delivery or pickup is closed.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {completed.map((order) => {
+            const total = Number(order.total || order.subtotal || 0);
+            const points = loyaltyPoints(total);
+            return (
+              <div key={order.id} className="border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden">
+                <div className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-widest text-rose-200 font-bold">Receipt</p>
+                    <p className="font-mono text-xs font-bold">#{String(order.id).slice(0, 8).toUpperCase()}</p>
+                  </div>
+                  <span className="text-[10px] uppercase tracking-widest bg-white/10 border border-white/10 px-2.5 py-1 rounded-md font-bold">
+                    Completed
+                  </span>
+                </div>
+
+                <div className="p-4 space-y-3">
+                  <div className="text-xs text-slate-500 flex flex-wrap gap-2">
+                    <span>{order.created_at ? new Date(order.created_at).toLocaleString() : "No date"}</span>
+                    <span>•</span>
+                    <span>{order.dining_option || "Web Order"}</span>
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-1.5">
+                    {(order.items || []).map((line, idx) => (
+                      <div key={line.cartItemId || idx} className="flex justify-between gap-3 text-xs font-medium text-slate-700">
+                        <span className="truncate">{line.quantity} x {line.name}</span>
+                        <span className="font-mono">₱{(Number(line.unitPrice || 0) * Number(line.quantity || 0)).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="rounded-xl border border-slate-100 bg-white p-3">
+                      <p className="uppercase tracking-widest text-slate-400 text-[9px] font-bold">Total Paid</p>
+                      <p className="text-lg font-black text-slate-800 mt-1">₱{total.toFixed(2)}</p>
+                    </div>
+                    <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                      <p className="uppercase tracking-widest text-emerald-600 text-[9px] font-bold">Loyalty Points</p>
+                      <p className="text-lg font-black text-emerald-700 mt-1">+{points.toFixed(2)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LoyaltyTab({ member, setMember, user }) {
   const [mode, setMode] = useState(null); 
   const [loading, setLoading] = useState(false);
@@ -1150,8 +1258,8 @@ function LoyaltyTab({ member, setMember, user }) {
   const nextReward = (Math.floor(available / 100) + 1) * 100;
 
   useEffect(() => {
-    const t = setInterval(() => setNowTick(Date.now()), 60 * 1000);
-    return () => clearInterval(t);
+    const d = setInterval(() => setNowTick(Date.now()), 60 * 1000);
+    return () => clearInterval(d);
   }, []);
 
   const isBirthdayVoucher = (v) => {
@@ -1262,7 +1370,7 @@ function LoyaltyTab({ member, setMember, user }) {
     if (!b.ok) { setNotice("⚠️ " + b.msg); return; }
     setCheckingMatch(true);
     const { data } = await supabase.from("loyalty_members").select("*").ilike("customer_name", form.customer_name).eq("Note", b.value).maybeSingle();
-    matchedPreview = data || null;
+    setMatchedPreview(data || null);
     setMatchChecked(true);
     setCheckingMatch(false);
   };
@@ -1487,16 +1595,25 @@ export default function Customer() {
 
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
+  const alertedOrderStatusRef = useRef(new Set());
 
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
+
+  // Application UI internal toast context states register caching memory
+  const [toast, setToast] = useState(null);
+
+  const showToast = (type, title, message) => {
+    setToast({ type, title, message });
+    setTimeout(() => setToast(null), 4500);
+  };
 
   const fetchOrderHistory = async (userId) => {
     if (!userId) return;
     setLoadingOrders(true);
     try {
       const { data, error } = await supabase
-        .from("orders")
+        .from("web_orders")
         .select("*")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
@@ -1510,6 +1627,15 @@ export default function Customer() {
       setLoadingOrders(false);
     }
   };
+
+  // Upgraded: Proactive client notification initialization engine
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
 
   // ================= PWA INTERACTIVE AUTO-UPDATE SYSTEM HOOK =================
   useEffect(() => {
@@ -1579,23 +1705,29 @@ export default function Customer() {
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "loyalty_members" },
-        { filter: `user_id=eq.${user.id}` },
         (payload) => {
-          if (payload?.new) setMember(payload.new);
+          if (payload?.new && String(payload.new.user_id) === String(user.id)) {
+            setMember(payload.new);
+          }
         }
       )
       .subscribe();
 
+    // Upgraded: Broad non-filtered query listener loop to bypass Supabase server concatenation restrictions
     const ordersChannel = supabase
       .channel("customer-orders-live-status")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "orders" },
-        { filter: `user_id=eq.${user.id}` },
+        { event: "*", schema: "public", table: "web_orders" },
         (payload) => {
+          // Client-side row verification validation
+          const incomingUserId = payload.new?.user_id || payload.old?.user_id;
+          if (String(incomingUserId) !== String(user.id)) return;
+
           if (payload.eventType === "INSERT") {
             setOrders((prev) => [payload.new, ...prev]);
           } else if (payload.eventType === "UPDATE") {
+            notifyOrderStatus(payload.new);
             setOrders((prev) =>
               prev.map((o) => (o.id === payload.new.id ? payload.new : o))
             );
@@ -1623,6 +1755,7 @@ export default function Customer() {
       }
     };
 
+    // Fix: Add listener directly using the initialized handler
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
     return () => {
@@ -1646,6 +1779,43 @@ export default function Customer() {
     setShowInstallBanner(false);
   };
 
+  const notifyOrderStatus = (order) => {
+    const status = String(order?.status || "").toLowerCase();
+    if (status !== "ready" && status !== "completed") return;
+
+    const key = `${order.id}:${status}`;
+    if (alertedOrderStatusRef.current.has(key)) return;
+    alertedOrderStatusRef.current.add(key);
+
+    const orderIdShort = order.id.slice(0, 8).toUpperCase();
+    const points = loyaltyPoints(order.total || order.subtotal).toFixed(2);
+    playCustomerAlertSound(status);
+    
+    // 1. High Visibility In-App Toast Alert Layout Mutation Trigger
+    showToast(
+      "success",
+      status === "ready" ? "Order Ready! 🛎️" : "Order Completed ✅",
+      status === "ready"
+        ? `Order #${orderIdShort} is fresh and ready for pickup or delivery.`
+        : `Order #${orderIdShort} is completed. Loyalty points earned: +${points}.`
+    );
+
+    // 2. Upgraded System Native Web Browser Notification API Execution
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "granted") {
+        new Notification("Juja Brew & Bites", {
+          body: status === "ready" 
+            ? `Order #${orderIdShort} is ready! Come claim your fresh brews and bites.`
+            : `Order #${orderIdShort} has been completed. Enjoy your items!`,
+          icon: LOGO,
+          badge: LOGO,
+          tag: order.id,
+          requireInteraction: true
+        });
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#FFF5F7]">
@@ -1661,6 +1831,28 @@ export default function Customer() {
 
   return (
     <div className="min-h-screen bg-[#FFF5F7] text-slate-800 antialiased flex flex-col lg:flex-row">
+      {/* Visual In-App Notification System Render Slot */}
+      {toast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[250] px-4 w-full max-w-md animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="bg-slate-950 border border-rose-400/30 text-white rounded-2xl shadow-2xl p-4 flex items-start gap-3 relative overflow-hidden ring-1 ring-white/10">
+            <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-[#FC687D]" />
+            <div className="w-11 h-11 rounded-xl bg-rose-500/15 border border-rose-300/20 flex items-center justify-center text-xl shrink-0">
+              {toast.title?.toLowerCase().includes("completed") ? "✅" : "🛎️"}
+            </div>
+            <div className="text-sm flex-1 min-w-0">
+              <p className="font-black text-rose-300 tracking-wide text-xs uppercase">{toast.title}</p>
+              <p className="text-white/90 text-xs mt-1 font-medium leading-relaxed">{toast.message}</p>
+            </div>
+            <button 
+              onClick={() => setToast(null)} 
+              className="w-6 h-6 rounded-lg bg-white/10 hover:bg-white/15 flex items-center justify-center text-xs font-bold text-white/70 hover:text-white"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       <AppNavigation tab={tab} setTab={setTab} />
 
       <main className="flex-1 overflow-x-hidden min-h-screen pb-32 pt-4 md:pt-8 px-4 sm:px-6 lg:pl-72 lg:pr-8 max-w-7xl mx-auto w-full transition-all">
@@ -1669,10 +1861,11 @@ export default function Customer() {
           <OrderTab 
             user={user} 
             member={member} 
-            onCheckoutSuccess={() => setTab("history")} // Automatically switches tabs upon submission
+            onCheckoutSuccess={() => setTab("history")} 
           />
         )}
         {tab === "history" && <TrackerTab orders={orders} loadingOrders={loadingOrders} />}
+        {tab === "receipts" && <CompletedReceiptsTab orders={orders} loadingOrders={loadingOrders} />}
         {tab === "loyalty" && <LoyaltyTab member={member} setMember={setMember} user={user} />}
         {tab === "booking" && <BookingTab user={user} member={member} />}
         {tab === "profile" && <ProfileTab user={user} onLogout={logout} />}

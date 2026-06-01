@@ -28,6 +28,7 @@ export default function TicketPanel({
   onToggleSplit,
   onMoveToNewTicket,
   onMoveToSaved,
+  onOpenWebOrdersModal,
   onOpenSavedTicketsModal,
   onCartItemClick,
   onCloseMobile,
@@ -122,37 +123,37 @@ export default function TicketPanel({
         )}
       </div>
 
-            {/* ✅ Repaired Dining Options Dropdown Component */}
-            <div className="flex-none pb-3 mb-3 border-b border-slate-100">
-            <label className="block text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-1.5">
-                Serving Destination
-            </label>
-            <select
-                value={diningOption || ""}
-                onChange={(e) => {
-                const selectedValue = e.target.value;
-                setDiningOption(selectedValue);
-                }}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 tracking-wide outline-none focus:border-rose-200 transition"
-            >
-                <option value="" disabled>
-                Select Dining Option
-                </option>
+      {/* ✅ Repaired Dining Options Dropdown Component */}
+      <div className="flex-none pb-3 mb-3 border-b border-slate-100">
+        <label className="block text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-1.5">
+          Serving Destination
+        </label>
+        <select
+          value={diningOption || ""}
+          onChange={(e) => {
+            const selectedValue = e.target.value;
+            setDiningOption(selectedValue);
+          }}
+          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 tracking-wide outline-none focus:border-rose-200 transition"
+        >
+          <option value="" disabled>
+            Select Dining Option
+          </option>
 
-                {/* ✅ Direct mapping against pre-filtered database arrays to circumvent schema field mismatches */}
-                {Array.isArray(diningOptions) && diningOptions.length > 0 ? (
-                diningOptions.map((opt) => (
-                    <option key={String(opt.id)} value={String(opt.id)}>
-                    {opt.name}
-                    </option>
-                ))
-                ) : (
-                <option disabled value="">
-                    ⚠️ No options loaded (Check Admin Settings)
-                </option>
-                )}
-            </select>
-            </div>
+          {/* ✅ Direct mapping against pre-filtered database arrays to circumvent schema field mismatches */}
+          {Array.isArray(diningOptions) && diningOptions.length > 0 ? (
+            diningOptions.map((opt) => (
+              <option key={String(opt.id)} value={String(opt.id)}>
+                {opt.name}
+              </option>
+            ))
+          ) : (
+            <option disabled value="">
+              ⚠️ No options loaded (Check Admin Settings)
+            </option>
+          )}
+        </select>
+      </div>
 
       {/* Controls */}
       <div className="grid grid-cols-2 gap-2 mb-3 relative z-30">
@@ -169,7 +170,7 @@ export default function TicketPanel({
           🎟️ {appliedVoucher ? "Remove Voucher" : "Apply Voucher"}
         </button>
 
-         <div className="relative">
+        <div className="relative">
           <button
             onClick={() => setShowManageDropdown((p) => !p)}
             className="w-full py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 tracking-wide transition flex items-center justify-center gap-1.5 active:scale-95"
@@ -178,13 +179,25 @@ export default function TicketPanel({
           </button>
 
           {showManageDropdown && (
-            <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden py-1 z-50">
+            <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden py-1 z-50">
+              
+              {/* ✅ ADDED: View Parked Web Orders Entry Point */}
+              <button
+                onClick={() => { setShowManageDropdown(false); onOpenWebOrdersModal(); }}
+                className="w-full text-left px-4 py-2.5 text-xs font-bold text-rose-600 bg-rose-50/40 hover:bg-rose-50 transition flex items-center gap-2"
+              >
+                🌐 View Accepted Web Orders
+              </button>
+              
+              <div className="border-t border-slate-100 my-1" />
+
               <button
                 onClick={() => { setShowManageDropdown(false); onOpenSavedTicketsModal(); }}
                 className="w-full text-left px-4 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition flex items-center gap-2"
               >
                 📋 View Saved Tickets
               </button>
+              
               <div className="border-t border-slate-100 my-1" />
               <button
                 onClick={() => { setShowManageDropdown(false); onToggleSplit(); }}
