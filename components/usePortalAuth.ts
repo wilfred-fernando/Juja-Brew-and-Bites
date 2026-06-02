@@ -13,6 +13,9 @@ export type Role =
 
 type UsePortalAuthProps = {
   allowedRoles: Role[];
+  requireStore?: boolean;
+  portal?: string;
+  loginPath?: string;
 };
 
 type UsePortalAuthReturn = {
@@ -27,6 +30,7 @@ type UsePortalAuthReturn = {
 
 export function usePortalAuth({
   allowedRoles,
+  requireStore = true,
 }: UsePortalAuthProps): UsePortalAuthReturn {
   const supabase = getSupabaseClient();
 
@@ -85,7 +89,7 @@ export function usePortalAuth({
         }
 
         // ✅ ✅ IMPORTANT: Super Admin bypass store requirement
-        if (role !== "super_admin" && !storeId) {
+        if (requireStore && role !== "super_admin" && !storeId) {
           console.warn("Non-super-admin has no store assigned");
           setAuthorized(false);
           return;
@@ -102,7 +106,7 @@ export function usePortalAuth({
     }
 
     run();
-  }, [allowedRoles, supabase]);
+  }, [allowedRoles, requireStore, supabase]);
 
   /* ----------------------------- RETURN ----------------------------- */
 

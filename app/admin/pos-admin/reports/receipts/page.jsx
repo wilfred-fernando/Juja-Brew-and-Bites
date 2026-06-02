@@ -285,6 +285,13 @@ function csvValue(value) {
   return /[",\n]/.test(text) ? `"${text.replaceAll("\"", "\"\"")}"` : text;
 }
 
+function compareReceiptNumber(a, b) {
+  return String(a?.receiptNo || "").localeCompare(String(b?.receiptNo || ""), undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
+
 function cardStyles(accent, active) {
   const colors = {
     rose: active ? "border-rose-200 bg-rose-50 text-rose-700" : "border-rose-100 bg-white text-rose-600",
@@ -368,7 +375,7 @@ export default function Page() {
   );
 
   const visibleRows = useMemo(
-    () => filteredBeforeType.filter((row) => typeFilter === "all" || row.typeKey === typeFilter),
+    () => filteredBeforeType.filter((row) => typeFilter === "all" || row.typeKey === typeFilter).sort(compareReceiptNumber),
     [filteredBeforeType, typeFilter]
   );
 

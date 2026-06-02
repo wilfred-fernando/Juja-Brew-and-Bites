@@ -1214,6 +1214,21 @@ function discountAmountFromRule(rule, subtotal) {
   return 0;
 }
 
+function getLatestShiftRecord(records, storeId) {
+  const rows = Array.isArray(records) ? records : [];
+  const scoped = storeId ? rows.filter((row) => String(row.store_id || "") === String(storeId)) : rows;
+  return [...scoped].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())[0] || null;
+}
+
+function getShiftRecordMode(record) {
+  return String(record?.mode || record?.shift_type || record?.type || record?.action || "").toLowerCase();
+}
+
+function getShiftStatusFromRecords(records, storeId) {
+  const latest = getLatestShiftRecord(records, storeId);
+  return getShiftRecordMode(latest).includes("open") ? "open" : "closed";
+}
+
 // ================= MAIN TERMINAL SCREEN =================
 
 export default function POSPage() {
@@ -1291,6 +1306,7 @@ export default function POSPage() {
   const [shiftCashMode, setShiftCashMode] = useState("open");
   const [shiftDenominations, setShiftDenominations] = useState({});
   const [shiftRecords, setShiftRecords] = useState([]);
+  const [shiftStatus, setShiftStatus] = useState("loading");
   const [printerForm, setPrinterForm] = useState({
     name: "",
     role: "receipt",
@@ -1446,7 +1462,8 @@ export default function POSPage() {
       setReceiptRefunds({});
     }
     try {
-      setShiftRecords(JSON.parse(localStorage.getItem("pos_shift_records") || "[]"));
+      const localShiftRows = JSON.parse(localStorage.getItem("pos_shift_records") || "[]");
+      setShiftRecords(Array.isArray(localShiftRows) ? localShiftRows : []);
       setStartingCash(localStorage.getItem("pos_shift_starting_cash") || "");
     } catch {
       setShiftRecords([]);
@@ -1481,6 +1498,58 @@ export default function POSPage() {
     if (!error) {
       setPendingCount(count || 0);
     }
+  }
+
+  function applyShiftState(records, sid) {
+    const rows = Array.isArray(records) ? records : [];
+    const nextStatus = getShiftStatusFromRecords(rows, sid);
+    const latest = getLatestShiftRecord(rows, sid);
+    const latestStartingCash = latest?.cash_total ?? latest?.starting_cash ?? 0;
+
+    setShiftRecords(rows);
+    setShiftStatus(nextStatus);
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("pos_shift_records", JSON.stringify(rows.slice(0, 20)));
+      if (nextStatus === "open") {
+        localStorage.setItem("pos_shift_starting_cash", String(latestStartingCash || 0));
+      } else {
+        localStorage.removeItem("pos_shift_starting_cash");
+      }
+    }
+
+    setStartingCash(nextStatus === "open" ? String(latestStartingCash || 0) : "");
+  }
+
+  async function loadShiftState(sid) {
+    if (!sid) {
+      setShiftStatus("closed");
+      return;
+    }
+
+    let localRows = [];
+    if (typeof window !== "undefined") {
+      try {
+        const parsed = JSON.parse(localStorage.getItem("pos_shift_records") || "[]");
+        localRows = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        localRows = [];
+      }
+    }
+
+    const { data, error } = await supabase
+      .from("cashier_pos")
+      .select("*")
+      .eq("store_id", sid)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (error) {
+      applyShiftState(localRows, sid);
+      return;
+    }
+
+    applyShiftState(data || [], sid);
   }
 
   // ================= PWA INSTALLATION EVENT HANDLER =================
@@ -1536,7 +1605,7 @@ export default function POSPage() {
 
   // ================= DYNAMIC REALTIME CUSTOMER ORDER EVENT LISTENER =================
   useEffect(() => {
-    if (!storeId) return;
+    if (!storeId || shiftStatus !== "open") return;
 
     console.log(`📡 Connecting web order alerts for store ${storeId}`);
 
@@ -1614,7 +1683,7 @@ export default function POSPage() {
       supabase.removeChannel(dbChannel);
       broadcastChannels.forEach((channel) => supabase.removeChannel(channel));
     };
-  }, [storeId, supabase]);
+  }, [storeId, shiftStatus, supabase]);
 
   // ================= INTERCEPT OVERLAY lifecycle actions dashboards =================
   const acceptIncomingWebOrder = async () => {
@@ -1684,6 +1753,8 @@ export default function POSPage() {
 
   // ================= CORE BACKGROUND LOGISTICS FUNCTIONS =================
   useEffect(() => {
+    if (!storeId || shiftStatus !== "open") return;
+
     const channel = supabase
       .channel("pos-global-debug")
       .on(
@@ -1701,7 +1772,7 @@ export default function POSPage() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [storeId]);
+  }, [storeId, shiftStatus]);
 
   useEffect(() => {
     const channel = supabase
@@ -1766,6 +1837,7 @@ export default function POSPage() {
       setStoreId(activeStoreId);
 
       await fetchPendingCount(activeStoreId); 
+      await loadShiftState(activeStoreId);
       await fetchData(activeStoreId);
     };
 
@@ -2381,9 +2453,22 @@ export default function POSPage() {
     setShiftRecords(nextRecords);
     if (typeof window !== "undefined") {
       localStorage.setItem("pos_shift_records", JSON.stringify(nextRecords));
-      if (shiftCashMode === "open") localStorage.setItem("pos_shift_starting_cash", String(totalCash || 0));
+      if (shiftCashMode === "open") {
+        localStorage.setItem("pos_shift_starting_cash", String(totalCash || 0));
+      } else {
+        localStorage.removeItem("pos_shift_starting_cash");
+      }
     }
-    if (shiftCashMode === "open") setStartingCash(String(totalCash || 0));
+    if (shiftCashMode === "open") {
+      setStartingCash(String(totalCash || 0));
+      setShiftStatus("open");
+    } else {
+      setStartingCash("");
+      setShiftStatus("closed");
+      setManagementOpen(false);
+      setPosMenuOpen(false);
+      setTicketDrawerOpen(false);
+    }
 
     const { error } = await supabase.from("cashier_pos").insert([record]);
     if (error) {
@@ -2878,6 +2963,47 @@ export default function POSPage() {
     }
   };
 
+  const shiftCashModal = (
+    <ShiftCashModal
+      open={shiftCashOpen}
+      mode={shiftCashMode}
+      counts={shiftDenominations}
+      onChange={updateShiftDenomination}
+      onClose={() => setShiftCashOpen(false)}
+      onSave={saveShiftCash}
+    />
+  );
+
+  if (shiftStatus === "loading") {
+    return (
+      <div className="min-h-screen bg-[#FFF5F7] font-sans antialiased text-slate-800">
+        <Toast toast={toast} onClose={() => setToast(null)} />
+        <div className="min-h-screen flex items-center justify-center p-6">
+          <div className="h-10 w-10 rounded-full border-4 border-rose-100 border-t-[#FC687D] animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
+  if (shiftStatus === "closed") {
+    return (
+      <div className="min-h-screen bg-[#FFF5F7] font-sans antialiased text-slate-800">
+        <Toast toast={toast} onClose={() => setToast(null)} />
+        <div className="min-h-screen flex items-center justify-center p-6">
+          <button
+            type="button"
+            disabled={!storeId}
+            onClick={() => openShiftCashModal("open")}
+            className="h-14 min-w-48 rounded-2xl bg-[#FC687D] px-8 text-sm font-black uppercase tracking-wider text-white shadow-lg shadow-rose-200/70 transition active:scale-95 disabled:cursor-not-allowed disabled:bg-rose-200 disabled:shadow-none"
+          >
+            {storeId ? "Open Shift" : "Loading"}
+          </button>
+        </div>
+        {shiftCashModal}
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#FFF5F7] pb-24 lg:pb-0 font-sans antialiased text-slate-800">
       <Toast toast={toast} onClose={() => setToast(null)} />
@@ -3041,8 +3167,7 @@ export default function POSPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-3">
                 <h3 className="text-sm font-black text-slate-800">Cash Drawer</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => openShiftCashModal("open")} className="h-10 rounded-xl bg-white border border-rose-100 text-[10px] font-black uppercase tracking-wider text-[#FC687D]">Open Shift</button>
+                <div className="grid grid-cols-1 gap-2">
                   <button type="button" onClick={() => openShiftCashModal("close")} className="h-10 rounded-xl bg-[#FC687D] text-white text-[10px] font-black uppercase tracking-wider">Close Shift</button>
                 </div>
                 <div className="flex justify-between rounded-lg bg-white border border-slate-100 p-2 text-xs font-bold">
@@ -3474,14 +3599,7 @@ export default function POSPage() {
       )}
       
       <ConfirmModal open={confirmOpen} title="Clear live workspace?" message="This will remove un-saved current entries from active memory." onCancel={() => setConfirmOpen(false)} onConfirm={clearTicket} />
-      <ShiftCashModal
-        open={shiftCashOpen}
-        mode={shiftCashMode}
-        counts={shiftDenominations}
-        onChange={updateShiftDenomination}
-        onClose={() => setShiftCashOpen(false)}
-        onSave={saveShiftCash}
-      />
+      {shiftCashModal}
       <PaymentModal open={paymentOpen} onClose={() => setPaymentOpen(false)} paymentTypes={paymentTypes} selectedPayment={selectedPayment} onSelect={(name) => setSelectedPayment(name)} onConfirm={confirmCharge} total={totalDue} paymentAmount={paymentAmount} setPaymentAmount={setPaymentAmount} />
       <ReceiptPreviewModal open={receiptOpen} onClose={() => setReceiptOpen(false)} receiptText={receiptText} />
     </div>

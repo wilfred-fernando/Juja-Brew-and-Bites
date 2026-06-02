@@ -18,6 +18,7 @@ export function middleware(req: NextRequest) {
   // ✅ ALLOW LOGIN
   if (
     pathname.startsWith("/admin/login") ||
+    pathname.startsWith("/finance/login") ||
     pathname.startsWith("/pos/login") ||
     pathname.startsWith("/customer/login")
   ) {
@@ -26,6 +27,7 @@ export function middleware(req: NextRequest) {
 
   const routes: Record<string, string> = {
     "admin.": "/admin",
+    "finance.": "/finance",
     "pos.": "/pos",
     "customer.": "/customer",
   };

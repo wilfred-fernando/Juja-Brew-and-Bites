@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
-  Banknote,
   CalendarCheck,
   CalendarDays,
   ChevronDown,
@@ -77,7 +76,6 @@ export default function AdminSidebar({
       items: [
         { name: "Menu Builder", path: "/admin/menu", icon: Puzzle },
         { name: "Loyalty", path: "/admin/loyalty", icon: Star },
-        { name: "Payroll", path: "/admin/payroll", icon: Banknote },
         { name: "Promos", path: "/admin/promos", icon: Gift },
         { name: "Sales", path: "/admin/sales", icon: DollarSign },
       ],

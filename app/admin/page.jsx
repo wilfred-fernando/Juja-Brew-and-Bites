@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { Banknote, ClipboardList, Gift, Globe, Puzzle, Settings, Star, Users } from "lucide-react";
+import { ClipboardList, Gift, Globe, Puzzle, Settings, Star, Users } from "lucide-react";
 
 const supabase = getSupabaseClient();
 
@@ -96,7 +96,6 @@ export default function AdminDashboard() {
     { title: "Live Orders", icon: ClipboardList, desc: "View and manage incoming orders in real time.", path: "/admin/orders" },
     { title: "Menu Builder", icon: Puzzle, desc: "Add, edit, and organize menu items.", path: "/admin/menu" },
     { title: "Loyalty Program", icon: Star, desc: "Manage customer rewards and points.", path: "/admin/loyalty" },
-    { title: "Payroll", icon: Banknote, desc: "Manage employee payroll, attendance, deductions, and paid status.", path: "/admin/payroll" },
     { title: "Promo Codes", icon: Gift, desc: "Create discount campaigns and vouchers.", path: "/admin/promos" },
     { title: "Settings", icon: Settings, desc: "Store settings and configuration.", path: "/admin/settings" },
     { title: "Accounts", icon: Users, desc: "Manage staff and access control.", path: "/admin/accounts" },
