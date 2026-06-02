@@ -1,9 +1,10 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import AdminSidebar from "@/components/AdminSidebar";
+import { Menu } from "lucide-react";
 
 import { usePortalAuth } from "@/components/usePortalAuth";
 import { useIdleLogout } from "@/components/useIdleLogout";
@@ -22,19 +23,19 @@ export default function AdminLayout({ children }) {
     allowedRoles: ["admin", "super_admin"],
   });
 
-  // ✅ CLOSE MOBILE MENU ON ROUTE CHANGE
+  // Close mobile menu on route change.
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
 
-  // ✅ ✅ FIXED REDIRECT (INSIDE useEffect)
+  // Redirect unauthorized users after auth check.
   useEffect(() => {
     if (!loading && !authorized && pathname !== "/admin/login") {
       router.replace("/admin/login");
     }
   }, [loading, authorized, pathname, router]);
 
-  // ✅ IDLE LOGOUT
+  // Idle logout.
   useIdleLogout({
     timeoutMs: 60 * 60 * 1000,
     onTimeout: async () => {
@@ -49,12 +50,12 @@ export default function AdminLayout({ children }) {
     router.replace("/admin/login");
   };
 
-  // ✅ LOGIN PAGE (NO SIDEBAR)
+  // Login page has no sidebar.
   if (pathname === "/admin/login") {
     return <>{children}</>;
   }
 
-  // ✅ LOADING SCREEN
+  // Loading screen.
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center bg-[#FFF5F7]">
@@ -63,12 +64,12 @@ export default function AdminLayout({ children }) {
     );
   }
 
-  // ✅ PREVENT RENDER UNTIL REDIRECT FINISHES
+  // Prevent render until redirect finishes.
   if (!authorized) {
     return null;
   }
 
-  // ✅ MAIN LAYOUT ✅
+  // Main layout.
   return (
     <div className="min-h-screen bg-[#FFF5F7] flex">
       
@@ -88,9 +89,10 @@ export default function AdminLayout({ children }) {
         <div className="md:hidden sticky top-0 z-40 bg-white border-b border-rose-100 px-4 py-3 flex items-center justify-between">
           <button
             onClick={() => setMobileOpen(true)}
-            className="w-10 h-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-2xl"
+            className="w-10 h-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-700"
+            aria-label="Open menu"
           >
-            ☰
+            <Menu className="h-5 w-5" />
           </button>
 
           <div className="text-sm font-extrabold text-slate-800">
@@ -109,3 +111,4 @@ export default function AdminLayout({ children }) {
     </div>
   );
 }
+

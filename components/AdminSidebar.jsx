@@ -1,7 +1,23 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import {
+  Banknote,
+  CalendarCheck,
+  CalendarDays,
+  ChevronDown,
+  ChevronUp,
+  ClipboardList,
+  DollarSign,
+  Gift,
+  Home,
+  Puzzle,
+  Settings,
+  ShoppingCart,
+  Star,
+  X,
+} from "lucide-react";
 
 const LOGO =
   "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
@@ -25,15 +41,15 @@ export default function AdminSidebar({
     {
       label: "Operations",
       items: [
-        { name: "Dashboard", path: "/admin", icon: "🏠" },
-        { name: "Bookings", path: "/admin/bookings", icon: "📅" },
-        { name: "Calendar", path: "/admin/calendar", icon: "🗓️" },
-        { name: "Live Orders", path: "/admin/orders", icon: "📋" },
+        { name: "Dashboard", path: "/admin", icon: Home },
+        { name: "Bookings", path: "/admin/bookings", icon: CalendarCheck },
+        { name: "Calendar", path: "/admin/calendar", icon: CalendarDays },
+        { name: "Live Orders", path: "/admin/orders", icon: ClipboardList },
 
         {
           name: "POS Admin",
           path: "/admin/pos-admin",
-          icon: "🛒",
+          icon: ShoppingCart,
           submenu: [
             { type: "label", name: "Reports" },
             { name: "Sales Summary", path: "/admin/pos-admin/reports/sales-summary" },
@@ -59,15 +75,16 @@ export default function AdminSidebar({
     {
       label: "Business",
       items: [
-        { name: "Menu Builder", path: "/admin/menu", icon: "🧩" },
-        { name: "Loyalty", path: "/admin/loyalty", icon: "⭐" },
-        { name: "Promos", path: "/admin/promos", icon: "🎁" },
-        { name: "Sales", path: "/admin/sales", icon: "💳" },
+        { name: "Menu Builder", path: "/admin/menu", icon: Puzzle },
+        { name: "Loyalty", path: "/admin/loyalty", icon: Star },
+        { name: "Payroll", path: "/admin/payroll", icon: Banknote },
+        { name: "Promos", path: "/admin/promos", icon: Gift },
+        { name: "Sales", path: "/admin/sales", icon: DollarSign },
       ],
     },
     {
       label: "System",
-      items: [{ name: "Settings", path: "/admin/settings", icon: "⚙️" }],
+      items: [{ name: "Settings", path: "/admin/settings", icon: Settings }],
     },
   ];
 
@@ -91,15 +108,16 @@ export default function AdminSidebar({
           mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >
-        {/* HEADER ✅ FIXED */}
+        {/* HEADER */}
         <div className="p-6 border-b flex items-center justify-between">
           <img src={LOGO} className="h-8 object-contain" alt="logo" />
 
           <button
             onClick={() => setMobileOpen(false)}
-            className="md:hidden"
+            className="md:hidden flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500"
+            aria-label="Close menu"
           >
-            ✕
+            <X className="h-4 w-4" />
           </button>
         </div>
 
@@ -114,6 +132,7 @@ export default function AdminSidebar({
               <div className="space-y-1">
                 {section.items.map((item) => {
                   const active = isActive(item.path);
+                  const Icon = item.icon;
 
                   if (item.submenu) {
                     return (
@@ -122,11 +141,11 @@ export default function AdminSidebar({
                           onClick={() => setPosOpen(!posOpen)}
                           className="flex justify-between w-full px-3 py-2 rounded hover:bg-gray-100"
                         >
-                          <span className="flex gap-2">
-                            <span>{item.icon}</span>
-                            {item.name}
+                          <span className="flex items-center gap-2">
+                            <Icon className="h-4 w-4 shrink-0" />
+                            <span>{item.name}</span>
                           </span>
-                          <span>{posOpen ? "▲" : "▼"}</span>
+                          {posOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                         </button>
 
                         {posOpen && (
@@ -172,8 +191,8 @@ export default function AdminSidebar({
                           : "text-gray-600 hover:bg-gray-100"
                       }`}
                     >
-                      <span>{item.icon}</span>
-                      {item.name}
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span>{item.name}</span>
                     </Link>
                   );
                 })}

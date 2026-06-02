@@ -55,7 +55,7 @@ export default function TicketPanel({
       : [];
 
   return (
-    <div className="flex flex-col h-full text-slate-800 font-sans select-none bg-white p-4 rounded-xl border border-slate-100 shadow-sm max-h-[85vh]">
+    <div className="flex flex-col h-full min-h-0 text-slate-800 font-sans select-none bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
 
       {/* Header */}
       <div className="pb-3 mb-3 border-b border-rose-100 space-y-3">

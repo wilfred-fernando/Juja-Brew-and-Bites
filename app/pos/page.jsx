@@ -519,7 +519,8 @@ function SavedTicketsModal({ open, onClose, tickets, onSelect, onRefresh, onVoid
   );
 }
 
-function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onDelivered }) {
+function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onDelivered, paymentTypes = [] }) {
+  const [deliveryPayments, setDeliveryPayments] = useState({});
   const statusClass = (status) => {
     const s = String(status || "").toLowerCase();
     if (s === "pending") return "bg-amber-50 text-amber-700 border-amber-200";
@@ -550,6 +551,7 @@ function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onD
             const readyDisabled = status === "ready" || status === "completed";
             const deliveredDisabled = status === "completed";
             const total = Number(order.total || order.subtotal || 0);
+            const selectedPayment = deliveryPayments[order.id] || order.payment_method || "";
 
             return (
               <div key={order.id} className="p-3.5 border rounded-xl bg-white shadow-sm hover:border-rose-100 transition">
@@ -587,12 +589,22 @@ function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onD
                   <button
                     type="button"
                     disabled={deliveredDisabled}
-                    onClick={() => onDelivered(order)}
+                    onClick={() => onDelivered(order, selectedPayment)}
                     className="h-9 rounded-lg bg-[#FC687D] hover:bg-rose-500 text-xs font-bold text-white transition disabled:opacity-40"
                   >
                     Delivered
                   </button>
                 </div>
+                <select
+                  value={selectedPayment}
+                  onChange={(e) => setDeliveryPayments((prev) => ({ ...prev, [order.id]: e.target.value }))}
+                  className="mt-2 w-full h-9 rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-bold text-slate-700 outline-none"
+                >
+                  <option value="">Select payment before delivered</option>
+                  {(paymentTypes || []).map((p) => (
+                    <option key={p.id || p.name} value={p.name}>{p.name}</option>
+                  ))}
+                </select>
               </div>
             );
           })}
@@ -711,7 +723,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
     setSelections(selected);
 
     const c = {};
-    (item.variants || []).filter((g) => g.isAvailable !== false && g.is_available !== false).forEach((g) => (c[g.id] = false));
+    (item.variants || []).filter((g) => g.isAvailable !== false && g.is_available !== false).forEach((g) => (c[g.id] = !g.isRequired));
     setCollapsed(c);
   }, [item]);
 
@@ -745,11 +757,30 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
     .join(", ");
 
   const totalLine = (unitPrice * quantity).toFixed(0);
+  const submitLine = () =>
+    onAddToCart({
+      id: item.id,
+      name: item.name,
+      unitPrice,
+      quantity,
+      variantDetails,
+      instructions,
+      cartItemId: item.editData?.cartItemId || Date.now(),
+    });
 
   return (
     <ModalShell open={!!item} onClose={onClose} title={item.editData ? "Modify Line Item" : "Configure Item Add"} subtitle={item.name} z={145}>
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-semibold text-slate-600">
-        Base ₱{basePrice.toFixed(0)}{variantPrice > 0 ? ` • Modifiers: +₱${variantPrice.toFixed(0)}` : ""}
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <p className="text-xs font-semibold text-slate-600">
+          Base ₱{basePrice.toFixed(0)}{variantPrice > 0 ? ` • Modifiers: +₱${variantPrice.toFixed(0)}` : ""}
+        </p>
+        <button
+          disabled={!canAdd}
+          onClick={submitLine}
+          className="h-9 px-3 rounded-lg bg-[#FC687D] text-white text-[10px] font-black uppercase tracking-wider shadow-sm transition disabled:opacity-50 shrink-0"
+        >
+          {item.editData ? `Save • ₱${totalLine}` : `Add • ₱${totalLine}`}
+        </button>
       </div>
       
       <div className="mt-4">
@@ -828,23 +859,6 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
         />
       </div>
 
-      <button
-        disabled={!canAdd}
-        onClick={() =>
-          onAddToCart({
-            id: item.id,
-            name: item.name,
-            unitPrice,
-            quantity,
-            variantDetails,
-            instructions,
-            cartItemId: item.editData?.cartItemId || Date.now(),
-          })
-        }
-        className="w-full mt-5 h-12 rounded-xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-wider shadow-sm transition disabled:opacity-50"
-      >
-        {item.editData ? `Save Changes • ₱${totalLine}` : `Append to order • ₱${totalLine}`}
-      </button>
     </ModalShell>
   );
 }
@@ -872,6 +886,18 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
   const splitRemaining = Math.max(0, due - splitTotal);
   const splitChange = Math.max(0, splitTotal - due);
   const splitReady = splitPayments.length > 1 && splitPayments.every((p) => p.method && Number(p.amount || 0) > 0) && splitTotal >= due;
+  const roundCash = (value) => {
+    if (value <= 100) return Math.ceil(value / 10) * 10;
+    if (value <= 500) return Math.ceil(value / 50) * 50;
+    return Math.ceil(value / 100) * 100;
+  };
+  const cashTenderSuggestions = Array.from(new Set([
+    roundCash(due),
+    ...[200, 500, 1000, 2000].filter((n) => n >= due),
+  ]))
+    .filter((n) => Number(n) > 0 && Number(n) >= due)
+    .sort((a, b) => a - b)
+    .slice(0, 6);
 
   const disableConfirm =
     useSplitPayment
@@ -991,6 +1017,20 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
                 className="w-full bg-transparent font-bold text-slate-800 text-sm outline-none"
               />
             </div>
+            {!useSplitPayment && isCash && (
+              <div className="mt-2 grid grid-cols-3 gap-1.5">
+                {cashTenderSuggestions.map((suggestion, idx) => (
+                  <button
+                    key={`${suggestion}-${idx}`}
+                    type="button"
+                    onClick={() => setPaymentAmount(Number(suggestion).toFixed(2))}
+                    className="h-8 rounded-lg border border-rose-100 bg-white text-[10px] font-black text-[#FC687D] hover:bg-rose-50"
+                  >
+                    {idx === 0 && Number(suggestion) === due ? "Exact" : peso0(suggestion)}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="text-xs space-y-1.5 pt-2 border-t border-slate-200/60 font-semibold text-slate-600">
@@ -1241,6 +1281,7 @@ export default function POSPage() {
   const [posMenuOpen, setPosMenuOpen] = useState(false);
   const [managementOpen, setManagementOpen] = useState(false);
   const [managementView, setManagementView] = useState("receipts");
+  const [itemsManagementTab, setItemsManagementTab] = useState("items");
   const [receiptRows, setReceiptRows] = useState([]);
   const [receiptItemRows, setReceiptItemRows] = useState([]);
   const [receiptRefunds, setReceiptRefunds] = useState({});
@@ -1265,6 +1306,7 @@ export default function POSPage() {
 
   // New persistent pointer reference state to bind edited web orders back cleanly
   const [activeWebOrderId, setActiveWebOrderId] = useState(null);
+  const [activeWebOrderBranchId, setActiveWebOrderBranchId] = useState(null);
 
   const selectedDining = useMemo(
     () => (diningOptions || []).find((d) => String(d.id) === String(diningOption)) || null,
@@ -1272,6 +1314,12 @@ export default function POSPage() {
   );
 
   const diningOptionName = selectedDining?.name || "";
+  const getResolvedBranchId = () => {
+    if (activeWebOrderBranchId) return activeWebOrderBranchId;
+    if (storeId) return storeId;
+    if (typeof window !== "undefined") return localStorage.getItem("pos_store_id") || null;
+    return null;
+  };
 
   const showToast = (type, title, message) => {
     setToast({ type, title, message });
@@ -1344,6 +1392,51 @@ export default function POSPage() {
       total: Number(row.total_collected || row.net_sales || 0),
     }));
   }, [receiptRows]);
+  const itemsByManagementCategory = useMemo(() => {
+    const map = new Map();
+    const categoryNames = (categories || []).map((cat) => cat?.name || cat?.label || cat).filter(Boolean);
+    categoryNames.forEach((name) => map.set(name, []));
+    (items || []).forEach((item) => {
+      const key = item.category || "Uncategorized";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(item);
+    });
+    return Array.from(map.entries())
+      .map(([name, rows]) => ({ name, rows: rows.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))) }))
+      .filter((group) => group.rows.length > 0)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [categories, items]);
+
+  const optionSelectionGroups = useMemo(() => {
+    const map = new Map();
+    (items || []).forEach((item) => {
+      (Array.isArray(item.variants) ? item.variants : []).forEach((group) => {
+        const groupName = String(group.name || group.id || "").trim();
+        if (!groupName) return;
+        (Array.isArray(group.options) ? group.options : []).forEach((option) => {
+          const optionName = String(option.name || option.label || option.id || "").trim();
+          if (!optionName) return;
+          const key = `${groupName}::${optionName}`;
+          const enabled = (option.isAvailable ?? option.is_available ?? true) !== false;
+          if (!map.has(key)) {
+            map.set(key, { key, groupName, optionName, count: 0, enabledCount: 0 });
+          }
+          const row = map.get(key);
+          row.count += 1;
+          if (enabled) row.enabledCount += 1;
+        });
+      });
+    });
+    const byGroup = new Map();
+    Array.from(map.values())
+      .map((row) => ({ ...row, enabled: row.enabledCount > 0 }))
+      .sort((a, b) => a.groupName.localeCompare(b.groupName) || a.optionName.localeCompare(b.optionName))
+      .forEach((row) => {
+        if (!byGroup.has(row.groupName)) byGroup.set(row.groupName, []);
+        byGroup.get(row.groupName).push(row);
+      });
+    return Array.from(byGroup.entries()).map(([groupName, options]) => ({ groupName, options }));
+  }, [items]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1554,6 +1647,7 @@ export default function POSPage() {
     setCart(incomingOrder.items || []);
     setOriginalTicketId(null);
     setActiveWebOrderId(incomingOrder.id); // Secure the unique ID link 
+    setActiveWebOrderBranchId(incomingOrder.branch_id || storeId || null);
 
     const linkedCustomer = customers.find((c) => c.name === incomingOrder.customer_name);
     if (linkedCustomer) setAttachedCustomer(linkedCustomer);
@@ -1810,6 +1904,7 @@ export default function POSPage() {
       setOriginalTicketId(data.id);
       setCart(data.items || []);
       setActiveWebOrderId(null); // Clear web tracking context when switching to a physical table
+      setActiveWebOrderBranchId(null);
       const linkedCustomer = customers.find((c) => c.id === data.customer_id);
       setAttachedCustomer(linkedCustomer || null);
       showToast("info", "Table Loaded", optionName);
@@ -1818,6 +1913,7 @@ export default function POSPage() {
       setCart([]);
       setAttachedCustomer(null);
       setActiveWebOrderId(null);
+      setActiveWebOrderBranchId(null);
     }
   }
 
@@ -1831,6 +1927,7 @@ export default function POSPage() {
       setCart([]);
       setAttachedCustomer(null);
       setActiveWebOrderId(null);
+      setActiveWebOrderBranchId(null);
       return;
     }
 
@@ -1928,6 +2025,7 @@ export default function POSPage() {
     setCart(order.items || []);
     setOriginalTicketId(null);
     setActiveWebOrderId(order.id); // Secure tracking context parameter link
+    setActiveWebOrderBranchId(order.branch_id || storeId || null);
 
     const optionName = order.dining_option || "";
     const option = (diningOptions || []).find((d) => String(d.name).toLowerCase() === String(optionName).toLowerCase());
@@ -1959,13 +2057,17 @@ export default function POSPage() {
     showToast("success", "Customer Alert Sent", "Order status is now ready for pickup or delivery.");
   }
 
-  async function markWebOrderDelivered(order) {
+  async function markWebOrderDelivered(order, paymentType) {
     if (!order?.id) return;
+    if (!paymentType) {
+      showToast("error", "Payment Required", "Select payment type before marking delivered.");
+      return;
+    }
     const pointsEarned = calcLoyaltyPoints(order.total || order.subtotal);
 
     const { error } = await supabase
       .from("web_orders")
-      .update({ status: "completed" })
+      .update({ status: "completed", payment_method: paymentType, payment_status: "paid" })
       .eq("id", order.id);
 
     if (error) {
@@ -2196,17 +2298,42 @@ export default function POSPage() {
     setItems((prev) => prev.map((row) => (row.id === item.id ? { ...row, is_available: nextAvailable } : row)));
   }
 
-  async function toggleVariantGroupAvailability(item, groupIndex) {
-    const groups = Array.isArray(item?.variants) ? [...item.variants] : [];
-    if (!item?.id || !groups[groupIndex]) return;
-    const current = groups[groupIndex].isAvailable ?? groups[groupIndex].is_available ?? true;
-    groups[groupIndex] = { ...groups[groupIndex], isAvailable: !current, is_available: !current };
-    const { error } = await supabase
-      .from("menu_items")
-      .update({ variants: groups })
-      .eq("id", item.id);
-    if (error) return showToast("error", "Option Update Failed", error.message);
-    setItems((prev) => prev.map((row) => (row.id === item.id ? { ...row, variants: groups } : row)));
+  async function toggleOptionSelectionAvailability(groupName, optionName) {
+    const row = optionSelectionGroups.flatMap((group) => group.options).find((option) => option.groupName === groupName && option.optionName === optionName);
+    const nextAvailable = !row?.enabled;
+    const updates = (items || [])
+      .map((item) => {
+        const groups = Array.isArray(item.variants) ? item.variants : [];
+        let touched = false;
+        const nextGroups = groups.map((group) => {
+          if (String(group.name || group.id || "").trim() !== groupName) return group;
+          const options = Array.isArray(group.options) ? group.options : [];
+          const nextOptions = options.map((option) => {
+            if (String(option.name || option.label || option.id || "").trim() !== optionName) return option;
+            touched = true;
+            return { ...option, isAvailable: nextAvailable, is_available: nextAvailable };
+          });
+          return touched ? { ...group, options: nextOptions } : group;
+        });
+        return touched ? { item, nextGroups } : null;
+      })
+      .filter(Boolean);
+
+    const results = await Promise.all(
+      updates.map(({ item, nextGroups }) =>
+        supabase.from("menu_items").update({ variants: nextGroups }).eq("id", item.id)
+      )
+    );
+    const failed = results.find((res) => res.error);
+    if (failed?.error) return showToast("error", "Option Update Failed", failed.error.message);
+
+    setItems((prev) =>
+      prev.map((item) => {
+        const update = updates.find((u) => u.item.id === item.id);
+        return update ? { ...item, variants: update.nextGroups } : item;
+      })
+    );
+    showToast("success", "Option Updated", `${optionName} is now ${nextAvailable ? "available" : "unavailable"}.`);
   }
 
   async function addBluetoothPrinter() {
@@ -2286,6 +2413,7 @@ export default function POSPage() {
     setOriginalTicketId(t.id);
     setCart(t.items || []);
     setActiveWebOrderId(null); // This layout block references physical tickets, clear web target references
+    setActiveWebOrderBranchId(null);
     const name = t.order_type || t.ticket_name || "";
     const opt = (diningOptions || []).find((d) => d.name === name);
     setDiningOption(opt?.id || "");
@@ -2389,7 +2517,8 @@ export default function POSPage() {
       ? splitPaymentsPayload.map((p) => `${p.method} ${peso2(p.amount)}`).join(" + ")
       : selectedPayment;
     if (!paymentLabel) return showToast("error", "Payment Required", "Select a payment type.");
-    if (!storeId) return showToast("error", "Store not set", "Store code identifier mismatch.");
+    const resolvedBranchId = getResolvedBranchId();
+    if (!resolvedBranchId) return showToast("error", "Branch not set", "Please sign out and sign in again so POS can load your branch.");
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before charging.");
 
     setCharging(true);
@@ -2409,8 +2538,10 @@ export default function POSPage() {
       const { data: orderRow, error: orderErr } = await supabase
         .from("orders")
         .insert([{
-          store_id: storeId,
+          store_id: resolvedBranchId,
+          branch_id: resolvedBranchId,
           customer_id: attachedCustomer?.id || null,
+          items: cart,
           total,
           discount,
           payment_method: paymentLabel,
@@ -2583,6 +2714,7 @@ export default function POSPage() {
     setSplitSelected([]);
     setOriginalTicketId(null);
     setActiveWebOrderId(null); // Clear tracking target references safely
+    setActiveWebOrderBranchId(null);
   };
 
   const clearTicket = () => {
@@ -2971,33 +3103,73 @@ export default function POSPage() {
           )}
 
           {managementView === "items" && (
-            <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-              {items.map((item) => (
-                <div key={item.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-xs font-black text-slate-800 truncate">{item.name}</p>
-                      <p className="text-[10px] font-semibold text-slate-400">{item.category || "General"}</p>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2 rounded-xl bg-rose-50 border border-rose-100 p-1">
+                {[
+                  ["items", "Items"],
+                  ["optionGroups", "Option Groups"],
+                ].map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setItemsManagementTab(key)}
+                    className={`h-9 rounded-lg text-xs font-black uppercase tracking-wider ${itemsManagementTab === key ? "bg-[#FC687D] text-white" : "text-rose-700"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {itemsManagementTab === "items" ? (
+                <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                  {itemsByManagementCategory.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 p-4 text-xs font-semibold text-slate-400">No items found.</div>
+                  ) : itemsByManagementCategory.map((category) => (
+                    <div key={category.name} className="space-y-2">
+                      <div className="sticky top-0 z-10 rounded-lg bg-rose-50 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-rose-700">
+                        {category.name}
+                      </div>
+                      {category.rows.map((item) => (
+                        <div key={item.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-xs font-black text-slate-800 truncate">{item.name}</p>
+                              <p className="text-[10px] font-semibold text-slate-400">{peso2(item.price || 0)}</p>
+                            </div>
+                            <button type="button" onClick={() => toggleMenuItemAvailability(item)} className={`h-8 px-3 rounded-full text-[10px] font-black uppercase tracking-wider ${item.is_available === false ? "bg-slate-200 text-slate-500" : "bg-emerald-50 text-emerald-600 border border-emerald-100"}`}>
+                              {item.is_available === false ? "Off" : "On"}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <button type="button" onClick={() => toggleMenuItemAvailability(item)} className={`h-8 px-3 rounded-full text-[10px] font-black uppercase tracking-wider ${item.is_available === false ? "bg-slate-200 text-slate-500" : "bg-emerald-50 text-emerald-600 border border-emerald-100"}`}>
-                      {item.is_available === false ? "Off" : "On"}
-                    </button>
-                  </div>
-                  {Array.isArray(item.variants) && item.variants.length > 0 && (
-                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                      {item.variants.map((group, idx) => {
-                        const enabled = (group.isAvailable ?? group.is_available ?? true) !== false;
-                        return (
-                          <button key={group.id || group.name || idx} type="button" onClick={() => toggleVariantGroupAvailability(item, idx)} className={`rounded-lg border p-2 text-left ${enabled ? "border-rose-100 bg-white" : "border-slate-200 bg-slate-100"}`}>
-                            <span className="block text-xs font-black text-slate-700 truncate">{group.name || `Option Group ${idx + 1}`}</span>
-                            <span className={`text-[10px] font-black uppercase ${enabled ? "text-[#FC687D]" : "text-slate-400"}`}>{enabled ? "Available" : "Unavailable"}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                  ))}
                 </div>
-              ))}
+              ) : (
+                <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                  {optionSelectionGroups.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 p-4 text-xs font-semibold text-slate-400">No option selections found.</div>
+                  ) : optionSelectionGroups.map((group) => (
+                    <div key={group.groupName} className="rounded-xl border border-slate-100 bg-slate-50 p-3 space-y-2">
+                      <div>
+                        <p className="text-xs font-black text-slate-800 truncate">{group.groupName}</p>
+                        <p className="text-[10px] font-semibold text-slate-400">{group.options.length} option selection(s)</p>
+                      </div>
+                      {group.options.map((option) => (
+                        <div key={option.key} className="flex items-center justify-between gap-3 rounded-lg border border-white bg-white p-2">
+                          <div className="min-w-0">
+                            <p className="text-xs font-black text-slate-700 truncate">{option.optionName}</p>
+                            <p className="text-[10px] font-semibold text-slate-400">{option.count} item link(s)</p>
+                          </div>
+                          <button type="button" onClick={() => toggleOptionSelectionAvailability(option.groupName, option.optionName)} className={`h-8 px-3 rounded-full text-[10px] font-black uppercase tracking-wider ${option.enabled ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-slate-200 text-slate-500"}`}>
+                            {option.enabled ? "On" : "Off"}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -3031,7 +3203,7 @@ export default function POSPage() {
         )}
 
         {/* MAIN TERMINAL RESPONSIVE GRID LAYOUT FLOW */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_450px] gap-4 lg:gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_380px] gap-4 lg:gap-5 items-start">
           
           {/* CATALOG AND MENU SHELF VIEW PANELS */}
           <div className="bg-white rounded-2xl border border-rose-100 p-4 shadow-sm space-y-4">
@@ -3096,7 +3268,7 @@ export default function POSPage() {
           </div>
 
           {/* SIDEBAR TICKET INTERACTION LAYER PANEL */}
-          <div className="hidden lg:block bg-white border border-rose-100 rounded-2xl p-4 shadow-sm sticky top-6 max-h-[calc(100vh-140px)] overflow-y-auto">
+          <div className="hidden lg:block bg-white border border-rose-100 rounded-2xl p-3 shadow-sm sticky top-4 h-[calc(100vh-2rem)] max-h-[calc(100vh-2rem)] overflow-hidden">
             <TicketPanel
               cart={cart}
               customers={customers}
@@ -3280,6 +3452,7 @@ export default function POSPage() {
         onEdit={editAcceptedWebOrder}
         onReady={markWebOrderReady}
         onDelivered={markWebOrderDelivered}
+        paymentTypes={paymentTypes}
       />
       <DiningOptionModal open={diningOptionPickOpen} onClose={() => setDiningOptionPickOpen(false)} options={diningOptions} onPick={createNewTicketWithItems} />
       <VouchersModal

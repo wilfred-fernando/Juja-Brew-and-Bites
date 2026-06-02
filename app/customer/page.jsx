@@ -1527,14 +1527,11 @@ function LoyaltyTab({ member, setMember, user }) {
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in duration-300">
       <div className="md:col-span-1 space-y-4">
         <div
-          className="rounded-2xl p-5 text-white relative overflow-hidden shadow-md bg-rose-950 bg-contain bg-center bg-no-repeat aspect-[1.586/1] min-h-[180px]"
-          style={{ backgroundImage: "linear-gradient(135deg, rgba(136,19,55,0.78), rgba(244,63,94,0.32)), url('/images/loyalty-card-bg.jpg')" }}
+          className="rounded-2xl p-5 text-white relative overflow-hidden shadow-md bg-rose-950 bg-cover bg-center bg-no-repeat aspect-[1.586/1]"
+          style={{ backgroundImage: "url('/images/loyalty-card-bg.jpg')" }}
         >
           <div className="relative z-10 flex flex-col justify-between h-full min-h-[160px]">
-            <div>
-              <p className="text-[9px] uppercase tracking-[0.2em] text-rose-300 font-bold">Juja Digital Membership Pass</p>
-              <h4 className="text-lg font-bold tracking-tight mt-1 truncate">{member?.customer_name}</h4>
-            </div>
+            
             <div className="bg-white p-2 rounded-lg inline-block self-start shadow-md border border-slate-100 mt-auto">
               <Barcode value={member?.customer_code || "JUJA000000"} background="transparent" lineColor="#0f172a" width={1.2} height={50} displayValue fontSize={11} margin={0} />
             </div>

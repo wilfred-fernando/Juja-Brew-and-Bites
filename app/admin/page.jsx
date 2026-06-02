@@ -1,9 +1,10 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { Banknote, ClipboardList, Gift, Globe, Puzzle, Settings, Star, Users } from "lucide-react";
 
 const supabase = getSupabaseClient();
 
@@ -84,20 +85,21 @@ export default function AdminDashboard() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#FFF5F7] p-6">
         <div className="bg-white border border-slate-200 rounded-2xl p-5 text-center max-w-sm w-full">
-          <p className="font-bold text-slate-800">Redirecting…</p>
-          <p className="text-slate-500 text-sm mt-1">Checking access…</p>
+          <p className="font-bold text-slate-800">Redirecting...</p>
+          <p className="text-slate-500 text-sm mt-1">Checking access...</p>
         </div>
       </div>
     );
   }
 
   const dashboardCards = [
-    { title: "Live Orders", icon: "📋", desc: "View and manage incoming orders in real time.", path: "/admin/orders" },
-    { title: "Menu Builder", icon: "🧩", desc: "Add, edit, and organize menu items.", path: "/admin/menu" },
-    { title: "Loyalty Program", icon: "⭐", desc: "Manage customer rewards and points.", path: "/admin/loyalty" },
-    { title: "Promo Codes", icon: "🎁", desc: "Create discount campaigns and vouchers.", path: "/admin/promos" },
-    { title: "Settings", icon: "⚙️", desc: "Store settings and configuration.", path: "/admin/settings" },
-    { title: "Accounts", icon: "👥", desc: "Manage staff and access control.", path: "/admin/accounts" },
+    { title: "Live Orders", icon: ClipboardList, desc: "View and manage incoming orders in real time.", path: "/admin/orders" },
+    { title: "Menu Builder", icon: Puzzle, desc: "Add, edit, and organize menu items.", path: "/admin/menu" },
+    { title: "Loyalty Program", icon: Star, desc: "Manage customer rewards and points.", path: "/admin/loyalty" },
+    { title: "Payroll", icon: Banknote, desc: "Manage employee payroll, attendance, deductions, and paid status.", path: "/admin/payroll" },
+    { title: "Promo Codes", icon: Gift, desc: "Create discount campaigns and vouchers.", path: "/admin/promos" },
+    { title: "Settings", icon: Settings, desc: "Store settings and configuration.", path: "/admin/settings" },
+    { title: "Accounts", icon: Users, desc: "Manage staff and access control.", path: "/admin/accounts" },
   ];
 
  return (
@@ -106,11 +108,11 @@ export default function AdminDashboard() {
     {/* HEADER */}
     <header className="mb-10">
       <h1 className="text-4xl font-extrabold text-slate-800 mb-2">
-        Admin Dashboard 👋
+        Admin Dashboard
       </h1>
 
       <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
-        Juja Brew & Bites • {user?.email}
+        Juja Brew & Bites - {user?.email}
       </p>
     </header>
 
@@ -118,13 +120,14 @@ export default function AdminDashboard() {
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
 
       {dashboardCards.map((card) => {
+        const Icon = card.icon;
         return (
           <Link
             key={card.title}
             href={card.path}
             className="bg-white p-8 rounded-[28px] border border-rose-50 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col"
           >
-            <div className="text-4xl mb-4">{card.icon}</div>
+            <Icon className="mb-4 h-10 w-10 text-[#FC687D]" />
 
             <h3 className="text-xl font-extrabold text-slate-800 mb-2">
               {card.title}
@@ -136,11 +139,9 @@ export default function AdminDashboard() {
           </Link>
         );
       })}
-      ``
-
       {/* PUBLIC SITE CARD */}
       <div className="bg-white p-8 rounded-[28px] border border-rose-100 shadow-sm flex flex-col">
-        <div className="text-4xl mb-4">🌐</div>
+        <Globe className="mb-4 h-10 w-10 text-[#FC687D]" />
 
         <h3 className="text-xl font-extrabold text-[#FC687D] mb-2">
           Public Site

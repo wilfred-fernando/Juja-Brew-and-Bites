@@ -28,6 +28,46 @@ create policy "cashier_pos_authenticated_all"
   using (true)
   with check (true);
 
+alter table public.orders enable row level security;
+alter table public.order_items enable row level security;
+
+alter table public.orders
+  add column if not exists items jsonb not null default '[]'::jsonb;
+
+drop policy if exists "orders_authenticated_all" on public.orders;
+create policy "orders_authenticated_all"
+  on public.orders
+  for all
+  to authenticated
+  using (true)
+  with check (true);
+
+drop policy if exists "order_items_authenticated_all" on public.order_items;
+create policy "order_items_authenticated_all"
+  on public.order_items
+  for all
+  to authenticated
+  using (true)
+  with check (true);
+
+create or replace function public.set_orders_branch_id_from_store()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.branch_id is null then
+    new.branch_id := new.store_id;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists set_orders_branch_id_from_store_trigger on public.orders;
+create trigger set_orders_branch_id_from_store_trigger
+before insert or update on public.orders
+for each row
+execute function public.set_orders_branch_id_from_store();
+
 alter table public.web_orders
   add column if not exists delivery_address text,
   add column if not exists payment_method text,

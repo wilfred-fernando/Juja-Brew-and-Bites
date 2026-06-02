@@ -490,7 +490,7 @@ export default function PublicMenuPage() {
 function VariantModal({ item, onClose }) {
   const [selections, setSelections] = useState({});
 
-  const variants = Array.isArray(item?.variants) ? item.variants : [];
+  const variants = Array.isArray(item?.variants) ? item.variants.filter((g) => g?.isRequired) : [];
 
   useEffect(() => {
     const defaults = {};
