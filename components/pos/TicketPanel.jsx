@@ -32,6 +32,8 @@ export default function TicketPanel({
   onOpenSavedTicketsModal,
   onCartItemClick,
   onCloseMobile,
+  onOpenPosMenu,
+  pendingCount = 0,
 }) {
   const [showManageDropdown, setShowManageDropdown] = useState(false);
 
@@ -79,6 +81,21 @@ export default function TicketPanel({
           </p>
         </div>
 
+        <div className="flex items-center gap-2 shrink-0">
+        {onOpenPosMenu && (
+          <button
+            type="button"
+            onClick={onOpenPosMenu}
+            className="relative h-9 px-3 rounded-xl bg-[#FC687D] text-white text-[10px] font-black uppercase tracking-wider shadow-sm"
+          >
+            Menu
+            {pendingCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 rounded-full bg-white border border-rose-100 text-[#FC687D] text-[9px] flex items-center justify-center">
+                {pendingCount}
+              </span>
+            )}
+          </button>
+        )}
         {onCloseMobile && (
           <button
             onClick={onCloseMobile}
@@ -87,6 +104,7 @@ export default function TicketPanel({
             ✕
           </button>
         )}
+        </div>
         </div>
       </div>
 

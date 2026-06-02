@@ -1,52 +1,48 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
 const supabase = getSupabaseClient();
+const KDS_STATUSES = ["pending", "accepted", "ready", "Pending", "Accepted", "Ready"];
+const peso = (n) => `₱${Number(n || 0).toFixed(2)}`;
 
 export default function KitchenDisplay() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  // -----------------------------
-  // FETCH ORDERS
-  // -----------------------------
+  const visibleOrders = useMemo(() => {
+    if (statusFilter === "all") return orders;
+    return orders.filter((order) => String(order.status || "").toLowerCase() === statusFilter);
+  }, [orders, statusFilter]);
+
   const fetchOrders = async () => {
-    const { data } = await supabase
-      .from("open_tickets_order")
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("web_orders")
       .select("*")
-      .in("status", ["open", "preparing"])
+      .in("status", KDS_STATUSES)
       .order("created_at", { ascending: true });
 
-    if (data) setOrders(data);
+    if (!error) setOrders(data || []);
     setLoading(false);
   };
 
-  // -----------------------------
-  // REALTIME LISTENER
-  // -----------------------------
   useEffect(() => {
     fetchOrders();
 
     const channel = supabase
-      .channel("kds-realtime")
+      .channel("kds-web-orders")
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "open_tickets_order",
-        },
+        { event: "*", schema: "public", table: "web_orders" },
         (payload) => {
           fetchOrders();
-
-          // 🔥 NEW ORDER SOUND ALERT
           if (payload.eventType === "INSERT") {
-            const audio = new Audio(
-              "https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
-            );
-            audio.play();
+            const audio = new Audio("/sound/notification.mp3");
+            audio.volume = 0.9;
+            audio.play().catch(() => {});
           }
         }
       )
@@ -55,184 +51,127 @@ export default function KitchenDisplay() {
     return () => supabase.removeChannel(channel);
   }, []);
 
-  // -----------------------------
-  // UPDATE STATUS
-  // -----------------------------
   const updateStatus = async (id, status) => {
-    await supabase
-      .from("open_tickets_order")
-      .update({ status })
-      .eq("id", id);
+    const { error } = await supabase.from("web_orders").update({ status }).eq("id", id);
+    if (!error) fetchOrders();
   };
 
-  // -----------------------------
-  // CALCULATE TIME AGO
-  // -----------------------------
   const getTimeAgo = (date) => {
-    const diff = Math.floor((new Date() - new Date(date)) / 60000);
-
+    const diff = Math.floor((Date.now() - new Date(date).getTime()) / 60000);
     if (diff < 1) return "Just now";
     if (diff < 60) return `${diff} min ago`;
     return `${Math.floor(diff / 60)} hr ago`;
   };
 
-  // -----------------------------
-  // PRINT
-  // -----------------------------
   const printKitchenTicket = (order) => {
-    const w = window.open("", "_blank");
+    const win = window.open("", "_blank");
+    if (!win) return;
 
-    w.document.write(`
+    win.document.write(`
       <html>
         <head>
-          <title>Kitchen Ticket</title>
+          <title>KDS Ticket</title>
           <style>
             body { font-family: monospace; padding: 20px; }
             h2 { text-align:center; }
-            .item { padding: 4px 0; }
-            .total { font-weight:bold; margin-top:10px; }
+            .item { padding: 5px 0; border-bottom: 1px dashed #ddd; }
           </style>
         </head>
         <body>
-          <h2>🍳 KITCHEN ORDER</h2>
-
-          <p><b>ID:</b> ${order.id}</p>
-          <p><b>Time:</b> ${new Date(order.created_at).toLocaleString()}</p>
-
+          <h2>KITCHEN ORDER</h2>
+          <p><b>Order:</b> ${String(order.id).slice(0, 8).toUpperCase()}</p>
+          <p><b>Customer:</b> ${order.customer_name || "Web Customer"}</p>
+          <p><b>Time:</b> ${order.created_at ? new Date(order.created_at).toLocaleString() : ""}</p>
           <hr/>
-
-          ${order.items
-            ?.map(
-              (i) => `
-              <div class="item">
-                ${i.name} x${i.qty}
-              </div>
-            `
-            )
-            .join("")}
-
+          ${(order.items || []).map((item) => `
+            <div class="item">
+              <b>${item.quantity || item.qty || 1} x ${item.name}</b>
+              ${item.variantDetails ? `<br/>${item.variantDetails}` : ""}
+              ${item.instructions ? `<br/>Note: ${item.instructions}` : ""}
+            </div>
+          `).join("")}
           <hr/>
-          <div class="total">TOTAL: ₱${order.total}</div>
-
+          <p><b>Total:</b> ${peso(order.total || order.subtotal)}</p>
           <script>window.print();</script>
         </body>
       </html>
     `);
-
-    w.document.close();
+    win.document.close();
   };
 
-  // -----------------------------
-  // LOADING
-  // -----------------------------
-  if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        Loading Kitchen...
-      </div>
-    );
-  }
-
   return (
-    <div className="p-4 bg-gray-100 min-h-screen">
+    <div className="min-h-screen bg-[#FFF5F7] p-4 sm:p-6 text-slate-800">
+      <div className="max-w-7xl mx-auto space-y-4">
+        <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-[#FC687D]">Kitchen Display System</p>
+            <h1 className="text-2xl font-black tracking-tight">KDS Orders</h1>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {["all", "pending", "accepted", "ready"].map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setStatusFilter(key)}
+                className={`h-9 px-3 rounded-xl text-xs font-black uppercase tracking-wider ${
+                  statusFilter === key ? "bg-[#FC687D] text-white" : "bg-white border border-rose-100 text-rose-600"
+                }`}
+              >
+                {key}
+              </button>
+            ))}
+            <button onClick={() => document.documentElement.requestFullscreen?.()} className="h-9 px-3 rounded-xl bg-rose-950 text-white text-xs font-black uppercase tracking-wider">
+              Full Screen
+            </button>
+          </div>
+        </header>
 
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">🍳 Kitchen Display</h1>
-
-        <button
-          onClick={() => document.documentElement.requestFullscreen()}
-          className="bg-black text-white px-3 py-1 rounded text-sm"
-        >
-          Full Screen
-        </button>
-      </div>
-
-      {/* ORDERS GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-
-        {orders.map((order) => {
-          const minutes = Math.floor(
-            (new Date() - new Date(order.created_at)) / 60000
-          );
-
-          return (
-            <div
-              key={order.id}
-              className={`bg-white rounded-xl shadow border p-4 ${
-                minutes > 10 ? "border-red-400" : ""
-              }`}
-            >
-
-              {/* HEADER */}
-              <div className="flex justify-between mb-2">
-                <b>Order #{order.id.slice(-6)}</b>
-
-                <span className="text-xs text-gray-500">
-                  {getTimeAgo(order.created_at)}
-                </span>
-              </div>
-
-              {/* ITEMS */}
-              <div className="space-y-1 mb-3">
-                {order.items?.map((item, i) => (
-                  <div key={i} className="text-sm border-b pb-1">
-                    <b>{item.name}</b> x{item.qty}
+        {loading ? (
+          <div className="py-24 text-center"><div className="w-9 h-9 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full mx-auto" /></div>
+        ) : visibleOrders.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-rose-200 bg-white p-12 text-center text-sm font-semibold text-slate-400">
+            No active kitchen orders.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {visibleOrders.map((order) => {
+              const status = String(order.status || "pending").toLowerCase();
+              const minutes = order.created_at ? Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000) : 0;
+              return (
+                <article key={order.id} className={`rounded-2xl bg-white border p-4 shadow-sm ${minutes > 15 ? "border-red-300" : "border-rose-100"}`}>
+                  <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                    <div>
+                      <p className="font-mono text-sm font-black text-slate-900">#{String(order.id).slice(0, 8).toUpperCase()}</p>
+                      <p className="text-xs font-semibold text-slate-500">{order.customer_name || "Web Customer"} · {getTimeAgo(order.created_at)}</p>
+                    </div>
+                    <span className="rounded-lg bg-rose-50 border border-rose-100 px-2 py-1 text-[10px] font-black uppercase text-[#FC687D]">{status}</span>
                   </div>
-                ))}
-              </div>
 
-              {/* TOTAL */}
-              <div className="font-bold mb-3">
-                Total: ₱{order.total}
-              </div>
+                  <div className="py-3 space-y-2">
+                    {(order.items || []).map((item, idx) => (
+                      <div key={item.cartItemId || idx} className="rounded-xl bg-slate-50 border border-slate-100 p-3">
+                        <p className="text-sm font-black text-slate-800">{item.quantity || item.qty || 1} x {item.name}</p>
+                        {item.variantDetails && <p className="text-xs font-semibold text-slate-500 mt-1">{item.variantDetails}</p>}
+                        {item.instructions && <p className="text-xs font-bold text-[#FC687D] mt-1">Note: {item.instructions}</p>}
+                      </div>
+                    ))}
+                  </div>
 
-              {/* STATUS */}
-              <div className="mb-3 text-xs">
-                Status:
-                <span className="ml-2 font-bold">
-                  {order.status}
-                </span>
-              </div>
+                  <div className="flex items-center justify-between text-sm font-black border-t border-slate-100 pt-3">
+                    <span>{order.dining_option || "Web Order"}</span>
+                    <span>{peso(order.total || order.subtotal)}</span>
+                  </div>
 
-              {/* ACTIONS */}
-              <div className="flex gap-2">
-
-                <button
-                  onClick={() => printKitchenTicket(order)}
-                  className="bg-black text-white px-3 py-1 rounded text-sm"
-                >
-                  Print
-                </button>
-
-                {order.status === "open" && (
-                  <button
-                    onClick={() =>
-                      updateStatus(order.id, "preparing")
-                    }
-                    className="bg-blue-500 text-white px-3 py-1 rounded text-sm"
-                  >
-                    Start
-                  </button>
-                )}
-
-                {order.status === "preparing" && (
-                  <button
-                    onClick={() =>
-                      updateStatus(order.id, "done")
-                    }
-                    className="bg-green-500 text-white px-3 py-1 rounded text-sm"
-                  >
-                    Done
-                  </button>
-                )}
-
-              </div>
-
-            </div>
-          );
-        })}
-
+                  <div className="grid grid-cols-3 gap-2 mt-3">
+                    <button onClick={() => printKitchenTicket(order)} className="h-10 rounded-xl bg-slate-100 text-slate-700 text-xs font-black uppercase">Print</button>
+                    <button onClick={() => updateStatus(order.id, "accepted")} disabled={status === "accepted" || status === "ready"} className="h-10 rounded-xl bg-amber-50 text-amber-700 text-xs font-black uppercase disabled:opacity-40">Start</button>
+                    <button onClick={() => updateStatus(order.id, "ready")} disabled={status === "ready"} className="h-10 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-black uppercase disabled:opacity-40">Ready</button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

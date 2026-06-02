@@ -12,7 +12,8 @@ export default function Login() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [mode, setMode] = useState("signin");
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -51,11 +52,18 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const { error: authError } =
-        await supabase.auth.signInWithPassword({
-          email: form.email,
-          password: form.password,
-        });
+      const authAction = mode === "signup"
+        ? supabase.auth.signUp({
+            email: form.email,
+            password: form.password,
+            options: { data: { full_name: form.name } },
+          })
+        : supabase.auth.signInWithPassword({
+            email: form.email,
+            password: form.password,
+          });
+
+      const { error: authError } = await authAction;
 
       if (authError) throw authError;
 
@@ -66,7 +74,7 @@ export default function Login() {
         window.location.href = "/customer";
       }
     } catch (err) {
-      setError(err.message || "Invalid credentials.");
+      setError(err.message || (mode === "signup" ? "Unable to create account." : "Invalid credentials."));
       setLoading(false);
     }
   };
@@ -110,13 +118,31 @@ export default function Login() {
               {isAdminPortal ? "Admin Access" : "Customer Portal"}
             </p>
 
-            <h1 className="text-2xl text-slate-800">Welcome Back</h1>
+            <h1 className="text-2xl text-slate-800">{mode === "signup" ? "Create Account" : "Welcome Back"}</h1>
           </div>
 
           {/* CARD */}
           <div className="bg-white rounded-2xl p-6 border border-slate-100">
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {mode === "signup" && (
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">
+                    Full Name
+                  </label>
+
+                  <input
+                    type="text"
+                    required
+                    value={form.name}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, name: e.target.value }))
+                    }
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-rose-300"
+                    placeholder="Your name"
+                  />
+                </div>
+              )}
 
               {/* EMAIL */}
               <div>
@@ -167,7 +193,18 @@ export default function Login() {
                 disabled={loading}
                 className="w-full py-3 bg-[#FC687D] text-white rounded-xl text-sm hover:bg-rose-500 transition"
               >
-                Sign In
+                {mode === "signup" ? "Sign Up" : "Sign In"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setError("");
+                  setMode((m) => (m === "signup" ? "signin" : "signup"));
+                }}
+                className="w-full py-2 text-xs font-bold text-[#FC687D]"
+              >
+                {mode === "signup" ? "Already have an account? Sign in" : "No account yet? Sign up"}
               </button>
 
             </form>

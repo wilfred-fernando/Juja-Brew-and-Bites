@@ -294,6 +294,7 @@ function Toast({ toast, onClose }) {
 
 const TARGET_WEB_STATUSES = ["pending", "accepted", "ready", "completed", "Pending", "Accepted", "Ready", "Completed"];
 const calcLoyaltyPoints = (amount) => Number(((Number(amount) || 0) * 0.04).toFixed(2));
+const SHIFT_DENOMINATIONS = [1000, 500, 200, 100, 50, 20, 10, 5, 1];
 
 function playPosAlertSound() {
   if (typeof window === "undefined") return;
@@ -1052,6 +1053,43 @@ function ReceiptPreviewModal({ open, onClose, receiptText }) {
   );
 }
 
+function ShiftCashModal({ open, mode, counts, onChange, onClose, onSave }) {
+  if (!open) return null;
+  const title = mode === "open" ? "Open Shift" : "Close Shift";
+  const total = SHIFT_DENOMINATIONS.reduce((sum, denom) => sum + denom * Number(counts[denom] || 0), 0);
+
+  return (
+    <ModalShell open={open} onClose={onClose} title={title} subtitle="Cash denomination count" z={170}>
+      <div className="space-y-2 max-h-[52vh] overflow-y-auto pr-1">
+        {SHIFT_DENOMINATIONS.map((denom) => {
+          const count = Number(counts[denom] || 0);
+          return (
+            <div key={denom} className="grid grid-cols-[70px_1fr_110px] gap-2 items-center rounded-xl border border-slate-100 bg-slate-50 p-2">
+              <span className="text-xs font-black text-slate-700">₱{denom}</span>
+              <input
+                type="number"
+                min="0"
+                value={counts[denom] || ""}
+                onChange={(e) => onChange(denom, e.target.value)}
+                className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold outline-none"
+                placeholder="0"
+              />
+              <span className="text-right text-xs font-black text-[#FC687D]">{peso2(denom * count)}</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-4 rounded-xl border border-rose-100 bg-rose-50 p-3 flex items-center justify-between">
+        <span className="text-xs font-black uppercase tracking-wider text-rose-500">Overall Total</span>
+        <span className="text-lg font-black text-slate-900">{peso2(total)}</span>
+      </div>
+      <button type="button" onClick={() => onSave(total)} className="mt-4 w-full h-11 rounded-xl bg-[#FC687D] text-white text-xs font-black uppercase tracking-wider">
+        Save {title}
+      </button>
+    </ModalShell>
+  );
+}
+
 /* ──────────────────────────────────────────────────────────────
     NEW MODULE: Interactive Incoming Order Intercept overlay
 ────────────────────────────────────────────────────────────── */
@@ -1208,6 +1246,10 @@ export default function POSPage() {
   const [receiptRefunds, setReceiptRefunds] = useState({});
   const [selectedReceiptNumber, setSelectedReceiptNumber] = useState("");
   const [startingCash, setStartingCash] = useState("");
+  const [shiftCashOpen, setShiftCashOpen] = useState(false);
+  const [shiftCashMode, setShiftCashMode] = useState("open");
+  const [shiftDenominations, setShiftDenominations] = useState({});
+  const [shiftRecords, setShiftRecords] = useState([]);
   const [printerForm, setPrinterForm] = useState({
     name: "",
     role: "receipt",
@@ -1287,6 +1329,21 @@ export default function POSPage() {
       },
     };
   }, [receiptRows, startingCash]);
+  const shiftSalesRows = useMemo(() => {
+    const todayKey = new Date().toLocaleDateString();
+    const todaysRows = (receiptRows || []).filter((row) => {
+      if (!row.created_at) return true;
+      return new Date(row.created_at).toLocaleDateString() === todayKey;
+    });
+    return todaysRows.map((row) => ({
+      receipt: row.receipt_number,
+      time: row.created_at ? new Date(row.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : row.date,
+      payment: row.payment_type || "Other",
+      dining: row.description || row.dining_option || "POS Order",
+      status: row.status || "Closed",
+      total: Number(row.total_collected || row.net_sales || 0),
+    }));
+  }, [receiptRows]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1294,6 +1351,12 @@ export default function POSPage() {
       setReceiptRefunds(JSON.parse(localStorage.getItem("pos_receipt_refunds") || "{}"));
     } catch {
       setReceiptRefunds({});
+    }
+    try {
+      setShiftRecords(JSON.parse(localStorage.getItem("pos_shift_records") || "[]"));
+      setStartingCash(localStorage.getItem("pos_shift_starting_cash") || "");
+    } catch {
+      setShiftRecords([]);
     }
   }, []);
 
@@ -1306,6 +1369,12 @@ export default function POSPage() {
 
   useEffect(() => {
     setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
   }, []);
 
   async function fetchPendingCount(sid) {
@@ -1402,6 +1471,15 @@ export default function POSPage() {
       fetchPendingCount(storeId);
       fetchAcceptedWebOrders();
       startContinuousAlertChime();
+      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+        new Notification("New Web Order", {
+          body: `${order.customer_name || "Customer"} - ${peso2(order.total || order.subtotal || 0)}`,
+          icon: "/images/juja-logo.png",
+          badge: "/images/juja-logo.png",
+          tag: String(incomingId),
+          requireInteraction: true,
+        });
+      }
     };
 
     const dbChannel = supabase
@@ -1970,11 +2048,19 @@ export default function POSPage() {
   }
 
   async function fetchReceiptLogs() {
-    const receiptRes = await supabase
+    const [receiptRes, webReceiptRes] = await Promise.all([
+      supabase
       .from("orders")
       .select("*")
       .order("created_at", { ascending: false })
-      .limit(120);
+        .limit(120),
+      supabase
+        .from("web_orders")
+        .select("*")
+        .in("status", ["completed", "Completed"])
+        .order("created_at", { ascending: false })
+        .limit(120),
+    ]);
     if (receiptRes.error) {
       showToast("error", "Receipts Failed", receiptRes.error.message);
       return;
@@ -1988,7 +2074,7 @@ export default function POSPage() {
         refunds = {};
       }
     }
-    const rows = (receiptRes.data || []).map((order) => ({
+    const posRows = (receiptRes.data || []).map((order) => ({
       ...order,
       receipt_number: String(order.id),
       date: order.created_at ? new Date(order.created_at).toLocaleString() : "",
@@ -2000,13 +2086,39 @@ export default function POSPage() {
       description: order.dining_option || "POS Order",
       status: refunds[String(order.id)]?.receipt || "Closed",
     }));
+    const webRows = (webReceiptRes.data || []).map((order) => ({
+      ...order,
+      id: `WEB-${order.id}`,
+      receipt_number: `WEB-${String(order.id).slice(0, 8).toUpperCase()}`,
+      date: order.created_at ? new Date(order.created_at).toLocaleString() : "",
+      gross_sales: Number(order.total || order.subtotal || 0),
+      discounts: 0,
+      net_sales: Number(order.total || order.subtotal || 0),
+      total_collected: Number(order.total || order.subtotal || 0),
+      payment_type: order.payment_method || "Web Order",
+      description: `${order.dining_option || "Web Order"}${order.delivery_address ? ` - ${order.delivery_address}` : ""}`,
+      status: refunds[`WEB-${order.id}`]?.receipt || "Closed",
+      source: "web_order",
+      web_items: order.items || [],
+    }));
+    const rows = [...posRows, ...webRows].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
     setReceiptRows(rows);
     const activeReceipt = selectedReceiptNumber || rows[0]?.receipt_number || "";
     setSelectedReceiptNumber(activeReceipt);
 
-    const receiptNumbers = rows.map((r) => r.receipt_number).filter(Boolean);
+    const receiptNumbers = posRows.map((r) => r.receipt_number).filter(Boolean);
     if (receiptNumbers.length === 0) {
-      setReceiptItemRows([]);
+      setReceiptItemRows(webRows.flatMap((order) =>
+        (order.web_items || []).map((item, idx) => ({
+          id: `${order.receipt_number}-${idx}`,
+          receipt_number: order.receipt_number,
+          item: item.name,
+          quantity: item.quantity || item.qty || 1,
+          net_sales: Number(item.unitPrice || item.price || 0) * Number(item.quantity || item.qty || 1),
+          gross_sales: Number(item.unitPrice || item.price || 0) * Number(item.quantity || item.qty || 1),
+          status: "Closed",
+        }))
+      ));
       return;
     }
 
@@ -2015,14 +2127,26 @@ export default function POSPage() {
       .select("*")
       .in("order_id", receiptNumbers);
     if (!itemRes.error) {
-      setReceiptItemRows((itemRes.data || []).map((item) => ({
-        ...item,
-        receipt_number: String(item.order_id),
-        item: item.name,
-        net_sales: item.line_total,
-        gross_sales: item.line_total,
-        status: refunds[String(item.order_id)]?.items?.[item.id || item.name] || "Closed",
-      })));
+      const posItems = (itemRes.data || []).map((item) => ({
+          ...item,
+          receipt_number: String(item.order_id),
+          item: item.name,
+          net_sales: item.line_total,
+          gross_sales: item.line_total,
+          status: refunds[String(item.order_id)]?.items?.[item.id || item.name] || "Closed",
+        }));
+      const webItems = webRows.flatMap((order) =>
+        (order.web_items || []).map((item, idx) => ({
+          id: `${order.receipt_number}-${idx}`,
+          receipt_number: order.receipt_number,
+          item: item.name,
+          quantity: item.quantity || item.qty || 1,
+          net_sales: Number(item.unitPrice || item.price || 0) * Number(item.quantity || item.qty || 1),
+          gross_sales: Number(item.unitPrice || item.price || 0) * Number(item.quantity || item.qty || 1),
+          status: refunds[order.receipt_number]?.items?.[`${order.receipt_number}-${idx}`] || "Closed",
+        }))
+      );
+      setReceiptItemRows([...posItems, ...webItems]);
     }
   }
 
@@ -2103,9 +2227,45 @@ export default function POSPage() {
     showToast("success", "Bluetooth Printer Added", "Printer saved to POS settings.");
   }
 
-  function closeShift() {
-    localStorage.setItem("pos_shift_closed_at", new Date().toISOString());
-    showToast("success", "Shift Closed", "Cash drawer and sales summary are ready for review.");
+  function openShiftCashModal(mode) {
+    setShiftCashMode(mode);
+    setShiftDenominations({});
+    setShiftCashOpen(true);
+  }
+
+  function updateShiftDenomination(denom, value) {
+    const clean = String(value || "").replace(/[^\d]/g, "");
+    setShiftDenominations((prev) => ({ ...prev, [denom]: clean }));
+  }
+
+  async function saveShiftCash(totalCash) {
+    const record = {
+      id: `${shiftCashMode}-${Date.now()}`,
+      store_id: storeId,
+      mode: shiftCashMode,
+      cashier_name: cashierName || "Operator",
+      cash_total: Number(totalCash || 0),
+      denominations: shiftDenominations,
+      sales_summary: shiftSummary,
+      created_at: new Date().toISOString(),
+    };
+
+    const nextRecords = [record, ...shiftRecords].slice(0, 20);
+    setShiftRecords(nextRecords);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("pos_shift_records", JSON.stringify(nextRecords));
+      if (shiftCashMode === "open") localStorage.setItem("pos_shift_starting_cash", String(totalCash || 0));
+    }
+    if (shiftCashMode === "open") setStartingCash(String(totalCash || 0));
+
+    const { error } = await supabase.from("cashier_pos").insert([record]);
+    if (error) {
+      showToast("info", shiftCashMode === "open" ? "Shift Opened Locally" : "Shift Closed Locally", "Create or alter cashier_pos in Supabase to store shift records online.");
+    } else {
+      showToast("success", shiftCashMode === "open" ? "Shift Opened" : "Shift Closed", "Shift record saved.");
+    }
+
+    setShiftCashOpen(false);
   }
 
   async function voidTicket(ticketId) {
@@ -2615,20 +2775,9 @@ export default function POSPage() {
       )}
 
       <div className="max-w-[1600px] mx-auto p-3 sm:p-4 lg:p-6 transition-all">
-        <div className="relative mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setPosMenuOpen((v) => !v)}
-              className="h-11 px-4 rounded-xl bg-[#FC687D] text-white text-xs font-black uppercase tracking-wider shadow-sm flex items-center gap-2"
-            >
-              <span className="text-base leading-none">☰</span>
-              POS Menu
-              {pendingCount > 0 && <span className="rounded-full bg-white text-[#FC687D] px-2 py-0.5 text-[10px]">{pendingCount}</span>}
-            </button>
-
-            {posMenuOpen && (
-              <div className="absolute left-0 top-12 z-50 w-[min(92vw,360px)] rounded-2xl border border-rose-100 bg-white p-3 shadow-xl">
+        {posMenuOpen && (
+          <div className="fixed inset-0 z-[145] bg-rose-950/45 backdrop-blur-sm p-4 flex items-center justify-center" onClick={() => setPosMenuOpen(false)}>
+              <div className="w-full max-w-sm rounded-2xl border border-rose-100 bg-white p-3 shadow-2xl" onClick={(e) => e.stopPropagation()}>
                 <div className="rounded-xl bg-rose-50 border border-rose-100 px-3 py-2 mb-3">
                   <p className="text-[9px] font-black uppercase tracking-widest text-rose-400">Cashier</p>
                   <div className="flex items-center justify-between gap-2">
@@ -2664,10 +2813,12 @@ export default function POSPage() {
                     </button>
                   ))}
                 </div>
+                <button type="button" onClick={() => setPosMenuOpen(false)} className="w-full mt-3 h-10 rounded-xl border border-slate-200 bg-white text-xs font-black uppercase tracking-wider text-slate-500">
+                  Close
+                </button>
               </div>
-            )}
           </div>
-        </div>
+        )}
 
         {managementOpen && (
           <div className="fixed inset-0 z-[140] bg-rose-950/45 backdrop-blur-sm p-3 sm:p-6 flex items-center justify-center" onClick={() => setManagementOpen(false)}>
@@ -2754,13 +2905,17 @@ export default function POSPage() {
           )}
 
           {managementView === "shift" && (
+            <div className="space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-3">
                 <h3 className="text-sm font-black text-slate-800">Cash Drawer</h3>
-                <label className="block">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Starting Cash</span>
-                  <input value={startingCash} onChange={(e) => setStartingCash(e.target.value.replace(/[^\d.]/g, ""))} inputMode="decimal" className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none" placeholder="0.00" />
-                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => openShiftCashModal("open")} className="h-10 rounded-xl bg-white border border-rose-100 text-[10px] font-black uppercase tracking-wider text-[#FC687D]">Open Shift</button>
+                  <button type="button" onClick={() => openShiftCashModal("close")} className="h-10 rounded-xl bg-[#FC687D] text-white text-[10px] font-black uppercase tracking-wider">Close Shift</button>
+                </div>
+                <div className="flex justify-between rounded-lg bg-white border border-slate-100 p-2 text-xs font-bold">
+                  <span className="text-slate-500">Starting Cash</span><span>{peso2(startingCash || 0)}</span>
+                </div>
                 {[
                   ["Cash payments", shiftSummary.cashPayments],
                   ["Cash refunds", shiftSummary.cashRefunds],
@@ -2770,7 +2925,6 @@ export default function POSPage() {
                     <span className="text-slate-500">{label}</span><span>{peso2(value)}</span>
                   </div>
                 ))}
-                <button type="button" onClick={closeShift} className="w-full h-10 rounded-xl bg-[#FC687D] text-white text-xs font-black uppercase tracking-wider">Close Shift</button>
               </div>
 
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-3">
@@ -2781,6 +2935,38 @@ export default function POSPage() {
                   </div>
                 ))}
               </div>
+            </div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+              <h3 className="text-sm font-black text-slate-800 mb-3">Today's Sales Breakdown</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[620px] text-xs">
+                  <thead>
+                    <tr className="text-left text-slate-400 uppercase tracking-wider">
+                      <th className="py-2">Time</th>
+                      <th>Receipt</th>
+                      <th>Payment</th>
+                      <th>Dining</th>
+                      <th>Status</th>
+                      <th className="text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shiftSalesRows.length === 0 ? (
+                      <tr><td colSpan="6" className="py-5 text-center text-slate-400 font-semibold">No sales loaded for today.</td></tr>
+                    ) : shiftSalesRows.map((row) => (
+                      <tr key={row.receipt} className="border-t border-slate-100 text-slate-700 font-semibold">
+                        <td className="py-2">{row.time}</td>
+                        <td>{String(row.receipt).slice(0, 8)}</td>
+                        <td>{row.payment}</td>
+                        <td>{row.dining}</td>
+                        <td>{row.status}</td>
+                        <td className="text-right font-black">{peso2(row.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
             </div>
           )}
 
@@ -2872,27 +3058,11 @@ export default function POSPage() {
               </div>
             </div>
 
-            {/* Loyverse-style category rail and product tile grid */}
+            {/* Product tile grid with category popup selection */}
             {loading ? (
               <div className="py-24 text-center"><div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full mx-auto" /></div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-3">
-                <div className="hidden md:block rounded-xl border border-rose-100 bg-rose-50/40 p-2 max-h-[calc(100vh-190px)] overflow-y-auto">
-                  {categories.map((cat) => (
-                    <button
-                      key={cat.id || cat.name}
-                      type="button"
-                      onClick={() => setActiveCategory(cat.name)}
-                      className={`w-full min-h-11 rounded-lg px-3 mb-1 text-left text-xs font-black transition ${
-                        activeCategory === cat.name ? "bg-[#FC687D] text-white shadow-sm" : "bg-white text-slate-600 hover:bg-rose-50"
-                      }`}
-                    >
-                      {cat.name}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[calc(100vh-190px)] overflow-y-auto pr-1">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 max-h-[calc(100vh-190px)] overflow-y-auto pr-1">
                   {items
                     .filter((i) => i.category === activeCategory)
                     .filter((i) => i.is_available !== false)
@@ -2921,7 +3091,6 @@ export default function POSPage() {
                         </p>
                       </button>
                     ))}
-                </div>
               </div>
             )}
           </div>
@@ -2963,6 +3132,8 @@ export default function POSPage() {
                 setSavedMode("resume");
                 setSavedOpen(true);
               }}
+              onOpenPosMenu={() => setPosMenuOpen(true)}
+              pendingCount={pendingCount}
               charging={charging}
               savingTicket={savingTicket}
               voucherTargetCartItemId={voucherTargetCartItemId}
@@ -3054,6 +3225,8 @@ export default function POSPage() {
                   setSavedMode("resume");
                   setSavedOpen(true);
                 }}
+                onOpenPosMenu={() => setPosMenuOpen(true)}
+                pendingCount={pendingCount}
                 charging={charging}
                 savingTicket={savingTicket}
                 voucherTargetCartItemId={voucherTargetCartItemId}
@@ -3128,6 +3301,14 @@ export default function POSPage() {
       )}
       
       <ConfirmModal open={confirmOpen} title="Clear live workspace?" message="This will remove un-saved current entries from active memory." onCancel={() => setConfirmOpen(false)} onConfirm={clearTicket} />
+      <ShiftCashModal
+        open={shiftCashOpen}
+        mode={shiftCashMode}
+        counts={shiftDenominations}
+        onChange={updateShiftDenomination}
+        onClose={() => setShiftCashOpen(false)}
+        onSave={saveShiftCash}
+      />
       <PaymentModal open={paymentOpen} onClose={() => setPaymentOpen(false)} paymentTypes={paymentTypes} selectedPayment={selectedPayment} onSelect={(name) => setSelectedPayment(name)} onConfirm={confirmCharge} total={totalDue} paymentAmount={paymentAmount} setPaymentAmount={setPaymentAmount} />
       <ReceiptPreviewModal open={receiptOpen} onClose={() => setReceiptOpen(false)} receiptText={receiptText} />
     </div>

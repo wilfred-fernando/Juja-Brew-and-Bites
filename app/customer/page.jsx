@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 
 import { supabase } from "@/lib/supabase";
 import BookingTab from "@/components/BookingForm";
+import { useIdleLogout } from "@/components/useIdleLogout";
 
 const Barcode = dynamic(() => import("react-barcode"), { ssr: false });
 
@@ -552,10 +553,19 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems,
   const [diningOption, setDiningOption] = useState("TAKEOUT");
   const [fulfillmentDate, setFulfillmentDate] = useState(getManilaDateString(0));
   const [fulfillmentTime, setFulfillmentTime] = useState(getManilaTimeString(30));
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("Cash");
+  const [paymentProof, setPaymentProof] = useState(null);
 
   if (!open) return null;
 
   const isValidTime = fulfillmentTime && fulfillmentTime.trim() !== "";
+  const paymentOptions = diningOption === "DELIVERY" ? ["QRPH"] : diningOption === "DINEIN" ? [] : ["Cash", "Card", "QRPH"];
+  const requiresPaymentProof = paymentMethod === "QRPH";
+  const canSubmit =
+    isValidTime &&
+    (diningOption !== "DELIVERY" || deliveryAddress.trim().length >= 8) &&
+    (!requiresPaymentProof || !!paymentProof);
   const potentialPointsEarned = loyaltyPoints(subtotal);
 
   return (
@@ -576,14 +586,14 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems,
             </label>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { id: "TAKEOUT", label: "Pick-up", icon: "🛍️" },
+                { id: "TAKEOUT", label: "Self Pickup", icon: "🛍️" },
                 { id: "DINEIN", label: "Dine-In", icon: "🍽️" },
                 { id: "DELIVERY", label: "Delivery", icon: "🛵" },
               ].map((opt) => (
                 <button
                   key={opt.id}
                   type="button"
-                  onClick={() => setDiningOption(opt.id)}
+                  onClick={() => { setDiningOption(opt.id); setPaymentProof(null); if (opt.id === "DELIVERY") setPaymentMethod("QRPH"); else if (opt.id === "DINEIN") setPaymentMethod(""); else setPaymentMethod("Cash"); }}
                   className={`py-3 rounded-xl border flex flex-col items-center justify-center gap-1.5 font-bold text-xs transition ${
                     diningOption === opt.id
                       ? "border-[#FC687D] bg-rose-50/40 text-[#FC687D]"
@@ -623,6 +633,67 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems,
             </div>
           </div>
 
+          {diningOption === "DELIVERY" && (
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1.5">
+                Delivery Address
+              </label>
+              <textarea
+                value={deliveryAddress}
+                onChange={(e) => setDeliveryAddress(e.target.value)}
+                className="w-full min-h-20 bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-[#FC687D]"
+                placeholder="House number, street, barangay, city, landmark"
+              />
+            </div>
+          )}
+
+          {paymentOptions.length > 0 && (
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2">
+                Payment Option
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {paymentOptions.map((method) => (
+                  <button
+                    key={method}
+                    type="button"
+                    onClick={() => {
+                      setPaymentMethod(method);
+                      if (method !== "QRPH") setPaymentProof(null);
+                    }}
+                    className={`h-10 rounded-xl border text-xs font-black uppercase tracking-wider ${
+                      paymentMethod === method
+                        ? "border-[#FC687D] bg-rose-50 text-[#FC687D]"
+                        : "border-slate-200 bg-white text-slate-600"
+                    }`}
+                  >
+                    {method}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {paymentMethod === "QRPH" && (
+            <div className="rounded-2xl border border-rose-100 bg-rose-50/50 p-3 space-y-3">
+              <img src="/images/qrph.jpg" alt="QRPH payment code" className="w-full rounded-xl border border-white bg-white object-contain max-h-72" />
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest font-bold text-rose-500 mb-1.5">
+                  Upload Payment Screenshot
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setPaymentProof(e.target.files?.[0] || null)}
+                  className="w-full text-xs font-semibold text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-[#FC687D] file:px-3 file:py-2 file:text-xs file:font-bold file:text-white"
+                />
+                <p className="text-[10px] font-semibold text-slate-500 mt-2">
+                  Cashier will review the proof amount before accepting the order.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="bg-emerald-50/60 border border-emerald-100 rounded-xl p-3 flex items-center justify-between text-xs text-emerald-800 font-medium">
             <span className="flex items-center gap-2">⭐ <span>Rewards Points Earned</span></span>
             <span className="font-extrabold text-sm text-emerald-700">+{potentialPointsEarned.toFixed(2)} pts</span>
@@ -656,8 +727,8 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems,
           </button>
           <button
             type="button"
-            onClick={() => onConfirm({ diningOption, fulfillmentDate, fulfillmentTime })}
-            disabled={isSubmitting || !isValidTime}
+            onClick={() => onConfirm({ diningOption, fulfillmentDate, fulfillmentTime, deliveryAddress, paymentMethod, paymentProof })}
+            disabled={isSubmitting || !canSubmit}
             className="w-full py-3 bg-[#FC687D] hover:bg-rose-500 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-md disabled:opacity-40"
           >
             {isSubmitting ? "Sending..." : "Submit to POS ✓"}
@@ -778,6 +849,22 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
   const executeOrderSubmission = async (fulfillmentMetadata) => {
     setIsSubmitting(true);
 
+    let paymentProofUrl = "";
+    if (fulfillmentMetadata.paymentProof) {
+      const ext = fulfillmentMetadata.paymentProof.name?.split(".").pop() || "jpg";
+      const filePath = `${user.id}/${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("payment-proofs")
+        .upload(filePath, fulfillmentMetadata.paymentProof, { upsert: false });
+      if (uploadError) {
+        setIsSubmitting(false);
+        alert(`Payment screenshot upload failed: ${uploadError.message}`);
+        return;
+      }
+      const { data: publicUrl } = supabase.storage.from("payment-proofs").getPublicUrl(filePath);
+      paymentProofUrl = publicUrl?.publicUrl || "";
+    }
+
     const orderPayload = {
       user_id: user.id,
       customer_name: member?.customer_name || user?.user_metadata?.full_name || "Web Customer",
@@ -787,7 +874,12 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       total: Number(subtotal),
       status: "pending", 
       dining_option: fulfillmentMetadata.diningOption, 
-      fulfillment_time: `${fulfillmentMetadata.fulfillmentDate} ${fulfillmentMetadata.fulfillmentTime}`
+      fulfillment_time: `${fulfillmentMetadata.fulfillmentDate} ${fulfillmentMetadata.fulfillmentTime}`,
+      delivery_address: fulfillmentMetadata.deliveryAddress || "",
+      payment_method: fulfillmentMetadata.diningOption === "DINEIN" ? "" : fulfillmentMetadata.paymentMethod,
+      payment_status: fulfillmentMetadata.paymentMethod === "QRPH" ? "submitted" : "pending",
+      payment_proof_url: paymentProofUrl,
+      payment_review_note: fulfillmentMetadata.paymentMethod === "QRPH" ? "Cashier must verify screenshot amount against order total." : "",
     };
 
     try {
@@ -1589,6 +1681,15 @@ export default function Customer() {
     setTimeout(() => setToast(null), 4500);
   };
 
+  useIdleLogout({
+    timeoutMs: 60 * 60 * 1000,
+    onTimeout: async () => {
+      await supabase.auth.signOut();
+      router.push("/login");
+    },
+    storageKey: "juja:customer:lastActivity",
+  });
+
   const fetchOrderHistory = async (userId) => {
     if (!userId) return;
     setLoadingOrders(true);
@@ -1903,3 +2004,4 @@ export default function Customer() {
     </div>
   );
 }
+
