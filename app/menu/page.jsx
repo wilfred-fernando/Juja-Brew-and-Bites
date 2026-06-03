@@ -138,7 +138,7 @@ function Footer() {
       </div>
 
       {/* Footer Bottom Metadata Bar */}
-      <div className="max-w-7xl mx-auto pt-4 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center text-slate-500 text-[10px] tracking-wider uppercase">
+      <div className="max-w-7xl mx-auto pt-4 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center text-white/60 text-[10px] tracking-wider uppercase">
         <p>© {new Date().getFullYear()} Juja Brew &amp; Bites® · All rights reserved</p>
         <p>Quezon City · Philippines</p>
       </div>

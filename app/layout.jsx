@@ -1,10 +1,10 @@
 import "./style.css";
+import PageTransition from "@/components/PageTransition";
+import PwaManifestManager from "@/components/PwaManifestManager";
 
 export const metadata = {
   title: "Juja Brew and Bites®",
   description: "Premium Coffee, Tea, and Exquisite Bites",
-  manifest: "/manifest.json",
-  manifest: "/manifest-hub.json",
 };
 
 export default function RootLayout({ children }) {
@@ -21,7 +21,8 @@ export default function RootLayout({ children }) {
         className="antialiased text-slate-800 min-h-screen flex flex-col bg-[#FFF5F7]"
         suppressHydrationWarning
       >
-        {children}
+        <PwaManifestManager />
+        <PageTransition>{children}</PageTransition>
       </body>
     </html>
   );

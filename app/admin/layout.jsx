@@ -16,11 +16,13 @@ export default function AdminLayout({ children }) {
   const router = useRouter();
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const isReportsPage = pathname.startsWith("/admin/pos-admin/reports");
 
   const { loading, authorized, userEmail } = usePortalAuth({
     portal: "admin",
     loginPath: "/admin/login",
     allowedRoles: ["admin", "super_admin"],
+    requireStore: false,
   });
 
   // Close mobile menu on route change.
@@ -103,7 +105,7 @@ export default function AdminLayout({ children }) {
         </div>
 
         {/* PAGE */}
-        <main className="p-6 md:p-10 max-w-7xl mx-auto">
+        <main className={isReportsPage ? "w-full p-4 sm:p-6 md:p-8 xl:p-10" : "p-6 md:p-10 max-w-7xl mx-auto"}>
           {children}
         </main>
 

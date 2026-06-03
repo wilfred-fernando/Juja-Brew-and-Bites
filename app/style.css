@@ -1,12 +1,546 @@
 @import "tailwindcss";
 
+/*
+  Global UI theme.
+  Override these custom properties on any page root or component to customize
+  color, type, radius, borders, shadows, controls, or page transitions locally.
+*/
+:root {
+  color-scheme: light;
+  --app-font-family: Arial, Helvetica, sans-serif;
+  --app-font-size: 15px;
+  --app-line-height: 1.5;
+  --app-font-weight: 400;
+  --app-strong-font-weight: 500;
+  --app-heading-font-weight: 500;
+  --app-heading-letter-spacing: 0;
+
+  --app-bg: #ffffff;
+  --app-subtle-bg: #f8fafc;
+  --app-surface: #ffffff;
+  --app-surface-elevated: #ffffff;
+  --app-text: #000000;
+  --app-muted: #4b5563;
+  --app-soft-text: #64748b;
+  --app-border: #e5e7eb;
+  --app-border-strong: #d1d5db;
+
+  --app-accent: #7f7f7f;
+  --app-accent-hover: #696969;
+  --app-accent-active: #555555;
+  --app-accent-soft: #f3f4f6;
+  --app-accent-border: #d9d9d9;
+  --app-accent-foreground: #ffffff;
+
+  --app-danger: #dc2626;
+  --app-success: #15803d;
+  --app-warning: #d97706;
+
+  --app-radius-sm: 10px;
+  --app-radius: 14px;
+  --app-radius-lg: 18px;
+  --app-radius-xl: 22px;
+
+  --app-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --app-shadow-sm: 0 4px 14px rgba(15, 23, 42, 0.08);
+  --app-shadow: 0 12px 34px rgba(15, 23, 42, 0.12);
+  --app-shadow-lg: 0 22px 54px rgba(15, 23, 42, 0.16);
+
+  --app-focus-ring: 0 0 0 4px rgba(127, 127, 127, 0.18);
+  --app-transition: 160ms cubic-bezier(0.2, 0, 0, 1);
+
+  --app-button-bg: var(--app-accent);
+  --app-button-hover-bg: var(--app-accent-hover);
+  --app-button-active-bg: var(--app-accent-active);
+  --app-button-color: var(--app-accent-foreground);
+  --app-button-border: transparent;
+  --app-button-radius: var(--app-radius);
+  --app-button-padding-x: 1rem;
+  --app-button-padding-y: 0.65rem;
+  --app-button-shadow: 0 10px 20px rgba(15, 23, 42, 0.14);
+
+  --app-input-bg: #ffffff;
+  --app-input-border: var(--app-border);
+  --app-input-radius: var(--app-radius);
+  --app-input-placeholder: #94a3b8;
+
+  --app-card-bg: var(--app-surface);
+  --app-card-border: var(--app-border);
+  --app-card-radius: var(--app-radius-lg);
+  --app-card-shadow: var(--app-shadow-sm);
+
+  --app-table-header-bg: #f8fafc;
+  --app-table-row-hover: #f9fafb;
+
+  --page-transition-duration: 180ms;
+  --page-transition-distance: 8px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--app-bg);
+  color: var(--app-text);
+  font-family: var(--app-font-family);
+  font-size: var(--app-font-size);
+  line-height: var(--app-line-height);
+  scroll-behavior: smooth;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
-  background-color: #FFF5F7;
-  color: #1e293b;
-  /* Arial is built-in, so this will load instantly */
-  font-family: Arial, Helvetica, sans-serif !important;
+  min-height: 100vh;
   margin: 0;
   padding: 0;
+  background: var(--app-bg) !important;
+  color: var(--app-text) !important;
+  font-family: var(--app-font-family) !important;
+  font-weight: var(--app-font-weight) !important;
+}
+
+body * {
+  font-family: var(--app-font-family) !important;
+}
+
+body,
+input,
+select,
+textarea,
+button {
+  letter-spacing: 0;
+}
+
+b,
+strong,
+body [class*="font-bold"],
+body [class*="font-black"],
+body [class*="font-extrabold"],
+body [class*="font-semibold"] {
+  font-weight: var(--app-strong-font-weight) !important;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--app-text);
+  font-weight: var(--app-heading-font-weight) !important;
+  letter-spacing: var(--app-heading-letter-spacing);
+  line-height: 1.15;
+}
+
+p,
+li,
+label,
+small {
+  color: inherit;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: color var(--app-transition), background-color var(--app-transition),
+    border-color var(--app-transition), opacity var(--app-transition),
+    transform var(--app-transition), box-shadow var(--app-transition);
+}
+
+::selection {
+  background: rgba(127, 127, 127, 0.2);
+  color: var(--app-text);
+}
+
+/* Page transitions */
+body > .page-transition-shell {
+  width: 100%;
+  min-height: 100vh;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--app-bg);
+}
+
+.page-transition-shell[data-page-transition-phase="enter"] {
+  animation: app-page-enter var(--page-transition-duration) cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.page-transition-shell[data-page-transition-phase="exit"] {
+  animation: app-page-exit 140ms cubic-bezier(0.4, 0, 1, 1) both;
+  pointer-events: none;
+}
+
+.page-transition-shell:has([data-page-transition="off"]) {
+  animation: none !important;
+}
+
+[data-page-transition="off"] {
+  --page-transition-duration: 0ms;
+  --page-transition-distance: 0px;
+}
+
+@keyframes app-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--page-transition-distance));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes app-page-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0.88;
+    transform: translateY(-4px);
+  }
+}
+
+@supports (view-transition-name: root) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: var(--page-transition-duration);
+    animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+}
+
+/* Core controls */
+:where(button, [role="button"], .app-button) {
+  min-height: 2.4rem;
+  border-radius: var(--app-button-radius);
+  border: 1px solid var(--app-button-border);
+  padding: var(--app-button-padding-y) var(--app-button-padding-x);
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--app-transition), border-color var(--app-transition),
+    color var(--app-transition), box-shadow var(--app-transition), opacity var(--app-transition),
+    transform var(--app-transition), filter var(--app-transition);
+}
+
+:where(button, [role="button"], .app-button):not(:disabled):not([aria-disabled="true"]):hover {
+  transform: translateY(-1px);
+  box-shadow: var(--app-shadow-xs);
+}
+
+:where(button, [role="button"], .app-button):not(:disabled):not([aria-disabled="true"]):active {
+  transform: translateY(0);
+  filter: brightness(0.98);
+}
+
+:where(button, [role="button"], .app-button):disabled,
+:where(button, [role="button"], .app-button)[aria-disabled="true"] {
+  cursor: not-allowed !important;
+  opacity: 0.55 !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+:where(button, [role="button"], .app-button):focus-visible,
+:where(a, input, select, textarea):focus-visible {
+  outline: none !important;
+  box-shadow: var(--app-focus-ring) !important;
+}
+
+:where(button, a)[class*="bg-[#FC687D]"],
+:where(button, a)[class*="bg-rose-500"],
+:where(button, a)[class*="bg-rose-600"],
+:where(button, a)[class*="bg-pink-500"],
+:where(button, a)[class*="bg-pink-600"] {
+  background: var(--app-button-bg) !important;
+  border-color: var(--app-button-border) !important;
+  color: var(--app-button-color) !important;
+  box-shadow: var(--app-button-shadow) !important;
+}
+
+:where(button, a)[class*="bg-[#FC687D]"]:hover,
+:where(button, a)[class*="bg-rose-500"]:hover,
+:where(button, a)[class*="bg-rose-600"]:hover,
+:where(button, a)[class*="bg-pink-500"]:hover,
+:where(button, a)[class*="bg-pink-600"]:hover {
+  background: var(--app-button-hover-bg) !important;
+}
+
+:where(button, a)[class*="bg-[#FC687D]"]:active,
+:where(button, a)[class*="bg-rose-500"]:active,
+:where(button, a)[class*="bg-rose-600"]:active,
+:where(button, a)[class*="bg-pink-500"]:active,
+:where(button, a)[class*="bg-pink-600"]:active {
+  background: var(--app-button-active-bg) !important;
+}
+
+:where(button, a)[class*="bg-white"],
+:where(button, a)[class*="bg-slate-50"],
+:where(button, a)[class*="border"] {
+  border-color: var(--app-border) !important;
+}
+
+:where(button, a)[class*="bg-white"]:hover,
+:where(button, a)[class*="bg-slate-50"]:hover,
+:where(button, a)[class*="border"]:hover {
+  border-color: var(--app-border-strong) !important;
+  background-color: var(--app-subtle-bg);
+}
+
+/* Forms */
+:where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  background-color: var(--app-input-bg);
+  border-color: var(--app-input-border);
+  border-radius: var(--app-input-radius);
+  color: var(--app-text);
+  transition: background-color var(--app-transition), border-color var(--app-transition),
+    box-shadow var(--app-transition), color var(--app-transition);
+}
+
+:where(input:not([type="checkbox"]):not([type="radio"]), select, textarea)::placeholder {
+  color: var(--app-input-placeholder);
+}
+
+:where(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {
+  border-color: var(--app-accent) !important;
+  box-shadow: var(--app-focus-ring);
+  outline: none;
+}
+
+:where(input:disabled, select:disabled, textarea:disabled) {
+  background: #f3f4f6;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+:where(input[type="checkbox"], input[type="radio"]) {
+  accent-color: var(--app-accent);
+}
+
+/* Cards, panels, and elevated surfaces */
+:where(
+    [data-ui-card],
+    .app-card,
+    article[class*="bg-white"],
+    section[class*="bg-white"],
+    div[class*="bg-white"][class*="shadow"],
+    div[class*="bg-white"][class*="border"]
+  ) {
+  background: var(--app-card-bg);
+  border-color: var(--app-card-border);
+  border-radius: var(--app-card-radius);
+  box-shadow: var(--app-card-shadow);
+}
+
+:where(
+    [data-ui-card],
+    .app-card,
+    article[class*="bg-white"],
+    section[class*="bg-white"],
+    div[class*="bg-white"][class*="shadow"],
+    div[class*="bg-white"][class*="border"]
+  ):hover {
+  border-color: var(--app-border-strong);
+}
+
+/* Tables */
+:where(table) {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+:where(thead th) {
+  background: var(--app-table-header-bg);
+  color: var(--app-muted);
+  font-weight: var(--app-strong-font-weight) !important;
+}
+
+:where(th, td) {
+  border-color: var(--app-border);
+}
+
+:where(tbody tr) {
+  transition: background-color var(--app-transition);
+}
+
+:where(tbody tr:hover td) {
+  background: var(--app-table-row-hover);
+}
+
+/* Navigation and modal polish */
+:where(nav[class*="bg-white"], header[class*="bg-white"], aside[class*="bg-white"]) {
+  border-color: var(--app-border);
+  box-shadow: var(--app-shadow-xs);
+}
+
+body [class*="fixed"][class*="inset-0"] {
+  animation: app-overlay-in 160ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+body [class*="fixed"][class*="inset-0"] > :where(div, section, article)[class*="bg-white"] {
+  animation: app-modal-in 180ms cubic-bezier(0.2, 0, 0, 1) both;
+  border-color: var(--app-border);
+  box-shadow: var(--app-shadow-lg);
+}
+
+@keyframes app-overlay-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes app-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Existing rose/pink theme compatibility mapped to the global accent. */
+body [class*="bg-[#FFF5F7]"],
+body [class*="bg-rose-50"],
+body [class*="bg-pink-50"],
+body [class*="from-rose-50"],
+body [class*="to-rose-50"],
+body [class*="via-rose-50"],
+body [style*="#FFF5F7"] {
+  background-color: var(--app-bg) !important;
+  background-image: none !important;
+}
+
+body [class*="bg-[#FC687D]"],
+body [class*="bg-rose-400"],
+body [class*="bg-rose-500"],
+body [class*="bg-rose-600"],
+body [class*="bg-pink-400"],
+body [class*="bg-pink-500"],
+body [class*="bg-pink-600"],
+body [style*="#FC687D"] {
+  background-color: var(--app-accent) !important;
+  background-image: none !important;
+}
+
+body [class*="text-[#FC687D]"],
+body [class*="text-rose"],
+body [class*="text-pink"],
+body [class*="hover:text-[#FC687D]"],
+body [class*="hover:text-rose"],
+body [class*="hover:text-pink"],
+body [style*="#FC687D"] {
+  color: var(--app-accent) !important;
+}
+
+body [class*="text-white"] {
+  color: var(--app-accent-foreground) !important;
+}
+
+body [class*="border-[#FC687D]"],
+body [class*="border-rose"],
+body [class*="border-pink"],
+body [class*="focus:border-[#FC687D]"],
+body [class*="focus:border-rose"],
+body [class*="focus:border-pink"] {
+  border-color: var(--app-accent) !important;
+}
+
+body [class*="shadow-rose"],
+body [class*="ring-rose"],
+body [class*="ring-[#FC687D]"] {
+  --tw-shadow-color: var(--app-accent) !important;
+  --tw-ring-color: var(--app-accent) !important;
+}
+
+body svg[class*="text-[#FC687D]"],
+body svg[class*="text-rose"],
+body svg[class*="text-pink"] {
+  color: var(--app-accent) !important;
+  stroke: var(--app-accent) !important;
+}
+
+/* Contrast guardrails for controls and badges. */
+body :where(button, a, [role="button"], span)[class*="bg-[#FC687D]"],
+body :where(button, a, [role="button"], span)[class~="bg-black"],
+body :where(button, a, [role="button"], span)[class~="bg-slate-700"],
+body :where(button, a, [role="button"], span)[class~="bg-slate-800"],
+body :where(button, a, [role="button"], span)[class~="bg-slate-900"],
+body :where(button, a, [role="button"], span)[class~="bg-slate-950"],
+body :where(button, a, [role="button"], span)[class~="bg-gray-700"],
+body :where(button, a, [role="button"], span)[class~="bg-gray-800"],
+body :where(button, a, [role="button"], span)[class~="bg-gray-900"],
+body :where(button, a, [role="button"], span)[class~="bg-gray-950"],
+body :where(button, a, [role="button"], span)[class~="bg-rose-600"],
+body :where(button, a, [role="button"], span)[class~="bg-rose-700"],
+body :where(button, a, [role="button"], span)[class~="bg-rose-800"],
+body :where(button, a, [role="button"], span)[class~="bg-rose-900"],
+body :where(button, a, [role="button"], span)[class~="bg-rose-950"],
+body :where(button, a, [role="button"], span)[class~="bg-red-600"],
+body :where(button, a, [role="button"], span)[class~="bg-emerald-600"],
+body :where(button, a, [role="button"], span)[class~="bg-green-600"],
+body :where(button, a, [role="button"], span)[class~="bg-blue-600"],
+body :where(button, a, [role="button"], span)[class~="bg-amber-600"] {
+  color: #ffffff !important;
+}
+
+body :where(button, a, [role="button"], span)[class~="bg-white"],
+body :where(button, a, [role="button"], span)[class~="bg-slate-50"],
+body :where(button, a, [role="button"], span)[class~="bg-slate-100"],
+body :where(button, a, [role="button"], span)[class~="bg-gray-50"],
+body :where(button, a, [role="button"], span)[class~="bg-gray-100"],
+body :where(button, a, [role="button"], span)[class~="bg-rose-50"],
+body :where(button, a, [role="button"], span)[class~="bg-rose-100"],
+body :where(button, a, [role="button"], span)[class~="bg-pink-50"],
+body :where(button, a, [role="button"], span)[class~="bg-pink-100"],
+body :where(button, a, [role="button"], span)[class~="bg-red-50"],
+body :where(button, a, [role="button"], span)[class~="bg-red-100"],
+body :where(button, a, [role="button"], span)[class~="bg-emerald-50"],
+body :where(button, a, [role="button"], span)[class~="bg-emerald-100"],
+body :where(button, a, [role="button"], span)[class~="bg-green-50"],
+body :where(button, a, [role="button"], span)[class~="bg-green-100"],
+body :where(button, a, [role="button"], span)[class~="bg-blue-50"],
+body :where(button, a, [role="button"], span)[class~="bg-blue-100"],
+body :where(button, a, [role="button"], span)[class~="bg-amber-50"],
+body :where(button, a, [role="button"], span)[class~="bg-amber-100"] {
+  color: #000000 !important;
+}
+
+body :where(button, a, [role="button"], span)[class*="bg-"] svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+body footer[class*="bg-slate-900"],
+body footer[class*="bg-slate-900"] * {
+  color: #ffffff !important;
+}
+
+body footer[class*="bg-slate-900"] svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
 }
 
 .hide-scrollbar {
@@ -16,4 +550,35 @@ body {
 
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --app-font-size: 14px;
+    --app-card-radius: 16px;
+    --app-radius-lg: 16px;
+  }
+
+  :where(button, [role="button"], .app-button) {
+    min-height: 2.5rem;
+  }
+
+  :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+    font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .page-transition-shell {
+    animation: none !important;
+  }
 }

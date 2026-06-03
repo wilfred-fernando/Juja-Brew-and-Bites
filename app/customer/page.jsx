@@ -16,6 +16,75 @@ const LOGO =
 
 const loyaltyPoints = (amount) => Number(((Number(amount) || 0) * 0.04).toFixed(2));
 const ALERT_SOUND_SRC = "/sound/notification.mp3";
+const CUSTOMER_NOTIFICATION_ICON = "/images/juja-logo.png";
+
+function isCustomerPwaInstalled() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia?.("(display-mode: standalone)")?.matches || window.navigator?.standalone === true;
+}
+
+async function registerCustomerServiceWorker() {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
+  try {
+    await navigator.serviceWorker.register("/sw.js");
+    return await navigator.serviceWorker.ready;
+  } catch (err) {
+    console.warn("Customer service worker registration skipped:", err);
+    return null;
+  }
+}
+
+async function requestCustomerNotificationPermission() {
+  if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
+  if (Notification.permission !== "default") return Notification.permission;
+  try {
+    return await Notification.requestPermission();
+  } catch (err) {
+    console.warn("Customer notification permission skipped:", err);
+    return Notification.permission;
+  }
+}
+
+async function showCustomerPanelNotification(payload) {
+  if (typeof window === "undefined" || !("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+
+  const notificationPayload = {
+    title: "Juja Brew & Bites",
+    icon: CUSTOMER_NOTIFICATION_ICON,
+    badge: CUSTOMER_NOTIFICATION_ICON,
+    url: "/customer?tab=history",
+    requireInteraction: true,
+    ...payload,
+  };
+
+  const registration = await registerCustomerServiceWorker();
+  if (registration?.showNotification) {
+    await registration.showNotification(notificationPayload.title, {
+      body: notificationPayload.body,
+      icon: notificationPayload.icon,
+      badge: notificationPayload.badge,
+      tag: notificationPayload.tag,
+      renotify: true,
+      requireInteraction: notificationPayload.requireInteraction,
+      vibrate: [220, 90, 220, 90, 220],
+      data: { url: notificationPayload.url },
+    });
+    return;
+  }
+
+  const notification = new Notification(notificationPayload.title, {
+    body: notificationPayload.body,
+    icon: notificationPayload.icon,
+    badge: notificationPayload.badge,
+    tag: notificationPayload.tag,
+    requireInteraction: notificationPayload.requireInteraction,
+  });
+  notification.onclick = () => {
+    window.focus();
+    window.location.href = notificationPayload.url;
+  };
+}
 
 function playCustomerAlertSound(status = "ready") {
   if (typeof window === "undefined") return;
@@ -575,14 +644,14 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems,
         onClick={(e) => e.stopPropagation()}
       >
         <div className="border-b border-slate-100 pb-3 mb-4">
-          <p className="text-[10px] uppercase font-bold tracking-widest text-[#FC687D]">Fulfillment Verification</p>
+          <p className="text-[10px] uppercase font-bold tracking-widest text-[#FC687D]"></p>
           <h3 className="text-xl font-bold text-slate-800 mt-0.5">Confirm Your Order</h3>
         </div>
 
         <div className="space-y-4">
           <div>
             <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2">
-              Fulfillment Method
+              ORDER TYPE
             </label>
             <div className="grid grid-cols-3 gap-2">
               {[
@@ -710,7 +779,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems,
               ))}
             </div>
             <div className="border-t border-rose-100/60 pt-2.5 mt-2 flex justify-between items-baseline">
-              <span className="text-xs font-bold text-slate-700">Total Settlement Margin</span>
+              <span className="text-xs font-bold text-slate-700">Total Amount</span>
               <span className="text-xl font-black text-[#FC687D]">₱{subtotal.toFixed(0)}</span>
             </div>
           </div>
@@ -731,7 +800,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems,
             disabled={isSubmitting || !canSubmit}
             className="w-full py-3 bg-[#FC687D] hover:bg-rose-500 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-md disabled:opacity-40"
           >
-            {isSubmitting ? "Sending..." : "Submit to POS ✓"}
+            {isSubmitting ? "Sending..." : "CHECKOUT ✓"}
           </button>
         </div>
       </div>
@@ -1012,7 +1081,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
               onClick={handleOpenCheckoutValidation}
               className="w-full h-11 rounded-xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-rose-500 transition"
             >
-              Configure Fulfillment
+             CHECKOUT
             </button>
             <button
               onClick={() => setConfirmClear(true)}
@@ -1527,10 +1596,10 @@ function LoyaltyTab({ member, setMember, user }) {
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in duration-300">
       <div className="md:col-span-1 space-y-4">
         <div
-          className="rounded-2xl p-5 text-white relative overflow-hidden shadow-md bg-rose-950 bg-cover bg-center bg-no-repeat aspect-[1.586/1]"
+          className="rounded-2xl p-5 text-white relative overflow-hidden shadow-md bg-rose-950 bg-cover bg-center bg-no-repeat aspect-[1.7/1]"
           style={{ backgroundImage: "url('/images/loyalty-card-bg.jpg')" }}
         >
-          <div className="relative z-10 flex flex-col justify-between h-full min-h-[160px]">
+          <div className="relative z-10 flex flex-col justify-between h-full min-h-[150px]">
             
             <div className="bg-white p-2 rounded-lg inline-block self-start shadow-md border border-slate-100 mt-auto">
               <Barcode value={member?.customer_code || "JUJA000000"} background="transparent" lineColor="#0f172a" width={1.2} height={50} displayValue fontSize={11} margin={0} />
@@ -1668,6 +1737,7 @@ export default function Customer() {
 
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [showNotificationBanner, setShowNotificationBanner] = useState(false);
   const readyAlertIntervalRef = useRef(null);
 
   // Application UI internal toast context states register caching memory
@@ -1707,12 +1777,14 @@ export default function Customer() {
     }
   };
 
-  // Upgraded: Proactive client notification initialization engine
+  // Native notification permission is requested only after install or standalone launch.
   useEffect(() => {
-    if (typeof window !== "undefined" && "Notification" in window) {
-      if (Notification.permission === "default") {
-        Notification.requestPermission();
-      }
+    registerCustomerServiceWorker();
+
+    if (isCustomerPwaInstalled()) {
+      requestCustomerNotificationPermission().then((permission) => {
+        setShowNotificationBanner(permission === "default");
+      });
     }
   }, []);
 
@@ -1744,7 +1816,7 @@ export default function Customer() {
       link.rel = "manifest";
       document.head.appendChild(link);
     }
-    link.href = "/manifest-hub.json";
+    link.href = "/manifest-customer.json";
 
     async function loadData() {
       const { data } = await supabase.auth.getSession();
@@ -1834,11 +1906,21 @@ export default function Customer() {
       }
     };
 
+    const handleAppInstalled = () => {
+      localStorage.setItem("juja_customer_pwa_installed", "true");
+      setShowInstallBanner(false);
+      requestCustomerNotificationPermission().then((permission) => {
+        setShowNotificationBanner(permission === "default");
+      });
+    };
+
     // Fix: Add listener directly using the initialized handler
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
     };
   }, []);
 
@@ -1851,6 +1933,24 @@ export default function Customer() {
     
     setDeferredPrompt(null);
     setShowInstallBanner(false);
+
+    if (outcome === "accepted") {
+      localStorage.setItem("juja_customer_pwa_installed", "true");
+      await registerCustomerServiceWorker();
+      const permission = await requestCustomerNotificationPermission();
+      setShowNotificationBanner(permission === "default");
+    }
+  };
+
+  const enableCustomerNotifications = async () => {
+    await registerCustomerServiceWorker();
+    const permission = await requestCustomerNotificationPermission();
+    setShowNotificationBanner(permission === "default");
+    if (permission === "granted") {
+      showToast("success", "Notifications Enabled", "Order-ready alerts will appear in your device notification panel.");
+    } else if (permission === "denied") {
+      showToast("error", "Notifications Blocked", "Enable notifications in your browser or app settings to receive order alerts.");
+    }
   };
 
   const closeInstallBannerForever = () => {
@@ -1875,7 +1975,7 @@ export default function Customer() {
     return () => stopReadyAlertSound();
   }, []);
 
-  const notifyOrderStatus = (order) => {
+  const notifyOrderStatus = async (order) => {
     const status = String(order?.status || "").toLowerCase();
     if (status !== "ready" && status !== "completed") return;
 
@@ -1901,20 +2001,13 @@ export default function Customer() {
         : `Order #${orderIdShort} is completed. Loyalty points earned: +${points}.`
     );
 
-    // 2. Upgraded System Native Web Browser Notification API Execution
-    if (typeof window !== "undefined" && "Notification" in window) {
-      if (Notification.permission === "granted") {
-        new Notification("Juja Brew & Bites", {
-          body: status === "ready" 
-            ? `Order #${orderIdShort} is ready! Come claim your fresh brews and bites.`
-            : `Order #${orderIdShort} has been completed. Enjoy your items!`,
-          icon: LOGO,
-          badge: LOGO,
-          tag: order.id,
-          requireInteraction: true
-        });
-      }
-    }
+    await showCustomerPanelNotification({
+      body: status === "ready"
+        ? `Order #${orderIdShort} is ready! Come claim your fresh brews and bites.`
+        : `Order #${orderIdShort} has been completed. Enjoy your items!`,
+      tag: `${order.id}:${status}`,
+      url: "/customer?tab=history",
+    });
   };
 
   if (loading) {
@@ -1994,6 +2087,29 @@ export default function Customer() {
               className="text-[9px] uppercase tracking-wider text-slate-400 hover:text-slate-600 font-bold text-center"
             >
               Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showNotificationBanner && (
+        <div className="fixed bottom-[84px] md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96 z-[95] bg-white border border-rose-100 p-4 rounded-2xl shadow-[0_10px_30px_rgba(252,104,125,0.14)] flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-300">
+          <div>
+            <p className="text-xs font-bold text-slate-800">Enable order alerts</p>
+            <p className="text-[10px] text-slate-400 font-medium">Get ready and completed order updates in your device notification panel.</p>
+          </div>
+          <div className="flex flex-col gap-1.5 shrink-0">
+            <button
+              onClick={enableCustomerNotifications}
+              className="px-3 py-1.5 bg-[#FC687D] hover:bg-rose-500 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg shadow-sm transition"
+            >
+              Enable
+            </button>
+            <button
+              onClick={() => setShowNotificationBanner(false)}
+              className="text-[9px] uppercase tracking-wider text-slate-400 hover:text-slate-600 font-bold text-center"
+            >
+              Later
             </button>
           </div>
         </div>

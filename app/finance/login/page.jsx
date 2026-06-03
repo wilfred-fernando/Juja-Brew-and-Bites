@@ -32,12 +32,12 @@ export default function FinanceLoginPage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, store_id")
         .eq("id", user.id)
         .maybeSingle();
 
-      if (profile?.role === "admin" || profile?.role === "super_admin") {
-        window.location.href = financePath("/payroll");
+      if ((profile?.role === "admin" || profile?.role === "super_admin") || (profile?.role === "cashier" && profile?.store_id)) {
+        window.location.href = financePath("/expenses");
         return;
       }
 
@@ -70,19 +70,24 @@ export default function FinanceLoginPage() {
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("role, full_name")
+        .select("role, full_name, store_id")
         .eq("id", userId)
         .maybeSingle();
 
       if (profileError) throw profileError;
 
       const role = String(profile?.role || "").toLowerCase();
-      if (role !== "admin" && role !== "super_admin") {
+      if (!["admin", "super_admin", "cashier"].includes(role)) {
         await supabase.auth.signOut();
-        throw new Error("This account is not allowed to use Finance Admin.");
+        throw new Error("This account is not allowed to use Finance.");
       }
 
-      window.location.href = financePath("/payroll");
+      if (role === "cashier" && !profile?.store_id) {
+        await supabase.auth.signOut();
+        throw new Error("Cashier account has no assigned branch.");
+      }
+
+      window.location.href = financePath("/expenses");
     } catch (err) {
       setError(err?.message === "Invalid login credentials" ? "Incorrect email or password." : err?.message || "Login failed.");
       setLoading(false);

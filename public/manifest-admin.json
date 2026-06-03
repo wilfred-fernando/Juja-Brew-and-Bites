@@ -1,11 +1,11 @@
 {
-  "name": "JUJA Pos",
-  "short_name": "JUJA Pos",
-  "description": "POS portal for Juja Brew & Bites.",
-  "start_url": "/pos",
+  "name": "JUJA Admin",
+  "short_name": "JUJA Admin",
+  "description": "Admin portal for Juja Brew & Bites.",
+  "start_url": "/admin",
   "scope": "/",
   "display": "standalone",
-  "orientation": "landscape",
+  "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#7f7f7f",
   "icons": [

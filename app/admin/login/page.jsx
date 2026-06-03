@@ -52,6 +52,7 @@ export default function AdminLoginPage() {
       }
 
       // ✅ DEFAULT
+      await supabase.auth.signOut();
       window.location.href = "https://jujabrewandbites.com";
 
     } catch (err) {

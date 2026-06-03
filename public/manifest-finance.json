@@ -1,12 +1,13 @@
 {
-  "name": "Juja Brew & Bites",
-  "short_name": "Juja Hub",
-  "description": "Order specialty brews, delicious bites, and manage your dynamic loyalty rewards pass.",
-  "start_url": "/",
+  "name": "JUJA Finance",
+  "short_name": "JUJA Finance",
+  "description": "Finance portal for Juja Brew & Bites.",
+  "start_url": "/finance",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#FFF5F7",
-  "theme_color": "#FC687D",
+  "background_color": "#ffffff",
+  "theme_color": "#7f7f7f",
   "icons": [
     {
       "src": "/images/juja-logo.png",

@@ -9,12 +9,12 @@ function financePath(path) {
 
 export default function FinanceHomePage() {
   useEffect(() => {
-    window.location.replace(financePath("/payroll"));
+    window.location.replace(financePath("/expenses"));
   }, []);
 
   return (
     <div className="py-16 text-center text-sm font-bold text-slate-400">
-      Opening payroll...
+      Opening finance...
     </div>
   );
 }

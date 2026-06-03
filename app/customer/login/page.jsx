@@ -101,7 +101,7 @@ export default function Login() {
         </Link>
 
         <Link
-          href="/"
+          href="https://jujabrewandbites.com"
           className="text-[11px] tracking-wider text-slate-500 bg-white px-5 py-2.5 rounded-full border border-slate-200 hover:text-[#FC687D]"
         >
           ← Back to Website
