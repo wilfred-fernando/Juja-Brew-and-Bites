@@ -109,6 +109,18 @@ create table if not exists public.payroll_cash_advance_repayments (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.payroll_rate_changes (
+  id text primary key,
+  employee_id text not null references public.payroll_employees(id) on delete cascade,
+  old_daily_rate numeric(12, 2) not null default 0,
+  new_daily_rate numeric(12, 2) not null default 0,
+  effective_date date not null default current_date,
+  notes text,
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 alter table public.payroll_employees
   add column if not exists employee_no text;
 
@@ -129,6 +141,7 @@ create index if not exists payroll_attendance_period_employee_idx on public.payr
 create index if not exists payroll_schedules_period_employee_idx on public.payroll_schedules(period_id, employee_id);
 create index if not exists payroll_cash_advances_employee_idx on public.payroll_cash_advances(employee_id);
 create index if not exists payroll_cash_advance_repayments_advance_idx on public.payroll_cash_advance_repayments(cash_advance_id);
+create index if not exists payroll_rate_changes_employee_idx on public.payroll_rate_changes(employee_id, effective_date desc);
 
 alter table public.payroll_employees enable row level security;
 drop policy if exists "payroll_employees_admin_all" on public.payroll_employees;
@@ -199,6 +212,16 @@ create policy "payroll_cash_advance_repayments_admin_all"
   using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('admin', 'super_admin')))
   with check (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('admin', 'super_admin')));
 grant select, insert, update, delete on public.payroll_cash_advance_repayments to authenticated;
+
+alter table public.payroll_rate_changes enable row level security;
+drop policy if exists "payroll_rate_changes_admin_all" on public.payroll_rate_changes;
+create policy "payroll_rate_changes_admin_all"
+  on public.payroll_rate_changes
+  for all
+  to authenticated
+  using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('admin', 'super_admin')))
+  with check (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('admin', 'super_admin')));
+grant select, insert, update, delete on public.payroll_rate_changes to authenticated;
 
 insert into public.payroll_employees (id, full_name, default_daily_rate) values
   ('cindy-malagueno', 'CINDY MALAGUEÑO', 450),

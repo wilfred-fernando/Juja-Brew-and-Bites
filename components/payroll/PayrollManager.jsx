@@ -59,28 +59,52 @@ function datesBetween(start, end) {
   return dates;
 }
 
+function normalizeTime(value) {
+  if (!value) return "";
+  const [hourValue, minuteValue] = String(value).split(":");
+  const hour = Number(hourValue);
+  const minute = Number(minuteValue);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return "";
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function timeMinutes(value) {
+  const time = normalizeTime(value);
+  if (!time) return null;
+  const [hour, minute] = time.split(":").map(Number);
+  return hour * 60 + minute;
+}
+
+function endpointMinutes(scheduleIn, value) {
+  const start = timeMinutes(scheduleIn);
+  const point = timeMinutes(value);
+  if (start === null || point === null) return null;
+  return point <= start ? point + 1440 : point;
+}
+
 function minutesLate(scheduleIn, actualIn) {
-  if (!scheduleIn || !actualIn) return 0;
-  const [sh, sm] = String(scheduleIn).split(":").map(Number);
-  const [ah, am] = String(actualIn).split(":").map(Number);
-  const diff = (ah * 60 + am) - (sh * 60 + sm);
+  const schedule = timeMinutes(scheduleIn);
+  let actual = timeMinutes(actualIn);
+  if (schedule === null || actual === null) return 0;
+  if (actual < schedule && schedule >= 18 * 60 && actual <= 6 * 60) actual += 1440;
+  const diff = actual - schedule;
   return Math.max(0, diff || 0);
 }
 
-function minutesUndertime(scheduleOut, actualOut) {
-  if (!scheduleOut || !actualOut) return 0;
-  const [sh, sm] = String(scheduleOut).split(":").map(Number);
-  const [ah, am] = String(actualOut).split(":").map(Number);
-  const diff = (sh * 60 + sm) - (ah * 60 + am);
+function minutesUndertime(scheduleIn, scheduleOut, actualOut) {
+  const scheduledOut = endpointMinutes(scheduleIn, scheduleOut);
+  const actual = endpointMinutes(scheduleIn, actualOut);
+  if (scheduledOut === null || actual === null) return 0;
+  const diff = scheduledOut - actual;
   return Math.max(0, diff || 0);
 }
 
-function overtimeHours(scheduleOut, actualOut) {
-  if (!scheduleOut || !actualOut) return 0;
-  const [sh, sm] = String(scheduleOut).split(":").map(Number);
-  const [ah, am] = String(actualOut).split(":").map(Number);
-  const diff = (ah * 60 + am) - (sh * 60 + sm);
-  return Math.max(0, Math.round((diff / 60) * 100) / 100 || 0);
+function overtimeHours(scheduleIn, scheduleOut, actualOut) {
+  const scheduledOut = endpointMinutes(scheduleIn, scheduleOut);
+  const actual = endpointMinutes(scheduleIn, actualOut);
+  if (scheduledOut === null || actual === null) return 0;
+  const diff = actual - scheduledOut;
+  return Math.max(0, Math.floor(diff / 60) || 0);
 }
 
 function statusClass(status) {
@@ -123,6 +147,7 @@ export default function AdminPayrollPage() {
   const [attendance, setAttendance] = useState([]);
   const [advances, setAdvances] = useState([]);
   const [repayments, setRepayments] = useState([]);
+  const [rateChanges, setRateChanges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
   const [activeTab, setActiveTab] = useState("payroll");
@@ -133,6 +158,8 @@ export default function AdminPayrollPage() {
   const [entryModalOpen, setEntryModalOpen] = useState(false);
   const [entryForm, setEntryForm] = useState(blankEntry());
   const [employeeForm, setEmployeeForm] = useState({ employee_no: "", full_name: "", default_daily_rate: "" });
+  const [editingEmployeeId, setEditingEmployeeId] = useState("");
+  const [rateIncreaseForm, setRateIncreaseForm] = useState({ employee_id: "", effective_date: localDate(), new_daily_rate: "", notes: "" });
   const [scheduleDraftRows, setScheduleDraftRows] = useState([]);
   const [attendanceDraftRows, setAttendanceDraftRows] = useState([]);
   const [advanceForm, setAdvanceForm] = useState({ employee_id: "", advance_date: localDate(), amount: "", reason: "" });
@@ -160,6 +187,7 @@ export default function AdminPayrollPage() {
     if (!selectedEmployeeId && firstEmployee) setSelectedEmployeeId(firstEmployee);
     setAdvanceForm((current) => ({ ...current, employee_id: current.employee_id || firstEmployee }));
     setRepaymentForm((current) => ({ ...current, period_id: current.period_id || selectedPeriodId }));
+    setRateIncreaseForm((current) => ({ ...current, employee_id: current.employee_id || firstEmployee }));
   }, [employees, selectedEmployeeId, selectedPeriodId]);
 
   const employeeById = useMemo(() => {
@@ -275,7 +303,11 @@ export default function AdminPayrollPage() {
 
     const nextSchedule = cutoffDates.map((workDate) => {
       const existing = schedules.find((row) => row.period_id === selectedPeriodId && row.employee_id === selectedEmployeeId && row.work_date === workDate);
-      return existing || {
+      return existing ? {
+        ...existing,
+        schedule_in: normalizeTime(existing.schedule_in),
+        schedule_out: normalizeTime(existing.schedule_out),
+      } : {
         id: `${selectedPeriodId}-${selectedEmployeeId}-${workDate}`,
         period_id: selectedPeriodId,
         employee_id: selectedEmployeeId,
@@ -290,13 +322,19 @@ export default function AdminPayrollPage() {
     const nextAttendance = cutoffDates.map((workDate) => {
       const existing = attendance.find((row) => row.period_id === selectedPeriodId && row.employee_id === selectedEmployeeId && row.work_date === workDate);
       const schedule = nextSchedule.find((row) => row.work_date === workDate);
-      return existing || {
+      return existing ? {
+        ...existing,
+        schedule_in: normalizeTime(existing.schedule_in || schedule?.schedule_in),
+        schedule_out: normalizeTime(existing.schedule_out || schedule?.schedule_out),
+        actual_in: normalizeTime(existing.actual_in),
+        actual_out: normalizeTime(existing.actual_out),
+      } : {
         id: `${selectedPeriodId}-${selectedEmployeeId}-${workDate}`,
         period_id: selectedPeriodId,
         employee_id: selectedEmployeeId,
         work_date: workDate,
-        schedule_in: schedule?.schedule_in || null,
-        schedule_out: schedule?.schedule_out || null,
+        schedule_in: normalizeTime(schedule?.schedule_in),
+        schedule_out: normalizeTime(schedule?.schedule_out),
         actual_in: "",
         actual_out: "",
         late_minutes: "",
@@ -345,7 +383,14 @@ export default function AdminPayrollPage() {
       setAttendance([]);
       setAdvances([]);
       setRepayments([]);
+      setRateChanges([]);
     } else {
+      const rateChangeRes = await supabase
+        .from("payroll_rate_changes")
+        .select("*")
+        .order("effective_date", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(50);
       setNotice("");
       setEmployees(employeeRes.data || []);
       setPeriods(periodRes.data || []);
@@ -354,6 +399,7 @@ export default function AdminPayrollPage() {
       setAttendance(attendanceRes.data || []);
       setAdvances(advanceRes.data || []);
       setRepayments(repaymentRes.data || []);
+      setRateChanges(rateChangeRes.error ? [] : rateChangeRes.data || []);
     }
     setLoading(false);
   }
@@ -394,7 +440,8 @@ export default function AdminPayrollPage() {
   async function saveEmployee(e) {
     e.preventDefault();
     if (!employeeForm.full_name.trim()) return setNotice("Employee name is required.");
-    const id = slug(employeeForm.full_name);
+    const id = editingEmployeeId || slug(employeeForm.full_name);
+    if (!id) return setNotice("Employee ID could not be created.");
     const payload = {
       id,
       employee_no: employeeForm.employee_no.trim() || null,
@@ -405,8 +452,64 @@ export default function AdminPayrollPage() {
     const { data, error } = await supabase.from("payroll_employees").upsert(payload).select().maybeSingle();
     if (error) return setNotice(`Employee Save Failed: ${error.message}`);
     setEmployees((prev) => [data, ...prev.filter((row) => row.id !== data.id)].sort((a, b) => String(a.employee_no || a.full_name).localeCompare(String(b.employee_no || b.full_name))));
-    setEmployeeForm({ employee_no: "", full_name: "", default_daily_rate: "" });
+    resetEmployeeForm();
     setNotice("Employee saved.");
+  }
+
+  function resetEmployeeForm() {
+    setEditingEmployeeId("");
+    setEmployeeForm({ employee_no: "", full_name: "", default_daily_rate: "" });
+  }
+
+  function openEmployeeEdit(employee) {
+    setEditingEmployeeId(employee.id);
+    setEmployeeForm({
+      employee_no: employee.employee_no || "",
+      full_name: employee.full_name || "",
+      default_daily_rate: employee.default_daily_rate ?? "",
+    });
+  }
+
+  async function deleteEmployee(employee) {
+    if (typeof window !== "undefined" && !window.confirm(`Delete ${employee.full_name}?`)) return;
+    const { error } = await supabase.from("payroll_employees").delete().eq("id", employee.id);
+    if (error) return setNotice(`Employee Delete Failed: ${error.message}`);
+    setEmployees((prev) => prev.filter((row) => row.id !== employee.id));
+    if (selectedEmployeeId === employee.id) setSelectedEmployeeId("");
+    if (editingEmployeeId === employee.id) resetEmployeeForm();
+    setNotice("Employee deleted.");
+  }
+
+  async function saveRateIncrease(e) {
+    e.preventDefault();
+    const employee = employeeById[rateIncreaseForm.employee_id];
+    const newRate = num(rateIncreaseForm.new_daily_rate);
+    if (!employee || !rateIncreaseForm.effective_date || !newRate) return setNotice("Employee, effective date, and new daily rate are required.");
+
+    const changePayload = {
+      id: `rate-${employee.id}-${rateIncreaseForm.effective_date}-${Date.now()}`,
+      employee_id: employee.id,
+      old_daily_rate: num(employee.default_daily_rate),
+      new_daily_rate: newRate,
+      effective_date: rateIncreaseForm.effective_date,
+      notes: rateIncreaseForm.notes.trim() || null,
+    };
+    const { error: changeError } = await supabase.from("payroll_rate_changes").insert(changePayload);
+    if (changeError) return setNotice(`Rate Increase Failed: ${changeError.message}. Run supabase/payroll_setup.sql in Supabase first.`);
+
+    const { data, error } = await supabase
+      .from("payroll_employees")
+      .update({ default_daily_rate: newRate })
+      .eq("id", employee.id)
+      .select()
+      .maybeSingle();
+    if (error) return setNotice(`Rate Update Failed: ${error.message}`);
+
+    setEmployees((prev) => prev.map((row) => (row.id === employee.id ? data : row)));
+    setRateChanges((prev) => [changePayload, ...prev].slice(0, 50));
+    if (editingEmployeeId === employee.id) setEmployeeForm((current) => ({ ...current, default_daily_rate: newRate }));
+    setRateIncreaseForm((current) => ({ ...current, new_daily_rate: "", notes: "" }));
+    setNotice("Daily rate increase saved.");
   }
 
   async function toggleEmployee(employee) {
@@ -421,14 +524,16 @@ export default function AdminPayrollPage() {
   }
 
   function updateScheduleDraft(workDate, field, value) {
+    const nextValue = field === "schedule_in" || field === "schedule_out" ? normalizeTime(value) : value;
     setScheduleDraftRows((rows) =>
-      rows.map((row) => (row.work_date === workDate ? { ...row, [field]: value } : row))
+      rows.map((row) => (row.work_date === workDate ? { ...row, [field]: nextValue } : row))
     );
   }
 
   function updateAttendanceDraft(workDate, field, value) {
+    const nextValue = field === "schedule_in" || field === "schedule_out" || field === "actual_in" || field === "actual_out" ? normalizeTime(value) : value;
     setAttendanceDraftRows((rows) =>
-      rows.map((row) => (row.work_date === workDate ? { ...row, [field]: value } : row))
+      rows.map((row) => (row.work_date === workDate ? { ...row, [field]: nextValue } : row))
     );
   }
 
@@ -440,8 +545,8 @@ export default function AdminPayrollPage() {
       period_id: selectedPeriodId,
       employee_id: selectedEmployeeId,
       work_date: row.work_date,
-      schedule_in: row.status === "scheduled" ? row.schedule_in || null : null,
-      schedule_out: row.status === "scheduled" ? row.schedule_out || null : null,
+      schedule_in: row.status === "scheduled" ? normalizeTime(row.schedule_in) || null : null,
+      schedule_out: row.status === "scheduled" ? normalizeTime(row.schedule_out) || null : null,
       status: row.status || "scheduled",
       notes: row.notes || null,
     }));
@@ -459,8 +564,10 @@ export default function AdminPayrollPage() {
     if (!selectedPeriodId || !selectedEmployeeId || attendanceDraftRows.length === 0) return setNotice("Select a cutoff and employee first.");
     const payload = attendanceDraftRows.map((row) => {
       const schedule = scheduleDraftRows.find((item) => item.work_date === row.work_date) || schedules.find((item) => item.period_id === selectedPeriodId && item.employee_id === selectedEmployeeId && item.work_date === row.work_date);
-      const scheduleIn = schedule?.schedule_in || row.schedule_in || "";
-      const scheduleOut = schedule?.schedule_out || row.schedule_out || "";
+      const scheduleIn = normalizeTime(schedule?.schedule_in || row.schedule_in);
+      const scheduleOut = normalizeTime(schedule?.schedule_out || row.schedule_out);
+      const actualIn = normalizeTime(row.actual_in);
+      const actualOut = normalizeTime(row.actual_out);
       const status = row.status || "present";
       return {
         id: row.id || `${selectedPeriodId}-${selectedEmployeeId}-${row.work_date}`,
@@ -469,11 +576,11 @@ export default function AdminPayrollPage() {
         work_date: row.work_date,
         schedule_in: scheduleIn || null,
         schedule_out: scheduleOut || null,
-        actual_in: status === "present" ? row.actual_in || null : null,
-        actual_out: status === "present" ? row.actual_out || null : null,
-        late_minutes: status === "present" ? (row.late_minutes === "" ? minutesLate(scheduleIn, row.actual_in) : num(row.late_minutes)) : 0,
-        undertime_minutes: status === "present" ? (row.undertime_minutes === "" ? minutesUndertime(scheduleOut, row.actual_out) : num(row.undertime_minutes)) : 0,
-        overtime_hours: status === "present" ? (row.overtime_hours === "" ? overtimeHours(scheduleOut, row.actual_out) : num(row.overtime_hours)) : 0,
+        actual_in: status === "present" ? actualIn || null : null,
+        actual_out: status === "present" ? actualOut || null : null,
+        late_minutes: status === "present" ? (row.late_minutes === "" ? minutesLate(scheduleIn, actualIn) : num(row.late_minutes)) : 0,
+        undertime_minutes: status === "present" ? (row.undertime_minutes === "" ? minutesUndertime(scheduleIn, scheduleOut, actualOut) : num(row.undertime_minutes)) : 0,
+        overtime_hours: status === "present" ? (row.overtime_hours === "" ? overtimeHours(scheduleIn, scheduleOut, actualOut) : num(row.overtime_hours)) : 0,
         status,
         notes: row.notes || null,
       };
@@ -773,15 +880,46 @@ export default function AdminPayrollPage() {
         </section>
       ) : activeTab === "employees" ? (
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-[380px_1fr]">
-          <form onSubmit={saveEmployee} className="rounded-2xl border border-rose-50 bg-white p-5 shadow-sm">
-            <h2 className="text-sm font-black text-slate-800">Add Employee</h2>
-            <div className="mt-4 space-y-3">
-              <input value={employeeForm.employee_no} onChange={(e) => setEmployeeForm((p) => ({ ...p, employee_no: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" placeholder="Employee no." />
-              <input value={employeeForm.full_name} onChange={(e) => setEmployeeForm((p) => ({ ...p, full_name: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" placeholder="Employee name" />
-              <input value={employeeForm.default_daily_rate} onChange={(e) => setEmployeeForm((p) => ({ ...p, default_daily_rate: e.target.value }))} type="number" step="0.01" className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" placeholder="Daily rate" />
-              <button className="h-11 w-full rounded-xl bg-[#FC687D] text-xs font-black uppercase tracking-wider text-white">Save Employee</button>
-            </div>
-          </form>
+          <div className="space-y-4">
+            <form onSubmit={saveEmployee} className="rounded-2xl border border-rose-50 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-sm font-black text-slate-800">{editingEmployeeId ? "Edit Employee" : "Add Employee"}</h2>
+                {editingEmployeeId ? (
+                  <button type="button" onClick={resetEmployeeForm} className="rounded-lg border border-slate-100 px-3 py-2 text-[10px] font-black uppercase text-slate-500">Cancel</button>
+                ) : null}
+              </div>
+              <div className="mt-4 space-y-3">
+                <input value={employeeForm.employee_no} onChange={(e) => setEmployeeForm((p) => ({ ...p, employee_no: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" placeholder="Employee no." />
+                <input value={employeeForm.full_name} onChange={(e) => setEmployeeForm((p) => ({ ...p, full_name: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" placeholder="Employee name" />
+                <input value={employeeForm.default_daily_rate} onChange={(e) => setEmployeeForm((p) => ({ ...p, default_daily_rate: e.target.value }))} type="number" step="0.01" className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" placeholder="Daily rate" />
+                <button className="h-11 w-full rounded-xl bg-[#087830] text-xs font-black uppercase tracking-wider text-white">{editingEmployeeId ? "Update Employee" : "Save Employee"}</button>
+              </div>
+            </form>
+
+            <form onSubmit={saveRateIncrease} className="rounded-2xl border border-rose-50 bg-white p-5 shadow-sm">
+              <h2 className="text-sm font-black text-slate-800">Daily Rate Increase</h2>
+              <div className="mt-4 space-y-3">
+                <select value={rateIncreaseForm.employee_id} onChange={(e) => setRateIncreaseForm((p) => ({ ...p, employee_id: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none">
+                  {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}
+                </select>
+                <input type="date" value={rateIncreaseForm.effective_date} onChange={(e) => setRateIncreaseForm((p) => ({ ...p, effective_date: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" />
+                <input value={rateIncreaseForm.new_daily_rate} onChange={(e) => setRateIncreaseForm((p) => ({ ...p, new_daily_rate: e.target.value }))} type="number" step="0.01" className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" placeholder="New daily rate" />
+                <input value={rateIncreaseForm.notes} onChange={(e) => setRateIncreaseForm((p) => ({ ...p, notes: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" placeholder="Notes" />
+                <button className="h-11 w-full rounded-xl bg-[#087830] text-xs font-black uppercase tracking-wider text-white">Save Rate Increase</button>
+              </div>
+              <div className="mt-4 space-y-2 border-t border-rose-50 pt-4">
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Recent Rate Changes</p>
+                {rateChanges.length === 0 ? (
+                  <p className="text-xs font-semibold text-slate-400">No rate increase records yet.</p>
+                ) : rateChanges.slice(0, 5).map((change) => (
+                  <div key={change.id} className="rounded-xl bg-rose-50 p-3 text-xs text-slate-600">
+                    <p className="font-black text-slate-800">{employeeById[change.employee_id]?.full_name || change.employee_id}</p>
+                    <p>{dateText(change.effective_date)}: {money(change.old_daily_rate)} to {money(change.new_daily_rate)}</p>
+                  </div>
+                ))}
+              </div>
+            </form>
+          </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {employees.map((employee) => {
               const total = employeeTotals[employee.id] || {};
@@ -802,6 +940,10 @@ export default function AdminPayrollPage() {
                     <div className="rounded-xl bg-rose-50 p-3"><span className="block text-slate-400">YTD Net</span><b>{money(total.net || 0)}</b></div>
                     <div className="rounded-xl bg-rose-50 p-3"><span className="block text-slate-400">13th Est.</span><b>{money(total.thirteenth || 0)}</b></div>
                     <div className="rounded-xl bg-rose-50 p-3"><span className="block text-slate-400">CA Balance</span><b>{money(advance.balance || 0)}</b></div>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button type="button" onClick={() => openEmployeeEdit(employee)} className="rounded-lg border border-slate-100 px-3 py-2 text-[10px] font-black uppercase text-slate-600">Edit</button>
+                    <button type="button" onClick={() => deleteEmployee(employee)} className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-[10px] font-black uppercase text-red-600">Delete</button>
                   </div>
                 </div>
               );
@@ -826,8 +968,8 @@ export default function AdminPayrollPage() {
                 <td className="p-3 font-bold">{dateText(row.work_date)}</td>
                 <td>{row.employee?.employee_no || "-"}</td>
                 <td>{row.employee?.full_name || row.employee_id}</td>
-                <td><input type="time" value={row.schedule_in || ""} disabled={row.status !== "scheduled"} onChange={(e) => updateScheduleDraft(row.work_date, "schedule_in", e.target.value)} className="h-9 w-28 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
-                <td><input type="time" value={row.schedule_out || ""} disabled={row.status !== "scheduled"} onChange={(e) => updateScheduleDraft(row.work_date, "schedule_out", e.target.value)} className="h-9 w-28 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
+                <td><input type="time" value={normalizeTime(row.schedule_in)} disabled={row.status !== "scheduled"} onChange={(e) => updateScheduleDraft(row.work_date, "schedule_in", e.target.value)} className="h-9 w-28 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
+                <td><input type="time" value={normalizeTime(row.schedule_out)} disabled={row.status !== "scheduled"} onChange={(e) => updateScheduleDraft(row.work_date, "schedule_out", e.target.value)} className="h-9 w-28 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
                 <td>
                   <select value={row.status || "scheduled"} onChange={(e) => updateScheduleDraft(row.work_date, "status", e.target.value)} className="h-9 rounded-lg border border-rose-100 px-2 text-xs font-bold">
                     <option value="scheduled">Scheduled</option>
@@ -858,11 +1000,11 @@ export default function AdminPayrollPage() {
                 <td className="p-3 font-bold">{dateText(row.work_date)}</td>
                 <td>{row.employee?.employee_no || "-"}</td>
                 <td>{row.employee?.full_name || row.employee_id}</td>
-                <td><input type="time" value={row.actual_in || ""} disabled={row.status !== "present"} onChange={(e) => updateAttendanceDraft(row.work_date, "actual_in", e.target.value)} className="h-9 w-28 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
-                <td><input type="time" value={row.actual_out || ""} disabled={row.status !== "present"} onChange={(e) => updateAttendanceDraft(row.work_date, "actual_out", e.target.value)} className="h-9 w-28 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
+                <td><input type="time" value={normalizeTime(row.actual_in)} disabled={row.status !== "present"} onChange={(e) => updateAttendanceDraft(row.work_date, "actual_in", e.target.value)} className="h-9 w-28 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
+                <td><input type="time" value={normalizeTime(row.actual_out)} disabled={row.status !== "present"} onChange={(e) => updateAttendanceDraft(row.work_date, "actual_out", e.target.value)} className="h-9 w-28 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
                 <td><input type="number" value={row.late_minutes ?? ""} disabled={row.status !== "present"} onChange={(e) => updateAttendanceDraft(row.work_date, "late_minutes", e.target.value)} className="h-9 w-20 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" placeholder="Auto" /></td>
                 <td><input type="number" value={row.undertime_minutes ?? ""} disabled={row.status !== "present"} onChange={(e) => updateAttendanceDraft(row.work_date, "undertime_minutes", e.target.value)} className="h-9 w-20 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" placeholder="Auto" /></td>
-                <td><input type="number" step="0.01" value={row.overtime_hours ?? ""} disabled={row.status !== "present"} onChange={(e) => updateAttendanceDraft(row.work_date, "overtime_hours", e.target.value)} className="h-9 w-20 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" placeholder="Auto" /></td>
+                <td><input type="number" step="1" value={row.overtime_hours ?? ""} disabled={row.status !== "present"} onChange={(e) => updateAttendanceDraft(row.work_date, "overtime_hours", e.target.value)} className="h-9 w-20 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" placeholder="Auto" /></td>
                 <td>
                   <select value={row.status || "present"} onChange={(e) => updateAttendanceDraft(row.work_date, "status", e.target.value)} className="h-9 rounded-lg border border-rose-100 px-2 text-xs font-bold">
                     <option value="present">Present</option>

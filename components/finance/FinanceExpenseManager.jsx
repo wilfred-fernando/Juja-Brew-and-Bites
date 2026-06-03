@@ -22,7 +22,7 @@ const PAYMENT_TYPES = ["CASH", "CHEQUE", "GCASH -9393", "GCASH -0668", "GCASH -8
 const UNIT_OPTIONS = ["pc", "pack", "box", "kilo", "sack", "cup", "tin", "lot", "month", "whole"];
 const FUND_SOURCES = ["CASH SALES", "GCASH -9393", "GCASH -0668", "GCASH -8199", "CBS MRFS"];
 const REF_TYPES = [
-  ["item", "Item Name"],
+  ["item", "Description / Item Name"],
   ["supplier", "Supplier"],
   ["payment_type", "Payment Type"],
   ["unit", "Unit"],
@@ -99,6 +99,11 @@ function uniqueOptions(...groups) {
       seen.add(key);
       return true;
     });
+}
+
+function referenceOptions(rows, fallback = []) {
+  const names = (rows || []).map((row) => row.name);
+  return uniqueOptions(names.length ? names : fallback);
 }
 
 function makeId(prefix) {
@@ -312,15 +317,33 @@ export default function FinanceExpenseManager() {
 
   const itemReferences = referencesByType.item || [];
   const supplierReferences = referencesByType.supplier || [];
-  const paymentTypeOptions = uniqueOptions(PAYMENT_TYPES, (referencesByType.payment_type || []).map((row) => row.name));
-  const unitOptions = uniqueOptions(UNIT_OPTIONS, (referencesByType.unit || []).map((row) => row.name));
-  const fundSourceOptions = uniqueOptions(FUND_SOURCES, (referencesByType.fund_source || []).map((row) => row.name));
-  const categoryOptions = uniqueOptions(CATEGORY_OPTIONS, (referencesByType.category || []).map((row) => row.name));
+  const paymentTypeOptions = referenceOptions(referencesByType.payment_type, PAYMENT_TYPES);
+  const unitOptions = referenceOptions(referencesByType.unit, UNIT_OPTIONS);
+  const fundSourceOptions = referenceOptions(referencesByType.fund_source, FUND_SOURCES);
+  const categoryOptions = referenceOptions(referencesByType.category, CATEGORY_OPTIONS);
   const commonNameOptions = uniqueOptions(itemReferences.map((row) => row.common_name).filter(Boolean));
 
   function commonNameForItem(itemName) {
     const match = itemReferences.find((row) => normalize(row.name) === normalize(itemName));
     return match?.common_name || "";
+  }
+
+  function freshExpenseForm(previous = {}) {
+    return {
+      ...initialExpenseForm,
+      category: categoryOptions[0] || "",
+      payment_type: paymentTypeOptions[0] || "",
+      unit: unitOptions[0] || "",
+      submitted_by: previous.submitted_by || "",
+    };
+  }
+
+  function freshFundForm(previous = {}) {
+    return {
+      ...initialFundForm,
+      source_of_fund: fundSourceOptions[0] || "",
+      submitted_by: previous.submitted_by || "",
+    };
   }
 
   const filteredOverallExpenses = useMemo(
@@ -555,9 +578,9 @@ export default function FinanceExpenseManager() {
   function openExpenseModal(scope, row = null) {
     setEditingExpense(row ? { scope, row } : null);
     if (scope === "overall") {
-      setExpenseForm(row ? expenseFormFromRow(row) : (prev) => ({ ...initialExpenseForm, submitted_by: prev.submitted_by }));
+      setExpenseForm(row ? expenseFormFromRow(row) : (prev) => freshExpenseForm(prev));
     } else {
-      setPettyForm(row ? expenseFormFromRow(row) : (prev) => ({ ...initialExpenseForm, submitted_by: prev.submitted_by }));
+      setPettyForm(row ? expenseFormFromRow(row) : (prev) => freshExpenseForm(prev));
       if (row?.store_id) setSelectedStoreId(row.store_id);
     }
     setExpenseModalScope(scope);
@@ -581,7 +604,7 @@ export default function FinanceExpenseManager() {
 
   function openFundModal(row = null) {
     setEditingFund(row || null);
-    setFundForm(row ? fundFormFromRow(row) : (prev) => ({ ...initialFundForm, submitted_by: prev.submitted_by }));
+    setFundForm(row ? fundFormFromRow(row) : (prev) => freshFundForm(prev));
     if (row?.store_id) setSelectedStoreId(row.store_id);
     setFundModalOpen(true);
   }
@@ -642,7 +665,7 @@ export default function FinanceExpenseManager() {
       showNotice("error", error.message);
     } else {
       setOverallExpenses((prev) => [payload, ...prev]);
-      setExpenseForm((prev) => ({ ...initialExpenseForm, submitted_by: prev.submitted_by }));
+      setExpenseForm((prev) => freshExpenseForm(prev));
       closeExpenseModal();
       showNotice("success", "Overall expense saved.");
     }
@@ -715,7 +738,7 @@ export default function FinanceExpenseManager() {
       }
       setPettyEntries((prev) => [payload, ...prev]);
       setOverallExpenses((prev) => [overallPayload, ...prev]);
-      setPettyForm((prev) => ({ ...initialExpenseForm, submitted_by: prev.submitted_by }));
+      setPettyForm((prev) => freshExpenseForm(prev));
       closeExpenseModal();
       showNotice("success", `${selectedStoreName} petty cash expense saved.`);
     }
@@ -766,7 +789,7 @@ export default function FinanceExpenseManager() {
       showNotice("error", error.message);
     } else {
       setPettyFunds((prev) => [payload, ...prev]);
-      setFundForm((prev) => ({ ...initialFundForm, submitted_by: prev.submitted_by }));
+      setFundForm((prev) => freshFundForm(prev));
       closeFundModal();
       showNotice("success", `${selectedStoreName} cash-in saved.`);
     }
@@ -1063,7 +1086,7 @@ export default function FinanceExpenseManager() {
           </Field>
           <Field label="Category">
             <Select value={form.category} onChange={(e) => updateExpenseForm(scope, "category", e.target.value)}>
-              {categoryOptions.map((option) => <option key={option}>{option}</option>)}
+              {uniqueOptions([form.category], categoryOptions).map((option) => <option key={option}>{option}</option>)}
             </Select>
           </Field>
           <Field label="Qty">
@@ -1072,7 +1095,7 @@ export default function FinanceExpenseManager() {
           <Field label="Unit">
             <Select value={form.unit} onChange={(e) => updateExpenseForm(scope, "unit", e.target.value)}>
               <option value="">Select unit</option>
-              {unitOptions.map((option) => <option key={option}>{option}</option>)}
+              {uniqueOptions([form.unit], unitOptions).map((option) => <option key={option}>{option}</option>)}
             </Select>
           </Field>
           <Field label="Unit Price">
@@ -1084,7 +1107,7 @@ export default function FinanceExpenseManager() {
           <Field label="Payment Type">
             <Select value={form.payment_type} onChange={(e) => updateExpenseForm(scope, "payment_type", e.target.value)}>
               <option value="">Select payment</option>
-              {paymentTypeOptions.map((option) => <option key={option}>{option}</option>)}
+              {uniqueOptions([form.payment_type], paymentTypeOptions).map((option) => <option key={option}>{option}</option>)}
             </Select>
           </Field>
           <Field label="Cheque No.">
@@ -1230,7 +1253,7 @@ export default function FinanceExpenseManager() {
         </Field>
         <Field label="Source of Fund">
           <Select value={fundForm.source_of_fund} onChange={(e) => setFundForm((prev) => ({ ...prev, source_of_fund: e.target.value }))}>
-            {fundSourceOptions.map((option) => <option key={option}>{option}</option>)}
+            {uniqueOptions([fundForm.source_of_fund], fundSourceOptions).map((option) => <option key={option}>{option}</option>)}
           </Select>
         </Field>
         <Field label="Particular">
