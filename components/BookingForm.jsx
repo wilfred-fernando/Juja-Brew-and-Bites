@@ -12,7 +12,7 @@ const supabase = getSupabaseClient();
 const OPERATING_START_HOUR = 10; // 10AM
 const BUFFER_HOURS = 1; // 1 hour buffer before & after
 const MAX_EXTENSION_HOURS = 2; // extension max 2 hours
-const MIN_ADVANCE_HOURS = 5; // must be at least 5 hours in advance
+const MIN_ADVANCE_HOURS = 3; // must be at least 3 hours in advance
 const RESCHEDULE_MIN_DAYS = 2; // update/reschedule allowed only if >= 2 days before start
 
 // ✅ NEW BASE DURATION: 2 hours 59 minutes
@@ -276,7 +276,7 @@ function reasonToLabel(reason) {
   if (reason === "available") return "Available";
   if (reason === "booked") return "Booked";
   if (reason === "buffer") return "Buffer";
-  if (reason === "too-soon") return "Too soon (5-hour rule)";
+  if (reason === "too-soon") return "Too soon (3-hour rule)";
   if (reason === "closed-hours") return "Closed";
   return "Closed";
 }
