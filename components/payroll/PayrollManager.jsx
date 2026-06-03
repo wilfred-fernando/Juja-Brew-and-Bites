@@ -127,6 +127,23 @@ function overtimeHours(scheduleIn, scheduleOut, actualOut) {
   return Math.max(0, Math.floor(diff / 60) || 0);
 }
 
+function attendanceStatusFromSchedule(status) {
+  const value = String(status || "scheduled").toLowerCase();
+  if (value === "rest_day") return "rest_day";
+  if (value === "closed") return "closed";
+  if (value === "absent") return "absent";
+  return "present";
+}
+
+function attendanceMetrics(row) {
+  if ((row.status || "present") !== "present") return { late: 0, undertime: 0, overtime: 0 };
+  return {
+    late: minutesLate(row.schedule_in, row.actual_in),
+    undertime: minutesUndertime(row.schedule_in, row.schedule_out, row.actual_out),
+    overtime: overtimeHours(row.schedule_in, row.schedule_out, row.actual_out),
+  };
+}
+
 function timeLabel(value) {
   const minutes = timeMinutes(value);
   if (minutes === null) return "";
@@ -178,6 +195,51 @@ function blankEntry(periodId = "", employeeId = "", dailyRate = 0) {
     cash_advance_deduction: 0,
     notes: "",
     status: "draft",
+  };
+}
+
+function buildPayrollEntryFromAttendance({ employee, period, rows, repaymentRows, existingEntry = null }) {
+  if (!employee || !period) return null;
+  const start = period.period_start;
+  const end = period.period_end;
+  const periodId = period.id;
+  const rowsForPeriod = rows.filter((row) => row.employee_id === employee.id && compareDate(row.work_date, start, end));
+  const daysWorked = rowsForPeriod.filter((row) => row.status === "present" || row.actual_in).length;
+  const late = rowsForPeriod.reduce((sum, row) => sum + num(row.late_minutes), 0);
+  const under = rowsForPeriod.reduce((sum, row) => sum + num(row.undertime_minutes), 0);
+  const ot = rowsForPeriod.reduce((sum, row) => sum + num(row.overtime_hours), 0);
+  const absent = rowsForPeriod.filter((row) => row.status === "absent").length;
+  const dailyRate = num(employee.default_daily_rate);
+  const otRate = dailyRate / 8;
+  const minuteRate = otRate / 60;
+  const cashAdvanceDeduction = repaymentRows.filter((row) => row.employee_id === employee.id && row.period_id === periodId).reduce((sum, row) => sum + num(row.amount), 0);
+  const allowance15th = num(existingEntry?.allowance_15th);
+  const allowance30th = num(existingEntry?.allowance_30th);
+  const gross = dailyRate * daysWorked + ot * otRate + allowance15th + allowance30th;
+  const deduction = late * minuteRate + under * minuteRate;
+
+  return {
+    id: `${periodId}-${employee.id}`,
+    period_id: periodId,
+    employee_id: employee.id,
+    daily_rate: dailyRate,
+    days_worked: daysWorked,
+    overtime_hours: ot,
+    overtime_rate: otRate,
+    absent_days: absent,
+    late_minutes: late,
+    late_rate_per_minute: minuteRate,
+    undertime_minutes: under,
+    undertime_rate_per_minute: minuteRate,
+    allowance_15th: allowance15th,
+    allowance_30th: allowance30th,
+    cash_advance_deduction: cashAdvanceDeduction,
+    gross_total: gross,
+    deduction_total: deduction,
+    net_total: gross - deduction - cashAdvanceDeduction,
+    status: existingEntry?.status || "draft",
+    notes: existingEntry?.notes || "Generated from attendance cutoff.",
+    generated_at: new Date().toISOString(),
   };
 }
 
@@ -395,25 +457,29 @@ export default function AdminPayrollPage() {
     const nextAttendance = cutoffDates.map((workDate) => {
       const existing = attendance.find((row) => row.period_id === selectedPeriodId && row.employee_id === selectedEmployeeId && row.work_date === workDate);
       const schedule = nextSchedule.find((row) => row.work_date === workDate);
+      const scheduleIn = normalizeTime(schedule?.schedule_in);
+      const scheduleOut = normalizeTime(schedule?.schedule_out);
+      const status = attendanceStatusFromSchedule(schedule?.status);
       return existing ? {
         ...existing,
-        schedule_in: normalizeTime(existing.schedule_in || schedule?.schedule_in),
-        schedule_out: normalizeTime(existing.schedule_out || schedule?.schedule_out),
-        actual_in: normalizeTime(existing.actual_in),
-        actual_out: normalizeTime(existing.actual_out),
+        schedule_in: scheduleIn || normalizeTime(existing.schedule_in),
+        schedule_out: scheduleOut || normalizeTime(existing.schedule_out),
+        actual_in: normalizeTime(existing.actual_in) || (status === "present" ? scheduleIn : ""),
+        actual_out: normalizeTime(existing.actual_out) || (status === "present" ? scheduleOut : ""),
+        status,
       } : {
         id: `${selectedPeriodId}-${selectedEmployeeId}-${workDate}`,
         period_id: selectedPeriodId,
         employee_id: selectedEmployeeId,
         work_date: workDate,
-        schedule_in: normalizeTime(schedule?.schedule_in),
-        schedule_out: normalizeTime(schedule?.schedule_out),
-        actual_in: "",
-        actual_out: "",
+        schedule_in: scheduleIn,
+        schedule_out: scheduleOut,
+        actual_in: status === "present" ? scheduleIn : "",
+        actual_out: status === "present" ? scheduleOut : "",
         late_minutes: "",
         undertime_minutes: "",
         overtime_hours: "",
-        status: schedule?.status === "rest_day" ? "rest_day" : "present",
+        status,
         notes: "",
       };
     });
@@ -644,11 +710,12 @@ export default function AdminPayrollPage() {
     if (!selectedPeriodId || !selectedEmployeeId || attendanceDraftRows.length === 0) return setNotice("Select a cutoff and employee first.");
     const payload = attendanceDraftRows.map((row) => {
       const schedule = scheduleDraftRows.find((item) => item.work_date === row.work_date) || schedules.find((item) => item.period_id === selectedPeriodId && item.employee_id === selectedEmployeeId && item.work_date === row.work_date);
-      const scheduleIn = normalizeTime(schedule?.schedule_in || row.schedule_in);
-      const scheduleOut = normalizeTime(schedule?.schedule_out || row.schedule_out);
+      const scheduleIn = normalizeTime(schedule?.schedule_in) || normalizeTime(row.schedule_in);
+      const scheduleOut = normalizeTime(schedule?.schedule_out) || normalizeTime(row.schedule_out);
       const actualIn = normalizeTime(row.actual_in);
       const actualOut = normalizeTime(row.actual_out);
-      const status = row.status || "present";
+      const status = attendanceStatusFromSchedule(schedule?.status || row.status);
+      const computed = attendanceMetrics({ ...row, schedule_in: scheduleIn, schedule_out: scheduleOut, actual_in: actualIn, actual_out: actualOut, status });
       return {
         id: row.id || `${selectedPeriodId}-${selectedEmployeeId}-${row.work_date}`,
         period_id: selectedPeriodId,
@@ -658,20 +725,47 @@ export default function AdminPayrollPage() {
         schedule_out: scheduleOut || null,
         actual_in: status === "present" ? actualIn || null : null,
         actual_out: status === "present" ? actualOut || null : null,
-        late_minutes: status === "present" ? (row.late_minutes === "" ? minutesLate(scheduleIn, actualIn) : num(row.late_minutes)) : 0,
-        undertime_minutes: status === "present" ? (row.undertime_minutes === "" ? minutesUndertime(scheduleIn, scheduleOut, actualOut) : num(row.undertime_minutes)) : 0,
-        overtime_hours: status === "present" ? (row.overtime_hours === "" ? overtimeHours(scheduleIn, scheduleOut, actualOut) : num(row.overtime_hours)) : 0,
+        late_minutes: computed.late,
+        undertime_minutes: computed.undertime,
+        overtime_hours: computed.overtime,
         status,
         notes: row.notes || null,
       };
     });
     const { data, error } = await supabase.from("payroll_attendance").upsert(payload).select();
     if (error) return setNotice(`Attendance Save Failed: ${error.message}`);
+    const nextAttendance = [
+      ...(data || []),
+      ...attendance.filter((row) => !(row.period_id === selectedPeriodId && row.employee_id === selectedEmployeeId)),
+    ];
     setAttendance((prev) => [
       ...(data || []),
       ...prev.filter((row) => !(row.period_id === selectedPeriodId && row.employee_id === selectedEmployeeId)),
     ]);
-    setNotice("Cutoff attendance saved.");
+    const payrollSynced = await syncPayrollEntryForEmployee(selectedEmployeeId, selectedPeriod, nextAttendance);
+    if (payrollSynced) setNotice("Cutoff attendance saved and payroll details updated.");
+  }
+
+  async function syncPayrollEntryForEmployee(employeeId, period, attendanceRowsSource = attendance) {
+    const employee = employeeById[employeeId];
+    if (!employee || !period?.id) return false;
+    const existingEntry = entries.find((row) => row.period_id === period.id && row.employee_id === employeeId);
+    const payload = buildPayrollEntryFromAttendance({
+      employee,
+      period,
+      rows: attendanceRowsSource,
+      repaymentRows: repayments,
+      existingEntry,
+    });
+    if (!payload) return false;
+
+    const { data, error } = await supabase.from("payroll_entries").upsert(payload).select().maybeSingle();
+    if (error) {
+      setNotice(`Payroll Update Failed: ${error.message}`);
+      return false;
+    }
+    setEntries((prev) => [data, ...prev.filter((row) => row.id !== data.id)]);
+    return true;
   }
 
   async function saveAdvance(e) {
@@ -784,44 +878,15 @@ export default function AdminPayrollPage() {
     }
 
     const activeEmployees = employees.filter((employee) => employee.active !== false);
-    const repaymentRows = repayments.filter((row) => row.period_id === periodId);
-    const generatedRows = activeEmployees.map((employee) => {
-      const rows = attendance.filter((row) => row.employee_id === employee.id && compareDate(row.work_date, start, end));
-      const daysWorked = rows.filter((row) => row.status === "present" || row.actual_in).length;
-      const late = rows.reduce((sum, row) => sum + num(row.late_minutes), 0);
-      const under = rows.reduce((sum, row) => sum + num(row.undertime_minutes), 0);
-      const ot = rows.reduce((sum, row) => sum + num(row.overtime_hours), 0);
-      const absent = rows.filter((row) => row.status === "absent").length;
-      const dailyRate = num(employee.default_daily_rate);
-      const otRate = dailyRate / 8;
-      const minuteRate = otRate / 60;
-      const cashAdvanceDeduction = repaymentRows.filter((row) => row.employee_id === employee.id).reduce((sum, row) => sum + num(row.amount), 0);
-      const gross = dailyRate * daysWorked + ot * otRate;
-      const deduction = late * minuteRate + under * minuteRate;
-      return {
-        id: `${periodId}-${employee.id}`,
-        period_id: periodId,
-        employee_id: employee.id,
-        daily_rate: dailyRate,
-        days_worked: daysWorked,
-        overtime_hours: ot,
-        overtime_rate: otRate,
-        absent_days: absent,
-        late_minutes: late,
-        late_rate_per_minute: minuteRate,
-        undertime_minutes: under,
-        undertime_rate_per_minute: minuteRate,
-        allowance_15th: 0,
-        allowance_30th: 0,
-        cash_advance_deduction: cashAdvanceDeduction,
-        gross_total: gross,
-        deduction_total: deduction,
-        net_total: gross - deduction - cashAdvanceDeduction,
-        status: "draft",
-        notes: "Generated from attendance cutoff.",
-        generated_at: new Date().toISOString(),
-      };
-    });
+    const generatedRows = activeEmployees
+      .map((employee) => buildPayrollEntryFromAttendance({
+        employee,
+        period,
+        rows: attendance,
+        repaymentRows: repayments,
+        existingEntry: entries.find((row) => row.period_id === periodId && row.employee_id === employee.id),
+      }))
+      .filter(Boolean);
 
     const { data, error } = await supabase.from("payroll_entries").upsert(generatedRows).select();
     if (error) {
@@ -1078,27 +1143,30 @@ export default function AdminPayrollPage() {
             <button className="h-11 rounded-xl bg-[#FC687D] px-5 text-xs font-black uppercase tracking-wider text-white">Save Cutoff Attendance</button>
           </form>
           <DataTable empty="No attendance rows found for this cutoff." minWidth="1180px" headers={["Date", "Emp No.", "Employee", "In", "Out", "Late", "UT", "OT", "Status", "Notes"]}>
-            {attendanceRows.map((row) => (
-              <tr key={row.id} className="border-t border-rose-50">
-                <td className="p-3 font-bold">{dateText(row.work_date)}</td>
-                <td>{row.employee?.employee_no || "-"}</td>
-                <td>{row.employee?.full_name || row.employee_id}</td>
-                <td><TimeInput value={row.actual_in} disabled={row.status !== "present"} onChange={(value) => updateAttendanceDraft(row.work_date, "actual_in", value)} className="h-9 w-32 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
-                <td><TimeInput value={row.actual_out} disabled={row.status !== "present"} onChange={(value) => updateAttendanceDraft(row.work_date, "actual_out", value)} className="h-9 w-32 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
-                <td><input type="number" value={row.late_minutes ?? ""} disabled={row.status !== "present"} onChange={(e) => updateAttendanceDraft(row.work_date, "late_minutes", e.target.value)} className="h-9 w-20 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" placeholder="Auto" /></td>
-                <td><input type="number" value={row.undertime_minutes ?? ""} disabled={row.status !== "present"} onChange={(e) => updateAttendanceDraft(row.work_date, "undertime_minutes", e.target.value)} className="h-9 w-20 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" placeholder="Auto" /></td>
-                <td><input type="number" step="1" value={row.overtime_hours ?? ""} disabled={row.status !== "present"} onChange={(e) => updateAttendanceDraft(row.work_date, "overtime_hours", e.target.value)} className="h-9 w-20 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" placeholder="Auto" /></td>
-                <td>
-                  <select value={row.status || "present"} onChange={(e) => updateAttendanceDraft(row.work_date, "status", e.target.value)} className="h-9 rounded-lg border border-rose-100 px-2 text-xs font-bold">
-                    <option value="present">Present</option>
-                    <option value="absent">Absent</option>
-                    <option value="rest_day">Rest Day</option>
-                    <option value="closed">Closed</option>
-                  </select>
-                </td>
-                <td><input value={row.notes || ""} onChange={(e) => updateAttendanceDraft(row.work_date, "notes", e.target.value)} className="h-9 w-40 rounded-lg border border-rose-100 px-2 text-xs font-semibold" placeholder="Notes" /></td>
-              </tr>
-            ))}
+            {attendanceRows.map((row) => {
+              const metrics = attendanceMetrics(row);
+              return (
+                <tr key={row.id} className="border-t border-rose-50">
+                  <td className="p-3 font-bold">{dateText(row.work_date)}</td>
+                  <td>{row.employee?.employee_no || "-"}</td>
+                  <td>{row.employee?.full_name || row.employee_id}</td>
+                  <td><TimeInput value={row.actual_in} disabled={row.status !== "present"} onChange={(value) => updateAttendanceDraft(row.work_date, "actual_in", value)} className="h-9 w-32 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
+                  <td><TimeInput value={row.actual_out} disabled={row.status !== "present"} onChange={(value) => updateAttendanceDraft(row.work_date, "actual_out", value)} className="h-9 w-32 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
+                  <td><span className="inline-flex h-9 w-20 items-center rounded-lg border border-rose-100 bg-slate-50 px-2 text-xs font-bold text-slate-600">{metrics.late.toFixed(0)}m</span></td>
+                  <td><span className="inline-flex h-9 w-20 items-center rounded-lg border border-rose-100 bg-slate-50 px-2 text-xs font-bold text-slate-600">{metrics.undertime.toFixed(0)}m</span></td>
+                  <td><span className="inline-flex h-9 w-20 items-center rounded-lg border border-rose-100 bg-slate-50 px-2 text-xs font-bold text-slate-600">{metrics.overtime.toFixed(0)}h</span></td>
+                  <td>
+                    <select value={row.status || "present"} disabled className="h-9 rounded-lg border border-rose-100 bg-slate-50 px-2 text-xs font-bold text-slate-600">
+                      <option value="present">Present</option>
+                      <option value="absent">Absent</option>
+                      <option value="rest_day">Rest Day</option>
+                      <option value="closed">Closed</option>
+                    </select>
+                  </td>
+                  <td><input value={row.notes || ""} onChange={(e) => updateAttendanceDraft(row.work_date, "notes", e.target.value)} className="h-9 w-40 rounded-lg border border-rose-100 px-2 text-xs font-semibold" placeholder="Notes" /></td>
+                </tr>
+              );
+            })}
           </DataTable>
         </section>
       ) : (
@@ -1131,6 +1199,7 @@ export default function AdminPayrollPage() {
               </div>
             </form>
           </div>
+          
           <div className="space-y-4">
             <div className="rounded-2xl border border-rose-50 bg-white p-5 shadow-sm">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1146,6 +1215,27 @@ export default function AdminPayrollPage() {
                 </select>
               </div>
             </div>
+            
+            <DataTable empty="No employees with cash advance balance." minWidth="820px" headers={["Employee", "Amount", "Repaid", "Balance", "Status"]}>
+              {employeeBalanceRows.map((row) => (
+                <tr
+                  key={row.employee.id}
+                  onClick={() => {
+                    setSelectedEmployeeId(row.employee.id);
+                    setAdvanceForm((current) => ({ ...current, employee_id: row.employee.id }));
+                  }}
+                  className={`cursor-pointer border-t border-rose-50 ${selectedEmployeeId === row.employee.id ? "bg-rose-50" : "hover:bg-slate-50"}`}
+                >
+                  <td className="p-3">
+                    <p className="font-black text-slate-800">{row.employee.employee_no ? `${row.employee.employee_no} - ` : ""}{row.employee.full_name}</p>
+                  </td>
+                  <td>{money(row.amount)}</td>
+                  <td>{money(row.repaid)}</td>
+                  <td className="font-black text-[#FC687D]">{money(row.balance)}</td>
+                  <td className="font-black text-[#087830]">Open</td>
+                </tr>
+              ))}
+            </DataTable>            
 
             <DataTable empty="No cash advance records found for this employee." minWidth="1100px" headers={["Cash Advance", "Amount", "Repayment History", "Repaid", "Balance", "Status"]}>
               {selectedEmployeeAdvanceRows.map((row) => {
@@ -1184,26 +1274,6 @@ export default function AdminPayrollPage() {
               })}
             </DataTable>
 
-            <DataTable empty="No employees with cash advance balance." minWidth="820px" headers={["Employee", "Amount", "Repaid", "Balance", "Status"]}>
-              {employeeBalanceRows.map((row) => (
-                <tr
-                  key={row.employee.id}
-                  onClick={() => {
-                    setSelectedEmployeeId(row.employee.id);
-                    setAdvanceForm((current) => ({ ...current, employee_id: row.employee.id }));
-                  }}
-                  className={`cursor-pointer border-t border-rose-50 ${selectedEmployeeId === row.employee.id ? "bg-rose-50" : "hover:bg-slate-50"}`}
-                >
-                  <td className="p-3">
-                    <p className="font-black text-slate-800">{row.employee.employee_no ? `${row.employee.employee_no} - ` : ""}{row.employee.full_name}</p>
-                  </td>
-                  <td>{money(row.amount)}</td>
-                  <td>{money(row.repaid)}</td>
-                  <td className="font-black text-[#FC687D]">{money(row.balance)}</td>
-                  <td className="font-black text-[#087830]">Open</td>
-                </tr>
-              ))}
-            </DataTable>
           </div>
         </section>
       )}
