@@ -1198,7 +1198,7 @@ export default function FinanceExpenseManager() {
                         type="button"
                         onClick={() => openExpenseModal(tableName === "finance_petty_cash_entries" ? "petty" : "overall", row)}
                         className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-100 bg-rose-50 text-[#FC687D]"
-                        aria-label="Edit record"
+                        aria-label="✏️"
                       >
                         <Pencil size={14} />
                       </button>
@@ -1207,7 +1207,7 @@ export default function FinanceExpenseManager() {
                         onClick={() => removeRow(tableName, row)}
                         disabled={saving === `delete_request_${row.id}`}
                         className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-100 bg-red-50 text-red-500 disabled:opacity-50"
-                        aria-label="Delete record"
+                        aria-label="🗑"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -1620,7 +1620,7 @@ export default function FinanceExpenseManager() {
                           type="button"
                           onClick={() => openFundModal(fund)}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-100 bg-rose-50 text-[#FC687D]"
-                          aria-label="Edit cash-in record"
+                          aria-label="✏️"
                         >
                           <Pencil size={14} />
                         </button>
@@ -1629,7 +1629,7 @@ export default function FinanceExpenseManager() {
                           onClick={() => removeRow("finance_petty_cash_funds", fund)}
                           disabled={saving === `delete_request_${fund.id}`}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-100 bg-red-50 text-red-500 disabled:opacity-50"
-                          aria-label="Delete cash-in record"
+                          aria-label="🗑"
                         >
                           <Trash2 size={14} />
                         </button>
