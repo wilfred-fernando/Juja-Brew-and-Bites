@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { formatDate } from "@/lib/dateFormat";
 
 export async function POST(req) {
   try {
@@ -50,7 +51,7 @@ export async function POST(req) {
       <p><b>Booking ID:</b> ${bookingId}</p>
       <p><b>Name:</b> ${customerName}</p>
       <p><b>Event:</b> ${eventType}</p>
-      <p><b>Date:</b> ${businessDate}</p>
+      <p><b>Date:</b> ${formatDate(businessDate, businessDate || "-")}</p>
       <p><b>Time:</b> ${timeLabel}</p>
       <p><b>Package:</b> ${packageId}</p>
       <p><b>Guests:</b> ${guestCount}</p>

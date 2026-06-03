@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { formatDateTime } from "@/lib/dateFormat";
 
 const supabase = getSupabaseClient();
 
@@ -149,7 +150,7 @@ export default function LiveDashboard() {
                   Order #{order.id.slice(-6)}
                 </p>
                 <p className="text-sm text-gray-500">
-                  {new Date(order.created_at).toLocaleString()}
+                  {formatDateTime(order.created_at)}
                 </p>
               </div>
 

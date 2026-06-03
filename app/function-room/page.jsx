@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { formatDate } from "@/lib/dateFormat";
 
 // ✅ Reuse booking system availability UI (must be exported from BookingForm.jsx)
 import { BookingAvailabilityOnly } from "@/components/BookingForm";
@@ -534,7 +535,7 @@ export default function FunctionRoomPage() {
               </div>
 
               <div className="text-[10px] uppercase tracking-widest text-slate-400 mt-0.5 font-normal">
-                Date: {pickedSlot.dateISO} · Hour Code: {pickedSlot.hour}
+                Date: {formatDate(pickedSlot.dateISO)} / Hour Code: {pickedSlot.hour}
               </div>
 
               <div className="mt-2 text-xs text-slate-500 normal-case tracking-normal font-normal">

@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 
 import { supabase } from "@/lib/supabase";
+import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import BookingTab from "@/components/BookingForm";
 import { useIdleLogout } from "@/components/useIdleLogout";
 
@@ -148,9 +149,7 @@ function todayISO() {
 
 function fmtDate(iso) {
   if (!iso) return "—";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return String(iso);
-  return d.toLocaleDateString();
+  return formatDate(iso, String(iso));
 }
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -1290,7 +1289,7 @@ function TrackerTab({ orders, loadingOrders }) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold text-slate-800 font-mono">ORDER ID: #{order.id.slice(0, 8).toUpperCase()}</p>
-                  <p className="text-[10px] text-slate-400 font-medium mt-0.5">{order.created_at ? new Date(order.created_at).toLocaleString() : ""}</p>
+                  <p className="text-[10px] text-slate-400 font-medium mt-0.5">{order.created_at ? formatDateTime(order.created_at) : ""}</p>
                 </div>
                 <span className={`px-2.5 py-0.5 border rounded-md text-[10px] font-black uppercase tracking-wider ${getStatusColor(order.status)}`}>
                   {order.status || "Pending"}

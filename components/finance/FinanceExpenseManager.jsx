@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { formatDate } from "@/lib/dateFormat";
 
 const CATEGORY_OPTIONS = ["OP-EX", "PERSONAL"];
 const PAYMENT_TYPES = ["CASH", "CHEQUE", "GCASH -9393", "GCASH -0668", "GCASH -8199", "CARD", "BANK TRANSFER"];
@@ -143,7 +144,7 @@ function isWithinLast24Hours(value) {
 
 function dateText(value) {
   if (!value) return "-";
-  return new Date(value).toLocaleDateString("en-PH", { month: "short", day: "2-digit", year: "numeric" });
+  return formatDate(value);
 }
 
 function shortStoreLabel(value) {

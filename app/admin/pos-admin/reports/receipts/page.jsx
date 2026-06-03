@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { isCompletedStatus, loadReportData, normalizePayment } from "../reportData";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -37,20 +38,6 @@ const moneyFormatter = new Intl.NumberFormat("en-PH", {
   currency: "PHP",
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
-});
-
-const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "2-digit",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-});
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "2-digit",
-  year: "numeric",
 });
 
 function pad(value) {
@@ -76,7 +63,7 @@ function daysBetween(start, end) {
 
 function displayDate(value) {
   if (!value) return "No date";
-  return dateFormatter.format(new Date(`${value}T00:00:00`));
+  return formatDate(value, "No date");
 }
 
 function displayRange(start, end) {
@@ -85,7 +72,7 @@ function displayRange(start, end) {
 
 function displayDateTime(value) {
   if (!value) return "No date";
-  return dateTimeFormatter.format(new Date(value));
+  return formatDateTime(value, "No date");
 }
 
 function money(value) {

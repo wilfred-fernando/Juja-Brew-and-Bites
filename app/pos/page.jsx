@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import TicketPanel from "@/components/pos/TicketPanel";
 
 // Initialize Supabase Client instance cleanly at layout bundle level
@@ -110,7 +111,7 @@ function buildReceiptText({
   if (header) lines.push(header);
 
   if (rs.show_store_name !== false) lines.push(`Store: ${order.store_id || order.branch_id}`);
-  if (rs.show_datetime !== false) lines.push(`Date: ${new Date().toLocaleString()}`);
+  if (rs.show_datetime !== false) lines.push(`Date: ${formatDateTime(new Date())}`);
   if (rs.show_order_number !== false) lines.push(`Receipt: ${order.id}`);
 
   lines.push(`Dining: ${diningOptionName || "-"}`);
@@ -675,7 +676,7 @@ function VouchersModal({ open, onClose, vouchers, appliedVoucher, selectedCartIt
                 <p className="text-xs text-slate-500 mt-0.5 font-medium">{v.reward_text}</p>
                 <p className="text-[10px] text-slate-400 mt-2 font-semibold">
                   {v.reward_type === "birthday" ? "🎂 Birthday Special" : "🎁 Points Voucher"}
-                  {v.expires_at ? ` • Exp: ${new Date(v.expires_at).toLocaleDateString()}` : ""}
+                  {v.expires_at ? ` • Exp: ${formatDate(v.expires_at)}` : ""}
                 </p>
               </button>
             );
@@ -1394,10 +1395,10 @@ export default function POSPage() {
     };
   }, [receiptRows, startingCash]);
   const shiftSalesRows = useMemo(() => {
-    const todayKey = new Date().toLocaleDateString();
+    const todayKey = formatDate(new Date());
     const todaysRows = (receiptRows || []).filter((row) => {
       if (!row.created_at) return true;
-      return new Date(row.created_at).toLocaleDateString() === todayKey;
+      return formatDate(row.created_at) === todayKey;
     });
     return todaysRows.map((row) => ({
       receipt: row.receipt_number,
@@ -2251,7 +2252,7 @@ export default function POSPage() {
     const posRows = (receiptRes.data || []).map((order) => ({
       ...order,
       receipt_number: String(order.id),
-      date: order.created_at ? new Date(order.created_at).toLocaleString() : "",
+      date: order.created_at ? formatDateTime(order.created_at) : "",
       gross_sales: Number(order.total || 0) + Number(order.discount || 0),
       discounts: Number(order.discount || 0),
       net_sales: Number(order.total || 0),
@@ -2264,7 +2265,7 @@ export default function POSPage() {
       ...order,
       id: `WEB-${order.id}`,
       receipt_number: `WEB-${String(order.id).slice(0, 8).toUpperCase()}`,
-      date: order.created_at ? new Date(order.created_at).toLocaleString() : "",
+      date: order.created_at ? formatDateTime(order.created_at) : "",
       gross_sales: Number(order.total || order.subtotal || 0),
       discounts: 0,
       net_sales: Number(order.total || order.subtotal || 0),

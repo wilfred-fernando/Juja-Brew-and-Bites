@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { formatDate } from "@/lib/dateFormat";
 
 const supabase = getSupabaseClient();
 
@@ -29,7 +30,7 @@ function previousSaturday(date = new Date()) {
 
 function dateText(value) {
   if (!value) return "-";
-  return new Date(`${String(value).slice(0, 10)}T00:00:00`).toLocaleDateString();
+  return formatDate(String(value).slice(0, 10));
 }
 
 function slug(value) {

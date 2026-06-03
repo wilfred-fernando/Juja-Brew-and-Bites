@@ -21,6 +21,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { formatDate } from "@/lib/dateFormat";
 import { isCompletedStatus, loadReportData, normalizePayment } from "../reportData";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -49,17 +50,6 @@ const shortMoneyFormatter = new Intl.NumberFormat("en-PH", {
   currency: "PHP",
   notation: "compact",
   maximumFractionDigits: 1,
-});
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "2-digit",
-  year: "numeric",
-});
-
-const shortDateFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "2-digit",
 });
 
 function pad(value) {
@@ -97,7 +87,7 @@ function previousRange(start, end) {
 
 function displayDate(value) {
   if (!value) return "No date";
-  return dateFormatter.format(new Date(`${value}T00:00:00`));
+  return formatDate(value, "No date");
 }
 
 function displayRange(start, end) {
@@ -346,7 +336,7 @@ export default function Page() {
   const activeMetricLabel = metricConfig.find((item) => item.key === activeMetric)?.label || "Sales";
   const chartRows = dailyRows.map((row) => ({
     ...row,
-    label: shortDateFormatter.format(new Date(`${row.date}T00:00:00`)),
+    label: formatDate(row.date),
     chartValue: row[activeMetric],
   }));
   const exportRows = [...dailyRows].sort((a, b) => b.date.localeCompare(a.date));

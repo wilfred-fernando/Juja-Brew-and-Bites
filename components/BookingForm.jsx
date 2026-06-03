@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { formatDate, formatDateTime } from "@/lib/dateFormat";
 
 const supabase = getSupabaseClient();
 
@@ -835,7 +836,7 @@ export default function BookingForm({ user, member }) {
             </p>
             <p>
               <span className="text-slate-400">Date:</span>{" "}
-              <b>{successBooking.business_date}</b>
+              <b>{formatDate(successBooking.business_date)}</b>
             </p>
             <p>
               <span className="text-slate-400">Status:</span>{" "}
@@ -893,7 +894,7 @@ export default function BookingForm({ user, member }) {
             </p>
 
             <p className="text-xs text-slate-500">
-              <b>{b.business_date}</b> • {new Date(b.start_at).toLocaleString()}
+              <b>{formatDate(b.business_date)}</b> / {formatDateTime(b.start_at)}
             </p>
 
             <div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -1188,7 +1189,7 @@ export default function BookingForm({ user, member }) {
             <div>
               <p className="text-[10px] uppercase tracking-widest text-slate-400">Selected</p>
               <p className="text-[12px] text-slate-800 mt-1">
-                Date: <b>{dateISO}</b> • Time:{" "}
+                Date: <b>{formatDate(dateISO)}</b> / Time:{" "}
                 <b>{selectedHour != null ? labelHour(selectedHour) : "Not selected"}</b>
               </p>
             </div>

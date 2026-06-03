@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { formatDateTime } from "@/lib/dateFormat";
 
 const supabase = getSupabaseClient();
 const KDS_STATUSES = ["pending", "accepted", "ready", "Pending", "Accepted", "Ready"];
@@ -81,7 +82,7 @@ export default function KitchenDisplay() {
           <h2>KITCHEN ORDER</h2>
           <p><b>Order:</b> ${String(order.id).slice(0, 8).toUpperCase()}</p>
           <p><b>Customer:</b> ${order.customer_name || "Web Customer"}</p>
-          <p><b>Time:</b> ${order.created_at ? new Date(order.created_at).toLocaleString() : ""}</p>
+          <p><b>Time:</b> ${order.created_at ? formatDateTime(order.created_at) : ""}</p>
           <hr/>
           ${(order.items || []).map((item) => `
             <div class="item">

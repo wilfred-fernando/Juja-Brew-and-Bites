@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { formatDate, formatDateTime } from "@/lib/dateFormat";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const BRANCH_LABELS = {
@@ -26,20 +27,6 @@ const moneyFormatter = new Intl.NumberFormat("en-PH", {
   currency: "PHP",
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
-});
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-});
-
-const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
 });
 
 function pad(value) {
@@ -73,7 +60,7 @@ function inDateRange(value, start, end) {
 
 function displayDate(value) {
   if (!value) return "No date";
-  return dateFormatter.format(new Date(`${value}T00:00:00`));
+  return formatDate(value, "No date");
 }
 
 function displayRange(start, end) {
@@ -82,7 +69,7 @@ function displayRange(start, end) {
 
 function displayDateTime(value) {
   if (!value) return "-";
-  return dateTimeFormatter.format(new Date(value));
+  return formatDateTime(value);
 }
 
 function money(value) {

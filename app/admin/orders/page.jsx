@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { formatDateTime } from "@/lib/dateFormat";
 
 const supabase = getSupabaseClient();
 const ACTIVE_STATUSES = ["pending", "accepted", "ready", "Pending", "Accepted", "Ready"];
@@ -67,7 +68,7 @@ export default function AdminLiveOrders() {
                 <div>
                   <p className="font-mono text-sm font-black text-slate-900">#{String(order.id).slice(0, 8).toUpperCase()}</p>
                   <p className="text-xs font-semibold text-slate-500 mt-1">{order.customer_name || "Web Customer"} · {order.dining_option || "Web Order"}</p>
-                  <p className="text-[11px] font-semibold text-slate-400 mt-1">{order.created_at ? new Date(order.created_at).toLocaleString() : ""}</p>
+                  <p className="text-[11px] font-semibold text-slate-400 mt-1">{order.created_at ? formatDateTime(order.created_at) : ""}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="rounded-lg bg-rose-50 border border-rose-100 px-2.5 py-1 text-[10px] font-black uppercase text-[#FC687D]">{order.status}</span>

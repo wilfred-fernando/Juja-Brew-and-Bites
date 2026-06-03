@@ -1,17 +1,19 @@
 "use client";
 
+import { formatDate, formatDateTime } from "@/lib/dateFormat";
+
 export const peso = (n) => `₱${Number(n || 0).toFixed(2)}`;
 
 export const dateInput = (date = new Date()) => date.toISOString().slice(0, 10);
 
 export function dateLabel(value) {
   if (!value) return "No date";
-  return new Date(value).toLocaleString();
+  return formatDateTime(value, "No date");
 }
 
 export function dayKey(value) {
   if (!value) return "No date";
-  return new Date(value).toLocaleDateString();
+  return formatDate(value, "No date");
 }
 
 export function normalizePayment(value) {

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { formatDate, formatDateTime } from "@/lib/dateFormat";
 
 const supabase = getSupabaseClient();
 
@@ -811,7 +812,7 @@ export default function AdminBookingsDashboard() {
                       <p className="text-[11px] font-semibold text-slate-800">
                         {d.toLocaleDateString(undefined, { weekday: "short" })}
                       </p>
-                      <p className="text-[10px] text-slate-500">{toISODate(d)}</p>
+                      <p className="text-[10px] text-slate-500">{formatDate(toISODate(d))}</p>
                     </div>
                   ))}
                 </div>
@@ -1108,8 +1109,8 @@ export default function AdminBookingsDashboard() {
                               </p>
                               <p><b>Extension:</b> {Number(b.extension_hours || 0)} hr</p>
                               <p>
-                                <b>Schedule:</b> {new Date(b.start_at).toLocaleString()} →{" "}
-                                {new Date(b.end_at).toLocaleString()}
+                                <b>Schedule:</b> {formatDateTime(b.start_at)} →{" "}
+                                {formatDateTime(b.end_at)}
                               </p>
                             </div>
 
@@ -1421,7 +1422,7 @@ export default function AdminBookingsDashboard() {
                 const endAt = computeEndAt(startAt, Number(editModal.extension_hours || 0));
                 return (
                   <p>
-                    <b>Computed:</b> {startAt.toLocaleString()} → {endAt.toLocaleString()}
+                    <b>Computed:</b> {formatDateTime(startAt)} → {formatDateTime(endAt)}
                   </p>
                 );
               })()}

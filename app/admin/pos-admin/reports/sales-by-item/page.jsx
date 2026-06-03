@@ -22,6 +22,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { formatDate } from "@/lib/dateFormat";
 import { isCompletedStatus, loadReportData } from "../reportData";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -43,17 +44,6 @@ const shortMoneyFormatter = new Intl.NumberFormat("en-PH", {
   currency: "PHP",
   notation: "compact",
   maximumFractionDigits: 1,
-});
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "2-digit",
-  year: "numeric",
-});
-
-const shortDateFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "2-digit",
 });
 
 function pad(value) {
@@ -89,7 +79,7 @@ function dayKey(value) {
 
 function displayDate(value) {
   if (!value) return "No date";
-  return dateFormatter.format(new Date(`${value}T00:00:00`));
+  return formatDate(value, "No date");
 }
 
 function displayRange(start, end) {
@@ -282,7 +272,7 @@ function buildChartRows(lines, topItems, start, end) {
   const keyByItem = new Map(topItems.map((item, index) => [item.key, `item_${index}`]));
   const rows = new Map(
     dateRange(start, end).map((date) => {
-      const row = { date, label: shortDateFormatter.format(new Date(`${date}T00:00:00`)) };
+      const row = { date, label: formatDate(date) };
       topItems.forEach((_, index) => {
         row[`item_${index}`] = 0;
       });
