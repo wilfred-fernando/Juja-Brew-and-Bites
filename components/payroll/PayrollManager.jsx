@@ -33,6 +33,10 @@ function dateText(value) {
   return formatDate(String(value).slice(0, 10));
 }
 
+function normalizeRole(value) {
+  return String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
+
 function slug(value) {
   return String(value || "")
     .normalize("NFKD")
@@ -61,10 +65,26 @@ function datesBetween(start, end) {
 
 function normalizeTime(value) {
   if (!value) return "";
-  const [hourValue, minuteValue] = String(value).split(":");
-  const hour = Number(hourValue);
-  const minute = Number(minuteValue);
+  const text = String(value).trim();
+  const matched = text.match(/^(\d{1,2})(?::(\d{1,2}))?(?::\d{1,2})?\s*([ap])\.?\s*m?\.?$/i);
+  const plain = text.match(/^(\d{1,2})(?::(\d{1,2}))(?::\d{1,2})?$/);
+  const match = matched || plain;
+  if (!match) return "";
+
+  let hour = Number(match[1]);
+  const minute = Number(match[2] ?? 0);
   if (!Number.isFinite(hour) || !Number.isFinite(minute)) return "";
+  if (minute < 0 || minute > 59) return "";
+
+  const meridiem = match[3]?.toLowerCase();
+  if (meridiem) {
+    if (hour < 1 || hour > 12) return "";
+    if (hour === 12) hour = 0;
+    if (meridiem === "p") hour += 12;
+  } else if (hour < 0 || hour > 23) {
+    return "";
+  }
+
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
@@ -105,6 +125,28 @@ function overtimeHours(scheduleIn, scheduleOut, actualOut) {
   if (scheduledOut === null || actual === null) return 0;
   const diff = actual - scheduledOut;
   return Math.max(0, Math.floor(diff / 60) || 0);
+}
+
+function timeLabel(value) {
+  const minutes = timeMinutes(value);
+  if (minutes === null) return "";
+  const hour24 = Math.floor(minutes / 60) % 24;
+  const minute = minutes % 60;
+  const hour12 = hour24 % 12 || 12;
+  const suffix = hour24 >= 12 ? "PM" : "AM";
+  return `${hour12}:${String(minute).padStart(2, "0")} ${suffix}`;
+}
+
+const HOURLY_TIME_OPTIONS = Array.from({ length: 24 }, (_, hour) => {
+  const value = `${String(hour).padStart(2, "0")}:00`;
+  return { value, label: timeLabel(value) };
+});
+
+function timeOptionsWithCurrent(value) {
+  const current = normalizeTime(value);
+  if (!current || HOURLY_TIME_OPTIONS.some((option) => option.value === current)) return HOURLY_TIME_OPTIONS;
+  return [...HOURLY_TIME_OPTIONS, { value: current, label: timeLabel(current) }]
+    .sort((a, b) => timeMinutes(a.value) - timeMinutes(b.value));
 }
 
 function statusClass(status) {
@@ -148,6 +190,7 @@ export default function AdminPayrollPage() {
   const [advances, setAdvances] = useState([]);
   const [repayments, setRepayments] = useState([]);
   const [rateChanges, setRateChanges] = useState([]);
+  const [currentRole, setCurrentRole] = useState("");
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
   const [activeTab, setActiveTab] = useState("payroll");
@@ -207,6 +250,7 @@ export default function AdminPayrollPage() {
   }, [periods]);
 
   const selectedPeriod = periodById[selectedPeriodId];
+  const canChangePayrollStatus = currentRole === "super_admin";
 
   const cutoffDates = useMemo(
     () => datesBetween(selectedPeriod?.period_start, selectedPeriod?.period_end),
@@ -231,6 +275,27 @@ export default function AdminPayrollPage() {
       .sort((a, b) => new Date(b.advance_date || 0) - new Date(a.advance_date || 0));
   }, [advances, employeeById, repaymentsByAdvance]);
 
+  const selectedEmployeeAdvanceRows = useMemo(
+    () => advanceRows.filter((row) => !selectedEmployeeId || row.employee_id === selectedEmployeeId),
+    [advanceRows, selectedEmployeeId]
+  );
+
+  const selectedEmployeeOpenAdvanceRows = useMemo(
+    () => selectedEmployeeAdvanceRows.filter((row) => row.balance > 0),
+    [selectedEmployeeAdvanceRows]
+  );
+
+  useEffect(() => {
+    if (activeTab !== "cashAdvance") return;
+    const currentIsVisible = selectedEmployeeOpenAdvanceRows.some((row) => row.id === repaymentForm.cash_advance_id);
+    if (!currentIsVisible) {
+      setRepaymentForm((current) => ({
+        ...current,
+        cash_advance_id: selectedEmployeeOpenAdvanceRows[0]?.id || "",
+      }));
+    }
+  }, [activeTab, repaymentForm.cash_advance_id, selectedEmployeeOpenAdvanceRows]);
+
   const employeeAdvanceSummary = useMemo(() => {
     const map = {};
     advanceRows.forEach((row) => {
@@ -241,6 +306,14 @@ export default function AdminPayrollPage() {
     });
     return map;
   }, [advanceRows]);
+
+  const employeeBalanceRows = useMemo(
+    () => employees
+      .map((employee) => ({ employee, ...(employeeAdvanceSummary[employee.id] || { amount: 0, repaid: 0, balance: 0 }) }))
+      .filter((row) => row.balance > 0)
+      .sort((a, b) => String(a.employee.employee_no || a.employee.full_name).localeCompare(String(b.employee.employee_no || b.employee.full_name))),
+    [employeeAdvanceSummary, employees]
+  );
 
   const payrollRows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -364,6 +437,13 @@ export default function AdminPayrollPage() {
 
   async function fetchPayroll() {
     setLoading(true);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData?.session?.user?.id || null;
+    const profileRes = userId
+      ? await supabase.from("profiles").select("role").eq("id", userId).maybeSingle()
+      : { data: null, error: null };
+    setCurrentRole(profileRes.error ? "" : normalizeRole(profileRes.data?.role));
+
     const [employeeRes, periodRes, entryRes, scheduleRes, attendanceRes, advanceRes, repaymentRes] = await Promise.all([
       supabase.from("payroll_employees").select("*").order("employee_no", { ascending: true }),
       supabase.from("payroll_periods").select("*").order("pay_date", { ascending: false }),
@@ -603,6 +683,7 @@ export default function AdminPayrollPage() {
     if (error) return setNotice(`Cash Advance Failed: ${error.message}`);
     setAdvances((prev) => [data, ...prev]);
     setRepaymentForm((current) => ({ ...current, cash_advance_id: data.id }));
+    setSelectedEmployeeId(data.employee_id);
     setAdvanceForm({ employee_id: advanceForm.employee_id, advance_date: localDate(), amount: "", reason: "" });
     setNotice("Cash advance recorded.");
   }
@@ -673,6 +754,7 @@ export default function AdminPayrollPage() {
   }
 
   async function updateEntryStatus(entry, status) {
+    if (!canChangePayrollStatus) return setNotice("Only super admin accounts can approve payroll or mark it as paid.");
     const { data, error } = await supabase.from("payroll_entries").update({ status }).eq("id", entry.id).select().maybeSingle();
     if (error) return setNotice(`Status Failed: ${error.message}`);
     setEntries((prev) => prev.map((row) => (row.id === entry.id ? data : row)));
@@ -868,8 +950,8 @@ export default function AdminPayrollPage() {
                     <td className="pr-3 text-right">
                       <div className="flex justify-end gap-2">
                         <button onClick={() => openEntryModal(entry)} className="rounded-lg border border-slate-100 px-3 py-2 text-[10px] font-black uppercase text-slate-600">Edit</button>
-                        {entry.status !== "approved" && entry.status !== "paid" ? <button onClick={() => updateEntryStatus(entry, "approved")} className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[10px] font-black uppercase text-blue-600">Approve</button> : null}
-                        {entry.status !== "paid" ? <button onClick={() => updateEntryStatus(entry, "paid")} className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-[10px] font-black uppercase text-emerald-600">Paid</button> : null}
+                        {canChangePayrollStatus && entry.status !== "approved" && entry.status !== "paid" ? <button onClick={() => updateEntryStatus(entry, "approved")} className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[10px] font-black uppercase text-blue-600">Approve</button> : null}
+                        {canChangePayrollStatus && entry.status !== "paid" ? <button onClick={() => updateEntryStatus(entry, "paid")} className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-[10px] font-black uppercase text-emerald-600">Paid</button> : null}
                       </div>
                     </td>
                   </tr>
@@ -968,8 +1050,8 @@ export default function AdminPayrollPage() {
                 <td className="p-3 font-bold">{dateText(row.work_date)}</td>
                 <td>{row.employee?.employee_no || "-"}</td>
                 <td>{row.employee?.full_name || row.employee_id}</td>
-                <td><input type="time" value={normalizeTime(row.schedule_in)} disabled={row.status !== "scheduled"} onChange={(e) => updateScheduleDraft(row.work_date, "schedule_in", e.target.value)} className="h-9 w-28 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
-                <td><input type="time" value={normalizeTime(row.schedule_out)} disabled={row.status !== "scheduled"} onChange={(e) => updateScheduleDraft(row.work_date, "schedule_out", e.target.value)} className="h-9 w-28 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
+                <td><TimeSelect value={row.schedule_in} disabled={row.status !== "scheduled"} onChange={(value) => updateScheduleDraft(row.work_date, "schedule_in", value)} className="h-9 w-32 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
+                <td><TimeSelect value={row.schedule_out} disabled={row.status !== "scheduled"} onChange={(value) => updateScheduleDraft(row.work_date, "schedule_out", value)} className="h-9 w-32 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
                 <td>
                   <select value={row.status || "scheduled"} onChange={(e) => updateScheduleDraft(row.work_date, "status", e.target.value)} className="h-9 rounded-lg border border-rose-100 px-2 text-xs font-bold">
                     <option value="scheduled">Scheduled</option>
@@ -1001,8 +1083,8 @@ export default function AdminPayrollPage() {
                 <td className="p-3 font-bold">{dateText(row.work_date)}</td>
                 <td>{row.employee?.employee_no || "-"}</td>
                 <td>{row.employee?.full_name || row.employee_id}</td>
-                <td><input type="time" value={normalizeTime(row.actual_in)} disabled={row.status !== "present"} onChange={(e) => updateAttendanceDraft(row.work_date, "actual_in", e.target.value)} className="h-9 w-28 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
-                <td><input type="time" value={normalizeTime(row.actual_out)} disabled={row.status !== "present"} onChange={(e) => updateAttendanceDraft(row.work_date, "actual_out", e.target.value)} className="h-9 w-28 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
+                <td><TimeInput value={row.actual_in} disabled={row.status !== "present"} onChange={(value) => updateAttendanceDraft(row.work_date, "actual_in", value)} className="h-9 w-32 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
+                <td><TimeInput value={row.actual_out} disabled={row.status !== "present"} onChange={(value) => updateAttendanceDraft(row.work_date, "actual_out", value)} className="h-9 w-32 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
                 <td><input type="number" value={row.late_minutes ?? ""} disabled={row.status !== "present"} onChange={(e) => updateAttendanceDraft(row.work_date, "late_minutes", e.target.value)} className="h-9 w-20 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" placeholder="Auto" /></td>
                 <td><input type="number" value={row.undertime_minutes ?? ""} disabled={row.status !== "present"} onChange={(e) => updateAttendanceDraft(row.work_date, "undertime_minutes", e.target.value)} className="h-9 w-20 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" placeholder="Auto" /></td>
                 <td><input type="number" step="1" value={row.overtime_hours ?? ""} disabled={row.status !== "present"} onChange={(e) => updateAttendanceDraft(row.work_date, "overtime_hours", e.target.value)} className="h-9 w-20 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" placeholder="Auto" /></td>
@@ -1025,7 +1107,10 @@ export default function AdminPayrollPage() {
             <form onSubmit={saveAdvance} className="rounded-2xl border border-rose-50 bg-white p-5 shadow-sm">
               <h2 className="text-sm font-black text-slate-800">Cash Advance</h2>
               <div className="mt-4 space-y-3">
-                <select value={advanceForm.employee_id} onChange={(e) => setAdvanceForm((p) => ({ ...p, employee_id: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none">{employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}</select>
+                <select value={advanceForm.employee_id} onChange={(e) => {
+                  setAdvanceForm((p) => ({ ...p, employee_id: e.target.value }));
+                  setSelectedEmployeeId(e.target.value);
+                }} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none">{employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}</select>
                 <input type="date" value={advanceForm.advance_date} onChange={(e) => setAdvanceForm((p) => ({ ...p, advance_date: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" />
                 <input type="number" step="0.01" value={advanceForm.amount} onChange={(e) => setAdvanceForm((p) => ({ ...p, amount: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" placeholder="Amount" />
                 <input value={advanceForm.reason} onChange={(e) => setAdvanceForm((p) => ({ ...p, reason: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" placeholder="Reason" />
@@ -1037,7 +1122,7 @@ export default function AdminPayrollPage() {
               <div className="mt-4 space-y-3">
                 <select value={repaymentForm.cash_advance_id} onChange={(e) => setRepaymentForm((p) => ({ ...p, cash_advance_id: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none">
                   <option value="">Select advance</option>
-                  {advanceRows.filter((row) => row.balance > 0).map((row) => <option key={row.id} value={row.id}>{row.employee?.employee_no ? `${row.employee.employee_no} - ` : ""}{row.employee?.full_name} / {money(row.balance)}</option>)}
+                  {selectedEmployeeOpenAdvanceRows.map((row) => <option key={row.id} value={row.id}>{dateText(row.advance_date)} / {money(row.balance)}</option>)}
                 </select>
                 <select value={repaymentForm.period_id} onChange={(e) => setRepaymentForm((p) => ({ ...p, period_id: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none">{sortedPeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select>
                 <input type="date" value={repaymentForm.payment_date} onChange={(e) => setRepaymentForm((p) => ({ ...p, payment_date: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" />
@@ -1046,19 +1131,80 @@ export default function AdminPayrollPage() {
               </div>
             </form>
           </div>
-          <DataTable empty="No cash advance records found." minWidth="900px" headers={["Date", "Emp No.", "Employee", "Amount", "Repaid", "Balance", "Status"]}>
-            {advanceRows.map((row) => (
-              <tr key={row.id} className="border-t border-rose-50">
-                <td className="p-3 font-bold">{dateText(row.advance_date)}</td>
-                <td>{row.employee?.employee_no || "-"}</td>
-                <td>{row.employee?.full_name || row.employee_id}</td>
-                <td>{money(row.amount)}</td>
-                <td>{money(row.repaid)}</td>
-                <td className="font-black text-[#FC687D]">{money(row.balance)}</td>
-                <td>{row.status}</td>
-              </tr>
-            ))}
-          </DataTable>
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-rose-50 bg-white p-5 shadow-sm">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-black text-slate-800">Cash Advance Details Per Employee</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">{employeeById[selectedEmployeeId]?.full_name || "Select an employee"}</p>
+                </div>
+                <select value={selectedEmployeeId} onChange={(e) => {
+                  setSelectedEmployeeId(e.target.value);
+                  setAdvanceForm((current) => ({ ...current, employee_id: e.target.value }));
+                }} className="h-11 rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none sm:min-w-[280px]">
+                  {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <DataTable empty="No cash advance records found for this employee." minWidth="1100px" headers={["Cash Advance", "Amount", "Repayment History", "Repaid", "Balance", "Status"]}>
+              {selectedEmployeeAdvanceRows.map((row) => {
+                const repaymentHistory = [...(repaymentsByAdvance[row.id] || [])]
+                  .sort((a, b) => new Date(b.payment_date || 0) - new Date(a.payment_date || 0));
+                return (
+                  <tr key={row.id} className="border-t border-rose-50 align-top">
+                    <td className="p-3">
+                      <p className="font-black text-slate-800">{dateText(row.advance_date)}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">{row.reason || "Cash advance"}</p>
+                    </td>
+                    <td className="pt-3">{money(row.amount)}</td>
+                    <td className="py-3 pr-3">
+                      {repaymentHistory.length === 0 ? (
+                        <span className="text-xs font-semibold text-slate-400">No repayment yet.</span>
+                      ) : (
+                        <div className="space-y-2">
+                          {repaymentHistory.map((repayment) => (
+                            <div key={repayment.id} className="rounded-xl bg-rose-50 p-3 text-xs text-slate-600">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <span className="font-black text-slate-800">{dateText(repayment.payment_date)}</span>
+                                <span className="font-black text-[#FC687D]">{money(repayment.amount)}</span>
+                              </div>
+                              <p className="mt-1">{repayment.method || "payroll deduction"}{repayment.period_id ? ` / ${periodById[repayment.period_id]?.label || repayment.period_id}` : ""}</p>
+                              {repayment.notes ? <p className="mt-1 text-slate-500">{repayment.notes}</p> : null}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                    <td className="pt-3">{money(row.repaid)}</td>
+                    <td className="pt-3 font-black text-[#FC687D]">{money(row.balance)}</td>
+                    <td className="pt-3">{row.status || "active"}</td>
+                  </tr>
+                );
+              })}
+            </DataTable>
+
+            <DataTable empty="No employees with cash advance balance." minWidth="820px" headers={["Employee", "Amount", "Repaid", "Balance", "Status"]}>
+              {employeeBalanceRows.map((row) => (
+                <tr
+                  key={row.employee.id}
+                  onClick={() => {
+                    setSelectedEmployeeId(row.employee.id);
+                    setAdvanceForm((current) => ({ ...current, employee_id: row.employee.id }));
+                  }}
+                  className={`cursor-pointer border-t border-rose-50 ${selectedEmployeeId === row.employee.id ? "bg-rose-50" : "hover:bg-slate-50"}`}
+                >
+                  <td className="p-3">
+                    <p className="font-black text-slate-800">{row.employee.employee_no ? `${row.employee.employee_no} - ` : ""}{row.employee.full_name}</p>
+                  </td>
+                  <td>{money(row.amount)}</td>
+                  <td>{money(row.repaid)}</td>
+                  <td className="font-black text-[#FC687D]">{money(row.balance)}</td>
+                  <td className="font-black text-[#087830]">Open</td>
+                </tr>
+              ))}
+            </DataTable>
+          </div>
         </section>
       )}
 
@@ -1128,5 +1274,63 @@ function DataTable({ headers, children, empty, minWidth }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+function TimeSelect({ value, onChange, disabled, className = "" }) {
+  const normalized = normalizeTime(value);
+  return (
+    <select
+      value={normalized}
+      disabled={disabled}
+      onChange={(event) => onChange(event.target.value)}
+      className={className}
+    >
+      <option value="">--:--</option>
+      {timeOptionsWithCurrent(normalized).map((option) => (
+        <option key={option.value} value={option.value}>{option.label}</option>
+      ))}
+    </select>
+  );
+}
+
+function TimeInput({ value, onChange, disabled, className = "" }) {
+  const normalized = normalizeTime(value);
+  const [draft, setDraft] = useState(timeLabel(normalized));
+
+  useEffect(() => {
+    setDraft(timeLabel(value));
+  }, [value]);
+
+  function commit() {
+    const text = draft.trim();
+    if (!text) {
+      onChange("");
+      setDraft("");
+      return;
+    }
+
+    const next = normalizeTime(text);
+    if (!next) {
+      setDraft(timeLabel(normalized));
+      return;
+    }
+
+    onChange(next);
+    setDraft(timeLabel(next));
+  }
+
+  return (
+    <input
+      value={draft}
+      disabled={disabled}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") event.currentTarget.blur();
+      }}
+      className={className}
+      placeholder="9:00 AM"
+    />
   );
 }
