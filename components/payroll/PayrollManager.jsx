@@ -974,6 +974,7 @@ export default function AdminPayrollPage() {
                   <select value={row.status || "scheduled"} onChange={(e) => updateScheduleDraft(row.work_date, "status", e.target.value)} className="h-9 rounded-lg border border-rose-100 px-2 text-xs font-bold">
                     <option value="scheduled">Scheduled</option>
                     <option value="rest_day">Rest Day</option>
+                    <option value="absent">Absent</option>
                     <option value="closed">Closed</option>
                   </select>
                 </td>
