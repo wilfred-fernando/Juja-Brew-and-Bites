@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
+import AuthTurnstile, { isTurnstileEnabled } from "@/components/AuthTurnstile";
 import { supabase } from "@/lib/supabase";
 
 const LOGO =
@@ -14,6 +15,8 @@ export default function Login() {
 
   const [mode, setMode] = useState("signin");
   const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -49,6 +52,12 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    if (isTurnstileEnabled() && !captchaToken) {
+      setError("Please complete the security check.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -56,11 +65,16 @@ export default function Login() {
         ? supabase.auth.signUp({
             email: form.email,
             password: form.password,
-            options: { data: { full_name: form.name } },
+            options: {
+              captchaToken,
+              data: { full_name: form.name },
+              emailRedirectTo: "https://jujabrewandbites.com/auth/callback",
+            },
           })
         : supabase.auth.signInWithPassword({
             email: form.email,
             password: form.password,
+            options: { captchaToken },
           });
 
       const { error: authError } = await authAction;
@@ -75,6 +89,8 @@ export default function Login() {
       }
     } catch (err) {
       setError(err.message || (mode === "signup" ? "Unable to create account." : "Invalid credentials."));
+      setCaptchaToken("");
+      setCaptchaResetKey((key) => key + 1);
       setLoading(false);
     }
   };
@@ -187,10 +203,15 @@ export default function Login() {
                 </div>
               )}
 
+              <AuthTurnstile
+                resetKey={captchaResetKey}
+                onTokenChange={setCaptchaToken}
+              />
+
               {/* BUTTON */}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || (isTurnstileEnabled() && !captchaToken)}
                 className="w-full py-3 bg-[#FC687D] text-white rounded-xl text-sm hover:bg-rose-500 transition"
               >
                 {mode === "signup" ? "Sign Up" : "Sign In"}
@@ -200,6 +221,8 @@ export default function Login() {
                 type="button"
                 onClick={() => {
                   setError("");
+                  setCaptchaToken("");
+                  setCaptchaResetKey((key) => key + 1);
                   setMode((m) => (m === "signup" ? "signin" : "signup"));
                 }}
                 className="w-full py-2 text-xs font-bold text-[#FC687D]"

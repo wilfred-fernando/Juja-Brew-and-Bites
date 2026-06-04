@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Banknote } from "lucide-react";
+import AuthTurnstile, { isTurnstileEnabled } from "@/components/AuthTurnstile";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
 const supabase = getSupabaseClient();
@@ -14,6 +15,8 @@ function financePath(path) {
 export default function FinanceLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -55,12 +58,19 @@ export default function FinanceLoginPage() {
   async function handleLogin(event) {
     event.preventDefault();
     setError("");
+
+    if (isTurnstileEnabled() && !captchaToken) {
+      setError("Please complete the security check.");
+      return;
+    }
+
     setLoading(true);
 
     try {
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
+        options: { captchaToken },
       });
 
       if (authError) throw authError;
@@ -90,6 +100,8 @@ export default function FinanceLoginPage() {
       window.location.href = financePath("/expenses");
     } catch (err) {
       setError(err?.message === "Invalid login credentials" ? "Incorrect email or password." : err?.message || "Login failed.");
+      setCaptchaToken("");
+      setCaptchaResetKey((key) => key + 1);
       setLoading(false);
     }
   }
@@ -136,9 +148,14 @@ export default function FinanceLoginPage() {
             </div>
           ) : null}
 
+          <AuthTurnstile
+            resetKey={captchaResetKey}
+            onTokenChange={setCaptchaToken}
+          />
+
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (isTurnstileEnabled() && !captchaToken)}
             className="h-12 w-full rounded-full bg-[#FC687D] text-sm font-black uppercase tracking-wide text-white shadow-lg shadow-rose-100 transition active:scale-[0.99] disabled:opacity-50"
           >
             {loading ? "Verifying..." : "Enter Finance"}

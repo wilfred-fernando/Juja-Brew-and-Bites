@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import AuthTurnstile, { isTurnstileEnabled } from "@/components/AuthTurnstile";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
 const supabase = getSupabaseClient();
@@ -8,6 +9,8 @@ const supabase = getSupabaseClient();
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -15,6 +18,12 @@ export default function AdminLoginPage() {
     e.preventDefault();
 
     setError("");
+
+    if (isTurnstileEnabled() && !captchaToken) {
+      setError("Please complete the security check.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -23,6 +32,7 @@ export default function AdminLoginPage() {
         await supabase.auth.signInWithPassword({
           email,
           password,
+          options: { captchaToken },
         });
 
       if (authError) throw authError;
@@ -64,6 +74,8 @@ export default function AdminLoginPage() {
           : err.message;
 
       setError(message);
+      setCaptchaToken("");
+      setCaptchaResetKey((key) => key + 1);
       setLoading(false);
     }
   };
@@ -103,9 +115,14 @@ export default function AdminLoginPage() {
             </div>
           )}
 
+          <AuthTurnstile
+            resetKey={captchaResetKey}
+            onTokenChange={setCaptchaToken}
+          />
+
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (isTurnstileEnabled() && !captchaToken)}
             className="w-full py-4 bg-[#FC687D] text-white rounded-full font-bold shadow-lg shadow-rose-100 active:scale-95 transition-all disabled:opacity-50"
           >
             {loading ? "Verifying..." : "Enter Portal →"}
