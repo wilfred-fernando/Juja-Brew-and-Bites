@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import AuthTurnstile, { isTurnstileEnabled } from "@/components/AuthTurnstile";
+import PasswordField from "@/components/PasswordField";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
 const supabase = getSupabaseClient();
@@ -98,13 +99,11 @@ export default function AdminLoginPage() {
             required
           />
 
-          <input
-            type="password"
+          <PasswordField
             placeholder="Password"
             className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-[#FC687D]/30 transition-all text-slate-700"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            required
           />
 
           {error && (

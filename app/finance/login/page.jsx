@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Banknote } from "lucide-react";
 import AuthTurnstile, { isTurnstileEnabled } from "@/components/AuthTurnstile";
+import PasswordField from "@/components/PasswordField";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
 const supabase = getSupabaseClient();
@@ -132,13 +133,11 @@ export default function FinanceLoginPage() {
 
           <label className="block text-xs font-black uppercase tracking-wide text-slate-500">
             Password
-            <input
-              type="password"
+            <PasswordField
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="mt-2 h-12 w-full rounded-2xl border border-rose-100 bg-slate-50 px-4 text-sm font-semibold normal-case text-slate-800 outline-none focus:border-[#FC687D]/50"
               placeholder="Password"
-              required
             />
           </label>
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import AuthTurnstile, { isTurnstileEnabled } from "@/components/AuthTurnstile";
+import PasswordField from "@/components/PasswordField";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -123,13 +124,11 @@ export default function LoginPage() {
           <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
             Password
           </label>
-          <input
+          <PasswordField
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-rose-300"
-            placeholder="••••••••"
-            required
-            type="password"
+            placeholder="Password"
           />
         </div>
 
