@@ -59,8 +59,14 @@ export default function FinanceLayout({ children }) {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#FFF5F7]">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-rose-200 border-t-[#FC687D]" />
+      <div
+        className="flex h-screen items-center justify-center bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage:
+            "linear-gradient(135deg, rgba(248,250,252,0.78), rgba(226,232,240,0.70)), url('https://images.jujabrewandbites.com/page%20background.png')",
+        }}
+      >
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-cyan-100 border-t-cyan-600" />
       </div>
     );
   }
@@ -75,27 +81,33 @@ export default function FinanceLayout({ children }) {
     ];
 
   return (
-    <div className="min-h-screen bg-[#FFF5F7]">
-      <header className="sticky top-0 z-30 border-b border-rose-100 bg-white/95 px-4 py-3 shadow-sm backdrop-blur sm:px-6">
+    <div
+      className="min-h-screen bg-cover bg-fixed bg-center bg-no-repeat text-slate-950"
+      style={{
+        backgroundImage:
+          "radial-gradient(circle at top left, rgba(34,211,238,0.18), transparent 32%), linear-gradient(135deg, rgba(248,250,252,0.78), rgba(226,232,240,0.68)), url('https://images.jujabrewandbites.com/page%20background.png')",
+      }}
+    >
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950/82 px-4 py-3 shadow-[0_18px_45px_rgba(2,6,23,0.28)] backdrop-blur-xl sm:px-6">
         <div className="flex w-full items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-[#FC687D]">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-300/30 bg-cyan-400/15 text-cyan-100 shadow-[0_0_28px_rgba(34,211,238,0.22)]">
               <Banknote size={20} />
             </span>
             <div>
-              <h1 className="text-sm font-black uppercase tracking-wide text-slate-900">Finance Admin</h1>
-              <p className="text-xs font-semibold text-slate-500">{userEmail}</p>
+              <h1 className="text-sm font-semibold uppercase tracking-[0.18em] text-white">JUJA Finance</h1>
+              <p className="text-xs text-slate-300">{userEmail}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <nav className="hidden items-center gap-1 rounded-xl border border-rose-100 bg-rose-50 p-1 sm:flex">
+            <nav className="hidden items-center gap-1 rounded-xl border border-white/10 bg-white/5 p-1 sm:flex">
               {navItems.map(([key, path, label, Icon]) => (
                 <Link
                   key={key}
                   href={financePath(path)}
-                  className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-[10px] font-black uppercase tracking-wide ${
-                    activeSection === key ? "bg-white text-[#FC687D] shadow-sm" : "text-slate-500 hover:text-slate-800"
+                  className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-[10px] font-semibold uppercase tracking-[0.16em] transition duration-200 ${
+                    activeSection === key ? "bg-cyan-300/15 text-cyan-100 shadow-[0_0_24px_rgba(34,211,238,0.18)]" : "text-slate-300 hover:bg-white/10 hover:text-white"
                   }`}
                 >
                   <Icon size={14} />
@@ -107,7 +119,7 @@ export default function FinanceLayout({ children }) {
             <button
               type="button"
               onClick={handleLogout}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-rose-100 bg-white px-3 text-xs font-black uppercase tracking-wide text-slate-700 hover:bg-rose-50 hover:text-[#FC687D]"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-100 shadow-[0_12px_28px_rgba(2,6,23,0.20)] transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300/40 hover:bg-cyan-300/10 hover:text-cyan-100 active:translate-y-0"
             >
               <LogOut size={16} />
               Sign Out
@@ -120,8 +132,8 @@ export default function FinanceLayout({ children }) {
             <Link
               key={key}
               href={financePath(path)}
-              className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl border text-[10px] font-black uppercase tracking-wide ${
-                activeSection === key ? "border-rose-200 bg-white text-[#FC687D]" : "border-rose-100 bg-rose-50 text-slate-500"
+               className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl border text-[10px] font-semibold uppercase tracking-[0.16em] transition duration-200 ${
+                activeSection === key ? "border-cyan-300/40 bg-cyan-300/15 text-cyan-100" : "border-white/10 bg-white/5 text-slate-300"
               }`}
             >
               <Icon size={14} />
@@ -131,7 +143,7 @@ export default function FinanceLayout({ children }) {
         </nav>
       </header>
 
-      <main className="w-full p-4 sm:p-6 lg:p-8">{children}</main>
+      <main className="w-full animate-[financeFade_260ms_ease-out] p-4 sm:p-6 lg:p-8">{children}</main>
     </div>
   );
 }

@@ -177,7 +177,7 @@ function expenseSourceLabel(row, storeNameById) {
 
 function Field({ label, children }) {
   return (
-    <label className="block text-[10px] font-black uppercase tracking-wide text-slate-500">
+    <label className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
       {label}
       <div className="mt-1">{children}</div>
     </label>
@@ -188,7 +188,7 @@ function Input(props) {
   return (
     <input
       {...props}
-      className={`h-10 w-full rounded-xl border border-rose-100 bg-white px-3 text-sm font-semibold text-slate-800 outline-none focus:border-[#FC687D]/60 ${props.className || ""}`}
+      className={`h-10 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm text-slate-800 shadow-sm outline-none transition duration-200 placeholder:text-slate-400 focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20 ${props.className || ""}`}
     />
   );
 }
@@ -197,26 +197,26 @@ function Select(props) {
   return (
     <select
       {...props}
-      className={`h-10 w-full rounded-xl border border-rose-100 bg-white px-3 text-sm font-semibold text-slate-800 outline-none focus:border-[#FC687D]/60 ${props.className || ""}`}
+      className={`h-10 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm text-slate-800 shadow-sm outline-none transition duration-200 focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20 ${props.className || ""}`}
     />
   );
 }
 
 function SummaryCard({ label, value, icon: Icon, tone = "rose" }) {
   const tones = {
-    rose: "bg-rose-50 text-[#FC687D] border-rose-100",
-    emerald: "bg-emerald-50 text-emerald-600 border-emerald-100",
+    rose: "bg-cyan-50 text-cyan-700 border-cyan-100",
+    emerald: "bg-cyan-50 text-cyan-700 border-cyan-100",
     amber: "bg-amber-50 text-amber-600 border-amber-100",
     slate: "bg-slate-50 text-slate-600 border-slate-200",
   };
   return (
-    <div className="rounded-2xl border border-rose-100 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-cyan-200/80 hover:shadow-[0_24px_60px_rgba(8,145,178,0.14)]">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">{label}</p>
-          <p className="mt-1 text-xl font-black text-slate-900">{value}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-950">{value}</p>
         </div>
-        <span className={`flex h-11 w-11 items-center justify-center rounded-xl border ${tones[tone] || tones.rose}`}>
+        <span className={`flex h-12 w-12 items-center justify-center rounded-2xl border shadow-[0_0_24px_rgba(34,211,238,0.18)] ${tones[tone] || tones.rose}`}>
           <Icon size={20} />
         </span>
       </div>
@@ -226,7 +226,7 @@ function SummaryCard({ label, value, icon: Icon, tone = "rose" }) {
 
 function EmptyState({ message }) {
   return (
-    <div className="rounded-2xl border border-dashed border-rose-100 bg-white p-6 text-center text-sm font-semibold text-slate-400">
+    <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 p-8 text-center text-sm text-slate-400 shadow-sm backdrop-blur">
       {message}
     </div>
   );
@@ -236,17 +236,17 @@ function Modal({ open, title, children, onClose, width = "max-w-5xl" }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[220] flex items-center justify-center bg-rose-950/40 p-3 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-[220] flex items-center justify-center bg-slate-950/62 p-3 backdrop-blur-md" onClick={onClose}>
       <div
-        className={`max-h-[92vh] w-full ${width} overflow-y-auto rounded-2xl border border-rose-100 bg-white p-4 shadow-2xl`}
+        className={`max-h-[92vh] w-full ${width} overflow-y-auto rounded-3xl border border-white/70 bg-white/92 p-5 shadow-[0_30px_90px_rgba(2,6,23,0.35)] backdrop-blur-xl`}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="mb-4 flex items-center justify-between gap-3 border-b border-rose-50 pb-3">
-          <h2 className="text-base font-black text-slate-900">{title}</h2>
+        <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <h2 className="text-base font-semibold text-slate-950">{title}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-500"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition hover:bg-slate-200"
             aria-label="Close"
           >
             <X size={17} />
@@ -1035,16 +1035,16 @@ export default function FinanceExpenseManager() {
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-[#FC687D]">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-cyan-700">
               {scope === "overall" ? "Expenses Database" : `${selectedStoreName} Petty Cash`}
             </p>
-            <h2 className="text-lg font-black text-slate-900">
+            <h2 className="text-lg font-semibold text-slate-950">
               {editingThisForm ? "Edit Entry" : scope === "overall" ? "Add Overall Expense" : "Add Petty Cash Expense"}
             </h2>
           </div>
-          <div className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-2 text-right">
-            <p className="text-[9px] font-black uppercase tracking-wider text-rose-400">Total</p>
-            <p className="text-lg font-black text-slate-900">{peso(math.total)}</p>
+          <div className="rounded-xl border border-cyan-100 bg-cyan-50/80 px-4 py-2 text-right shadow-[0_0_24px_rgba(34,211,238,0.12)]">
+            <p className="text-[9px] font-semibold uppercase tracking-wider text-cyan-700">Total</p>
+            <p className="text-lg font-semibold text-slate-950">{peso(math.total)}</p>
           </div>
         </div>
 
@@ -1135,21 +1135,21 @@ export default function FinanceExpenseManager() {
 
         <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-5">
           <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-            <p className="text-[9px] font-black uppercase text-slate-400">Sub-total</p>
-            <p className="text-sm font-black">{peso(math.subtotal)}</p>
+            <p className="text-[9px] font-semibold uppercase text-slate-400">Sub-total</p>
+            <p className="text-sm font-semibold">{peso(math.subtotal)}</p>
           </div>
           <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-            <p className="text-[9px] font-black uppercase text-slate-400">OP-EX</p>
-            <p className="text-sm font-black">{peso(allocation.opex)}</p>
+            <p className="text-[9px] font-semibold uppercase text-slate-400">OP-EX</p>
+            <p className="text-sm font-semibold">{peso(allocation.opex)}</p>
           </div>
           <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-            <p className="text-[9px] font-black uppercase text-slate-400">Personal</p>
-            <p className="text-sm font-black">{peso(allocation.personal)}</p>
+            <p className="text-[9px] font-semibold uppercase text-slate-400">Personal</p>
+            <p className="text-sm font-semibold">{peso(allocation.personal)}</p>
           </div>          
           <button
             type="submit"
             disabled={saving === scope || (scope === "petty" && !selectedStoreId)}
-            className="h-full min-h-14 rounded-xl bg-[#FC687D] px-4 text-xs font-black uppercase tracking-wider text-white shadow-sm transition active:scale-[0.99] disabled:bg-rose-200"
+            className="h-full min-h-14 rounded-xl bg-cyan-600 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500 hover:shadow-[0_0_34px_rgba(34,211,238,0.36)] active:translate-y-0 disabled:bg-slate-300"
           >
             {saving === scope ? "Saving..." : editingThisForm ? "Update Entry" : "Save Entry"}
           </button>
@@ -1162,14 +1162,14 @@ export default function FinanceExpenseManager() {
     const { showStore = false, showSource = false } = options;
     const isOverallTable = tableName === "finance_expenses";
     const dataPillClass = isOverallTable
-      ? "rounded-md bg-slate-100 px-2 py-1 text-[10px] font-black uppercase text-black"
-      : "rounded-lg border border-rose-100 bg-rose-50 px-2 py-1 text-[10px] font-black uppercase text-black";
+      ? "rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase text-black"
+      : "rounded-lg border border-cyan-100 bg-cyan-50 px-2 py-1 text-[10px] font-semibold uppercase text-black";
     if (rows.length === 0) return <EmptyState message="No expense records yet." />;
 
     return (
-      <div className="overflow-x-auto rounded-2xl border border-rose-100 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-2xl border border-white/70 bg-white/88 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl">
         <table className="w-full min-w-[980px] text-sm">
-          <thead className="bg-rose-50 text-left text-[10px] font-black uppercase tracking-wider text-rose-700">
+          <thead className="sticky top-0 bg-slate-950 text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-50">
             <tr>
               <th className="px-4 py-3">Date</th>
               {showSource ? <th className="px-4 py-3">Tag</th> : null}
@@ -1192,7 +1192,7 @@ export default function FinanceExpenseManager() {
             {rows.map((row) => {
               const sourceLabel = expenseSourceLabel(row, storeNameById);
               return (
-                <tr key={row.id} className="border-t border-rose-50 text-slate-700">
+                <tr key={row.id} className="border-t border-slate-100 text-slate-700 transition duration-200 hover:bg-cyan-50/45">
                   <td className="px-4 py-3 font-semibold">{dateText(row.expense_date)}</td>
                   {showSource ? (
                     <td className="px-4 py-3">
@@ -1202,14 +1202,14 @@ export default function FinanceExpenseManager() {
                     </td>
                   ) : null}
                   {showStore ? <td className="px-4 py-3 font-semibold">{storeNameById[row.store_id] || "-"}</td> : null}
-                  <td className="px-4 py-3 font-black text-slate-900">{row.description}</td>
+                  <td className="px-4 py-3 font-semibold text-slate-950">{row.description}</td>
                   <td className="px-4 py-3">{row.item_common_name || "-"}</td>
                   <td className="px-4 py-3">{row.supplier_name || "-"}</td>
                   <td className="px-4 py-3 text-right">{Number(row.quantity || 0).toLocaleString("en-PH")}</td>
                   <td className="px-4 py-3">{row.unit || "-"}</td>
                   <td className="px-4 py-3 text-right">{peso(row.subtotal)}</td>
                   <td className="px-4 py-3 text-right">{peso(row.discount)}</td>
-                  <td className="px-4 py-3 text-right font-black text-slate-900">{peso(row.total)}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-slate-950">{peso(row.total)}</td>
                   <td className="px-4 py-3">
                     <span className={dataPillClass}>{row.category}</span>
                   </td>
@@ -1220,7 +1220,7 @@ export default function FinanceExpenseManager() {
                       <button
                         type="button"
                         onClick={() => openExpenseModal(tableName === "finance_petty_cash_entries" ? "petty" : "overall", row)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-100 bg-rose-50 text-[#FC687D]"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-100 bg-cyan-50 text-cyan-700 transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-100"
                         aria-label="✏️"
                       >
                         <Pencil size={14} />
@@ -1268,7 +1268,7 @@ export default function FinanceExpenseManager() {
         <button
           type="submit"
           disabled={saving === "fund" || !selectedStoreId}
-          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#FC687D] text-xs font-black uppercase tracking-wider text-white shadow-sm disabled:bg-rose-200"
+          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500 disabled:bg-slate-300"
         >
           <Plus size={15} />
           {saving === "fund" ? "Saving..." : editingFund ? "Update Cash In" : "Save Cash In"}
@@ -1279,7 +1279,7 @@ export default function FinanceExpenseManager() {
 
   function renderDateFilter(label, filter, setFilter) {
     return (
-      <div className="rounded-2xl border border-rose-100 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border border-white/70 bg-white/78 p-4 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl transition duration-300 hover:border-cyan-200/80">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
           <Field label={`${label} From`}>
             <Input type="date" value={filter.from} onChange={(e) => setFilter((prev) => ({ ...prev, from: e.target.value }))} />
@@ -1290,7 +1290,7 @@ export default function FinanceExpenseManager() {
           <button
             type="button"
             onClick={() => setFilter(emptyDateFilter)}
-            className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-100 bg-rose-50 px-4 text-xs font-black uppercase tracking-wider text-[#FC687D]"
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-100 px-4 text-xs font-semibold uppercase tracking-wider text-slate-700 transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300 hover:text-cyan-700"
           >
             Clear Date
           </button>
@@ -1304,13 +1304,13 @@ export default function FinanceExpenseManager() {
     if (!canManageAll || rows.length === 0) return null;
 
     return (
-      <div className="rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border border-amber-100 bg-white/95 p-4 shadow-[0_18px_45px_rgba(15,23,42,0.06)]">
         <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">Approval</p>
-            <h2 className="text-sm font-black text-slate-900">Pending Delete Requests</h2>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-600">Approval</p>
+            <h2 className="text-sm font-semibold text-slate-950">Pending Delete Requests</h2>
           </div>
-          <span className="rounded-lg bg-amber-50 px-3 py-1 text-[10px] font-black uppercase text-amber-700">
+          <span className="rounded-lg bg-amber-50 px-3 py-1 text-[10px] font-semibold uppercase text-amber-700">
             {rows.length} Pending
           </span>
         </div>
@@ -1321,7 +1321,7 @@ export default function FinanceExpenseManager() {
               <div key={request.id} className="rounded-xl border border-amber-100 bg-amber-50/50 p-3">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <p className="text-sm font-black text-slate-900">{snapshot.description || snapshot.particular || request.record_id}</p>
+                    <p className="text-sm font-semibold text-slate-950">{snapshot.description || snapshot.particular || request.record_id}</p>
                     <p className="mt-1 text-[11px] font-semibold text-slate-500">
                       {request.store_name || storeNameById[request.store_id] || "Store"} / requested by {request.requested_by_name || "Cashier"} / {dateText(request.requested_at)}
                     </p>
@@ -1331,14 +1331,14 @@ export default function FinanceExpenseManager() {
                       type="button"
                       onClick={() => approveDeleteRequest(request)}
                       disabled={saving === `approve_${request.id}`}
-                      className="inline-flex h-9 items-center justify-center rounded-xl bg-[#FC687D] px-3 text-[10px] font-black uppercase tracking-wider text-white disabled:bg-rose-200"
+                      className="inline-flex h-9 items-center justify-center rounded-xl bg-cyan-600 px-3 text-[10px] font-semibold uppercase tracking-wider text-white transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500 disabled:bg-slate-300"
                     >
                       Approve
                     </button>
                     <button
                       type="button"
                       onClick={() => rejectDeleteRequest(request)}
-                      className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-[10px] font-black uppercase tracking-wider text-slate-600"
+                      className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-600 transition duration-200 hover:-translate-y-0.5 hover:border-cyan-200 hover:text-cyan-700"
                     >
                       Reject
                     </button>
@@ -1389,7 +1389,7 @@ export default function FinanceExpenseManager() {
         <button
           type="submit"
           disabled={saving === "reference"}
-          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#FC687D] text-xs font-black uppercase tracking-wider text-white shadow-sm disabled:bg-rose-200"
+          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500 disabled:bg-slate-300"
         >
           {saving === "reference" ? "Saving..." : editingReferenceId ? "Save Reference" : "Add Reference"}
         </button>
@@ -1403,7 +1403,7 @@ export default function FinanceExpenseManager() {
 
     return (
       <div className="space-y-4">
-        <div className="flex flex-col gap-3 rounded-2xl border border-rose-100 bg-white p-4 shadow-sm md:flex-row md:items-end md:justify-between">
+        <div className="flex flex-col gap-3 rounded-2xl border border-white/70 bg-white/78 p-4 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl md:flex-row md:items-end md:justify-between">
           <Field label="Reference Type">
             <Select value={referenceFilter} onChange={(e) => setReferenceFilter(e.target.value)}>
               <option value="all">All references</option>
@@ -1413,7 +1413,7 @@ export default function FinanceExpenseManager() {
           <button
             type="button"
             onClick={() => openReferenceModal()}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#FC687D] px-4 text-xs font-black uppercase tracking-wider text-white"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.25)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500"
           >
             <Plus size={15} />
             Add Reference
@@ -1423,9 +1423,9 @@ export default function FinanceExpenseManager() {
         {rows.length === 0 ? (
           <EmptyState message="No references yet." />
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-rose-100 bg-white shadow-sm">
+          <div className="overflow-x-auto rounded-2xl border border-white/70 bg-white/88 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl">
             <table className="w-full min-w-[760px] text-sm">
-              <thead className="bg-rose-50 text-left text-[10px] font-black uppercase tracking-wider text-rose-700">
+              <thead className="sticky top-0 bg-slate-950 text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-50">
                 <tr>
                   <th className="px-4 py-3">Type</th>
                   <th className="px-4 py-3">Name</th>
@@ -1437,13 +1437,13 @@ export default function FinanceExpenseManager() {
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={row.id} className="border-t border-rose-50">
+                  <tr key={row.id} className="border-t border-slate-100 transition duration-200 hover:bg-cyan-50/45">
                     <td className="px-4 py-3 font-bold text-slate-500">{labelByType[row.ref_type] || row.ref_type}</td>
-                    <td className="px-4 py-3 font-black text-slate-900">{row.name}</td>
+                    <td className="px-4 py-3 font-semibold text-slate-950">{row.name}</td>
                     <td className="px-4 py-3">{row.common_name || "-"}</td>
                     <td className="px-4 py-3">{row.notes || "-"}</td>
                     <td className="px-4 py-3">
-                      <span className={`rounded-lg border px-2 py-1 text-[10px] font-black uppercase ${row.is_active === false ? "border-slate-200 bg-slate-50 text-slate-500" : "border-emerald-100 bg-emerald-50 text-emerald-600"}`}>
+                      <span className={`rounded-lg border px-2 py-1 text-[10px] font-semibold uppercase ${row.is_active === false ? "border-slate-200 bg-slate-50 text-slate-500" : "border-cyan-100 bg-cyan-50 text-cyan-700"}`}>
                         {row.is_active === false ? "Inactive" : "Active"}
                       </span>
                     </td>
@@ -1451,7 +1451,7 @@ export default function FinanceExpenseManager() {
                       <button
                         type="button"
                         onClick={() => openReferenceModal(row)}
-                        className="inline-flex h-8 items-center justify-center gap-2 rounded-lg border border-rose-100 bg-rose-50 px-3 text-[10px] font-black uppercase text-[#FC687D]"
+                        className="inline-flex h-8 items-center justify-center gap-2 rounded-lg border border-cyan-100 bg-cyan-50 px-3 text-[10px] font-semibold uppercase text-cyan-700 transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-100"
                       >
                         <Pencil size={13} />
                         Edit
@@ -1476,45 +1476,47 @@ export default function FinanceExpenseManager() {
     ];
 
   return (
-    <div className="space-y-5">
+      <div className="space-y-6">
+      <div className="rounded-3xl border border-white/20 bg-slate-950/78 p-5 text-white shadow-[0_28px_80px_rgba(2,6,23,0.32)] backdrop-blur-xl sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#FC687D]">Finance</p>
-          <h1 className="text-2xl font-black text-slate-950 sm:text-3xl">Expenses & Petty Cash</h1>
-          <p className="mt-1 text-sm font-semibold text-slate-500">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-200">Finance Control Center</p>
+          <h1 className="mt-1 text-2xl font-semibold text-white sm:text-3xl">Expenses & Petty Cash</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
             Adapted from Data Entry v1.4: Database is the overall expense ledger, petty cash is separated by store.
           </p>
         </div>
         <button
           type="button"
           onClick={loadData}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-rose-100 bg-white px-4 text-xs font-black uppercase tracking-wider text-[#FC687D] shadow-sm"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-4 text-xs font-semibold uppercase tracking-wider text-cyan-100 shadow-[0_0_24px_rgba(34,211,238,0.18)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-300/18"
         >
           <RefreshCw size={15} />
           Refresh
         </button>
       </div>
+      </div>
 
       {notice ? (
-        <div className={`rounded-2xl border p-3 text-sm font-bold ${notice.type === "error" ? "border-red-100 bg-red-50 text-red-600" : "border-emerald-100 bg-emerald-50 text-emerald-700"}`}>
+        <div className={`rounded-2xl border p-3 text-sm font-semibold shadow-sm ${notice.type === "error" ? "border-red-100 bg-red-50 text-red-600" : "border-cyan-100 bg-cyan-50 text-cyan-800"}`}>
           {notice.message}
         </div>
       ) : null}
 
       {setupMissing ? (
         <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm font-bold text-amber-800">
-          Finance tables are not available yet. Run <span className="font-black">supabase/finance_expenses_setup.sql</span> in Supabase, then refresh this page.
+          Finance tables are not available yet. Run <span className="font-semibold">supabase/finance_expenses_setup.sql</span> in Supabase, then refresh this page.
         </div>
       ) : null}
 
-      <div className={`grid gap-2 rounded-2xl border border-rose-100 bg-white p-1 shadow-sm md:w-fit ${financeTabs.length === 1 ? "grid-cols-1" : "grid-cols-3"}`}>
+      <div className={`grid gap-2 rounded-2xl border border-white/70 bg-white/72 p-1 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl md:w-fit ${financeTabs.length === 1 ? "grid-cols-1" : "grid-cols-3"}`}>
         {financeTabs.map(([key, label, Icon]) => (
           <button
             key={key}
             type="button"
             onClick={() => setTab(key)}
-            className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black uppercase tracking-wider transition ${
-              tab === key ? "bg-[#FC687D] text-white shadow-sm" : "text-slate-500 hover:bg-rose-50"
+            className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-xs font-semibold uppercase tracking-wider transition duration-200 ${
+              tab === key ? "bg-slate-950 text-cyan-50 shadow-[0_0_28px_rgba(34,211,238,0.16)]" : "text-slate-500 hover:-translate-y-0.5 hover:bg-cyan-50 hover:text-cyan-700"
             }`}
           >
             <Icon size={15} />
@@ -1524,8 +1526,8 @@ export default function FinanceExpenseManager() {
       </div>
 
       {loading ? (
-        <div className="flex min-h-72 items-center justify-center rounded-2xl border border-rose-100 bg-white">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-rose-100 border-t-[#FC687D]" />
+          <div className="flex min-h-72 items-center justify-center rounded-2xl border border-white/70 bg-white/78 backdrop-blur-xl">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-cyan-100 border-t-cyan-600" />
         </div>
       ) : tab === "overall" ? (
         <div className="space-y-5">
@@ -1539,7 +1541,7 @@ export default function FinanceExpenseManager() {
             <button
               type="button"
               onClick={() => openExpenseModal("overall")}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#FC687D] px-4 text-xs font-black uppercase tracking-wider text-white shadow-sm"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_30px_rgba(8,145,178,0.30)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500 active:translate-y-0"
             >
               <Plus size={15} />
               Add Overall Expense
@@ -1550,7 +1552,7 @@ export default function FinanceExpenseManager() {
       ) : tab === "petty" ? (
         <div className="space-y-5">
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-            <div className="rounded-2xl border border-rose-100 bg-white p-4 shadow-sm">
+            <div className="rounded-2xl border border-white/70 bg-white/78 p-4 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl transition duration-300 hover:border-cyan-200/80">
             <Field label={isCashier ? "Assigned Branch" : "Petty Cash Store"}>
               <Select value={selectedStoreId} onChange={(e) => setSelectedStoreId(e.target.value)} disabled={isCashier}>
                 <option value="">Select store</option>
@@ -1575,7 +1577,7 @@ export default function FinanceExpenseManager() {
               type="button"
               onClick={() => openExpenseModal("petty")}
               disabled={!selectedStoreId}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[#FC687D] px-4 text-xs font-black uppercase tracking-wider text-white shadow-sm disabled:bg-rose-200"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_30px_rgba(8,145,178,0.30)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500 disabled:bg-slate-300"
             >
               <Plus size={15} />
               Add Petty Cash Expense
@@ -1584,7 +1586,7 @@ export default function FinanceExpenseManager() {
               type="button"
               onClick={() => openFundModal()}
               disabled={!selectedStoreId}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-rose-100 bg-white px-4 text-xs font-black uppercase tracking-wider text-[#FC687D] shadow-sm disabled:text-rose-200"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-cyan-100 bg-white/90 px-4 text-xs font-semibold uppercase tracking-wider text-cyan-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-cyan-50 disabled:text-slate-300"
             >
               <ArrowUpCircle size={15} />
               Add Cash In
@@ -1592,10 +1594,10 @@ export default function FinanceExpenseManager() {
           </div>
 
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            <div className="rounded-2xl border border-rose-100 bg-white p-4 shadow-sm">
+            <div className="rounded-2xl border border-white/70 bg-white/78 p-4 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
               <div className="mb-3 flex items-center gap-2">
-                <Store size={17} className="text-[#FC687D]" />
-                <h2 className="text-sm font-black text-slate-900">Store Petty Cash Balances</h2>
+                <Store size={17} className="text-cyan-700" />
+                <h2 className="text-sm font-semibold text-slate-950">Store Petty Cash Balances</h2>
               </div>
               <div className="space-y-2">
                 {pettyStoreSummary.length === 0 ? (
@@ -1607,12 +1609,12 @@ export default function FinanceExpenseManager() {
                     onClick={() => !isCashier && setSelectedStoreId(row.store.id)}
                     disabled={isCashier}
                     className={`w-full rounded-xl border p-3 text-left transition ${
-                      String(selectedStoreId) === String(row.store.id) ? "border-rose-300 bg-rose-50" : "border-slate-100 bg-white hover:bg-slate-50"
+                      String(selectedStoreId) === String(row.store.id) ? "border-cyan-200 bg-cyan-50 shadow-[0_0_24px_rgba(34,211,238,0.12)]" : "border-slate-100 bg-white/85 hover:-translate-y-0.5 hover:bg-cyan-50/50"
                     }`}
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-black text-slate-900">{row.store.name}</p>
-                      <p className="text-sm font-black text-[#FC687D]">{peso(row.cashOnHand)}</p>
+                      <p className="text-sm font-semibold text-slate-950">{row.store.name}</p>
+                      <p className="text-sm font-semibold text-cyan-700">{peso(row.cashOnHand)}</p>
                     </div>
                     <p className="mt-1 text-[10px] font-bold text-slate-400">
                       Cash in {peso(row.fundTotal)} / Expenses {peso(row.expenseTotal)}
@@ -1622,27 +1624,27 @@ export default function FinanceExpenseManager() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-rose-100 bg-white p-4 shadow-sm">
+            <div className="rounded-2xl border border-white/70 bg-white/78 p-4 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
               <div className="mb-3 flex items-center gap-2">
-                <ArrowUpCircle size={17} className="text-emerald-600" />
-                <h2 className="text-sm font-black text-slate-900">{selectedStoreName} Cash In Records</h2>
+                <ArrowUpCircle size={17} className="text-cyan-700" />
+                <h2 className="text-sm font-semibold text-slate-950">{selectedStoreName} Cash In Records</h2>
               </div>
               {selectedStoreFunds.length === 0 ? (
                 <EmptyState message="No cash-in records for this store." />
               ) : (
                 <div className="space-y-2">
                   {selectedStoreFunds.slice(0, 8).map((fund) => (
-                    <div key={fund.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
+                    <div key={fund.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white/85 p-3 transition duration-200 hover:-translate-y-0.5 hover:border-cyan-200 hover:bg-cyan-50/45">
                       <div>
-                        <p className="text-xs font-black text-slate-900">{fund.source_of_fund}</p>
+                        <p className="text-xs font-semibold text-slate-950">{fund.source_of_fund}</p>
                         <p className="text-[10px] font-semibold text-slate-400">{dateText(fund.fund_date)} / {fund.particular || "Petty cash fund"}</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <p className="text-xs font-black text-emerald-600">{peso(fund.amount)}</p>
+                        <p className="text-xs font-semibold text-cyan-700">{peso(fund.amount)}</p>
                         <button
                           type="button"
                           onClick={() => openFundModal(fund)}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-100 bg-rose-50 text-[#FC687D]"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-100 bg-cyan-50 text-cyan-700 transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-100"
                           aria-label="✏️"
                         >
                           <Pencil size={14} />
@@ -1697,8 +1699,8 @@ export default function FinanceExpenseManager() {
         {renderReferenceForm()}
       </Modal>
 
-      <div className="rounded-2xl border border-rose-100 bg-white p-4 text-xs font-semibold text-slate-500 shadow-sm">
-        <p className="font-black uppercase tracking-wider text-slate-700">Workbook mapping</p>
+      <div className="rounded-2xl border border-white/70 bg-white/70 p-4 text-xs text-slate-500 shadow-[0_18px_45px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+        <p className="font-semibold uppercase tracking-wider text-slate-700">Workbook mapping</p>
         <p className="mt-1">Database sheet = overall expenses. PettyCash sheet = store-specific petty cash expenses plus cash-in records.</p>
       </div>
     </div>

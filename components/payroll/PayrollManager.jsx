@@ -168,7 +168,7 @@ function timeOptionsWithCurrent(value) {
 
 function statusClass(status) {
   const s = String(status || "draft").toLowerCase();
-  if (s === "paid") return "bg-emerald-50 text-emerald-600 border-emerald-100";
+  if (s === "paid") return "bg-cyan-50 text-cyan-700 border-cyan-100";
   if (s === "approved") return "bg-blue-50 text-blue-600 border-blue-100";
   if (s === "void") return "bg-slate-100 text-slate-500 border-slate-200";
   return "bg-amber-50 text-amber-600 border-amber-100";
@@ -907,21 +907,23 @@ export default function AdminPayrollPage() {
 
   return (
     <div className="space-y-6 pb-20">
-      <header className="flex flex-col gap-4 border-b border-rose-100 pb-6 lg:flex-row lg:items-end lg:justify-between">
+      <header className="rounded-3xl border border-white/20 bg-slate-950/78 p-5 text-white shadow-[0_28px_80px_rgba(2,6,23,0.32)] backdrop-blur-xl lg:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#FC687D]">Finance</p>
-          <h1 className="text-3xl font-black text-slate-800">Payroll System</h1>
-          <p className="mt-2 text-sm font-semibold text-slate-500">Saturday-Friday cutoff with Saturday payday.</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-cyan-200">Finance</p>
+          <h1 className="text-3xl font-semibold text-white">Payroll System</h1>
+          <p className="mt-2 text-sm text-slate-300">Saturday-Friday cutoff with Saturday payday.</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <select value={selectedPeriodId} onChange={(e) => setSelectedPeriodId(e.target.value)} className="h-11 rounded-xl border border-rose-100 bg-white px-3 text-sm font-bold outline-none">
+          <select value={selectedPeriodId} onChange={(e) => setSelectedPeriodId(e.target.value)} className="h-11 rounded-xl border border-cyan-300/30 bg-white/10 px-3 text-sm font-semibold text-white outline-none transition duration-200 focus:border-cyan-300/70 focus:ring-4 focus:ring-cyan-300/20">
             {sortedPeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}
           </select>
-          <button onClick={() => setActiveTab("generate")} className="h-11 rounded-xl bg-[#FC687D] px-5 text-xs font-black uppercase tracking-wider text-white">Generate Cutoff</button>
+          <button onClick={() => setActiveTab("generate")} className="h-11 rounded-xl bg-cyan-600 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_30px_rgba(34,211,238,0.26)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500">Generate Cutoff</button>
+        </div>
         </div>
       </header>
 
-      {notice ? <div className="rounded-xl border border-rose-100 bg-white p-3 text-sm font-bold text-slate-700 shadow-sm">{notice}</div> : null}
+      {notice ? <div className="rounded-xl border border-cyan-100 bg-cyan-50 p-3 text-sm font-semibold text-cyan-800 shadow-sm">{notice}</div> : null}
 
       <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         {[
@@ -930,15 +932,15 @@ export default function AdminPayrollPage() {
           ["Cash Advance", money(summary.cashAdvances), `${summary.late.toFixed(0)} late minutes`],
           ["Paid Status", `${summary.paid}/${summary.employees}`, selectedPeriod ? `${dateText(selectedPeriod.period_start)} - ${dateText(selectedPeriod.period_end)}` : "No period"],
         ].map(([label, value, sub]) => (
-          <div key={label} className="rounded-2xl border border-rose-50 bg-white p-5 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
-            <p className="mt-2 text-2xl font-black text-slate-800">{value}</p>
-            <p className="mt-1 text-xs font-semibold text-slate-500">{sub}</p>
+          <div key={label} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-cyan-200/80 hover:shadow-[0_24px_60px_rgba(8,145,178,0.14)]">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{label}</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-950">{value}</p>
+            <p className="mt-1 text-xs text-slate-500">{sub}</p>
           </div>
         ))}
       </section>
 
-      <div className="grid grid-cols-2 gap-2 rounded-2xl border border-rose-100 bg-rose-50 p-1 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/70 bg-white/72 p-1 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl md:grid-cols-3 xl:grid-cols-6">
         {[
           ["payroll", "Payroll"],
           ["generate", "Generate"],
@@ -947,7 +949,7 @@ export default function AdminPayrollPage() {
           ["attendance", "Attendance"],
           ["cashAdvance", "Cash Advance"],
         ].map(([key, label]) => (
-          <button key={key} onClick={() => setActiveTab(key)} className={`h-10 rounded-xl text-xs font-black uppercase tracking-wider ${activeTab === key ? "bg-[#FC687D] text-white" : "text-rose-700"}`}>
+          <button key={key} onClick={() => setActiveTab(key)} className={`h-10 rounded-xl text-xs font-semibold uppercase tracking-wider transition duration-200 ${activeTab === key ? "bg-slate-950 text-cyan-50 shadow-[0_0_28px_rgba(34,211,238,0.16)]" : "text-slate-600 hover:-translate-y-0.5 hover:bg-cyan-50 hover:text-cyan-700"}`}>
             {label}
           </button>
         ))}
@@ -956,29 +958,29 @@ export default function AdminPayrollPage() {
       {loading ? (
         <div className="py-16 text-center text-sm font-bold text-slate-400">Loading payroll...</div>
       ) : activeTab === "generate" ? (
-        <form onSubmit={generateCutoffPayroll} className="grid grid-cols-1 gap-4 rounded-2xl border border-rose-50 bg-white p-5 shadow-sm lg:grid-cols-4">
-          <label className="text-xs font-black uppercase tracking-wider text-slate-500">Cutoff Start
-            <input type="date" value={cutoffForm.cutoff_start} onChange={(e) => updateCutoffStart(e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-bold normal-case outline-none" />
+        <form onSubmit={generateCutoffPayroll} className="grid grid-cols-1 gap-4 rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl lg:grid-cols-4">
+          <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Cutoff Start
+            <input type="date" value={cutoffForm.cutoff_start} onChange={(e) => updateCutoffStart(e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm normal-case outline-none transition duration-200 focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
           </label>
-          <label className="text-xs font-black uppercase tracking-wider text-slate-500">Cutoff End
-            <input type="date" value={cutoffForm.cutoff_end} readOnly className="mt-2 h-11 w-full rounded-xl border border-rose-100 bg-rose-50 px-3 text-sm font-bold normal-case outline-none" />
+          <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Cutoff End
+            <input type="date" value={cutoffForm.cutoff_end} readOnly className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm normal-case outline-none" />
           </label>
-          <label className="text-xs font-black uppercase tracking-wider text-slate-500">Payday
-            <input type="date" value={cutoffForm.payday} readOnly className="mt-2 h-11 w-full rounded-xl border border-rose-100 bg-rose-50 px-3 text-sm font-bold normal-case outline-none" />
+          <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Payday
+            <input type="date" value={cutoffForm.payday} readOnly className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm normal-case outline-none" />
           </label>
-          <button disabled={saving} className="mt-6 h-11 rounded-xl bg-[#FC687D] px-5 text-xs font-black uppercase tracking-wider text-white disabled:opacity-50">
+          <button disabled={saving} className="mt-6 h-11 rounded-xl bg-cyan-600 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_30px_rgba(8,145,178,0.30)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500 disabled:bg-slate-300">
             {saving ? "Generating..." : "Generate Payroll"}
           </button>
         </form>
       ) : activeTab === "payroll" ? (
         <section className="space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <input value={search} onChange={(e) => setSearch(e.target.value)} className="h-11 w-full rounded-xl border border-rose-100 bg-white px-4 text-sm font-semibold outline-none sm:max-w-sm" placeholder="Search employee or employee no." />
-            <button onClick={() => openEntryModal()} className="h-11 rounded-xl border border-rose-100 bg-white px-5 text-xs font-black uppercase tracking-wider text-[#FC687D]">Add Payroll</button>
+            <input value={search} onChange={(e) => setSearch(e.target.value)} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-4 text-sm outline-none transition duration-200 focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20 sm:max-w-sm" placeholder="Search employee or employee no." />
+            <button onClick={() => openEntryModal()} className="h-11 rounded-xl border border-cyan-100 bg-cyan-50 px-5 text-xs font-semibold uppercase tracking-wider text-cyan-700 transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-100">Add Payroll</button>
           </div>
-          <div className="overflow-x-auto rounded-2xl border border-rose-50 bg-white shadow-sm">
+          <div className="overflow-x-auto rounded-2xl border border-white/70 bg-white/88 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl">
             <table className="w-full min-w-[1280px] text-sm">
-              <thead className="bg-rose-50 text-left text-[10px] uppercase tracking-wider text-rose-700">
+              <thead className="sticky top-0 bg-slate-950 text-left text-[10px] uppercase tracking-[0.16em] text-cyan-50">
                 <tr>
                   <th className="p-3">Emp No.</th>
                   <th>Employee</th>
@@ -999,9 +1001,9 @@ export default function AdminPayrollPage() {
                 {payrollRows.length === 0 ? (
                   <tr><td colSpan="13" className="p-8 text-center text-sm font-semibold text-slate-400">No payroll rows found.</td></tr>
                 ) : payrollRows.map((entry) => (
-                  <tr key={entry.id} className="border-t border-rose-50">
-                    <td className="p-3 font-black text-slate-600">{entry.employee?.employee_no || "-"}</td>
-                    <td className="font-black text-slate-800">{entry.employee?.full_name || entry.employee_id}</td>
+                  <tr key={entry.id} className="border-t border-slate-100 transition duration-200 hover:bg-cyan-50/45">
+                    <td className="p-3 font-semibold text-slate-600">{entry.employee?.employee_no || "-"}</td>
+                    <td className="font-semibold text-slate-900">{entry.employee?.full_name || entry.employee_id}</td>
                     <td>{money(entry.daily_rate)}</td>
                     <td>{num(entry.days_worked).toFixed(2)}</td>
                     <td>{num(entry.overtime_hours).toFixed(2)}</td>
@@ -1010,13 +1012,13 @@ export default function AdminPayrollPage() {
                     <td>{money(entry.gross_total)}</td>
                     <td>{money(entry.deduction_total)}</td>
                     <td>{money(entry.cash_advance_deduction)}</td>
-                    <td className="font-black text-[#FC687D]">{money(entry.net_total)}</td>
-                    <td><span className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase ${statusClass(entry.status)}`}>{entry.status || "draft"}</span></td>
+                    <td className="font-semibold text-cyan-700">{money(entry.net_total)}</td>
+                    <td><span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase ${statusClass(entry.status)}`}>{entry.status || "draft"}</span></td>
                     <td className="pr-3 text-right">
                       <div className="flex justify-end gap-2">
-                        <button onClick={() => openEntryModal(entry)} className="rounded-lg border border-slate-100 px-3 py-2 text-[10px] font-black uppercase text-slate-600">Edit</button>
-                        {canChangePayrollStatus && entry.status !== "approved" && entry.status !== "paid" ? <button onClick={() => updateEntryStatus(entry, "approved")} className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[10px] font-black uppercase text-blue-600">Approve</button> : null}
-                        {canChangePayrollStatus && entry.status !== "paid" ? <button onClick={() => updateEntryStatus(entry, "paid")} className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-[10px] font-black uppercase text-emerald-600">Paid</button> : null}
+                        <button onClick={() => openEntryModal(entry)} className="rounded-lg border border-slate-100 px-3 py-2 text-[10px] font-semibold uppercase text-slate-600 transition hover:-translate-y-0.5 hover:border-cyan-200 hover:text-cyan-700">Edit</button>
+                        {canChangePayrollStatus && entry.status !== "approved" && entry.status !== "paid" ? <button onClick={() => updateEntryStatus(entry, "approved")} className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[10px] font-semibold uppercase text-blue-600 transition hover:-translate-y-0.5">Approve</button> : null}
+                        {canChangePayrollStatus && entry.status !== "paid" ? <button onClick={() => updateEntryStatus(entry, "paid")} className="rounded-lg border border-cyan-100 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase text-cyan-700 transition hover:-translate-y-0.5">Paid</button> : null}
                       </div>
                     </td>
                   </tr>
@@ -1028,39 +1030,39 @@ export default function AdminPayrollPage() {
       ) : activeTab === "employees" ? (
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-[380px_1fr]">
           <div className="space-y-4">
-            <form onSubmit={saveEmployee} className="rounded-2xl border border-rose-50 bg-white p-5 shadow-sm">
+            <form onSubmit={saveEmployee} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-sm font-black text-slate-800">{editingEmployeeId ? "Edit Employee" : "Add Employee"}</h2>
+                <h2 className="text-sm font-semibold text-slate-950">{editingEmployeeId ? "Edit Employee" : "Add Employee"}</h2>
                 {editingEmployeeId ? (
-                  <button type="button" onClick={resetEmployeeForm} className="rounded-lg border border-slate-100 px-3 py-2 text-[10px] font-black uppercase text-slate-500">Cancel</button>
+                  <button type="button" onClick={resetEmployeeForm} className="rounded-lg border border-slate-100 px-3 py-2 text-[10px] font-semibold uppercase text-slate-500 transition hover:border-cyan-200 hover:text-cyan-700">Cancel</button>
                 ) : null}
               </div>
               <div className="mt-4 space-y-3">
-                <input value={employeeForm.employee_no} onChange={(e) => setEmployeeForm((p) => ({ ...p, employee_no: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" placeholder="Employee no." />
-                <input value={employeeForm.full_name} onChange={(e) => setEmployeeForm((p) => ({ ...p, full_name: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" placeholder="Employee name" />
-                <input value={employeeForm.default_daily_rate} onChange={(e) => setEmployeeForm((p) => ({ ...p, default_daily_rate: e.target.value }))} type="number" step="0.01" className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" placeholder="Daily rate" />
-                <button className="h-11 w-full rounded-xl bg-[#087830] text-xs font-black uppercase tracking-wider text-white">{editingEmployeeId ? "Update Employee" : "Save Employee"}</button>
+                <input value={employeeForm.employee_no} onChange={(e) => setEmployeeForm((p) => ({ ...p, employee_no: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Employee no." />
+                <input value={employeeForm.full_name} onChange={(e) => setEmployeeForm((p) => ({ ...p, full_name: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Employee name" />
+                <input value={employeeForm.default_daily_rate} onChange={(e) => setEmployeeForm((p) => ({ ...p, default_daily_rate: e.target.value }))} type="number" step="0.01" className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Daily rate" />
+                <button className="h-11 w-full rounded-xl bg-cyan-600 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-cyan-500">{editingEmployeeId ? "Update Employee" : "Save Employee"}</button>
               </div>
             </form>
 
-            <form onSubmit={saveRateIncrease} className="rounded-2xl border border-rose-50 bg-white p-5 shadow-sm">
-              <h2 className="text-sm font-black text-slate-800">Daily Rate Increase</h2>
+            <form onSubmit={saveRateIncrease} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+              <h2 className="text-sm font-semibold text-slate-950">Daily Rate Increase</h2>
               <div className="mt-4 space-y-3">
-                <select value={rateIncreaseForm.employee_id} onChange={(e) => setRateIncreaseForm((p) => ({ ...p, employee_id: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none">
+                <select value={rateIncreaseForm.employee_id} onChange={(e) => setRateIncreaseForm((p) => ({ ...p, employee_id: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
                   {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}
                 </select>
-                <input type="date" value={rateIncreaseForm.effective_date} onChange={(e) => setRateIncreaseForm((p) => ({ ...p, effective_date: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" />
-                <input value={rateIncreaseForm.new_daily_rate} onChange={(e) => setRateIncreaseForm((p) => ({ ...p, new_daily_rate: e.target.value }))} type="number" step="0.01" className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" placeholder="New daily rate" />
-                <input value={rateIncreaseForm.notes} onChange={(e) => setRateIncreaseForm((p) => ({ ...p, notes: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" placeholder="Notes" />
-                <button className="h-11 w-full rounded-xl bg-[#087830] text-xs font-black uppercase tracking-wider text-white">Save Rate Increase</button>
+                <input type="date" value={rateIncreaseForm.effective_date} onChange={(e) => setRateIncreaseForm((p) => ({ ...p, effective_date: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
+                <input value={rateIncreaseForm.new_daily_rate} onChange={(e) => setRateIncreaseForm((p) => ({ ...p, new_daily_rate: e.target.value }))} type="number" step="0.01" className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="New daily rate" />
+                <input value={rateIncreaseForm.notes} onChange={(e) => setRateIncreaseForm((p) => ({ ...p, notes: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Notes" />
+                <button className="h-11 w-full rounded-xl bg-cyan-600 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-cyan-500">Save Rate Increase</button>
               </div>
-              <div className="mt-4 space-y-2 border-t border-rose-50 pt-4">
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Recent Rate Changes</p>
+              <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Recent Rate Changes</p>
                 {rateChanges.length === 0 ? (
                   <p className="text-xs font-semibold text-slate-400">No rate increase records yet.</p>
                 ) : rateChanges.slice(0, 5).map((change) => (
-                  <div key={change.id} className="rounded-xl bg-rose-50 p-3 text-xs text-slate-600">
-                    <p className="font-black text-slate-800">{employeeById[change.employee_id]?.full_name || change.employee_id}</p>
+                  <div key={change.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600">
+                    <p className="font-semibold text-slate-900">{employeeById[change.employee_id]?.full_name || change.employee_id}</p>
                     <p>{dateText(change.effective_date)}: {money(change.old_daily_rate)} to {money(change.new_daily_rate)}</p>
                   </div>
                 ))}
@@ -1072,25 +1074,25 @@ export default function AdminPayrollPage() {
               const total = employeeTotals[employee.id] || {};
               const advance = employeeAdvanceSummary[employee.id] || {};
               return (
-                <div key={employee.id} className="rounded-2xl border border-rose-50 bg-white p-5 shadow-sm">
+                <div key={employee.id} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-cyan-200/80 hover:shadow-[0_24px_60px_rgba(8,145,178,0.14)]">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-wider text-[#FC687D]">{employee.employee_no || "No employee no."}</p>
-                      <h3 className="font-black text-slate-800">{employee.full_name}</h3>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-cyan-700">{employee.employee_no || "No employee no."}</p>
+                      <h3 className="font-semibold text-slate-950">{employee.full_name}</h3>
                       <p className="mt-1 text-xs font-semibold text-slate-500">Daily rate {money(employee.default_daily_rate)}</p>
                     </div>
-                    <button onClick={() => toggleEmployee(employee)} className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${employee.active ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-500"}`}>
+                    <button onClick={() => toggleEmployee(employee)} className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase transition hover:-translate-y-0.5 ${employee.active ? "bg-cyan-50 text-cyan-700" : "bg-slate-100 text-slate-500"}`}>
                       {employee.active ? "Active" : "Off"}
                     </button>
                   </div>
                   <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
-                    <div className="rounded-xl bg-rose-50 p-3"><span className="block text-slate-400">YTD Net</span><b>{money(total.net || 0)}</b></div>
-                    <div className="rounded-xl bg-rose-50 p-3"><span className="block text-slate-400">13th Est.</span><b>{money(total.thirteenth || 0)}</b></div>
-                    <div className="rounded-xl bg-rose-50 p-3"><span className="block text-slate-400">CA Balance</span><b>{money(advance.balance || 0)}</b></div>
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><span className="block text-slate-400">YTD Net</span><b>{money(total.net || 0)}</b></div>
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><span className="block text-slate-400">13th Est.</span><b>{money(total.thirteenth || 0)}</b></div>
+                    <div className="rounded-xl border border-cyan-100 bg-cyan-50 p-3"><span className="block text-slate-400">CA Balance</span><b>{money(advance.balance || 0)}</b></div>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <button type="button" onClick={() => openEmployeeEdit(employee)} className="rounded-lg border border-slate-100 px-3 py-2 text-[10px] font-black uppercase text-slate-600">Edit</button>
-                    <button type="button" onClick={() => deleteEmployee(employee)} className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-[10px] font-black uppercase text-red-600">Delete</button>
+                    <button type="button" onClick={() => openEmployeeEdit(employee)} className="rounded-lg border border-slate-100 px-3 py-2 text-[10px] font-semibold uppercase text-slate-600 transition hover:-translate-y-0.5 hover:border-cyan-200 hover:text-cyan-700">Edit</button>
+                    <button type="button" onClick={() => deleteEmployee(employee)} className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-[10px] font-semibold uppercase text-red-600 transition hover:-translate-y-0.5">Delete</button>
                   </div>
                 </div>
               );
@@ -1099,71 +1101,71 @@ export default function AdminPayrollPage() {
         </section>
       ) : activeTab === "schedule" ? (
         <section className="space-y-4">
-          <form onSubmit={saveCutoffSchedule} className="grid grid-cols-1 gap-3 rounded-2xl border border-rose-50 bg-white p-5 shadow-sm lg:grid-cols-[1fr_1fr_auto]">
+          <form onSubmit={saveCutoffSchedule} className="grid grid-cols-1 gap-3 rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl lg:grid-cols-[1fr_1fr_auto]">
             <div>
-              <p className="text-sm font-black text-slate-800">Schedule Encoding Per Cutoff</p>
+              <p className="text-sm font-semibold text-slate-950">Schedule Encoding Per Cutoff</p>
               <p className="mt-1 text-xs font-semibold text-slate-500">{selectedPeriod ? `${dateText(selectedPeriod.period_start)} - ${dateText(selectedPeriod.period_end)}` : "Select a cutoff period"}</p>
             </div>
-            <select value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)} className="h-11 rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none">
+            <select value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)} className="h-11 rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
               {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}
             </select>
-            <button className="h-11 rounded-xl bg-[#FC687D] px-5 text-xs font-black uppercase tracking-wider text-white">Save Cutoff Schedule</button>
+            <button className="h-11 rounded-xl bg-cyan-600 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-cyan-500">Save Cutoff Schedule</button>
           </form>
           <DataTable empty="No schedule rows found for this cutoff." minWidth="980px" headers={["Date", "Emp No.", "Employee", "In", "Out", "Status", "Notes"]}>
             {scheduleRows.map((row) => (
-              <tr key={row.id} className="border-t border-rose-50">
+              <tr key={row.id} className="border-t border-slate-100 transition hover:bg-cyan-50/45">
                 <td className="p-3 font-bold">{dateText(row.work_date)}</td>
                 <td>{row.employee?.employee_no || "-"}</td>
                 <td>{row.employee?.full_name || row.employee_id}</td>
-                <td><TimeSelect value={row.schedule_in} disabled={row.status !== "scheduled"} onChange={(value) => updateScheduleDraft(row.work_date, "schedule_in", value)} className="h-9 w-32 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
-                <td><TimeSelect value={row.schedule_out} disabled={row.status !== "scheduled"} onChange={(value) => updateScheduleDraft(row.work_date, "schedule_out", value)} className="h-9 w-32 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
+                <td><TimeSelect value={row.schedule_in} disabled={row.status !== "scheduled"} onChange={(value) => updateScheduleDraft(row.work_date, "schedule_in", value)} className="h-9 w-32 rounded-lg border border-slate-200 px-2 text-xs font-semibold outline-none focus:border-cyan-400/70 disabled:bg-slate-50" /></td>
+                <td><TimeSelect value={row.schedule_out} disabled={row.status !== "scheduled"} onChange={(value) => updateScheduleDraft(row.work_date, "schedule_out", value)} className="h-9 w-32 rounded-lg border border-slate-200 px-2 text-xs font-semibold outline-none focus:border-cyan-400/70 disabled:bg-slate-50" /></td>
                 <td>
-                  <select value={row.status || "scheduled"} onChange={(e) => updateScheduleDraft(row.work_date, "status", e.target.value)} className="h-9 rounded-lg border border-rose-100 px-2 text-xs font-bold">
+                  <select value={row.status || "scheduled"} onChange={(e) => updateScheduleDraft(row.work_date, "status", e.target.value)} className="h-9 rounded-lg border border-slate-200 px-2 text-xs font-semibold outline-none focus:border-cyan-400/70">
                     <option value="scheduled">Scheduled</option>
                     <option value="rest_day">Rest Day</option>
                     <option value="absent">Absent</option>
                     <option value="closed">Closed</option>
                   </select>
                 </td>
-                <td><input value={row.notes || ""} onChange={(e) => updateScheduleDraft(row.work_date, "notes", e.target.value)} className="h-9 w-40 rounded-lg border border-rose-100 px-2 text-xs font-semibold" placeholder="Notes" /></td>
+                <td><input value={row.notes || ""} onChange={(e) => updateScheduleDraft(row.work_date, "notes", e.target.value)} className="h-9 w-40 rounded-lg border border-slate-200 px-2 text-xs font-semibold outline-none focus:border-cyan-400/70" placeholder="Notes" /></td>
               </tr>
             ))}
           </DataTable>
         </section>
       ) : activeTab === "attendance" ? (
         <section className="space-y-4">
-          <form onSubmit={saveCutoffAttendance} className="grid grid-cols-1 gap-3 rounded-2xl border border-rose-50 bg-white p-5 shadow-sm lg:grid-cols-[1fr_1fr_auto]">
+          <form onSubmit={saveCutoffAttendance} className="grid grid-cols-1 gap-3 rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl lg:grid-cols-[1fr_1fr_auto]">
             <div>
-              <p className="text-sm font-black text-slate-800">Attendance Encoding Per Cutoff</p>
+              <p className="text-sm font-semibold text-slate-950">Attendance Encoding Per Cutoff</p>
               <p className="mt-1 text-xs font-semibold text-slate-500">{selectedPeriod ? `${dateText(selectedPeriod.period_start)} - ${dateText(selectedPeriod.period_end)}` : "Select a cutoff period"}</p>
             </div>
-            <select value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)} className="h-11 rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none">
+            <select value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)} className="h-11 rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
               {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}
             </select>
-            <button className="h-11 rounded-xl bg-[#FC687D] px-5 text-xs font-black uppercase tracking-wider text-white">Save Cutoff Attendance</button>
+            <button className="h-11 rounded-xl bg-cyan-600 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-cyan-500">Save Cutoff Attendance</button>
           </form>
           <DataTable empty="No attendance rows found for this cutoff." minWidth="1180px" headers={["Date", "Emp No.", "Employee", "In", "Out", "Late", "UT", "OT", "Status", "Notes"]}>
             {attendanceRows.map((row) => {
               const metrics = attendanceMetrics(row);
               return (
-                <tr key={row.id} className="border-t border-rose-50">
+                <tr key={row.id} className="border-t border-slate-100 transition hover:bg-cyan-50/45">
                   <td className="p-3 font-bold">{dateText(row.work_date)}</td>
                   <td>{row.employee?.employee_no || "-"}</td>
                   <td>{row.employee?.full_name || row.employee_id}</td>
-                  <td><TimeInput value={row.actual_in} disabled={row.status !== "present"} onChange={(value) => updateAttendanceDraft(row.work_date, "actual_in", value)} className="h-9 w-32 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
-                  <td><TimeInput value={row.actual_out} disabled={row.status !== "present"} onChange={(value) => updateAttendanceDraft(row.work_date, "actual_out", value)} className="h-9 w-32 rounded-lg border border-rose-100 px-2 text-xs font-bold disabled:bg-slate-50" /></td>
-                  <td><span className="inline-flex h-9 w-20 items-center rounded-lg border border-rose-100 bg-slate-50 px-2 text-xs font-bold text-slate-600">{metrics.late.toFixed(0)}m</span></td>
-                  <td><span className="inline-flex h-9 w-20 items-center rounded-lg border border-rose-100 bg-slate-50 px-2 text-xs font-bold text-slate-600">{metrics.undertime.toFixed(0)}m</span></td>
-                  <td><span className="inline-flex h-9 w-20 items-center rounded-lg border border-rose-100 bg-slate-50 px-2 text-xs font-bold text-slate-600">{metrics.overtime.toFixed(0)}h</span></td>
+                  <td><TimeInput value={row.actual_in} disabled={row.status !== "present"} onChange={(value) => updateAttendanceDraft(row.work_date, "actual_in", value)} className="h-9 w-32 rounded-lg border border-slate-200 px-2 text-xs font-semibold outline-none focus:border-cyan-400/70 disabled:bg-slate-50" /></td>
+                  <td><TimeInput value={row.actual_out} disabled={row.status !== "present"} onChange={(value) => updateAttendanceDraft(row.work_date, "actual_out", value)} className="h-9 w-32 rounded-lg border border-slate-200 px-2 text-xs font-semibold outline-none focus:border-cyan-400/70 disabled:bg-slate-50" /></td>
+                  <td><span className="inline-flex h-9 w-20 items-center rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-bold text-slate-600">{metrics.late.toFixed(0)}m</span></td>
+                  <td><span className="inline-flex h-9 w-20 items-center rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-bold text-slate-600">{metrics.undertime.toFixed(0)}m</span></td>
+                  <td><span className="inline-flex h-9 w-20 items-center rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-bold text-slate-600">{metrics.overtime.toFixed(0)}h</span></td>
                   <td>
-                    <select value={row.status || "present"} disabled className="h-9 rounded-lg border border-rose-100 bg-slate-50 px-2 text-xs font-bold text-slate-600">
+                    <select value={row.status || "present"} disabled className="h-9 rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-bold text-slate-600">
                       <option value="present">Present</option>
                       <option value="absent">Absent</option>
                       <option value="rest_day">Rest Day</option>
                       <option value="closed">Closed</option>
                     </select>
                   </td>
-                  <td><input value={row.notes || ""} onChange={(e) => updateAttendanceDraft(row.work_date, "notes", e.target.value)} className="h-9 w-40 rounded-lg border border-rose-100 px-2 text-xs font-semibold" placeholder="Notes" /></td>
+                  <td><input value={row.notes || ""} onChange={(e) => updateAttendanceDraft(row.work_date, "notes", e.target.value)} className="h-9 w-40 rounded-lg border border-slate-200 px-2 text-xs font-semibold outline-none focus:border-cyan-400/70" placeholder="Notes" /></td>
                 </tr>
               );
             })}
@@ -1172,45 +1174,45 @@ export default function AdminPayrollPage() {
       ) : (
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-[380px_1fr]">
           <div className="space-y-4">
-            <form onSubmit={saveAdvance} className="rounded-2xl border border-rose-50 bg-white p-5 shadow-sm">
-              <h2 className="text-sm font-black text-slate-800">Cash Advance</h2>
+            <form onSubmit={saveAdvance} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+              <h2 className="text-sm font-semibold text-slate-950">Cash Advance</h2>
               <div className="mt-4 space-y-3">
                 <select value={advanceForm.employee_id} onChange={(e) => {
                   setAdvanceForm((p) => ({ ...p, employee_id: e.target.value }));
                   setSelectedEmployeeId(e.target.value);
-                }} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none">{employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}</select>
-                <input type="date" value={advanceForm.advance_date} onChange={(e) => setAdvanceForm((p) => ({ ...p, advance_date: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" />
-                <input type="number" step="0.01" value={advanceForm.amount} onChange={(e) => setAdvanceForm((p) => ({ ...p, amount: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" placeholder="Amount" />
-                <input value={advanceForm.reason} onChange={(e) => setAdvanceForm((p) => ({ ...p, reason: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" placeholder="Reason" />
-                <button className="h-11 w-full rounded-xl bg-[#FC687D] text-xs font-black uppercase tracking-wider text-white">Save Advance</button>
+                }} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">{employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}</select>
+                <input type="date" value={advanceForm.advance_date} onChange={(e) => setAdvanceForm((p) => ({ ...p, advance_date: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
+                <input type="number" step="0.01" value={advanceForm.amount} onChange={(e) => setAdvanceForm((p) => ({ ...p, amount: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Amount" />
+                <input value={advanceForm.reason} onChange={(e) => setAdvanceForm((p) => ({ ...p, reason: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Reason" />
+                <button className="h-11 w-full rounded-xl bg-cyan-600 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-cyan-500">Save Advance</button>
               </div>
             </form>
-            <form onSubmit={saveRepayment} className="rounded-2xl border border-rose-50 bg-white p-5 shadow-sm">
-              <h2 className="text-sm font-black text-slate-800">Repayment</h2>
+            <form onSubmit={saveRepayment} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+              <h2 className="text-sm font-semibold text-slate-950">Repayment</h2>
               <div className="mt-4 space-y-3">
-                <select value={repaymentForm.cash_advance_id} onChange={(e) => setRepaymentForm((p) => ({ ...p, cash_advance_id: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none">
+                <select value={repaymentForm.cash_advance_id} onChange={(e) => setRepaymentForm((p) => ({ ...p, cash_advance_id: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
                   <option value="">Select advance</option>
                   {selectedEmployeeOpenAdvanceRows.map((row) => <option key={row.id} value={row.id}>{dateText(row.advance_date)} / {money(row.balance)}</option>)}
                 </select>
-                <select value={repaymentForm.period_id} onChange={(e) => setRepaymentForm((p) => ({ ...p, period_id: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none">{sortedPeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select>
-                <input type="date" value={repaymentForm.payment_date} onChange={(e) => setRepaymentForm((p) => ({ ...p, payment_date: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" />
-                <input type="number" step="0.01" value={repaymentForm.amount} onChange={(e) => setRepaymentForm((p) => ({ ...p, amount: e.target.value }))} className="h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none" placeholder="Repayment amount" />
-                <button className="h-11 w-full rounded-xl bg-[#FC687D] text-xs font-black uppercase tracking-wider text-white">Save Repayment</button>
+                <select value={repaymentForm.period_id} onChange={(e) => setRepaymentForm((p) => ({ ...p, period_id: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">{sortedPeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select>
+                <input type="date" value={repaymentForm.payment_date} onChange={(e) => setRepaymentForm((p) => ({ ...p, payment_date: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
+                <input type="number" step="0.01" value={repaymentForm.amount} onChange={(e) => setRepaymentForm((p) => ({ ...p, amount: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Repayment amount" />
+                <button className="h-11 w-full rounded-xl bg-cyan-600 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-cyan-500">Save Repayment</button>
               </div>
             </form>
           </div>
           
           <div className="space-y-4">
-            <div className="rounded-2xl border border-rose-50 bg-white p-5 shadow-sm">
+            <div className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm font-black text-slate-800">Cash Advance Details Per Employee</p>
+                  <p className="text-sm font-semibold text-slate-950">Cash Advance Details Per Employee</p>
                   <p className="mt-1 text-xs font-semibold text-slate-500">{employeeById[selectedEmployeeId]?.full_name || "Select an employee"}</p>
                 </div>
                 <select value={selectedEmployeeId} onChange={(e) => {
                   setSelectedEmployeeId(e.target.value);
                   setAdvanceForm((current) => ({ ...current, employee_id: e.target.value }));
-                }} className="h-11 rounded-xl border border-rose-100 px-3 text-sm font-semibold outline-none sm:min-w-[280px]">
+                }} className="h-11 rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20 sm:min-w-[280px]">
                   {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}
                 </select>
               </div>
@@ -1224,15 +1226,15 @@ export default function AdminPayrollPage() {
                     setSelectedEmployeeId(row.employee.id);
                     setAdvanceForm((current) => ({ ...current, employee_id: row.employee.id }));
                   }}
-                  className={`cursor-pointer border-t border-rose-50 ${selectedEmployeeId === row.employee.id ? "bg-rose-50" : "hover:bg-slate-50"}`}
+                  className={`cursor-pointer border-t border-slate-100 transition ${selectedEmployeeId === row.employee.id ? "bg-cyan-50" : "hover:bg-cyan-50/45"}`}
                 >
                   <td className="p-3">
-                    <p className="font-black text-slate-800">{row.employee.employee_no ? `${row.employee.employee_no} - ` : ""}{row.employee.full_name}</p>
+                    <p className="font-semibold text-slate-950">{row.employee.employee_no ? `${row.employee.employee_no} - ` : ""}{row.employee.full_name}</p>
                   </td>
                   <td>{money(row.amount)}</td>
                   <td>{money(row.repaid)}</td>
-                  <td className="font-black text-[#FC687D]">{money(row.balance)}</td>
-                  <td className="font-black text-[#087830]">Open</td>
+                  <td className="font-semibold text-cyan-700">{money(row.balance)}</td>
+                  <td className="font-semibold text-cyan-700">Open</td>
                 </tr>
               ))}
             </DataTable>            
@@ -1242,9 +1244,9 @@ export default function AdminPayrollPage() {
                 const repaymentHistory = [...(repaymentsByAdvance[row.id] || [])]
                   .sort((a, b) => new Date(b.payment_date || 0) - new Date(a.payment_date || 0));
                 return (
-                  <tr key={row.id} className="border-t border-rose-50 align-top">
+                  <tr key={row.id} className="border-t border-slate-100 align-top transition hover:bg-cyan-50/45">
                     <td className="p-3">
-                      <p className="font-black text-slate-800">{dateText(row.advance_date)}</p>
+                      <p className="font-semibold text-slate-950">{dateText(row.advance_date)}</p>
                       <p className="mt-1 text-xs font-semibold text-slate-500">{row.reason || "Cash advance"}</p>
                     </td>
                     <td className="pt-3">{money(row.amount)}</td>
@@ -1254,10 +1256,10 @@ export default function AdminPayrollPage() {
                       ) : (
                         <div className="space-y-2">
                           {repaymentHistory.map((repayment) => (
-                            <div key={repayment.id} className="rounded-xl bg-rose-50 p-3 text-xs text-slate-600">
+                            <div key={repayment.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600">
                               <div className="flex flex-wrap items-center justify-between gap-2">
-                                <span className="font-black text-slate-800">{dateText(repayment.payment_date)}</span>
-                                <span className="font-black text-[#FC687D]">{money(repayment.amount)}</span>
+                                <span className="font-semibold text-slate-950">{dateText(repayment.payment_date)}</span>
+                                <span className="font-semibold text-cyan-700">{money(repayment.amount)}</span>
                               </div>
                               <p className="mt-1">{repayment.method || "payroll deduction"}{repayment.period_id ? ` / ${periodById[repayment.period_id]?.label || repayment.period_id}` : ""}</p>
                               {repayment.notes ? <p className="mt-1 text-slate-500">{repayment.notes}</p> : null}
@@ -1267,7 +1269,7 @@ export default function AdminPayrollPage() {
                       )}
                     </td>
                     <td className="pt-3">{money(row.repaid)}</td>
-                    <td className="pt-3 font-black text-[#FC687D]">{money(row.balance)}</td>
+                    <td className="pt-3 font-semibold text-cyan-700">{money(row.balance)}</td>
                     <td className="pt-3">{row.status || "active"}</td>
                   </tr>
                 );
@@ -1279,18 +1281,18 @@ export default function AdminPayrollPage() {
       )}
 
       {entryModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-          <form onSubmit={saveEntry} className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-rose-50 p-5">
-              <h2 className="text-lg font-black text-slate-800">{entryForm.id ? "Edit Payroll" : "Add Payroll"}</h2>
-              <button type="button" onClick={() => setEntryModalOpen(false)} className="h-9 w-9 rounded-full bg-slate-100 text-lg font-black text-slate-500">x</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <form onSubmit={saveEntry} className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-white/70 bg-white/92 shadow-[0_30px_90px_rgba(2,6,23,0.35)] backdrop-blur-xl">
+            <div className="flex items-center justify-between border-b border-slate-100 p-5">
+              <h2 className="text-lg font-semibold text-slate-950">{entryForm.id ? "Edit Payroll" : "Add Payroll"}</h2>
+              <button type="button" onClick={() => setEntryModalOpen(false)} className="h-9 w-9 rounded-full bg-slate-100 text-lg font-semibold text-slate-500 transition hover:bg-slate-200">x</button>
             </div>
             <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
-              <label className="text-xs font-black uppercase tracking-wider text-slate-500">Period
-                <select value={entryForm.period_id} onChange={(e) => setEntryField("period_id", e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-bold normal-case outline-none">{sortedPeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select>
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Period
+                <select value={entryForm.period_id} onChange={(e) => setEntryField("period_id", e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm normal-case outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">{sortedPeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select>
               </label>
-              <label className="text-xs font-black uppercase tracking-wider text-slate-500">Employee
-                <select value={entryForm.employee_id} onChange={(e) => setEntryField("employee_id", e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-bold normal-case outline-none">{employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}</select>
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Employee
+                <select value={entryForm.employee_id} onChange={(e) => setEntryField("employee_id", e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm normal-case outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">{employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}</select>
               </label>
               {[
                 ["daily_rate", "Daily Rate"],
@@ -1306,23 +1308,23 @@ export default function AdminPayrollPage() {
                 ["allowance_30th", "Allowance 30th"],
                 ["cash_advance_deduction", "Cash Advance Deduction"],
               ].map(([field, label]) => (
-                <label key={field} className="text-xs font-black uppercase tracking-wider text-slate-500">{label}
-                  <input type="number" step="0.01" value={entryForm[field] ?? ""} onChange={(e) => setEntryField(field, e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-rose-100 px-3 text-sm font-bold normal-case outline-none" />
+                <label key={field} className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}
+                  <input type="number" step="0.01" value={entryForm[field] ?? ""} onChange={(e) => setEntryField(field, e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm normal-case outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
                 </label>
               ))}
-              <label className="md:col-span-2 text-xs font-black uppercase tracking-wider text-slate-500">Notes
-                <textarea value={entryForm.notes || ""} onChange={(e) => setEntryField("notes", e.target.value)} className="mt-2 min-h-20 w-full rounded-xl border border-rose-100 px-3 py-2 text-sm font-semibold normal-case outline-none" />
+              <label className="md:col-span-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Notes
+                <textarea value={entryForm.notes || ""} onChange={(e) => setEntryField("notes", e.target.value)} className="mt-2 min-h-20 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2 text-sm normal-case outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
               </label>
             </div>
-            <div className="grid grid-cols-4 gap-3 border-y border-rose-50 bg-rose-50 p-5 text-sm">
+            <div className="grid grid-cols-2 gap-3 border-y border-slate-100 bg-slate-50 p-5 text-sm md:grid-cols-4">
               <div><span className="block text-xs font-bold text-slate-400">Gross</span><b>{money(formTotals.gross)}</b></div>
               <div><span className="block text-xs font-bold text-slate-400">Deductions</span><b>{money(formTotals.deductions)}</b></div>
               <div><span className="block text-xs font-bold text-slate-400">Cash Advance</span><b>{money(formTotals.cashAdvanceDeduction)}</b></div>
-              <div><span className="block text-xs font-bold text-slate-400">Net</span><b className="text-[#FC687D]">{money(formTotals.net)}</b></div>
+              <div><span className="block text-xs font-bold text-slate-400">Net</span><b className="text-cyan-700">{money(formTotals.net)}</b></div>
             </div>
             <div className="flex justify-end gap-3 p-5">
-              <button type="button" onClick={() => setEntryModalOpen(false)} className="h-11 rounded-xl border border-slate-200 px-5 text-xs font-black uppercase tracking-wider text-slate-500">Cancel</button>
-              <button disabled={saving} className="h-11 rounded-xl bg-[#FC687D] px-5 text-xs font-black uppercase tracking-wider text-white disabled:opacity-50">{saving ? "Saving..." : "Save Payroll"}</button>
+              <button type="button" onClick={() => setEntryModalOpen(false)} className="h-11 rounded-xl border border-slate-200 px-5 text-xs font-semibold uppercase tracking-wider text-slate-500 transition hover:-translate-y-0.5 hover:border-cyan-200 hover:text-cyan-700">Cancel</button>
+              <button disabled={saving} className="h-11 rounded-xl bg-cyan-600 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-cyan-500 disabled:bg-slate-300">{saving ? "Saving..." : "Save Payroll"}</button>
             </div>
           </form>
         </div>
@@ -1334,9 +1336,9 @@ export default function AdminPayrollPage() {
 function DataTable({ headers, children, empty, minWidth }) {
   const rows = Array.isArray(children) ? children.filter(Boolean) : children ? [children] : [];
   return (
-    <div className="overflow-x-auto rounded-2xl border border-rose-50 bg-white shadow-sm">
+    <div className="overflow-x-auto rounded-2xl border border-white/70 bg-white/88 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl">
       <table className="w-full text-sm" style={{ minWidth }}>
-        <thead className="bg-rose-50 text-left text-[10px] uppercase tracking-wider text-rose-700">
+        <thead className="sticky top-0 bg-slate-950 text-left text-[10px] uppercase tracking-[0.16em] text-cyan-50">
           <tr>{headers.map((header, idx) => <th key={header} className={idx === 0 ? "p-3" : ""}>{header}</th>)}</tr>
         </thead>
         <tbody>

@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+@keyframes financeFade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /*
   Global UI theme.
   Override these custom properties on any page root or component to customize
