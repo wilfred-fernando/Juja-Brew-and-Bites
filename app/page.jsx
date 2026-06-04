@@ -184,7 +184,7 @@ export default function Home() {
             <img
               src={HERO_MASCOT}
               alt="Juja mascot"
-              className="h-[30svh] max-h-[390px] w-auto object-contain object-center drop-shadow-[0_20px_35px_rgba(15,23,42,0.14)] sm:h-[340px] md:h-[66vh] md:max-h-none md:-translate-y-8 lg:h-[76vh] lg:-translate-y-10"
+              className="h-[30svh] max-h-[390px] w-auto object-contain object-center drop-shadow-[0_20px_35px_rgba(15,23,42,0.14)] sm:h-[340px] md:h-[60vh] md:max-h-none md:translate-y-4 lg:h-[68vh] lg:translate-y-6"
             />
           </div>
 
