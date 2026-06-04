@@ -2,7 +2,10 @@
 
 import { Turnstile } from "@marsidev/react-turnstile";
 
-export const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
+const DEFAULT_TURNSTILE_SITE_KEY = "0x4AAAAAADefwtyYJ6duX9Dy";
+
+export const turnstileSiteKey =
+  process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || DEFAULT_TURNSTILE_SITE_KEY;
 
 export function isTurnstileEnabled() {
   return Boolean(turnstileSiteKey);
