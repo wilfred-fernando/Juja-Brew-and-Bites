@@ -281,6 +281,20 @@ function reasonToLabel(reason) {
   return "Closed";
 }
 
+function availabilityStatusClass(slot) {
+  if (slot.available) return "text-green-600";
+  if (slot.reason === "booked") return "text-red-700";
+  if (slot.reason === "buffer") return "text-yellow-700";
+  return "text-slate-400";
+}
+
+function availabilityCardClass(slot) {
+  if (slot.available) return "bg-white border-slate-200 hover:bg-slate-50";
+  if (slot.reason === "booked") return "bg-red-50 border-red-300 text-red-900 cursor-not-allowed";
+  if (slot.reason === "buffer") return "bg-yellow-50 border-yellow-300 text-yellow-900 cursor-not-allowed";
+  return "bg-slate-50 border-slate-200 opacity-70 cursor-not-allowed";
+}
+
 export function BookingAvailabilityOnly({
   initialDateISO,
   extensionEnabled = false,
@@ -391,11 +405,7 @@ export function BookingAvailabilityOnly({
           {availability.map((s) => {
             const status = reasonToLabel(s.reason);
 
-            const cls =
-                  s.available ? "text-green-600" :
-                  s.reason === "booked" ? "text-red-500 font-semibold" :
-                  s.reason === "buffer" ? "text-yellow-500 font-semibold" :
-                  "text-slate-400";
+            const cls = `${availabilityCardClass(s)} ${availabilityStatusClass(s)}`;
 
             return (
               <button
@@ -1086,14 +1096,7 @@ export default function BookingForm({ user, member }) {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
               {availability.map((s) => {
                 const status = reasonToLabel(s.reason);
-                const statusClass =
-                  s.available
-                    ? "text-green-600"
-                    : s.reason === "booked"
-                    ? "text-red-500 font-semibold"
-                    : s.reason === "buffer"
-                    ? "text-yellow-500 font-semibold"
-                    : "text-slate-400";
+                const statusClass = availabilityStatusClass(s);
 
                 return (
                   <button
@@ -1103,7 +1106,7 @@ export default function BookingForm({ user, member }) {
                     className={`p-3 rounded-xl border text-left transition-all active:scale-95 ${
                       s.available
                         ? "bg-[#FFF9FA] border-rose-100 hover:bg-rose-50"
-                        : "bg-slate-50 border-slate-200 opacity-70 cursor-not-allowed"
+                        : availabilityCardClass(s)
                     }`}
                     disabled={!s.available}
                   >
@@ -1507,14 +1510,7 @@ export default function BookingForm({ user, member }) {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {reschedAvailability.map((s) => {
                   const status = reasonToLabel(s.reason);
-                  const statusClass =
-                    s.available
-                      ? "text-green-600"
-                      : s.reason === "booked"
-                      ? "text-red-500 font-semibold"
-                      : s.reason === "buffer"
-                      ? "text-yellow-500 font-semibold"
-                      : "text-slate-400";
+                  const statusClass = availabilityStatusClass(s);
 
                   return (
                     <button
@@ -1525,9 +1521,7 @@ export default function BookingForm({ user, member }) {
                       className={`p-3 rounded-xl border text-left transition-all active:scale-95 ${
                         reschedHour === s.hour
                           ? "border-[#FC687D] bg-rose-50"
-                          : s.available
-                          ? "bg-white border-slate-200 hover:bg-slate-50"
-                          : "bg-slate-50 border-slate-200 opacity-70 cursor-not-allowed"
+                          : availabilityCardClass(s)
                       }`}
                     >
                       <p className="text-[11px] font-semibold text-slate-800">{s.label}</p>
