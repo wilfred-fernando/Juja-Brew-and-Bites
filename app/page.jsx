@@ -167,7 +167,7 @@ export default function Home() {
               Annyeong!
             </p>
 
-
+            <div className="w-full flex justify-start"></div>
             <img
               src={HERO_LOGO}
               alt="Juja Brew & Bites"
