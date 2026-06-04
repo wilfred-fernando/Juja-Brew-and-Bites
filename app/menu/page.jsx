@@ -34,6 +34,14 @@ function Nav({ active }) {
     ["about", "About Us", "/about"]
   ];
 
+  const mobileLinks = [
+    ["Home", "/"],
+    ["Menu", "/menu"],
+    ["Promos", "/promos"],
+    ["Function Room", "/function-room"],
+    ["About Us", "/about"]
+  ];
+
   return (
     <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${
       scrolled ? "bg-white/95 backdrop-blur-2xl shadow-[0_1px_30px_rgba(0,0,0,0.05)]" : "bg-transparent"
@@ -58,19 +66,21 @@ function Nav({ active }) {
           ))}
         </div>
 
-        {/* Desktop CTA */}
         <div className="hidden md:flex items-center gap-3">
-          <Link 
+          <Link
             href={loginUrl}
-            className="text-[11px] font-semibold uppercase tracking-widest px-5 py-2.5 rounded-full border border-slate-200 text-slate-500 hover:border-[#FC687D] hover:text-[#FC687D] hover:bg-rose-50 transition-all duration-300"
+            className="text-[11px] font-semibold uppercase tracking-widest px-5 py-2.5 rounded-full border border-slate-200 text-slate-500 hover:border-[#FC687D] hover:text-[#FC687D] transition-colors"
           >
             Login
           </Link>
-          
         </div>
 
-        {/* Mobile Toggle */}
-        <button className="md:hidden p-2 text-slate-800" onClick={() => setOpen(!open)} aria-label="Toggle Menu">
+        <button
+          className="md:hidden p-2 text-slate-800"
+          onClick={() => setOpen(!open)}
+          aria-label="Toggle Menu"
+          type="button"
+        >
           <div className="w-5 space-y-[5px]">
             <span className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${open ? "rotate-45 translate-y-[7px]" : ""}`} />
             <span className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${open ? "opacity-0" : ""}`} />
@@ -79,15 +89,25 @@ function Nav({ active }) {
         </button>
       </div>
 
-      {/* Mobile Menu Dropdown */}
       {open && (
-        <div className="md:hidden bg-white/98 backdrop-blur-xl border-t border-slate-100 shadow-2xl px-6 py-6 flex flex-col gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
-          {links.map(([, l, h]) => (
-            <Link key={l} href={h} onClick={() => setOpen(false)}
-              className="text-slate-800 font-medium uppercase tracking-widest text-xs hover:text-[#FC687D] transition py-2 border-b border-slate-50">{l}</Link>
+        <div className="md:hidden bg-white border-t border-slate-100 px-6 py-6 flex flex-col gap-3">
+          {mobileLinks.map(([label, href]) => (
+            <Link
+              key={label}
+              href={href}
+              onClick={() => setOpen(false)}
+              className="text-slate-800 font-medium tracking-wide text-sm py-2 border-b border-slate-50"
+            >
+              {label}
+            </Link>
           ))}
-          <Link href={loginUrl} onClick={() => setOpen(false)}
-              className="text-slate-800 font-medium uppercase tracking-widest text-xs hover:text-[#FC687D] transition py-2 border-b border-slate-50">Login</Link>          
+          <Link
+            href="/order"
+            onClick={() => setOpen(false)}
+            className="mt-4 py-3.5 rounded-full bg-[#FC687D] text-white font-semibold text-sm text-center"
+          >
+            Order Now →
+          </Link>
         </div>
       )}
     </nav>
