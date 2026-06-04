@@ -11,6 +11,133 @@
   }
 }
 
+.admin-premium {
+  color: #0f172a;
+}
+
+.admin-premium [class*="bg-[#FFF5F7]"],
+.admin-premium [class*="bg-[#FFF9FA]"],
+.admin-premium [class*="bg-rose-50/30"] {
+  background: transparent !important;
+}
+
+.admin-premium :is(section, article, form, aside, div)[class*="bg-white"],
+.admin-premium :is(section, article, form, aside, div)[class*="bg-slate-50"] {
+  border-color: rgba(255, 255, 255, 0.7) !important;
+  background: rgba(255, 255, 255, 0.78) !important;
+  box-shadow: 0 22px 55px rgba(15, 23, 42, 0.1) !important;
+  backdrop-filter: blur(16px);
+}
+
+.admin-premium :is(section, article, form, aside, div)[class*="rounded"],
+.admin-premium :is(table, thead, tbody, tr, td, th, button, input, select, textarea, a)[class*="rounded"] {
+  transition-duration: 240ms;
+  transition-property: background-color, border-color, box-shadow, color, opacity, transform;
+  transition-timing-function: ease;
+}
+
+.admin-premium a[class*="bg-white"]:hover,
+.admin-premium button:hover,
+.admin-premium tr:hover,
+.admin-premium [role="button"]:hover {
+  transform: translateY(-1px);
+}
+
+.admin-premium [class*="border-rose"],
+.admin-premium [class*="divide-rose"] {
+  border-color: rgba(203, 213, 225, 0.72) !important;
+}
+
+.admin-premium [class*="bg-rose"],
+.admin-premium [class*="bg-[#FC687D]"] {
+  background-color: rgba(8, 145, 178, 0.12) !important;
+}
+
+.admin-premium button[class*="bg-[#FC687D]"],
+.admin-premium a[class*="bg-[#FC687D]"],
+.admin-premium [class*="bg-rose-600"],
+.admin-premium button[type="submit"] {
+  border-color: rgba(103, 232, 249, 0.3) !important;
+  background-color: #0891b2 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 30px rgba(8, 145, 178, 0.28) !important;
+}
+
+.admin-premium button[class*="bg-[#FC687D]"]:hover,
+.admin-premium a[class*="bg-[#FC687D]"]:hover,
+.admin-premium [class*="bg-rose-600"]:hover,
+.admin-premium button[type="submit"]:hover {
+  background-color: #06b6d4 !important;
+  box-shadow: 0 0 36px rgba(34, 211, 238, 0.34) !important;
+}
+
+.admin-premium [class*="text-[#FC687D]"],
+.admin-premium [class*="text-rose"],
+.admin-premium svg[class*="text-[#FC687D]"],
+.admin-premium svg[class*="text-rose"] {
+  color: #0e7490 !important;
+}
+
+.admin-premium input,
+.admin-premium select,
+.admin-premium textarea {
+  border-color: rgba(203, 213, 225, 0.82) !important;
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  color: #0f172a !important;
+  font-weight: 400 !important;
+  outline: none !important;
+  transition: border-color 220ms ease, box-shadow 220ms ease, background-color 220ms ease;
+}
+
+.admin-premium input:focus,
+.admin-premium select:focus,
+.admin-premium textarea:focus {
+  border-color: rgba(34, 211, 238, 0.72) !important;
+  box-shadow: 0 0 0 4px rgba(103, 232, 249, 0.18) !important;
+}
+
+.admin-premium table {
+  overflow: hidden;
+}
+
+.admin-premium thead,
+.admin-premium thead[class*="bg-rose"],
+.admin-premium thead[class*="bg-slate"] {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #020617 !important;
+  color: #ecfeff !important;
+}
+
+.admin-premium thead th {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #ecfeff !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.12em;
+}
+
+.admin-premium tbody tr:hover {
+  background-color: rgba(236, 254, 255, 0.56) !important;
+}
+
+.admin-premium h1,
+.admin-premium h2,
+.admin-premium h3 {
+  color: #020617;
+  font-weight: 600 !important;
+  letter-spacing: 0;
+}
+
+.admin-premium :is(p, span, label, td, th, button, a, input, select, textarea) {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.admin-premium [class*="font-extrabold"],
+.admin-premium [class*="font-black"] {
+  font-weight: 600 !important;
+}
+
 /*
   Global UI theme.
   Override these custom properties on any page root or component to customize

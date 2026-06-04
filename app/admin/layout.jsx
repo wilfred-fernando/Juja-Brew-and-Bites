@@ -60,8 +60,14 @@ export default function AdminLayout({ children }) {
   // Loading screen.
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-[#FFF5F7]">
-        <div className="w-10 h-10 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
+      <div
+        className="flex h-screen items-center justify-center bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage:
+            "linear-gradient(135deg, rgba(248,250,252,0.78), rgba(226,232,240,0.70)), url('https://images.jujabrewandbites.com/page%20background.png')",
+        }}
+      >
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-cyan-100 border-t-cyan-600" />
       </div>
     );
   }
@@ -73,7 +79,13 @@ export default function AdminLayout({ children }) {
 
   // Main layout.
   return (
-    <div className="min-h-screen bg-[#FFF5F7] flex">
+    <div
+      className="admin-shell flex min-h-screen bg-cover bg-fixed bg-center bg-no-repeat text-slate-950"
+      style={{
+        backgroundImage:
+          "radial-gradient(circle at top left, rgba(34,211,238,0.18), transparent 32%), linear-gradient(135deg, rgba(248,250,252,0.78), rgba(226,232,240,0.68)), url('https://images.jujabrewandbites.com/page%20background.png')",
+      }}
+    >
       
       {/* SIDEBAR */}
       <AdminSidebar
@@ -88,16 +100,16 @@ export default function AdminLayout({ children }) {
       <div className="flex-1 md:ml-[260px] min-h-screen">
 
         {/* MOBILE TOP BAR */}
-        <div className="md:hidden sticky top-0 z-40 bg-white border-b border-rose-100 px-4 py-3 flex items-center justify-between">
+        <div className="sticky top-0 z-40 flex items-center justify-between border-b border-white/10 bg-slate-950/82 px-4 py-3 shadow-[0_18px_45px_rgba(2,6,23,0.28)] backdrop-blur-xl md:hidden">
           <button
             onClick={() => setMobileOpen(true)}
-            className="w-10 h-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-700"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-300/30 bg-cyan-300/10 text-cyan-100 transition duration-200 hover:bg-cyan-300/18"
             aria-label="Open menu"
           >
             <Menu className="h-5 w-5" />
           </button>
 
-          <div className="text-sm font-extrabold text-slate-800">
+          <div className="text-sm font-semibold uppercase tracking-[0.16em] text-white">
             Admin Panel
           </div>
 
@@ -105,7 +117,7 @@ export default function AdminLayout({ children }) {
         </div>
 
         {/* PAGE */}
-        <main className={isReportsPage ? "w-full p-4 sm:p-6 md:p-8 xl:p-10" : "p-6 md:p-10 max-w-7xl mx-auto"}>
+        <main className={`admin-premium w-full animate-[financeFade_260ms_ease-out] ${isReportsPage ? "p-4 sm:p-6 md:p-8 xl:p-10" : "mx-auto max-w-7xl p-6 md:p-10"}`}>
           {children}
         </main>
 
