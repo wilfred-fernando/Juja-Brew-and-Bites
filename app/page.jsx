@@ -178,18 +178,18 @@ export default function Home() {
       <Nav active="home" />
 
       {/* HERO */}
-      <section className="relative flex-none md:flex-1 flex min-h-[calc(100svh-3.5rem)] items-center justify-center overflow-hidden px-3 py-3 sm:px-8 sm:py-8 md:min-h-0 md:px-10 md:py-6">
-        <div className="relative z-10 mx-auto grid h-full w-full max-w-6xl grid-cols-[0.42fr_0.58fr] items-center gap-2 sm:gap-6 md:grid-cols-[0.9fr_1.1fr] md:gap-10">
+      <section className="relative flex-none md:flex-1 flex min-h-[calc(100svh-3.5rem)] items-center justify-center overflow-hidden px-3 py-0 sm:px-8 sm:py-6 md:min-h-0 md:px-10 md:py-6">
+        <div className="relative z-10 mx-auto grid h-full w-full max-w-6xl grid-cols-[0.42fr_0.58fr] items-center gap-1 sm:gap-6 md:grid-cols-[0.9fr_1.1fr] md:gap-10">
           <div className="order-1 flex h-full items-end justify-end overflow-visible md:justify-end">
             <img
               src={HERO_MASCOT}
               alt="Juja mascot"
-              className="h-[54svh] max-h-[200px] w-auto object-contain object-bottom drop-shadow-[0_20px_35px_rgba(15,23,42,0.14)] sm:h-[340px] md:h-[440px] md:max-h-none lg:h-[700px]"
+              className="h-[50svh] max-h-[390px] w-auto object-contain object-bottom drop-shadow-[0_20px_35px_rgba(15,23,42,0.14)] sm:h-[340px] md:h-[440px] md:max-h-none lg:h-[700px]"
             />
           </div>
 
-          <div className="order-2 flex min-w-0 flex-col items-start pt-0 text-center md:items-start md:text-left">
-          <p className="juja-annyeong mb-3 text-[clamp(1.55rem,8vw,2.35rem)] sm:text-5xl md:mb-30 md:text-6xl lg:text-7xl">
+          <div className="order-2 flex min-w-0 flex-col items-center pt-0 text-center md:items-start md:text-left">
+          <p className="juja-annyeong mb-2 text-center text-[clamp(1.55rem,8vw,2.35rem)] sm:text-5xl md:mb-30 md:text-left md:text-6xl lg:text-7xl">
             Annyeong!
           </p>
 
@@ -197,10 +197,10 @@ export default function Home() {
             <img
               src={HERO_LOGO}
               alt="Juja Brew & Bites"
-              className="mb-4 h-auto w-full max-w-[190px] object-contain sm:h-32 sm:w-auto sm:max-w-none md:mb-20 md:h-36 lg:h-40"
+              className="mb-3 h-auto w-full max-w-[190px] object-contain sm:h-32 sm:w-auto sm:max-w-none md:mb-20 md:h-36 lg:h-40"
             />
 
-            <div className="mb-5 w-full max-w-[210px] text-center text-[10px] font-bold uppercase leading-5 tracking-[0.04em] text-slate-600 sm:text-sm md:mb-30 md:max-w-xl md:text-center md:text-[14px] md:leading-7 md:tracking-[0.12em]">
+            <div className="mb-4 w-full max-w-[210px] text-center text-[10px] font-bold uppercase leading-5 tracking-[0.04em] text-slate-600 sm:text-sm md:mb-30 md:max-w-xl md:text-center md:text-[14px] md:leading-7 md:tracking-[0.12em]">
               <span>Milk Tea</span>
               <span className="px-2 text-[#ff8389]">&bull;</span>
               <span>Coffee</span>
