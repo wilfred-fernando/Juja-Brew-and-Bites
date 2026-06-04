@@ -166,8 +166,8 @@ function Nav({ active }) {
 ───────────────────────────────────────────────────────────── */
 function Footer() {
   return (
-    <footer className="bg-slate-900 text-slate-400 py-6 md:py-8 px-6 flex-none">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10 mb-4 md:mb-6">
+    <footer className="bg-slate-900 text-slate-400 py-3 md:py-4 px-6 flex-none">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-3 md:mb-4">
         {/* Brand Block */}
         <div className="flex flex-col justify-center">
           <p className="text-slate-400 mb-2 leading-relaxed max-w-sm">
@@ -204,7 +204,7 @@ function Footer() {
       </div>
 
       {/* Footer Bottom Metadata Bar */}
-      <div className="max-w-7xl mx-auto pt-4 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center text-slate-500 text-[10px] tracking-wider uppercase">
+      <div className="max-w-7xl mx-auto pt-3 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center text-slate-500 text-[10px] tracking-wider uppercase">
         <p>© {new Date().getFullYear()} Juja Brew &amp; Bites® · All rights reserved</p>
         <p>Quezon City · Philippines</p>
       </div>
@@ -218,7 +218,6 @@ function Footer() {
 export default function FunctionRoomPage() {
   const supabase = getSupabaseClient();
 
-  const [selectedPackage, setSelectedPackage] = useState("consumable");
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
 
   const [sessionUser, setSessionUser] = useState(null);
@@ -359,18 +358,18 @@ export default function FunctionRoomPage() {
   }
 
   return (
-    <div className="juja-page-bg flex min-h-screen flex-col bg-transparent pb-16 pt-24 md:h-screen md:overflow-hidden md:pb-0 md:pt-24 lg:pt-28">
+    <div className="juja-page-bg flex min-h-screen flex-col bg-transparent pb-16 pt-24 md:h-screen md:overflow-hidden md:pb-0 md:pt-28">
       <Nav active="function room" />
 
-      <main className="mx-auto min-h-0 w-full max-w-6xl flex-1 space-y-10 px-4 sm:px-6 md:space-y-4 md:overflow-hidden md:pb-4">
+      <main className="mx-auto min-h-0 w-full max-w-6xl flex-1 space-y-10 overflow-y-auto px-4 sm:px-6 md:space-y-4 md:pb-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-slate-100 md:pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-slate-100 md:pb-2">
           <div>
             <p className="text-xs text-rose-500 font-semibold">Private Bookings</p>
-            <h1 className="text-2xl sm:text-3xl font-semibold text-slate-800 mt-2">
+            <h1 className="text-2xl sm:text-3xl font-semibold text-slate-800 mt-2 md:mt-1 md:text-2xl">
               Function Room
             </h1>
-            <p className="text-sm text-slate-400 mt-1">
+            <p className="text-sm text-slate-400 mt-1 md:text-xs">
               Check availability and reserve your slot.
             </p>
           </div>
@@ -380,7 +379,7 @@ export default function FunctionRoomPage() {
               setPickedSlot(null);
               setBookingModalOpen(true);
             }}
-            className="px-6 py-3 rounded-2xl bg-[#FC687D] hover:bg-rose-500 text-white text-xs font-bold uppercase tracking-widest shadow-md shadow-rose-100 active:scale-[0.99]"
+            className="px-6 py-3 rounded-2xl bg-[#FC687D] hover:bg-rose-500 text-white text-xs font-bold uppercase tracking-widest shadow-md shadow-rose-100 active:scale-[0.99] md:rounded-xl md:py-2.5"
             type="button"
           >
             Check Availability
@@ -388,115 +387,106 @@ export default function FunctionRoomPage() {
         </div>
 
         {/* Hero Card */}
-        <div className="bg-white/95 rounded-3xl border border-slate-100 p-6 sm:p-8 md:p-4 backdrop-blur-sm">
-          <h2 className="text-lg sm:text-xl font-semibold text-slate-800">
+        <div className="bg-white/95 rounded-3xl border border-slate-100 p-6 sm:p-8 md:p-3 backdrop-blur-sm">
+          <h2 className="text-lg sm:text-xl font-semibold text-slate-800 md:text-base">
             Host your event at Juja
           </h2>
-          <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+          <p className="text-sm text-slate-500 mt-2 leading-relaxed md:mt-1 md:text-xs">
             Ideal for birthdays, meetings, private gatherings, and milestone celebrations.
           </p>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6 md:mt-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6 md:mt-3">
             {keySpecs.map((s) => (
               <div
                 key={s.title}
-                className="bg-slate-50 border border-slate-100 rounded-2xl p-4 md:p-3"
+                className="bg-slate-50 border border-slate-100 rounded-2xl p-4 md:p-2.5"
               >
-                <div className="text-2xl">{s.icon}</div>
-                <div className="text-sm font-semibold text-slate-800 mt-2">
+                <div className="text-2xl md:text-lg">{s.icon}</div>
+                <div className="text-sm font-semibold text-slate-800 mt-2 md:mt-1 md:text-xs">
                   {s.title}
                 </div>
-                <div className="text-xs text-slate-500 mt-1">{s.desc}</div>
+                <div className="text-xs text-slate-500 mt-1 md:text-[11px]">{s.desc}</div>
               </div>
             ))}
           </div>
         </div>
 
         {/* Rates & Packages */}
-        <div className="bg-white/95 rounded-3xl border border-slate-100 p-6 sm:p-8 md:p-4 backdrop-blur-sm">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="bg-white/95 rounded-3xl border border-slate-100 p-6 sm:p-8 md:p-3 backdrop-blur-sm">
+          <div>
             <div>
-              <h3 className="text-lg font-semibold text-slate-800">Rates & Packages</h3>
-              <p className="text-sm text-slate-500 mt-1">Choose the package that fits your event.</p>
-            </div>
-
-            <div className="inline-flex bg-slate-50 border border-slate-200/60 p-1 rounded-full shadow-inner">
-              <button
-                onClick={() => setSelectedPackage("consumable")}
-                className={`px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider transition ${
-                  selectedPackage === "consumable"
-                    ? "bg-[#FC687D] text-white shadow-sm"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-                type="button"
-              >
-                Consumable
-              </button>
-              <button
-                onClick={() => setSelectedPackage("celebration")}
-                className={`px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider transition ${
-                  selectedPackage === "celebration"
-                    ? "bg-[#FC687D] text-white shadow-sm"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-                type="button"
-              >
-                Room Only
-              </button>
+              <h3 className="text-lg font-semibold text-slate-800 md:text-base">Rates & Packages</h3>
+              <p className="text-sm text-slate-500 mt-1 md:text-xs">Choose the package that fits your event.</p>
             </div>
           </div>
 
-          {/* 3-Column Grid View for Balanced Desktop Layout */}
-          <div className="mt-6 grid md:grid-cols-3 gap-6 md:mt-3 md:gap-3">
-            {packages[selectedPackage].map((pkg, index) => (
-              <div 
-                key={index} 
-                className="bg-slate-50 border border-slate-100 rounded-3xl p-5 sm:p-6 md:min-h-[300px] md:p-4 flex flex-col justify-between items-start min-h-[420px]"
-              >
-                <div className="w-full">
-                  <span className="inline-block text-[10px] font-bold uppercase tracking-widest text-[#FC687D] bg-rose-50 border border-rose-100 px-3 py-1 rounded-full">
-                    {pkg.hours}
-                  </span>
-
-                  <h4 className="text-lg font-semibold text-slate-800 mt-3">
-                    {pkg.title}
-                  </h4>
-                  <p className="text-xs text-slate-500 mt-2">
-                    {pkg.subtitle}
-                  </p>
-
-                  <ul className="mt-4 space-y-2 md:mt-3 md:space-y-1">
-                    {pkg.features.map((feat, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-xs text-slate-600">
-                        <span className="text-[#FC687D] mt-[1px]">✔</span>
-                        <span>{feat}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="w-full pt-4 mt-6 border-t border-slate-200/60 md:mt-3 md:pt-3">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                    Base Rate
-                  </div>
-                  <div className="text-2xl font-semibold text-[#FC687D] mt-1">
-                    {pkg.rate}
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      setPickedSlot(null);
-                      setBookingModalOpen(true);
-                    }}
-                    className="w-full mt-4 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-widest shadow-md active:scale-[0.99] transition-transform"
-                    type="button"
-                  >
-                    Check Availability
-                  </button>
-                </div>
+          {[
+            ["Consumables", packages.consumable],
+            ["Room Only", packages.celebration],
+          ].map(([sectionTitle, rows], sectionIndex) => (
+            <section
+              key={sectionTitle}
+              className={`mt-6 md:mt-5 ${sectionIndex > 0 ? "border-t border-[#087830]/25 pt-6 md:pt-5" : ""}`}
+            >
+              <div className="flex items-center gap-3">
+                <h4 className="rounded-full border border-[#087830]/25 bg-[#087830]/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#087830]">
+                  {sectionTitle}
+                </h4>
+                <div className="h-px flex-1 bg-[#087830]/20" />
               </div>
-            ))}
-          </div>
+
+              <div className="mt-4 grid gap-6 md:grid-cols-3 md:gap-3">
+                {rows.map((pkg, index) => (
+                  <div
+                    key={`${sectionTitle}-${pkg.title}-${index}`}
+                    className="flex min-h-[420px] flex-col items-start justify-between rounded-3xl border border-slate-100 bg-slate-50 p-5 sm:p-6 md:min-h-0 md:p-3"
+                  >
+                    <div className="w-full">
+                      <span className="inline-block rounded-full border border-rose-100 bg-rose-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[#FC687D] md:px-2 md:py-0.5 md:text-[9px]">
+                        {pkg.hours}
+                      </span>
+
+                      <h4 className="mt-3 text-lg font-semibold text-slate-800 md:mt-2 md:text-base">
+                        {pkg.title}
+                      </h4>
+                      <p className="mt-2 text-xs text-slate-500 md:mt-1 md:text-[11px]">
+                        {pkg.subtitle}
+                      </p>
+
+                      <ul className="mt-4 space-y-2 md:mt-2 md:space-y-1">
+                        {pkg.features.map((feat, idx) => (
+                          <li key={idx} className="flex items-start gap-2 text-xs text-slate-600 md:text-[11px]">
+                            <span className="mt-[1px] text-[#087830]">✓</span>
+                            <span>{feat}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="mt-6 w-full border-t border-slate-200/60 pt-4 md:mt-2 md:pt-2">
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 md:text-[9px]">
+                        Base Rate
+                      </div>
+                      <div className="mt-1 text-2xl font-semibold text-[#087830] md:text-xl">
+                        {pkg.rate}
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setPickedSlot(null);
+                          setBookingModalOpen(true);
+                        }}
+                        className="mt-4 w-full rounded-2xl bg-slate-900 py-3 text-xs font-bold uppercase tracking-widest text-white shadow-md transition-transform hover:bg-slate-800 active:scale-[0.99] md:mt-2 md:rounded-xl md:py-2 md:text-[11px]"
+                        type="button"
+                      >
+                        Check Availability
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
         </div>
       </main>
 

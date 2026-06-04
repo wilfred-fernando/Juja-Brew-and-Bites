@@ -113,8 +113,8 @@ function Nav({ active }) {
 // ─── Shared Footer ────────────────────────────────────────────────────────────
 function Footer() {
   return (
-    <footer className="bg-slate-900 text-slate-400 py-6 md:py-8 px-6 flex-none">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10 mb-4 md:mb-6">
+    <footer className="bg-slate-900 text-slate-400 py-3 md:py-4 px-6 flex-none">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-3 md:mb-4">
         {/* Brand Block */}
         <div className="flex flex-col justify-center">
           <p className="text-slate-400 mb-2 leading-relaxed max-w-sm">
@@ -151,7 +151,7 @@ function Footer() {
       </div>
 
       {/* Footer Bottom Metadata Bar */}
-      <div className="max-w-7xl mx-auto pt-4 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center text-slate-500 text-[10px] tracking-wider uppercase">
+      <div className="max-w-7xl mx-auto pt-3 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center text-slate-500 text-[10px] tracking-wider uppercase">
         <p>© {new Date().getFullYear()} Juja Brew &amp; Bites® · All rights reserved</p>
         <p>Quezon City · Philippines</p>
       </div>
