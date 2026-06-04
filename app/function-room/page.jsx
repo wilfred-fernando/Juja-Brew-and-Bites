@@ -166,18 +166,15 @@ function Nav({ active }) {
 ───────────────────────────────────────────────────────────── */
 function Footer() {
   return (
-    // Replaced large margin-top and padding-top with tight, proportional paddings suitable for a viewport container
     <footer className="bg-slate-900 text-slate-400 py-6 md:py-8 px-6 flex-none">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10 mb-4 md:mb-6">
         {/* Brand Block */}
         <div className="flex flex-col justify-center">
-          <img
-            src={LOGO}
-            alt="Juja"
-            className="h-10 w-auto object-contain mb-3 brightness-0 invert opacity-60 self-start"
-          />
+          <p className="text-slate-400 mb-2 leading-relaxed max-w-sm">
+            ROMANS 15:13
+          </p>
           <p className="text-slate-400 text-xs leading-relaxed max-w-sm">
-            Your premier destination for specialty brews and artisan bites in Quezon City.
+            May the God of hope fill you with all joy and peace...
           </p>
         </div>
 

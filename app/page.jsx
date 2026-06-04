@@ -100,13 +100,11 @@ function Footer() {
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10 mb-4 md:mb-6">
         {/* Brand Block */}
         <div className="flex flex-col justify-center">
-          <img
-            src={LOGO}
-            alt="Juja"
-            className="h-10 w-auto object-contain mb-3 brightness-0 invert opacity-60 self-start"
-          />
+          <p className="text-slate-400 mb-2 leading-relaxed max-w-sm">
+            ROMANS 15:13
+          </p>
           <p className="text-slate-400 text-xs leading-relaxed max-w-sm">
-            Your premier destination for specialty brews and artisan bites in Quezon City.
+            May the God of hope fill you with all joy and peace...
           </p>
         </div>
 
@@ -174,7 +172,7 @@ export default function Home() {
               className="mb-20 h-24 w-auto object-contain sm:h-32 md:h-36 lg:h-40"
             />
 
-            <div className="max-w-xl text-center text-[12px] mb-30 uppercase leading-7 tracking-[0.12em] text-slate-600 sm:text-sm md:text-left">
+            <div className="max-w-xl text-center text-[14px] font-bold mb-30 uppercase leading-7 tracking-[0.12em] text-slate-600 sm:text-sm md:text-center">
               <span>Milk Tea</span>
               <span className="px-2 text-[#ff8389]">&bull;</span>
               <span>Coffee</span>
@@ -198,7 +196,7 @@ export default function Home() {
                 View Menu
               </Link>
               <Link
-                href="https://customer.jujabrewandbites.com/function-room"
+                href="https://www.jujabrewandbites.com/function-room"
                 className="flex-1 rounded-full border border-[#087830] bg-white/80 px-7 py-3 text-center text-xs uppercase tracking-widest text-[#087830] transition hover:bg-[#e9f7ef]"
               >
                 Function Room

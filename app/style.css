@@ -85,7 +85,7 @@
 }
 
 .juja-annyeong {
-  color: #ff8389 !important;
+  color: #066829 !important;
   font-family: "Comic Sans MS", "Comic Sans", "Comic Neue", "Trebuchet MS", cursive !important;
   font-weight: 400 !important;
   letter-spacing: 0.02em;
@@ -133,11 +133,15 @@ button {
 
 b,
 strong,
-body [class*="font-bold"],
-body [class*="font-black"],
-body [class*="font-extrabold"],
+body [class*="font-bold"] {
+  font-weight: 700 !important;
+}
 body [class*="font-semibold"] {
-  font-weight: var(--app-strong-font-weight) !important;
+  font-weight: 600 !important;
+}
+body [class*="font-black"],
+body [class*="font-extrabold"] {
+  font-weight: 900 !important;
 }
 
 h1,
