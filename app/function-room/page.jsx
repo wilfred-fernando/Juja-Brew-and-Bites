@@ -359,12 +359,12 @@ export default function FunctionRoomPage() {
   }
 
   return (
-    <div className="juja-page-bg flex min-h-screen flex-col bg-transparent pb-16 pt-24 md:pt-28 lg:h-screen lg:overflow-hidden lg:pb-0">
+    <div className="juja-page-bg flex min-h-screen flex-col bg-transparent pb-16 pt-24 md:h-screen md:overflow-hidden md:pb-0 md:pt-24 lg:pt-28">
       <Nav active="function room" />
 
-      <main className="mx-auto min-h-0 w-full max-w-6xl flex-1 space-y-10 px-4 sm:px-6 lg:space-y-4 lg:overflow-hidden lg:pb-4">
+      <main className="mx-auto min-h-0 w-full max-w-6xl flex-1 space-y-10 px-4 sm:px-6 md:space-y-4 md:overflow-hidden md:pb-4">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-slate-100 lg:pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-slate-100 md:pb-3">
           <div>
             <p className="text-xs text-rose-500 font-semibold">Private Bookings</p>
             <h1 className="text-2xl sm:text-3xl font-semibold text-slate-800 mt-2">
@@ -388,7 +388,7 @@ export default function FunctionRoomPage() {
         </div>
 
         {/* Hero Card */}
-        <div className="bg-white/95 rounded-3xl border border-slate-100 p-6 sm:p-8 lg:p-4 backdrop-blur-sm">
+        <div className="bg-white/95 rounded-3xl border border-slate-100 p-6 sm:p-8 md:p-4 backdrop-blur-sm">
           <h2 className="text-lg sm:text-xl font-semibold text-slate-800">
             Host your event at Juja
           </h2>
@@ -396,11 +396,11 @@ export default function FunctionRoomPage() {
             Ideal for birthdays, meetings, private gatherings, and milestone celebrations.
           </p>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6 lg:mt-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6 md:mt-3">
             {keySpecs.map((s) => (
               <div
                 key={s.title}
-                className="bg-slate-50 border border-slate-100 rounded-2xl p-4 lg:p-3"
+                className="bg-slate-50 border border-slate-100 rounded-2xl p-4 md:p-3"
               >
                 <div className="text-2xl">{s.icon}</div>
                 <div className="text-sm font-semibold text-slate-800 mt-2">
@@ -413,7 +413,7 @@ export default function FunctionRoomPage() {
         </div>
 
         {/* Rates & Packages */}
-        <div className="bg-white/95 rounded-3xl border border-slate-100 p-6 sm:p-8 lg:p-4 backdrop-blur-sm">
+        <div className="bg-white/95 rounded-3xl border border-slate-100 p-6 sm:p-8 md:p-4 backdrop-blur-sm">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
               <h3 className="text-lg font-semibold text-slate-800">Rates & Packages</h3>
@@ -447,11 +447,11 @@ export default function FunctionRoomPage() {
           </div>
 
           {/* 3-Column Grid View for Balanced Desktop Layout */}
-          <div className="mt-6 grid md:grid-cols-3 gap-6 lg:mt-3 lg:gap-3">
+          <div className="mt-6 grid md:grid-cols-3 gap-6 md:mt-3 md:gap-3">
             {packages[selectedPackage].map((pkg, index) => (
               <div 
                 key={index} 
-                className="bg-slate-50 border border-slate-100 rounded-3xl p-5 sm:p-6 lg:p-4 flex flex-col justify-between items-start min-h-[420px] lg:min-h-[300px]"
+                className="bg-slate-50 border border-slate-100 rounded-3xl p-5 sm:p-6 md:min-h-[300px] md:p-4 flex flex-col justify-between items-start min-h-[420px]"
               >
                 <div className="w-full">
                   <span className="inline-block text-[10px] font-bold uppercase tracking-widest text-[#FC687D] bg-rose-50 border border-rose-100 px-3 py-1 rounded-full">
@@ -465,7 +465,7 @@ export default function FunctionRoomPage() {
                     {pkg.subtitle}
                   </p>
 
-                  <ul className="mt-4 space-y-2 lg:mt-3 lg:space-y-1">
+                  <ul className="mt-4 space-y-2 md:mt-3 md:space-y-1">
                     {pkg.features.map((feat, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-xs text-slate-600">
                         <span className="text-[#FC687D] mt-[1px]">✔</span>
@@ -475,7 +475,7 @@ export default function FunctionRoomPage() {
                   </ul>
                 </div>
 
-                <div className="w-full pt-4 mt-6 border-t border-slate-200/60 lg:mt-3 lg:pt-3">
+                <div className="w-full pt-4 mt-6 border-t border-slate-200/60 md:mt-3 md:pt-3">
                   <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                     Base Rate
                   </div>
