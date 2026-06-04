@@ -179,17 +179,17 @@ export default function Home() {
 
       {/* HERO */}
       <section className="relative flex-none md:flex-1 flex min-h-[calc(65svh-1.5rem)] items-center justify-center overflow-hidden px-3 py-0 sm:px-8 sm:py-6 md:min-h-0 md:px-10 md:py-6">
-        <div className="relative z-10 mx-auto grid h-full w-full max-w-6xl grid-cols-[0.42fr_0.58fr] items-center gap-1 sm:gap-6 md:grid-cols-[0.9fr_1.1fr] md:gap-10">
-          <div className="order-1 flex h-full items-end justify-end overflow-visible md:justify-end">
+        <div className="relative z-10 mx-auto grid h-full w-full max-w-6xl grid-cols-[0.42fr_0.58fr] items-center gap-1 sm:gap-6 md:gap-8 lg:gap-10">
+          <div className="order-1 flex h-full items-center justify-end overflow-visible md:justify-end">
             <img
               src={HERO_MASCOT}
               alt="Juja mascot"
-              className="h-[30svh] max-h-[390px] w-auto object-contain object-bottom drop-shadow-[0_20px_35px_rgba(15,23,42,0.14)] sm:h-[340px] md:h-[440px] md:max-h-none lg:h-[700px]"
+              className="h-[30svh] max-h-[390px] w-auto object-contain object-center drop-shadow-[0_20px_35px_rgba(15,23,42,0.14)] sm:h-[340px] md:h-[66vh] md:max-h-none md:-translate-y-8 lg:h-[76vh] lg:-translate-y-10"
             />
           </div>
 
-          <div className="order-2 flex min-w-0 flex-col items-center pt-0 text-center md:items-start md:text-left">
-          <p className="juja-annyeong mb-2 text-center text-[clamp(1.55rem,8vw,2.35rem)] sm:text-5xl md:mb-30 md:text-left md:text-6xl lg:text-7xl">
+          <div className="order-2 flex min-w-0 flex-col items-center pt-0 text-center">
+          <p className="juja-annyeong mb-2 text-center text-[clamp(1.55rem,8vw,2.35rem)] sm:text-5xl md:mb-6 md:text-6xl lg:text-7xl">
             Annyeong!
           </p>
 
@@ -197,26 +197,29 @@ export default function Home() {
             <img
               src={HERO_LOGO}
               alt="Juja Brew & Bites"
-              className="mb-3 h-auto w-full max-w-[190px] object-contain sm:h-32 sm:w-auto sm:max-w-none md:mb-20 md:h-36 lg:h-40"
+              className="mb-3 h-auto w-full max-w-[190px] object-contain sm:h-32 sm:w-auto sm:max-w-none md:mb-6 md:h-36 lg:h-40"
             />
 
-            <div className="mb-4 w-full max-w-[210px] text-center text-[10px] font-bold uppercase leading-5 tracking-[0.04em] text-slate-600 sm:text-sm md:mb-30 md:max-w-xl md:text-center md:text-[14px] md:leading-7 md:tracking-[0.12em]">
-              <span>Milk Tea</span>
-              <span className="px-2 text-[#ff8389]">&bull;</span>
-              <span>Coffee</span>
-              <span className="px-2 text-[#ff8389]">&bull;</span>
-              <span>Ice Cream</span>
-              <span className="px-2 text-[#ff8389]">&bull;</span>
-              <span>Chicken</span>
-              <br />
-              <span>Waffle</span>
-              <span className="px-2 text-[#ff8389]">&bull;</span>
-              <span>Sandwich</span>
-              <span className="px-2 text-[#ff8389]">&bull;</span>
-              <span>Rice in a Box</span>
+            <div className="mb-4 flex w-full max-w-[210px] flex-col items-center gap-1 text-center text-[10px] font-bold uppercase leading-5 tracking-[0.04em] text-slate-600 sm:max-w-xl sm:text-sm md:mb-6 md:text-[14px] md:leading-7 md:tracking-[0.12em]">
+              <div className="flex flex-wrap items-center justify-center whitespace-nowrap">
+                <span>Milk Tea</span>
+                <span className="px-2 text-[#ff8389]">&bull;</span>
+                <span>Coffee</span>
+                <span className="px-2 text-[#ff8389]">&bull;</span>
+                <span>Ice Cream</span>
+                <span className="px-2 text-[#ff8389]">&bull;</span>
+                <span>Chicken</span>
+              </div>
+              <div className="flex flex-wrap items-center justify-center whitespace-nowrap">
+                <span>Waffle</span>
+                <span className="px-2 text-[#ff8389]">&bull;</span>
+                <span>Sandwich</span>
+                <span className="px-2 text-[#ff8389]">&bull;</span>
+                <span>Rice in a Box</span>
+              </div>
             </div>
 
-            <div className="mt-0 flex w-full max-w-[220px] flex-col gap-2 sm:max-w-md sm:flex-row md:mt-6 md:max-w-none md:gap-3">
+            <div className="mt-0 flex w-full max-w-[220px] flex-col gap-2 sm:max-w-md sm:flex-row md:max-w-md md:gap-3">
               <Link
                 href="/menu"
                 className="flex-1 rounded-full bg-[#087830] px-4 py-2.5 text-center text-[10px] uppercase tracking-widest text-white shadow-[0_14px_28px_rgba(8,120,48,0.18)] transition hover:bg-[#066829] md:px-7 md:py-3 md:text-xs"
