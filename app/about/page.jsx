@@ -181,14 +181,12 @@ export default function About() {
 
           <div className="flex flex-col justify-center text-black md:min-h-0">
             <section className="mb-7 border-b border-[#087830]/20 pb-6 md:mb-3 md:pb-3 lg:mb-4 lg:pb-4">
-              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#087830] md:mb-1 md:text-[10px] lg:mb-2">
-                About Juja
-              </p>
+              
               <h1 className="mb-5 max-w-xl text-3xl font-semibold leading-tight text-black sm:text-4xl md:mb-2 md:text-[clamp(1.85rem,3.2vw,3.05rem)] lg:mb-3">
                 <span className="block">Welcome to</span>
-                <span className="block text-[#087830]">JUJA Brew &amp; Bites</span>
+                <span className="block text-[#087830]">JUJA Brew &amp; Bites®</span>
               </h1>
-              <p className="mb-5 max-w-2xl text-justify text-[15px] leading-8 text-zinc-800 sm:text-base md:mb-2 md:text-xs md:leading-5 lg:mb-3 lg:text-[13px] lg:leading-6 xl:text-sm xl:leading-7">
+              <p className="mb-5 max-w-2xl text-justify text-[15px] leading-8 text-zinc-800 sm:text-base md:mb-1 md:text-xs md:leading-5 lg:mb-1 lg:text-[13px] lg:leading-6 xl:text-sm xl:leading-7">
                 At JUJA Brew &amp; Bites, we believe that great food and drinks bring people together. Founded with a passion for creating memorable dining experiences, we serve a wide variety of handcrafted beverages, comfort food, and delightful snacks in a warm and welcoming environment.
               </p>
               <p className="max-w-2xl text-justify text-[15px] leading-8 text-zinc-800 sm:text-base md:text-xs md:leading-5 lg:text-[13px] lg:leading-6 xl:text-sm xl:leading-7">
@@ -196,7 +194,7 @@ export default function About() {
               </p>
             </section>
 
-            <div className="space-y-6 md:space-y-2.5 lg:space-y-3">
+            <div className="space-y-6 md:space-y-2.5 lg:space-y-2">
               {[
                 {
                   title: "Our Story",
