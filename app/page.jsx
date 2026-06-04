@@ -184,11 +184,11 @@ export default function Home() {
             <img
               src={HERO_MASCOT}
               alt="Juja mascot"
-              className="h-[54svh] max-h-[420px] w-auto object-contain object-bottom drop-shadow-[0_20px_35px_rgba(15,23,42,0.14)] sm:h-[340px] md:h-[440px] md:max-h-none lg:h-[700px]"
+              className="h-[54svh] max-h-[600px] w-auto object-contain object-bottom drop-shadow-[0_20px_35px_rgba(15,23,42,0.14)] sm:h-[340px] md:h-[440px] md:max-h-none lg:h-[700px]"
             />
           </div>
 
-          <div className="order-2 flex min-w-0 flex-col items-start pt-0 text-left md:items-start md:text-left">
+          <div className="order-2 flex min-w-0 flex-col items-start pt-0 text-center md:items-start md:text-left">
           <p className="juja-annyeong mb-3 text-[clamp(1.55rem,8vw,2.35rem)] sm:text-5xl md:mb-30 md:text-6xl lg:text-7xl">
             Annyeong!
           </p>
