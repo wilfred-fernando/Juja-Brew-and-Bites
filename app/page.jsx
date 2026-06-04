@@ -14,7 +14,7 @@ const supabase = (typeof globalThis !== "undefined" && globalThis.supabase) || {
 
 const LOGO = "https://images.jujabrewandbites.com/SIGNAGE%20light%20with%20korean%20letters%203.png";
 const HERO_MASCOT = "https://images.jujabrewandbites.com/juja%201.png";
-const HERO_LOGO = "https://images.jujabrewandbites.com/juja%202.png";
+const HERO_LOGO = "https://images.jujabrewandbites.com/juja%203.png";
 
 // ─── Shared Nav ───────────────────────────────────────────────────────────────
 function Nav({ active }) {
@@ -200,7 +200,7 @@ export default function Home() {
               className="mb-5 h-24 w-auto max-w-[82vw] object-contain sm:h-32 md:mb-20 md:h-36 lg:h-40"
             />
 
-            <div className="max-w-[92vw] text-center text-[12px] font-bold mb-6 uppercase leading-6 tracking-[0.08em] text-slate-600 sm:text-sm md:mb-30 md:max-w-xl md:text-center md:text-[14px] md:leading-7 md:tracking-[0.12em]">
+            <div className="max-w-[92vw] text-center text-[12px] font-bold mb-6 uppercase leading-6 tracking-[0.05em] text-slate-600 sm:text-sm md:mb-30 md:max-w-xl md:text-center md:text-[14px] md:leading-7 md:tracking-[0.12em]">
               <span>Milk Tea</span>
               <span className="px-2 text-[#ff8389]">&bull;</span>
               <span>Coffee</span>
