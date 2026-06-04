@@ -178,18 +178,18 @@ export default function Home() {
       <Nav active="home" />
 
       {/* HERO */}
-      <section className="relative flex-none md:flex-1 flex items-center justify-center overflow-hidden px-5 py-8 sm:px-8 md:px-10 md:py-6">
-        <div className="relative z-10 mx-auto grid h-full w-full max-w-6xl items-center gap-6 md:grid-cols-[0.9fr_1.1fr] md:gap-10">
-          <div className="order-2 flex justify-center md:order-1 md:justify-end">
+      <section className="relative flex-none md:flex-1 flex items-center justify-center overflow-hidden px-5 py-5 sm:px-8 sm:py-8 md:px-10 md:py-6">
+        <div className="relative z-10 mx-auto grid h-full w-full max-w-6xl items-center gap-4 sm:gap-6 md:grid-cols-[0.9fr_1.1fr] md:gap-10">
+          <div className="order-2 flex max-h-[34vh] overflow-hidden justify-center md:order-1 md:max-h-none md:overflow-visible md:justify-end">
             <img
               src={HERO_MASCOT}
               alt="Juja mascot"
-              className="h-[280px] w-auto object-contain drop-shadow-[0_20px_35px_rgba(15,23,42,0.14)] sm:h-[360px] md:h-[440px] lg:h-[700px]"
+              className="h-[250px] w-auto object-contain object-top drop-shadow-[0_20px_35px_rgba(15,23,42,0.14)] sm:h-[340px] md:h-[440px] lg:h-[700px]"
             />
           </div>
 
           <div className="order-1 flex flex-col items-center text-center md:order-2 md:items-start md:text-left">
-            <p className="juja-annyeong mb-30 text-4xl sm:text-5xl md:text-6xl lg:text-7xl">
+            <p className="juja-annyeong mb-3 text-4xl sm:text-5xl md:mb-30 md:text-6xl lg:text-7xl">
               Annyeong!
             </p>
 
@@ -197,10 +197,10 @@ export default function Home() {
             <img
               src={HERO_LOGO}
               alt="Juja Brew & Bites"
-              className="mb-20 h-24 w-auto object-contain sm:h-32 md:h-36 lg:h-40"
+              className="mb-5 h-24 w-auto max-w-[82vw] object-contain sm:h-32 md:mb-20 md:h-36 lg:h-40"
             />
 
-            <div className="max-w-xl text-center text-[14px] font-bold mb-30 uppercase leading-7 tracking-[0.12em] text-slate-600 sm:text-sm md:text-center">
+            <div className="max-w-[92vw] text-center text-[12px] font-bold mb-6 uppercase leading-6 tracking-[0.08em] text-slate-600 sm:text-sm md:mb-30 md:max-w-xl md:text-center md:text-[14px] md:leading-7 md:tracking-[0.12em]">
               <span>Milk Tea</span>
               <span className="px-2 text-[#ff8389]">&bull;</span>
               <span>Coffee</span>
@@ -216,7 +216,7 @@ export default function Home() {
               <span>Rice in a Box</span>
             </div>
 
-            <div className="mt-6 flex w-full max-w-md flex-col gap-3 sm:flex-row md:max-w-none">
+            <div className="mt-2 flex w-full max-w-md flex-col gap-3 sm:flex-row md:mt-6 md:max-w-none">
               <Link
                 href="/menu"
                 className="flex-1 rounded-full bg-[#087830] px-7 py-3 text-center text-xs uppercase tracking-widest text-white shadow-[0_14px_28px_rgba(8,120,48,0.18)] transition hover:bg-[#066829]"
