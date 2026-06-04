@@ -164,22 +164,22 @@ export default function About() {
   return (
     <div className="juja-page-bg flex min-h-screen flex-col bg-transparent lg:h-screen lg:overflow-hidden" style={{ fontFamily:"'Inter',system-ui,sans-serif" }}>
       <Nav active="about" />
-      <main className="min-h-0 flex-1 lg:overflow-y-auto">
+      <main className="min-h-0 flex-1 lg:overflow-hidden">
 
       {/* ═══ SOFT HERO ═══ */}
-      <div className="relative overflow-hidden bg-transparent" style={{ paddingTop:"7.5rem", paddingBottom:"5rem", borderBottom: "1px solid rgba(255, 228, 230, 0.7)" }}>
+      <div className="relative overflow-hidden bg-transparent pt-28 pb-16 lg:pt-24 lg:pb-6" style={{ borderBottom: "1px solid rgba(255, 228, 230, 0.7)" }}>
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[180px] pointer-events-none"
           style={{ background:"radial-gradient(ellipse,rgba(252,104,125,0.15) 0%,transparent 70%)", filter:"blur(55px)" }} />
         <div className="absolute inset-0 opacity-[0.03]"
           style={{ backgroundImage:"radial-gradient(rgba(252,104,125,0.8) 1px,transparent 1px)", backgroundSize:"26px 26px" }} />
         
         <div className="relative z-10 max-w-3xl mx-auto px-6 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <img src={LOGO} alt="Juja" className="h-24 md:h-28 w-auto object-contain mx-auto mb-6 drop-shadow-sm" />
+          <img src={LOGO} alt="Juja" className="h-24 md:h-28 lg:h-20 w-auto object-contain mx-auto mb-6 lg:mb-3 drop-shadow-sm" />
           <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full text-[10px] font-normal uppercase tracking-[0.25em] bg-white text-[#FC687D] border border-rose-100 shadow-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-[#FC687D] animate-pulse" />
             Our Story
           </div>
-          <h1 className="text-4xl md:text-6xl font-extrabold text-slate-800 tracking-tight mb-4">
+          <h1 className="text-4xl md:text-6xl lg:text-4xl font-extrabold text-slate-800 tracking-tight mb-4 lg:mb-2">
             About <span className="text-[#FC687D]">Juja</span> 주자
           </h1>
           <p className="text-slate-500 text-sm font-medium max-w-md mx-auto leading-relaxed">
@@ -189,18 +189,18 @@ export default function About() {
       </div>
 
       {/* ═══ STORY ═══ */}
-      <section className="py-16 px-6 md:py-24 bg-transparent">
-        <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-16 items-center">
+      <section className="py-16 px-6 md:py-24 lg:py-6 bg-transparent">
+        <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-16 lg:gap-8 items-center">
           <div className="animate-in fade-in slide-in-from-left-8 duration-700">
             <p className="text-[#FC687D] uppercase tracking-[0.25em] text-[10px] font-normal mb-3">Who We Are</p>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-slate-800 tracking-tight mb-6 leading-tight">
+            <h2 className="text-3xl md:text-4xl lg:text-3xl font-extrabold text-slate-800 tracking-tight mb-6 lg:mb-3 leading-tight">
               Born from a Passion<br />for Good Food
             </h2>
-            <p className="text-slate-500 mb-5 font-medium leading-relaxed text-sm">
+            <p className="text-slate-500 mb-5 lg:mb-3 font-medium leading-relaxed text-sm">
               Juja 주자 Brew & Bites is your neighborhood cafe and food hub, born from a deep love for great food and
               even better company. We blend Filipino comfort food with Korean-inspired flavors to create an experience that's uniquely ours.
             </p>
-            <p className="text-slate-500 mb-5 font-medium leading-relaxed text-sm">
+            <p className="text-slate-500 mb-5 lg:mb-3 font-medium leading-relaxed text-sm">
               Whether you're grabbing a quick milk tea, feasting on our famous unli wings, or celebrating a special event
               in our function room — Juja is always the place to be.
             </p>
@@ -208,7 +208,7 @@ export default function About() {
               Every visit should feel like coming home — warm, satisfying, and worth sharing with people you love.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-right-8 duration-700">
+          <div className="grid grid-cols-2 gap-4 lg:gap-3 animate-in fade-in slide-in-from-right-8 duration-700">
             {[
               { num:"170+", label:"Menu Items", icon:"🍽" },
               { num:"11", label:"Categories", icon:"📋" },
@@ -216,7 +216,7 @@ export default function About() {
               { num:"🤍", label:"Made with Love", icon:"" },
             ].map(s => (
               <div key={s.label}
-                className="group bg-[#FFF5F7] rounded-3xl p-6 text-center border border-rose-50
+                className="group bg-white/85 rounded-3xl p-6 lg:p-4 text-center border border-rose-50 backdrop-blur-sm
                   hover:bg-[#FC687D] hover:shadow-[0_8px_20px_rgba(252,104,125,0.2)] hover:-translate-y-1
                   transition-all duration-300">
                 <div className="text-3xl font-normal text-[#FC687D] mb-1 group-hover:text-white transition-colors">{s.num}</div>
