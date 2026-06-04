@@ -162,11 +162,11 @@ function Footer() {
 // ─── Main About Page ──────────────────────────────────────────────────────────
 export default function About() {
   return (
-    <div className="juja-page-bg min-h-screen bg-white" style={{ fontFamily:"'Inter',system-ui,sans-serif" }}>
+    <div className="juja-page-bg min-h-screen bg-transparent" style={{ fontFamily:"'Inter',system-ui,sans-serif" }}>
       <Nav active="about" />
 
       {/* ═══ SOFT HERO ═══ */}
-      <div className="relative overflow-hidden bg-[#FFF5F7]" style={{ paddingTop:"7.5rem", paddingBottom:"5rem", borderBottom: "1px solid #ffe4e6" }}>
+      <div className="relative overflow-hidden bg-transparent" style={{ paddingTop:"7.5rem", paddingBottom:"5rem", borderBottom: "1px solid rgba(255, 228, 230, 0.7)" }}>
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[180px] pointer-events-none"
           style={{ background:"radial-gradient(ellipse,rgba(252,104,125,0.15) 0%,transparent 70%)", filter:"blur(55px)" }} />
         <div className="absolute inset-0 opacity-[0.03]"
@@ -188,7 +188,7 @@ export default function About() {
       </div>
 
       {/* ═══ STORY ═══ */}
-      <section className="py-24 px-6 bg-white">
+      <section className="py-16 px-6 md:py-24 bg-transparent">
         <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-16 items-center">
           <div className="animate-in fade-in slide-in-from-left-8 duration-700">
             <p className="text-[#FC687D] uppercase tracking-[0.25em] text-[10px] font-normal mb-3">Who We Are</p>

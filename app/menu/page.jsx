@@ -367,7 +367,7 @@ export default function PublicMenuPage() {
   };
 
   return (
-    <div className="juja-page-bg min-h-screen bg-[#FFF5F7] pb-16 pt-24 md:pt-28">
+    <div className="juja-page-bg flex min-h-screen flex-col bg-transparent pb-16 pt-24 md:pt-28 lg:h-screen lg:overflow-hidden lg:pb-0">
       <Nav active="menu" />
       <PromoModal />
 
@@ -375,7 +375,7 @@ export default function PublicMenuPage() {
         <VariantModal item={selectedItem} onClose={() => setSelectedItem(null)} />
       )}
 
-      <div className="max-w-6xl mx-auto px-4 md:px-6 py-6">
+      <main className="mx-auto min-h-0 w-full max-w-6xl flex-1 px-4 py-6 md:px-6 lg:overflow-y-auto">
         {/* HEADER */}
         <div className="mb-4">
           <h1 className="text-3xl md:text-4xl font-bold text-slate-800">Our Menu</h1>
@@ -426,11 +426,11 @@ export default function PublicMenuPage() {
             </div>
 
             {visibleItems.length === 0 ? (
-              <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-slate-500">
+              <div className="bg-white/90 border border-slate-200 rounded-2xl p-8 text-center text-slate-500 backdrop-blur-sm">
                 No items found.
               </div>
             ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 sm:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
                 {visibleItems.map((item) => {
                   const bestSeller = !!item.is_featured;
                   const mostOrdered = mostOrderedIdSet.has(item.id);
@@ -439,7 +439,7 @@ export default function PublicMenuPage() {
                     <button
                       key={item.id}
                       onClick={() => setSelectedItem(item)}
-                      className="relative text-left bg-white border border-slate-100 rounded-xl p-2 shadow-sm hover:shadow-md transition active:scale-[0.99]"
+                      className="relative text-left bg-white/95 border border-slate-100 rounded-xl p-2 shadow-sm backdrop-blur-sm hover:shadow-md transition active:scale-[0.99]"
                     >
                       {/* Badges */}
                       <div className="absolute top-2 left-2 flex gap-1">
@@ -495,7 +495,7 @@ export default function PublicMenuPage() {
             )}
           </>
         )}
-      </div>
+      </main>
       <Footer />
     </div>
   );
