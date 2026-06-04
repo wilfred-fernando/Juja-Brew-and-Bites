@@ -208,7 +208,7 @@ export default function Home() {
               <span>Ice Cream</span>
               <span className="px-2 text-[#ff8389]">&bull;</span>
               <span>Chicken</span>
-              <br className="hidden sm:block" />
+              <br />
               <span>Waffle</span>
               <span className="px-2 text-[#ff8389]">&bull;</span>
               <span>Sandwich</span>
