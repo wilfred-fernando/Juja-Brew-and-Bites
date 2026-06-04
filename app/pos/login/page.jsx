@@ -20,7 +20,9 @@ export default function LoginPage() {
     e.preventDefault();
     setErrorMsg("");
 
-    if (isTurnstileEnabled() && !captchaToken) {
+    const token = captchaToken.trim();
+
+    if (isTurnstileEnabled() && !token) {
       setErrorMsg("Please complete the security check.");
       return;
     }
@@ -32,7 +34,7 @@ export default function LoginPage() {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
-        options: { captchaToken },
+        options: { captchaToken: token },
       });
 
       if (error) throw error;

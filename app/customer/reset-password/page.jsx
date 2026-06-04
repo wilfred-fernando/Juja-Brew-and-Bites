@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import AuthTurnstile, { isTurnstileEnabled } from "@/components/AuthTurnstile";
 import PasswordField from "@/components/PasswordField";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
@@ -25,6 +26,8 @@ export default function CustomerResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [hasRecoverySession, setHasRecoverySession] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -59,20 +62,32 @@ export default function CustomerResetPasswordPage() {
     event.preventDefault();
     setError("");
     setMessage("");
+
+    const token = captchaToken.trim();
+    if (isTurnstileEnabled() && !token) {
+      setError("Please complete the security check.");
+      return;
+    }
+
     setLoading(true);
 
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: customerRedirectUrl(),
+      captchaToken: token,
     });
 
     setLoading(false);
 
     if (resetError) {
       setError(resetError.message || "Unable to send reset email.");
+      setCaptchaToken("");
+      setCaptchaResetKey((key) => key + 1);
       return;
     }
 
     setMessage("Password reset email sent. Please check your inbox.");
+    setCaptchaToken("");
+    setCaptchaResetKey((key) => key + 1);
   }
 
   async function savePassword(event) {
@@ -178,9 +193,14 @@ export default function CustomerResetPasswordPage() {
               />
             </label>
 
+            <AuthTurnstile
+              resetKey={captchaResetKey}
+              onTokenChange={setCaptchaToken}
+            />
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (isTurnstileEnabled() && !captchaToken)}
               className="h-12 w-full rounded-full bg-[#FC687D] text-sm uppercase tracking-wide text-white transition active:scale-[0.99] disabled:opacity-50"
             >
               {loading ? "Sending..." : "Send Reset Email"}

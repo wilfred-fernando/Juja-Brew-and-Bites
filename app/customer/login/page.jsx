@@ -68,7 +68,9 @@ export default function Login() {
     setError("");
     setSuccess("");
 
-    if (isTurnstileEnabled() && !captchaToken) {
+    const token = captchaToken.trim();
+
+    if (isTurnstileEnabled() && !token) {
       setError("Please complete the security check.");
       return;
     }
@@ -81,7 +83,7 @@ export default function Login() {
           email: form.email,
           password: form.password,
           options: {
-            captchaToken,
+            captchaToken: token,
             data: { full_name: form.name },
             emailRedirectTo: customerLoginRedirectUrl(),
           },
@@ -102,7 +104,7 @@ export default function Login() {
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email: form.email,
         password: form.password,
-        options: { captchaToken },
+        options: { captchaToken: token },
       });
 
       if (authError) throw authError;
