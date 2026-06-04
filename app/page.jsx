@@ -178,7 +178,7 @@ export default function Home() {
       <Nav active="home" />
 
       {/* HERO */}
-      <section className="relative flex-none md:flex-1 flex min-h-[calc(50svh-1rem)] items-center justify-center overflow-hidden px-3 py-0 sm:px-8 sm:py-6 md:min-h-0 md:px-10 md:py-6">
+      <section className="relative flex-none md:flex-1 flex min-h-[calc(60svh-1.5rem)] items-center justify-center overflow-hidden px-3 py-0 sm:px-8 sm:py-6 md:min-h-0 md:px-10 md:py-6">
         <div className="relative z-10 mx-auto grid h-full w-full max-w-6xl grid-cols-[0.42fr_0.58fr] items-center gap-1 sm:gap-6 md:grid-cols-[0.9fr_1.1fr] md:gap-10">
           <div className="order-1 flex h-full items-end justify-end overflow-visible md:justify-end">
             <img
