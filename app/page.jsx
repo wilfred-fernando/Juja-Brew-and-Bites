@@ -188,10 +188,10 @@ export default function Home() {
             />
           </div>
 
-          <div className="order-1 flex flex-col items-center text-center md:order-2 md:items-start md:text-left">
-            <p className="juja-annyeong mb-3 text-4xl sm:text-5xl md:mb-30 md:text-6xl lg:text-7xl">
-              Annyeong!
-            </p>
+          <div className="order-1 pt-20 md:pt-0 flex flex-col items-center text-center md:order-2 md:items-start md:text-left">
+          <p className="juja-annyeong mb-3 text-4xl sm:text-5xl md:mb-30 md:text-6xl lg:text-7xl">
+            Annyeong!
+          </p>
 
             
             <img
@@ -216,7 +216,7 @@ export default function Home() {
               <span>Rice in a Box</span>
             </div>
 
-            <div className="mt-2 flex w-full max-w-md flex-col gap-3 sm:flex-row md:mt-6 md:max-w-none">
+            <div className="mt-2 flex w-sm max-w-md flex-col gap-3 sm:flex-row md:mt-6 md:max-w-none">
               <Link
                 href="/menu"
                 className="flex-1 rounded-full bg-[#087830] px-7 py-3 text-center text-xs uppercase tracking-widest text-white shadow-[0_14px_28px_rgba(8,120,48,0.18)] transition hover:bg-[#066829]"
