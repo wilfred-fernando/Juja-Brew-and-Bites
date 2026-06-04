@@ -13,7 +13,7 @@ const supabase = (typeof globalThis !== "undefined" && globalThis.supabase) || {
 };
 
 const LOGO = "https://images.jujabrewandbites.com/SIGNAGE%20light%20with%20korean%20letters%203.png";
-const HERO_MASCOT = "https://images.jujabrewandbites.com/juja%201.png";
+const HERO_MASCOT = "https://images.jujabrewandbites.com/juja%204.png";
 const HERO_LOGO = "https://images.jujabrewandbites.com/juja%203.png";
 
 // ─── Shared Nav ───────────────────────────────────────────────────────────────
@@ -189,7 +189,7 @@ export default function Home() {
           </div>
 
           <div className="order-1 pt-20 md:pt-0 flex flex-col items-center text-center md:order-2 md:items-start md:text-left">
-          <p className="juja-annyeong mb-3 text-4xl sm:text-5xl md:mb-30 md:text-6xl lg:text-7xl">
+          <p className="juja-annyeong mb-10 text-4xl sm:text-5xl md:mb-30 md:text-6xl lg:text-7xl">
             Annyeong!
           </p>
 
@@ -197,7 +197,7 @@ export default function Home() {
             <img
               src={HERO_LOGO}
               alt="Juja Brew & Bites"
-              className="mb-5 h-24 w-auto max-w-[82vw] object-contain sm:h-32 md:mb-20 md:h-36 lg:h-40"
+              className="mb-15 h-24 w-auto max-w-[82vw] object-contain sm:h-32 md:mb-20 md:h-36 lg:h-40"
             />
 
             <div className="max-w-[92vw] text-center text-[12px] font-bold mb-6 uppercase leading-6 tracking-[0.05em] text-slate-600 sm:text-sm md:mb-30 md:max-w-xl md:text-center md:text-[14px] md:leading-7 md:tracking-[0.12em]">
