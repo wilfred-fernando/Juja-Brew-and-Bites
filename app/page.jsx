@@ -158,22 +158,23 @@ export default function Home() {
             <img
               src={HERO_MASCOT}
               alt="Juja mascot"
-              className="h-[280px] w-auto object-contain drop-shadow-[0_20px_35px_rgba(15,23,42,0.14)] sm:h-[360px] md:h-[440px] lg:h-[500px]"
+              className="h-[280px] w-auto object-contain drop-shadow-[0_20px_35px_rgba(15,23,42,0.14)] sm:h-[360px] md:h-[440px] lg:h-[700px]"
             />
           </div>
 
           <div className="order-1 flex flex-col items-center text-center md:order-2 md:items-start md:text-left">
-            <p className="juja-annyeong mb-3 text-4xl sm:text-5xl md:text-6xl lg:text-7xl">
+            <p className="juja-annyeong mb-30 text-4xl sm:text-5xl md:text-6xl lg:text-7xl">
               Annyeong!
             </p>
+
 
             <img
               src={HERO_LOGO}
               alt="Juja Brew & Bites"
-              className="mb-5 h-24 w-auto object-contain sm:h-32 md:h-36 lg:h-40"
+              className="mb-20 h-24 w-auto object-contain sm:h-32 md:h-36 lg:h-40"
             />
 
-            <div className="max-w-xl text-center text-[12px] uppercase leading-7 tracking-[0.12em] text-slate-600 sm:text-sm md:text-left">
+            <div className="max-w-xl text-center text-[12px] mb-30 uppercase leading-7 tracking-[0.12em] text-slate-600 sm:text-sm md:text-left">
               <span>Milk Tea</span>
               <span className="px-2 text-[#ff8389]">&bull;</span>
               <span>Coffee</span>
@@ -197,10 +198,10 @@ export default function Home() {
                 View Menu
               </Link>
               <Link
-                href="https://customer.jujabrewandbites.com/login"
+                href="https://customer.jujabrewandbites.com/function-room"
                 className="flex-1 rounded-full border border-[#087830] bg-white/80 px-7 py-3 text-center text-xs uppercase tracking-widest text-[#087830] transition hover:bg-[#e9f7ef]"
               >
-                Order Online
+                Function Room
               </Link>
             </div>
           </div>
