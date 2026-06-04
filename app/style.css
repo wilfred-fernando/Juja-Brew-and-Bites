@@ -184,63 +184,73 @@ a {
   color: var(--app-text);
 }
 
-/* Page transitions */
-body > .page-transition-shell {
-  width: 100%;
-  min-height: 100vh;
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  background: var(--app-bg);
-}
+/* --- High-Tech Data Warp Transitions --- */
 
-.page-transition-shell[data-page-transition-phase="enter"] {
-  animation: app-page-enter var(--page-transition-duration) cubic-bezier(0.2, 0, 0, 1) both;
-}
-
-.page-transition-shell[data-page-transition-phase="exit"] {
-  animation: app-page-exit 140ms cubic-bezier(0.4, 0, 1, 1) both;
-  pointer-events: none;
-}
-
-.page-transition-shell:has([data-page-transition="off"]) {
-  animation: none !important;
-}
-
-[data-page-transition="off"] {
-  --page-transition-duration: 0ms;
-  --page-transition-distance: 0px;
+:root {
+  /* Customize your futuristic energy colors here */
+  --futuristic-energy-primary: #00e5ff; /* Cyan */
+  --futuristic-energy-secondary: #7f00ff; /* Purple */
 }
 
 @keyframes app-page-enter {
-  from {
+  0% {
     opacity: 0;
-    transform: translateY(var(--page-transition-distance));
+    /* 1. Starts highly compressed and shifted, like entering a warp jump */
+    transform: translateY(calc(var(--page-transition-distance) * 2)) scaleY(0.1) scaleX(1.1);
+    
+    /* 2. Intense, focused initial energy glow */
+    filter: 
+      brightness(3)
+      drop-shadow(0 0 15px var(--futuristic-energy-primary))
+      drop-shadow(0 0 30px var(--futuristic-energy-secondary));
+    
+    /* 3. A sharp, digital chromatic glitch effect */
+    text-shadow: 
+      2px 0 var(--futuristic-energy-primary), 
+      -2px 0 var(--futuristic-energy-secondary);
   }
 
-  to {
+  50% {
     opacity: 1;
-    transform: translateY(0);
+    /* The core moment of entry: stretched, decelerating from warp */
+    transform: translateY(calc(var(--page-transition-distance) * 0.5)) scaleY(1.2) scaleX(0.9);
+    filter: brightness(1.5) drop-shadow(0 0 5px var(--futuristic-energy-primary));
+    text-shadow: none;
+  }
+
+  100% {
+    opacity: 1;
+    /* Settles into normal position */
+    transform: translateY(0) scale(1);
+    filter: brightness(1) drop-shadow(0 0 0px transparent);
   }
 }
 
 @keyframes app-page-exit {
-  from {
+  0% {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
+    filter: brightness(1) drop-shadow(0 0 0px transparent);
   }
 
-  to {
-    opacity: 0.88;
-    transform: translateY(-4px);
-  }
-}
-
-@supports (view-transition-name: root) {
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
-    animation-duration: var(--page-transition-duration);
-    animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  /* Rapid, structural breakdown phase */
+  100% {
+    opacity: 0;
+    
+    /* 1. Page stretches dramatically as it exits, like being sucked into a singularity */
+    transform: translateY(calc(var(--page-transition-distance) * -1)) scaleY(2.5) scaleX(0.01);
+    
+    /* 2. Intense, colorful energy disintegration */
+    filter: 
+      brightness(5)
+      drop-shadow(0 0 10px var(--futuristic-energy-secondary))
+      drop-shadow(0 0 25px var(--futuristic-energy-primary))
+      blur(1px); /* Slight blur simulates high velocity */
+    
+    /* 3. Intense digital color glitch */
+    text-shadow: 
+      5px 0 var(--futuristic-energy-secondary), 
+      -5px 0 var(--futuristic-energy-primary);
   }
 }
 
