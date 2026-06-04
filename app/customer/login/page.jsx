@@ -11,15 +11,7 @@ const LOGO =
   "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
 
 function customerLoginRedirectUrl() {
-  if (typeof window === "undefined") {
-    return "https://customer.jujabrewandbites.com/login";
-  }
-
-  if (window.location.hostname.startsWith("customer.")) {
-    return `${window.location.origin}/login`;
-  }
-
-  return `${window.location.origin}/customer/login`;
+  return "https://customer.jujabrewandbites.com/auth/callback";
 }
 
 export default function Login() {

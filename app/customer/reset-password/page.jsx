@@ -14,11 +14,7 @@ function customerPath(path) {
 }
 
 function customerRedirectUrl() {
-  if (typeof window === "undefined") {
-    return "https://customer.jujabrewandbites.com/reset-password";
-  }
-
-  return `${window.location.origin}${customerPath("/reset-password")}`;
+  return "https://customer.jujabrewandbites.com/reset-password";
 }
 
 export default function CustomerResetPasswordPage() {
@@ -36,10 +32,34 @@ export default function CustomerResetPasswordPage() {
     let active = true;
 
     async function checkSession() {
-      const { data } = await supabase.auth.getSession();
-      if (active) {
-        setHasRecoverySession(Boolean(data?.session));
-        setLoading(false);
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get("code");
+        const tokenHash = params.get("token_hash");
+        const type = params.get("type");
+
+        if (code) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) throw exchangeError;
+        } else if (tokenHash && type) {
+          const { error: verifyError } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type,
+          });
+          if (verifyError) throw verifyError;
+        }
+
+        const { data } = await supabase.auth.getSession();
+        if (active) {
+          setHasRecoverySession(Boolean(data?.session));
+          setLoading(false);
+        }
+      } catch (err) {
+        if (active) {
+          setError(err?.message || "Password reset link is invalid or expired.");
+          setHasRecoverySession(false);
+          setLoading(false);
+        }
       }
     }
 

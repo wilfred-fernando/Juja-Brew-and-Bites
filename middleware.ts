@@ -21,7 +21,8 @@ export function middleware(req: NextRequest) {
     pathname.startsWith("/finance/login") ||
     pathname.startsWith("/pos/login") ||
     pathname.startsWith("/customer/login") ||
-    pathname.startsWith("/customer/reset-password")
+    pathname.startsWith("/customer/reset-password") ||
+    pathname.startsWith("/customer/auth/callback")
   ) {
     return NextResponse.next();
   }
