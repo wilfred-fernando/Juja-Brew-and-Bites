@@ -162,8 +162,9 @@ function Footer() {
 // ─── Main About Page ──────────────────────────────────────────────────────────
 export default function About() {
   return (
-    <div className="juja-page-bg min-h-screen bg-transparent" style={{ fontFamily:"'Inter',system-ui,sans-serif" }}>
+    <div className="juja-page-bg flex min-h-screen flex-col bg-transparent lg:h-screen lg:overflow-hidden" style={{ fontFamily:"'Inter',system-ui,sans-serif" }}>
       <Nav active="about" />
+      <main className="min-h-0 flex-1 lg:overflow-y-auto">
 
       {/* ═══ SOFT HERO ═══ */}
       <div className="relative overflow-hidden bg-transparent" style={{ paddingTop:"7.5rem", paddingBottom:"5rem", borderBottom: "1px solid rgba(255, 228, 230, 0.7)" }}>
@@ -226,6 +227,7 @@ export default function About() {
         </div>
       </section>
 
+      </main>
     
       <Footer />
     </div>

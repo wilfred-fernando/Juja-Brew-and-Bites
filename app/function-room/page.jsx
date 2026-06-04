@@ -359,10 +359,10 @@ export default function FunctionRoomPage() {
   }
 
   return (
-    <div className="juja-page-bg min-h-screen bg-white pb-16 pt-24 md:pt-28">
+    <div className="juja-page-bg flex min-h-screen flex-col bg-white pb-16 pt-24 md:pt-28 lg:h-screen lg:overflow-hidden lg:pb-0">
       <Nav active="function room" />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 space-y-10">
+      <main className="mx-auto min-h-0 w-full max-w-6xl flex-1 space-y-10 px-4 sm:px-6 lg:overflow-y-auto lg:pb-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-slate-100">
           <div>
@@ -498,7 +498,7 @@ export default function FunctionRoomPage() {
             ))}
           </div>
         </div>
-      </div>
+      </main>
 
       {/* Availability Modal */}
       <ModalShell
