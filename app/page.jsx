@@ -12,7 +12,9 @@ const supabase = (typeof globalThis !== "undefined" && globalThis.supabase) || {
   }),
 };
 
-const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
+const LOGO = "https://images.jujabrewandbites.com/SIGNAGE%20light%20with%20korean%20letters%203.png";
+const HERO_MASCOT = "https://images.jujabrewandbites.com/juja%201.png";
+const HERO_LOGO = "https://images.jujabrewandbites.com/juja%202.png";
 
 // ─── Shared Nav ───────────────────────────────────────────────────────────────
 function Nav({ active }) {
@@ -146,55 +148,67 @@ function Footer() {
 export default function Home() {
   return (
     // Configured mobile-first scroll wrapper swap (min-h-screen md:h-screen overflow-y-auto md:overflow-hidden)
-    <div className="min-h-screen md:h-screen w-screen overflow-y-auto md:overflow-hidden flex flex-col bg-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div className="juja-page-bg min-h-screen md:h-screen w-screen overflow-y-auto md:overflow-hidden flex flex-col bg-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       <Nav active="home" />
 
-      {/* ═══ HERO ═══ */}
-      {/* Set to flex-none on mobile so it displays at full size parameters, then md:flex-1 on desktop to perfectly constrain spaces */}
-      <section className="relative flex-none md:flex-1 flex items-center justify-center overflow-hidden bg-gradient-to-b from-[#FFF5F7] to-white p-6 py-12 md:py-6">
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-1/4 left-1/10 w-[400px] md:w-[600px] h-[400px] md:h-[600px] rounded-full opacity-25"
-            style={{ background: "radial-gradient(circle,#FC687D 0%,transparent 65%)", filter: "blur(90px)" }} />
-        </div>
-
-        <div className="relative z-10 text-center max-w-5xl mx-auto flex flex-col items-center justify-center h-full space-y-5 md:space-y-7">
-          
-          {/* Main Visual Branding Logo */}
-          <img src={LOGO} alt="Juja Brew & Bites"
-            className="h-24 sm:h-36 md:h-44 lg:h-48 w-auto object-contain mx-auto drop-shadow-md transition-all duration-300" />
-            
-          {/* Sub description context items */}
-          <p className="text-slate-500 text-sm sm:text-base md:text-lg lg:text-xl max-w-2xl mx-auto font-medium tracking-wide">
-            Chicken · Milk Tea · Coffee · Waffle · Rice in a Box
-          </p>
-
-          <div className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full text-[10px] md:text-[11px] font-bold uppercase tracking-[0.25em] bg-white text-[#FC687D] border border-rose-100 shadow-sm">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#FC687D] animate-pulse" />
-            food · drinks · Quezon City
+      {/* HERO */}
+      <section className="relative flex-none md:flex-1 flex items-center justify-center overflow-hidden px-5 py-8 sm:px-8 md:px-10 md:py-6">
+        <div className="relative z-10 mx-auto grid h-full w-full max-w-6xl items-center gap-6 md:grid-cols-[0.9fr_1.1fr] md:gap-10">
+          <div className="order-2 flex justify-center md:order-1 md:justify-end">
+            <img
+              src={HERO_MASCOT}
+              alt="Juja mascot"
+              className="h-[280px] w-auto object-contain drop-shadow-[0_20px_35px_rgba(15,23,42,0.14)] sm:h-[360px] md:h-[440px] lg:h-[500px]"
+            />
           </div>
 
-          {/* Core Visual Header Statement */}
-          <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black leading-[0.95] tracking-tight text-slate-800 uppercase">
-            brewing with<br />
-            <span className="text-[#FC687D] relative">gratitude</span>
-          </h1>
+          <div className="order-1 flex flex-col items-center text-center md:order-2 md:items-start md:text-left">
+            <p className="juja-annyeong mb-3 text-4xl sm:text-5xl md:text-6xl lg:text-7xl">
+              Annyeong!
+            </p>
 
-          {/* Action Navigation Controls */}
-          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto pt-3">
-            <Link href="/order"
-              className="w-full sm:w-auto px-10 py-4 rounded-full font-bold text-xs md:text-sm text-center uppercase tracking-widest text-white transition-all duration-300 bg-[#FC687D] shadow-[0_10px_25px_rgba(252,104,125,0.3)] hover:bg-rose-500 hover:-translate-y-0.5">
-              Order Online →
-            </Link>
-            <Link href="/menu"
-              className="w-full sm:w-auto px-10 py-4 rounded-full font-bold text-xs md:text-sm text-center uppercase tracking-widest bg-white text-slate-700 border border-slate-200 hover:border-[#FC687D] hover:text-[#FC687D] hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
-              View Full Menu
-            </Link>
+            <img
+              src={HERO_LOGO}
+              alt="Juja Brew & Bites"
+              className="mb-5 h-24 w-auto object-contain sm:h-32 md:h-36 lg:h-40"
+            />
+
+            <div className="max-w-xl text-center text-[12px] uppercase leading-7 tracking-[0.12em] text-slate-600 sm:text-sm md:text-left">
+              <span>Milk Tea</span>
+              <span className="px-2 text-[#ff8389]">&bull;</span>
+              <span>Coffee</span>
+              <span className="px-2 text-[#ff8389]">&bull;</span>
+              <span>Ice Cream</span>
+              <span className="px-2 text-[#ff8389]">&bull;</span>
+              <span>Chicken</span>
+              <br className="hidden sm:block" />
+              <span>Waffle</span>
+              <span className="px-2 text-[#ff8389]">&bull;</span>
+              <span>Sandwich</span>
+              <span className="px-2 text-[#ff8389]">&bull;</span>
+              <span>Rice in a Box</span>
+            </div>
+
+            <div className="mt-6 flex w-full max-w-md flex-col gap-3 sm:flex-row md:max-w-none">
+              <Link
+                href="/menu"
+                className="flex-1 rounded-full bg-[#087830] px-7 py-3 text-center text-xs uppercase tracking-widest text-white shadow-[0_14px_28px_rgba(8,120,48,0.18)] transition hover:bg-[#066829]"
+              >
+                View Menu
+              </Link>
+              <Link
+                href="https://customer.jujabrewandbites.com/login"
+                className="flex-1 rounded-full border border-[#087830] bg-white/80 px-7 py-3 text-center text-xs uppercase tracking-widest text-[#087830] transition hover:bg-[#e9f7ef]"
+              >
+                Order Online
+              </Link>
+            </div>
           </div>
         </div>
       </section>
-
       {/* On desktop, the footer is locked on screen. On mobile, it acts as the natural bottom of the scroll chain. */}
       <Footer />
     </div>
   );
 }
+

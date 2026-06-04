@@ -123,14 +123,14 @@ export default function Login() {
   // ✅ LOADING SCREEN
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FFF5F7]">
+      <div className="juja-page-bg min-h-screen flex items-center justify-center bg-[#FFF5F7]">
         <div className="animate-spin rounded-full h-10 w-10 border-2 border-slate-200 border-t-[#FC687D]" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FFF5F7]">
+    <div className="juja-page-bg min-h-screen flex flex-col bg-[#FFF5F7]">
       {/* HEADER */}
       <div className="px-6 py-8 flex items-center justify-between max-w-7xl mx-auto w-full">
         <Link href="/">

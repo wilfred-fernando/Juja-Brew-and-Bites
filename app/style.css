@@ -76,6 +76,22 @@
   --page-transition-distance: 8px;
 }
 
+.juja-page-bg {
+  background-color: #ffffff !important;
+  background-image: url("https://images.jujabrewandbites.com/page%20background.png") !important;
+  background-position: center top !important;
+  background-repeat: no-repeat !important;
+  background-size: cover !important;
+}
+
+.juja-annyeong {
+  color: #ff8389 !important;
+  font-family: "Comic Sans MS", "Comic Sans", "Comic Neue", "Trebuchet MS", cursive !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.02em;
+  line-height: 0.95;
+}
+
 * {
   box-sizing: border-box;
 }

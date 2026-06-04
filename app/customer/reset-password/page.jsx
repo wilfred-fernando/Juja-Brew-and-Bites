@@ -139,7 +139,7 @@ export default function CustomerResetPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#FFF5F7] p-4">
+    <div className="juja-page-bg flex min-h-screen items-center justify-center bg-[#FFF5F7] p-4">
       <div className="w-full max-w-md rounded-[32px] border border-rose-100 bg-white p-8 shadow-xl">
         <div className="mb-8 text-center">
           <p className="mb-2 text-xs uppercase tracking-wide text-rose-400">

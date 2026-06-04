@@ -137,7 +137,7 @@ function Footer() {
 // ─── Main About Page ──────────────────────────────────────────────────────────
 export default function About() {
   return (
-    <div className="min-h-screen bg-white" style={{ fontFamily:"'Inter',system-ui,sans-serif" }}>
+    <div className="juja-page-bg min-h-screen bg-white" style={{ fontFamily:"'Inter',system-ui,sans-serif" }}>
       <Nav active="about" />
 
       {/* ═══ SOFT HERO ═══ */}

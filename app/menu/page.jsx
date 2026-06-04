@@ -350,7 +350,7 @@ export default function PublicMenuPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF5F7] pb-16 pt-24 md:pt-28">
+    <div className="juja-page-bg min-h-screen bg-[#FFF5F7] pb-16 pt-24 md:pt-28">
       <Nav active="menu" />
       <PromoModal />
 

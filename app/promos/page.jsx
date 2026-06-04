@@ -34,7 +34,7 @@ export default function PromoPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50/50 text-slate-800 font-sans flex flex-col justify-between">
+    <div className="juja-page-bg min-h-screen bg-slate-50/50 text-slate-800 font-sans flex flex-col justify-between">
       <div>
         {/* Shared Nav Component (Active ID: 'promo') */}
         <Nav active="promo" />

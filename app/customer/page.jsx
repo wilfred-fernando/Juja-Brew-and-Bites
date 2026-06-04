@@ -2011,7 +2011,7 @@ export default function Customer() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FFF5F7]">
+      <div className="juja-page-bg min-h-screen flex items-center justify-center bg-[#FFF5F7]">
         <div className="w-9 h-9 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
       </div>
     );
@@ -2023,7 +2023,7 @@ export default function Customer() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF5F7] text-slate-800 antialiased flex flex-col lg:flex-row">
+    <div className="juja-page-bg min-h-screen bg-[#FFF5F7] text-slate-800 antialiased flex flex-col lg:flex-row">
       {/* Visual In-App Notification System Render Slot */}
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[250] px-4 w-full max-w-md animate-in fade-in slide-in-from-top-4 duration-300">
