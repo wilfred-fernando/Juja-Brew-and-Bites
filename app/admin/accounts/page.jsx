@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { formatDateTime } from "@/lib/dateFormat";
 
 function accountName(account) {
-  return account.full_name || account.display_name || account.email || "Unnamed account";
+  return account.full_name || account.email || "Unnamed account";
 }
 
 export default function AdminAccountsPage() {
@@ -94,7 +94,7 @@ export default function AdminAccountsPage() {
           <table className="w-full min-w-[920px] text-sm">
             <thead className="bg-slate-950 text-left text-[10px] uppercase tracking-[0.16em] text-cyan-50">
               <tr>
-                <th className="p-3">Full Name / Display Name</th>
+                <th className="p-3">Full Name</th>
                 <th>Email Address</th>
                 <th>Role</th>
                 <th>Store</th>

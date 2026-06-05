@@ -49,7 +49,7 @@ export async function GET() {
         admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
         admin
           .from("profiles")
-          .select("id, full_name, display_name, role, store_id, created_at")
+          .select("id, full_name, role, store_id, created_at")
           .in("role", ["admin", "super_admin", "cashier", "cashier_disabled"]),
         admin.from("stores").select("id, name"),
       ]);
@@ -68,7 +68,6 @@ export async function GET() {
           id: user.id,
           email: user.email,
           full_name: profile.full_name,
-          display_name: profile.display_name || user.user_metadata?.display_name || user.user_metadata?.full_name,
           role: profile.role,
           store_id: profile.store_id,
           store_name: profile.store_id ? storeById[String(profile.store_id)] : "",
