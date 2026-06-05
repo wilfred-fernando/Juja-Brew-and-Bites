@@ -198,6 +198,12 @@ function todayISO() {
   return new Date().toISOString().split("T")[0];
 }
 
+function normalizeLoyaltyName(value = "") {
+  return String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
 function fmtDate(iso) {
   if (!iso) return "—";
   return formatDate(iso, String(iso));
@@ -1656,19 +1662,48 @@ function LoyaltyTab({ member, setMember, user }) {
   const checkMatchPreview = async () => {
     const b = normalizeBirthday(form.Note);
     if (!b.ok) { setNotice("⚠️ " + b.msg); return; }
+    if (!form.customer_name.trim()) { setNotice("⚠️ Please enter your full name."); return; }
     setCheckingMatch(true);
-    const { data } = await supabase.from("loyalty_members").select("*").ilike("customer_name", form.customer_name).eq("Note", b.value).maybeSingle();
-    setMatchedPreview(data || null);
+    const typedName = normalizeLoyaltyName(form.customer_name);
+    const { data, error } = await supabase.from("loyalty_members").select("*").eq("Note", b.value).limit(50);
+    if (error) {
+      setNotice("Unable to check loyalty records. Please send a manual link request.");
+      setMatchedPreview(null);
+      setMatchChecked(true);
+      setCheckingMatch(false);
+      return;
+    }
+    const rows = data || [];
+    const exact = rows.find((row) => normalizeLoyaltyName(row.customer_name || row["customer_name"] || "") === typedName);
+    const contains = rows.find((row) => {
+      const savedName = normalizeLoyaltyName(row.customer_name || row["customer_name"] || "");
+      return savedName && typedName && (savedName.includes(typedName) || typedName.includes(savedName));
+    });
+    setMatchedPreview(exact || contains || null);
     setMatchChecked(true);
     setCheckingMatch(false);
   };
 
   const requestLink = async () => {
     const b = normalizeBirthday(form.Note);
-    const { error } = await supabase.from("loyalty_link_requests").insert({
+    if (!b.ok) { setNotice("⚠️ " + b.msg); return; }
+    const { data, error } = await supabase.from("loyalty_link_requests").insert({
       user_id: user.id, input_name: form.customer_name, input_birthday: b.value, matched_member_id: matchedPreview?.id || null, status: "pending"
     }).select().single();
     if (!error) {
+      try {
+        await fetch("/api/loyalty-link-notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            requestId: data?.id,
+            customerName: form.customer_name,
+            birthday: b.value,
+            userEmail: user?.email,
+            matchedMemberId: matchedPreview?.id || null,
+          }),
+        });
+      } catch {}
       alert("✅ Authorization sync request logged effectively.");
     }
   };
@@ -1751,7 +1786,17 @@ function LoyaltyTab({ member, setMember, user }) {
                 <p className="text-green-600 font-bold">Profile identified matching criteria. ✅</p>
                 <button onClick={requestLink} className="mt-3 w-full py-2 bg-[#FC687D] text-white rounded-lg font-bold">Submit Sync Authorization Link</button>
               </div>
-            ) : <p className="text-red-500 font-semibold">No pre-existing dynamic customer references located matching metrics.</p>}
+            ) : (
+              <div>
+                <p className="text-red-500 font-semibold">No pre-existing dynamic customer references located matching metrics.</p>
+                <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                  You can still send your full name and birthday to request manual account linking.
+                </p>
+                <button onClick={requestLink} className="mt-3 w-full py-2 bg-[#FC687D] text-white rounded-lg font-bold">
+                  Send Manual Link Request
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

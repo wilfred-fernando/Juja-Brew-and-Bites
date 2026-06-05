@@ -20,7 +20,7 @@ const BASE_BOOKING_MINUTES = 2 * 60 + 59; // 179 mins
 
 const DEPOSIT_AMOUNT = 1000;
 const QR_IMAGE_PATH = "/images/qrph.jpg";
-const ADMIN_EMAIL = "booking@jujabrewandbites.com";
+const ADMIN_EMAIL = "jujabrewandbites@gmail.com";
 
 /* =====================================================
  Cleaner: Strip citations + OneDrive/SharePoint URLs
@@ -797,6 +797,16 @@ export default function BookingForm({ user, member }) {
           body: JSON.stringify({
             adminEmail: ADMIN_EMAIL,
             bookingId: bookingRow?.id,
+            customerName: payload.customer_name,
+            eventType: payload.event_type,
+            businessDate: payload.business_date,
+            timeLabel: `${formatDateTime(payload.start_at, payload.start_at)} - ${formatDateTime(payload.end_at, payload.end_at)}`,
+            packageId: payload.package_id,
+            guestCount: payload.guest_count,
+            contactNumber: payload.contact_number,
+            customerEmail: payload.email,
+            extensionHours: payload.extension_hours,
+            depositAmount: payload.deposit_amount,
             proofUrl,
           }),
         });

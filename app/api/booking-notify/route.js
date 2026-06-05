@@ -21,8 +21,14 @@ export async function POST(req) {
       proofUrl,
     } = body;
 
-    if (!adminEmail || !proofUrl) {
-      return new Response("Missing adminEmail or proofUrl", { status: 400 });
+    const recipient =
+      adminEmail ||
+      process.env.BOOKING_NOTIFY_EMAIL ||
+      process.env.ADMIN_NOTIFY_EMAIL ||
+      "jujabrewandbites@gmail.com";
+
+    if (!recipient || !proofUrl) {
+      return new Response("Missing notification recipient or proofUrl", { status: 400 });
     }
 
     // Download screenshot so we can attach it
@@ -64,7 +70,7 @@ export async function POST(req) {
 
     await transporter.sendMail({
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
-      to: adminEmail,
+      to: recipient,
       subject,
       html,
       attachments: [
