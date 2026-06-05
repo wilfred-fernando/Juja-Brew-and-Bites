@@ -8,6 +8,7 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 const supabase = getSupabaseClient();
 
 const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
+const peso0 = (amount) => `₱${Number(amount || 0).toLocaleString("en-PH", { maximumFractionDigits: 0 })}`;
 
 // ─── Shared Nav (Integrated Perfectly) ───────────────────────────────────────
 function Nav({ active }) {
@@ -339,7 +340,7 @@ export default function PublicMenuPage() {
               </p>
               {Number(minOrder) > 0 && (
                 <p className="text-xs text-slate-500 mt-2">
-                  Minimum order: <span className="font-semibold">₱{Number(minOrder).toFixed(0)}</span>
+                  Minimum order: <span className="font-semibold">{peso0(minOrder)}</span>
                 </p>
               )}
             </div>
@@ -485,7 +486,7 @@ export default function PublicMenuPage() {
                       
                       {/* Price */}
                       <p className="text-sm text-[#FC687D] font-semibold mt-2">
-                        ₱{Number(item.price || 0).toFixed(0)}
+                        {peso0(item.price)}
                       </p>
 
                       <p className="text-[10px] text-slate-400 mt-2 uppercase tracking-widest">
@@ -560,7 +561,7 @@ function VariantModal({ item, onClose }) {
             <p className="text-[10px] uppercase tracking-widest text-slate-400">Options</p>
             <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">{item.name}</h3>
             <p className="text-sm text-[#FC687D] font-semibold mt-2">
-              ₱{Number(totalPrice).toFixed(0)}
+              {peso0(totalPrice)}
             </p>
             {item.description && (
               <p className="text-[12px] text-slate-500 mt-2 leading-relaxed">
@@ -606,7 +607,7 @@ function VariantModal({ item, onClose }) {
                       >
                         <div className="font-medium text-slate-800 leading-tight">{o.name}</div>
                         <div className="text-[11px] text-slate-500 mt-1">
-                          {Number(o.price) > 0 ? `+₱${Number(o.price).toFixed(0)}` : "—"}
+                          {Number(o.price) > 0 ? `+${peso0(o.price)}` : "—"}
                         </div>
                       </button>
                     );

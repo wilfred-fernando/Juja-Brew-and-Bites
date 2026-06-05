@@ -10,7 +10,9 @@ export default function MenuAdminPage() {
   const [categories, setCategories] = useState([]);
   const [stores, setStores] = useState([]);
   const [itemStoreAvailability, setItemStoreAvailability] = useState([]);
+  const [categoryStoreAvailability, setCategoryStoreAvailability] = useState([]);
   const [storeAvailability, setStoreAvailability] = useState({});
+  const [categoryAvailability, setCategoryAvailability] = useState({});
   const [availabilityNotice, setAvailabilityNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -62,12 +64,13 @@ export default function MenuAdminPage() {
   async function fetchData() {
     setLoading(true);
 
-    const [itemRes, catRes, templateRes, storeRes, availabilityRes] = await Promise.all([
+    const [itemRes, catRes, templateRes, storeRes, availabilityRes, categoryAvailabilityRes] = await Promise.all([
       supabase.from("menu_items").select("*").order("name"),
       supabase.from("menu_categories").select("*").order("name", { ascending: true }),
       supabase.from("option_group_templates").select("*").order("name"),
       supabase.from("stores").select("id, name, is_active").eq("is_active", true).order("name"),
       supabase.from("menu_item_store_availability").select("item_id, store_id, is_available"),
+      supabase.from("menu_category_store_availability").select("category_id, store_id, is_available"),
     ]);
 
     if (itemRes.data) setItems(itemRes.data);
@@ -81,6 +84,7 @@ export default function MenuAdminPage() {
       setAvailabilityNotice("");
       setItemStoreAvailability(availabilityRes.data || []);
     }
+    setCategoryStoreAvailability(categoryAvailabilityRes.error ? [] : categoryAvailabilityRes.data || []);
 
     setLoading(false);
   }
@@ -330,6 +334,14 @@ export default function MenuAdminPage() {
   const openCategoryModal = (cat = null) => {
     if (cat) {
       setEditingCategory(cat);
+      const nextCategoryAvailability = {};
+      stores.forEach((store) => {
+        const row = categoryStoreAvailability.find(
+          (entry) => String(entry.category_id) === String(cat.id) && String(entry.store_id) === String(store.id)
+        );
+        nextCategoryAvailability[store.id] = row ? row.is_available !== false : true;
+      });
+      setCategoryAvailability(nextCategoryAvailability);
       setCatForm({
         name: cat.name,
         is_active: cat.is_active,
@@ -337,6 +349,7 @@ export default function MenuAdminPage() {
       });
     } else {
       setEditingCategory(null);
+      setCategoryAvailability(Object.fromEntries(stores.map((store) => [store.id, true])));
       setCatForm({ name: "", is_active: true, pos_only: false });
     }
     setIsCatModalOpen(true);
@@ -351,14 +364,16 @@ export default function MenuAdminPage() {
       if (editingCategory) {
         const { error } = await supabase.from("menu_categories").update(catForm).eq("id", editingCategory.id);
         if (error) throw error;
+        await saveCategoryStoreAvailability(editingCategory.id);
 
         if (editingCategory.name !== catForm.name) {
           await supabase.from("menu_items").update({ category: catForm.name }).eq("category", editingCategory.name);
           if (catFilter === editingCategory.name) setCatFilter(catForm.name);
         }
       } else {
-        const { error } = await supabase.from("menu_categories").insert([catForm]);
+        const { data, error } = await supabase.from("menu_categories").insert([catForm]).select("id").maybeSingle();
         if (error) throw error;
+        if (data?.id) await saveCategoryStoreAvailability(data.id);
       }
 
       await fetchData();
@@ -370,6 +385,20 @@ export default function MenuAdminPage() {
       setCatSaving(false);
     }
   };
+
+  async function saveCategoryStoreAvailability(categoryId) {
+    if (!categoryId || stores.length === 0) return;
+    const rows = stores.map((store) => ({
+      category_id: String(categoryId),
+      store_id: String(store.id),
+      is_available: categoryAvailability[store.id] !== false,
+      updated_at: new Date().toISOString(),
+    }));
+    const { error } = await supabase
+      .from("menu_category_store_availability")
+      .upsert(rows, { onConflict: "category_id,store_id" });
+    if (error) throw error;
+  }
 
   const filteredItems = items
     .filter((i) => catFilter === "All" || i.category === catFilter)
@@ -731,6 +760,46 @@ export default function MenuAdminPage() {
                 </div>
                 <span className="text-sm font-medium text-slate-700">POS Only (hide from public menu)</span>
               </label>
+
+              <div className="rounded-xl border border-cyan-100 bg-cyan-50/40 p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-cyan-800">Store Availability</p>
+                    <p className="mt-1 text-xs text-slate-500">Unchecked stores will not show this category in that store's customer menu.</p>
+                  </div>
+                  {stores.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setCategoryAvailability(Object.fromEntries(stores.map((store) => [store.id, true])))}
+                      className="rounded-lg border border-cyan-200 bg-white/80 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-cyan-800"
+                    >
+                      All Stores
+                    </button>
+                  )}
+                </div>
+                {stores.length === 0 ? (
+                  <p className="text-xs text-slate-500">No active stores found.</p>
+                ) : (
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {stores.map((store) => (
+                      <label key={store.id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-white bg-white/85 p-3">
+                        <input
+                          type="checkbox"
+                          checked={categoryAvailability[store.id] !== false}
+                          onChange={(e) =>
+                            setCategoryAvailability((current) => ({
+                              ...current,
+                              [store.id]: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 accent-cyan-600"
+                        />
+                        <span className="text-xs font-medium text-slate-700">{store.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <div className="grid grid-cols-2 gap-3 pt-4 mt-2 border-t border-slate-100">
                 <button

@@ -128,7 +128,7 @@ export default function AdminMenuBuilder() {
                         {/* Item Info */}
                         <div>
                           <p className="font-extrabold text-slate-800 text-sm">{item.name}</p>
-                          <p className="text-[#FC687D] font-normal text-sm">₱{parseFloat(item.price).toFixed(2)}</p>
+                          <p className="text-[#FC687D] font-normal text-sm">₱{Number(item.price || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         </div>
                       </div>
 

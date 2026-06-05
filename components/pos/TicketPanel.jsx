@@ -285,7 +285,7 @@ export default function TicketPanel({
                 <div className="flex justify-between items-baseline gap-2">
                   <p className="text-xs font-semibold text-slate-800 truncate">{line.name}</p>
                   <p className="text-xs font-bold text-slate-700 font-mono whitespace-nowrap">
-                    ₱{Number(line.unitPrice * line.quantity).toFixed(0)}
+                    ₱{Number(line.unitPrice * line.quantity).toLocaleString("en-PH", { maximumFractionDigits: 0 })}
                   </p>
                 </div>
                 
@@ -310,7 +310,7 @@ export default function TicketPanel({
         <div className="flex justify-between items-baseline">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Balance</span>
           <span className="font-extrabold text-2xl text-slate-800 tracking-tight font-mono">
-            ₱{Number(subtotal || 0).toFixed(0)}
+            ₱{Number(subtotal || 0).toLocaleString("en-PH", { maximumFractionDigits: 0 })}
           </span>
         </div>
 

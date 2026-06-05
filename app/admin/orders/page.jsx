@@ -6,7 +6,7 @@ import { formatDateTime } from "@/lib/dateFormat";
 
 const supabase = getSupabaseClient();
 const ACTIVE_STATUSES = ["pending", "accepted", "ready", "Pending", "Accepted", "Ready"];
-const peso = (n) => `₱${Number(n || 0).toFixed(2)}`;
+const peso = (n) => `₱${Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function AdminLiveOrders() {
   const [orders, setOrders] = useState([]);

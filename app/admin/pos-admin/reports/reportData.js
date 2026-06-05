@@ -2,7 +2,7 @@
 
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 
-export const peso = (n) => `₱${Number(n || 0).toFixed(2)}`;
+export const peso = (n) => `₱${Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export const dateInput = (date = new Date()) => date.toISOString().slice(0, 10);
 

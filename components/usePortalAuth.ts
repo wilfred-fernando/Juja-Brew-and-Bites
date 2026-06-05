@@ -95,21 +95,6 @@ export function usePortalAuth({
           setAuthorized(false);
           return;
         }
-
-        if (portal && role !== "super_admin") {
-          const { data: accessRow, error: accessError } = await supabase
-            .from("profile_page_access")
-            .select("can_access")
-            .eq("profile_id", user.id)
-            .eq("page_key", portal)
-            .maybeSingle();
-
-          if (!accessError && accessRow && accessRow.can_access === false) {
-            setAuthorized(false);
-            return;
-          }
-        }
-
         // ✅ Authorized
         setAuthorized(true);
       } catch (err) {

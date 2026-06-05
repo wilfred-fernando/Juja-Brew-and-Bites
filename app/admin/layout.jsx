@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import AdminSidebar from "@/components/AdminSidebar";
 import { Menu } from "lucide-react";
-import { canAccessPage, getAdminPageKey } from "@/lib/adminPageAccess";
 
 import { usePortalAuth } from "@/components/usePortalAuth";
 import { useIdleLogout } from "@/components/useIdleLogout";
@@ -17,8 +16,6 @@ export default function AdminLayout({ children }) {
   const router = useRouter();
 
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [accessRows, setAccessRows] = useState([]);
-  const [accessLoading, setAccessLoading] = useState(true);
   const isReportsPage = pathname.startsWith("/admin/pos-admin/reports");
 
   const { loading, authorized, userEmail, userRole } = usePortalAuth({
@@ -27,42 +24,6 @@ export default function AdminLayout({ children }) {
     allowedRoles: ["admin", "super_admin"],
     requireStore: false,
   });
-
-  useEffect(() => {
-    let mounted = true;
-    async function loadAccess() {
-      if (loading || !authorized || userRole === "super_admin") {
-        if (mounted) {
-          setAccessRows([]);
-          setAccessLoading(false);
-        }
-        return;
-      }
-
-      setAccessLoading(true);
-      const { data: sessionData } = await supabase.auth.getSession();
-      const uid = sessionData?.session?.user?.id;
-      if (!uid) {
-        if (mounted) setAccessLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("profile_page_access")
-        .select("page_key, can_access")
-        .eq("profile_id", uid);
-
-      if (mounted) {
-        setAccessRows(error ? [] : data || []);
-        setAccessLoading(false);
-      }
-    }
-
-    loadAccess();
-    return () => {
-      mounted = false;
-    };
-  }, [authorized, loading, supabase, userRole]);
 
   // Close mobile menu on route change.
   useEffect(() => {
@@ -97,7 +58,7 @@ export default function AdminLayout({ children }) {
   }
 
   // Loading screen.
-  if (loading || accessLoading) {
+  if (loading) {
     return (
       <div
         className="flex h-screen items-center justify-center bg-cover bg-center bg-no-repeat"
@@ -115,9 +76,6 @@ export default function AdminLayout({ children }) {
   if (!authorized) {
     return null;
   }
-
-  const currentPageKey = getAdminPageKey(pathname);
-  const pageAllowed = canAccessPage(accessRows, currentPageKey, userRole);
 
   // Main layout.
   return (
@@ -137,7 +95,7 @@ export default function AdminLayout({ children }) {
         userEmail={userEmail}
         onLogout={handleLogout}
         userRole={userRole}
-        accessRows={accessRows}
+        accessRows={[]}
       />
 
       {/* MAIN */}
@@ -162,15 +120,7 @@ export default function AdminLayout({ children }) {
 
         {/* PAGE */}
         <main className={`admin-premium w-full animate-[financeFade_260ms_ease-out] ${isReportsPage ? "p-4 sm:p-6 md:p-8 xl:p-10" : "mx-auto max-w-7xl p-6 md:p-10"}`}>
-          {pageAllowed ? (
-            children
-          ) : (
-            <div className="rounded-3xl border border-white/40 bg-white/78 p-8 text-center shadow-[0_24px_70px_rgba(15,23,42,0.12)] backdrop-blur-xl">
-              <p className="text-xs uppercase tracking-[0.24em] text-cyan-700">Access Restricted</p>
-              <h1 className="mt-2 text-2xl text-slate-950">This page is not enabled for your account.</h1>
-              <p className="mt-2 text-sm text-slate-600">Please ask a super admin to update your account permissions.</p>
-            </div>
-          )}
+          {children}
         </main>
 
       </div>

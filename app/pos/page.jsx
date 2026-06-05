@@ -123,12 +123,12 @@ function buildReceiptText({
 
   lines.push("—");
   cart.forEach((x) => {
-    lines.push(`${x.name} x${x.quantity}  ₱${(Number(x.unitPrice) * Number(x.quantity)).toFixed(0)}`);
+    lines.push(`${x.name} x${x.quantity}  ${peso0(Number(x.unitPrice) * Number(x.quantity))}`);
   });
   lines.push("—");
-  lines.push(`Subtotal: ₱${Number(subtotal || 0).toFixed(2)}`);
-  if (discount > 0) lines.push(`Discount: -₱${Number(discount || 0).toFixed(2)}`);
-  lines.push(`TOTAL: ₱${Number(total || 0).toFixed(2)}`);
+  lines.push(`Subtotal: ${peso2(subtotal)}`);
+  if (discount > 0) lines.push(`Discount: -${peso2(discount)}`);
+  lines.push(`TOTAL: ${peso2(total)}`);
 
   if (footer) {
     lines.push("—");
@@ -157,8 +157,8 @@ function buildCupLabels({ orderId, cart }) {
   return labels;
 }
 
-const peso0 = (n) => `₱${Number(n || 0).toFixed(0)}`;
-const peso2 = (n) => `₱${Number(n || 0).toFixed(2)}`;
+const peso0 = (n) => `₱${Number(n || 0).toLocaleString("en-PH", { maximumFractionDigits: 0 })}`;
+const peso2 = (n) => `₱${Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function printReceiptText(receiptText, opts = {}) {
   const { title = "Receipt", widthMm = 80, fontSize = 12, lineHeight = 1.25 } = opts;
@@ -488,7 +488,7 @@ function SavedTicketsModal({ open, onClose, tickets, onSelect, onRefresh, onVoid
               <div className="flex justify-between items-start gap-3">
                 <div className="min-w-0 text-left">
                   <p className="font-bold text-slate-800 text-sm truncate">{t.order_type || t.ticket_name}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">Lines: {(t.items || []).length} • <span className="font-bold text-slate-700">₱{Number(t.total_amount || 0).toFixed(0)}</span></p>
+                  <p className="text-xs text-slate-400 mt-0.5">Lines: {(t.items || []).length} • <span className="font-bold text-slate-700">{peso0(t.total_amount)}</span></p>
                   <p className="text-[11px] font-medium text-slate-400 mt-1 truncate">Client: {t._customerName || "Walk-in"}</p>
                 </div>
                 <button
@@ -560,7 +560,7 @@ function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onD
                   <div className="min-w-0 text-left">
                     <p className="font-bold text-slate-800 text-sm truncate">{order.customer_name || "Web Customer"}</p>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Lines: {(order.items || []).length} • <span className="font-bold text-slate-700">₱{total.toFixed(2)}</span>
+                      Lines: {(order.items || []).length} • <span className="font-bold text-slate-700">{peso2(total)}</span>
                     </p>
                     <p className="text-[11px] font-medium text-slate-400 mt-1 truncate">
                       {order.dining_option || "Web order"} {order.fulfillment_time ? `• ${order.fulfillment_time}` : ""}
@@ -773,7 +773,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
     <ModalShell open={!!item} onClose={onClose} title={item.editData ? "Modify Line Item" : "Configure Item Add"} subtitle={item.name} z={145}>
       <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
         <p className="text-xs font-semibold text-slate-600">
-          Base ₱{basePrice.toFixed(0)}{variantPrice > 0 ? ` • Modifiers: +₱${variantPrice.toFixed(0)}` : ""}
+          Base {peso0(basePrice)}{variantPrice > 0 ? ` • Modifiers: +${peso0(variantPrice)}` : ""}
         </p>
         <button
           disabled={!canAdd}
@@ -1159,7 +1159,7 @@ function IncomingOrderModal({ open, order, onAccept, onEdit, onReject }) {
           <div className="flex justify-between"><span>System User ID</span><span className="font-mono text-slate-700">{order.user_id?.slice(0,12)}...</span></div>
           <div className="flex justify-between border-t border-slate-200/60 pt-2 text-slate-900 text-sm">
             <span>Subtotal Calculated</span>
-            <span className="font-black text-[#FC687D]">₱{Number(order.subtotal || order.total || 0).toFixed(0)}</span>
+            <span className="font-black text-[#FC687D]">{peso0(order.subtotal || order.total)}</span>
           </div>
         </div>
 
@@ -1170,7 +1170,7 @@ function IncomingOrderModal({ open, order, onAccept, onEdit, onReject }) {
             <div key={line.cartItemId || idx} className="p-3 border border-slate-100 rounded-xl bg-[#FFF9FA]/40 flex flex-col gap-1">
               <div className="flex justify-between text-xs font-bold text-slate-800">
                 <span className="truncate max-w-[75%]">{line.name} <span className="text-[#FC687D]">x{line.quantity}</span></span>
-                <span>₱{(Number(line.unitPrice || line.price || 0) * Number(line.quantity || 0)).toFixed(0)}</span>
+                <span>{peso0(Number(line.unitPrice || line.price || 0) * Number(line.quantity || 0))}</span>
               </div>
               {line.variantDetails && <p className="text-[11px] text-slate-400 font-medium italic">Modifiers: {line.variantDetails}</p>}
               {line.instructions && <p className="text-[11px] text-[#FC687D] font-bold mt-0.5">Note: {line.instructions}</p>}
@@ -1828,19 +1828,6 @@ export default function POSPage() {
 
       const role = String(profile?.role || "").toLowerCase();
       if (role !== "cashier" && role !== "admin") {
-        await supabase.auth.signOut();
-        window.location.href = "/login";
-        return;
-      }
-
-      const { data: accessRow, error: accessError } = await supabase
-        .from("profile_page_access")
-        .select("can_access")
-        .eq("profile_id", session.user.id)
-        .eq("page_key", "pos")
-        .maybeSingle();
-
-      if (!accessError && accessRow && accessRow.can_access === false) {
         await supabase.auth.signOut();
         window.location.href = "/login";
         return;

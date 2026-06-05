@@ -110,7 +110,7 @@ export default function LiveDashboard() {
         <div className="bg-white p-5 rounded-xl shadow border">
           <p className="text-gray-500 text-sm">Total Sales</p>
           <h2 className="text-2xl font-bold text-green-600">
-            ₱{stats.totalSales.toFixed(2)}
+            ₱{Number(stats.totalSales || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </h2>
         </div>
 

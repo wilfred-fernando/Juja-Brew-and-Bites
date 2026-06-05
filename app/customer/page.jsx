@@ -16,6 +16,7 @@ const LOGO =
   "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
 
 const loyaltyPoints = (amount) => Number(((Number(amount) || 0) * 0.04).toFixed(2));
+const peso0 = (amount) => `₱${Number(amount || 0).toLocaleString("en-PH", { maximumFractionDigits: 0 })}`;
 const ALERT_SOUND_SRC = "/sound/notification.mp3";
 const CUSTOMER_NOTIFICATION_ICON = "/images/juja-logo.png";
 
@@ -585,21 +586,21 @@ function AddToCartModal({ item, onClose, onAdd }) {
       onClick={onClose}
     >
       <div
-        className="contrast-safe-modal w-full max-w-lg bg-white rounded-t-[26px] md:rounded-[24px] p-6 shadow-2xl max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom md:fade-in duration-300"
+        className="customer-item-modal contrast-safe-modal w-full max-w-lg rounded-t-[26px] md:rounded-[24px] p-6 max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom md:fade-in duration-300"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+        <div className="customer-item-modal__header flex items-start justify-between gap-4 pb-4">
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-slate-600 font-bold">Add to Selection</p>
-            <h3 className="text-xl font-bold text-slate-950 mt-0.5">{item.name}</h3>
-            <p className="text-sm font-semibold text-slate-700 mt-1">
-              Base ₱{Number(item.price || 0).toFixed(0)}
-              {variantPrice > 0 ? ` • +₱${variantPrice.toFixed(0)} variants` : ""}
+            <p className="customer-item-modal__eyebrow text-[10px] uppercase tracking-widest font-bold">Add to Selection</p>
+            <h3 className="customer-item-modal__title text-xl font-bold mt-0.5">{item.name}</h3>
+            <p className="customer-item-modal__base text-sm font-semibold mt-1">
+              Base {peso0(item.price)}
+              {variantPrice > 0 ? ` • +${peso0(variantPrice)} variants` : ""}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-full bg-white hover:bg-slate-100 flex items-center justify-center text-slate-700 font-bold border border-slate-200"
+            className="customer-item-modal__close w-9 h-9 rounded-full flex items-center justify-center font-bold"
           >
             ✕
           </button>
@@ -610,10 +611,10 @@ function AddToCartModal({ item, onClose, onAdd }) {
             {item.variants.map((g) => (
               <div key={g.id} className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-bold text-slate-900">
-                    {g.name} {g.isRequired ? <span className="text-rose-500">*</span> : null}
+                  <p className="customer-item-modal__group-title text-sm font-bold">
+                    {g.name} {g.isRequired ? <span className="customer-item-modal__required">*</span> : null}
                   </p>
-                  <p className="text-[10px] uppercase font-bold text-slate-600 tracking-wider">
+                  <p className="customer-item-modal__group-mode text-[10px] uppercase font-bold tracking-wider">
                     {g.isMultiSelect ? "Multi-select" : "Single-select"}
                   </p>
                 </div>
@@ -626,13 +627,12 @@ function AddToCartModal({ item, onClose, onAdd }) {
                         type="button"
                         key={o.id}
                         onClick={() => toggleOption(g, o)}
-                        className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-sm font-semibold transition-all text-left ${
-                          sel ? "border-cyan-500 bg-cyan-50 text-slate-950 shadow-sm" : "border-slate-300 bg-white text-slate-900 hover:bg-cyan-50"
-                        }`}
+                        className={`customer-option-choice ${sel ? "customer-option-choice--selected" : ""}`}
+                        style={{ opacity: 1 }}
                       >
-                        <span>{o.name}</span>
-                        <span className="text-xs font-semibold text-slate-600">
-                          {Number(o.price) > 0 ? `+₱${Number(o.price).toFixed(0)}` : "FREE"}
+                        <span className="customer-option-choice__name">{o.name}</span>
+                        <span className="customer-option-choice__price">
+                          {Number(o.price) > 0 ? `+${peso0(o.price)}` : "FREE"}
                         </span>
                       </button>
                     );
@@ -644,29 +644,29 @@ function AddToCartModal({ item, onClose, onAdd }) {
         )}
 
         <div className="mt-5">
-          <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-700 mb-1">
+          <label className="customer-item-modal__label block text-[10px] uppercase tracking-widest font-bold mb-1">
             Special Instructions
           </label>
           <textarea
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
             placeholder="E.g., less ice, sweetener options, etc..."
-            className="w-full p-4 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 placeholder:text-slate-500 outline-none h-20 resize-none focus:bg-white focus:border-cyan-500 transition-all font-medium"
+            className="customer-item-modal__textarea w-full p-4 rounded-xl text-sm outline-none h-20 resize-none transition-all font-medium"
           />
         </div>
 
-        <div className="mt-6 flex flex-col sm:flex-row items-center gap-4 pt-4 border-t border-slate-100">
-          <div className="flex items-center w-full sm:w-36 h-12 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-inner">
+        <div className="customer-item-modal__footer mt-6 flex flex-col sm:flex-row items-center gap-4 pt-4">
+          <div className="customer-item-modal__qty flex items-center w-full sm:w-36 h-12 rounded-xl overflow-hidden">
             <button
               onClick={() => setQuantity(Math.max(1, quantity - 1))}
-              className="w-12 h-full text-xl text-cyan-700 hover:text-cyan-900 font-bold transition-colors"
+              className="customer-item-modal__qty-btn w-12 h-full text-xl font-bold transition-colors"
             >
               −
             </button>
-            <div className="flex-1 text-center font-bold text-slate-800">{quantity}</div>
+            <div className="customer-item-modal__qty-value flex-1 text-center font-bold">{quantity}</div>
             <button
               onClick={() => setQuantity(quantity + 1)}
-              className="w-12 h-full text-cyan-700 hover:text-cyan-900 font-bold transition-colors"
+              className="customer-item-modal__qty-btn w-12 h-full font-bold transition-colors"
             >
               +
             </button>
@@ -685,9 +685,9 @@ function AddToCartModal({ item, onClose, onAdd }) {
                 cartItemId: item.editData?.cartItemId || Date.now(),
               })
             }
-            className="w-full sm:flex-1 h-12 rounded-xl bg-cyan-700 text-white text-sm font-bold shadow-md transition-all active:scale-[0.98] disabled:bg-slate-200 disabled:text-slate-700 disabled:shadow-none"
+            className="customer-item-modal__submit w-full sm:flex-1 h-12 rounded-xl text-sm font-bold transition-all active:scale-[0.98]"
           >
-            {canAdd ? `Add To Basket • ₱${(unitPrice * quantity).toFixed(0)}` : "Select Required Configurations"}
+            {canAdd ? `Add To Basket • ${peso0(unitPrice * quantity)}` : "Select Required Configurations"}
           </button>
         </div>
       </div>
@@ -860,13 +860,13 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems,
               {cartItems.map((line, idx) => (
                 <div key={line.cartItemId || idx} className="flex justify-between text-xs font-medium text-slate-600">
                   <span className="truncate max-w-[75%]">{line.name} <span className="text-[#FC687D]">x{line.quantity}</span></span>
-                  <span className="font-semibold text-slate-800">₱{(line.unitPrice * line.quantity).toFixed(0)}</span>
+                  <span className="font-semibold text-slate-800">{peso0(line.unitPrice * line.quantity)}</span>
                 </div>
               ))}
             </div>
             <div className="border-t border-rose-100/60 pt-2.5 mt-2 flex justify-between items-baseline">
               <span className="text-xs font-bold text-slate-700">Total Amount</span>
-              <span className="text-xl font-black text-[#FC687D]">₱{subtotal.toFixed(0)}</span>
+              <span className="text-xl font-black text-[#FC687D]">{peso0(subtotal)}</span>
             </div>
           </div>
         </div>
@@ -942,6 +942,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
   const [selectedBranch, setSelectedBranch] = useState("bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e");
   const [stores, setStores] = useState([]);
   const [itemStoreAvailability, setItemStoreAvailability] = useState([]);
+  const [categoryStoreAvailability, setCategoryStoreAvailability] = useState([]);
   const [availabilityNotice, setAvailabilityNotice] = useState("");
 
   const [selectedItemForModal, setSelectedItemForModal] = useState(null);
@@ -952,11 +953,12 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
   useEffect(() => {
     async function fetchMenu() {
       setLoading(true);
-      const [itemRes, catRes, storeRes, availabilityRes] = await Promise.all([
+      const [itemRes, catRes, storeRes, availabilityRes, categoryAvailabilityRes] = await Promise.all([
         supabase.from("menu_items").select("*").eq("is_available", true).eq("pos_only", false).order("name"),
         supabase.from("menu_categories").select("*").eq("is_active", true).eq("pos_only", false).order("name", { ascending: true }),
         supabase.from("stores").select("id, name, is_active").eq("is_active", true).order("name"),
         supabase.from("menu_item_store_availability").select("item_id, store_id, is_available"),
+        supabase.from("menu_category_store_availability").select("category_id, store_id, is_available"),
       ]);
       setItems(itemRes.data || []);
       setCategories([...(catRes.data || [])].sort((a, b) => (a.name || "").localeCompare(b.name || "")));
@@ -970,6 +972,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
         setAvailabilityNotice("");
         setItemStoreAvailability(availabilityRes.data || []);
       }
+      setCategoryStoreAvailability(categoryAvailabilityRes.error ? [] : categoryAvailabilityRes.data || []);
       setLoading(false);
     }
     fetchMenu();
@@ -981,6 +984,21 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
     [selectedBranch, stores]
   );
 
+  const visibleCategories = useMemo(() => {
+    return cats.filter((cat) => {
+      if (!selectedBranch) return true;
+      const row = categoryStoreAvailability.find(
+        (entry) => String(entry.category_id) === String(cat.id) && String(entry.store_id) === String(selectedBranch)
+      );
+      return row ? row.is_available !== false : true;
+    });
+  }, [cats, categoryStoreAvailability, selectedBranch]);
+
+  useEffect(() => {
+    if (activeTab === "ALL") return;
+    if (!visibleCategories.some((cat) => cat.name === activeTab)) setActiveTab("ALL");
+  }, [activeTab, visibleCategories]);
+
   const filteredItems = useMemo(() => {
     return items
       .filter((i) => {
@@ -990,9 +1008,10 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
         );
         return row ? row.is_available !== false : true;
       })
+      .filter((i) => visibleCategories.some((cat) => cat.name === i.category))
       .filter((i) => (activeTab === "ALL" ? true : i.category === activeTab))
       .filter((i) => (q ? (i.name || "").toLowerCase().includes(q) : true));
-  }, [items, itemStoreAvailability, selectedBranch, activeTab, q]);
+  }, [items, itemStoreAvailability, selectedBranch, visibleCategories, activeTab, q]);
 
   const subtotal = useMemo(() => cart.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0), [cart]);
   const itemCount = useMemo(() => cart.reduce((sum, i) => sum + i.quantity, 0), [cart]);
@@ -1130,7 +1149,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
               <div className="min-w-0">
                 <div className="flex justify-between items-start">
                   <p className="text-sm font-bold text-slate-800 truncate max-w-[70%]">{line.name}</p>
-                  <p className="text-sm font-bold text-slate-800">₱{(line.unitPrice * line.quantity).toFixed(0)}</p>
+                  <p className="text-sm font-bold text-slate-800">{peso0(line.unitPrice * line.quantity)}</p>
                 </div>
                 {line.variantDetails && <p className="text-xs text-slate-400 mt-0.5 italic">{line.variantDetails}</p>}
                 {line.instructions && <p className="text-xs text-[#FC687D] font-medium mt-1">Note: {line.instructions}</p>}
@@ -1179,7 +1198,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
           <div className="space-y-2 mt-3">
             <div className="flex justify-between text-sm">
               <span className="text-slate-500 font-medium">Subtotal Amount</span>
-              <span className="font-bold text-slate-800 text-lg">₱{subtotal.toFixed(0)}</span>
+              <span className="font-bold text-slate-800 text-lg">{peso0(subtotal)}</span>
             </div>
             <button
               onClick={handleOpenCheckoutValidation}
@@ -1228,7 +1247,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
               className="bg-slate-50 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 outline-none border border-slate-200 pointer-events-auto cursor-pointer"
             >
               <option value="ALL">All Categories</option>
-              {cats.map((cat) => (
+              {visibleCategories.map((cat) => (
                 <option key={cat.id} value={cat.name}>{cat.name}</option>
               ))}
             </select>
@@ -1255,15 +1274,15 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
             ❌ No matching available products located.
           </div>
         ) : (
-          <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
             {filteredItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setSelectedItemForModal(item)}
-                className="group flex h-full min-h-[250px] flex-col items-center justify-between rounded-2xl border border-slate-100 bg-white p-3 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
+                className="group flex h-full min-h-[230px] flex-col items-center justify-between rounded-[34px] border border-cyan-100 bg-white/88 p-3 text-center shadow-[0_18px_45px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-1 hover:border-cyan-300 hover:bg-cyan-50/80 hover:shadow-[0_24px_60px_rgba(8,145,178,0.14)]"
               >
                 <div className="flex w-full flex-1 flex-col items-center text-center">
-                  <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl border border-rose-50/50 bg-[#FFF9FA]">
+                  <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl border border-cyan-100 bg-white">
                     {item.image_url ? (
                       <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
                     ) : (
@@ -1271,7 +1290,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
                     )}
                   </div>
                   <div className="mt-3 flex flex-1 flex-col items-center text-center">
-                    <span className="max-w-full truncate rounded-md bg-rose-50 px-2 py-0.5 text-center text-[9px] font-normal uppercase tracking-wider text-[#FC687D]">
+                    <span className="max-w-full truncate rounded-md bg-cyan-50 px-2 py-0.5 text-center text-[9px] font-normal uppercase tracking-wider text-cyan-700">
                       {item.category || "General"}
                     </span>
                     <p className="mt-1.5 text-center text-sm font-normal leading-tight text-slate-800">
@@ -1279,8 +1298,8 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
                     </p>
                   </div>
                 </div>
-                <p className="mt-3 w-full border-t border-slate-50 pt-2 text-center text-sm font-normal text-slate-800">
-                  ₱{Number(item.price || 0).toFixed(0)}
+                <p className="mt-3 w-full border-t border-cyan-50 pt-2 text-center text-sm font-normal text-slate-950">
+                  {peso0(item.price)}
                 </p>
               </button>
             ))}
@@ -1310,7 +1329,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
             <p className="text-sm font-bold">{itemCount} Selected Item(s)</p>
           </div>
           <div className="text-right flex items-center gap-2">
-            <span className="text-base font-extrabold text-[#FC687D]">₱{subtotal.toFixed(0)}</span>
+            <span className="text-base font-extrabold text-[#FC687D]">{peso0(subtotal)}</span>
             <span className="text-xs bg-white/10 px-2.5 py-1 rounded-lg">View 🛒</span>
           </div>
         </button>
@@ -1426,7 +1445,7 @@ function TrackerTab({ orders, loadingOrders }) {
                 {Array.isArray(order.items) && order.items.map((line, idx) => (
                   <div key={line.cartItemId || idx} className="flex justify-between items-baseline font-medium">
                     <span className="truncate max-w-[80%] text-slate-700">{line.name} <span className="text-[#FC687D] font-bold">x{line.quantity}</span></span>
-                    <span className="font-mono text-[11px]">₱{(line.unitPrice * line.quantity).toFixed(0)}</span>
+                    <span className="font-mono text-[11px]">{peso0(line.unitPrice * line.quantity)}</span>
                   </div>
                 ))}
               </div>
@@ -1440,7 +1459,7 @@ function TrackerTab({ orders, loadingOrders }) {
                     </span>
                   )}
                 </div>
-                <p className="text-sm font-black text-slate-800">Total Charged: ₱{Number(order.subtotal || 0).toFixed(0)}</p>
+                <p className="text-sm font-black text-slate-800">Total Charged: {peso0(order.subtotal)}</p>
               </div>
             </div>
           ))}
