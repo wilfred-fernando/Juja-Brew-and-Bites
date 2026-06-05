@@ -165,7 +165,7 @@ export default function OrderTab() {
           return (
             <div
               key={item.id}
-              className="bg-white rounded-xl md:rounded-[24px] border border-rose-50 shadow-sm overflow-hidden flex flex-col p-2.5 md:p-3"
+              className="flex flex-col items-center overflow-hidden rounded-xl border border-rose-50 bg-white p-2.5 text-center shadow-sm md:rounded-[24px] md:p-3"
             >
               <div className="h-24 md:h-32 rounded-lg md:rounded-xl bg-slate-50 flex items-center justify-center relative overflow-hidden mb-2 border border-slate-100">
                 {item.image_url ? (
@@ -175,11 +175,11 @@ export default function OrderTab() {
                 )}
               </div>
 
-              <div className="flex flex-col flex-1 px-1">
-                <p className="font-normal text-slate-800 text-[11px] md:text-[13px] leading-tight mb-1">
+              <div className="flex flex-1 flex-col items-center px-1 text-center">
+                <p className="mb-1 text-center text-[11px] font-normal leading-tight text-slate-800 md:text-[13px]">
                   {item.name}
                 </p>
-                <p className="font-normal text-[#FC687D] text-[13px] md:text-[15px] mb-3">
+                <p className="mb-3 text-center text-[13px] font-normal text-[#FC687D] md:text-[15px]">
                   ₱{Number(item.price).toLocaleString()}
                 </p>
 

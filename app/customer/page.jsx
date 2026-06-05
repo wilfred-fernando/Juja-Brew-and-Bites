@@ -204,13 +204,38 @@ function fmtDate(iso) {
 }
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function dateInputToBirthday(value) {
+  const s = String(value || "").trim();
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return "";
+  const monthIndex = Number(m[2]) - 1;
+  if (monthIndex < 0 || monthIndex > 11) return "";
+  return `${m[1]}-${MONTHS[monthIndex]}-${m[3]}`;
+}
+
+function birthdayToDateInput(value) {
+  const s = String(value || "").trim();
+  const m = s.match(/^(\d{4})-([A-Za-z]{3})-(\d{2})$/);
+  if (!m) return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : "";
+  const mon = m[2].charAt(0).toUpperCase() + m[2].slice(1).toLowerCase();
+  const monthIndex = MONTHS.indexOf(mon);
+  if (monthIndex === -1) return "";
+  return `${m[1]}-${String(monthIndex + 1).padStart(2, "0")}-${m[3]}`;
+}
+
 function normalizeBirthday(input) {
   const s = String(input || "").trim();
   if (!s) return { ok: false, value: "", msg: "Birthday is required." };
 
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const converted = dateInputToBirthday(s);
+    if (!converted) return { ok: false, value: s, msg: "Please select a valid birthday." };
+    return normalizeBirthday(converted);
+  }
+
   const m = s.match(/^(\d{4})-([A-Za-z]{3})-(\d{2})$/);
   if (!m) {
-    return { ok: false, value: s, msg: "Birthday must be YYYY-MMM-DD (e.g. 1995-Dec-25)." };
+    return { ok: false, value: s, msg: "Please select birthday from the date field." };
   }
 
   const yyyy = m[1];
@@ -426,13 +451,13 @@ function HomeTab({ member, user, setTab }) {
             <button
               key={c.label}
               onClick={() => setTab(c.tab)}
-              className="bg-white rounded-2xl p-5 border border-rose-50 shadow-sm text-left hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 w-full"
+              className="flex min-h-[150px] w-full flex-col items-center justify-center rounded-2xl border border-rose-50 bg-white p-5 text-center shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
             >
-              <div className="text-2xl mb-3 bg-rose-50 w-12 h-12 rounded-full flex items-center justify-center text-[#FC687D]">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 text-2xl text-[#FC687D]">
                 {c.icon}
               </div>
-              <p className="font-semibold text-slate-800 text-sm md:text-base">{c.label}</p>
-              <p className="text-slate-400 text-[10px] font-medium uppercase tracking-widest mt-1">{c.sub}</p>
+              <p className="text-center text-sm font-semibold text-slate-800 md:text-base">{c.label}</p>
+              <p className="mt-1 text-center text-[10px] font-medium uppercase tracking-widest text-slate-400">{c.sub}</p>
             </button>
           ))}
         </div>
@@ -1186,26 +1211,26 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
               <button
                 key={item.id}
                 onClick={() => setSelectedItemForModal(item)}
-                className="group bg-white border border-slate-100 rounded-2xl p-3 text-left hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex flex-col h-full justify-between"
+                className="group flex h-full min-h-[250px] flex-col items-center justify-between rounded-2xl border border-slate-100 bg-white p-3 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
               >
-                <div>
-                  <div className="w-full aspect-square rounded-xl bg-[#FFF9FA] border border-rose-50/50 flex items-center justify-center overflow-hidden">
+                <div className="flex w-full flex-1 flex-col items-center text-center">
+                  <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl border border-rose-50/50 bg-[#FFF9FA]">
                     {item.image_url ? (
                       <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
                     ) : (
                       <span className="text-2xl text-rose-200/40">📷</span>
                     )}
                   </div>
-                  <div className="mt-3">
-                    <span className="text-[9px] font-normal uppercase tracking-wider text-[#FC687D] bg-rose-50 px-2 py-0.5 rounded-md">
+                  <div className="mt-3 flex flex-1 flex-col items-center text-center">
+                    <span className="max-w-full truncate rounded-md bg-rose-50 px-2 py-0.5 text-center text-[9px] font-normal uppercase tracking-wider text-[#FC687D]">
                       {item.category || "General"}
                     </span>
-                    <p className="text-sm font-normal text-slate-800 leading-tight mt-1.5">
+                    <p className="mt-1.5 text-center text-sm font-normal leading-tight text-slate-800">
                       {item.name}
                     </p>
                   </div>
                 </div>
-                <p className="text-sm font-normal text-slate-800 mt-3 pt-2 border-t border-slate-50">
+                <p className="mt-3 w-full border-t border-slate-50 pt-2 text-center text-sm font-normal text-slate-800">
                   ₱{Number(item.price || 0).toFixed(0)}
                 </p>
               </button>
@@ -1689,7 +1714,21 @@ function LoyaltyTab({ member, setMember, user }) {
         {notice && <p className="text-xs font-semibold text-rose-500 bg-rose-50 p-2.5 rounded-lg">{notice}</p>}
         <div className="space-y-3">
           <input placeholder="Full Registration Name" value={form.customer_name} onChange={(e)=>setForm({...form, customer_name: e.target.value})} className="w-full border border-slate-200 px-4 py-3 rounded-xl text-sm font-medium outline-none" />
-          <input placeholder="Birthday (YYYY-MMM-DD) e.g., 1995-Dec-25" value={form.Note} onChange={(e)=>setForm({...form, Note: e.target.value})} className="w-full border border-slate-200 px-4 py-3 rounded-xl text-sm font-mono outline-none" />
+          <div className="space-y-1.5">
+            <label className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Birthday
+            </label>
+            <input
+              type="date"
+              max={todayISO()}
+              value={birthdayToDateInput(form.Note)}
+              onChange={(e)=>setForm({...form, Note: dateInputToBirthday(e.target.value)})}
+              className="w-full border border-slate-200 px-4 py-3 rounded-xl text-sm font-medium outline-none"
+            />
+            <p className="text-[10px] text-slate-400">
+              Select the same birthday registered on your loyalty card.
+            </p>
+          </div>
           {mode === "new" && (
             <>
               <input placeholder="City Location" value={form.City} onChange={(e)=>setForm({...form, City: e.target.value})} className="w-full border border-slate-200 px-4 py-3 rounded-xl text-sm font-medium outline-none" />

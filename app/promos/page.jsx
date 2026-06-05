@@ -226,6 +226,13 @@ function Nav({ active }) {
           >
             Order Now →
           </Link>
+          <Link
+            href={loginUrl}
+            onClick={() => setOpen(false)}
+            className="py-3.5 rounded-full border border-[#087830]/50 bg-white/80 text-[#087830] font-semibold text-sm text-center"
+          >
+            Login
+          </Link>
         </div>
       )}
     </nav>
