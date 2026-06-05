@@ -215,15 +215,18 @@
 }
 
 .juja-page-bg {
-  background-color: #ffffff !important;
-  background-image: url("https://images.jujabrewandbites.com/page%20background.png") !important;
+  background-color: #e8fbf4 !important;
+  background-image:
+    linear-gradient(135deg, rgba(240, 253, 250, 0.62), rgba(224, 242, 254, 0.38)),
+    url("https://images.jujabrewandbites.com/page%20background.png") !important;
   background-position: center top !important;
   background-repeat: no-repeat !important;
   background-size: cover !important;
+  color: #0f172a;
 }
 
 .juja-page-bg :is(.bg-white, [class*="bg-white"]) {
-  border-color: rgba(255, 255, 255, 0.7);
+  border-color: rgba(255, 255, 255, 0.72);
 }
 
 .juja-page-bg :is(input, select, textarea) {
@@ -241,7 +244,8 @@
 
 .juja-page-bg button[class*="bg-[#FC687D]"],
 .juja-page-bg a[class*="bg-[#FC687D]"],
-.juja-page-bg button[class*="bg-black"] {
+.juja-page-bg button[class*="bg-black"],
+.juja-page-bg a[class*="bg-black"] {
   background-color: #0891b2 !important;
   color: #ffffff !important;
   box-shadow: 0 0 30px rgba(8, 145, 178, 0.28) !important;
@@ -249,7 +253,8 @@
 
 .juja-page-bg button[class*="bg-[#FC687D]"]:hover,
 .juja-page-bg a[class*="bg-[#FC687D]"]:hover,
-.juja-page-bg button[class*="bg-black"]:hover {
+.juja-page-bg button[class*="bg-black"]:hover,
+.juja-page-bg a[class*="bg-black"]:hover {
   background-color: #06b6d4 !important;
 }
 
@@ -644,10 +649,6 @@ body [style*="#FC687D"] {
   color: var(--app-accent) !important;
 }
 
-body [class*="text-white"] {
-  color: var(--app-accent-foreground) !important;
-}
-
 body [class*="border-[#FC687D]"],
 body [class*="border-rose"],
 body [class*="border-pink"],
@@ -671,50 +672,9 @@ body svg[class*="text-pink"] {
   stroke: var(--app-accent) !important;
 }
 
-/* Contrast guardrails for controls and badges. */
-body :where(button, a, [role="button"], span)[class*="bg-[#FC687D]"],
-body :where(button, a, [role="button"], span)[class~="bg-black"],
-body :where(button, a, [role="button"], span)[class~="bg-slate-700"],
-body :where(button, a, [role="button"], span)[class~="bg-slate-800"],
-body :where(button, a, [role="button"], span)[class~="bg-slate-900"],
-body :where(button, a, [role="button"], span)[class~="bg-slate-950"],
-body :where(button, a, [role="button"], span)[class~="bg-gray-700"],
-body :where(button, a, [role="button"], span)[class~="bg-gray-800"],
-body :where(button, a, [role="button"], span)[class~="bg-gray-900"],
-body :where(button, a, [role="button"], span)[class~="bg-gray-950"],
-body :where(button, a, [role="button"], span)[class~="bg-rose-600"],
-body :where(button, a, [role="button"], span)[class~="bg-rose-700"],
-body :where(button, a, [role="button"], span)[class~="bg-rose-800"],
-body :where(button, a, [role="button"], span)[class~="bg-rose-900"],
-body :where(button, a, [role="button"], span)[class~="bg-rose-950"],
-body :where(button, a, [role="button"], span)[class~="bg-red-600"],
-body :where(button, a, [role="button"], span)[class~="bg-emerald-600"],
-body :where(button, a, [role="button"], span)[class~="bg-green-600"],
-body :where(button, a, [role="button"], span)[class~="bg-blue-600"],
-body :where(button, a, [role="button"], span)[class~="bg-amber-600"] {
+/* Contrast guardrails for dark controls and badges. */
+body :where(button, a, [role="button"], span):is([class*="bg-[#FC687D]"], [class~="bg-black"], [class~="bg-slate-700"], [class~="bg-slate-800"], [class~="bg-slate-900"], [class~="bg-slate-950"], [class~="bg-gray-700"], [class~="bg-gray-800"], [class~="bg-gray-900"], [class~="bg-gray-950"], [class~="bg-rose-600"], [class~="bg-rose-700"], [class~="bg-rose-800"], [class~="bg-rose-900"], [class~="bg-rose-950"], [class~="bg-red-600"], [class~="bg-emerald-600"], [class~="bg-green-600"], [class~="bg-blue-600"], [class~="bg-amber-600"]) {
   color: #ffffff !important;
-}
-
-body :where(button, a, [role="button"], span)[class~="bg-white"],
-body :where(button, a, [role="button"], span)[class~="bg-slate-50"],
-body :where(button, a, [role="button"], span)[class~="bg-slate-100"],
-body :where(button, a, [role="button"], span)[class~="bg-gray-50"],
-body :where(button, a, [role="button"], span)[class~="bg-gray-100"],
-body :where(button, a, [role="button"], span)[class~="bg-rose-50"],
-body :where(button, a, [role="button"], span)[class~="bg-rose-100"],
-body :where(button, a, [role="button"], span)[class~="bg-pink-50"],
-body :where(button, a, [role="button"], span)[class~="bg-pink-100"],
-body :where(button, a, [role="button"], span)[class~="bg-red-50"],
-body :where(button, a, [role="button"], span)[class~="bg-red-100"],
-body :where(button, a, [role="button"], span)[class~="bg-emerald-50"],
-body :where(button, a, [role="button"], span)[class~="bg-emerald-100"],
-body :where(button, a, [role="button"], span)[class~="bg-green-50"],
-body :where(button, a, [role="button"], span)[class~="bg-green-100"],
-body :where(button, a, [role="button"], span)[class~="bg-blue-50"],
-body :where(button, a, [role="button"], span)[class~="bg-blue-100"],
-body :where(button, a, [role="button"], span)[class~="bg-amber-50"],
-body :where(button, a, [role="button"], span)[class~="bg-amber-100"] {
-  color: #000000 !important;
 }
 
 body :where(button, a, [role="button"], span)[class*="bg-"] svg {
@@ -733,11 +693,97 @@ body footer[class*="bg-slate-900"] svg {
 }
 
 body .juja-page-bg {
-  background-color: #ffffff !important;
-  background-image: url("https://images.jujabrewandbites.com/page%20background.png") !important;
+  background-color: #e8fbf4 !important;
+  background-image:
+    linear-gradient(135deg, rgba(240, 253, 250, 0.62), rgba(224, 242, 254, 0.38)),
+    url("https://images.jujabrewandbites.com/page%20background.png") !important;
   background-position: center top !important;
   background-repeat: no-repeat !important;
   background-size: cover !important;
+}
+
+body .juja-page-bg::selection {
+  background: rgba(8, 145, 178, 0.24);
+  color: #0f172a;
+}
+
+body .juja-page-bg :where(header, nav) {
+  transition: background-color 240ms ease, box-shadow 240ms ease, border-color 240ms ease;
+}
+
+body .juja-page-bg :where(section, article, aside, form, div):is([class*="bg-white"], [class*="bg-[#FFF5F7]"]):not([class*="rounded-full"]):not([class*="rounded-lg bg-white"]) {
+  background: rgba(255, 255, 255, 0.74) !important;
+  border-color: rgba(255, 255, 255, 0.72) !important;
+  box-shadow: 0 22px 55px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(18px);
+}
+
+body .juja-page-bg :where(.shadow-sm, .shadow-md, .shadow-xl, .shadow-2xl) {
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.09) !important;
+}
+
+body .juja-page-bg :where(button, a, [role="button"]) {
+  border-radius: 999px;
+  transition: transform 220ms ease, box-shadow 220ms ease, background-color 220ms ease,
+    border-color 220ms ease, color 220ms ease, opacity 220ms ease;
+}
+
+body .juja-page-bg :where(button, a, [role="button"]):not(:disabled):not([aria-disabled="true"]):hover {
+  transform: translateY(-1px);
+}
+
+body .juja-page-bg :where(button, a, [role="button"]):is([class*="bg-[#FC687D]"], [class*="bg-rose-"], [class*="bg-pink-"], [class~="bg-black"], [class~="bg-slate-900"], [class~="bg-cyan-600"], [class~="bg-blue-600"], [class~="bg-green-600"], [class~="bg-emerald-600"]) {
+  background: linear-gradient(135deg, #0891b2, #0f766e) !important;
+  border-color: rgba(34, 211, 238, 0.35) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 30px rgba(8, 145, 178, 0.28), 0 16px 38px rgba(15, 23, 42, 0.12) !important;
+}
+
+body .juja-page-bg :where(button, a, [role="button"]):is([class*="bg-[#FC687D]"], [class*="bg-rose-"], [class*="bg-pink-"], [class~="bg-black"], [class~="bg-slate-900"], [class~="bg-cyan-600"], [class~="bg-blue-600"], [class~="bg-green-600"], [class~="bg-emerald-600"]):hover {
+  background: linear-gradient(135deg, #06b6d4, #0891b2) !important;
+}
+
+body .juja-page-bg :where(button, a, [role="button"]):is([class~="bg-white"], [class*="bg-white/"], [class~="bg-slate-50"], [class~="bg-slate-100"], [class~="bg-gray-50"], [class~="bg-gray-100"]) {
+  background: rgba(255, 255, 255, 0.86) !important;
+  border-color: rgba(203, 213, 225, 0.82) !important;
+  color: #0f172a !important;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08) !important;
+}
+
+body .juja-page-bg :where(button, a, [role="button"]):is([class~="bg-white"], [class*="bg-white/"], [class~="bg-slate-50"], [class~="bg-slate-100"], [class~="bg-gray-50"], [class~="bg-gray-100"]):hover {
+  background: rgba(236, 254, 255, 0.9) !important;
+  border-color: rgba(34, 211, 238, 0.46) !important;
+  color: #0f766e !important;
+}
+
+body .juja-page-bg :where(input, select, textarea) {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(148, 163, 184, 0.52) !important;
+  color: #0f172a !important;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+}
+
+body .juja-page-bg :where(input, select, textarea):focus {
+  border-color: rgba(34, 211, 238, 0.72) !important;
+  box-shadow: 0 0 0 4px rgba(103, 232, 249, 0.18), 0 14px 34px rgba(15, 23, 42, 0.08) !important;
+}
+
+body .juja-page-bg :where(table) {
+  overflow: hidden;
+  border-radius: 18px;
+}
+
+body .juja-page-bg :where(thead, th) {
+  background: rgba(248, 250, 252, 0.88) !important;
+  color: #334155 !important;
+}
+
+body .juja-page-bg :where(tr) {
+  transition: background-color 200ms ease, transform 200ms ease;
+}
+
+body .juja-page-bg :where(tbody tr):hover {
+  background: rgba(236, 254, 255, 0.6) !important;
 }
 
 .hide-scrollbar {

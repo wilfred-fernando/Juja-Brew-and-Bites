@@ -179,10 +179,10 @@ export default function About() {
             />
           </div>
 
-          <div className="flex flex-col justify-center text-black md:min-h-0">
+          <div className="flex flex-col justify-center text-slate-950 md:min-h-0">
             <section className="mb-7 border-b border-[#087830]/20 pb-6 md:mb-3 md:pb-3 lg:mb-4 lg:pb-4">
               
-              <h1 className="mb-5 max-w-xl text-3xl font-semibold leading-tight text-black sm:text-4xl md:mb-2 md:text-[clamp(1.85rem,3.2vw,3.05rem)] lg:mb-3">
+              <h1 className="mb-5 max-w-xl text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl md:mb-2 md:text-[clamp(1.85rem,3.2vw,3.05rem)] lg:mb-3">
                 <span className="block">Welcome to</span>
                 <span className="block text-[#087830]">JUJA Brew &amp; Bites®</span>
               </h1>
@@ -218,7 +218,7 @@ export default function About() {
               ].map((item) => (
                 <section key={item.title} className="relative pl-5 md:pl-4 lg:pl-5">
                   <span className="absolute left-0 top-1.5 h-[calc(100%-0.35rem)] w-[3px] rounded-full bg-[#087830]" />
-                  <h2 className="mb-2 text-2xl font-semibold leading-tight text-black sm:text-[1.7rem] md:mb-1 md:text-[1.05rem] lg:mb-1.5 lg:text-lg xl:text-xl">
+                  <h2 className="mb-2 text-2xl font-semibold leading-tight text-slate-950 sm:text-[1.7rem] md:mb-1 md:text-[1.05rem] lg:mb-1.5 lg:text-lg xl:text-xl">
                     {item.title}
                   </h2>
                   <div className="space-y-4 md:space-y-1.5 lg:space-y-2">
