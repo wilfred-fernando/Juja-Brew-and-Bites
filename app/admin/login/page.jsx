@@ -84,10 +84,10 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FFF5F7] p-4">
-      <div className="w-full max-w-md bg-white p-10 rounded-[40px] shadow-xl border border-rose-100">
+    <div className="juja-page-bg min-h-screen flex items-center justify-center p-4">
+      <div className="w-full max-w-md rounded-[32px] border border-white/70 bg-white/82 p-8 shadow-[0_30px_90px_rgba(2,6,23,0.20)] backdrop-blur-xl sm:p-10">
 
-        <h1 className="text-3xl font-black text-slate-800 text-center mb-8">
+        <h1 className="mb-8 text-center text-3xl font-semibold text-slate-950">
           Admin Login
         </h1>
 

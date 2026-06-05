@@ -92,13 +92,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
+    <div className="juja-page-bg flex min-h-screen items-center justify-center p-6">
       <form
         onSubmit={handleLogin}
-        className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 space-y-4"
+        className="w-full max-w-md space-y-4 rounded-[32px] border border-white/70 bg-white/82 p-6 shadow-[0_30px_90px_rgba(2,6,23,0.20)] backdrop-blur-xl"
       >
         <div className="space-y-1">
-          <h1 className="text-xl font-bold text-slate-900">Cashier Login</h1>
+          <h1 className="text-xl font-semibold text-slate-950">Cashier Login</h1>
           <p className="text-sm text-slate-500">Sign in with email and password.</p>
         </div>
 

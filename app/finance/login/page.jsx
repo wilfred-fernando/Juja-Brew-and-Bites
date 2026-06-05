@@ -110,35 +110,35 @@ export default function FinanceLoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#FFF5F7] p-4">
-      <div className="w-full max-w-md rounded-[32px] border border-rose-100 bg-white p-8 shadow-xl">
+    <div className="juja-page-bg flex min-h-screen items-center justify-center p-4">
+      <div className="w-full max-w-md rounded-[32px] border border-white/70 bg-white/82 p-8 shadow-[0_30px_90px_rgba(2,6,23,0.20)] backdrop-blur-xl">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-[#FC687D]">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-100 bg-cyan-50 text-cyan-700 shadow-[0_0_24px_rgba(34,211,238,0.18)]">
             <Banknote size={28} />
           </div>
-          <h1 className="text-3xl font-black text-slate-900">Finance Admin Login</h1>
-          <p className="mt-2 text-sm font-semibold text-slate-500">Payroll and finance access</p>
+          <h1 className="text-3xl font-semibold text-slate-950">Finance Admin Login</h1>
+          <p className="mt-2 text-sm text-slate-500">Payroll and finance access</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-5">
-          <label className="block text-xs font-black uppercase tracking-wide text-slate-500">
+          <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
             Email
             <input
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="mt-2 h-12 w-full rounded-2xl border border-rose-100 bg-slate-50 px-4 text-sm font-semibold normal-case text-slate-800 outline-none focus:border-[#FC687D]/50"
+              className="mt-2 h-12 w-full rounded-2xl border border-slate-200/80 bg-white/90 px-4 text-sm normal-case text-slate-800 outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
               placeholder="admin@email.com"
               required
             />
           </label>
 
-          <label className="block text-xs font-black uppercase tracking-wide text-slate-500">
+          <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
             Password
             <PasswordField
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="mt-2 h-12 w-full rounded-2xl border border-rose-100 bg-slate-50 px-4 text-sm font-semibold normal-case text-slate-800 outline-none focus:border-[#FC687D]/50"
+              className="mt-2 h-12 w-full rounded-2xl border border-slate-200/80 bg-white/90 px-4 text-sm normal-case text-slate-800 outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
               placeholder="Password"
             />
           </label>
@@ -157,7 +157,7 @@ export default function FinanceLoginPage() {
           <button
             type="submit"
             disabled={loading || (isTurnstileEnabled() && !captchaToken)}
-            className="h-12 w-full rounded-full bg-[#FC687D] text-sm font-black uppercase tracking-wide text-white shadow-lg shadow-rose-100 transition active:scale-[0.99] disabled:opacity-50"
+            className="h-12 w-full rounded-full bg-cyan-600 text-sm font-semibold uppercase tracking-wide text-white shadow-[0_0_30px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-cyan-500 active:scale-[0.99] disabled:opacity-50"
           >
             {loading ? "Verifying..." : "Enter Finance"}
           </button>

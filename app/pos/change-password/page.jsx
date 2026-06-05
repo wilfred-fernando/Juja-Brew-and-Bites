@@ -40,9 +40,9 @@ export default function ChangePasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FFF5F7] p-6">
-      <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
-        <h1 className="text-xl font-bold text-slate-900">Change Password</h1>
+    <div className="juja-page-bg flex min-h-screen items-center justify-center p-6">
+      <div className="w-full max-w-md space-y-4 rounded-[32px] border border-white/70 bg-white/82 p-6 shadow-[0_30px_90px_rgba(2,6,23,0.20)] backdrop-blur-xl">
+        <h1 className="text-xl font-semibold text-slate-950">Change Password</h1>
         <p className="text-sm text-slate-500">
           First login detected. Please set a new password to continue.
         </p>
@@ -58,7 +58,7 @@ export default function ChangePasswordPage() {
           value={p1}
           onChange={(e) => setP1(e.target.value)}
           placeholder="New password"
-          className="w-full px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-rose-300"
+          className="w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 py-3 outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
         />
 
         <input
@@ -66,13 +66,13 @@ export default function ChangePasswordPage() {
           value={p2}
           onChange={(e) => setP2(e.target.value)}
           placeholder="Confirm new password"
-          className="w-full px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-rose-300"
+          className="w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 py-3 outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
         />
 
         <button
           onClick={save}
           disabled={loading}
-          className="w-full px-4 py-3 rounded-xl bg-black text-white text-sm font-bold disabled:opacity-50"
+          className="w-full rounded-xl bg-cyan-600 px-4 py-3 text-sm font-semibold text-white shadow-[0_0_30px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-cyan-500 disabled:opacity-50"
         >
           {loading ? "Saving…" : "Save Password"}
         </button>

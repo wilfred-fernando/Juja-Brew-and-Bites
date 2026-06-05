@@ -222,6 +222,37 @@
   background-size: cover !important;
 }
 
+.juja-page-bg :is(.bg-white, [class*="bg-white"]) {
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.juja-page-bg :is(input, select, textarea) {
+  border-color: rgba(203, 213, 225, 0.82) !important;
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  color: #0f172a !important;
+  outline: none !important;
+  transition: border-color 220ms ease, box-shadow 220ms ease, background-color 220ms ease;
+}
+
+.juja-page-bg :is(input, select, textarea):focus {
+  border-color: rgba(34, 211, 238, 0.72) !important;
+  box-shadow: 0 0 0 4px rgba(103, 232, 249, 0.18) !important;
+}
+
+.juja-page-bg button[class*="bg-[#FC687D]"],
+.juja-page-bg a[class*="bg-[#FC687D]"],
+.juja-page-bg button[class*="bg-black"] {
+  background-color: #0891b2 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 30px rgba(8, 145, 178, 0.28) !important;
+}
+
+.juja-page-bg button[class*="bg-[#FC687D]"]:hover,
+.juja-page-bg a[class*="bg-[#FC687D]"]:hover,
+.juja-page-bg button[class*="bg-black"]:hover {
+  background-color: #06b6d4 !important;
+}
+
 .juja-annyeong {
   color: #066829 !important;
   font-family: "Comic Sans MS", "Comic Sans", "Comic Neue", "Trebuchet MS", cursive !important;
@@ -580,13 +611,13 @@ body [class*="fixed"][class*="inset-0"] > :where(div, section, article)[class*="
 }
 
 /* Existing rose/pink theme compatibility mapped to the global accent. */
-body [class*="bg-[#FFF5F7]"],
-body [class*="bg-rose-50"],
-body [class*="bg-pink-50"],
-body [class*="from-rose-50"],
-body [class*="to-rose-50"],
-body [class*="via-rose-50"],
-body [style*="#FFF5F7"] {
+body :not(.juja-page-bg)[class*="bg-[#FFF5F7]"],
+body :not(.juja-page-bg)[class*="bg-rose-50"],
+body :not(.juja-page-bg)[class*="bg-pink-50"],
+body :not(.juja-page-bg)[class*="from-rose-50"],
+body :not(.juja-page-bg)[class*="to-rose-50"],
+body :not(.juja-page-bg)[class*="via-rose-50"],
+body :not(.juja-page-bg)[style*="#FFF5F7"] {
   background-color: var(--app-bg) !important;
   background-image: none !important;
 }
@@ -699,6 +730,14 @@ body footer[class*="bg-slate-900"] * {
 body footer[class*="bg-slate-900"] svg {
   color: #ffffff !important;
   stroke: #ffffff !important;
+}
+
+body .juja-page-bg {
+  background-color: #ffffff !important;
+  background-image: url("https://images.jujabrewandbites.com/page%20background.png") !important;
+  background-position: center top !important;
+  background-repeat: no-repeat !important;
+  background-size: cover !important;
 }
 
 .hide-scrollbar {
