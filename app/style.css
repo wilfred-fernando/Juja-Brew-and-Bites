@@ -1169,3 +1169,192 @@ body .customer-item-modal__submit:not(:disabled) * {
     animation: none !important;
   }
 }
+
+/*
+  Premium interface normalization.
+  This final layer standardizes the app into a high-tech slate/cyan business
+  system and cleans old low-contrast text classes without changing page logic.
+*/
+:root {
+  --app-bg: #e9f4f4;
+  --app-subtle-bg: rgba(241, 245, 249, 0.86);
+  --app-surface: rgba(255, 255, 255, 0.86);
+  --app-surface-elevated: rgba(255, 255, 255, 0.94);
+  --app-text: #111827;
+  --app-muted: #334155;
+  --app-soft-text: #475569;
+  --app-border: rgba(148, 163, 184, 0.36);
+  --app-border-strong: rgba(14, 116, 144, 0.42);
+  --app-accent: #0891b2;
+  --app-accent-hover: #06b6d4;
+  --app-accent-active: #0f766e;
+  --app-accent-soft: rgba(236, 254, 255, 0.82);
+  --app-accent-border: rgba(34, 211, 238, 0.44);
+  --app-dark: #111827;
+  --app-dark-2: #1f2937;
+  --app-dark-text: #f8fafc;
+  --app-card-bg: rgba(255, 255, 255, 0.82);
+  --app-card-border: rgba(255, 255, 255, 0.58);
+  --app-card-shadow: 0 24px 70px rgba(15, 23, 42, 0.12);
+  --app-shadow-lg: 0 30px 90px rgba(15, 23, 42, 0.18);
+  --app-focus-ring: 0 0 0 4px rgba(34, 211, 238, 0.18);
+  --app-transition: 240ms cubic-bezier(0.2, 0, 0, 1);
+  --page-transition-duration: 240ms;
+  --page-transition-distance: 10px;
+}
+
+html,
+body,
+body > .page-transition-shell {
+  background-color: var(--app-bg) !important;
+  background-image:
+    radial-gradient(circle at 18% 8%, rgba(34, 211, 238, 0.18), transparent 32%),
+    radial-gradient(circle at 88% 14%, rgba(14, 165, 233, 0.14), transparent 34%),
+    linear-gradient(135deg, rgba(241, 245, 249, 0.86), rgba(224, 242, 254, 0.72)),
+    url("https://images.jujabrewandbites.com/page%20background.png") !important;
+  background-attachment: fixed;
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-size: cover;
+  color: var(--app-text) !important;
+}
+
+body :where(h1, h2, h3, h4, h5, h6) {
+  color: #0f172a !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+}
+
+body :where(p, span, label, small, li, td, th, div) {
+  color: inherit;
+}
+
+body :where([class*="text-white"], [class*="text-cyan-50"], [class*="text-slate-50"], [class*="text-slate-100"], [class*="text-slate-200"], [class*="text-slate-300"], [class*="text-gray-100"], [class*="text-gray-200"], [class*="text-gray-300"]) {
+  color: #1f2937 !important;
+}
+
+body :where([class*="text-slate-400"], [class*="text-slate-500"], [class*="text-slate-600"], [class*="text-gray-400"], [class*="text-gray-500"], [class*="text-gray-600"]) {
+  color: #475569 !important;
+}
+
+body :where([class*="text-slate-700"], [class*="text-slate-800"], [class*="text-slate-900"], [class*="text-slate-950"], [class*="text-gray-700"], [class*="text-gray-800"], [class*="text-gray-900"], [class*="text-black"]) {
+  color: #111827 !important;
+}
+
+body :where([class*="text-[#FC687D]"], [class*="text-rose"], [class*="text-pink"], [class*="text-purple"], [class*="hover:text-[#FC687D]"], [class*="hover:text-rose"], [class*="hover:text-pink"]) {
+  color: #0e7490 !important;
+}
+
+body :where([class*="bg-slate-950"], [class*="bg-slate-900"], [class*="bg-slate-800"], [class*="bg-gray-950"], [class*="bg-gray-900"], [class*="bg-gray-800"], [class*="bg-black"]) {
+  background-color: rgba(15, 23, 42, 0.92) !important;
+  color: var(--app-dark-text) !important;
+}
+
+body :where([class*="bg-slate-950"], [class*="bg-slate-900"], [class*="bg-slate-800"], [class*="bg-gray-950"], [class*="bg-gray-900"], [class*="bg-gray-800"], [class*="bg-black"])
+  :where(h1, h2, h3, h4, h5, h6, p, span, label, small, li, td, th, button, a, div):not([class*="text-red"]):not([class*="text-amber"]):not([class*="text-yellow"]):not([class*="text-emerald"]):not([class*="text-green"]) {
+  color: var(--app-dark-text) !important;
+}
+
+body :where([class*="bg-slate-950"], [class*="bg-slate-900"], [class*="bg-slate-800"], [class*="bg-gray-950"], [class*="bg-gray-900"], [class*="bg-gray-800"], [class*="bg-black"])
+  :where([class*="text-slate-300"], [class*="text-slate-400"], [class*="text-slate-500"], [class*="text-cyan-200"], [class*="text-cyan-100"]) {
+  color: #cbd5e1 !important;
+}
+
+body :where([class*="bg-white"], [class*="bg-slate-50"], [class*="bg-slate-100"], [class*="bg-gray-50"], [class*="bg-gray-100"], [class*="bg-cyan-50"], [class*="bg-blue-50"], [class*="bg-emerald-50"], [class*="bg-green-50"], [class*="bg-rose-50"], [class*="bg-pink-50"], [class*="bg-[#FFF5F7]"], [class*="bg-[#FFF9FA]"]) {
+  color: #111827 !important;
+}
+
+body :where([class*="bg-white"], [class*="bg-slate-50"], [class*="bg-slate-100"], [class*="bg-gray-50"], [class*="bg-gray-100"], [class*="bg-cyan-50"], [class*="bg-blue-50"], [class*="bg-emerald-50"], [class*="bg-green-50"], [class*="bg-rose-50"], [class*="bg-pink-50"], [class*="bg-[#FFF5F7]"], [class*="bg-[#FFF9FA]"])
+  :where(h1, h2, h3, h4, h5, h6, p, span, label, small, li, td, th, button, a, div) {
+  color: inherit;
+}
+
+body :where(section, article, form, aside, nav, header, main > div, div):is([class*="bg-white"], [class*="bg-white/"], [class*="bg-slate-50"], [class*="bg-slate-100"]):is([class*="rounded"], [class*="border"], [class*="shadow"]) {
+  background: rgba(255, 255, 255, 0.82) !important;
+  border-color: var(--app-card-border) !important;
+  box-shadow: var(--app-card-shadow) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+body :where(section, article, form, aside, nav, header, main > div, div):is([class*="rounded"], [class*="border"], [class*="shadow"]) {
+  transition: transform var(--app-transition), box-shadow var(--app-transition), border-color var(--app-transition), background-color var(--app-transition);
+}
+
+body :where(article, section, form, aside, div):is([class*="bg-white"], [class*="bg-white/"], [class*="border"]):is([class*="shadow"]):hover {
+  border-color: rgba(34, 211, 238, 0.36) !important;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.16) !important;
+}
+
+body :where(button, a, [role="button"]) {
+  border-radius: 14px;
+  font-weight: 600 !important;
+}
+
+body :where(button, a, [role="button"]):not(:disabled):not([aria-disabled="true"]):hover {
+  transform: translateY(-1px);
+}
+
+body :where(button, a, [role="button"]):is([class*="bg-[#FC687D]"], [class*="bg-rose"], [class*="bg-pink"], [class*="bg-black"], [class*="bg-slate-900"], [class*="bg-slate-800"], [class*="bg-cyan-600"], [class*="bg-cyan-700"], [class*="bg-blue-600"], [class*="bg-emerald-600"], [class*="bg-green-600"]) {
+  background: linear-gradient(135deg, #0891b2, #0f766e) !important;
+  border-color: rgba(34, 211, 238, 0.36) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 28px rgba(8, 145, 178, 0.24), 0 16px 36px rgba(15, 23, 42, 0.12) !important;
+}
+
+body :where(button, a, [role="button"]):is([class*="bg-[#FC687D]"], [class*="bg-rose"], [class*="bg-pink"], [class*="bg-black"], [class*="bg-slate-900"], [class*="bg-slate-800"], [class*="bg-cyan-600"], [class*="bg-cyan-700"], [class*="bg-blue-600"], [class*="bg-emerald-600"], [class*="bg-green-600"])
+  :where(span, p, small, svg) {
+  color: #ffffff !important;
+  stroke: currentColor !important;
+}
+
+body :where(button, a, [role="button"]):is([class*="bg-white"], [class*="bg-white/"], [class*="bg-slate-50"], [class*="bg-slate-100"], [class*="bg-gray-50"], [class*="bg-gray-100"], [class*="bg-cyan-50"], [class*="bg-rose-50"], [class*="bg-pink-50"]) {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(148, 163, 184, 0.48) !important;
+  color: #111827 !important;
+}
+
+body :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(148, 163, 184, 0.54) !important;
+  color: #111827 !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+body :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {
+  border-color: rgba(34, 211, 238, 0.78) !important;
+  box-shadow: var(--app-focus-ring), 0 16px 36px rgba(15, 23, 42, 0.08) !important;
+}
+
+body :where(input, textarea)::placeholder {
+  color: #64748b !important;
+}
+
+body :where(table) {
+  background: rgba(255, 255, 255, 0.76);
+}
+
+body :where(thead, thead[class*="bg-rose"], thead[class*="bg-slate"]) {
+  background: rgba(15, 23, 42, 0.94) !important;
+}
+
+body :where(thead, thead[class*="bg-rose"], thead[class*="bg-slate"]) :where(th, td, span, p) {
+  color: #f8fafc !important;
+}
+
+body :where(tbody tr:hover td, tbody tr:hover th) {
+  background: rgba(236, 254, 255, 0.68) !important;
+}
+
+body :where(.fixed[class*="inset-0"] > [class*="bg-white"], .contrast-safe-modal, [role="dialog"]) {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(226, 232, 240, 0.88) !important;
+  color: #111827 !important;
+  box-shadow: 0 34px 100px rgba(15, 23, 42, 0.26) !important;
+  backdrop-filter: blur(20px);
+}
+
+body :where(.fixed[class*="inset-0"] > [class*="bg-white"], .contrast-safe-modal, [role="dialog"])
+  :where(h1, h2, h3, h4, h5, h6, p, span, label, small, li, td, th, div) {
+  color: #111827 !important;
+}

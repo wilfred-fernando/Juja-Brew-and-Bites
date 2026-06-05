@@ -18,7 +18,7 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body 
-        className="antialiased text-slate-800 min-h-screen flex flex-col bg-[#FFF5F7]"
+        className="antialiased text-slate-800 min-h-screen flex flex-col"
         suppressHydrationWarning
       >
         <PwaManifestManager />
