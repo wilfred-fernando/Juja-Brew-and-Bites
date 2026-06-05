@@ -1502,6 +1502,8 @@ function LoyaltyTab({ member, setMember, user }) {
   const [checkingMatch, setCheckingMatch] = useState(false);
   const [matchChecked, setMatchChecked] = useState(false);
   const [matchedPreview, setMatchedPreview] = useState(null);
+  const [sendingLinkRequest, setSendingLinkRequest] = useState(false);
+  const [linkRequestSent, setLinkRequestSent] = useState(false);
 
   const available = Number(member?.["Available points"] || 0);
   const progress = ((available % 100) / 100) * 100;
@@ -1686,13 +1688,27 @@ function LoyaltyTab({ member, setMember, user }) {
 
   const requestLink = async () => {
     const b = normalizeBirthday(form.Note);
+    if (!form.customer_name.trim()) { setNotice("⚠️ Please enter your full name."); return; }
+    setSendingLinkRequest(true);
+    setNotice("");
+    if (!b.ok) {
+      setNotice("Please select a valid birthday.");
+      setSendingLinkRequest(false);
+      return;
+    }
     if (!b.ok) { setNotice("⚠️ " + b.msg); return; }
     const { data, error } = await supabase.from("loyalty_link_requests").insert({
       user_id: user.id, input_name: form.customer_name, input_birthday: b.value, matched_member_id: matchedPreview?.id || null, status: "pending"
     }).select().single();
+    if (error) {
+      setNotice(error.message || "Unable to send link request. Please try again.");
+      setSendingLinkRequest(false);
+      return;
+    }
     if (!error) {
+      let emailSent = true;
       try {
-        await fetch("/api/loyalty-link-notify", {
+        const notifyRes = await fetch("/api/loyalty-link-notify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1703,7 +1719,15 @@ function LoyaltyTab({ member, setMember, user }) {
             matchedMemberId: matchedPreview?.id || null,
           }),
         });
-      } catch {}
+        emailSent = notifyRes.ok;
+      } catch {
+        emailSent = false;
+      }
+      setLinkRequestSent(true);
+      setSendingLinkRequest(false);
+      if (!emailSent) {
+        setNotice("Request saved. Email notification was not sent, but admin can still review it.");
+      }
       alert("✅ Authorization sync request logged effectively.");
     }
   };
@@ -1748,7 +1772,16 @@ function LoyaltyTab({ member, setMember, user }) {
         <h3 className="text-lg font-bold text-slate-800 uppercase tracking-wide">{mode === "new" ? "Create Membership Account" : "Verify Profile Identity"}</h3>
         {notice && <p className="text-xs font-semibold text-rose-500 bg-rose-50 p-2.5 rounded-lg">{notice}</p>}
         <div className="space-y-3">
-          <input placeholder="Full Registration Name" value={form.customer_name} onChange={(e)=>setForm({...form, customer_name: e.target.value})} className="w-full border border-slate-200 px-4 py-3 rounded-xl text-sm font-medium outline-none" />
+          <input
+            placeholder="Full Registration Name"
+            value={form.customer_name}
+            onChange={(e)=>{
+              setForm({...form, customer_name: e.target.value});
+              setLinkRequestSent(false);
+              setMatchChecked(false);
+            }}
+            className="w-full border border-slate-200 px-4 py-3 rounded-xl text-sm font-medium outline-none"
+          />
           <div className="space-y-1.5">
             <label className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
               Birthday
@@ -1757,7 +1790,11 @@ function LoyaltyTab({ member, setMember, user }) {
               type="date"
               max={todayISO()}
               value={birthdayToDateInput(form.Note)}
-              onChange={(e)=>setForm({...form, Note: dateInputToBirthday(e.target.value)})}
+              onChange={(e)=>{
+                setForm({...form, Note: dateInputToBirthday(e.target.value)});
+                setLinkRequestSent(false);
+                setMatchChecked(false);
+              }}
               className="w-full border border-slate-200 px-4 py-3 rounded-xl text-sm font-medium outline-none"
             />
             <p className="text-[10px] text-slate-400">
@@ -1781,10 +1818,23 @@ function LoyaltyTab({ member, setMember, user }) {
         </div>
         {matchChecked && mode === "existing" && (
           <div className="border border-slate-100 bg-slate-50 p-4 rounded-xl mt-2 text-center text-xs">
-            {matchedPreview ? (
+            {linkRequestSent ? (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-800">
+                <p className="font-bold">Link request sent.</p>
+                <p className="mt-1 text-[11px] leading-relaxed">
+                  Admin will review your full name and birthday, then link your loyalty account.
+                </p>
+              </div>
+            ) : matchedPreview ? (
               <div>
                 <p className="text-green-600 font-bold">Profile identified matching criteria. ✅</p>
-                <button onClick={requestLink} className="mt-3 w-full py-2 bg-[#FC687D] text-white rounded-lg font-bold">Submit Sync Authorization Link</button>
+                <button
+                  onClick={requestLink}
+                  disabled={sendingLinkRequest}
+                  className="mt-3 w-full py-2 bg-[#FC687D] text-white rounded-lg font-bold disabled:opacity-60"
+                >
+                  {sendingLinkRequest ? "Sending..." : "Submit Sync Authorization Link"}
+                </button>
               </div>
             ) : (
               <div>
@@ -1792,8 +1842,12 @@ function LoyaltyTab({ member, setMember, user }) {
                 <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
                   You can still send your full name and birthday to request manual account linking.
                 </p>
-                <button onClick={requestLink} className="mt-3 w-full py-2 bg-[#FC687D] text-white rounded-lg font-bold">
-                  Send Manual Link Request
+                <button
+                  onClick={requestLink}
+                  disabled={sendingLinkRequest}
+                  className="mt-3 w-full py-2 bg-[#FC687D] text-white rounded-lg font-bold disabled:opacity-60"
+                >
+                  {sendingLinkRequest ? "Sending..." : "Send Manual Link Request"}
                 </button>
               </div>
             )}
