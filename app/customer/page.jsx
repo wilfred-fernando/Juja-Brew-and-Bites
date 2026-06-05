@@ -585,21 +585,21 @@ function AddToCartModal({ item, onClose, onAdd }) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-white rounded-t-[26px] md:rounded-[24px] p-6 shadow-2xl max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom md:fade-in duration-300"
+        className="contrast-safe-modal w-full max-w-lg bg-white rounded-t-[26px] md:rounded-[24px] p-6 shadow-2xl max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom md:fade-in duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Add to Selection</p>
-            <h3 className="text-xl font-bold text-slate-800 mt-0.5">{item.name}</h3>
-            <p className="text-sm font-semibold text-slate-500 mt-1">
+            <p className="text-[10px] uppercase tracking-widest text-slate-600 font-bold">Add to Selection</p>
+            <h3 className="text-xl font-bold text-slate-950 mt-0.5">{item.name}</h3>
+            <p className="text-sm font-semibold text-slate-700 mt-1">
               Base ₱{Number(item.price || 0).toFixed(0)}
               {variantPrice > 0 ? ` • +₱${variantPrice.toFixed(0)} variants` : ""}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500 font-bold"
+            className="w-9 h-9 rounded-full bg-white hover:bg-slate-100 flex items-center justify-center text-slate-700 font-bold border border-slate-200"
           >
             ✕
           </button>
@@ -610,10 +610,10 @@ function AddToCartModal({ item, onClose, onAdd }) {
             {item.variants.map((g) => (
               <div key={g.id} className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-bold text-slate-700">
+                  <p className="text-sm font-bold text-slate-900">
                     {g.name} {g.isRequired ? <span className="text-rose-500">*</span> : null}
                   </p>
-                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                  <p className="text-[10px] uppercase font-bold text-slate-600 tracking-wider">
                     {g.isMultiSelect ? "Multi-select" : "Single-select"}
                   </p>
                 </div>
@@ -626,12 +626,12 @@ function AddToCartModal({ item, onClose, onAdd }) {
                         type="button"
                         key={o.id}
                         onClick={() => toggleOption(g, o)}
-                        className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-sm font-medium transition-all text-left ${
-                          sel ? "border-rose-400 bg-rose-50/40 text-rose-900" : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+                        className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-sm font-semibold transition-all text-left ${
+                          sel ? "border-cyan-500 bg-cyan-50 text-slate-950 shadow-sm" : "border-slate-300 bg-white text-slate-900 hover:bg-cyan-50"
                         }`}
                       >
                         <span>{o.name}</span>
-                        <span className="text-xs text-slate-400">
+                        <span className="text-xs font-semibold text-slate-600">
                           {Number(o.price) > 0 ? `+₱${Number(o.price).toFixed(0)}` : "FREE"}
                         </span>
                       </button>
@@ -644,14 +644,14 @@ function AddToCartModal({ item, onClose, onAdd }) {
         )}
 
         <div className="mt-5">
-          <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1">
+          <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-700 mb-1">
             Special Instructions
           </label>
           <textarea
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
             placeholder="E.g., less ice, sweetener options, etc..."
-            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none h-20 resize-none focus:bg-white focus:border-rose-300 transition-all font-medium"
+            className="w-full p-4 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 placeholder:text-slate-500 outline-none h-20 resize-none focus:bg-white focus:border-cyan-500 transition-all font-medium"
           />
         </div>
 
@@ -659,14 +659,14 @@ function AddToCartModal({ item, onClose, onAdd }) {
           <div className="flex items-center w-full sm:w-36 h-12 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-inner">
             <button
               onClick={() => setQuantity(Math.max(1, quantity - 1))}
-              className="w-12 h-full text-xl text-slate-400 hover:text-rose-500 font-bold transition-colors"
+              className="w-12 h-full text-xl text-cyan-700 hover:text-cyan-900 font-bold transition-colors"
             >
               −
             </button>
             <div className="flex-1 text-center font-bold text-slate-800">{quantity}</div>
             <button
               onClick={() => setQuantity(quantity + 1)}
-              className="w-12 h-full text-rose-400 hover:text-rose-500 font-bold transition-colors"
+              className="w-12 h-full text-cyan-700 hover:text-cyan-900 font-bold transition-colors"
             >
               +
             </button>
@@ -685,8 +685,7 @@ function AddToCartModal({ item, onClose, onAdd }) {
                 cartItemId: item.editData?.cartItemId || Date.now(),
               })
             }
-            className="w-full sm:flex-1 h-12 rounded-xl text-white text-sm font-bold shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
-            style={{ backgroundColor: "#FC687D" }}
+            className="w-full sm:flex-1 h-12 rounded-xl bg-cyan-700 text-white text-sm font-bold shadow-md transition-all active:scale-[0.98] disabled:bg-slate-200 disabled:text-slate-700 disabled:shadow-none"
           >
             {canAdd ? `Add To Basket • ₱${(unitPrice * quantity).toFixed(0)}` : "Select Required Configurations"}
           </button>
@@ -1733,7 +1732,7 @@ function LoyaltyTab({ member, setMember, user }) {
 
   const requestLink = async () => {
     const b = normalizeBirthday(form.Note);
-    if (!form.customer_name.trim()) { setNotice("⚠️ Please enter your full name."); return; }
+    if (!form.customer_name.trim()) { setNotice("Please enter your full name."); return; }
     setSendingLinkRequest(true);
     setNotice("");
     if (!b.ok) {
@@ -1741,42 +1740,33 @@ function LoyaltyTab({ member, setMember, user }) {
       setSendingLinkRequest(false);
       return;
     }
-    if (!b.ok) { setNotice("⚠️ " + b.msg); return; }
-    const { data, error } = await supabase.from("loyalty_link_requests").insert({
-      user_id: user.id, input_name: form.customer_name, input_birthday: b.value, matched_member_id: matchedPreview?.id || null, status: "pending"
-    }).select().single();
-    if (error) {
-      setNotice(error.message || "Unable to send link request. Please try again.");
-      setSendingLinkRequest(false);
-      return;
-    }
-    if (!error) {
-      let emailSent = true;
-      try {
-        const notifyRes = await fetch("/api/loyalty-link-notify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            requestId: data?.id,
-            customerName: form.customer_name,
-            birthday: b.value,
-            userEmail: user?.email,
-            matchedMemberId: matchedPreview?.id || null,
-          }),
-        });
-        emailSent = notifyRes.ok;
-      } catch {
-        emailSent = false;
-      }
+
+    try {
+      const res = await fetch("/api/loyalty-link-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName: form.customer_name,
+          birthday: b.value,
+          matchedMemberId: matchedPreview?.id || null,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || "Unable to send link request.");
+
       setLinkRequestSent(true);
-      setSendingLinkRequest(false);
-      if (!emailSent) {
-        setNotice("Request saved. Email notification was not sent, but admin can still review it.");
+      if (json.emailSent) {
+        setNotice("Request saved and email notification sent.");
+      } else {
+        setNotice(`Request saved for admin review. Email was not sent${json.emailError ? `: ${json.emailError}` : "."}`);
       }
-      alert("✅ Authorization sync request logged effectively.");
+      alert("Authorization sync request logged effectively.");
+    } catch (error) {
+      setNotice(error?.message || "Unable to send link request. Please try again.");
+    } finally {
+      setSendingLinkRequest(false);
     }
   };
-
   if (!member && !mode) {
     return (
       <div className="max-w-2xl mx-auto space-y-6 py-6 animate-in fade-in duration-300">

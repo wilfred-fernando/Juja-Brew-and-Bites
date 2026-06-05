@@ -153,6 +153,7 @@ export default function LoyaltyAdminPage() {
 
     if (error) {
       console.error(error);
+      setNotice(`Unable to load loyalty link requests: ${error.message}`);
       setLinkRequests([]);
       setLoadingRequests(false);
       return;

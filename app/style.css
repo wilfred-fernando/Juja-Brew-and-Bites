@@ -879,6 +879,42 @@ body :where(input[type="checkbox"], input[type="radio"], progress) {
   accent-color: #0891b2 !important;
 }
 
+/*
+  Modal contrast rescue.
+  Dark overlay wrappers should not force their white text treatment into light
+  dialog panels. This keeps modal body text dark while preserving white text on
+  real dark/primary buttons.
+*/
+body :where(.contrast-safe-modal, .fixed[class*="bg-black/"] > [class*="bg-white"], .fixed[class*="bg-slate-900/"] > [class*="bg-white"]) {
+  color: #0f172a !important;
+}
+
+body :where(.contrast-safe-modal, .fixed[class*="bg-black/"] > [class*="bg-white"], .fixed[class*="bg-slate-900/"] > [class*="bg-white"])
+  :is(h1, h2, h3, h4, h5, h6, p, span, label, small, td, th):not([class*="text-white"]):not([class*="text-red"]):not([class*="text-emerald"]):not([class*="text-cyan"]):not([class*="text-teal"]) {
+  color: #0f172a !important;
+}
+
+body :where(.contrast-safe-modal, .fixed[class*="bg-black/"] > [class*="bg-white"], .fixed[class*="bg-slate-900/"] > [class*="bg-white"])
+  :is([class*="text-slate-400"], [class*="text-slate-500"], [class*="text-slate-600"]) {
+  color: #475569 !important;
+}
+
+body :where(.contrast-safe-modal, .fixed[class*="bg-black/"] > [class*="bg-white"], .fixed[class*="bg-slate-900/"] > [class*="bg-white"])
+  :where(button, a, [role="button"]):is([class~="bg-white"], [class*="bg-white/"], [class~="bg-slate-50"], [class~="bg-slate-100"]) {
+  color: #0f172a !important;
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.7) !important;
+}
+
+body :where(.contrast-safe-modal, .fixed[class*="bg-black/"] > [class*="bg-white"], .fixed[class*="bg-slate-900/"] > [class*="bg-white"])
+  :where(button, a, [role="button"]):is([class*="bg-cyan"], [class*="bg-[#FC687D]"], [class*="bg-rose"], [class*="bg-slate-800"], [class*="bg-slate-900"], [class*="bg-black"]) {
+  color: #ffffff !important;
+}
+
+body :where(button, a, [role="button"]):is([class~="bg-white"], [class*="bg-white/"], [class~="bg-slate-50"], [class~="bg-slate-100"]):is([class*="text-white"]) {
+  color: #0f172a !important;
+}
+
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
