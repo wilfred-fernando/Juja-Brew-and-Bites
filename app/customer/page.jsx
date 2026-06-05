@@ -19,6 +19,57 @@ const loyaltyPoints = (amount) => Number(((Number(amount) || 0) * 0.04).toFixed(
 const ALERT_SOUND_SRC = "/sound/notification.mp3";
 const CUSTOMER_NOTIFICATION_ICON = "/images/juja-logo.png";
 
+const loyaltyPerkSections = [
+  {
+    label: "Registration",
+    accent: "JOIN",
+    items: [
+      "Free to join with no hidden fees.",
+      "Sign up in-store and receive your JUJA Loyalty Card instantly.",
+    ],
+  },
+  {
+    label: "Earning Points",
+    accent: "EARN",
+    items: [
+      "Earn 1 JUJA Point for every PHP 25 spent on food and drinks.",
+      "Present your loyalty card for scanning during purchase.",
+      "Points are credited immediately after purchase.",
+    ],
+  },
+  {
+    label: "Redeeming Rewards",
+    accent: "100",
+    items: [
+      "100 Points creates a free reward for any 16oz drink, waffle, or mini donuts.",
+      "Birthday perk: get any 16oz drink or waffle free on your birthday with a valid ID.",
+      "Rewards expire 90 days after reaching 100 points.",
+    ],
+  },
+  {
+    label: "Expiration Policy",
+    accent: "EXP",
+    items: ["All JUJA Points expire every December 31 at 11:59 PM."],
+  },
+];
+
+const loyaltyFlavorSelections = [
+  {
+    label: "Waffle Flavors",
+    items: ["Honey Syrup", "Choco Oreo", "Cheese", "Blueberry Whip", "Strawberry Whip", "Mango Graham"],
+  },
+  {
+    label: "Mini Donut Flavors",
+    items: ["Chocolate", "White Chocolate", "Strawberry", "Matcha"],
+  },
+];
+
+const loyaltyTerms = [
+  "Rewards and perks are non-transferable and cannot be exchanged for cash.",
+  "Lost loyalty card? Request a digital copy in-store.",
+  "JUJA Brew & Bites may amend these guidelines without prior notice.",
+];
+
 function isCustomerPwaInstalled() {
   if (typeof window === "undefined") return false;
   return window.matchMedia?.("(display-mode: standalone)")?.matches || window.navigator?.standalone === true;
@@ -1327,6 +1378,81 @@ function TrackerTab({ orders, loadingOrders }) {
 /* ──────────────────────────────────────────────────────────────
     Loyalty Tab
 ────────────────────────────────────────────────────────────── */
+function LoyaltyPerksPanel({ compact = false }) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-white/70 bg-white/78 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl">
+      <div className="border-b border-cyan-100/70 bg-slate-950/90 px-5 py-4 text-white">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-100">Loyalty Program</p>
+        <h3 className="mt-1 text-lg font-semibold">JUJA Rewards Perks</h3>
+        <p className="mt-1 text-xs leading-relaxed text-slate-300">
+          Earn, redeem, and enjoy member-only rewards every time you visit.
+        </p>
+      </div>
+
+      <div className="space-y-4 p-4 md:p-5">
+        <div className={`grid gap-3 ${compact ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"}`}>
+          {loyaltyPerkSections.map((section) => (
+            <section
+              key={section.label}
+              className="rounded-2xl border border-cyan-100/70 bg-white/82 p-4 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-cyan-300/70 hover:bg-cyan-50/55"
+            >
+              <div className="mb-3 flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan-200/70 bg-cyan-50 text-[10px] font-semibold tracking-wide text-cyan-700">
+                  {section.accent}
+                </span>
+                <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-800">{section.label}</h4>
+              </div>
+              <ul className="space-y-2 text-xs leading-relaxed text-slate-600 md:text-[13px]">
+                {section.items.map((item) => (
+                  <li key={item} className="flex gap-2">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-500" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+
+        <section className="rounded-2xl border border-cyan-100/70 bg-white/82 p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-800">Flavor Selection</h4>
+            <span className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-cyan-700">
+              Reward Choices
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {loyaltyFlavorSelections.map((group) => (
+              <div key={group.label} className="rounded-xl border border-slate-200/80 bg-slate-50/80 p-3">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-700">{group.label}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {group.items.map((item) => (
+                    <span key={item} className="rounded-full border border-white/80 bg-white/90 px-2.5 py-1 text-[11px] text-slate-600 shadow-sm">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-amber-200/70 bg-amber-50/80 p-4">
+          <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">Terms & Conditions</h4>
+          <ul className="mt-3 space-y-2 text-xs leading-relaxed text-slate-700 md:text-[13px]">
+            {loyaltyTerms.map((term) => (
+              <li key={term} className="flex gap-2">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                <span>{term}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+    </div>
+  );
+}
+
 function LoyaltyTab({ member, setMember, user }) {
   const [mode, setMode] = useState(null); 
   const [loading, setLoading] = useState(false);
@@ -1422,7 +1548,7 @@ function LoyaltyTab({ member, setMember, user }) {
         return {
           member_id: member.id,
           code: `PTS100-${voucherNumber}-${Math.floor(1000 + Math.random() * 9000)}`,
-          reward_text: "FREE 16oz Drink or Waffle (100 Points Reward)",
+          reward_text: "FREE 16oz Drink, Waffle, or Mini Donuts (100 Points Reward)",
           issued_at: new Date(now).toISOString(),
           expires_at: new Date(now + 90 * 86400000).toISOString(),
           status: "active",
@@ -1546,6 +1672,8 @@ function LoyaltyTab({ member, setMember, user }) {
             </div>
           </div>
         </div>
+        <LoyaltyPerksPanel />
+
         <div className="flex flex-col sm:flex-row gap-3">
           <button onClick={() => setMode("new")} className="flex-1 h-12 bg-[#FC687D] text-white font-bold text-sm rounded-xl shadow-sm hover:bg-rose-500 transition">Sign Up Program</button>
           <button onClick={() => setMode("existing")} className="flex-1 h-12 bg-white border border-slate-200 text-slate-700 font-bold text-sm rounded-xl hover:bg-slate-50 transition">Link Existing Loyalty Card</button>
@@ -1633,6 +1761,8 @@ function LoyaltyTab({ member, setMember, user }) {
           </div>
           <p className="text-xs font-medium text-slate-500 mt-2.5">🎁 Only {(nextReward - available).toFixed(0)} additional points required to qualify for subsequent product voucher allocation metrics.</p>
         </div>
+
+        <LoyaltyPerksPanel compact />
 
         <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3 mb-4">
