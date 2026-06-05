@@ -15,8 +15,10 @@ import {
   Settings,
   ShoppingCart,
   Star,
+  UserCog,
   X,
 } from "lucide-react";
+import { canAccessPage } from "@/lib/adminPageAccess";
 
 const LOGO =
   "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
@@ -27,6 +29,8 @@ export default function AdminSidebar({
   setMobileOpen,
   userEmail,
   onLogout,
+  userRole,
+  accessRows = [],
 }) {
   const [posOpen, setPosOpen] = useState(false);
 
@@ -82,9 +86,28 @@ export default function AdminSidebar({
     },
     {
       label: "System",
-      items: [{ name: "Settings", path: "/admin/settings", icon: Settings }],
+      items: [
+        { name: "Accounts", path: "/admin/accounts", icon: UserCog },
+        { name: "Settings", path: "/admin/settings", icon: Settings },
+      ],
     },
   ];
+
+  const PAGE_KEY_BY_PATH = {
+    "/admin": "dashboard",
+    "/admin/bookings": "bookings",
+    "/admin/calendar": "calendar",
+    "/admin/orders": "live_orders",
+    "/admin/pos-admin": "pos_admin",
+    "/admin/menu": "menu_builder",
+    "/admin/loyalty": "loyalty",
+    "/admin/promos": "promos",
+    "/admin/sales": "sales",
+    "/admin/settings": "settings",
+    "/admin/accounts": "accounts",
+  };
+
+  const pageAllowed = (path) => canAccessPage(accessRows, PAGE_KEY_BY_PATH[path], userRole);
 
   const isActive = (path) => {
     if (path === "/admin") return pathname === "/admin";
@@ -128,7 +151,7 @@ export default function AdminSidebar({
               </p>
 
               <div className="space-y-1">
-                {section.items.map((item) => {
+                {section.items.filter((item) => pageAllowed(item.path)).map((item) => {
                   const active = isActive(item.path);
                   const Icon = item.icon;
 

@@ -699,7 +699,7 @@ function AddToCartModal({ item, onClose, onAdd }) {
 /* ──────────────────────────────────────────────────────────────
     Interactive Checkout Confirmation Drawer
 ────────────────────────────────────────────────────────────── */
-function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems, isSubmitting }) {
+function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems, isSubmitting, selectedStoreName }) {
   const [diningOption, setDiningOption] = useState("TAKEOUT");
   const [fulfillmentDate, setFulfillmentDate] = useState(getManilaDateString(0));
   const [fulfillmentTime, setFulfillmentTime] = useState(getManilaTimeString(30));
@@ -730,6 +730,12 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems,
         </div>
 
         <div className="space-y-4">
+          <div className="rounded-2xl border border-cyan-100 bg-cyan-50/70 p-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-800">Sending To Store</p>
+            <p className="mt-1 text-sm font-semibold text-slate-800">{selectedStoreName || "Selected branch"}</p>
+            <p className="mt-1 text-[11px] text-slate-500">Change the branch from the store selector above the menu before checkout.</p>
+          </div>
+
           <div>
             <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2">
               ORDER TYPE
@@ -935,6 +941,9 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState("bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e");
+  const [stores, setStores] = useState([]);
+  const [itemStoreAvailability, setItemStoreAvailability] = useState([]);
+  const [availabilityNotice, setAvailabilityNotice] = useState("");
 
   const [selectedItemForModal, setSelectedItemForModal] = useState(null);
   const [cartOpen, setCartOpen] = useState(false);
@@ -944,23 +953,47 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
   useEffect(() => {
     async function fetchMenu() {
       setLoading(true);
-      const [itemRes, catRes] = await Promise.all([
+      const [itemRes, catRes, storeRes, availabilityRes] = await Promise.all([
         supabase.from("menu_items").select("*").eq("is_available", true).eq("pos_only", false).order("name"),
         supabase.from("menu_categories").select("*").eq("is_active", true).eq("pos_only", false).order("name", { ascending: true }),
+        supabase.from("stores").select("id, name, is_active").eq("is_active", true).order("name"),
+        supabase.from("menu_item_store_availability").select("item_id, store_id, is_available"),
       ]);
       setItems(itemRes.data || []);
       setCategories([...(catRes.data || [])].sort((a, b) => (a.name || "").localeCompare(b.name || "")));
+      const activeStores = storeRes.data || [];
+      setStores(activeStores);
+      setSelectedBranch((current) => (activeStores.some((store) => String(store.id) === String(current)) ? current : activeStores[0]?.id || current));
+      if (availabilityRes.error) {
+        setAvailabilityNotice("Store availability is being synced. Showing all available menu items for now.");
+        setItemStoreAvailability([]);
+      } else {
+        setAvailabilityNotice("");
+        setItemStoreAvailability(availabilityRes.data || []);
+      }
       setLoading(false);
     }
     fetchMenu();
   }, []);
 
   const q = itemSearch.trim().toLowerCase();
+  const selectedStore = useMemo(
+    () => stores.find((store) => String(store.id) === String(selectedBranch)),
+    [selectedBranch, stores]
+  );
+
   const filteredItems = useMemo(() => {
     return items
+      .filter((i) => {
+        if (!selectedBranch) return true;
+        const row = itemStoreAvailability.find(
+          (entry) => String(entry.item_id) === String(i.id) && String(entry.store_id) === String(selectedBranch)
+        );
+        return row ? row.is_available !== false : true;
+      })
       .filter((i) => (activeTab === "ALL" ? true : i.category === activeTab))
       .filter((i) => (q ? (i.name || "").toLowerCase().includes(q) : true));
-  }, [items, activeTab, q]);
+  }, [items, itemStoreAvailability, selectedBranch, activeTab, q]);
 
   const subtotal = useMemo(() => cart.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0), [cart]);
   const itemCount = useMemo(() => cart.reduce((sum, i) => sum + i.quantity, 0), [cart]);
@@ -1138,20 +1171,11 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       {cart.length > 0 && (
         <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 mt-4">
           <label className="block text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-1.5">
-            Select Pickup Store Branch
+            Selected Store Branch
           </label>
-          <select
-            value={selectedBranch}
-            onChange={(e) => setSelectedBranch(e.target.value)}
-            className="w-full bg-white border border-slate-200 px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 outline-none cursor-pointer focus:border-[#FC687D]"
-          >
-            <option value="bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e">
-              Pasong Tamo Branch (36D Visayas Ave.)
-            </option>
-            <option value="e916bee8-3770-4650-9b46-d2e7d3ad49e6">
-              Diliman Branch (8 Visayas Ave.)
-            </option>
-          </select>
+          <div className="rounded-lg border border-cyan-100 bg-cyan-50/70 px-3 py-2 text-xs font-semibold text-slate-700">
+            {selectedStore?.name || "Selected branch"}
+          </div>
 
           <div className="space-y-2 mt-3">
             <div className="flex justify-between text-sm">
@@ -1183,8 +1207,22 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
           <div>
             <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Fresh Selection</p>
             <h2 className="text-lg font-bold text-slate-800">Order Menu</h2>
+            <p className="mt-1 text-[11px] text-cyan-700">{selectedStore?.name ? `Showing items for ${selectedStore.name}` : "Select a store to view available items"}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={selectedBranch}
+              onChange={(e) => {
+                setSelectedBranch(e.target.value);
+                setCart([]);
+                setCartOpen(false);
+              }}
+              className="bg-slate-50 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 outline-none border border-cyan-100 pointer-events-auto cursor-pointer"
+            >
+              {stores.map((store) => (
+                <option key={store.id} value={store.id}>{store.name}</option>
+              ))}
+            </select>
             <select
               value={activeTab}
               onChange={(e) => setActiveTab(e.target.value)}
@@ -1206,6 +1244,12 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
             </div>
           </div>
         </div>
+
+        {availabilityNotice ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50/90 p-3 text-xs text-amber-900">
+            {availabilityNotice}
+          </div>
+        ) : null}
 
         {filteredItems.length === 0 ? (
           <div className="bg-white rounded-2xl p-12 text-center text-slate-400 border border-slate-100">
@@ -1325,6 +1369,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
         subtotal={subtotal}
         cartItems={cart}
         isSubmitting={isSubmitting}
+        selectedStoreName={selectedStore?.name}
       />
     </div>
   );

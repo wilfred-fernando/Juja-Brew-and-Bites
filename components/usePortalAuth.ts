@@ -31,6 +31,7 @@ type UsePortalAuthReturn = {
 export function usePortalAuth({
   allowedRoles,
   requireStore = true,
+  portal,
 }: UsePortalAuthProps): UsePortalAuthReturn {
   const supabase = getSupabaseClient();
 
@@ -95,6 +96,20 @@ export function usePortalAuth({
           return;
         }
 
+        if (portal && role !== "super_admin") {
+          const { data: accessRow, error: accessError } = await supabase
+            .from("profile_page_access")
+            .select("can_access")
+            .eq("profile_id", user.id)
+            .eq("page_key", portal)
+            .maybeSingle();
+
+          if (!accessError && accessRow && accessRow.can_access === false) {
+            setAuthorized(false);
+            return;
+          }
+        }
+
         // ✅ Authorized
         setAuthorized(true);
       } catch (err) {
@@ -106,7 +121,7 @@ export function usePortalAuth({
     }
 
     run();
-  }, [allowedRoles, requireStore, supabase]);
+  }, [allowedRoles, requireStore, supabase, portal]);
 
   /* ----------------------------- RETURN ----------------------------- */
 

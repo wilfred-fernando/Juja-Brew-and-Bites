@@ -1833,6 +1833,19 @@ export default function POSPage() {
         return;
       }
 
+      const { data: accessRow, error: accessError } = await supabase
+        .from("profile_page_access")
+        .select("can_access")
+        .eq("profile_id", session.user.id)
+        .eq("page_key", "pos")
+        .maybeSingle();
+
+      if (!accessError && accessRow && accessRow.can_access === false) {
+        await supabase.auth.signOut();
+        window.location.href = "/login";
+        return;
+      }
+
       const activeStoreId = profile.store_id;
       localStorage.setItem("pos_store_id", activeStoreId);
       setStoreId(activeStoreId);

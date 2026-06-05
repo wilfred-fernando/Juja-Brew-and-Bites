@@ -8,6 +8,10 @@ const supabase = getSupabaseClient();
 export default function MenuAdminPage() {
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [stores, setStores] = useState([]);
+  const [itemStoreAvailability, setItemStoreAvailability] = useState([]);
+  const [storeAvailability, setStoreAvailability] = useState({});
+  const [availabilityNotice, setAvailabilityNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("All");
@@ -58,15 +62,25 @@ export default function MenuAdminPage() {
   async function fetchData() {
     setLoading(true);
 
-    const [itemRes, catRes, templateRes] = await Promise.all([
+    const [itemRes, catRes, templateRes, storeRes, availabilityRes] = await Promise.all([
       supabase.from("menu_items").select("*").order("name"),
       supabase.from("menu_categories").select("*").order("name", { ascending: true }),
       supabase.from("option_group_templates").select("*").order("name"),
+      supabase.from("stores").select("id, name, is_active").eq("is_active", true).order("name"),
+      supabase.from("menu_item_store_availability").select("item_id, store_id, is_available"),
     ]);
 
     if (itemRes.data) setItems(itemRes.data);
     if (catRes.data) setCategories(catRes.data);
     if (templateRes.data) setGroupTemplates(templateRes.data);
+    if (storeRes.data) setStores(storeRes.data);
+    if (availabilityRes.error) {
+      setAvailabilityNotice("Run the new Supabase SQL setup to save store availability per item.");
+      setItemStoreAvailability([]);
+    } else {
+      setAvailabilityNotice("");
+      setItemStoreAvailability(availabilityRes.data || []);
+    }
 
     setLoading(false);
   }
@@ -77,6 +91,14 @@ export default function MenuAdminPage() {
 
     if (item) {
       setEditingItem(item);
+      const nextStoreAvailability = {};
+      stores.forEach((store) => {
+        const row = itemStoreAvailability.find(
+          (entry) => String(entry.item_id) === String(item.id) && String(entry.store_id) === String(store.id)
+        );
+        nextStoreAvailability[store.id] = row ? row.is_available !== false : true;
+      });
+      setStoreAvailability(nextStoreAvailability);
 
       // ✅ ADD: pos_only prefill
       setForm({
@@ -93,6 +115,7 @@ export default function MenuAdminPage() {
       setOptionGroups(item.variants || []);
     } else {
       setEditingItem(null);
+      setStoreAvailability(Object.fromEntries(stores.map((store) => [store.id, true])));
 
       // ✅ ADD: pos_only default false
       setForm({
@@ -129,6 +152,7 @@ export default function MenuAdminPage() {
       };
 
       let responseError = null;
+      let savedItemId = editingItem?.id;
 
       if (editingItem) {
         const { error } = await supabase
@@ -137,11 +161,24 @@ export default function MenuAdminPage() {
           .eq("id", editingItem.id);
         responseError = error;
       } else {
-        const { error } = await supabase.from("menu_items").insert([finalPayload]);
+        const { data, error } = await supabase.from("menu_items").insert([finalPayload]).select("id").maybeSingle();
         responseError = error;
+        savedItemId = data?.id;
       }
 
       if (responseError) throw responseError;
+      if (savedItemId && stores.length > 0) {
+        const rows = stores.map((store) => ({
+          item_id: String(savedItemId),
+          store_id: String(store.id),
+          is_available: storeAvailability[store.id] !== false,
+          updated_at: new Date().toISOString(),
+        }));
+        const { error: availabilityError } = await supabase
+          .from("menu_item_store_availability")
+          .upsert(rows, { onConflict: "item_id,store_id" });
+        if (availabilityError) throw availabilityError;
+      }
 
       await fetchData();
       setIsModalOpen(false);
@@ -161,6 +198,7 @@ export default function MenuAdminPage() {
     try {
       const { error } = await supabase.from("menu_items").delete().eq("id", itemToDelete.id);
       if (error) throw error;
+      await supabase.from("menu_item_store_availability").delete().eq("item_id", String(itemToDelete.id));
       await fetchData();
       setItemToDelete(null);
     } catch (err) {
@@ -419,6 +457,12 @@ export default function MenuAdminPage() {
         </div>
       </div>
 
+      {availabilityNotice ? (
+        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50/90 p-4 text-sm text-amber-900">
+          {availabilityNotice}
+        </div>
+      ) : null}
+
       <div className="flex flex-col lg:flex-row gap-4 md:gap-8">
         {/* RESPONSIVE CATEGORY NAVIGATION (Desktop) */}
         <div className="hidden lg:block w-72 flex-shrink-0">
@@ -534,6 +578,16 @@ export default function MenuAdminPage() {
                     <span className="font-normal text-[#FC687D] text-xs md:text-sm">₱{item.price}</span>
                     <span className="text-slate-200 text-[10px]">•</span>
                     <span className="text-[9px] md:text-[10px] font-normal uppercase text-slate-400">{item.category}</span>
+                    {stores.length > 0 && (
+                      <span className="text-[9px] md:text-[10px] font-normal uppercase text-cyan-700">
+                        {stores.filter((store) => {
+                          const row = itemStoreAvailability.find(
+                            (entry) => String(entry.item_id) === String(item.id) && String(entry.store_id) === String(store.id)
+                          );
+                          return row ? row.is_available !== false : true;
+                        }).length}/{stores.length} stores
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -942,6 +996,46 @@ export default function MenuAdminPage() {
                       </div>
                       <span className="text-xs md:text-sm font-medium text-slate-700">POS Only (hide from public menu)</span>
                     </label>
+                  </div>
+
+                  <div className="rounded-xl border border-cyan-100 bg-cyan-50/40 p-4">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-cyan-800">Store Availability</p>
+                        <p className="mt-1 text-xs text-slate-500">Unchecked stores will not show this item in that store's customer menu.</p>
+                      </div>
+                      {stores.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setStoreAvailability(Object.fromEntries(stores.map((store) => [store.id, true])))}
+                          className="rounded-lg border border-cyan-200 bg-white/80 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-cyan-800"
+                        >
+                          All Stores
+                        </button>
+                      )}
+                    </div>
+                    {stores.length === 0 ? (
+                      <p className="text-xs text-slate-500">No active stores found.</p>
+                    ) : (
+                      <div className="grid gap-2 md:grid-cols-2">
+                        {stores.map((store) => (
+                          <label key={store.id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-white bg-white/85 p-3">
+                            <input
+                              type="checkbox"
+                              checked={storeAvailability[store.id] !== false}
+                              onChange={(e) =>
+                                setStoreAvailability((current) => ({
+                                  ...current,
+                                  [store.id]: e.target.checked,
+                                }))
+                              }
+                              className="h-4 w-4 accent-cyan-600"
+                            />
+                            <span className="text-xs font-medium text-slate-700">{store.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </form>
               ) : (
