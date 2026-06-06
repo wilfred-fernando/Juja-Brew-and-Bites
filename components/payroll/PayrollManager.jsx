@@ -327,6 +327,7 @@ export default function AdminPayrollPage() {
   const [search, setSearch] = useState("");
   const [saving, setSaving] = useState(false);
   const [entryModalOpen, setEntryModalOpen] = useState(false);
+  const [payslipEntry, setPayslipEntry] = useState(null);
   const [entryForm, setEntryForm] = useState(blankEntry());
   const [employeeForm, setEmployeeForm] = useState(blankEmployeeForm());
   const [editingEmployeeId, setEditingEmployeeId] = useState("");
@@ -1123,7 +1124,20 @@ export default function AdminPayrollPage() {
                 ) : payrollRows.map((entry) => (
                   <tr key={entry.id} className="border-t border-slate-100 transition duration-200 hover:bg-cyan-50/45">
                     <td className="p-3 font-semibold text-slate-600">{entry.employee?.employee_no || "-"}</td>
-                    <td className="font-semibold text-slate-900">{entry.employee?.full_name || entry.employee_id}</td>
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => setPayslipEntry(entry)}
+                        className="group text-left"
+                      >
+                        <span className="font-semibold text-slate-900 underline-offset-4 transition group-hover:text-cyan-700 group-hover:underline">
+                          {entry.employee?.full_name || entry.employee_id}
+                        </span>
+                        <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                          View payslip
+                        </span>
+                      </button>
+                    </td>
                     <td>{money(entry.daily_rate)}</td>
                     <td>{num(entry.days_worked).toFixed(2)}</td>
                     <td>{num(entry.overtime_hours).toFixed(2)}</td>
@@ -1512,6 +1526,116 @@ export default function AdminPayrollPage() {
               <button disabled={saving} className="h-11 rounded-xl bg-cyan-600 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-cyan-500 disabled:bg-slate-300">{saving ? "Saving..." : "Save Payroll"}</button>
             </div>
           </form>
+        </div>
+      ) : null}
+
+      {payslipEntry ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-white/70 bg-white/95 shadow-[0_30px_90px_rgba(2,6,23,0.35)] backdrop-blur-xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-5">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-700">Payslip</p>
+                <h2 className="mt-1 text-2xl font-semibold text-slate-950">
+                  {payslipEntry.employee?.full_name || payslipEntry.employee_id}
+                </h2>
+                <p className="mt-1 text-xs font-semibold text-slate-500">
+                  {payslipEntry.employee?.employee_no || "No employee no."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPayslipEntry(null)}
+                className="h-9 w-9 rounded-full bg-slate-100 text-lg font-semibold text-slate-500 transition hover:bg-slate-200"
+              >
+                x
+              </button>
+            </div>
+
+            <div className="space-y-5 p-5">
+              <div className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm sm:grid-cols-3">
+                <div>
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Cutoff</span>
+                  <b className="mt-1 block text-slate-950">
+                    {dateText(periodById[payslipEntry.period_id]?.period_start)} - {dateText(periodById[payslipEntry.period_id]?.period_end)}
+                  </b>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Payday</span>
+                  <b className="mt-1 block text-slate-950">{dateText(periodById[payslipEntry.period_id]?.pay_date)}</b>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Status</span>
+                  <span className={`mt-1 inline-flex rounded-full border px-3 py-1 text-[10px] font-semibold uppercase ${statusClass(payslipEntry.status)}`}>
+                    {payslipEntry.status || "draft"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <section className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-800">Earnings</h3>
+                  <div className="mt-4 space-y-3 text-sm">
+                    {[
+                      ["Daily Rate", money(payslipEntry.daily_rate)],
+                      ["Days Worked", num(payslipEntry.days_worked).toFixed(2)],
+                      ["Overtime Hours", num(payslipEntry.overtime_hours).toFixed(2)],
+                      ["OT Rate", money(payslipEntry.overtime_rate)],
+                      ["Allowance 15th", money(payslipEntry.allowance_15th)],
+                      ["Allowance 30th", money(payslipEntry.allowance_30th)],
+                    ].map(([label, value]) => (
+                      <div key={label} className="flex items-center justify-between gap-4 border-b border-slate-100 pb-2 last:border-0 last:pb-0">
+                        <span className="text-slate-600">{label}</span>
+                        <b className="text-slate-950">{value}</b>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-800">Deductions</h3>
+                  <div className="mt-4 space-y-3 text-sm">
+                    {[
+                      ["Late Minutes", `${num(payslipEntry.late_minutes).toFixed(0)}m`],
+                      ["Late Rate / Min", money(payslipEntry.late_rate_per_minute)],
+                      ["Undertime Minutes", `${num(payslipEntry.undertime_minutes).toFixed(0)}m`],
+                      ["UT Rate / Min", money(payslipEntry.undertime_rate_per_minute)],
+                      ["Misc Deduction", money(payslipEntry.misc_deduction_total)],
+                      ["Cash Advance", money(payslipEntry.cash_advance_deduction)],
+                    ].map(([label, value]) => (
+                      <div key={label} className="flex items-center justify-between gap-4 border-b border-slate-100 pb-2 last:border-0 last:pb-0">
+                        <span className="text-slate-600">{label}</span>
+                        <b className="text-slate-950">{value}</b>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4 text-sm sm:grid-cols-3">
+                <div>
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-cyan-800">Gross Pay</span>
+                  <b className="mt-1 block text-lg text-slate-950">{money(payslipEntry.gross_total)}</b>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-cyan-800">Total Deductions</span>
+                  <b className="mt-1 block text-lg text-slate-950">
+                    {money(num(payslipEntry.deduction_total) + num(payslipEntry.cash_advance_deduction))}
+                  </b>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-cyan-800">Net Pay</span>
+                  <b className="mt-1 block text-xl text-cyan-700">{money(payslipEntry.net_total)}</b>
+                </div>
+              </div>
+
+              {payslipEntry.notes ? (
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Notes</span>
+                  <p className="mt-1">{payslipEntry.notes}</p>
+                </div>
+              ) : null}
+            </div>
+          </div>
         </div>
       ) : null}
     </div>
