@@ -1274,12 +1274,12 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
             ❌ No matching available products located.
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3">
             {filteredItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setSelectedItemForModal(item)}
-                className="group flex h-full min-h-[230px] flex-col items-center justify-between rounded-[34px] border border-cyan-100 bg-white/88 p-3 text-center shadow-[0_18px_45px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-1 hover:border-cyan-300 hover:bg-cyan-50/80 hover:shadow-[0_24px_60px_rgba(8,145,178,0.14)]"
+                className="group flex h-full min-h-[230px] flex-col items-center justify-between rounded-[100px] border border-cyan-100 bg-white/88 p-3 text-center shadow-[0_18px_45px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-1 hover:border-cyan-300 hover:bg-cyan-50/80 hover:shadow-[0_24px_60px_rgba(8,145,178,0.14)]"
               >
                 <div className="flex w-full flex-1 flex-col items-center text-center">
                   <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl border border-cyan-100 bg-white">
