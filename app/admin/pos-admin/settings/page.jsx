@@ -80,7 +80,7 @@ export default function PaymentTypesPage() {
           placeholder="Add payment type (e.g. CASH)"
           className="border rounded px-3 py-2 w-full"
         />
-        <button onClick={add} className="px-4 py-2 rounded bg-black text-white">
+        <button onClick={add} className="px-4 py-2 rounded bg-slate-600 text-white">
           Add
         </button>
       </div>

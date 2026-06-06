@@ -141,7 +141,7 @@ export default function ReceiptSettingsPage() {
         <button
           onClick={save}
           disabled={saving}
-          className="px-4 py-2 rounded bg-black text-white text-sm disabled:opacity-60"
+          className="px-4 py-2 rounded bg-slate-600 text-white text-sm disabled:opacity-60"
         >
           {saving ? "Saving…" : "Save"}
         </button>
@@ -153,7 +153,7 @@ export default function ReceiptSettingsPage() {
 function Field({ label, children }) {
   return (
     <div>
-      <div className="text-xs uppercase tracking-widest text-slate-400 font-bold mb-1">{label}</div>
+      <div className="text-xs uppercase tracking-widest text-slate-500 font-bold mb-1">{label}</div>
       {children}
     </div>
   );

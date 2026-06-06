@@ -13,7 +13,7 @@ export default function FinanceHomePage() {
   }, []);
 
   return (
-    <div className="py-16 text-center text-sm font-bold text-slate-400">
+    <div className="py-16 text-center text-sm font-bold text-slate-500">
       Opening finance...
     </div>
   );

@@ -82,32 +82,32 @@ export default function FinanceLayout({ children }) {
 
   return (
     <div
-      className="min-h-screen bg-cover bg-fixed bg-center bg-no-repeat text-slate-950"
+      className="min-h-screen bg-cover bg-fixed bg-center bg-no-repeat text-slate-900"
       style={{
         backgroundImage:
-          "radial-gradient(circle at top left, rgba(34,211,238,0.18), transparent 32%), linear-gradient(135deg, rgba(248,250,252,0.78), rgba(226,232,240,0.68)), url('https://images.jujabrewandbites.com/page%20background.png')",
+          "radial-gradient(circle at top left, rgba(125,211,252,0.18), transparent 34%), linear-gradient(135deg, rgba(248,250,252,0.80), rgba(226,232,240,0.66)), url('https://images.jujabrewandbites.com/page%20background.png')",
       }}
     >
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950/82 px-4 py-3 shadow-[0_18px_45px_rgba(2,6,23,0.28)] backdrop-blur-xl sm:px-6">
+      <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/82 px-4 py-3 shadow-[0_18px_45px_rgba(51,65,85,0.14)] backdrop-blur-xl sm:px-6">
         <div className="flex w-full items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-300/30 bg-cyan-400/15 text-cyan-100 shadow-[0_0_28px_rgba(34,211,238,0.22)]">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 text-slate-700 shadow-[0_12px_30px_rgba(51,65,85,0.12)]">
               <Banknote size={20} />
             </span>
             <div>
-              <h1 className="text-sm font-semibold uppercase tracking-[0.18em] text-white">JUJA Finance</h1>
-              <p className="text-xs text-slate-300">{userEmail}</p>
+              <h1 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-900">JUJA Finance</h1>
+              <p className="text-xs text-slate-600">{userEmail}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <nav className="hidden items-center gap-1 rounded-xl border border-white/10 bg-white/5 p-1 sm:flex">
+            <nav className="hidden items-center gap-1 rounded-xl border border-slate-200 bg-white/70 p-1 shadow-sm sm:flex">
               {navItems.map(([key, path, label, Icon]) => (
                 <Link
                   key={key}
                   href={financePath(path)}
                   className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-[10px] font-semibold uppercase tracking-[0.16em] transition duration-200 ${
-                    activeSection === key ? "bg-cyan-300/15 text-cyan-100 shadow-[0_0_24px_rgba(34,211,238,0.18)]" : "text-slate-300 hover:bg-white/10 hover:text-white"
+                    activeSection === key ? "bg-sky-100 text-slate-900 shadow-[0_10px_24px_rgba(51,65,85,0.12)]" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                   }`}
                 >
                   <Icon size={14} />
@@ -119,7 +119,7 @@ export default function FinanceLayout({ children }) {
             <button
               type="button"
               onClick={handleLogout}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-100 shadow-[0_12px_28px_rgba(2,6,23,0.20)] transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300/40 hover:bg-cyan-300/10 hover:text-cyan-100 active:translate-y-0"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white/80 px-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 shadow-[0_12px_28px_rgba(51,65,85,0.12)] transition duration-200 hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-50 hover:text-slate-900 active:translate-y-0"
             >
               <LogOut size={16} />
               Sign Out
@@ -133,7 +133,7 @@ export default function FinanceLayout({ children }) {
               key={key}
               href={financePath(path)}
                className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl border text-[10px] font-semibold uppercase tracking-[0.16em] transition duration-200 ${
-                activeSection === key ? "border-cyan-300/40 bg-cyan-300/15 text-cyan-100" : "border-white/10 bg-white/5 text-slate-300"
+                activeSection === key ? "border-sky-200 bg-sky-100 text-slate-900" : "border-slate-200 bg-white/70 text-slate-700"
               }`}
             >
               <Icon size={14} />

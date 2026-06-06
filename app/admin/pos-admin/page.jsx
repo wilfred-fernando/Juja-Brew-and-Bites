@@ -149,7 +149,7 @@ export default function Page() {
         <button
           onClick={addType}
           disabled={saving}
-          className="bg-black text-white px-3 py-1 disabled:opacity-50"
+          className="bg-slate-600 text-white px-3 py-1 disabled:opacity-50"
         >
           {saving ? "Adding..." : "Add"}
         </button>
@@ -158,16 +158,16 @@ export default function Page() {
       {errorMsg && <div className="text-red-600 text-sm">{errorMsg}</div>}
 
       {loading ? (
-        <div className="text-sm text-gray-500">Loading…</div>
+        <div className="text-sm text-slate-600">Loading…</div>
       ) : types.length === 0 ? (
-        <div className="text-sm text-gray-500">No global payment types yet.</div>
+        <div className="text-sm text-slate-600">No global payment types yet.</div>
       ) : (
         types.map((t) => (
           <div key={t.id} className="border-b py-2 flex justify-between">
-            <span className={t.is_active ? "" : "text-gray-400 line-through"}>
+            <span className={t.is_active ? "" : "text-slate-500 line-through"}>
               {t.name}
             </span>
-            <span className="text-xs text-gray-500">#{t.sort_order ?? 0}</span>
+            <span className="text-xs text-slate-600">#{t.sort_order ?? 0}</span>
           </div>
         ))
       )}

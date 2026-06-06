@@ -717,7 +717,7 @@ export default function LoyaltyAdminPage() {
     const visits = Number(member["Total visits"] || 0);
 
     return (
-      <div className="bg-white rounded-xl md:rounded-[20px] border border-rose-50 shadow-sm p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="bg-white rounded-xl md:rounded-[20px] border border-sky-50 shadow-sm p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-semibold text-slate-800 truncate">
@@ -759,7 +759,7 @@ export default function LoyaltyAdminPage() {
         <div className="flex gap-2">
           <button
             onClick={() => openModal(member)}
-            className="px-3 py-2 bg-slate-50 border border-slate-100 text-xs text-slate-600 rounded-xl hover:bg-rose-50 hover:text-[#FC687D] active:scale-95"
+            className="px-3 py-2 bg-slate-50 border border-slate-100 text-xs text-slate-600 rounded-xl hover:bg-sky-50 hover:text-slate-700 active:scale-95"
           >
             Edit
           </button>
@@ -810,7 +810,7 @@ export default function LoyaltyAdminPage() {
   if (loading) {
     return (
       <div className="p-8 flex justify-center">
-        <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
+        <div className="w-8 h-8 border-4 border-sky-200 border-t-[#5b7288] animate-spin rounded-full" />
       </div>
     );
   }
@@ -821,12 +821,12 @@ export default function LoyaltyAdminPage() {
         <h1 className="text-2xl md:text-4xl font-normal text-slate-800 tracking-tight">
           JUJA LOYALTY PROGRAM
         </h1>
-        <p className="text-slate-400 text-xs md:text-sm mt-2">
+        <p className="text-slate-500 text-xs md:text-sm mt-2">
           ADMIN DASHBOARD (Members: {members.length} • Linked: {linkedMembersList.length} • Not linked: {unlinkedMembersList.length})
         </p>
 
         {notice && (
-          <div className="mt-4 bg-rose-50 border border-rose-100 text-slate-700 rounded-xl p-3 text-sm">
+          <div className="mt-4 bg-sky-50 border border-slate-200 text-slate-700 rounded-xl p-3 text-sm">
             {notice}
           </div>
         )}
@@ -842,12 +842,12 @@ export default function LoyaltyAdminPage() {
       {/* --- Your existing sections below (Link Requests / Manual Link / Search / Lists / Modals) --- */}
 
       {/* LINK REQUESTS (Pending) */}
-      <section className="bg-white border border-rose-100 rounded-2xl p-4 md:p-5">
+      <section className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm md:text-base font-semibold text-slate-800">Link Requests (Pending)</h2>
           <button
             onClick={fetchLinkRequests}
-            className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600 hover:bg-rose-50 hover:text-[#FC687D] active:scale-95"
+            className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600 hover:bg-sky-50 hover:text-slate-700 active:scale-95"
           >
             Refresh
           </button>
@@ -856,7 +856,7 @@ export default function LoyaltyAdminPage() {
         {loadingRequests ? (
           <p className="text-sm text-slate-500 mt-3">Loading requests…</p>
         ) : linkRequests.length === 0 ? (
-          <p className="text-sm text-slate-400 mt-3">No pending requests.</p>
+          <p className="text-sm text-slate-500 mt-3">No pending requests.</p>
         ) : (
           <div className="mt-4 space-y-3">
             {linkRequests.map((req) => {
@@ -869,7 +869,7 @@ export default function LoyaltyAdminPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="text-sm font-semibold text-slate-800">{userLabel(req.user_id)}</p>
-                        <span className="text-slate-300">•</span>
+                        <span className="text-slate-600">•</span>
                         <p className="text-xs text-slate-500">{userSubLabel(req.user_id)}</p>
                       </div>
 
@@ -880,8 +880,8 @@ export default function LoyaltyAdminPage() {
                       </div>
 
                       {req.matched_member_id && (
-                        <div className="mt-3 bg-[#FFF9FA] border border-rose-100 rounded-xl p-3">
-                          <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
+                        <div className="mt-3 bg-[#f0f7fb] border border-slate-200 rounded-xl p-3">
+                          <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">
                             Matched Member (Verify)
                           </p>
                           {matched ? (
@@ -908,7 +908,7 @@ export default function LoyaltyAdminPage() {
 
                       {!req.matched_member_id && (
                         <div className="mt-3">
-                          <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+                          <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
                             Search Member to Link
                           </label>
 
@@ -939,8 +939,8 @@ export default function LoyaltyAdminPage() {
                                         [req.id]: m.id,
                                       }))
                                     }
-                                    className={`w-full text-left px-3 py-2 text-sm hover:bg-rose-50 ${
-                                      selectedMemberByRequestId[req.id] === m.id ? "bg-rose-50" : ""
+                                    className={`w-full text-left px-3 py-2 text-sm hover:bg-sky-50 ${
+                                      selectedMemberByRequestId[req.id] === m.id ? "bg-sky-50" : ""
                                     }`}
                                   >
                                     <div className="font-semibold text-slate-800">
@@ -970,7 +970,7 @@ export default function LoyaltyAdminPage() {
                       <button
                         onClick={() => approveRequest(req)}
                         disabled={isBusy}
-                        className="px-3 py-2 rounded-xl bg-[#FC687D] text-white text-xs font-bold disabled:opacity-60"
+                        className="px-3 py-2 rounded-xl bg-slate-600 text-white text-xs font-bold disabled:opacity-60"
                       >
                         {isBusy ? "Working…" : "Approve"}
                       </button>
@@ -993,7 +993,7 @@ export default function LoyaltyAdminPage() {
 
       {/* SEARCH */}
       <div className="relative">
-        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm">🔍</span>
         <input
           type="text"
           placeholder="Search members by name, code, phone, user_id..."
@@ -1007,10 +1007,10 @@ export default function LoyaltyAdminPage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-slate-700">Linked Accounts</h2>
-          <span className="text-xs text-slate-400">{linkedMembersList.length}</span>
+          <span className="text-xs text-slate-500">{linkedMembersList.length}</span>
         </div>
         {linkedMembersList.length === 0 ? (
-          <div className="text-center py-8 text-slate-400 text-sm bg-white/60 border border-dashed border-slate-200 rounded-2xl">
+          <div className="text-center py-8 text-slate-500 text-sm bg-white/60 border border-dashed border-slate-200 rounded-2xl">
             No linked members found
           </div>
         ) : (
@@ -1022,10 +1022,10 @@ export default function LoyaltyAdminPage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-slate-700">Not Linked</h2>
-          <span className="text-xs text-slate-400">{unlinkedMembersList.length}</span>
+          <span className="text-xs text-slate-500">{unlinkedMembersList.length}</span>
         </div>
         {unlinkedMembersList.length === 0 ? (
-          <div className="text-center py-8 text-slate-400 text-sm bg-white/60 border border-dashed border-slate-200 rounded-2xl">
+          <div className="text-center py-8 text-slate-500 text-sm bg-white/60 border border-dashed border-slate-200 rounded-2xl">
             No unlinked members found
           </div>
         ) : (
@@ -1046,13 +1046,13 @@ export default function LoyaltyAdminPage() {
             <div className="flex justify-between items-start mb-5">
               <div>
                 <h3 className="text-xl md:text-2xl font-semibold text-slate-800">Edit Member</h3>
-                <p className="font-mono text-[10px] text-slate-400 mt-1">
+                <p className="font-mono text-[10px] text-slate-500 mt-1">
                   {editingMember.customer_code || editingMember["customer_code"] || editingMember.id}
                 </p>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 active:scale-90"
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-500 hover:text-slate-800 hover:bg-slate-100 active:scale-90"
               >
                 ✕
               </button>
@@ -1060,30 +1060,30 @@ export default function LoyaltyAdminPage() {
 
             <form onSubmit={handleSave} className="space-y-4">
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">Full Name</label>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Full Name</label>
                 <input
                   type="text"
                   required
                   value={form.customer_name}
                   onChange={(e) => setForm({ ...form, customer_name: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:outline-none focus:border-[#FC687D]"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:outline-none focus:border-sky-500"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">Phone</label>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Phone</label>
                 <input
                   type="text"
                   value={form.Phone}
                   onChange={(e) => setForm({ ...form, Phone: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:outline-none focus:border-[#FC687D]"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:outline-none focus:border-sky-500"
                 />
               </div>
 
               {/* Read-only current points */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+                    <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
                       Total Points
                     </label>
                     <input
@@ -1095,7 +1095,7 @@ export default function LoyaltyAdminPage() {
                   </div>
 
                   <div>
-                    <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+                    <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
                       Available Points
                     </label>
                     <input
@@ -1110,7 +1110,7 @@ export default function LoyaltyAdminPage() {
                 {/* Add / Deduct */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+                    <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
                       Add Points
                     </label>
                     <input
@@ -1124,7 +1124,7 @@ export default function LoyaltyAdminPage() {
                   </div>
 
                   <div>
-                    <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+                    <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
                       Deduct Points
                     </label>
                     <input
@@ -1156,7 +1156,7 @@ export default function LoyaltyAdminPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">Visits</label>
+                  <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Visits</label>
                   <input
                     type="number"
                     value={form["Total visits"]}
@@ -1165,7 +1165,7 @@ export default function LoyaltyAdminPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">Note</label>
+                  <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Note</label>
                   <input
                     type="text"
                     value={form.Note}
@@ -1186,7 +1186,7 @@ export default function LoyaltyAdminPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="w-full py-3 rounded-xl bg-[#FC687D] text-white text-xs font-bold disabled:opacity-70"
+                  className="w-full py-3 rounded-xl bg-slate-600 text-white text-xs font-bold disabled:opacity-70"
                 >
                   {saving ? "Saving..." : "Save"}
                 </button>
@@ -1208,7 +1208,7 @@ export default function LoyaltyAdminPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] uppercase tracking-widest text-slate-400">Confirmation</p>
+                <p className="text-[10px] uppercase tracking-widest text-slate-500">Confirmation</p>
                 <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">
                   {confirmModal.title || "Confirm action"}
                 </h3>
@@ -1239,7 +1239,7 @@ export default function LoyaltyAdminPage() {
                 disabled={actionBusy}
                 className={`w-full py-3 rounded-xl text-white text-xs font-bold active:scale-95 disabled:opacity-60 ${
                   confirmModal.tone === "primary"
-                    ? "bg-[#FC687D] hover:bg-rose-500"
+                    ? "bg-slate-600 hover:bg-sky-500"
                     : "bg-red-500 hover:bg-red-600"
                 }`}
               >

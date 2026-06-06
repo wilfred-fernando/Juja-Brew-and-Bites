@@ -119,23 +119,23 @@ export default function AdminSidebar({
       {/* MOBILE OVERLAY */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-40 bg-slate-700/35 backdrop-blur-sm md:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col border-r border-white/10 bg-slate-950/86 text-slate-100 shadow-[0_28px_90px_rgba(2,6,23,0.40)] backdrop-blur-xl transition-transform duration-300 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col border-r border-slate-200/75 bg-white/84 text-slate-800 shadow-[0_28px_90px_rgba(51,65,85,0.18)] backdrop-blur-xl transition-transform duration-300 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >
         {/* HEADER */}
-        <div className="flex items-center justify-between border-b border-white/10 p-6">
+        <div className="flex items-center justify-between border-b border-slate-200/80 p-6">
           <img src={LOGO} className="h-8 object-contain" alt="logo" />
 
           <button
             onClick={() => setMobileOpen(false)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-slate-300 transition hover:border-cyan-300/40 hover:bg-cyan-300/10 hover:text-cyan-100 md:hidden"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-sky-300 hover:bg-sky-50 hover:text-slate-900 md:hidden"
             aria-label="Close menu"
           >
             <X className="h-4 w-4" />
@@ -146,7 +146,7 @@ export default function AdminSidebar({
         <nav className="flex-1 space-y-5 overflow-y-auto p-4">
           {SECTIONS.map((section) => (
             <div key={section.label}>
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-600">
                 {section.label}
               </p>
 
@@ -160,8 +160,8 @@ export default function AdminSidebar({
                       <div key={item.name}>
                         <button
                           onClick={() => setPosOpen(!posOpen)}
-                          className={`flex w-full justify-between rounded-xl px-3 py-2 text-sm transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-300/10 hover:text-cyan-100 ${
-                            active ? "bg-cyan-300/15 text-cyan-100 shadow-[0_0_24px_rgba(34,211,238,0.12)]" : "text-slate-300"
+                          className={`flex w-full justify-between rounded-xl px-3 py-2 text-sm transition duration-200 hover:-translate-y-0.5 hover:bg-sky-50 hover:text-slate-950 ${
+                            active ? "bg-sky-100 text-slate-950 shadow-[0_10px_24px_rgba(51,65,85,0.12)]" : "text-slate-700"
                           }`}
                         >
                           <span className="flex items-center gap-2">
@@ -172,7 +172,7 @@ export default function AdminSidebar({
                         </button>
 
                         {posOpen && (
-                          <div className="ml-4 mt-2 space-y-1 border-l border-white/10 pl-3">
+                          <div className="ml-4 mt-2 space-y-1 border-l border-slate-200 pl-3">
                             {item.submenu.map((sub, i) => {
                               if (sub.type === "label") {
                                 return (
@@ -189,8 +189,8 @@ export default function AdminSidebar({
                                   onClick={() => setMobileOpen(false)}
                                   className={`block rounded-xl px-3 py-2 text-sm transition duration-200 hover:-translate-y-0.5 ${
                                     isActive(sub.path)
-                                      ? "bg-cyan-300/15 text-cyan-100 shadow-[0_0_22px_rgba(34,211,238,0.10)]"
-                                      : "text-slate-400 hover:bg-cyan-300/10 hover:text-cyan-100"
+                                      ? "bg-sky-100 text-slate-950 shadow-[0_10px_22px_rgba(51,65,85,0.10)]"
+                                      : "text-slate-600 hover:bg-sky-50 hover:text-slate-900"
                                   }`}
                                 >
                                   {sub.name}
@@ -210,8 +210,8 @@ export default function AdminSidebar({
                       onClick={() => setMobileOpen(false)}
                       className={`flex gap-2 rounded-xl px-3 py-2 text-sm transition duration-200 hover:-translate-y-0.5 ${
                         active
-                          ? "bg-cyan-300/15 text-cyan-100 shadow-[0_0_22px_rgba(34,211,238,0.10)]"
-                          : "text-slate-300 hover:bg-cyan-300/10 hover:text-cyan-100"
+                          ? "bg-sky-100 text-slate-950 shadow-[0_10px_22px_rgba(51,65,85,0.10)]"
+                          : "text-slate-700 hover:bg-sky-50 hover:text-slate-950"
                       }`}
                     >
                       <Icon className="h-4 w-4 shrink-0" />
@@ -225,11 +225,11 @@ export default function AdminSidebar({
         </nav>
 
         {/* FOOTER */}
-        <div className="border-t border-white/10 p-4">
-          <div className="mb-2 truncate text-xs text-slate-400">{userEmail}</div>
+        <div className="border-t border-slate-200/80 p-4">
+          <div className="mb-2 truncate text-xs text-slate-600">{userEmail}</div>
           <button
             onClick={onLogout}
-            className="w-full rounded-xl border border-white/10 bg-white/5 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-100 transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300/40 hover:bg-cyan-300/10 hover:text-cyan-100"
+            className="w-full rounded-xl border border-slate-200 bg-white/80 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-50 hover:text-slate-950"
           >
             Sign Out
           </button>

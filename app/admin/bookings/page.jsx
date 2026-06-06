@@ -119,11 +119,11 @@ function StatCard({ label, value, sub, tone = "slate" }) {
     green: "border-green-200",
     red: "border-red-200",
     yellow: "border-yellow-200",
-    rose: "border-rose-200",
+    rose: "border-sky-200",
   };
   return (
     <div className={`bg-white rounded-2xl border ${toneMap[tone]} shadow-sm p-4`}>
-      <p className="text-[10px] uppercase tracking-widest text-slate-400">{label}</p>
+      <p className="text-[10px] uppercase tracking-widest text-slate-500">{label}</p>
       <p className="text-xl font-semibold text-slate-800 mt-1">{value}</p>
       {sub ? <p className="text-xs text-slate-500 mt-1">{sub}</p> : null}
     </div>
@@ -139,7 +139,7 @@ function SectionTitle({ title, right }) {
   );
 }
 
-function BarChart({ title, data, valueFormatter = (v) => v, colorClass = "bg-rose-400" }) {
+function BarChart({ title, data, valueFormatter = (v) => v, colorClass = "bg-sky-500" }) {
   const max = Math.max(1, ...data.map((d) => Number(d.value || 0)));
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
@@ -157,7 +157,7 @@ function BarChart({ title, data, valueFormatter = (v) => v, colorClass = "bg-ros
                 style={{ height: `${clamp(h, 3, 100)}%` }}
                 title={`${d.label}: ${valueFormatter(d.value)}`}
               />
-              <span className="text-[9px] text-slate-400">{d.label}</span>
+              <span className="text-[9px] text-slate-500">{d.label}</span>
             </div>
           );
         })}
@@ -195,7 +195,7 @@ function DonutChart({ title, segments }) {
             <div key={s.label} className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-sm" style={{ background: s.color }} />
               <span className="text-slate-700">{s.label}</span>
-              <span className="text-slate-400">•</span>
+              <span className="text-slate-500">•</span>
               <span className="text-slate-700 font-semibold">{s.value}</span>
             </div>
           ))}
@@ -627,7 +627,7 @@ export default function AdminBookingsDashboard() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <p className="text-[10px] uppercase tracking-widest text-slate-400">Admin</p>
+          <p className="text-[10px] uppercase tracking-widest text-slate-500">Admin</p>
           <h2 className="text-2xl font-semibold text-slate-800">Booking Dashboard</h2>
           <p className="text-xs text-slate-500 mt-1">
             Base booking: 2h 59m • Extension max {MAX_EXTENSION_HOURS}h • Calendar + Analytics + Bulk actions
@@ -665,7 +665,7 @@ export default function AdminBookingsDashboard() {
       {/* Loading */}
       {loading ? (
         <div className="flex justify-center py-10">
-          <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
+          <div className="w-8 h-8 border-4 border-sky-200 border-t-[#5b7288] animate-spin rounded-full" />
         </div>
       ) : (
         <>
@@ -684,7 +684,7 @@ export default function AdminBookingsDashboard() {
                   title="Bookings per day"
                   data={last14DaysCharts.bookingsPerDay}
                   valueFormatter={(v) => `${v} bookings`}
-                  colorClass="bg-rose-400"
+                  colorClass="bg-sky-500"
                 />
                 <BarChart
                   title="Confirmed revenue per day"
@@ -805,7 +805,7 @@ export default function AdminBookingsDashboard() {
                 {/* Header */}
                 <div className="grid" style={{ gridTemplateColumns: "110px repeat(7, minmax(0, 1fr))" }}>
                   <div className="p-3 border-b border-slate-200 bg-slate-50">
-                    <p className="text-[10px] uppercase tracking-widest text-slate-400">Time</p>
+                    <p className="text-[10px] uppercase tracking-widest text-slate-500">Time</p>
                   </div>
                   {weekDays.map((d) => (
                     <div key={toISODate(d)} className="p-3 border-b border-slate-200 bg-slate-50">
@@ -898,7 +898,7 @@ export default function AdminBookingsDashboard() {
                               })}
 
                               {cellBookings.length > 2 ? (
-                                <p className="text-[10px] text-slate-400 mt-1">
+                                <p className="text-[10px] text-slate-500 mt-1">
                                   +{cellBookings.length - 2} more
                                 </p>
                               ) : null}
@@ -1069,12 +1069,12 @@ export default function AdminBookingsDashboard() {
                                   checked={selectedIds.has(b.id)}
                                   onChange={() => toggleSelected(b.id)}
                                 />
-                                <span className="text-[10px] uppercase tracking-widest text-slate-400">
+                                <span className="text-[10px] uppercase tracking-widest text-slate-500">
                                   Select
                                 </span>
                               </label>
 
-                              <span className="text-[10px] uppercase tracking-widest text-slate-400">
+                              <span className="text-[10px] uppercase tracking-widest text-slate-500">
                                 Reference
                               </span>
                               <span className="text-sm font-semibold text-slate-800">
@@ -1116,7 +1116,7 @@ export default function AdminBookingsDashboard() {
 
                             {/* Hints */}
                             {past && (
-                              <p className="text-[11px] text-slate-400 mt-2">
+                              <p className="text-[11px] text-slate-500 mt-2">
                                 Past booking — Edit/Approve/Reject are disabled.
                               </p>
                             )}
@@ -1138,7 +1138,7 @@ export default function AdminBookingsDashboard() {
                                 className="w-16 h-16 object-cover rounded-xl border border-slate-200 cursor-pointer hover:opacity-80"
                               />
                             ) : (
-                              <div className="w-16 h-16 rounded-xl border border-dashed border-slate-200 flex items-center justify-center text-[10px] text-slate-400">
+                              <div className="w-16 h-16 rounded-xl border border-dashed border-slate-200 flex items-center justify-center text-[10px] text-slate-500">
                                 No proof
                               </div>
                             )}
@@ -1150,7 +1150,7 @@ export default function AdminBookingsDashboard() {
                                 onClick={() => !past && openEditModal(b)}
                                 className={`px-3 py-2 rounded-xl text-[10px] uppercase tracking-widest transition ${
                                   past
-                                    ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                                    ? "bg-slate-100 text-slate-500 cursor-not-allowed"
                                     : "bg-blue-500 text-white hover:bg-blue-600 active:scale-95"
                                 }`}
                               >
@@ -1162,7 +1162,7 @@ export default function AdminBookingsDashboard() {
                                 onClick={() => !lockAR && setActionModal({ type: "approve", booking: b })}
                                 className={`px-3 py-2 rounded-xl text-[10px] uppercase tracking-widest transition ${
                                   lockAR
-                                    ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                                    ? "bg-slate-100 text-slate-500 cursor-not-allowed"
                                     : "bg-green-500 text-white hover:bg-green-600 active:scale-95"
                                 }`}
                               >
@@ -1174,7 +1174,7 @@ export default function AdminBookingsDashboard() {
                                 onClick={() => !lockAR && setActionModal({ type: "reject", booking: b })}
                                 className={`px-3 py-2 rounded-xl text-[10px] uppercase tracking-widest transition ${
                                   lockAR
-                                    ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                                    ? "bg-slate-100 text-slate-500 cursor-not-allowed"
                                     : "bg-red-500 text-white hover:bg-red-600 active:scale-95"
                                 }`}
                               >
@@ -1223,7 +1223,7 @@ export default function AdminBookingsDashboard() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 w-full max-w-sm">
             <div className="flex items-start justify-between gap-3 mb-3">
               <div>
-                <p className="text-[10px] uppercase tracking-widest text-slate-400">Confirm Action</p>
+                <p className="text-[10px] uppercase tracking-widest text-slate-500">Confirm Action</p>
                 <h3 className="text-lg font-semibold text-slate-800">
                   {actionModal.type === "approve" && "Approve Booking"}
                   {actionModal.type === "reject" && "Reject Booking"}
@@ -1282,7 +1282,7 @@ export default function AdminBookingsDashboard() {
           >
             <div className="flex items-start justify-between gap-3 mb-3">
               <div>
-                <p className="text-[10px] uppercase tracking-widest text-slate-400">Admin Manual Update</p>
+                <p className="text-[10px] uppercase tracking-widest text-slate-500">Admin Manual Update</p>
                 <h3 className="text-lg font-semibold text-slate-800">Update Booking Details</h3>
                 <p className="text-xs text-slate-500 mt-1">End time auto-calculates: 2h59 + extension.</p>
               </div>
@@ -1296,7 +1296,7 @@ export default function AdminBookingsDashboard() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
                   Customer Name
                 </label>
                 <input
@@ -1307,7 +1307,7 @@ export default function AdminBookingsDashboard() {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
                   Event Type
                 </label>
                 <input
@@ -1318,7 +1318,7 @@ export default function AdminBookingsDashboard() {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
                   Guests
                 </label>
                 <input
@@ -1331,7 +1331,7 @@ export default function AdminBookingsDashboard() {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
                   Extension Hours
                 </label>
                 <select
@@ -1346,7 +1346,7 @@ export default function AdminBookingsDashboard() {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
                   Contact Number
                 </label>
                 <input
@@ -1357,7 +1357,7 @@ export default function AdminBookingsDashboard() {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
                   Email
                 </label>
                 <input
@@ -1368,7 +1368,7 @@ export default function AdminBookingsDashboard() {
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
                   Package
                 </label>
                 <select
@@ -1386,7 +1386,7 @@ export default function AdminBookingsDashboard() {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
                   Start Date
                 </label>
                 <input
@@ -1398,7 +1398,7 @@ export default function AdminBookingsDashboard() {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-1">
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
                   Start Time
                 </label>
                 <select
@@ -1439,7 +1439,7 @@ export default function AdminBookingsDashboard() {
               <button
                 onClick={saveAdminUpdate}
                 disabled={editLoading}
-                className="flex-1 py-3 rounded-xl bg-[#FC687D] text-white text-[11px] uppercase tracking-widest active:scale-95 disabled:opacity-60"
+                className="flex-1 py-3 rounded-xl bg-slate-600 text-white text-[11px] uppercase tracking-widest active:scale-95 disabled:opacity-60"
               >
                 {editLoading ? "Saving..." : "Save Update"}
               </button>

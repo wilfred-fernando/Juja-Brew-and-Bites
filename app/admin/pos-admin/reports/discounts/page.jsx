@@ -48,7 +48,7 @@ export default function Page() {
       {error ? <div className="rounded-lg border border-red-100 bg-red-50 p-3 text-sm font-semibold text-red-600">Reports Failed: {error}</div> : null}
       <div className="overflow-x-auto rounded-xl border">
         <table className="w-full min-w-[640px] text-sm">
-          <thead className="bg-rose-50 text-left text-rose-700">
+          <thead className="bg-sky-50 text-left text-slate-700">
             <tr>
               <th className="p-3">Date</th>
               <th>Source</th>
@@ -59,13 +59,13 @@ export default function Page() {
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan="5" className="p-6 text-center text-slate-400">No discounts found.</td></tr>
+              <tr><td colSpan="5" className="p-6 text-center text-slate-500">No discounts found.</td></tr>
             ) : rows.map((row) => (
               <tr key={`${row.source}-${row.id}`} className="border-t">
                 <td className="p-3">{dateLabel(row.date)}</td>
                 <td>{row.source}</td>
                 <td>{String(row.id).slice(0, 12)}</td>
-                <td className="font-bold text-rose-600">{peso(row.discount)}</td>
+                <td className="font-bold text-slate-600">{peso(row.discount)}</td>
                 <td>{peso(row.total)}</td>
               </tr>
             ))}

@@ -97,7 +97,7 @@ function SortableRow({ row, busyId, onEdit, onDelete, onToggleActive }) {
       style={style}
       className={[
         "flex items-center justify-between gap-3 rounded-xl border px-3 py-3",
-        isDragging ? "border-rose-300 bg-rose-50 shadow-md" : "border-slate-200 bg-white",
+        isDragging ? "border-sky-300 bg-sky-50 shadow-md" : "border-slate-200 bg-white",
         !row.is_active ? "opacity-60" : "",
       ].join(" ")}
     >
@@ -465,12 +465,12 @@ export default function Page() {
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           placeholder="Add payment type (e.g., Cash, QRPH)"
-          className="w-full px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-rose-300"
+          className="w-full px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-sky-300"
         />
         <button
           onClick={addRow}
           disabled={busyId === "ADD"}
-          className="px-4 py-3 rounded-xl bg-black text-white text-sm font-bold disabled:opacity-50 active:scale-95"
+          className="px-4 py-3 rounded-xl bg-slate-600 text-white text-sm font-bold disabled:opacity-50 active:scale-95"
           type="button"
         >
           {busyId === "ADD" ? "Adding…" : "Add"}
@@ -538,7 +538,7 @@ export default function Page() {
           <input
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
-            className="w-full px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-rose-300"
+            className="w-full px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-sky-300"
           />
           <div className="flex gap-2 justify-end pt-2">
             <button
@@ -554,7 +554,7 @@ export default function Page() {
             <button
               onClick={saveEdit}
               disabled={busyId === editRow?.id}
-              className="px-4 py-2 rounded-xl bg-black text-white text-sm font-bold disabled:opacity-50 active:scale-95"
+              className="px-4 py-2 rounded-xl bg-slate-600 text-white text-sm font-bold disabled:opacity-50 active:scale-95"
               type="button"
             >
               {busyId === editRow?.id ? "Saving…" : "Save"}

@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
-const EXIT_DURATION = 140;
-const ENTER_DURATION = 220;
+const EXIT_DURATION = 260;
+const ENTER_DURATION = 680;
 
 function isModifiedNavigation(event) {
   return event.metaKey || event.altKey || event.ctrlKey || event.shiftKey;
@@ -83,6 +83,10 @@ export default function PageTransition({ children }) {
       className="page-transition-shell"
       data-page-transition-phase={phase}
       onClickCapture={handleClickCapture}
+      style={{
+        "--page-transition-duration": "680ms",
+        "--page-transition-distance": "12px",
+      }}
     >
       {children}
     </div>

@@ -211,7 +211,7 @@ export default function DiningOptionsPage() {
             <button
               onClick={add}
               disabled={!name.trim()}
-              className="w-full py-2.5 bg-black text-white rounded-xl text-sm font-bold tracking-wide transition active:scale-[0.98] disabled:opacity-40"
+              className="w-full py-2.5 bg-slate-600 text-white rounded-xl text-sm font-bold tracking-wide transition active:scale-[0.98] disabled:opacity-40"
             >
               Add Option
             </button>
@@ -222,7 +222,7 @@ export default function DiningOptionsPage() {
           {/* DATA LIST AREA */}
           <div className="space-y-3">
             {loading ? (
-              <div className="p-8 text-center text-slate-400 text-sm">
+              <div className="p-8 text-center text-slate-500 text-sm">
                 Loading options...
               </div>
             ) : rows.length === 0 ? (
@@ -230,7 +230,7 @@ export default function DiningOptionsPage() {
                 <p className="text-sm font-semibold text-slate-600">
                   No dining options yet
                 </p>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   Add your first options above
                 </p>
               </div>
@@ -244,7 +244,7 @@ export default function DiningOptionsPage() {
                     <div className="font-bold text-slate-900 text-base">
                       {r.name}
                     </div>
-                    <div className="text-xs text-slate-400">
+                    <div className="text-xs text-slate-500">
                       Sort Order Key: {r.sort_order}
                     </div>
                   </div>

@@ -108,21 +108,21 @@ export default function LiveDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
 
         <div className="bg-white p-5 rounded-xl shadow border">
-          <p className="text-gray-500 text-sm">Total Sales</p>
+          <p className="text-slate-600 text-sm">Total Sales</p>
           <h2 className="text-2xl font-bold text-green-600">
             ₱{Number(stats.totalSales || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </h2>
         </div>
 
         <div className="bg-white p-5 rounded-xl shadow border">
-          <p className="text-gray-500 text-sm">Active Orders</p>
+          <p className="text-slate-600 text-sm">Active Orders</p>
           <h2 className="text-2xl font-bold text-blue-600">
             {stats.activeOrders}
           </h2>
         </div>
 
         <div className="bg-white p-5 rounded-xl shadow border">
-          <p className="text-gray-500 text-sm">Completed Orders</p>
+          <p className="text-slate-600 text-sm">Completed Orders</p>
           <h2 className="text-2xl font-bold text-gray-800">
             {stats.completedOrders}
           </h2>
@@ -149,7 +149,7 @@ export default function LiveDashboard() {
                 <p className="font-bold">
                   Order #{order.id.slice(-6)}
                 </p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-slate-600">
                   {formatDateTime(order.created_at)}
                 </p>
               </div>

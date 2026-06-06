@@ -51,19 +51,19 @@ export default function AdminAccountsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-white/35 bg-slate-900/88 p-6 text-white shadow-[0_24px_70px_rgba(15,23,42,0.20)] backdrop-blur-xl">
-        <p className="text-xs uppercase tracking-[0.28em] text-cyan-200">Admin Control</p>
+      <div className="rounded-3xl border border-slate-200/75 bg-white/84 p-6 text-slate-900 shadow-[0_24px_70px_rgba(51,65,85,0.14)] backdrop-blur-xl">
+        <p className="text-xs uppercase tracking-[0.28em] text-slate-600">Admin Control</p>
         <div className="mt-2 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="text-3xl font-semibold">Accounts</h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-200">
+            <p className="mt-2 max-w-2xl text-sm text-slate-600">
               View all admin and cashier accounts with profile, email, creation date, and last sign-in details.
             </p>
           </div>
           <button
             type="button"
             onClick={loadAccounts}
-            className="h-11 rounded-xl border border-cyan-200/40 bg-cyan-300/10 px-5 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:-translate-y-0.5 hover:bg-cyan-300/18"
+            className="h-11 rounded-xl border border-slate-300 bg-white/80 px-5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-50 hover:text-slate-900"
           >
             Refresh
           </button>
@@ -92,7 +92,7 @@ export default function AdminAccountsPage() {
 
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
           <table className="w-full min-w-[920px] text-sm">
-            <thead className="bg-slate-950 text-left text-[10px] uppercase tracking-[0.16em] text-cyan-50">
+            <thead className="bg-slate-100 text-left text-[10px] uppercase tracking-[0.16em] text-slate-700">
               <tr>
                 <th className="p-3">Full Name</th>
                 <th>Email Address</th>
@@ -104,9 +104,9 @@ export default function AdminAccountsPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="6" className="p-8 text-center text-sm font-semibold text-slate-400">Loading accounts...</td></tr>
+                <tr><td colSpan="6" className="p-8 text-center text-sm font-semibold text-slate-500">Loading accounts...</td></tr>
               ) : filteredAccounts.length === 0 ? (
-                <tr><td colSpan="6" className="p-8 text-center text-sm font-semibold text-slate-400">No accounts found.</td></tr>
+                <tr><td colSpan="6" className="p-8 text-center text-sm font-semibold text-slate-500">No accounts found.</td></tr>
               ) : filteredAccounts.map((account) => (
                 <tr key={account.id} className="border-t border-slate-100 transition hover:bg-cyan-50/45">
                   <td className="p-3 font-semibold text-slate-950">{accountName(account)}</td>

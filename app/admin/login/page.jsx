@@ -95,7 +95,7 @@ export default function AdminLoginPage() {
           <input
             type="email"
             placeholder="Email"
-            className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-[#FC687D]/30 transition-all text-slate-700"
+            className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-sky-500/30 transition-all text-slate-700"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -103,14 +103,14 @@ export default function AdminLoginPage() {
 
           <PasswordField
             placeholder="Password"
-            className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-[#FC687D]/30 transition-all text-slate-700"
+            className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-sky-500/30 transition-all text-slate-700"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
 
           {error && (
-            <div className="bg-rose-50 p-4 rounded-2xl border border-rose-100">
-              <p className="text-rose-500 text-xs text-center font-bold">
+            <div className="bg-sky-50 p-4 rounded-2xl border border-slate-200">
+              <p className="text-sky-500 text-xs text-center font-bold">
                 ⚠️ {error}
               </p>
             </div>
@@ -124,7 +124,7 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={loading || (isTurnstileEnabled() && !captchaToken)}
-            className="w-full py-4 bg-[#FC687D] text-white rounded-full font-bold shadow-lg shadow-rose-100 active:scale-95 transition-all disabled:opacity-50"
+            className="w-full py-4 bg-slate-600 text-white rounded-full font-bold shadow-lg shadow-slate-200 active:scale-95 transition-all disabled:opacity-50"
           >
             {loading ? "Verifying..." : "Enter Portal →"}
           </button>

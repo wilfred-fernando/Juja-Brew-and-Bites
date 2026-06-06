@@ -74,7 +74,7 @@ export default function AdminMenuBuilder() {
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-slate-400 font-bold animate-pulse">Loading menu...</div>;
+    return <div className="p-8 text-center text-slate-500 font-bold animate-pulse">Loading menu...</div>;
   }
 
   return (
@@ -85,7 +85,7 @@ export default function AdminMenuBuilder() {
           <h2 className="text-[28px] font-extrabold text-slate-800 tracking-tight">Menu Builder</h2>
           <p className="text-slate-500 text-sm mt-1 font-medium">Manage categories and items</p>
         </div>
-        <button onClick={() => openModal()} className="px-6 py-3 bg-[#FC687D] text-white rounded-full text-xs font-bold uppercase tracking-widest hover:bg-rose-500 shadow-sm transition-all">
+        <button onClick={() => openModal()} className="px-6 py-3 bg-slate-600 text-white rounded-full text-xs font-bold uppercase tracking-widest hover:bg-sky-500 shadow-sm transition-all">
           + Add New Item
         </button>
       </div>
@@ -97,21 +97,21 @@ export default function AdminMenuBuilder() {
           const catItems = items.filter(i => i.category === cat.name);
 
           return (
-            <div key={cat.id} className="bg-white rounded-[24px] border border-rose-50 shadow-sm overflow-hidden">
+            <div key={cat.id} className="bg-white rounded-[24px] border border-sky-50 shadow-sm overflow-hidden">
               {/* Category Header */}
-              <div className="bg-slate-50/50 px-6 py-4 border-b border-rose-50 flex justify-between items-center">
+              <div className="bg-slate-50/50 px-6 py-4 border-b border-sky-50 flex justify-between items-center">
                 <h3 className="font-extrabold text-slate-800 flex items-center gap-2">
                   <span className="text-xl">{cat.icon}</span> {cat.name}
                 </h3>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-white px-3 py-1 rounded-full border border-slate-100 shadow-sm">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-100 shadow-sm">
                   {catItems.length} Items
                 </span>
               </div>
 
               {/* Items List */}
-              <div className="divide-y divide-rose-50">
+              <div className="divide-y divide-sky-50">
                 {catItems.length === 0 ? (
-                  <div className="p-6 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">No items in this category</div>
+                  <div className="p-6 text-center text-slate-500 text-xs font-bold uppercase tracking-widest">No items in this category</div>
                 ) : (
                   catItems.map(item => (
                     <div key={item.id} className="p-4 px-6 flex items-center justify-between hover:bg-slate-50 transition-colors group">
@@ -120,7 +120,7 @@ export default function AdminMenuBuilder() {
                         {item.image_url ? (
                           <img src={item.image_url} alt={item.name} className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-sm" />
                         ) : (
-                          <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-300 text-xl border border-slate-200">
+                          <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 text-xl border border-slate-200">
                             {cat.icon}
                           </div>
                         )}
@@ -128,7 +128,7 @@ export default function AdminMenuBuilder() {
                         {/* Item Info */}
                         <div>
                           <p className="font-extrabold text-slate-800 text-sm">{item.name}</p>
-                          <p className="text-[#FC687D] font-normal text-sm">₱{Number(item.price || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                          <p className="text-slate-700 font-normal text-sm">₱{Number(item.price || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         </div>
                       </div>
 
@@ -168,35 +168,35 @@ export default function AdminMenuBuilder() {
             <form onSubmit={handleSave} className="space-y-4">
               <div>
                 <label className="block text-[11px] font-bold text-slate-800 mb-2 ml-1">Item Name</label>
-                <input type="text" required value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-[#FC687D]" />
+                <input type="text" required value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-sky-500" />
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-800 mb-2 ml-1">Category</label>
-                  <select required value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-[#FC687D] appearance-none">
+                  <select required value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-sky-500 appearance-none">
                     {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-slate-800 mb-2 ml-1">Price (₱)</label>
-                  <input type="number" step="0.01" required value={form.price} onChange={e => setForm({...form, price: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-[#FC687D]" />
+                  <input type="number" step="0.01" required value={form.price} onChange={e => setForm({...form, price: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-sky-500" />
                 </div>
               </div>
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-800 mb-2 ml-1">Image URL (Optional)</label>
-                <input type="url" value={form.image_url} onChange={e => setForm({...form, image_url: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-[#FC687D]" placeholder="https://..." />
+                <input type="url" value={form.image_url} onChange={e => setForm({...form, image_url: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-sky-500" placeholder="https://..." />
               </div>
 
               <div className="flex items-center gap-3 py-2">
-                <input type="checkbox" id="avail" checked={form.is_available} onChange={e => setForm({...form, is_available: e.target.checked})} className="w-5 h-5 accent-[#FC687D]" />
+                <input type="checkbox" id="avail" checked={form.is_available} onChange={e => setForm({...form, is_available: e.target.checked})} className="w-5 h-5 accent-sky-700" />
                 <label htmlFor="avail" className="text-sm font-bold text-slate-800">Item is Available</label>
               </div>
 
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 rounded-full bg-slate-100 text-slate-600 font-bold text-xs hover:bg-slate-200">Cancel</button>
-                <button type="submit" disabled={saving} className="flex-1 py-4 rounded-full bg-[#FC687D] text-white font-bold text-xs hover:bg-rose-500">{saving ? "Saving..." : "Save Item"}</button>
+                <button type="submit" disabled={saving} className="flex-1 py-4 rounded-full bg-slate-600 text-white font-bold text-xs hover:bg-sky-500">{saving ? "Saving..." : "Save Item"}</button>
               </div>
             </form>
           </div>

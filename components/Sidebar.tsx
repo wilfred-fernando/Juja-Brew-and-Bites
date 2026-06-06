@@ -25,10 +25,10 @@ export default function Sidebar({
 }: SidebarProps) {
 
   return (
-    <aside className="w-[260px] bg-white border-r border-rose-100 flex flex-col">
+    <aside className="w-[260px] bg-white border-r border-slate-200 flex flex-col">
 
       {/* HEADER */}
-      <div className="p-6 border-b border-rose-50">
+      <div className="p-6 border-b border-sky-50">
         <h2 className="font-bold text-slate-800">Admin Panel</h2>
       </div>
 
@@ -48,8 +48,8 @@ export default function Sidebar({
               onClick={onNavigate}
               className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${
                 isActive
-                  ? "bg-[#FFF5F7] text-[#FC687D] font-semibold"
-                  : "text-slate-500 hover:bg-rose-50"
+                  ? "bg-[#f0f7fb] text-slate-700 font-semibold"
+                  : "text-slate-500 hover:bg-sky-50"
               }`}
             >
               <span className="text-lg">{item.icon}</span>

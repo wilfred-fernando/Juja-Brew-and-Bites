@@ -128,7 +128,7 @@ export default function KitchenPrintersPage() {
               placeholder="Add group (e.g. Kitchen, Bar)"
               className="border rounded px-3 py-2 w-full"
             />
-            <button onClick={addGroup} className="px-4 py-2 rounded bg-black text-white">
+            <button onClick={addGroup} className="px-4 py-2 rounded bg-slate-600 text-white">
               Add
             </button>
           </div>
@@ -139,7 +139,7 @@ export default function KitchenPrintersPage() {
                 key={g.id}
                 onClick={() => setActiveGroupId(g.id)}
                 className={`w-full text-left p-3 rounded-xl border ${
-                  activeGroupId === g.id ? "border-rose-200 bg-rose-50" : "border-slate-200 bg-white"
+                  activeGroupId === g.id ? "border-sky-200 bg-sky-50" : "border-slate-200 bg-white"
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -191,7 +191,7 @@ export default function KitchenPrintersPage() {
                 onClick={() => toggleCategory(c.id)}
                 className={`p-3 rounded-xl border text-left disabled:opacity-50 ${
                   isCatSelected(c.id)
-                    ? "border-rose-200 bg-rose-50"
+                    ? "border-sky-200 bg-sky-50"
                     : "border-slate-200 bg-white hover:bg-slate-50"
                 }`}
               >

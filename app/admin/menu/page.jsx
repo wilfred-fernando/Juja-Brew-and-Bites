@@ -407,7 +407,7 @@ export default function MenuAdminPage() {
   if (loading)
     return (
       <div className="p-8 flex justify-center">
-        <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
+        <div className="w-8 h-8 border-4 border-sky-200 border-t-[#5b7288] animate-spin rounded-full" />
       </div>
     );
 
@@ -417,20 +417,20 @@ export default function MenuAdminPage() {
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-6 mb-4 md:mb-8 pt-4 md:pt-6">
         <div>
           <h1 className="text-2xl md:text-4xl font-normal text-slate-800 leading-none">Menu Builder</h1>
-          <p className="text-slate-400 text-xs md:text-sm font-medium mt-1 md:mt-2">
+          <p className="text-slate-500 text-xs md:text-sm font-medium mt-1 md:mt-2">
             {items.length} exquisite items • {categories.length} categories
           </p>
         </div>
         <div className="flex w-full md:w-auto gap-2 md:gap-3">
           <button
             onClick={() => openModal()}
-            className="flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3.5 bg-[#FC687D] text-white text-[11px] md:text-sm font-normal uppercase rounded-xl md:rounded-2xl hover:bg-rose-500 transition-all shadow-[0_4px_15px_rgba(252,104,125,0.25)] hover:-translate-y-0.5 active:scale-95"
+            className="flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3.5 bg-slate-600 text-white text-[11px] md:text-sm font-normal uppercase rounded-xl md:rounded-2xl hover:bg-sky-500 transition-all shadow-[0_4px_15px_rgba(252,104,125,0.25)] hover:-translate-y-0.5 active:scale-95"
           >
             + Add Item
           </button>
           <button
             onClick={() => openCategoryModal()}
-            className="flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3.5 bg-white border border-rose-100 text-[#FC687D] text-[11px] md:text-sm font-normal uppercase rounded-xl md:rounded-2xl hover:bg-rose-50 transition-all shadow-sm active:scale-95"
+            className="flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3.5 bg-white border border-slate-200 text-slate-700 text-[11px] md:text-sm font-normal uppercase rounded-xl md:rounded-2xl hover:bg-sky-50 transition-all shadow-sm active:scale-95"
           >
             + Category
           </button>
@@ -440,13 +440,13 @@ export default function MenuAdminPage() {
       {/* SEARCH BAR & CATEGORY DROPDOWN (Mobile Only) */}
       <div className="lg:hidden flex flex-col gap-3 mb-6">
         <div className="relative">
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm">🔍</span>
           <input
             type="text"
             placeholder="Search menu..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-100 rounded-xl text-xs focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all shadow-sm"
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-100 rounded-xl text-xs focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-slate-200 transition-all shadow-sm"
           />
         </div>
 
@@ -455,7 +455,7 @@ export default function MenuAdminPage() {
             <select
               value={catFilter}
               onChange={(e) => setCatFilter(e.target.value)}
-              className="w-full h-full bg-white border border-slate-100 rounded-xl px-4 py-3 text-xs font-semibold text-slate-700 focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all shadow-sm"
+              className="w-full h-full bg-white border border-slate-100 rounded-xl px-4 py-3 text-xs font-semibold text-slate-700 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-slate-200 transition-all shadow-sm"
             >
               <option value="All">All Items ({items.length})</option>
               {categories.map((cat) => (
@@ -471,13 +471,13 @@ export default function MenuAdminPage() {
             <div className="flex gap-2 flex-shrink-0 animate-in fade-in duration-200">
               <button
                 onClick={() => openCategoryModal(categories.find((c) => c.name === catFilter))}
-                className="w-11 h-11 flex items-center justify-center bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-[#FC687D] hover:bg-rose-50 transition-colors shadow-sm text-sm"
+                className="w-11 h-11 flex items-center justify-center bg-white border border-slate-100 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-sky-50 transition-colors shadow-sm text-sm"
               >
                 ✎
               </button>
               <button
                 onClick={() => confirmDeleteCategory(categories.find((c) => c.name === catFilter))}
-                className="w-11 h-11 flex items-center justify-center bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors shadow-sm text-sm"
+                className="w-11 h-11 flex items-center justify-center bg-white border border-slate-100 rounded-xl text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors shadow-sm text-sm"
               >
                 🗑
               </button>
@@ -496,18 +496,18 @@ export default function MenuAdminPage() {
         {/* RESPONSIVE CATEGORY NAVIGATION (Desktop) */}
         <div className="hidden lg:block w-72 flex-shrink-0">
           <div className="relative mb-6">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">🔍</span>
             <input
               type="text"
               placeholder="Search menu..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-white border border-slate-100 rounded-2xl text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all shadow-sm"
+              className="w-full pl-10 pr-4 py-3 bg-white border border-slate-100 rounded-2xl text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-slate-200 transition-all shadow-sm"
             />
           </div>
 
           <div className="flex flex-col bg-white p-2 rounded-2xl border border-slate-100 shadow-sm gap-1">
-            <h3 className="text-[10px] font-normal uppercase text-slate-400 px-3 pt-2 pb-2">Categories</h3>
+            <h3 className="text-[10px] font-normal uppercase text-slate-500 px-3 pt-2 pb-2">Categories</h3>
 
             <button
               onClick={() => setCatFilter("All")}
@@ -524,7 +524,7 @@ export default function MenuAdminPage() {
                 <button
                   onClick={() => setCatFilter(cat.name)}
                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-normal uppercase transition-all duration-300 active:scale-95 ${
-                    catFilter === cat.name ? "bg-[#FC687D] text-white shadow-sm shadow-rose-200" : "bg-transparent text-slate-500 hover:bg-slate-50 border-transparent"
+                    catFilter === cat.name ? "bg-slate-600 text-white shadow-sm shadow-sky-200" : "bg-transparent text-slate-500 hover:bg-slate-50 border-transparent"
                   }`}
                 >
                   <div className="flex items-center gap-2 pr-2">
@@ -550,7 +550,7 @@ export default function MenuAdminPage() {
                       e.stopPropagation();
                       openCategoryModal(cat);
                     }}
-                    className="w-6 h-6 flex items-center justify-center bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-[#FC687D] rounded-md text-[11px] transition-colors"
+                    className="w-6 h-6 flex items-center justify-center bg-slate-50 hover:bg-sky-50 text-slate-500 hover:text-slate-700 rounded-md text-[11px] transition-colors"
                   >
                     ✎
                   </button>
@@ -559,7 +559,7 @@ export default function MenuAdminPage() {
                       e.stopPropagation();
                       confirmDeleteCategory(cat);
                     }}
-                    className="w-6 h-6 flex items-center justify-center bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-md text-[11px] transition-colors"
+                    className="w-6 h-6 flex items-center justify-center bg-slate-50 hover:bg-red-50 text-slate-500 hover:text-red-500 rounded-md text-[11px] transition-colors"
                   >
                     🗑
                   </button>
@@ -574,14 +574,14 @@ export default function MenuAdminPage() {
           {filteredItems.map((item) => (
             <div
               key={item.id}
-              className="bg-white rounded-xl md:rounded-2xl border border-rose-50 shadow-sm p-3 md:p-4 pr-3 md:pr-5 flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0 hover:shadow-md transition-all duration-300 group cursor-default"
+              className="bg-white rounded-xl md:rounded-2xl border border-sky-50 shadow-sm p-3 md:p-4 pr-3 md:pr-5 flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-0 hover:shadow-md transition-all duration-300 group cursor-default"
             >
               <div className="flex items-center gap-3 md:gap-4">
-                <div className="w-12 h-12 md:w-16 md:h-16 rounded-lg md:rounded-xl bg-[#FFF9FA] flex items-center justify-center relative overflow-hidden flex-shrink-0 border border-rose-50">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-lg md:rounded-xl bg-[#f0f7fb] flex items-center justify-center relative overflow-hidden flex-shrink-0 border border-sky-50">
                   {item.image_url ? (
                     <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-xl md:text-2xl text-rose-200/50">📷</span>
+                    <span className="text-xl md:text-2xl text-sky-200/50">📷</span>
                   )}
                 </div>
 
@@ -604,9 +604,9 @@ export default function MenuAdminPage() {
                   </h3>
 
                   <div className="flex items-center gap-2">
-                    <span className="font-normal text-[#FC687D] text-xs md:text-sm">₱{item.price}</span>
+                    <span className="font-normal text-slate-700 text-xs md:text-sm">₱{item.price}</span>
                     <span className="text-slate-200 text-[10px]">•</span>
-                    <span className="text-[9px] md:text-[10px] font-normal uppercase text-slate-400">{item.category}</span>
+                    <span className="text-[9px] md:text-[10px] font-normal uppercase text-slate-500">{item.category}</span>
                     {stores.length > 0 && (
                       <span className="text-[9px] md:text-[10px] font-normal uppercase text-cyan-700">
                         {stores.filter((store) => {
@@ -624,7 +624,7 @@ export default function MenuAdminPage() {
               <div className="flex items-center justify-between md:justify-end w-full md:w-auto gap-3 md:gap-6 pt-3 md:pt-0 border-t md:border-none border-slate-50">
                 <span
                   className={`px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-[9px] md:text-[10px] font-normal uppercase border flex items-center gap-1.5 ${
-                    item.is_available ? "bg-emerald-50 text-emerald-600 border-emerald-100/50" : "bg-slate-50 text-slate-400 border-slate-100"
+                    item.is_available ? "bg-emerald-50 text-emerald-600 border-emerald-100/50" : "bg-slate-50 text-slate-500 border-slate-100"
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full ${item.is_available ? "bg-emerald-500 animate-pulse" : "bg-slate-300"}`} />
@@ -634,13 +634,13 @@ export default function MenuAdminPage() {
                 <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300">
                   <button
                     onClick={() => openModal(item)}
-                    className="px-3 md:px-4 py-1.5 md:py-2 bg-slate-50 border border-slate-100 text-[10px] md:text-xs font-normal text-slate-500 hover:text-[#FC687D] hover:bg-rose-50 rounded-lg md:rounded-xl transition-all active:scale-90"
+                    className="px-3 md:px-4 py-1.5 md:py-2 bg-slate-50 border border-slate-100 text-[10px] md:text-xs font-normal text-slate-500 hover:text-slate-700 hover:bg-sky-50 rounded-lg md:rounded-xl transition-all active:scale-90"
                   >
                     ✎
                   </button>
                   <button
                     onClick={() => confirmDeleteItem(item)}
-                    className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center bg-slate-50 border border-slate-100 text-[10px] md:text-xs text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg md:rounded-xl transition-all active:scale-90"
+                    className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center bg-slate-50 border border-slate-100 text-[10px] md:text-xs text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-lg md:rounded-xl transition-all active:scale-90"
                   >
                     🗑
                   </button>
@@ -650,7 +650,7 @@ export default function MenuAdminPage() {
           ))}
 
           {filteredItems.length === 0 && (
-            <div className="text-center py-12 md:py-20 text-slate-400 font-normal uppercase text-[10px] md:text-xs border border-dashed border-slate-200/60 rounded-xl md:rounded-2xl bg-white/50">
+            <div className="text-center py-12 md:py-20 text-slate-500 font-normal uppercase text-[10px] md:text-xs border border-dashed border-slate-200/60 rounded-xl md:rounded-2xl bg-white/50">
               No items found
             </div>
           )}
@@ -712,7 +712,7 @@ export default function MenuAdminPage() {
               </h3>
               <button
                 onClick={() => setIsCatModalOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90 font-bold"
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90 font-bold"
               >
                 ✕
               </button>
@@ -729,7 +729,7 @@ export default function MenuAdminPage() {
                   placeholder="e.g. Rice Meals"
                   value={catForm.name}
                   onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-slate-200 transition-all"
                 />
               </div>
 
@@ -740,7 +740,7 @@ export default function MenuAdminPage() {
                       type="checkbox"
                       checked={catForm.is_active}
                       onChange={(e) => setCatForm({ ...catForm, is_active: e.target.checked })}
-                      className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-[#FC687D] checked:bg-[#FC687D] transition-all cursor-pointer"
+                      className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-sky-500 checked:bg-slate-600 transition-all cursor-pointer"
                     />
                     <span className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xs font-bold">✓</span>
                   </div>
@@ -754,7 +754,7 @@ export default function MenuAdminPage() {
                     type="checkbox"
                     checked={catForm.pos_only}
                     onChange={(e) => setCatForm({ ...catForm, pos_only: e.target.checked })}
-                    className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-[#FC687D] checked:bg-[#FC687D] transition-all cursor-pointer"
+                    className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-sky-500 checked:bg-slate-600 transition-all cursor-pointer"
                   />
                   <span className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xs font-bold">✓</span>
                 </div>
@@ -812,7 +812,7 @@ export default function MenuAdminPage() {
                 <button
                   type="submit"
                   disabled={catSaving}
-                  className="w-full py-3.5 rounded-xl bg-[#FC687D] text-white font-bold text-xs hover:bg-rose-500 transition-all shadow-md shadow-rose-200 disabled:opacity-70 active:scale-95"
+                  className="w-full py-3.5 rounded-xl bg-slate-600 text-white font-bold text-xs hover:bg-sky-500 transition-all shadow-md shadow-sky-200 disabled:opacity-70 active:scale-95"
                 >
                   {catSaving ? "Saving..." : editingCategory ? "Update Category" : "Add Category"}
                 </button>
@@ -833,7 +833,7 @@ export default function MenuAdminPage() {
                   setEditingTemplate(null);
                   setTemplateForm(null);
                 }}
-                className="text-slate-400 hover:text-black"
+                className="text-slate-500 hover:text-black"
               >
                 ✕
               </button>
@@ -902,12 +902,12 @@ export default function MenuAdminPage() {
                     options: [...templateForm.options, { name: "", price: 0 }],
                   })
                 }
-                className="text-xs font-bold text-[#FC687D]"
+                className="text-xs font-bold text-slate-700"
               >
                 + Add Option
               </button>
 
-              <button type="button" onClick={updateTemplate} className="w-full py-3 rounded-xl bg-[#FC687D] text-white font-bold text-sm">
+              <button type="button" onClick={updateTemplate} className="w-full py-3 rounded-xl bg-slate-600 text-white font-bold text-sm">
                 Save Changes
               </button>
             </div>
@@ -931,7 +931,7 @@ export default function MenuAdminPage() {
               <h3 className="text-xl md:text-2xl font-bold text-slate-800">{editingItem ? "Edit Item" : "New Item"}</h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90 font-bold"
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90 font-bold"
               >
                 ✕
               </button>
@@ -942,7 +942,7 @@ export default function MenuAdminPage() {
               <button
                 onClick={() => setModalTab("Details")}
                 className={`px-4 md:px-5 py-2 rounded-lg text-[10px] md:text-xs font-bold flex items-center gap-1.5 transition-all duration-300 ${
-                  modalTab === "Details" ? "bg-rose-50 text-[#FC687D] shadow-sm border border-rose-100" : "text-slate-500 hover:bg-slate-100"
+                  modalTab === "Details" ? "bg-sky-50 text-slate-700 shadow-sm border border-slate-200" : "text-slate-500 hover:bg-slate-100"
                 }`}
               >
                 <span className="text-xs md:text-sm">📝</span> Details
@@ -951,7 +951,7 @@ export default function MenuAdminPage() {
               <button
                 onClick={() => setModalTab("Option Groups")}
                 className={`px-4 md:px-5 py-2 rounded-lg text-[10px] md:text-xs font-bold flex items-center gap-1.5 transition-all duration-300 ${
-                  modalTab === "Option Groups" ? "bg-rose-50 text-[#FC687D] shadow-sm border border-rose-100" : "text-slate-500 hover:bg-slate-100"
+                  modalTab === "Option Groups" ? "bg-sky-50 text-slate-700 shadow-sm border border-slate-200" : "text-slate-500 hover:bg-slate-100"
                 }`}
               >
                 <span className="text-xs md:text-sm">⚙️</span> Variants & Options {hasVariants && `(${optionGroups.length})`}
@@ -968,7 +968,7 @@ export default function MenuAdminPage() {
                       required
                       value={form.name}
                       onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-slate-200 transition-all"
                     />
                   </div>
 
@@ -979,7 +979,7 @@ export default function MenuAdminPage() {
                         required
                         value={form.category}
                         onChange={(e) => setForm({ ...form, category: e.target.value })}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all appearance-none cursor-pointer"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-slate-200 transition-all appearance-none cursor-pointer"
                       >
                         <option value="">— Select Category —</option>
                         {categories.map((c) => (
@@ -999,7 +999,7 @@ export default function MenuAdminPage() {
                         value={form.price}
                         placeholder="0.00"
                         onChange={(e) => setForm({ ...form, price: e.target.value })}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-slate-200 transition-all"
                       />
                     </div>
                   </div>
@@ -1010,7 +1010,7 @@ export default function MenuAdminPage() {
                       rows="2"
                       value={form.description}
                       onChange={(e) => setForm({ ...form, description: e.target.value })}
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all resize-none"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-slate-200 transition-all resize-none"
                     />
                   </div>
 
@@ -1021,7 +1021,7 @@ export default function MenuAdminPage() {
                       placeholder="https://example.com/image.jpg"
                       value={form.image_url}
                       onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-slate-200 transition-all"
                     />
                   </div>
 
@@ -1032,7 +1032,7 @@ export default function MenuAdminPage() {
                           type="checkbox"
                           checked={form.is_available}
                           onChange={(e) => setForm({ ...form, is_available: e.target.checked })}
-                          className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-[#FC687D] checked:bg-[#FC687D] transition-all cursor-pointer"
+                          className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-sky-500 checked:bg-slate-600 transition-all cursor-pointer"
                         />
                         <span className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xs font-bold">✓</span>
                       </div>
@@ -1045,7 +1045,7 @@ export default function MenuAdminPage() {
                           type="checkbox"
                           checked={form.is_featured}
                           onChange={(e) => setForm({ ...form, is_featured: e.target.checked })}
-                          className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-[#FC687D] checked:bg-[#FC687D] transition-all cursor-pointer"
+                          className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-sky-500 checked:bg-slate-600 transition-all cursor-pointer"
                         />
                         <span className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xs font-bold">✓</span>
                       </div>
@@ -1059,7 +1059,7 @@ export default function MenuAdminPage() {
                           type="checkbox"
                           checked={form.pos_only}
                           onChange={(e) => setForm({ ...form, pos_only: e.target.checked })}
-                          className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-[#FC687D] checked:bg-[#FC687D] transition-all cursor-pointer"
+                          className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-sky-500 checked:bg-slate-600 transition-all cursor-pointer"
                         />
                         <span className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xs font-bold">✓</span>
                       </div>
@@ -1110,13 +1110,13 @@ export default function MenuAdminPage() {
               ) : (
                 <div className="flex flex-col h-full animate-in fade-in duration-300 pb-2">
                   <p className="text-xs text-slate-500 mb-5 font-medium leading-relaxed px-1">
-                    Group 1 acts as your base <strong className="text-[#FC687D]">Variants</strong> (e.g. Regular/Spicy). Additional groups act as Add-ons.
+                    Group 1 acts as your base <strong className="text-slate-700">Variants</strong> (e.g. Regular/Spicy). Additional groups act as Add-ons.
                   </p>
 
                   <button
                     type="button"
                     onClick={addOptionGroup}
-                    className="w-full py-3.5 md:py-4 border-2 border-dashed border-slate-200 text-[#FC687D] font-bold text-xs rounded-xl hover:bg-rose-50 hover:border-rose-200 transition-all mb-6 active:scale-95"
+                    className="w-full py-3.5 md:py-4 border-2 border-dashed border-slate-200 text-slate-700 font-bold text-xs rounded-xl hover:bg-sky-50 hover:border-sky-200 transition-all mb-6 active:scale-95"
                   >
                     + Add New Option Group
                   </button>
@@ -1146,7 +1146,7 @@ export default function MenuAdminPage() {
 
                         e.target.value = "";
                       }}
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] focus:ring-1 focus:ring-rose-100 transition-all"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs md:text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-slate-200 transition-all"
                     >
                       <option value="">Select Option Group Template</option>
                       {groupTemplates.map((group) => (
@@ -1165,7 +1165,7 @@ export default function MenuAdminPage() {
                         <div key={template.id} className="flex items-center justify-between bg-white border border-slate-100 rounded-xl px-3 py-2">
                           <div>
                             <p className="text-xs font-bold text-slate-700">{template.name}</p>
-                            <p className="text-[10px] text-slate-400">{template.options?.length || 0} options</p>
+                            <p className="text-[10px] text-slate-500">{template.options?.length || 0} options</p>
                           </div>
 
                           <div className="flex gap-2">
@@ -1200,13 +1200,13 @@ export default function MenuAdminPage() {
 
                   <div className="space-y-4 mb-6">
                     {optionGroups.map((group) => (
-                      <div key={group.id} className="border border-rose-100 rounded-2xl p-4 md:p-5 bg-white shadow-[0_2px_10px_rgba(252,104,125,0.05)]">
+                      <div key={group.id} className="border border-slate-200 rounded-2xl p-4 md:p-5 bg-white shadow-[0_2px_10px_rgba(252,104,125,0.05)]">
                         <div className="flex flex-wrap lg:flex-nowrap gap-3 items-center mb-4 pb-4 border-b border-slate-50">
                           <input
                             placeholder="Group name (e.g. Variants, Add-ons)"
                             value={group.name}
                             onChange={(e) => updateOptionGroup(group.id, "name", e.target.value)}
-                            className="flex-1 min-w-[140px] border border-slate-200 rounded-xl p-2.5 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] transition font-bold text-slate-700"
+                            className="flex-1 min-w-[140px] border border-slate-200 rounded-xl p-2.5 text-xs md:text-sm focus:outline-none focus:border-sky-500 transition font-bold text-slate-700"
                           />
 
                           <label className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-600 font-medium cursor-pointer">
@@ -1214,7 +1214,7 @@ export default function MenuAdminPage() {
                               type="checkbox"
                               checked={group.isRequired}
                               onChange={(e) => updateOptionGroup(group.id, "isRequired", e.target.checked)}
-                              className="w-3.5 h-3.5 accent-[#FC687D] cursor-pointer"
+                              className="w-3.5 h-3.5 accent-sky-700 cursor-pointer"
                             />
                             Required
                           </label>
@@ -1224,7 +1224,7 @@ export default function MenuAdminPage() {
                               type="checkbox"
                               checked={group.isMultiSelect}
                               onChange={(e) => updateOptionGroup(group.id, "isMultiSelect", e.target.checked)}
-                              className="w-3.5 h-3.5 accent-[#FC687D] cursor-pointer"
+                              className="w-3.5 h-3.5 accent-sky-700 cursor-pointer"
                             />
                             Multi-select
                           </label>
@@ -1255,17 +1255,17 @@ export default function MenuAdminPage() {
                                 placeholder="Option name (e.g. Regular)"
                                 value={opt.name}
                                 onChange={(e) => updateOption(group.id, opt.id, "name", e.target.value)}
-                                className="flex-1 border border-slate-200 rounded-xl p-2.5 text-xs md:text-sm focus:outline-none focus:border-[#FC687D] transition"
+                                className="flex-1 border border-slate-200 rounded-xl p-2.5 text-xs md:text-sm focus:outline-none focus:border-sky-500 transition"
                               />
 
                               <div className="relative w-28 md:w-32">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₱</span>
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">₱</span>
                                 <input
                                   type="number"
                                   placeholder="129.00"
                                   value={opt.price}
                                   onChange={(e) => updateOption(group.id, opt.id, "price", e.target.value)}
-                                  className="w-full pl-7 pr-3 py-2.5 border border-slate-200 rounded-xl text-xs md:text-sm focus:outline-none focus:border-[#FC687D] transition"
+                                  className="w-full pl-7 pr-3 py-2.5 border border-slate-200 rounded-xl text-xs md:text-sm focus:outline-none focus:border-sky-500 transition"
                                 />
                               </div>
 
@@ -1282,7 +1282,7 @@ export default function MenuAdminPage() {
                           <button
                             type="button"
                             onClick={() => addOption(group.id)}
-                            className="text-[#FC687D] font-bold text-[10px] md:text-xs mt-2 hover:underline flex items-center gap-1"
+                            className="text-slate-700 font-bold text-[10px] md:text-xs mt-2 hover:underline flex items-center gap-1"
                           >
                             + Add Option
                           </button>
@@ -1308,7 +1308,7 @@ export default function MenuAdminPage() {
                   onClick={handleSave}
                   form="item-form"
                   disabled={saving}
-                  className="w-full py-3 md:py-3.5 rounded-xl bg-[#FC687D] text-white font-bold text-xs hover:bg-rose-500 transition-all shadow-md shadow-rose-200 disabled:opacity-70 active:scale-95"
+                  className="w-full py-3 md:py-3.5 rounded-xl bg-slate-600 text-white font-bold text-xs hover:bg-sky-500 transition-all shadow-md shadow-sky-200 disabled:opacity-70 active:scale-95"
                 >
                   {saving ? "Saving..." : "Save Menu Item"}
                 </button>

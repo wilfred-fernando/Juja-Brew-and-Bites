@@ -88,7 +88,7 @@ function SortableRow({ id, left, right, disabled }) {
       style={style}
       className={[
         "flex items-center justify-between gap-3 rounded-xl border px-3 py-3",
-        isDragging ? "border-rose-300 bg-rose-50 shadow-md" : "border-slate-200 bg-white",
+        isDragging ? "border-sky-300 bg-sky-50 shadow-md" : "border-slate-200 bg-white",
         disabled ? "opacity-60" : "",
       ].join(" ")}
     >
@@ -565,8 +565,8 @@ export default function Page() {
 
   if (loading) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-[#FFF5F7]">
-        <div className="w-10 h-10 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
+      <div className="h-screen w-full flex items-center justify-center bg-[#f0f7fb]">
+        <div className="w-10 h-10 border-4 border-sky-200 border-t-[#5b7288] animate-spin rounded-full" />
       </div>
     );
   }
@@ -603,18 +603,18 @@ export default function Page() {
             value={newStoreName}
             onChange={(e) => setNewStoreName(e.target.value)}
             placeholder="Store name"
-            className="px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-rose-300"
+            className="px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-sky-300"
           />
           <input
             value={newStoreTz}
             onChange={(e) => setNewStoreTz(e.target.value)}
             placeholder="Timezone (e.g., Asia/Manila)"
-            className="px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-rose-300"
+            className="px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-sky-300"
           />
           <button
             onClick={addStore}
             disabled={busyKey === "ADD_STORE"}
-            className="px-4 py-3 rounded-xl bg-black text-white text-sm font-bold disabled:opacity-50 active:scale-95"
+            className="px-4 py-3 rounded-xl bg-slate-600 text-white text-sm font-bold disabled:opacity-50 active:scale-95"
             type="button"
           >
             {busyKey === "ADD_STORE" ? "Adding…" : "Add Store"}
@@ -726,7 +726,7 @@ export default function Page() {
           <select
             value={newCashierStore}
             onChange={(e) => setNewCashierStore(e.target.value)}
-            className="px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-rose-300"
+            className="px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-sky-300"
           >
             <option value="">Select store</option>
             {stores.map((s) => (
@@ -740,20 +740,20 @@ export default function Page() {
             value={newCashierName}
             onChange={(e) => setNewCashierName(e.target.value)}
             placeholder="Cashier name"
-            className="px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-rose-300"
+            className="px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-sky-300"
           />
 
           <input
             value={newCashierEmail}
             onChange={(e) => setNewCashierEmail(e.target.value)}
             placeholder="Cashier email (e.g. name@email.com)"
-            className="px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-rose-300"
+            className="px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-sky-300"
           />
 
           <button
             onClick={addCashier}
             disabled={busyKey === "ADD_CASHIER"}
-            className="px-4 py-3 rounded-xl bg-black text-white text-sm font-bold disabled:opacity-50 active:scale-95"
+            className="px-4 py-3 rounded-xl bg-slate-600 text-white text-sm font-bold disabled:opacity-50 active:scale-95"
             type="button"
           >
             {busyKey === "ADD_CASHIER" ? "Adding…" : "Add Cashier"}
@@ -845,7 +845,7 @@ export default function Page() {
           <input
             value={storeEditName}
             onChange={(e) => setStoreEditName(e.target.value)}
-            className="w-full px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-rose-300"
+            className="w-full px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-sky-300"
           />
 
           <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
@@ -854,7 +854,7 @@ export default function Page() {
           <input
             value={storeEditTz}
             onChange={(e) => setStoreEditTz(e.target.value)}
-            className="w-full px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-rose-300"
+            className="w-full px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-sky-300"
           />
 
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
@@ -880,7 +880,7 @@ export default function Page() {
             <button
               onClick={saveEditStore}
               disabled={busyKey === `STORE_${storeEditRow?.id}`}
-              className="px-4 py-2 rounded-xl bg-black text-white text-sm font-bold disabled:opacity-50 active:scale-95"
+              className="px-4 py-2 rounded-xl bg-slate-600 text-white text-sm font-bold disabled:opacity-50 active:scale-95"
               type="button"
             >
               {busyKey === `STORE_${storeEditRow?.id}` ? "Saving…" : "Save"}
@@ -906,7 +906,7 @@ export default function Page() {
           <select
             value={cashierEditStore}
             onChange={(e) => setCashierEditStore(e.target.value)}
-            className="w-full px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-rose-300"
+            className="w-full px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-sky-300"
           >
             <option value="">Select store</option>
             {stores.map((s) => (
@@ -922,7 +922,7 @@ export default function Page() {
           <input
             value={cashierEditName}
             onChange={(e) => setCashierEditName(e.target.value)}
-            className="w-full px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-rose-300"
+            className="w-full px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-sky-300"
           />
 
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
@@ -948,7 +948,7 @@ export default function Page() {
             <button
               onClick={saveEditCashier}
               disabled={busyKey === `CASHIER_${cashierEditRow?.id}`}
-              className="px-4 py-2 rounded-xl bg-black text-white text-sm font-bold disabled:opacity-50 active:scale-95"
+              className="px-4 py-2 rounded-xl bg-slate-600 text-white text-sm font-bold disabled:opacity-50 active:scale-95"
               type="button"
             >
               {busyKey === `CASHIER_${cashierEditRow?.id}` ? "Saving…" : "Save"}

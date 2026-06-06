@@ -327,36 +327,36 @@ export default function Page() {
   }
 
   return (
-    <div className="min-h-screen bg-rose-50/30">
-      <div className="border-b border-rose-200 bg-rose-600 px-4 py-3 shadow-sm sm:px-6">
+    <div className="min-h-screen bg-sky-50/30">
+      <div className="border-b border-sky-200 bg-slate-600 px-4 py-3 shadow-sm sm:px-6">
         <h1 className="text-lg font-bold text-white">Shifts</h1>
       </div>
 
       <div className="space-y-4 p-4 sm:p-6">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-          <div className="flex flex-col rounded-lg border border-rose-100 bg-white shadow-sm sm:flex-row sm:items-center">
-            <button type="button" onClick={() => moveRange(-1)} className="flex h-10 items-center justify-center border-b border-rose-100 px-3 text-slate-500 hover:bg-rose-50 sm:border-b-0 sm:border-r" aria-label="Previous date range">
+          <div className="flex flex-col rounded-lg border border-slate-200 bg-white shadow-sm sm:flex-row sm:items-center">
+            <button type="button" onClick={() => moveRange(-1)} className="flex h-10 items-center justify-center border-b border-slate-200 px-3 text-slate-500 hover:bg-sky-50 sm:border-b-0 sm:border-r" aria-label="Previous date range">
               <ChevronLeft size={18} />
             </button>
             <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <CalendarDays size={17} className="text-rose-500" />
+                <CalendarDays size={17} className="text-sky-500" />
                 <span className="whitespace-nowrap">{displayRange(start, end)}</span>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <input type="date" value={start} onChange={(event) => updateStart(event.target.value)} className="h-9 rounded-md border border-rose-100 px-2 text-xs font-semibold text-slate-700 outline-none focus:border-rose-400" aria-label="Start date" />
-                <input type="date" value={end} onChange={(event) => updateEnd(event.target.value)} className="h-9 rounded-md border border-rose-100 px-2 text-xs font-semibold text-slate-700 outline-none focus:border-rose-400" aria-label="End date" />
+                <input type="date" value={start} onChange={(event) => updateStart(event.target.value)} className="h-9 rounded-md border border-slate-200 px-2 text-xs font-semibold text-slate-700 outline-none focus:border-sky-500" aria-label="Start date" />
+                <input type="date" value={end} onChange={(event) => updateEnd(event.target.value)} className="h-9 rounded-md border border-slate-200 px-2 text-xs font-semibold text-slate-700 outline-none focus:border-sky-500" aria-label="End date" />
               </div>
             </div>
-            <button type="button" onClick={() => moveRange(1)} className="flex h-10 items-center justify-center border-t border-rose-100 px-3 text-slate-500 hover:bg-rose-50 sm:border-l sm:border-t-0" aria-label="Next date range">
+            <button type="button" onClick={() => moveRange(1)} className="flex h-10 items-center justify-center border-t border-slate-200 px-3 text-slate-500 hover:bg-sky-50 sm:border-l sm:border-t-0" aria-label="Next date range">
               <ChevronRight size={18} />
             </button>
           </div>
 
           <label className="relative block min-w-[170px]">
             <Store size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <select value={storeFilter} onChange={(event) => setStoreFilter(event.target.value)} className="h-10 w-full appearance-none rounded-lg border border-rose-100 bg-white pl-9 pr-8 text-sm font-semibold text-slate-700 shadow-sm outline-none focus:border-rose-400" aria-label="Store filter">
+            <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <select value={storeFilter} onChange={(event) => setStoreFilter(event.target.value)} className="h-10 w-full appearance-none rounded-lg border border-slate-200 bg-white pl-9 pr-8 text-sm font-semibold text-slate-700 shadow-sm outline-none focus:border-sky-500" aria-label="Store filter">
               <option value="all">All stores</option>
               {storeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
@@ -365,18 +365,18 @@ export default function Page() {
 
         {error ? <div className="rounded-lg border border-red-100 bg-red-50 p-3 text-sm font-semibold text-red-600">Shifts Failed: {error}</div> : null}
 
-        <section className="overflow-hidden rounded-lg border border-rose-100 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-rose-100 px-4 py-4 sm:px-6">
-            <button type="button" onClick={exportCSV} className="inline-flex h-9 items-center gap-2 rounded-md px-1 text-sm font-bold uppercase tracking-normal text-slate-800 hover:text-rose-700">
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 sm:px-6">
+            <button type="button" onClick={exportCSV} className="inline-flex h-9 items-center gap-2 rounded-md px-1 text-sm font-bold uppercase tracking-normal text-slate-800 hover:text-slate-700">
               Export
               <ChevronDown size={15} />
-              <Download size={16} className="text-rose-500" />
+              <Download size={16} className="text-sky-500" />
             </button>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full min-w-[940px] text-sm">
-              <thead className="border-b border-rose-100 bg-rose-50/60 text-left text-xs font-bold text-slate-500">
+              <thead className="border-b border-slate-200 bg-sky-50/60 text-left text-xs font-bold text-slate-500">
                 <tr>
                   <th className="px-5 py-4">POS</th>
                   <th className="px-4 py-4">Opening time</th>
@@ -389,27 +389,27 @@ export default function Page() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="7" className="px-6 py-10 text-center text-sm font-semibold text-slate-400">Loading shifts...</td></tr>
+                  <tr><td colSpan="7" className="px-6 py-10 text-center text-sm font-semibold text-slate-500">Loading shifts...</td></tr>
                 ) : pageRows.length === 0 ? (
-                  <tr><td colSpan="7" className="px-6 py-10 text-center text-sm font-semibold text-slate-400">No shift records found.</td></tr>
+                  <tr><td colSpan="7" className="px-6 py-10 text-center text-sm font-semibold text-slate-500">No shift records found.</td></tr>
                 ) : (
                   pageRows.map((row) => {
                     const tone = differenceTone(row.difference);
                     return (
-                      <tr key={row.id} onClick={() => setSelectedShift(row)} className="cursor-pointer border-b border-rose-50 last:border-0 hover:bg-rose-50/50">
+                      <tr key={row.id} onClick={() => setSelectedShift(row)} className="cursor-pointer border-b border-sky-50 last:border-0 hover:bg-sky-50/50">
                         <td className="px-5 py-4 font-semibold text-slate-900">{row.pos}</td>
                         <td className="px-4 py-4 text-slate-700">{displayDateTime(row.openingTime)}</td>
                         <td className="px-4 py-4 text-slate-700">{displayDateTime(row.closingTime)}</td>
                         <td className="px-4 py-4 text-right font-semibold text-slate-950">{money(row.expectedCash)}</td>
                         <td className="px-4 py-4 text-right font-semibold text-slate-950">{money(row.actualCash)}</td>
-                        <td className={`px-4 py-4 text-right font-bold ${tone === "ok" ? "text-slate-700" : tone === "warn" ? "text-orange-500" : "text-rose-600"}`}>
+                        <td className={`px-4 py-4 text-right font-bold ${tone === "ok" ? "text-slate-700" : tone === "warn" ? "text-orange-500" : "text-slate-600"}`}>
                           {tone === "ok" ? "-" : money(row.difference)}
                         </td>
                         <td className="px-5 py-4 text-right">
                           {tone === "ok" ? (
                             <Check size={18} className="ml-auto text-emerald-600" />
                           ) : (
-                            <AlertTriangle size={18} className={`ml-auto ${tone === "warn" ? "text-orange-500" : "text-rose-600"}`} />
+                            <AlertTriangle size={18} className={`ml-auto ${tone === "warn" ? "text-orange-500" : "text-slate-600"}`} />
                           )}
                         </td>
                       </tr>
@@ -420,23 +420,23 @@ export default function Page() {
             </table>
           </div>
 
-          <div className="flex flex-col gap-3 border-t border-rose-100 px-4 py-3 text-xs font-semibold text-slate-600 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-xs font-semibold text-slate-600 sm:flex-row sm:items-center">
             <div className="flex">
-              <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} className="flex h-9 w-11 items-center justify-center border border-rose-100 bg-white text-slate-500 hover:bg-rose-50" aria-label="Previous page">
+              <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} className="flex h-9 w-11 items-center justify-center border border-slate-200 bg-white text-slate-500 hover:bg-sky-50" aria-label="Previous page">
                 <ChevronLeft size={17} />
               </button>
-              <button type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} className="flex h-9 w-11 items-center justify-center border border-l-0 border-rose-100 bg-white text-slate-500 hover:bg-rose-50" aria-label="Next page">
+              <button type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} className="flex h-9 w-11 items-center justify-center border border-l-0 border-slate-200 bg-white text-slate-500 hover:bg-sky-50" aria-label="Next page">
                 <ChevronRight size={17} />
               </button>
             </div>
             <div className="flex items-center gap-2">
               <span>Page:</span>
-              <input value={currentPage} onChange={(event) => setPage(Math.max(1, Math.min(totalPages, Number(event.target.value) || 1)))} className="h-8 w-12 rounded border border-rose-100 text-center text-xs outline-none focus:border-rose-400" />
+              <input value={currentPage} onChange={(event) => setPage(Math.max(1, Math.min(totalPages, Number(event.target.value) || 1)))} className="h-8 w-12 rounded border border-slate-200 text-center text-xs outline-none focus:border-sky-500" />
               <span>of {totalPages}</span>
             </div>
             <label className="flex items-center gap-2 sm:ml-4">
               Rows per page:
-              <select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))} className="h-8 rounded border border-rose-100 bg-white px-2 text-xs outline-none focus:border-rose-400">
+              <select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))} className="h-8 rounded border border-slate-200 bg-white px-2 text-xs outline-none focus:border-sky-500">
                 <option value={10}>10</option>
                 <option value={25}>25</option>
                 <option value={50}>50</option>
@@ -449,12 +449,12 @@ export default function Page() {
       {selectedShift ? (
         <div className="fixed inset-0 z-50 bg-slate-950/20" onClick={() => setSelectedShift(null)}>
           <aside className="absolute right-0 top-0 flex h-full w-full flex-col bg-white shadow-2xl sm:w-[410px]" onClick={(event) => event.stopPropagation()}>
-            <div className="flex h-14 items-center justify-between border-b border-rose-100 px-4">
-              <button type="button" onClick={() => setSelectedShift(null)} className="flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-700" aria-label="Close shift report">
+            <div className="flex h-14 items-center justify-between border-b border-slate-200 px-4">
+              <button type="button" onClick={() => setSelectedShift(null)} className="flex h-9 w-9 items-center justify-center rounded-md text-slate-500 hover:bg-sky-50 hover:text-slate-700" aria-label="Close shift report">
                 <X size={19} />
               </button>
               <h2 className="text-sm font-black uppercase text-slate-950">Shift Report</h2>
-              <button type="button" className="flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-700" aria-label="Shift actions">
+              <button type="button" className="flex h-9 w-9 items-center justify-center rounded-md text-slate-500 hover:bg-sky-50 hover:text-slate-700" aria-label="Shift actions">
                 <MoreHorizontal size={20} />
               </button>
             </div>
@@ -473,7 +473,7 @@ export default function Page() {
               </div>
 
               <div className="space-y-3 border-b border-dashed border-slate-200 py-4">
-                <h3 className="text-xs font-black text-rose-700">Cash drawer</h3>
+                <h3 className="text-xs font-black text-slate-700">Cash drawer</h3>
                 {[
                   ["Starting cash", selectedShift.startingCash],
                   ["Cash payments", selectedShift.cashPayments],
@@ -495,7 +495,7 @@ export default function Page() {
               </div>
 
               <div className="space-y-3 py-4">
-                <h3 className="text-xs font-black text-rose-700">Sales summary</h3>
+                <h3 className="text-xs font-black text-slate-700">Sales summary</h3>
                 {[
                   ["Gross sales", selectedShift.grossSales],
                   ["Refunds", selectedShift.refunds],

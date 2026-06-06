@@ -281,9 +281,9 @@ function compareReceiptNumber(a, b) {
 
 function cardStyles(accent, active) {
   const colors = {
-    rose: active ? "border-rose-200 bg-rose-50 text-rose-700" : "border-rose-100 bg-white text-rose-600",
-    teal: active ? "border-teal-200 bg-teal-50 text-teal-700" : "border-rose-100 bg-white text-teal-600",
-    pink: active ? "border-pink-200 bg-pink-50 text-pink-700" : "border-rose-100 bg-white text-pink-600",
+    rose: active ? "border-sky-200 bg-sky-50 text-slate-700" : "border-slate-200 bg-white text-slate-600",
+    teal: active ? "border-teal-200 bg-teal-50 text-teal-700" : "border-slate-200 bg-white text-teal-600",
+    pink: active ? "border-sky-200 bg-sky-50 text-sky-700" : "border-slate-200 bg-white text-sky-600",
   };
   return colors[accent] || colors.rose;
 }
@@ -407,21 +407,21 @@ export default function Page() {
   }
 
   return (
-    <div className="min-h-screen bg-rose-50/30">
+    <div className="min-h-screen bg-sky-50/30">
       <div className="space-y-4 p-4 sm:p-6">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-          <div className="flex flex-col rounded-lg border border-rose-100 bg-white shadow-sm sm:flex-row sm:items-center">
+          <div className="flex flex-col rounded-lg border border-slate-200 bg-white shadow-sm sm:flex-row sm:items-center">
             <button
               type="button"
               onClick={() => moveRange(-1)}
-              className="flex h-10 items-center justify-center border-b border-rose-100 px-3 text-slate-500 hover:bg-rose-50 sm:border-b-0 sm:border-r"
+              className="flex h-10 items-center justify-center border-b border-slate-200 px-3 text-slate-500 hover:bg-sky-50 sm:border-b-0 sm:border-r"
               aria-label="Previous date range"
             >
               <ChevronLeft size={18} />
             </button>
             <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <CalendarDays size={17} className="text-rose-500" />
+                <CalendarDays size={17} className="text-sky-500" />
                 <span className="whitespace-nowrap">{displayRange(start, end)}</span>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -429,14 +429,14 @@ export default function Page() {
                   type="date"
                   value={start}
                   onChange={(event) => updateStart(event.target.value)}
-                  className="h-9 rounded-md border border-rose-100 px-2 text-xs font-semibold text-slate-700 outline-none focus:border-rose-400"
+                  className="h-9 rounded-md border border-slate-200 px-2 text-xs font-semibold text-slate-700 outline-none focus:border-sky-500"
                   aria-label="Start date"
                 />
                 <input
                   type="date"
                   value={end}
                   onChange={(event) => updateEnd(event.target.value)}
-                  className="h-9 rounded-md border border-rose-100 px-2 text-xs font-semibold text-slate-700 outline-none focus:border-rose-400"
+                  className="h-9 rounded-md border border-slate-200 px-2 text-xs font-semibold text-slate-700 outline-none focus:border-sky-500"
                   aria-label="End date"
                 />
               </div>
@@ -444,7 +444,7 @@ export default function Page() {
             <button
               type="button"
               onClick={() => moveRange(1)}
-              className="flex h-10 items-center justify-center border-t border-rose-100 px-3 text-slate-500 hover:bg-rose-50 sm:border-l sm:border-t-0"
+              className="flex h-10 items-center justify-center border-t border-slate-200 px-3 text-slate-500 hover:bg-sky-50 sm:border-l sm:border-t-0"
               aria-label="Next date range"
             >
               <ChevronRight size={18} />
@@ -453,11 +453,11 @@ export default function Page() {
 
           <label className="relative block min-w-[150px]">
             <Clock size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
             <select
               value={timeFilter}
               onChange={(event) => setTimeFilter(event.target.value)}
-              className="h-10 w-full appearance-none rounded-lg border border-rose-100 bg-white pl-9 pr-8 text-sm font-semibold text-slate-700 shadow-sm outline-none focus:border-rose-400"
+              className="h-10 w-full appearance-none rounded-lg border border-slate-200 bg-white pl-9 pr-8 text-sm font-semibold text-slate-700 shadow-sm outline-none focus:border-sky-500"
               aria-label="Time filter"
             >
               <option value="all">All day</option>
@@ -470,11 +470,11 @@ export default function Page() {
 
           <label className="relative block min-w-[170px]">
             <Store size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
             <select
               value={storeFilter}
               onChange={(event) => setStoreFilter(event.target.value)}
-              className="h-10 w-full appearance-none rounded-lg border border-rose-100 bg-white pl-9 pr-8 text-sm font-semibold text-slate-700 shadow-sm outline-none focus:border-rose-400"
+              className="h-10 w-full appearance-none rounded-lg border border-slate-200 bg-white pl-9 pr-8 text-sm font-semibold text-slate-700 shadow-sm outline-none focus:border-sky-500"
               aria-label="Store filter"
             >
               <option value="all">All stores</option>
@@ -488,11 +488,11 @@ export default function Page() {
 
           <label className="relative block min-w-[190px]">
             <UserRound size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
             <select
               value={employeeFilter}
               onChange={(event) => setEmployeeFilter(event.target.value)}
-              className="h-10 w-full appearance-none rounded-lg border border-rose-100 bg-white pl-9 pr-8 text-sm font-semibold text-slate-700 shadow-sm outline-none focus:border-rose-400"
+              className="h-10 w-full appearance-none rounded-lg border border-slate-200 bg-white pl-9 pr-8 text-sm font-semibold text-slate-700 shadow-sm outline-none focus:border-sky-500"
               aria-label="Employee filter"
             >
               <option value="all">All employees</option>
@@ -511,7 +511,7 @@ export default function Page() {
           </div>
         ) : null}
 
-        <section className="grid grid-cols-1 overflow-hidden rounded-lg border border-rose-100 bg-white shadow-sm md:grid-cols-3">
+        <section className="grid grid-cols-1 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm md:grid-cols-3">
           {summaryCards.map((card) => {
             const Icon = card.icon;
             const active = typeFilter === card.key;
@@ -529,22 +529,22 @@ export default function Page() {
                   <span className="block text-sm font-semibold text-slate-700">{card.label}</span>
                   <span className="block text-3xl font-semibold tracking-normal text-slate-950">{counts[card.key]}</span>
                 </span>
-                {active ? <span className="absolute inset-x-0 bottom-0 h-1 bg-rose-500" /> : null}
+                {active ? <span className="absolute inset-x-0 bottom-0 h-1 bg-sky-500" /> : null}
               </button>
             );
           })}
         </section>
 
-        <section className="overflow-hidden rounded-lg border border-rose-100 bg-white shadow-sm">
-          <div className="flex flex-col gap-3 border-b border-rose-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <button
               type="button"
               onClick={exportCSV}
-              className="inline-flex h-9 items-center gap-2 self-start rounded-md px-1 text-sm font-bold uppercase tracking-normal text-slate-800 hover:text-rose-700"
+              className="inline-flex h-9 items-center gap-2 self-start rounded-md px-1 text-sm font-bold uppercase tracking-normal text-slate-800 hover:text-slate-700"
             >
               Export
               <ChevronDown size={15} />
-              <Download size={16} className="text-rose-500" />
+              <Download size={16} className="text-sky-500" />
             </button>
 
             <label className="relative block w-full sm:w-[280px]">
@@ -554,14 +554,14 @@ export default function Page() {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search receipts"
-                className="h-10 w-full rounded-lg border border-rose-100 bg-white pl-10 pr-3 text-sm font-semibold text-slate-700 outline-none focus:border-rose-400"
+                className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm font-semibold text-slate-700 outline-none focus:border-sky-500"
               />
             </label>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px] text-sm">
-              <thead className="border-b border-rose-100 bg-rose-50/60 text-left text-xs font-bold text-slate-500">
+              <thead className="border-b border-slate-200 bg-sky-50/60 text-left text-xs font-bold text-slate-500">
                 <tr>
                   <th className="px-5 py-4">Receipt no.</th>
                   <th className="px-4 py-4">Date</th>
@@ -575,13 +575,13 @@ export default function Page() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="7" className="px-6 py-10 text-center text-sm font-semibold text-slate-400">
+                    <td colSpan="7" className="px-6 py-10 text-center text-sm font-semibold text-slate-500">
                       Loading receipts...
                     </td>
                   </tr>
                 ) : visibleRows.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="px-6 py-10 text-center text-sm font-semibold text-slate-400">
+                    <td colSpan="7" className="px-6 py-10 text-center text-sm font-semibold text-slate-500">
                       No receipts found.
                     </td>
                   </tr>
@@ -590,7 +590,7 @@ export default function Page() {
                     <tr
                       key={row.id}
                       onClick={() => setSelectedReceipt(row)}
-                      className="cursor-pointer border-b border-rose-50 last:border-0 hover:bg-rose-50/50"
+                      className="cursor-pointer border-b border-sky-50 last:border-0 hover:bg-sky-50/50"
                     >
                       <td className="px-5 py-4 font-semibold text-slate-900">{row.receiptNo}</td>
                       <td className="px-4 py-4 text-slate-700">{displayDateTime(row.createdAt)}</td>
@@ -598,7 +598,7 @@ export default function Page() {
                       <td className="px-4 py-4 text-slate-700">{row.employeeLabel}</td>
                       <td className="whitespace-pre-line px-4 py-4 text-slate-700">{row.customer}</td>
                       <td className="px-4 py-4">
-                        <span className={`font-semibold ${row.typeKey === "refund" ? "text-pink-700" : "text-slate-800"}`}>
+                        <span className={`font-semibold ${row.typeKey === "refund" ? "text-sky-700" : "text-slate-800"}`}>
                           {row.type}
                         </span>
                       </td>
@@ -618,18 +618,18 @@ export default function Page() {
             className="absolute right-0 top-0 flex h-full w-full flex-col bg-white shadow-2xl sm:w-[380px]"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex h-14 items-center justify-between border-b border-rose-100 px-4">
+            <div className="flex h-14 items-center justify-between border-b border-slate-200 px-4">
               <button
                 type="button"
                 onClick={() => setSelectedReceipt(null)}
-                className="flex h-9 w-9 items-center justify-center rounded-md text-slate-500 hover:bg-rose-50 hover:text-rose-700"
+                className="flex h-9 w-9 items-center justify-center rounded-md text-slate-500 hover:bg-sky-50 hover:text-slate-700"
                 aria-label="Close receipt details"
               >
                 <X size={19} />
               </button>
               <button
                 type="button"
-                className="flex h-9 w-9 items-center justify-center rounded-md text-slate-500 hover:bg-rose-50 hover:text-rose-700"
+                className="flex h-9 w-9 items-center justify-center rounded-md text-slate-500 hover:bg-sky-50 hover:text-slate-700"
                 aria-label="Receipt actions"
               >
                 <MoreHorizontal size={20} />
@@ -637,22 +637,22 @@ export default function Page() {
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              <div className="border-b border-rose-100 px-5 py-6 text-center">
+              <div className="border-b border-slate-200 px-5 py-6 text-center">
                 <div className="text-3xl font-semibold tracking-normal text-slate-950">{money(selectedReceipt.total)}</div>
                 <div className="mt-1 text-xs font-semibold text-slate-500">Total</div>
               </div>
 
-              <div className="space-y-1 border-b border-rose-100 px-5 py-4 text-xs font-semibold text-slate-700">
+              <div className="space-y-1 border-b border-slate-200 px-5 py-4 text-xs font-semibold text-slate-700">
                 <p>Order: {selectedReceipt.receiptNo}</p>
                 <p>Employee: {selectedReceipt.employeeLabel}</p>
                 <p>POS: {selectedReceipt.storeLabel}</p>
               </div>
 
-              <div className="border-b border-rose-100 px-5 py-3 text-sm font-bold uppercase text-slate-950">
+              <div className="border-b border-slate-200 px-5 py-3 text-sm font-bold uppercase text-slate-950">
                 {selectedReceipt.orderLabel || selectedReceipt.source}
               </div>
 
-              <div className="divide-y divide-rose-50 border-b border-rose-100">
+              <div className="divide-y divide-sky-50 border-b border-slate-200">
                 {selectedReceipt.detailItems?.length ? (
                   selectedReceipt.detailItems.map((item) => (
                     <div key={item.id} className="grid grid-cols-[1fr_auto] gap-4 px-5 py-3 text-sm">
@@ -666,11 +666,11 @@ export default function Page() {
                     </div>
                   ))
                 ) : (
-                  <div className="px-5 py-8 text-center text-sm font-semibold text-slate-400">No item details found.</div>
+                  <div className="px-5 py-8 text-center text-sm font-semibold text-slate-500">No item details found.</div>
                 )}
               </div>
 
-              <div className="space-y-3 border-b border-rose-100 px-5 py-4 text-sm">
+              <div className="space-y-3 border-b border-slate-200 px-5 py-4 text-sm">
                 {selectedReceipt.discount > 0 ? (
                   <div className="flex items-center justify-between text-slate-700">
                     <span>Discount</span>
@@ -687,7 +687,7 @@ export default function Page() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between px-5 py-4 text-xs font-semibold text-slate-400">
+              <div className="flex items-center justify-between px-5 py-4 text-xs font-semibold text-slate-500">
                 <span>{displayDateTime(selectedReceipt.createdAt)}</span>
                 <span>No. {selectedReceipt.receiptNo}</span>
               </div>

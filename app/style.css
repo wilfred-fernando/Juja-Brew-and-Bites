@@ -194,7 +194,7 @@ body > .page-transition-shell {
 }
 
 .page-transition-shell[data-page-transition-phase="exit"] {
-  animation: app-page-exit 140ms cubic-bezier(0.4, 0, 1, 1) both;
+  animation: app-page-exit 260ms cubic-bezier(0.4, 0, 1, 1) both;
   pointer-events: none;
 }
 
@@ -211,11 +211,13 @@ body > .page-transition-shell {
   from {
     opacity: 0;
     transform: translateY(var(--page-transition-distance));
+    filter: blur(4px);
   }
 
   to {
     opacity: 1;
     transform: translateY(0);
+    filter: blur(0);
   }
 }
 
@@ -223,11 +225,13 @@ body > .page-transition-shell {
   from {
     opacity: 1;
     transform: translateY(0);
+    filter: blur(0);
   }
 
   to {
     opacity: 0.88;
     transform: translateY(-4px);
+    filter: blur(3px);
   }
 }
 

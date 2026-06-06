@@ -16,7 +16,7 @@ export default function ReportsHub() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-[#FC687D]">POS Admin</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-700">POS Admin</p>
         <h1 className="text-2xl font-black text-slate-800">Reports</h1>
       </div>
 
@@ -25,7 +25,7 @@ export default function ReportsHub() {
           <Link
             key={report.href}
             href={report.href}
-            className="rounded-2xl border border-rose-100 bg-white p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition"
+            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition"
           >
             <h2 className="text-sm font-black text-slate-800">{report.title}</h2>
             <p className="text-xs font-semibold text-slate-500 mt-2 leading-relaxed">{report.desc}</p>

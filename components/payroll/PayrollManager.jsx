@@ -59,6 +59,28 @@ function compareDate(value, start, end) {
   return v >= start && v <= end;
 }
 
+function dailyRateForWorkDate(employee, workDate, rateChanges = []) {
+  const currentRate = num(employee?.default_daily_rate);
+  const date = String(workDate || "").slice(0, 10);
+  const employeeChanges = rateChanges
+    .filter((change) => change.employee_id === employee?.id && change.effective_date)
+    .sort((a, b) => String(a.effective_date).localeCompare(String(b.effective_date)));
+
+  if (!date || employeeChanges.length === 0) return currentRate;
+
+  let applicableChange = null;
+  for (const change of employeeChanges) {
+    const effectiveDate = String(change.effective_date).slice(0, 10);
+    if (effectiveDate <= date) {
+      applicableChange = change;
+    } else {
+      return applicableChange ? num(applicableChange.new_daily_rate) : num(change.old_daily_rate);
+    }
+  }
+
+  return applicableChange ? num(applicableChange.new_daily_rate) : currentRate;
+}
+
 function blankEmployeeForm() {
   return {
     employee_no: "",
@@ -222,7 +244,7 @@ function blankEntry(periodId = "", employeeId = "", dailyRate = 0) {
   };
 }
 
-function buildPayrollEntryFromAttendance({ employee, period, rows, repaymentRows, miscDeductionRows = [], existingEntry = null }) {
+function buildPayrollEntryFromAttendance({ employee, period, rows, repaymentRows, miscDeductionRows = [], rateChanges = [], existingEntry = null }) {
   if (!employee || !period) return null;
   const start = period.period_start;
   const end = period.period_end;
@@ -233,15 +255,31 @@ function buildPayrollEntryFromAttendance({ employee, period, rows, repaymentRows
   const under = rowsForPeriod.reduce((sum, row) => sum + num(row.undertime_minutes), 0);
   const ot = rowsForPeriod.reduce((sum, row) => sum + num(row.overtime_hours), 0);
   const absent = rowsForPeriod.filter((row) => row.status === "absent").length;
-  const dailyRate = num(employee.default_daily_rate);
+  const basePay = rowsForPeriod.reduce((sum, row) => {
+    if (row.status !== "present" && !row.actual_in) return sum;
+    return sum + dailyRateForWorkDate(employee, row.work_date, rateChanges);
+  }, 0);
+  const overtimePay = rowsForPeriod.reduce((sum, row) => {
+    const dayRate = dailyRateForWorkDate(employee, row.work_date, rateChanges);
+    return sum + num(row.overtime_hours) * (dayRate / 8);
+  }, 0);
+  const lateDeduction = rowsForPeriod.reduce((sum, row) => {
+    const dayRate = dailyRateForWorkDate(employee, row.work_date, rateChanges);
+    return sum + num(row.late_minutes) * (dayRate / 8 / 60);
+  }, 0);
+  const undertimeDeduction = rowsForPeriod.reduce((sum, row) => {
+    const dayRate = dailyRateForWorkDate(employee, row.work_date, rateChanges);
+    return sum + num(row.undertime_minutes) * (dayRate / 8 / 60);
+  }, 0);
+  const dailyRate = daysWorked ? basePay / daysWorked : dailyRateForWorkDate(employee, end, rateChanges);
   const otRate = dailyRate / 8;
   const minuteRate = otRate / 60;
   const cashAdvanceDeduction = repaymentRows.filter((row) => row.employee_id === employee.id && row.period_id === periodId).reduce((sum, row) => sum + num(row.amount), 0);
   const miscDeduction = miscDeductionRows.filter((row) => row.employee_id === employee.id && row.period_id === periodId).reduce((sum, row) => sum + num(row.amount), 0);
   const allowance15th = num(existingEntry?.allowance_15th);
   const allowance30th = num(existingEntry?.allowance_30th);
-  const gross = dailyRate * daysWorked + ot * otRate + allowance15th + allowance30th;
-  const deduction = late * minuteRate + under * minuteRate;
+  const gross = basePay + overtimePay + allowance15th + allowance30th;
+  const deduction = lateDeduction + undertimeDeduction;
   const totalDeductions = deduction + miscDeduction;
 
   return {
@@ -805,6 +843,7 @@ export default function AdminPayrollPage() {
       rows: attendanceRowsSource,
       repaymentRows: repayments,
       miscDeductionRows: miscDeductions,
+      rateChanges,
       existingEntry,
     });
     if (!payload) return false;
@@ -958,6 +997,7 @@ export default function AdminPayrollPage() {
         rows: attendance,
         repaymentRows: repayments,
         miscDeductionRows: miscDeductions,
+        rateChanges,
         existingEntry: entries.find((row) => row.period_id === periodId && row.employee_id === employee.id),
       }))
       .filter(Boolean);

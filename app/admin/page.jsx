@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -74,8 +74,8 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FFF5F7]">
-        <div className="w-10 h-10 border-4 border-rose-200 border-t-[#FC687D] rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-[#f0f7fb]">
+        <div className="w-10 h-10 border-4 border-sky-200 border-t-[#5b7288] rounded-full animate-spin" />
       </div>
     );
   }
@@ -83,7 +83,7 @@ export default function AdminDashboard() {
   // If redirecting, still show a stable UI (prevents blank / flicker)
   if (!user || (role !== "admin" && role !== "super_admin")) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FFF5F7] p-6">
+      <div className="min-h-screen flex items-center justify-center bg-[#f0f7fb] p-6">
         <div className="bg-white border border-slate-200 rounded-2xl p-5 text-center max-w-sm w-full">
           <p className="font-bold text-slate-800">Redirecting...</p>
           <p className="text-slate-500 text-sm mt-1">Checking access...</p>
@@ -102,7 +102,7 @@ export default function AdminDashboard() {
   ];
 
  return (
-  <main className="p-8 md:p-12 w-full min-h-screen bg-[#FFF5F7]">
+  <main className="p-8 md:p-12 w-full min-h-screen bg-[#f0f7fb]">
 
     {/* HEADER */}
     <header className="mb-10">
@@ -110,7 +110,7 @@ export default function AdminDashboard() {
         Admin Dashboard
       </h1>
 
-      <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+      <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
         Juja Brew & Bites - {user?.email}
       </p>
     </header>
@@ -124,9 +124,9 @@ export default function AdminDashboard() {
           <Link
             key={card.title}
             href={card.path}
-            className="bg-white p-8 rounded-[28px] border border-rose-50 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col"
+            className="bg-white p-8 rounded-[28px] border border-sky-50 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all flex flex-col"
           >
-            <Icon className="mb-4 h-10 w-10 text-[#FC687D]" />
+            <Icon className="mb-4 h-10 w-10 text-slate-700" />
 
             <h3 className="text-xl font-extrabold text-slate-800 mb-2">
               {card.title}
@@ -139,10 +139,10 @@ export default function AdminDashboard() {
         );
       })}
       {/* PUBLIC SITE CARD */}
-      <div className="bg-white p-8 rounded-[28px] border border-rose-100 shadow-sm flex flex-col">
-        <Globe className="mb-4 h-10 w-10 text-[#FC687D]" />
+      <div className="bg-white p-8 rounded-[28px] border border-slate-200 shadow-sm flex flex-col">
+        <Globe className="mb-4 h-10 w-10 text-slate-700" />
 
-        <h3 className="text-xl font-extrabold text-[#FC687D] mb-2">
+        <h3 className="text-xl font-extrabold text-slate-700 mb-2">
           Public Site
         </h3>
 

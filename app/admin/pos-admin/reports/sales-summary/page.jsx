@@ -380,25 +380,25 @@ export default function Page() {
   }
 
   return (
-    <div className="min-h-screen bg-rose-50/30">
-      <div className="border-b border-rose-100 bg-white px-4 py-4 shadow-sm sm:px-6">
-        <h1 className="text-xl font-bold text-rose-950">Sales summary</h1>
+    <div className="min-h-screen bg-sky-50/30">
+      <div className="border-b border-slate-200 bg-white px-4 py-4 shadow-sm sm:px-6">
+        <h1 className="text-xl font-bold text-slate-900">Sales summary</h1>
       </div>
 
       <div className="space-y-4 p-4 sm:p-6">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-          <div className="flex flex-col rounded-lg border border-rose-100 bg-white shadow-sm sm:flex-row sm:items-center">
+          <div className="flex flex-col rounded-lg border border-slate-200 bg-white shadow-sm sm:flex-row sm:items-center">
             <button
               type="button"
               onClick={() => moveRange(-1)}
-              className="flex h-10 items-center justify-center border-b border-rose-100 px-3 text-slate-500 hover:bg-rose-50 sm:border-b-0 sm:border-r"
+              className="flex h-10 items-center justify-center border-b border-slate-200 px-3 text-slate-500 hover:bg-sky-50 sm:border-b-0 sm:border-r"
               aria-label="Previous date range"
             >
               <ChevronLeft size={18} />
             </button>
             <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <CalendarDays size={17} className="text-rose-500" />
+                <CalendarDays size={17} className="text-sky-500" />
                 <span className="whitespace-nowrap">{displayRange(start, end)}</span>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -406,14 +406,14 @@ export default function Page() {
                   type="date"
                   value={start}
                   onChange={(event) => updateStart(event.target.value)}
-                  className="h-9 rounded-md border border-rose-100 px-2 text-xs font-semibold text-slate-700 outline-none focus:border-rose-400"
+                  className="h-9 rounded-md border border-slate-200 px-2 text-xs font-semibold text-slate-700 outline-none focus:border-sky-500"
                   aria-label="Start date"
                 />
                 <input
                   type="date"
                   value={end}
                   onChange={(event) => updateEnd(event.target.value)}
-                  className="h-9 rounded-md border border-rose-100 px-2 text-xs font-semibold text-slate-700 outline-none focus:border-rose-400"
+                  className="h-9 rounded-md border border-slate-200 px-2 text-xs font-semibold text-slate-700 outline-none focus:border-sky-500"
                   aria-label="End date"
                 />
               </div>
@@ -421,7 +421,7 @@ export default function Page() {
             <button
               type="button"
               onClick={() => moveRange(1)}
-              className="flex h-10 items-center justify-center border-t border-rose-100 px-3 text-slate-500 hover:bg-rose-50 sm:border-l sm:border-t-0"
+              className="flex h-10 items-center justify-center border-t border-slate-200 px-3 text-slate-500 hover:bg-sky-50 sm:border-l sm:border-t-0"
               aria-label="Next date range"
             >
               <ChevronRight size={18} />
@@ -433,7 +433,7 @@ export default function Page() {
             <select
               value={timeFilter}
               onChange={(event) => setTimeFilter(event.target.value)}
-              className="h-10 w-full appearance-none rounded-lg border border-rose-100 bg-white pl-9 pr-8 text-sm font-semibold text-slate-700 shadow-sm outline-none focus:border-rose-400"
+              className="h-10 w-full appearance-none rounded-lg border border-slate-200 bg-white pl-9 pr-8 text-sm font-semibold text-slate-700 shadow-sm outline-none focus:border-sky-500"
               aria-label="Time filter"
             >
               <option value="all">All day</option>
@@ -449,7 +449,7 @@ export default function Page() {
             <select
               value={storeFilter}
               onChange={(event) => setStoreFilter(event.target.value)}
-              className="h-10 w-full appearance-none rounded-lg border border-rose-100 bg-white pl-9 pr-8 text-sm font-semibold text-slate-700 shadow-sm outline-none focus:border-rose-400"
+              className="h-10 w-full appearance-none rounded-lg border border-slate-200 bg-white pl-9 pr-8 text-sm font-semibold text-slate-700 shadow-sm outline-none focus:border-sky-500"
               aria-label="Store filter"
             >
               <option value="all">All stores</option>
@@ -466,7 +466,7 @@ export default function Page() {
             <select
               value={employeeFilter}
               onChange={(event) => setEmployeeFilter(event.target.value)}
-              className="h-10 w-full appearance-none rounded-lg border border-rose-100 bg-white pl-9 pr-8 text-sm font-semibold text-slate-700 shadow-sm outline-none focus:border-rose-400"
+              className="h-10 w-full appearance-none rounded-lg border border-slate-200 bg-white pl-9 pr-8 text-sm font-semibold text-slate-700 shadow-sm outline-none focus:border-sky-500"
               aria-label="Employee filter"
             >
               <option value="all">All employees</option>
@@ -485,8 +485,8 @@ export default function Page() {
           </div>
         ) : null}
 
-        <section className="overflow-hidden rounded-lg border border-rose-100 bg-white shadow-sm">
-          <div className="grid grid-cols-1 divide-y divide-rose-100 md:grid-cols-5 md:divide-x md:divide-y-0">
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="grid grid-cols-1 divide-y divide-slate-200 md:grid-cols-5 md:divide-x md:divide-y-0">
             {metricConfig.map((metric) => {
               const delta = metricDelta(totals[metric.key], previousTotals[metric.key]);
               const isActive = activeMetric === metric.key;
@@ -496,22 +496,22 @@ export default function Page() {
                   type="button"
                   key={metric.key}
                   onClick={() => setActiveMetric(metric.key)}
-                  className={`relative p-4 text-left transition hover:bg-rose-50/70 ${isActive ? "bg-rose-50" : "bg-white"}`}
+                  className={`relative p-4 text-left transition hover:bg-sky-50/70 ${isActive ? "bg-sky-50" : "bg-white"}`}
                 >
                   <span className="block text-sm font-semibold text-slate-700">{metric.label}</span>
                   <span className="mt-2 block text-2xl font-bold tracking-normal text-slate-950">{money(totals[metric.key])}</span>
-                  <span className={`mt-1 block text-xs font-semibold ${isPositive ? "text-teal-600" : "text-rose-600"}`}>
+                  <span className={`mt-1 block text-xs font-semibold ${isPositive ? "text-teal-600" : "text-slate-600"}`}>
                     {isPositive ? "+" : ""}
                     {money(delta.diff)} ({isPositive ? "+" : ""}
                     {delta.pct.toFixed(2)}%)
                   </span>
-                  {isActive ? <span className="absolute inset-x-0 bottom-0 h-1 bg-rose-500" /> : null}
+                  {isActive ? <span className="absolute inset-x-0 bottom-0 h-1 bg-sky-500" /> : null}
                 </button>
               );
             })}
           </div>
 
-          <div className="border-t border-rose-100 p-4 sm:p-6">
+          <div className="border-t border-slate-200 p-4 sm:p-6">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-base font-bold text-slate-950">{activeMetricLabel}</h2>
@@ -522,13 +522,13 @@ export default function Page() {
               <div className="grid grid-cols-2 gap-3 sm:w-[280px]">
                 <label className="text-xs font-semibold text-slate-500">
                   Chart
-                  <select className="mt-1 h-9 w-full rounded-md border border-rose-100 bg-white px-2 text-sm font-semibold text-slate-700 outline-none focus:border-rose-400">
+                  <select className="mt-1 h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold text-slate-700 outline-none focus:border-sky-500">
                     <option>Area</option>
                   </select>
                 </label>
                 <label className="text-xs font-semibold text-slate-500">
                   Group
-                  <select className="mt-1 h-9 w-full rounded-md border border-rose-100 bg-white px-2 text-sm font-semibold text-slate-700 outline-none focus:border-rose-400">
+                  <select className="mt-1 h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-sm font-semibold text-slate-700 outline-none focus:border-sky-500">
                     <option>Days</option>
                   </select>
                 </label>
@@ -585,21 +585,21 @@ export default function Page() {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-lg border border-rose-100 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-rose-100 px-4 py-4 sm:px-6">
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 sm:px-6">
             <h2 className="text-sm font-bold uppercase tracking-normal text-slate-950">Export</h2>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={exportCSV}
-                className="inline-flex h-9 items-center gap-2 rounded-md bg-rose-600 px-3 text-sm font-bold text-white shadow-sm hover:bg-rose-700"
+                className="inline-flex h-9 items-center gap-2 rounded-md bg-slate-600 px-3 text-sm font-bold text-white shadow-sm hover:bg-slate-700"
               >
                 <Download size={16} />
                 CSV
               </button>
               <button
                 type="button"
-                className="hidden h-9 w-9 items-center justify-center rounded-md border border-rose-100 text-slate-500 sm:inline-flex"
+                className="hidden h-9 w-9 items-center justify-center rounded-md border border-slate-200 text-slate-500 sm:inline-flex"
                 aria-label="Table view"
               >
                 <LayoutGrid size={17} />
@@ -609,7 +609,7 @@ export default function Page() {
 
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-sm">
-              <thead className="border-b border-rose-100 bg-rose-50/60 text-left text-xs font-bold uppercase text-slate-500">
+              <thead className="border-b border-slate-200 bg-sky-50/60 text-left text-xs font-bold uppercase text-slate-500">
                 <tr>
                   <th className="px-6 py-4">Date</th>
                   <th className="px-4 py-4 text-right">Orders</th>
@@ -623,19 +623,19 @@ export default function Page() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="7" className="px-6 py-10 text-center text-sm font-semibold text-slate-400">
+                    <td colSpan="7" className="px-6 py-10 text-center text-sm font-semibold text-slate-500">
                       Loading sales summary...
                     </td>
                   </tr>
                 ) : exportRows.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="px-6 py-10 text-center text-sm font-semibold text-slate-400">
+                    <td colSpan="7" className="px-6 py-10 text-center text-sm font-semibold text-slate-500">
                       No sales found.
                     </td>
                   </tr>
                 ) : (
                   exportRows.map((row) => (
-                    <tr key={row.date} className="border-b border-rose-50 last:border-0 hover:bg-rose-50/50">
+                    <tr key={row.date} className="border-b border-sky-50 last:border-0 hover:bg-sky-50/50">
                       <td className="px-6 py-4 font-semibold text-slate-900">{displayDate(row.date)}</td>
                       <td className="px-4 py-4 text-right text-slate-600">{row.orders}</td>
                       <td className="px-4 py-4 text-right font-semibold text-slate-900">{money(row.gross)}</td>

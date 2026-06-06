@@ -302,36 +302,36 @@ export default function Page() {
   }
 
   return (
-    <div className="min-h-screen bg-rose-50/30">
-      <div className="border-b border-rose-200 bg-rose-600 px-4 py-3 shadow-sm sm:px-6">
+    <div className="min-h-screen bg-sky-50/30">
+      <div className="border-b border-sky-200 bg-slate-600 px-4 py-3 shadow-sm sm:px-6">
         <h1 className="text-lg font-bold text-white">Sales by payment type</h1>
       </div>
 
       <div className="space-y-4 p-4 sm:p-6">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-          <div className="flex flex-col rounded-lg border border-rose-100 bg-white shadow-sm sm:flex-row sm:items-center">
-            <button type="button" onClick={() => moveRange(-1)} className="flex h-10 items-center justify-center border-b border-rose-100 px-3 text-slate-500 hover:bg-rose-50 sm:border-b-0 sm:border-r" aria-label="Previous date range">
+          <div className="flex flex-col rounded-lg border border-slate-200 bg-white shadow-sm sm:flex-row sm:items-center">
+            <button type="button" onClick={() => moveRange(-1)} className="flex h-10 items-center justify-center border-b border-slate-200 px-3 text-slate-500 hover:bg-sky-50 sm:border-b-0 sm:border-r" aria-label="Previous date range">
               <ChevronLeft size={18} />
             </button>
             <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <CalendarDays size={17} className="text-rose-500" />
+                <CalendarDays size={17} className="text-sky-500" />
                 <span className="whitespace-nowrap">{displayRange(start, end)}</span>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <input type="date" value={start} onChange={(event) => updateStart(event.target.value)} className="h-9 rounded-md border border-rose-100 px-2 text-xs font-semibold text-slate-700 outline-none focus:border-rose-400" aria-label="Start date" />
-                <input type="date" value={end} onChange={(event) => updateEnd(event.target.value)} className="h-9 rounded-md border border-rose-100 px-2 text-xs font-semibold text-slate-700 outline-none focus:border-rose-400" aria-label="End date" />
+                <input type="date" value={start} onChange={(event) => updateStart(event.target.value)} className="h-9 rounded-md border border-slate-200 px-2 text-xs font-semibold text-slate-700 outline-none focus:border-sky-500" aria-label="Start date" />
+                <input type="date" value={end} onChange={(event) => updateEnd(event.target.value)} className="h-9 rounded-md border border-slate-200 px-2 text-xs font-semibold text-slate-700 outline-none focus:border-sky-500" aria-label="End date" />
               </div>
             </div>
-            <button type="button" onClick={() => moveRange(1)} className="flex h-10 items-center justify-center border-t border-rose-100 px-3 text-slate-500 hover:bg-rose-50 sm:border-l sm:border-t-0" aria-label="Next date range">
+            <button type="button" onClick={() => moveRange(1)} className="flex h-10 items-center justify-center border-t border-slate-200 px-3 text-slate-500 hover:bg-sky-50 sm:border-l sm:border-t-0" aria-label="Next date range">
               <ChevronRight size={18} />
             </button>
           </div>
 
           <label className="relative block min-w-[150px]">
             <Clock size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <select value={timeFilter} onChange={(event) => setTimeFilter(event.target.value)} className="h-10 w-full appearance-none rounded-lg border border-rose-100 bg-white pl-9 pr-8 text-sm font-semibold text-slate-700 shadow-sm outline-none focus:border-rose-400" aria-label="Time filter">
+            <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <select value={timeFilter} onChange={(event) => setTimeFilter(event.target.value)} className="h-10 w-full appearance-none rounded-lg border border-slate-200 bg-white pl-9 pr-8 text-sm font-semibold text-slate-700 shadow-sm outline-none focus:border-sky-500" aria-label="Time filter">
               <option value="all">All day</option>
               <option value="morning">Morning</option>
               <option value="afternoon">Afternoon</option>
@@ -342,8 +342,8 @@ export default function Page() {
 
           <label className="relative block min-w-[170px]">
             <Store size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <select value={storeFilter} onChange={(event) => setStoreFilter(event.target.value)} className="h-10 w-full appearance-none rounded-lg border border-rose-100 bg-white pl-9 pr-8 text-sm font-semibold text-slate-700 shadow-sm outline-none focus:border-rose-400" aria-label="Store filter">
+            <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <select value={storeFilter} onChange={(event) => setStoreFilter(event.target.value)} className="h-10 w-full appearance-none rounded-lg border border-slate-200 bg-white pl-9 pr-8 text-sm font-semibold text-slate-700 shadow-sm outline-none focus:border-sky-500" aria-label="Store filter">
               <option value="all">All stores</option>
               {storeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
@@ -351,8 +351,8 @@ export default function Page() {
 
           <label className="relative block min-w-[190px]">
             <UserRound size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <select value={employeeFilter} onChange={(event) => setEmployeeFilter(event.target.value)} className="h-10 w-full appearance-none rounded-lg border border-rose-100 bg-white pl-9 pr-8 text-sm font-semibold text-slate-700 shadow-sm outline-none focus:border-rose-400" aria-label="Employee filter">
+            <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <select value={employeeFilter} onChange={(event) => setEmployeeFilter(event.target.value)} className="h-10 w-full appearance-none rounded-lg border border-slate-200 bg-white pl-9 pr-8 text-sm font-semibold text-slate-700 shadow-sm outline-none focus:border-sky-500" aria-label="Employee filter">
               <option value="all">All employees</option>
               {employeeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
@@ -361,18 +361,18 @@ export default function Page() {
 
         {error ? <div className="rounded-lg border border-red-100 bg-red-50 p-3 text-sm font-semibold text-red-600">Reports Failed: {error}</div> : null}
 
-        <section className="overflow-hidden rounded-lg border border-rose-100 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-rose-100 px-4 py-4 sm:px-6">
-            <button type="button" onClick={exportCSV} className="inline-flex h-9 items-center gap-2 rounded-md px-1 text-sm font-bold uppercase tracking-normal text-slate-800 hover:text-rose-700">
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 sm:px-6">
+            <button type="button" onClick={exportCSV} className="inline-flex h-9 items-center gap-2 rounded-md px-1 text-sm font-bold uppercase tracking-normal text-slate-800 hover:text-slate-700">
               Export
               <ChevronDown size={15} />
-              <Download size={16} className="text-rose-500" />
+              <Download size={16} className="text-sky-500" />
             </button>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-sm">
-              <thead className="border-b border-rose-100 bg-rose-50/60 text-left text-xs font-bold text-slate-500">
+              <thead className="border-b border-slate-200 bg-sky-50/60 text-left text-xs font-bold text-slate-500">
                 <tr>
                   <th className="px-5 py-4">Payment type</th>
                   <th className="px-4 py-4 text-right">Payment transactions</th>
@@ -384,12 +384,12 @@ export default function Page() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="6" className="px-6 py-10 text-center text-sm font-semibold text-slate-400">Loading payment sales...</td></tr>
+                  <tr><td colSpan="6" className="px-6 py-10 text-center text-sm font-semibold text-slate-500">Loading payment sales...</td></tr>
                 ) : rows.length === 0 ? (
-                  <tr><td colSpan="6" className="px-6 py-10 text-center text-sm font-semibold text-slate-400">No payment sales found.</td></tr>
+                  <tr><td colSpan="6" className="px-6 py-10 text-center text-sm font-semibold text-slate-500">No payment sales found.</td></tr>
                 ) : (
                   rows.map((row) => (
-                    <tr key={row.paymentType} className="border-b border-rose-50 last:border-0 hover:bg-rose-50/50">
+                    <tr key={row.paymentType} className="border-b border-sky-50 last:border-0 hover:bg-sky-50/50">
                       <td className="px-5 py-4 font-semibold text-slate-900">{row.paymentType}</td>
                       <td className="px-4 py-4 text-right text-slate-700">{numberFormatter.format(row.saleCount)}</td>
                       <td className="px-4 py-4 text-right font-semibold text-slate-950">{money(row.saleAmount)}</td>
@@ -400,7 +400,7 @@ export default function Page() {
                   ))
                 )}
                 {!loading && rows.length ? (
-                  <tr className="border-t border-rose-100 bg-white font-bold text-slate-950">
+                  <tr className="border-t border-slate-200 bg-white font-bold text-slate-950">
                     <td className="px-5 py-4">Total</td>
                     <td className="px-4 py-4 text-right">{numberFormatter.format(totals.saleCount)}</td>
                     <td className="px-4 py-4 text-right">{money(totals.saleAmount)}</td>

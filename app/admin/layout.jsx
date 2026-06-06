@@ -80,10 +80,10 @@ export default function AdminLayout({ children }) {
   // Main layout.
   return (
     <div
-      className="admin-shell flex min-h-screen bg-cover bg-fixed bg-center bg-no-repeat text-slate-950"
+      className="admin-shell flex min-h-screen bg-cover bg-fixed bg-center bg-no-repeat text-slate-900"
       style={{
         backgroundImage:
-          "radial-gradient(circle at top left, rgba(34,211,238,0.18), transparent 32%), linear-gradient(135deg, rgba(248,250,252,0.78), rgba(226,232,240,0.68)), url('https://images.jujabrewandbites.com/page%20background.png')",
+          "radial-gradient(circle at top left, rgba(125,211,252,0.18), transparent 34%), linear-gradient(135deg, rgba(248,250,252,0.80), rgba(226,232,240,0.66)), url('https://images.jujabrewandbites.com/page%20background.png')",
       }}
     >
       
@@ -102,16 +102,16 @@ export default function AdminLayout({ children }) {
       <div className="flex-1 md:ml-[260px] min-h-screen">
 
         {/* MOBILE TOP BAR */}
-        <div className="sticky top-0 z-40 flex items-center justify-between border-b border-white/10 bg-slate-950/82 px-4 py-3 shadow-[0_18px_45px_rgba(2,6,23,0.28)] backdrop-blur-xl md:hidden">
+        <div className="sticky top-0 z-40 flex items-center justify-between border-b border-slate-200/70 bg-white/82 px-4 py-3 shadow-[0_18px_45px_rgba(51,65,85,0.14)] backdrop-blur-xl md:hidden">
           <button
             onClick={() => setMobileOpen(true)}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-300/30 bg-cyan-300/10 text-cyan-100 transition duration-200 hover:bg-cyan-300/18"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-100 hover:text-slate-900"
             aria-label="Open menu"
           >
             <Menu className="h-5 w-5" />
           </button>
 
-          <div className="text-sm font-semibold uppercase tracking-[0.16em] text-white">
+          <div className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-800">
             Admin Panel
           </div>
 

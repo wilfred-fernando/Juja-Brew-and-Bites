@@ -21,7 +21,7 @@ export default function AdminPayrollMovedPage() {
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center p-6">
-      <div className="max-w-md rounded-3xl border border-rose-100 bg-white p-8 text-center shadow-sm">
+      <div className="max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
         <h1 className="text-2xl font-black text-slate-900">Payroll moved to Finance</h1>
         <p className="mt-3 text-sm font-semibold text-slate-500">
           Payroll is now managed from the finance portal.
@@ -31,7 +31,7 @@ export default function AdminPayrollMovedPage() {
           onClick={() => {
             window.location.href = financePayrollUrl();
           }}
-          className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-[#FC687D] px-5 text-sm font-black uppercase tracking-wide text-white"
+          className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-slate-600 px-5 text-sm font-black uppercase tracking-wide text-white"
         >
           Open Payroll
         </button>
