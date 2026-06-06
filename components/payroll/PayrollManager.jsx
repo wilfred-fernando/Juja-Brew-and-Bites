@@ -382,6 +382,7 @@ export default function AdminPayrollPage() {
 
   const selectedPeriod = periodById[selectedPeriodId];
   const canChangePayrollStatus = currentRole === "super_admin";
+  const canViewPayslip = (entry) => canChangePayrollStatus || ["approved", "paid"].includes(String(entry?.status || "").toLowerCase());
 
   const cutoffDates = useMemo(
     () => datesBetween(selectedPeriod?.period_start, selectedPeriod?.period_end),
@@ -1125,18 +1126,27 @@ export default function AdminPayrollPage() {
                   <tr key={entry.id} className="border-t border-slate-100 transition duration-200 hover:bg-cyan-50/45">
                     <td className="p-3 font-semibold text-slate-600">{entry.employee?.employee_no || "-"}</td>
                     <td>
-                      <button
-                        type="button"
-                        onClick={() => setPayslipEntry(entry)}
-                        className="group text-left"
-                      >
-                        <span className="font-semibold text-slate-900 underline-offset-4 transition group-hover:text-cyan-700 group-hover:underline">
-                          {entry.employee?.full_name || entry.employee_id}
-                        </span>
-                        <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                          View payslip
-                        </span>
-                      </button>
+                      {canViewPayslip(entry) ? (
+                        <button
+                          type="button"
+                          onClick={() => setPayslipEntry(entry)}
+                          className="group text-left"
+                        >
+                          <span className="font-semibold text-slate-900 underline-offset-4 transition group-hover:text-cyan-700 group-hover:underline">
+                            {entry.employee?.full_name || entry.employee_id}
+                          </span>
+                          <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                            View payslip
+                          </span>
+                        </button>
+                      ) : (
+                        <div>
+                          <span className="font-semibold text-slate-900">{entry.employee?.full_name || entry.employee_id}</span>
+                          <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-amber-600">
+                            Payslip locked until approval
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td>{money(entry.daily_rate)}</td>
                     <td>{num(entry.days_worked).toFixed(2)}</td>
