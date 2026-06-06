@@ -22,7 +22,7 @@ const PAYMENT_TYPES = ["CASH", "CHEQUE", "GCASH -9393", "GCASH -0668", "GCASH -8
 const UNIT_OPTIONS = ["pc", "pack", "box", "kilo", "sack", "cup", "tin", "lot", "month", "whole"];
 const FUND_SOURCES = ["CASH SALES", "GCASH -9393", "GCASH -0668", "GCASH -8199", "CBS MRFS"];
 const REF_TYPES = [
-  ["item", "Description / Item Name"],
+  ["item", "Item Name"],
   ["supplier", "Supplier"],
   ["payment_type", "Payment Type"],
   ["unit", "Unit"],
@@ -272,12 +272,15 @@ export default function FinanceExpenseManager() {
   const [fundForm, setFundForm] = useState(initialFundForm);
   const [referenceForm, setReferenceForm] = useState(initialReferenceForm);
   const [referenceFilter, setReferenceFilter] = useState("item");
+  const [bulkReferenceText, setBulkReferenceText] = useState("");
+  const [bulkReferenceType, setBulkReferenceType] = useState("item");
   const [editingReferenceId, setEditingReferenceId] = useState(null);
   const [editingExpense, setEditingExpense] = useState(null);
   const [editingFund, setEditingFund] = useState(null);
   const [expenseModalScope, setExpenseModalScope] = useState("");
   const [fundModalOpen, setFundModalOpen] = useState(false);
   const [referenceModalOpen, setReferenceModalOpen] = useState(false);
+  const [bulkReferenceModalOpen, setBulkReferenceModalOpen] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [currentProfile, setCurrentProfile] = useState(null);
   const [overallDateFilter, setOverallDateFilter] = useState(emptyDateFilter);
@@ -508,10 +511,22 @@ export default function FinanceExpenseManager() {
       return;
     }
 
+    let referenceRows = referencesRes.data || [];
+    if (profileRole !== "cashier" && referenceRows.some((row) => row.ref_type === "item" && row.notes)) {
+      const { error: itemNotesError } = await supabase
+        .from("finance_references")
+        .update({ notes: null })
+        .eq("ref_type", "item")
+        .not("notes", "is", null);
+      if (!itemNotesError) {
+        referenceRows = referenceRows.map((row) => row.ref_type === "item" ? { ...row, notes: null } : row);
+      }
+    }
+
     setOverallExpenses(overallRes.data || []);
     setPettyEntries(pettyRes.data || []);
     setPettyFunds(fundsRes.data || []);
-    setReferences(referencesRes.data || []);
+    setReferences(referenceRows.map((row) => row.ref_type === "item" ? { ...row, notes: null } : row));
     setDeleteRequests(deleteRequestsRes.data || []);
     setLoading(false);
   }
@@ -987,6 +1002,12 @@ export default function FinanceExpenseManager() {
     setReferenceModalOpen(true);
   }
 
+  function openBulkReferenceModal() {
+    setBulkReferenceType(referenceFilter === "all" ? "item" : referenceFilter || "item");
+    setBulkReferenceText("");
+    setBulkReferenceModalOpen(true);
+  }
+
   async function saveReference(event) {
     event.preventDefault();
     if (!referenceForm.name.trim()) return showNotice("error", "Reference name is required.");
@@ -996,7 +1017,7 @@ export default function FinanceExpenseManager() {
       ref_type: referenceForm.ref_type,
       name: referenceForm.name.trim(),
       common_name: referenceForm.ref_type === "item" ? referenceForm.common_name.trim() || null : null,
-      notes: referenceForm.notes.trim() || null,
+      notes: referenceForm.ref_type === "item" ? null : referenceForm.notes.trim() || null,
       is_active: referenceForm.is_active !== false,
       created_by: currentUserId,
     };
@@ -1020,6 +1041,70 @@ export default function FinanceExpenseManager() {
         setReferenceModalOpen(false);
         showNotice("success", "Reference added.");
       }
+    }
+    setSaving("");
+  }
+
+  async function deleteReference(row) {
+    if (!window.confirm(`Delete reference "${row.name}"?`)) return;
+    setSaving(`reference_delete_${row.id}`);
+    const { error } = await supabase.from("finance_references").delete().eq("id", row.id);
+    if (error) {
+      showNotice("error", error.message);
+    } else {
+      setReferences((prev) => prev.filter((item) => item.id !== row.id));
+      showNotice("success", "Reference deleted.");
+    }
+    setSaving("");
+  }
+
+  async function saveBulkReferences(event) {
+    event.preventDefault();
+    const names = Array.from(new Set(
+      bulkReferenceText
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+    ));
+
+    if (names.length === 0) {
+      return showNotice("error", "Paste at least one reference name.");
+    }
+
+    const existingNames = new Set(
+      references
+        .filter((row) => row.ref_type === bulkReferenceType)
+        .map((row) => normalize(row.name))
+    );
+    const newRows = names
+      .filter((name) => !existingNames.has(normalize(name)))
+      .map((name) => ({
+        id: makeId("fin_ref"),
+        ref_type: bulkReferenceType,
+        name,
+        common_name: null,
+        notes: null,
+        is_active: true,
+        created_by: currentUserId,
+      }));
+
+    if (newRows.length === 0) {
+      setBulkReferenceText("");
+      return showNotice("success", "All pasted reference names already exist.");
+    }
+
+    setSaving("bulkReferences");
+    const { error } = await supabase.from("finance_references").insert(newRows);
+    if (error) {
+      showNotice("error", error.message);
+    } else {
+      setReferences((prev) => (
+        [...prev, ...newRows].sort((a, b) => a.ref_type.localeCompare(b.ref_type) || a.name.localeCompare(b.name))
+      ));
+      setBulkReferenceText("");
+      setReferenceFilter(bulkReferenceType);
+      setBulkReferenceModalOpen(false);
+      showNotice("success", `${newRows.length} reference${newRows.length === 1 ? "" : "s"} added.`);
     }
     setSaving("");
   }
@@ -1383,15 +1468,48 @@ export default function FinanceExpenseManager() {
             </Select>
           </Field>
         </div>
-        <Field label="Notes">
-          <Input value={referenceForm.notes} onChange={(e) => setReferenceForm((prev) => ({ ...prev, notes: e.target.value }))} />
-        </Field>
+        {referenceForm.ref_type !== "item" ? (
+          <Field label="Notes">
+            <Input value={referenceForm.notes} onChange={(e) => setReferenceForm((prev) => ({ ...prev, notes: e.target.value }))} />
+          </Field>
+        ) : null}
         <button
           type="submit"
           disabled={saving === "reference"}
           className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500 disabled:bg-slate-300"
         >
           {saving === "reference" ? "Saving..." : editingReferenceId ? "Save Reference" : "Add Reference"}
+        </button>
+      </form>
+    );
+  }
+
+  function renderBulkReferenceForm() {
+    const selectedLabel = Object.fromEntries(REF_TYPES)[bulkReferenceType] || "Reference";
+    return (
+      <form onSubmit={saveBulkReferences} className="space-y-4">
+        <Field label="Reference Type">
+          <Select value={bulkReferenceType} onChange={(e) => setBulkReferenceType(e.target.value)}>
+            {REF_TYPES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+          </Select>
+        </Field>
+        <Field label={`${selectedLabel} List`}>
+          <textarea
+            value={bulkReferenceText}
+            onChange={(event) => setBulkReferenceText(event.target.value)}
+            rows={10}
+            placeholder={"Paste one reference per line\nExample Item Name\nAnother Item Name"}
+            className="w-full rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 text-sm text-slate-900 outline-none transition duration-200 placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
+            required
+          />
+        </Field>
+        <button
+          type="submit"
+          disabled={saving === "bulkReferences"}
+          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500 disabled:bg-slate-300 disabled:text-slate-600"
+        >
+          <Plus size={15} />
+          {saving === "bulkReferences" ? "Importing..." : "Import References"}
         </button>
       </form>
     );
@@ -1410,14 +1528,24 @@ export default function FinanceExpenseManager() {
               {REF_TYPES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
             </Select>
           </Field>
-          <button
-            type="button"
-            onClick={() => openReferenceModal()}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.25)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500"
-          >
-            <Plus size={15} />
-            Add Reference
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={openBulkReferenceModal}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-cyan-100 bg-cyan-50 px-4 text-xs font-semibold uppercase tracking-wider text-cyan-800 transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-100"
+            >
+              <Plus size={15} />
+              Bulk Add
+            </button>
+            <button
+              type="button"
+              onClick={() => openReferenceModal()}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.25)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500"
+            >
+              <Plus size={15} />
+              Add Reference
+            </button>
+          </div>
         </div>
 
         {rows.length === 0 ? (
@@ -1441,13 +1569,14 @@ export default function FinanceExpenseManager() {
                     <td className="px-4 py-3 font-bold text-slate-500">{labelByType[row.ref_type] || row.ref_type}</td>
                     <td className="px-4 py-3 font-semibold text-slate-950">{row.name}</td>
                     <td className="px-4 py-3">{row.common_name || "-"}</td>
-                    <td className="px-4 py-3">{row.notes || "-"}</td>
+                    <td className="px-4 py-3">{row.ref_type === "item" ? "-" : row.notes || "-"}</td>
                     <td className="px-4 py-3">
                       <span className={`rounded-lg border px-2 py-1 text-[10px] font-semibold uppercase ${row.is_active === false ? "border-slate-200 bg-slate-50 text-slate-500" : "border-cyan-100 bg-cyan-50 text-cyan-700"}`}>
                         {row.is_active === false ? "Inactive" : "Active"}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
+                      <div className="inline-flex items-center justify-end gap-2">
                       <button
                         type="button"
                         onClick={() => openReferenceModal(row)}
@@ -1456,6 +1585,16 @@ export default function FinanceExpenseManager() {
                         <Pencil size={13} />
                         Edit
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteReference(row)}
+                        disabled={saving === `reference_delete_${row.id}`}
+                        className="inline-flex h-8 items-center justify-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 text-[10px] font-semibold uppercase text-red-600 transition duration-200 hover:-translate-y-0.5 hover:bg-red-100 disabled:bg-slate-100 disabled:text-slate-400"
+                      >
+                        <Trash2 size={13} />
+                        Delete
+                      </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1697,6 +1836,15 @@ export default function FinanceExpenseManager() {
         width="max-w-2xl"
       >
         {renderReferenceForm()}
+      </Modal>
+
+      <Modal
+        open={bulkReferenceModalOpen}
+        title="Bulk Add References"
+        onClose={() => setBulkReferenceModalOpen(false)}
+        width="max-w-2xl"
+      >
+        {renderBulkReferenceForm()}
       </Modal>
 
       <div className="rounded-2xl border border-white/70 bg-white/70 p-4 text-xs text-slate-500 shadow-[0_18px_45px_rgba(15,23,42,0.06)] backdrop-blur-xl">

@@ -8,7 +8,12 @@ alter table public.payroll_employees
   add column if not exists emergency_contact_person text;
 
 alter table public.payroll_entries
-  add column if not exists misc_deduction_total numeric not null default 0;
+  add column if not exists misc_deduction_total numeric not null default 0,
+  add column if not exists payroll_allowance numeric not null default 0,
+  add column if not exists payroll_adjustment numeric not null default 0,
+  add column if not exists sss_deduction numeric not null default 0,
+  add column if not exists philhealth_deduction numeric not null default 0,
+  add column if not exists hmdf_deduction numeric not null default 0;
 
 create table if not exists public.payroll_misc_deductions (
   id text primary key,

@@ -34,3 +34,21 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Email Notifications
+
+Function booking and loyalty account link notifications are sent from server API routes with SMTP. Add these server-only environment variables in Vercel Project Settings > Environment Variables:
+
+```txt
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=jujabrewandbites@gmail.com
+SMTP_PASS=your-gmail-app-password
+SMTP_FROM=JUJA Brew & Bites <jujabrewandbites@gmail.com>
+LOYALTY_NOTIFY_EMAIL=jujabrewandbites@gmail.com
+BOOKING_NOTIFY_EMAIL=jujabrewandbites@gmail.com
+ADMIN_NOTIFY_EMAIL=jujabrewandbites@gmail.com
+```
+
+For Gmail, `SMTP_PASS` must be a Google App Password, not the normal Gmail account password. Keep these variables out of `NEXT_PUBLIC_` names so they remain server-only.

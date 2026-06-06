@@ -1,13 +1,4 @@
-import nodemailer from "nodemailer";
-
-function escapeHtml(value = "") {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
+import { escapeEmailHtml, notificationRecipient, sendNotificationEmail } from "@/lib/email/notifications";
 
 export async function POST(req) {
   try {
@@ -21,44 +12,36 @@ export async function POST(req) {
       matchedMemberId,
     } = body;
 
-    const recipient =
-      adminEmail ||
-      process.env.LOYALTY_NOTIFY_EMAIL ||
-      process.env.ADMIN_NOTIFY_EMAIL ||
-      process.env.BOOKING_NOTIFY_EMAIL ||
-      "jujabrewandbites@gmail.com";
+    const recipient = notificationRecipient(
+      adminEmail,
+      process.env.LOYALTY_NOTIFY_EMAIL,
+      process.env.ADMIN_NOTIFY_EMAIL
+    );
 
     if (!recipient) {
       return new Response("Missing notification recipient", { status: 400 });
     }
 
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || 587),
-      secure: String(process.env.SMTP_SECURE || "").toLowerCase() === "true",
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-
     const subject = `New Loyalty Account Link Request - ${customerName || userEmail || "Customer"}`;
     const html = `
       <h3>New Loyalty Account Link Request</h3>
-      <p><b>Request ID:</b> ${escapeHtml(requestId || "-")}</p>
-      <p><b>Customer Name:</b> ${escapeHtml(customerName || "-")}</p>
-      <p><b>Birthday:</b> ${escapeHtml(birthday || "-")}</p>
-      <p><b>Customer Email:</b> ${escapeHtml(userEmail || "-")}</p>
-      <p><b>Matched Member ID:</b> ${escapeHtml(matchedMemberId || "No automatic match")}</p>
+      <p><b>Request ID:</b> ${escapeEmailHtml(requestId || "-")}</p>
+      <p><b>Customer Name:</b> ${escapeEmailHtml(customerName || "-")}</p>
+      <p><b>Birthday:</b> ${escapeEmailHtml(birthday || "-")}</p>
+      <p><b>Customer Email:</b> ${escapeEmailHtml(userEmail || "-")}</p>
+      <p><b>Matched Member ID:</b> ${escapeEmailHtml(matchedMemberId || "No automatic match")}</p>
       <p>Please review this request in the Admin Loyalty page.</p>
     `;
 
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    const email = await sendNotificationEmail({
       to: recipient,
       subject,
       html,
     });
+
+    if (!email.sent) {
+      return new Response(email.publicError || "Email notification is not configured.", { status: 503 });
+    }
 
     return new Response("OK", { status: 200 });
   } catch (e) {

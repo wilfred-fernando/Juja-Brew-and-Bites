@@ -1,5 +1,5 @@
-import nodemailer from "nodemailer";
 import { formatDate } from "@/lib/dateFormat";
+import { notificationRecipient, sendNotificationEmail } from "@/lib/email/notifications";
 
 export async function POST(req) {
   try {
@@ -21,17 +21,16 @@ export async function POST(req) {
       proofUrl,
     } = body;
 
-    const recipient =
-      adminEmail ||
-      process.env.BOOKING_NOTIFY_EMAIL ||
-      process.env.ADMIN_NOTIFY_EMAIL ||
-      "jujabrewandbites@gmail.com";
+    const recipient = notificationRecipient(
+      adminEmail,
+      process.env.BOOKING_NOTIFY_EMAIL,
+      process.env.ADMIN_NOTIFY_EMAIL
+    );
 
     if (!recipient || !proofUrl) {
       return new Response("Missing notification recipient or proofUrl", { status: 400 });
     }
 
-    // Download screenshot so we can attach it
     const imgRes = await fetch(proofUrl);
     if (!imgRes.ok) {
       return new Response("Failed to fetch proof image", { status: 400 });
@@ -39,19 +38,7 @@ export async function POST(req) {
     const arrayBuffer = await imgRes.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Configure SMTP transporter (use your own email provider)
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || 587),
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-
-    const subject = `New Function Room Booking Payment Proof — ${customerName}`;
-
+    const subject = `New Function Room Booking Payment Proof - ${customerName}`;
     const html = `
       <h3>New Booking Payment Proof</h3>
       <p><b>Booking ID:</b> ${bookingId}</p>
@@ -62,14 +49,13 @@ export async function POST(req) {
       <p><b>Package:</b> ${packageId}</p>
       <p><b>Guests:</b> ${guestCount}</p>
       <p><b>Extension Hours:</b> ${extensionHours}</p>
-      <p><b>Deposit:</b> ₱${Number(depositAmount || 0).toLocaleString()}</p>
+      <p><b>Deposit:</b> PHP ${Number(depositAmount || 0).toLocaleString()}</p>
       <p><b>Contact:</b> ${contactNumber}</p>
       <p><b>Email:</b> ${customerEmail}</p>
       <p><b>Proof URL:</b> ${proofUrl}</p>
     `;
 
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    const email = await sendNotificationEmail({
       to: recipient,
       subject,
       html,
@@ -80,6 +66,10 @@ export async function POST(req) {
         },
       ],
     });
+
+    if (!email.sent) {
+      return new Response(email.publicError || "Email notification is not configured.", { status: 503 });
+    }
 
     return new Response("OK", { status: 200 });
   } catch (e) {

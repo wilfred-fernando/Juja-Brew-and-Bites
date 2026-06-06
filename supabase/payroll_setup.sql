@@ -39,6 +39,11 @@ create table if not exists public.payroll_entries (
   undertime_rate_per_minute numeric(12, 6) not null default 0,
   allowance_15th numeric(12, 2) not null default 0,
   allowance_30th numeric(12, 2) not null default 0,
+  payroll_allowance numeric(12, 2) not null default 0,
+  payroll_adjustment numeric(12, 2) not null default 0,
+  sss_deduction numeric(12, 2) not null default 0,
+  philhealth_deduction numeric(12, 2) not null default 0,
+  hmdf_deduction numeric(12, 2) not null default 0,
   cash_advance_deduction numeric(12, 2) not null default 0,
   gross_total numeric(12, 2) not null default 0,
   deduction_total numeric(12, 2) not null default 0,
@@ -130,6 +135,11 @@ create unique index if not exists payroll_employees_employee_no_key
 
 alter table public.payroll_entries
   add column if not exists cash_advance_deduction numeric(12, 2) not null default 0,
+  add column if not exists payroll_allowance numeric(12, 2) not null default 0,
+  add column if not exists payroll_adjustment numeric(12, 2) not null default 0,
+  add column if not exists sss_deduction numeric(12, 2) not null default 0,
+  add column if not exists philhealth_deduction numeric(12, 2) not null default 0,
+  add column if not exists hmdf_deduction numeric(12, 2) not null default 0,
   add column if not exists generated_at timestamptz;
 
 alter table public.payroll_attendance

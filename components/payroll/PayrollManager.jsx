@@ -237,6 +237,11 @@ function blankEntry(periodId = "", employeeId = "", dailyRate = 0) {
     undertime_rate_per_minute: minuteRate,
     allowance_15th: 0,
     allowance_30th: 0,
+    payroll_allowance: 0,
+    payroll_adjustment: 0,
+    sss_deduction: 0,
+    philhealth_deduction: 0,
+    hmdf_deduction: 0,
     cash_advance_deduction: 0,
     misc_deduction_total: 0,
     notes: "",
@@ -278,9 +283,14 @@ function buildPayrollEntryFromAttendance({ employee, period, rows, repaymentRows
   const miscDeduction = miscDeductionRows.filter((row) => row.employee_id === employee.id && row.period_id === periodId).reduce((sum, row) => sum + num(row.amount), 0);
   const allowance15th = num(existingEntry?.allowance_15th);
   const allowance30th = num(existingEntry?.allowance_30th);
-  const gross = basePay + overtimePay + allowance15th + allowance30th;
+  const payrollAllowance = num(existingEntry?.payroll_allowance);
+  const payrollAdjustment = num(existingEntry?.payroll_adjustment);
+  const sssDeduction = num(existingEntry?.sss_deduction);
+  const philhealthDeduction = num(existingEntry?.philhealth_deduction);
+  const hmdfDeduction = num(existingEntry?.hmdf_deduction);
+  const gross = basePay + overtimePay + allowance15th + allowance30th + payrollAllowance + payrollAdjustment;
   const deduction = lateDeduction + undertimeDeduction;
-  const totalDeductions = deduction + miscDeduction;
+  const totalDeductions = deduction + miscDeduction + sssDeduction + philhealthDeduction + hmdfDeduction;
 
   return {
     id: `${periodId}-${employee.id}`,
@@ -297,6 +307,11 @@ function buildPayrollEntryFromAttendance({ employee, period, rows, repaymentRows
     undertime_rate_per_minute: minuteRate,
     allowance_15th: allowance15th,
     allowance_30th: allowance30th,
+    payroll_allowance: payrollAllowance,
+    payroll_adjustment: payrollAdjustment,
+    sss_deduction: sssDeduction,
+    philhealth_deduction: philhealthDeduction,
+    hmdf_deduction: hmdfDeduction,
     cash_advance_deduction: cashAdvanceDeduction,
     misc_deduction_total: miscDeduction,
     gross_total: gross,
@@ -563,13 +578,19 @@ export default function AdminPayrollPage() {
       num(entryForm.daily_rate) * num(entryForm.days_worked) +
       num(entryForm.overtime_hours) * num(entryForm.overtime_rate) +
       num(entryForm.allowance_15th) +
-      num(entryForm.allowance_30th);
+      num(entryForm.allowance_30th) +
+      num(entryForm.payroll_allowance) +
+      num(entryForm.payroll_adjustment);
     const deductions =
       num(entryForm.late_minutes) * num(entryForm.late_rate_per_minute) +
       num(entryForm.undertime_minutes) * num(entryForm.undertime_rate_per_minute);
     const cashAdvanceDeduction = num(entryForm.cash_advance_deduction);
     const miscDeduction = num(entryForm.misc_deduction_total);
-    const totalDeductions = deductions + miscDeduction;
+    const statutoryDeductions =
+      num(entryForm.sss_deduction) +
+      num(entryForm.philhealth_deduction) +
+      num(entryForm.hmdf_deduction);
+    const totalDeductions = deductions + miscDeduction + statutoryDeductions;
     return { gross, deductions: totalDeductions, baseDeductions: deductions, miscDeduction, cashAdvanceDeduction, net: gross - totalDeductions - cashAdvanceDeduction };
   }, [entryForm]);
 
@@ -941,6 +962,11 @@ export default function AdminPayrollPage() {
       undertime_rate_per_minute: num(entryForm.undertime_rate_per_minute),
       allowance_15th: num(entryForm.allowance_15th),
       allowance_30th: num(entryForm.allowance_30th),
+      payroll_allowance: num(entryForm.payroll_allowance),
+      payroll_adjustment: num(entryForm.payroll_adjustment),
+      sss_deduction: num(entryForm.sss_deduction),
+      philhealth_deduction: num(entryForm.philhealth_deduction),
+      hmdf_deduction: num(entryForm.hmdf_deduction),
       cash_advance_deduction: formTotals.cashAdvanceDeduction,
       misc_deduction_total: formTotals.miscDeduction,
       gross_total: formTotals.gross,
@@ -1514,6 +1540,11 @@ export default function AdminPayrollPage() {
                 ["undertime_rate_per_minute", "Undertime Rate / Min"],
                 ["allowance_15th", "Allowance 15th"],
                 ["allowance_30th", "Allowance 30th"],
+                ["payroll_allowance", "Allowance"],
+                ["payroll_adjustment", "Payroll Adjustment"],
+                ["sss_deduction", "SSS Deduction"],
+                ["philhealth_deduction", "PhilHealth Deduction"],
+                ["hmdf_deduction", "HMDF Deduction"],
                 ["misc_deduction_total", "Misc Deduction"],
                 ["cash_advance_deduction", "Cash Advance Deduction"],
               ].map(([field, label]) => (
@@ -1592,6 +1623,8 @@ export default function AdminPayrollPage() {
                       ["OT Rate", money(payslipEntry.overtime_rate)],
                       ["Allowance 15th", money(payslipEntry.allowance_15th)],
                       ["Allowance 30th", money(payslipEntry.allowance_30th)],
+                      ["Allowance", money(payslipEntry.payroll_allowance)],
+                      ["Payroll Adjustment", money(payslipEntry.payroll_adjustment)],
                     ].map(([label, value]) => (
                       <div key={label} className="flex items-center justify-between gap-4 border-b border-slate-100 pb-2 last:border-0 last:pb-0">
                         <span className="text-slate-600">{label}</span>
@@ -1609,6 +1642,9 @@ export default function AdminPayrollPage() {
                       ["Late Rate / Min", money(payslipEntry.late_rate_per_minute)],
                       ["Undertime Minutes", `${num(payslipEntry.undertime_minutes).toFixed(0)}m`],
                       ["UT Rate / Min", money(payslipEntry.undertime_rate_per_minute)],
+                      ["SSS", money(payslipEntry.sss_deduction)],
+                      ["PhilHealth", money(payslipEntry.philhealth_deduction)],
+                      ["HMDF", money(payslipEntry.hmdf_deduction)],
                       ["Misc Deduction", money(payslipEntry.misc_deduction_total)],
                       ["Cash Advance", money(payslipEntry.cash_advance_deduction)],
                     ].map(([label, value]) => (

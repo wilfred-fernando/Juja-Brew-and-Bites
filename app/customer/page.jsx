@@ -1728,6 +1728,7 @@ function LoyaltyTab({ member, setMember, user }) {
     const b = normalizeBirthday(form.Note);
     if (!b.ok) { setNotice("⚠️ " + b.msg); return; }
     if (!form.customer_name.trim()) { setNotice("⚠️ Please enter your full name."); return; }
+    setNotice("");
     setCheckingMatch(true);
     const typedName = normalizeLoyaltyName(form.customer_name);
     const { data, error } = await supabase.from("loyalty_members").select("*").eq("Note", b.value).limit(50);
@@ -1761,9 +1762,14 @@ function LoyaltyTab({ member, setMember, user }) {
     }
 
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
       const res = await fetch("/api/loyalty-link-request", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({
           customerName: form.customer_name,
           birthday: b.value,
@@ -1777,7 +1783,7 @@ function LoyaltyTab({ member, setMember, user }) {
       if (json.emailSent) {
         setNotice("Request saved and email notification sent.");
       } else {
-        setNotice(`Request saved for admin review. Email was not sent${json.emailError ? `: ${json.emailError}` : "."}`);
+        setNotice("Request saved for admin review.");
       }
       alert("Authorization sync request logged effectively.");
     } catch (error) {
@@ -1810,7 +1816,6 @@ function LoyaltyTab({ member, setMember, user }) {
             </div>
           </div>
         </div>
-        <LoyaltyPerksPanel />
 
         <div className="flex flex-col sm:flex-row gap-3">
           <button onClick={() => setMode("new")} className="flex-1 h-12 bg-[#FC687D] text-white font-bold text-sm rounded-xl shadow-sm hover:bg-rose-500 transition">Sign Up Program</button>
@@ -1831,6 +1836,7 @@ function LoyaltyTab({ member, setMember, user }) {
             value={form.customer_name}
             onChange={(e)=>{
               setForm({...form, customer_name: e.target.value});
+              setNotice("");
               setLinkRequestSent(false);
               setMatchChecked(false);
             }}
@@ -1846,6 +1852,7 @@ function LoyaltyTab({ member, setMember, user }) {
               value={birthdayToDateInput(form.Note)}
               onChange={(e)=>{
                 setForm({...form, Note: dateInputToBirthday(e.target.value)});
+                setNotice("");
                 setLinkRequestSent(false);
                 setMatchChecked(false);
               }}
@@ -1867,7 +1874,13 @@ function LoyaltyTab({ member, setMember, user }) {
           {mode === "new" ? (
             <button onClick={createMember} disabled={loading} className="flex-1 py-3 bg-[#FC687D] text-white font-bold rounded-xl text-xs uppercase tracking-wider">{loading ? "Saving..." : "Register Card"}</button>
           ) : (
-            <button onClick={checkMatchPreview} disabled={checkingMatch} className="flex-1 py-3 bg-slate-800 text-white font-bold rounded-xl text-xs uppercase tracking-wider">Check System Match</button>
+            <button
+              onClick={checkMatchPreview}
+              disabled={checkingMatch}
+              className="flex-1 py-3 bg-slate-800 !text-white font-bold rounded-xl text-xs uppercase tracking-wider disabled:bg-slate-300 disabled:!text-slate-700"
+            >
+              {checkingMatch ? "Checking..." : "Check System Match"}
+            </button>
           )}
         </div>
         {matchChecked && mode === "existing" && (
