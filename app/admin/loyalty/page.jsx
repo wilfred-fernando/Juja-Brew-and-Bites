@@ -248,6 +248,24 @@ export default function LoyaltyAdminPage() {
     setNotice("");
 
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      const res = await fetch("/api/admin/loyalty-link-approve", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ requestId, userId, chosenMemberId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || "Unable to approve loyalty link request.");
+
+      setLinkRequests((prev) => prev.filter((r) => r.id !== requestId));
+      setNotice("Approved and linked successfully.");
+      await Promise.all([fetchMembers(), fetchLinkRequests()]);
+      return;
+
       const { data: memberRow, error: memberErr } = await supabase
         .from("loyalty_members")
         .select("id,user_id,customer_name,customer_code")
