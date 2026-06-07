@@ -124,7 +124,7 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={loading || (isTurnstileEnabled() && !captchaToken)}
-            className="w-full py-4 bg-slate-600 text-white rounded-full font-bold shadow-lg shadow-slate-200 active:scale-95 transition-all disabled:opacity-50"
+            className="w-full py-3 bg-[#FC687D] text-white rounded-xl text-sm hover:bg-rose-500 transition"
           >
             {loading ? "Verifying..." : "Enter Portal →"}
           </button>
