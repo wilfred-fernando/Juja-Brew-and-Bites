@@ -1967,8 +1967,6 @@ function LoyaltyTab({ member, setMember, user }) {
           <p className="text-xs font-medium text-slate-500 mt-2.5">🎁 Only {(nextReward - available).toFixed(0)} additional points required to qualify for subsequent product voucher allocation metrics.</p>
         </div>
 
-        <LoyaltyPerksPanel compact />
-
         <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3 mb-4">
             <h3 className="font-bold text-slate-800 text-sm">System Voucher Passports</h3>
@@ -2019,6 +2017,8 @@ function LoyaltyTab({ member, setMember, user }) {
             );
           })()}
         </div>
+
+        <LoyaltyPerksPanel compact />
       </div>
     </div>
   );
