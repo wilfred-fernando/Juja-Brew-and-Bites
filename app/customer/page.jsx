@@ -13,22 +13,14 @@ import { useIdleLogout } from "@/components/useIdleLogout";
 const Barcode = dynamic(() => import("react-barcode"), { ssr: false });
 
 const LOGO =
-  "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
+  "https://images.jujabrewandbites.com/SIGNAGE%20light%20with%20korean%20letters%203.png";
 
 const loyaltyPoints = (amount) => Number(((Number(amount) || 0) * 0.04).toFixed(2));
 const peso0 = (amount) => `₱${Number(amount || 0).toLocaleString("en-PH", { maximumFractionDigits: 0 })}`;
 const ALERT_SOUND_SRC = "/sound/notification.mp3";
 const CUSTOMER_NOTIFICATION_ICON = "/images/juja-logo.png";
 
-const loyaltyPerkSections = [
-  {
-    label: "Registration",
-    accent: "JOIN",
-    items: [
-      "Free to join with no hidden fees.",
-      "Sign up in-store and receive your JUJA Loyalty Card instantly.",
-    ],
-  },
+const loyaltyPerkSections = [  
   {
     label: "Earning Points",
     accent: "EARN",
@@ -1475,9 +1467,9 @@ function TrackerTab({ orders, loadingOrders }) {
 function LoyaltyPerksPanel({ compact = false }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-white/70 bg-white/78 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl">
-      <div className="border-b border-cyan-100/70 bg-slate-950/90 px-5 py-4 text-white">
+      <div className="border-b border-cyan-100/70 bg-slate-600/90 px-5 py-4 text-white">
         <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-100">Loyalty Program</p>
-        <h3 className="mt-1 text-lg font-semibold">JUJA Rewards Perks</h3>
+        <p className="mt-1 text-lg font-semibold ">JUJA Rewards Perks</p>
         <p className="mt-1 text-xs leading-relaxed text-slate-300">
           Earn, redeem, and enjoy member-only rewards every time you visit.
         </p>
@@ -2405,7 +2397,7 @@ export default function Customer() {
               <img src={LOGO} alt="Juja App Logo" className="w-8 h-8 object-contain" />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-800">Install Juja Brew & Bites</p>
+              <p className="text-xs font-bold text-slate-800">Save Juja Brew & Bites</p>
               <p className="text-[10px] text-slate-400 font-medium">Order faster & manage your loyalty pass directly on your device home screen.</p>
             </div>
           </div>
@@ -2414,7 +2406,7 @@ export default function Customer() {
               onClick={triggerPwaInstallation}
               className="px-3 py-1.5 bg-[#FC687D] hover:bg-rose-500 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg shadow-sm transition"
             >
-              Install
+              Save
             </button>
             <button
               onClick={closeInstallBannerForever}

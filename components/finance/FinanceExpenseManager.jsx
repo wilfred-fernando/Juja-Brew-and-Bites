@@ -1616,11 +1616,11 @@ export default function FinanceExpenseManager() {
 
   return (
       <div className="space-y-6">
-      <div className="rounded-3xl border border-white/20 bg-slate-950/78 p-5 text-white shadow-[0_28px_80px_rgba(2,6,23,0.32)] backdrop-blur-xl sm:p-6">
+      <div className="rounded-3xl border border-white/20 bg-slate-600/78 p-5 text-white shadow-[0_28px_80px_rgba(2,6,23,0.32)] backdrop-blur-xl sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-200">Finance Control Center</p>
-          <h1 className="mt-1 text-2xl font-semibold text-white sm:text-3xl">Expenses & Petty Cash</h1>
+          <p className="mt-1 text-2xl font-semibold text-white sm:text-3xl">Expenses & Petty Cash</p>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
             Adapted from Data Entry v1.4: Database is the overall expense ledger, petty cash is separated by store.
           </p>
@@ -1655,7 +1655,7 @@ export default function FinanceExpenseManager() {
             type="button"
             onClick={() => setTab(key)}
             className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-xs font-semibold uppercase tracking-wider transition duration-200 ${
-              tab === key ? "bg-slate-950 text-cyan-50 shadow-[0_0_28px_rgba(34,211,238,0.16)]" : "text-slate-500 hover:-translate-y-0.5 hover:bg-cyan-50 hover:text-cyan-700"
+              tab === key ? "bg-slate-300/78 text-cyan-50 shadow-[0_0_28px_rgba(34,211,238,0.16)]" : "text-slate-500 hover:-translate-y-0.5 hover:bg-cyan-50 hover:text-cyan-700"
             }`}
           >
             <Icon size={15} />
@@ -1680,7 +1680,7 @@ export default function FinanceExpenseManager() {
             <button
               type="button"
               onClick={() => openExpenseModal("overall")}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_30px_rgba(8,145,178,0.30)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500 active:translate-y-0"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-400/78 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_30px_rgba(8,145,178,0.30)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500 active:translate-y-0"
             >
               <Plus size={15} />
               Add Overall Expense
