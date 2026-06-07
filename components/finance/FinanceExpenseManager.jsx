@@ -1622,7 +1622,6 @@ export default function FinanceExpenseManager() {
           <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-200">Finance Control Center</p>
           <p className="mt-1 text-2xl font-semibold text-white sm:text-3xl">Expenses & Petty Cash</p>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
-            Adapted from Data Entry v1.4: Database is the overall expense ledger, petty cash is separated by store.
           </p>
         </div>
         <button

@@ -7,17 +7,8 @@ import { formatDate } from "@/lib/dateFormat";
 const supabase = getSupabaseClient();
 
 const money = (n) => `PHP ${Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const moneyAmount = (n) => Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const deductionMoney = (n) => `(${money(n)})`;
 const num = (n) => Number(n || 0);
-
-function MoneyCell({ value, emphasis = false }) {
-  return (
-    <span className={`grid min-w-[112px] grid-cols-[auto_1fr] items-center gap-2 tabular-nums ${emphasis ? "font-semibold text-cyan-700" : ""}`}>
-      <span className={emphasis ? "text-cyan-700" : "text-slate-700"}>PHP</span>
-      <span className="text-right">{moneyAmount(value)}</span>
-    </span>
-  );
-}
 
 function localDate(date = new Date()) {
   const copy = new Date(date);
@@ -1075,7 +1066,7 @@ export default function AdminPayrollPage() {
           <select value={selectedPeriodId} onChange={(e) => setSelectedPeriodId(e.target.value)} className="h-11 rounded-xl border border-cyan-300/30 bg-white/10 px-3 text-sm font-semibold text-white outline-none transition duration-200 focus:border-cyan-300/70 focus:ring-4 focus:ring-cyan-300/20">
             {sortedPeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}
           </select>
-          <button onClick={() => setActiveTab("generate")} className="h-11 rounded-xl bg-cyan-600 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_30px_rgba(34,211,238,0.26)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500">Generate Cutoff</button>
+          <button onClick={() => setActiveTab("generate")} className="h-11 rounded-xl bg-cyan-400 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_30px_rgba(34,211,238,0.26)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-400">Generate Cutoff</button>
         </div>
         </div>
       </header>
@@ -1126,7 +1117,7 @@ export default function AdminPayrollPage() {
           <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Payday
             <input type="date" value={cutoffForm.payday} readOnly className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm normal-case outline-none" />
           </label>
-          <button disabled={saving} className="mt-6 h-11 rounded-xl bg-cyan-600 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_30px_rgba(8,145,178,0.30)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500 disabled:bg-slate-300">
+          <button disabled={saving} className="mt-6 h-11 rounded-xl bg-slate-400/78 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_30px_rgba(8,145,178,0.30)] transition duration-200 hover:-translate-y-0.5 hover:bg-slate-400/78 disabled:bg-slate-300">
             {saving ? "Generating..." : "Generate Payroll"}
           </button>
         </form>
@@ -1184,15 +1175,15 @@ export default function AdminPayrollPage() {
                         </div>
                       )}
                     </td>
-                    <td><MoneyCell value={entry.daily_rate} /></td>
+                    <td>{money(entry.daily_rate)}</td>
                     <td>{num(entry.days_worked).toFixed(2)}</td>
                     <td>{num(entry.overtime_hours).toFixed(2)}</td>
                     <td>{num(entry.late_minutes).toFixed(0)}m</td>
                     <td>{num(entry.absent_days).toFixed(2)}</td>
-                    <td><MoneyCell value={entry.gross_total} /></td>
-                    <td><MoneyCell value={entry.deduction_total} /></td>
-                    <td><MoneyCell value={entry.cash_advance_deduction} /></td>
-                    <td><MoneyCell value={entry.net_total} emphasis /></td>
+                    <td>{money(entry.gross_total)}</td>
+                    <td className="font-regular text-red-600">{deductionMoney(entry.deduction_total)}</td>
+                    <td className="font-regular text-red-600">{deductionMoney(entry.cash_advance_deduction)}</td>
+                    <td className="font-semibold text-cyan-700">{money(entry.net_total)}</td>
                     <td><span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase ${statusClass(entry.status)}`}>{entry.status || "draft"}</span></td>
                     <td className="pr-3 text-right">
                       <div className="flex justify-end gap-2">
@@ -1227,7 +1218,7 @@ export default function AdminPayrollPage() {
                 <input value={employeeForm.philhealth_no} onChange={(e) => setEmployeeForm((p) => ({ ...p, philhealth_no: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Philhealth No." />
                 <input value={employeeForm.hmdf_no} onChange={(e) => setEmployeeForm((p) => ({ ...p, hmdf_no: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="HMDF No." />
                 <input value={employeeForm.emergency_contact_person} onChange={(e) => setEmployeeForm((p) => ({ ...p, emergency_contact_person: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Emergency contact person" />
-                <button className="h-11 w-full rounded-xl bg-cyan-600 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-cyan-500">{editingEmployeeId ? "Update Employee" : "Save Employee"}</button>
+                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">{editingEmployeeId ? "Update Employee" : "Save Employee"}</button>
               </div>
             </form>
 
@@ -1240,7 +1231,7 @@ export default function AdminPayrollPage() {
                 <input type="date" value={rateIncreaseForm.effective_date} onChange={(e) => setRateIncreaseForm((p) => ({ ...p, effective_date: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
                 <input value={rateIncreaseForm.new_daily_rate} onChange={(e) => setRateIncreaseForm((p) => ({ ...p, new_daily_rate: e.target.value }))} type="number" step="0.01" className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="New daily rate" />
                 <input value={rateIncreaseForm.notes} onChange={(e) => setRateIncreaseForm((p) => ({ ...p, notes: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Notes" />
-                <button className="h-11 w-full rounded-xl bg-cyan-600 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-cyan-500">Save Rate Increase</button>
+                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">Save Rate Increase</button>
               </div>
               <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Recent Rate Changes</p>
@@ -1304,7 +1295,7 @@ export default function AdminPayrollPage() {
             <select value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)} className="h-11 rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
               {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}
             </select>
-            <button className="h-11 rounded-xl bg-cyan-600 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-cyan-500">Save Cutoff Schedule</button>
+            <button className="h-11 rounded-xl bg-slate-400/78 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">Save Cutoff Schedule</button>
           </form>
           <DataTable empty="No schedule rows found for this cutoff." minWidth="980px" headers={["Date", "Emp No.", "Employee", "In", "Out", "Status", "Notes"]}>
             {scheduleRows.map((row) => (
@@ -1337,7 +1328,7 @@ export default function AdminPayrollPage() {
             <select value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)} className="h-11 rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
               {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}
             </select>
-            <button className="h-11 rounded-xl bg-cyan-600 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-cyan-500">Save Cutoff Attendance</button>
+            <button className="h-11 rounded-xl bg-slate-400/78 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">Save Cutoff Attendance</button>
           </form>
           <DataTable empty="No attendance rows found for this cutoff." minWidth="1180px" headers={["Date", "Emp No.", "Employee", "In", "Out", "Late", "UT", "OT", "Status", "Notes"]}>
             {attendanceRows.map((row) => {
@@ -1379,7 +1370,7 @@ export default function AdminPayrollPage() {
                 <input type="date" value={miscDeductionForm.deduction_date} onChange={(e) => setMiscDeductionForm((p) => ({ ...p, deduction_date: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
                 <input type="number" step="0.01" value={miscDeductionForm.amount} onChange={(e) => setMiscDeductionForm((p) => ({ ...p, amount: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Amount" />
                 <input value={miscDeductionForm.description} onChange={(e) => setMiscDeductionForm((p) => ({ ...p, description: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Description" />
-                <button className="h-11 w-full rounded-xl bg-cyan-600 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-cyan-500">Save Misc Deduction</button>
+                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">Save Misc Deduction</button>
               </div>
             </form>
 
@@ -1393,7 +1384,7 @@ export default function AdminPayrollPage() {
                 <select value={repaymentForm.period_id} onChange={(e) => setRepaymentForm((p) => ({ ...p, period_id: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">{sortedPeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select>
                 <input type="date" value={repaymentForm.payment_date} onChange={(e) => setRepaymentForm((p) => ({ ...p, payment_date: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
                 <input type="number" step="0.01" value={repaymentForm.amount} onChange={(e) => setRepaymentForm((p) => ({ ...p, amount: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Repayment amount" />
-                <button className="h-11 w-full rounded-xl bg-cyan-600 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-cyan-500">Save Repayment</button>
+                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">Save Repayment</button>
               </div>
             </form>
           </div>
@@ -1441,7 +1432,7 @@ export default function AdminPayrollPage() {
                 <input type="date" value={advanceForm.advance_date} onChange={(e) => setAdvanceForm((p) => ({ ...p, advance_date: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
                 <input type="number" step="0.01" value={advanceForm.amount} onChange={(e) => setAdvanceForm((p) => ({ ...p, amount: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Amount" />
                 <input value={advanceForm.reason} onChange={(e) => setAdvanceForm((p) => ({ ...p, reason: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Reason" />
-                <button className="h-11 w-full rounded-xl bg-cyan-600 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-cyan-500">Save Advance</button>
+                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">Save Advance</button>
               </div>
             </form>
           </div>
