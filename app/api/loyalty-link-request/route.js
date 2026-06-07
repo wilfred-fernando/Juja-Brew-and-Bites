@@ -4,11 +4,24 @@ import { cookies } from "next/headers";
 import { headers } from "next/headers";
 import { escapeEmailHtml, notificationRecipient, sendNotificationEmail } from "@/lib/email/notifications";
 
-async function getRequestUser() {
+function supabaseConfig() {
+  return {
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  };
+}
+
+async function getRequestContext() {
+  const { url, anonKey } = supabaseConfig();
+  if (!url || !anonKey) {
+    return { user: null, client: null, error: "Supabase URL and anon key are required." };
+  }
+
   const cookieStore = await cookies();
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    url,
+    anonKey,
     {
       cookies: {
         getAll() {
@@ -24,19 +37,26 @@ async function getRequestUser() {
   );
 
   const { data, error } = await supabase.auth.getUser();
-  if (!error && data?.user) return data.user;
+  if (!error && data?.user) return { user: data.user, client: supabase, error: "" };
 
   const headerStore = await headers();
   const token = String(headerStore.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
-  if (!token) return null;
+  if (!token) return { user: null, client: null, error: "" };
 
   const tokenClient = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    url,
+    anonKey,
+    {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    }
   );
   const { data: tokenData, error: tokenError } = await tokenClient.auth.getUser(token);
-  if (tokenError || !tokenData?.user) return null;
-  return tokenData.user;
+  if (tokenError || !tokenData?.user) return { user: null, client: null, error: "" };
+  return { user: tokenData.user, client: tokenClient, error: "" };
 }
 
 async function sendLinkRequestEmail({ requestId, customerName, birthday, userEmail, matchedMemberId }) {
@@ -62,7 +82,10 @@ async function sendLinkRequestEmail({ requestId, customerName, birthday, userEma
 
 export async function POST(req) {
   try {
-    const user = await getRequestUser();
+    const { user, client: userSupabase, error: configError } = await getRequestContext();
+    if (configError) {
+      return Response.json({ error: configError }, { status: 500 });
+    }
     if (!user?.id) {
       return Response.json({ error: "Customer login is required." }, { status: 401 });
     }
@@ -72,10 +95,14 @@ export async function POST(req) {
       return Response.json({ error: "Full name and birthday are required." }, { status: 400 });
     }
 
-    const supabaseAdmin = createSupabaseClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    const { url, serviceRoleKey } = supabaseConfig();
+    const supabaseAdmin = serviceRoleKey
+      ? createSupabaseClient(url, serviceRoleKey)
+      : userSupabase;
+
+    if (!supabaseAdmin) {
+      return Response.json({ error: "Supabase client is required." }, { status: 500 });
+    }
 
     const { data, error } = await supabaseAdmin
       .from("loyalty_link_requests")
