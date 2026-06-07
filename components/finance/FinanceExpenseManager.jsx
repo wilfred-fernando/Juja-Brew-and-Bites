@@ -1616,7 +1616,7 @@ export default function FinanceExpenseManager() {
 
   return (
       <div className="space-y-6">
-      <div className="rounded-3xl border border-white/20 bg-slate-600/78 p-5 text-white shadow-[0_28px_80px_rgba(2,6,23,0.32)] backdrop-blur-xl sm:p-6">
+      <div className="rounded-3xl border border-white/20 bg-slate-600/78 p-5 text-white shadow-[-20_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-200">Finance Control Center</p>

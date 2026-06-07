@@ -155,7 +155,7 @@ export default function Login() {
 
           {/* TITLE */}
           <div className="text-center mb-6">
-            <p className="text-xs text-rose-400 mb-2">
+            <p className="text-xs round-full border border-cyan-100/78 bg-cyan-100/78 text-rose-400 mb-2">
               {isAdminPortal ? "Admin Access" : "Customer Portal"}
             </p>
 

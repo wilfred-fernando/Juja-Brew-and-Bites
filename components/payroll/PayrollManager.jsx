@@ -7,7 +7,17 @@ import { formatDate } from "@/lib/dateFormat";
 const supabase = getSupabaseClient();
 
 const money = (n) => `PHP ${Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const moneyAmount = (n) => Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const num = (n) => Number(n || 0);
+
+function MoneyCell({ value, emphasis = false }) {
+  return (
+    <span className={`grid min-w-[112px] grid-cols-[auto_1fr] items-center gap-2 tabular-nums ${emphasis ? "font-semibold text-cyan-700" : ""}`}>
+      <span className={emphasis ? "text-cyan-700" : "text-slate-700"}>PHP</span>
+      <span className="text-right">{moneyAmount(value)}</span>
+    </span>
+  );
+}
 
 function localDate(date = new Date()) {
   const copy = new Date(date);
@@ -1054,11 +1064,11 @@ export default function AdminPayrollPage() {
 
   return (
     <div className="space-y-6 pb-20">
-      <header className="rounded-3xl border border-white/20 bg-slate-950/78 p-5 text-white shadow-[0_28px_80px_rgba(2,6,23,0.32)] backdrop-blur-xl lg:p-6">
+      <header className="rounded-3xl border border-white/20 bg-slate-600/78 p-5 text-white shadow-[-20_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl lg:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-widest text-cyan-200">Finance</p>
-          <h1 className="text-3xl font-semibold text-white">Payroll System</h1>
+          <p className="text-3xl font-semibold text-white">Payroll System</p>
           <p className="mt-2 text-sm text-slate-300">Saturday-Friday cutoff with Saturday payday.</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -1097,7 +1107,7 @@ export default function AdminPayrollPage() {
           ["deductions", "Deductions"],
           ["cashAdvance", "Cash Advance"],
         ].map(([key, label]) => (
-          <button key={key} onClick={() => setActiveTab(key)} className={`h-10 rounded-xl text-xs font-semibold uppercase tracking-wider transition duration-200 ${activeTab === key ? "bg-slate-950 text-cyan-50 shadow-[0_0_28px_rgba(34,211,238,0.16)]" : "text-slate-600 hover:-translate-y-0.5 hover:bg-cyan-50 hover:text-cyan-700"}`}>
+          <button key={key} onClick={() => setActiveTab(key)} className={`h-10 rounded-xl text-xs font-semibold uppercase tracking-wider transition duration-200 ${activeTab === key ? "bg-slate-300/78 text-cyan-50 shadow-[0_0_28px_rgba(34,211,238,0.16)]" : "text-slate-600 hover:-translate-y-0.5 hover:bg-cyan-50 hover:text-cyan-700"}`}>
             {label}
           </button>
         ))}
@@ -1174,15 +1184,15 @@ export default function AdminPayrollPage() {
                         </div>
                       )}
                     </td>
-                    <td>{money(entry.daily_rate)}</td>
+                    <td><MoneyCell value={entry.daily_rate} /></td>
                     <td>{num(entry.days_worked).toFixed(2)}</td>
                     <td>{num(entry.overtime_hours).toFixed(2)}</td>
                     <td>{num(entry.late_minutes).toFixed(0)}m</td>
                     <td>{num(entry.absent_days).toFixed(2)}</td>
-                    <td>{money(entry.gross_total)}</td>
-                    <td>{money(entry.deduction_total)}</td>
-                    <td>{money(entry.cash_advance_deduction)}</td>
-                    <td className="font-semibold text-cyan-700">{money(entry.net_total)}</td>
+                    <td><MoneyCell value={entry.gross_total} /></td>
+                    <td><MoneyCell value={entry.deduction_total} /></td>
+                    <td><MoneyCell value={entry.cash_advance_deduction} /></td>
+                    <td><MoneyCell value={entry.net_total} emphasis /></td>
                     <td><span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase ${statusClass(entry.status)}`}>{entry.status || "draft"}</span></td>
                     <td className="pr-3 text-right">
                       <div className="flex justify-end gap-2">

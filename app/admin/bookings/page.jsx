@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { formatDate, formatDateTime } from "@/lib/dateFormat";
+import { formatDate } from "@/lib/dateFormat";
 
 const supabase = getSupabaseClient();
 
@@ -11,6 +11,8 @@ const supabase = getSupabaseClient();
 const OPERATING_START_HOUR = 10; // 10AM
 const BASE_BOOKING_MINUTES = 2 * 60 + 59; // 2h59m
 const MAX_EXTENSION_HOURS = 2;
+const BOOKING_TIME_ZONE = "Asia/Manila";
+const BOOKING_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /* =======================
  Helpers
@@ -55,6 +57,39 @@ function computeDateTime(dateISO, hourLike) {
 function computeEndAt(startAt, extensionHours) {
   const totalMinutes = BASE_BOOKING_MINUTES + Number(extensionHours || 0) * 60;
   return new Date(startAt.getTime() + totalMinutes * 60 * 1000);
+}
+function bookingParts(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (!value || Number.isNaN(date.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: BOOKING_TIME_ZONE,
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return {
+    year: Number(map.year),
+    month: Number(map.month),
+    day: Number(map.day),
+    hour: Number(map.hour === "24" ? "0" : map.hour),
+    minute: Number(map.minute || 0),
+  };
+}
+function bookingISODate(value) {
+  const parts = bookingParts(value);
+  if (!parts) return "";
+  return `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
+}
+function bookingDateTime(value, fallback = "-") {
+  const parts = bookingParts(value);
+  if (!parts) return fallback;
+  const hour12 = ((parts.hour + 11) % 12) + 1;
+  const suffix = parts.hour >= 12 ? "PM" : "AM";
+  return `${parts.year}-${BOOKING_MONTHS[parts.month - 1]}-${String(parts.day).padStart(2, "0")} ${String(hour12).padStart(2, "0")}:${String(parts.minute).padStart(2, "0")} ${suffix}`;
 }
 function formatPeso(n) {
   return `₱${Number(n || 0).toLocaleString()}`;
@@ -101,8 +136,7 @@ function downloadText(filename, text) {
 }
 function hourLikeFromStartAt(startAt) {
   // Map 00:00/01:00 to 24/25 so it appears in operating grid.
-  const d = new Date(startAt);
-  const h = d.getHours();
+  const h = bookingParts(startAt)?.hour ?? new Date(startAt).getHours();
   return h < OPERATING_START_HOUR ? h + 24 : h;
 }
 function clamp(n, min, max) {
@@ -375,8 +409,7 @@ export default function AdminBookingsDashboard() {
     const dayMap = new Map(days.map((d) => [d.iso, d]));
 
     for (const b of bookings) {
-      const start = new Date(b.start_at);
-      const iso = toISODate(start);
+      const iso = bookingISODate(b.start_at);
       const bucket = dayMap.get(iso);
       if (!bucket) continue;
 
@@ -534,9 +567,8 @@ export default function AdminBookingsDashboard() {
   function openEditModal(b) {
     if (disableEdit(b)) return; // ✅ past = locked
 
-    const start = new Date(b.start_at);
-    const dateISO = toISODate(start);
-    const hour = hourLikeFromStartAt(start);
+    const dateISO = bookingISODate(b.start_at);
+    const hour = hourLikeFromStartAt(b.start_at);
 
     setEditModal({
       booking: b,
@@ -832,7 +864,7 @@ export default function AdminBookingsDashboard() {
                   {weekDays.map((day) => {
                     const dayISO = toISODate(day);
                     const dayBookings = bookingsInWeek.filter(
-                      (b) => toISODate(new Date(b.start_at)) === dayISO
+                      (b) => bookingISODate(b.start_at) === dayISO
                     );
 
                     const byHour = new Map();
@@ -1109,8 +1141,8 @@ export default function AdminBookingsDashboard() {
                               </p>
                               <p><b>Extension:</b> {Number(b.extension_hours || 0)} hr</p>
                               <p>
-                                <b>Schedule:</b> {formatDateTime(b.start_at)} →{" "}
-                                {formatDateTime(b.end_at)}
+                                <b>Schedule:</b> {bookingDateTime(b.start_at)} →{" "}
+                                {bookingDateTime(b.end_at)}
                               </p>
                             </div>
 
@@ -1422,7 +1454,7 @@ export default function AdminBookingsDashboard() {
                 const endAt = computeEndAt(startAt, Number(editModal.extension_hours || 0));
                 return (
                   <p>
-                    <b>Computed:</b> {formatDateTime(startAt)} → {formatDateTime(endAt)}
+                    <b>Computed:</b> {bookingDateTime(startAt)} → {bookingDateTime(endAt)}
                   </p>
                 );
               })()}
