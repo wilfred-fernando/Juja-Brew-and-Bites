@@ -252,9 +252,14 @@ export default function LoyaltyAdminPage() {
         .from("loyalty_members")
         .select("id,user_id,customer_name,customer_code")
         .eq("id", chosenMemberId)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       if (memberErr) throw memberErr;
+      if (!memberRow?.id) {
+        setNotice("⚠️ Selected loyalty member was not found. Refresh and try again.");
+        return;
+      }
 
       if (memberRow?.user_id) {
         setNotice("⚠️ This loyalty member is already linked. Unlink first.");
@@ -265,9 +270,14 @@ export default function LoyaltyAdminPage() {
         .from("profiles")
         .select("id,loyalty_account_id")
         .eq("id", userId)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       if (profileErr) throw profileErr;
+      if (!profileRow?.id) {
+        setNotice("⚠️ Customer profile was not found. Ask the customer to log in again, then resend the request.");
+        return;
+      }
 
       if (profileRow?.loyalty_account_id) {
         setNotice(
