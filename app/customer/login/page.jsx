@@ -155,11 +155,12 @@ export default function Login() {
 
           {/* TITLE */}
           <div className="text-center mb-6">
-            <p className="text-xs round-full border border-cyan-100/78 bg-cyan-100/78 text-rose-400 mb-2">
+            <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full text-[10px] font-normal uppercase tracking-[0.25em] bg-rose-50 text-[#FC687D] border border-rose-100">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#FC687D] animate-pulse" />
               {isAdminPortal ? "Admin Access" : "Customer Portal"}
-            </p>
+            </div>
 
-            <h1 className="text-2xl text-slate-800">{mode === "signup" ? "Create Account" : "Welcome Back"}</h1>
+            <h1 className="text-2xl font-bold text-slate-800">{mode === "signup" ? "Create Account" : "Welcome Back"}</h1>
           </div>
 
           {/* CARD */}
@@ -169,7 +170,7 @@ export default function Login() {
               {mode === "signup" && (
                 <div>
                   <label className="block text-xs text-slate-500 mb-1">
-                    Full Name
+                    
                   </label>
 
                   <input
@@ -179,8 +180,8 @@ export default function Login() {
                     onChange={(e) =>
                       setForm((f) => ({ ...f, name: e.target.value }))
                     }
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-rose-300"
-                    placeholder="Your name"
+                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-sky-500/30 transition-all text-slate-700"
+                    placeholder="Your full name"
                   />
                 </div>
               )}
@@ -188,7 +189,7 @@ export default function Login() {
               {/* EMAIL */}
               <div>
                 <label className="block text-xs text-slate-500 mb-1">
-                  Email
+                 
                 </label>
 
                 <input
@@ -198,15 +199,15 @@ export default function Login() {
                   onChange={(e) =>
                     setForm((f) => ({ ...f, email: e.target.value }))
                   }
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-rose-300"
-                  placeholder="you@example.com"
+                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-sky-500/30 transition-all text-slate-700"
+                  placeholder="Email"
                 />
               </div>
 
               {/* PASSWORD */}
               <div>
                 <label className="block text-xs text-slate-500 mb-1">
-                  Password
+                  
                 </label>
 
                 <PasswordField
@@ -214,7 +215,7 @@ export default function Login() {
                   onChange={(e) =>
                     setForm((f) => ({ ...f, password: e.target.value }))
                   }
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-rose-300"
+                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-sky-500/30 transition-all text-slate-700"
                   placeholder="Password"
                   autoComplete={mode === "signup" ? "new-password" : "current-password"}
                 />

@@ -367,8 +367,7 @@ export default function FunctionRoomPage() {
       <main className="mx-auto min-h-0 w-full max-w-6xl flex-1 space-y-10 overflow-y-auto px-4 sm:px-6 md:space-y-4 md:pb-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-slate-100 md:pb-2">
-          <div>
-            <p className="text-xs text-rose-500 font-semibold">Private Bookings</p>
+          <div>            
             <h1 className="text-2xl sm:text-3xl font-semibold text-slate-800 mt-2 md:mt-1 md:text-2xl">
               Function Room
             </h1>

@@ -225,7 +225,7 @@ export default function Home() {
             <div className="mt-0 flex w-full max-w-[220px] flex-col gap-2 sm:max-w-md sm:flex-row md:max-w-md md:gap-3">
               <Link
                 href="/menu"
-                className="flex-1 rounded-full bg-[#087830] px-4 py-2.5 text-center text-[10px] uppercase tracking-widest text-white shadow-[0_14px_28px_rgba(8,120,48,0.18)] transition hover:bg-[#066829] md:px-7 md:py-3 md:text-xs"
+                className="flex-1 rounded-full bg-slate-400/78 px-4 py-2.5 text-center text-[10px] uppercase tracking-widest text-white shadow-[0_14px_28px_rgba(8,120,48,0.18)] transition hover:bg-[#066829] md:px-7 md:py-3 md:text-xs"
               >
                 View Menu
               </Link>
