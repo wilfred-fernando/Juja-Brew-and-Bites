@@ -48,15 +48,20 @@ function labelHour(h) {
   return `${disp}:00 ${ampm}${dayOffset}`;
 }
 function computeDateTime(dateISO, hourLike) {
-  const base = new Date(`${dateISO}T00:00:00`);
-  const dt = new Date(base);
-  if (hourLike >= 24) dt.setDate(dt.getDate() + 1);
-  dt.setHours(hourLike % 24, 0, 0, 0);
-  return dt;
+  const [year, month, day] = String(dateISO).split("-").map(Number);
+  const h = hourLike % 24;
+  const dayAdd = hourLike >= 24 ? 1 : 0;
+  return new Date(Date.UTC(year, month - 1, day + dayAdd, h - 8, 0, 0, 0));
 }
 function computeEndAt(startAt, extensionHours) {
   const totalMinutes = BASE_BOOKING_MINUTES + Number(extensionHours || 0) * 60;
   return new Date(startAt.getTime() + totalMinutes * 60 * 1000);
+}
+function toManilaOffsetISOString(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  const manila = new Date(date.getTime() + 8 * 3600000);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${manila.getUTCFullYear()}-${pad(manila.getUTCMonth() + 1)}-${pad(manila.getUTCDate())}T${pad(manila.getUTCHours())}:${pad(manila.getUTCMinutes())}:00+08:00`;
 }
 function bookingParts(value) {
   const date = value instanceof Date ? value : new Date(value);
@@ -607,8 +612,8 @@ export default function AdminBookingsDashboard() {
         email: String(editModal.email || "").trim(),
         package_id: Number(editModal.package_id),
         extension_hours: Number(editModal.extension_hours || 0),
-        start_at: startAt.toISOString(),
-        end_at: endAt.toISOString(),
+        start_at: toManilaOffsetISOString(startAt),
+        end_at: toManilaOffsetISOString(endAt),
         status: "pending",
       };
 

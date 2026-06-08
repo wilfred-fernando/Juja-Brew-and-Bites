@@ -258,13 +258,29 @@ function labelHour(h) {
   return `${disp}:00 ${ampm}${dayOffset}`;
 }
 function computeDateTime(businessDateISO, hourLike) {
-  const base = new Date(`${businessDateISO}T00:00:00`);
+  const [year, month, day] = String(businessDateISO).split("-").map(Number);
   const h = hourLike % 24;
   const dayAdd = hourLike >= 24 ? 1 : 0;
-  const dt = new Date(base);
-  dt.setDate(dt.getDate() + dayAdd);
-  dt.setHours(h, 0, 0, 0);
-  return dt;
+  const manilaOffsetHours = 8;
+  return new Date(Date.UTC(year, month - 1, day + dayAdd, h - manilaOffsetHours, 0, 0, 0));
+}
+function toManilaOffsetISOString(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  const manila = new Date(date.getTime() + 8 * 3600000);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${manila.getUTCFullYear()}-${pad(manila.getUTCMonth() + 1)}-${pad(manila.getUTCDate())}T${pad(manila.getUTCHours())}:${pad(manila.getUTCMinutes())}:00+08:00`;
+}
+function formatManilaDateTime(value) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+    .format(new Date(value))
+    .replace(",", "");
 }
 function canChangeBooking(startAtISO) {
   const now = new Date();
@@ -543,8 +559,8 @@ export default function BookingForm({ user, member }) {
         .from("function_room_bookings")
         .select("id, start_at, end_at, status")
         .in("status", ["pending", "confirmed"])
-        .gte("start_at", queryStart)
-        .lte("start_at", queryEnd)
+        .lt("start_at", queryEnd)
+        .gt("end_at", queryStart)
         .order("start_at", { ascending: true });
 
       if (error) {
@@ -645,8 +661,8 @@ export default function BookingForm({ user, member }) {
         .from("function_room_bookings")
         .select("id, start_at, end_at, status")
         .in("status", ["pending", "confirmed"])
-        .gte("start_at", queryStart)
-        .lte("start_at", queryEnd)
+        .lt("start_at", queryEnd)
+        .gt("end_at", queryStart)
         .order("start_at", { ascending: true });
 
       if (error) {
@@ -771,8 +787,8 @@ export default function BookingForm({ user, member }) {
         customer_name: form.name.trim(),
         event_type: form.event_type.trim(),
         business_date: dateISO,
-        start_at: start.toISOString(),
-        end_at: end.toISOString(),
+        start_at: toManilaOffsetISOString(start),
+        end_at: toManilaOffsetISOString(end),
         duration_hours: 3,
         extension_hours: extensionHours,
         guest_count: Number(form.guest_count),
@@ -800,7 +816,7 @@ export default function BookingForm({ user, member }) {
             customerName: payload.customer_name,
             eventType: payload.event_type,
             businessDate: payload.business_date,
-            timeLabel: `${formatDateTime(payload.start_at, payload.start_at)} - ${formatDateTime(payload.end_at, payload.end_at)}`,
+            timeLabel: `${formatManilaDateTime(payload.start_at)} - ${formatManilaDateTime(payload.end_at)}`,
             packageId: payload.package_id,
             guestCount: payload.guest_count,
             contactNumber: payload.contact_number,
@@ -1566,8 +1582,8 @@ export default function BookingForm({ user, member }) {
                     .from("function_room_bookings")
                     .update({
                       business_date: reschedDateISO,
-                      start_at: newStart.toISOString(),
-                      end_at: newEnd.toISOString(),
+                      start_at: toManilaOffsetISOString(newStart),
+                      end_at: toManilaOffsetISOString(newEnd),
                       status: "pending",
                     })
                     .eq("id", reschedBooking.id);
@@ -1584,8 +1600,8 @@ export default function BookingForm({ user, member }) {
                         ? {
                             ...x,
                             business_date: reschedDateISO,
-                            start_at: newStart.toISOString(),
-                            end_at: newEnd.toISOString(),
+                            start_at: toManilaOffsetISOString(newStart),
+                            end_at: toManilaOffsetISOString(newEnd),
                             status: "pending",
                           }
                         : x
