@@ -558,13 +558,13 @@ function VariantModal({ item, onClose }) {
       >
         <div className="flex items-start text-white justify-between gap-4">
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-slate-400">Options</p>
-            <p className="text-lg md:text-xl font-semibold text-slate-800 mt-1">{item.name}</p>
-            <p className="text-sm text-[#FC687D] font-semibold mt-2">
+            <p className="text-[10px] uppercase tracking-widest text-slate-400"></p>
+            <p className="text-lg md:text-xl font-semibold text-slate-800">{item.name}</p>
+            <p className="text-[18px] text-[#FC687D] font-semibold mt-2">
               {peso0(totalPrice)}
             </p>
             {item.description && (
-              <p className="text-[12px] text-slate-500 mt-2 leading-relaxed">
+              <p className="text-[12px] italic text-slate-500 leading-relaxed">
                 {item.description}
               </p>
             )}
@@ -588,7 +588,7 @@ function VariantModal({ item, onClose }) {
                   <p className="text-[12px] font-normal text-slate-700">
                     {g.name} {g.isRequired ? <span className="text-rose-500">*</span> : null}
                   </p>
-                  <p className="text-[12px] text-slate-400">
+                  <p className="text-[12px] italic text-slate-400">
                     {g.isMultiSelect ? "Multi-Select" : "Required"}
                   </p>
                 </div>
