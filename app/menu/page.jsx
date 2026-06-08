@@ -473,7 +473,7 @@ export default function PublicMenuPage() {
                       </div>
 
                       {/* Name */}
-                      <p className="text-sm font-bold text-slate-800 leading-tight line-clamp-2">
+                      <p className="text-sm font-bold uppercase text-center text-slate-800 leading-tight line-clamp-2">
                         {item.name}
                       </p>
 
@@ -485,12 +485,12 @@ export default function PublicMenuPage() {
                       )}
                       
                       {/* Price */}
-                      <p className="text-sm text-[#FC687D] font-semibold mt-2">
+                      <p className="text-[18px] text-[#FC687D] text-center font-semibold mt-3">
                         {peso0(item.price)}
                       </p>
 
                       <p className="text-[10px] text-slate-400 mt-2 uppercase tracking-widest">
-                        Tap for options
+                       
                       </p>
                     </button>
                   );
@@ -553,13 +553,13 @@ function VariantModal({ item, onClose }) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md bg-white rounded-t-[26px] md:rounded-[30px] p-5 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-md bg-black/40 rounded-t-[26px] md:rounded-[30px] p-5 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start text-white justify-between gap-4">
           <div>
             <p className="text-[10px] uppercase tracking-widest text-slate-400">Options</p>
-            <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">{item.name}</h3>
+            <p className="text-lg md:text-xl font-semibold text-slate-800 mt-1">{item.name}</p>
             <p className="text-sm text-[#FC687D] font-semibold mt-2">
               {peso0(totalPrice)}
             </p>
@@ -584,12 +584,12 @@ function VariantModal({ item, onClose }) {
           <div className="mt-5 space-y-5">
             {variants.map((g) => (
               <div key={g.id} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold text-slate-700">
+                <div className="flex items-center text-white justify-between">
+                  <p className="text-[12px] font-normal text-slate-700">
                     {g.name} {g.isRequired ? <span className="text-rose-500">*</span> : null}
                   </p>
-                  <p className="text-[10px] text-slate-400">
-                    {g.isMultiSelect ? "Multi" : "Single"}
+                  <p className="text-[12px] text-slate-400">
+                    {g.isMultiSelect ? "Multi-Select" : "Required"}
                   </p>
                 </div>
 
@@ -601,12 +601,12 @@ function VariantModal({ item, onClose }) {
                         key={o.id}
                         type="button"
                         onClick={() => toggleOption(g, o)}
-                        className={`p-3 rounded-xl border text-sm text-left transition-all ${
-                          sel ? "border-rose-300 bg-rose-50/40" : "border-slate-200 bg-white"
+                        className={`p-1 rounded-[2px] border text-sm text-left transition-all ${
+                          sel ? "border-slate-200 bg-slate-100" : "border-slate-200 bg-white/70"
                         }`}
                       >
-                        <div className="font-medium text-slate-800 leading-tight">{o.name}</div>
-                        <div className="text-[11px] text-slate-500 mt-1">
+                        <div className="font-medium font-bold text-slate-800 leading-tight">{o.name}</div>
+                        <div className="text-[15px] font-semibold text-slate-500 mt-1">
                           {Number(o.price) > 0 ? `+${peso0(o.price)}` : "—"}
                         </div>
                       </button>

@@ -1290,7 +1290,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
                     </p>
                   </div>
                 </div>
-                <p className="mt-3 w-full border-t border-cyan-50 pt-2 text-center text-sm font-normal text-slate-950">
+                <p className="mt-1 w-full border-t border-cyan-50 pt-2 text-center text-[18px] font-semibold text-slate-950">
                   {peso0(item.price)}
                 </p>
               </button>

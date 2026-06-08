@@ -192,7 +192,7 @@ export default function Home() {
           </div>
 
           <div className="order-2 flex min-w-0 flex-col items-center pt-0 text-center">
-          <p className="juja-annyeong mb-2 text-center text-[clamp(1.55rem,8vw,2.35rem)] sm:text-5xl md:mb-6 md:text-6xl lg:text-7xl">
+          <p className="juja-annyeong mb-2 text-center text-[clamp(1.55rem,8vw,2.35rem)] sm:text-5xl md:mb-6 md:text-6xl lg:text-7xl ">
             Annyeong!
           </p>
 
@@ -225,13 +225,13 @@ export default function Home() {
             <div className="mt-0 flex w-full max-w-[220px] flex-col gap-2 sm:max-w-md sm:flex-row md:max-w-md md:gap-3">
               <Link
                 href="/menu"
-                className="flex-1 rounded-full bg-slate-400/78 px-4 py-2.5 text-center text-[10px] uppercase tracking-widest text-white shadow-[0_14px_28px_rgba(8,120,48,0.18)] transition hover:bg-[#066829] md:px-7 md:py-3 md:text-xs"
+                className="flex-1 rounded-full border border-[#087830] bg-white/80 px-4 py-2.5 text-center font-semibold text-[10px] uppercase tracking-widest text-[#087830] transition hover:bg-[#e9f7ef] md:px-7 md:py-3 md:text-xs"
               >
                 View Menu
               </Link>
               <Link
                 href="https://www.jujabrewandbites.com/function-room"
-                className="flex-1 rounded-full border border-[#087830] bg-white/80 px-4 py-2.5 text-center text-[10px] uppercase tracking-widest text-[#087830] transition hover:bg-[#e9f7ef] md:px-7 md:py-3 md:text-xs"
+                className="flex-1 rounded-full border border-[#087830] bg-white/70 px-4 py-2.5 text-center font-semibold text-[10px] uppercase tracking-widest text-[#087830] transition hover:bg-[#e9f7ef] md:px-7 md:py-3 md:text-xs"
               >
                 Function Room
               </Link>
