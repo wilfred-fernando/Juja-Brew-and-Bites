@@ -72,7 +72,7 @@ const emptyDateFilter = {
 };
 
 function peso(value) {
-  return `PHP ${Number(value || 0).toLocaleString("en-PH", {
+  return `₱ ${Number(value || 0).toLocaleString("en-PH", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
@@ -188,7 +188,7 @@ function Input(props) {
   return (
     <input
       {...props}
-      className={`h-10 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm text-slate-800 shadow-sm outline-none transition duration-200 placeholder:text-slate-400 focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20 ${props.className || ""}`}
+      className={`h-10 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm text-slate-800 shadow-sm outline-none transition duration-200 placeholder:text-slate-400 focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100/90 disabled:text-slate-700 disabled:shadow-none ${props.className || ""}`}
     />
   );
 }
@@ -246,11 +246,10 @@ function Modal({ open, title, children, onClose, width = "max-w-5xl" }) {
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition hover:bg-slate-200"
-            aria-label="Close"
-          >
-            <X size={17} />
-          </button>
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90 font-bold"
+              >
+                ✕
+              </button>
         </div>
         {children}
       </div>
@@ -1175,7 +1174,7 @@ export default function FinanceExpenseManager() {
             </Select>
           </Field>
           <Field label="Qty">
-            <Input type="number" min="0" step="0.01" value={form.quantity} onChange={(e) => updateExpenseForm(scope, "quantity", e.target.value)} />
+            <Input type="number" min="0" step="0.001" value={form.quantity} onChange={(e) => updateExpenseForm(scope, "quantity", e.target.value)} />
           </Field>
           <Field label="Unit">
             <Select value={form.unit} onChange={(e) => updateExpenseForm(scope, "unit", e.target.value)}>
@@ -1211,7 +1210,7 @@ export default function FinanceExpenseManager() {
             <Input type="date" value={form.or_si_date} onChange={(e) => updateExpenseForm(scope, "or_si_date", e.target.value)} />
           </Field>
           <Field label="Submitted By">
-            <Input value={form.submitted_by} onChange={(e) => updateExpenseForm(scope, "submitted_by", e.target.value)} />
+            <Input value={form.submitted_by} disabled readOnly />
           </Field>
           <Field label="Remarks">
             <Input value={form.remarks} onChange={(e) => updateExpenseForm(scope, "remarks", e.target.value)} />
@@ -1247,7 +1246,7 @@ export default function FinanceExpenseManager() {
     const { showStore = false, showSource = false } = options;
     const isOverallTable = tableName === "finance_expenses";
     const dataPillClass = isOverallTable
-      ? "rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase text-black"
+      ? "rounded-lg bg-cyan-100/50 px-2 py-1 text-[10px] font-semibold uppercase text-black"
       : "rounded-lg border border-cyan-100 bg-cyan-50 px-2 py-1 text-[10px] font-semibold uppercase text-black";
     if (rows.length === 0) return <EmptyState message="No expense records yet." />;
 
@@ -1262,8 +1261,8 @@ export default function FinanceExpenseManager() {
               <th className="px-4 py-3">Description</th>
               <th className="px-4 py-3">Common Name</th>
               <th className="px-4 py-3">Supplier / Name</th>
-              <th className="px-4 py-3 text-right">Qty</th>
-              <th className="px-4 py-3">Unit</th>
+              <th className="px-4 py-3 text-center">Qty</th>
+              <th className="px-4 py-3 text-center">Unit</th>
               <th className="px-4 py-3 text-right">Sub-total</th>
               <th className="px-4 py-3 text-right">Discount</th>
               <th className="px-4 py-3 text-right">Total</th>
@@ -1287,11 +1286,11 @@ export default function FinanceExpenseManager() {
                     </td>
                   ) : null}
                   {showStore ? <td className="px-4 py-3 font-semibold">{storeNameById[row.store_id] || "-"}</td> : null}
-                  <td className="px-4 py-3 font-semibold text-slate-950">{row.description}</td>
+                  <td className="px-4 py-3 text-slate-950">{row.description}</td>
                   <td className="px-4 py-3">{row.item_common_name || "-"}</td>
                   <td className="px-4 py-3">{row.supplier_name || "-"}</td>
-                  <td className="px-4 py-3 text-right">{Number(row.quantity || 0).toLocaleString("en-PH")}</td>
-                  <td className="px-4 py-3">{row.unit || "-"}</td>
+                  <td className="px-4 py-3 text-center">{Number(row.quantity || 0).toLocaleString("en-PH")}</td>
+                  <td className="px-4 py-3 text-center">{row.unit || "-"}</td>
                   <td className="px-4 py-3 text-right">{peso(row.subtotal)}</td>
                   <td className="px-4 py-3 text-right">{peso(row.discount)}</td>
                   <td className="px-4 py-3 text-right font-semibold text-slate-950">{peso(row.total)}</td>
@@ -1303,21 +1302,17 @@ export default function FinanceExpenseManager() {
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-2">
                       <button
-                        type="button"
                         onClick={() => openExpenseModal(tableName === "finance_petty_cash_entries" ? "petty" : "overall", row)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-100 bg-cyan-50 text-cyan-700 transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-100"
-                        aria-label="✏️"
+                        className="inline-flex h-8 items-center justify-center gap-2 rounded-lg border border-cyan-100 bg-cyan-50 px-3 text-[10px] font-semibold uppercase text-cyan-700 transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-100"
                       >
-                        <Pencil size={14} />
+                        <Pencil size={13} className="shrink-0" />
                       </button>
                       <button
-                        type="button"
                         onClick={() => removeRow(tableName, row)}
                         disabled={saving === `delete_request_${row.id}`}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-100 bg-red-50 text-red-500 disabled:opacity-50"
-                        aria-label="🗑"
+                         className="inline-flex h-8 items-center justify-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 text-[10px] font-semibold uppercase text-red-600 transition duration-200 hover:-translate-y-0.5 hover:bg-red-100 disabled:bg-slate-100 disabled:text-slate-400"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={13} className="shrink-0" />
                       </button>
                     </div>
                   </td>
@@ -1348,7 +1343,7 @@ export default function FinanceExpenseManager() {
           <Input type="number" min="0" step="0.01" value={fundForm.amount} onChange={(e) => setFundForm((prev) => ({ ...prev, amount: e.target.value }))} />
         </Field>
         <Field label="Submitted By">
-          <Input value={fundForm.submitted_by} onChange={(e) => setFundForm((prev) => ({ ...prev, submitted_by: e.target.value }))} />
+          <Input value={fundForm.submitted_by} disabled readOnly />
         </Field>
         <button
           type="submit"
@@ -1567,7 +1562,7 @@ export default function FinanceExpenseManager() {
                 {rows.map((row) => (
                   <tr key={row.id} className="border-t border-slate-100 transition duration-200 hover:bg-cyan-50/45">
                     <td className="px-4 py-3 font-bold text-slate-500">{labelByType[row.ref_type] || row.ref_type}</td>
-                    <td className="px-4 py-3 font-semibold text-slate-950">{row.name}</td>
+                    <td className="px-4 py-3 text-slate-950">{row.name}</td>
                     <td className="px-4 py-3">{row.common_name || "-"}</td>
                     <td className="px-4 py-3">{row.ref_type === "item" ? "-" : row.notes || "-"}</td>
                     <td className="px-4 py-3">
@@ -1582,8 +1577,8 @@ export default function FinanceExpenseManager() {
                         onClick={() => openReferenceModal(row)}
                         className="inline-flex h-8 items-center justify-center gap-2 rounded-lg border border-cyan-100 bg-cyan-50 px-3 text-[10px] font-semibold uppercase text-cyan-700 transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-100"
                       >
-                        <Pencil size={13} />
-                        Edit
+                        <Pencil size={13} className="shrink-0" />
+                        
                       </button>
                       <button
                         type="button"
@@ -1591,8 +1586,8 @@ export default function FinanceExpenseManager() {
                         disabled={saving === `reference_delete_${row.id}`}
                         className="inline-flex h-8 items-center justify-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 text-[10px] font-semibold uppercase text-red-600 transition duration-200 hover:-translate-y-0.5 hover:bg-red-100 disabled:bg-slate-100 disabled:text-slate-400"
                       >
-                        <Trash2 size={13} />
-                        Delete
+                        <Trash2 size={13} className="shrink-0" />
+                        
                       </button>
                       </div>
                     </td>
@@ -1715,7 +1710,7 @@ export default function FinanceExpenseManager() {
               type="button"
               onClick={() => openExpenseModal("petty")}
               disabled={!selectedStoreId}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_30px_rgba(8,145,178,0.30)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500 disabled:bg-slate-300"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-slate-400/78 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_30px_rgba(8,145,178,0.30)] transition duration-200 hover:-translate-y-0.5 hover:bg-slate-300/78 disabled:bg-slate-300"
             >
               <Plus size={15} />
               Add Petty Cash Expense
@@ -1724,7 +1719,7 @@ export default function FinanceExpenseManager() {
               type="button"
               onClick={() => openFundModal()}
               disabled={!selectedStoreId}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-cyan-100 bg-white/90 px-4 text-xs font-semibold uppercase tracking-wider text-cyan-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-cyan-50 disabled:text-slate-300"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-slate-400/78 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_30px_rgba(8,145,178,0.30)] transition duration-200 hover:-translate-y-0.5 hover:bg-slate-300/78 disabled:bg-slate-300"
             >
               <ArrowUpCircle size={15} />
               Add Cash In
@@ -1782,19 +1777,17 @@ export default function FinanceExpenseManager() {
                         <button
                           type="button"
                           onClick={() => openFundModal(fund)}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-100 bg-cyan-50 text-cyan-700 transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-100"
-                          aria-label="✏️"
-                        >
-                          <Pencil size={14} />
+                          className="inline-flex h-8 items-center justify-center gap-2 rounded-lg border border-cyan-100 bg-cyan-50 px-3 text-[10px] font-semibold uppercase text-cyan-700 transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-100"
+                      >
+                        <Pencil size={13} className="shrink-0" />
                         </button>
                         <button
                           type="button"
                           onClick={() => removeRow("finance_petty_cash_funds", fund)}
                           disabled={saving === `delete_request_${fund.id}`}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-100 bg-red-50 text-red-500 disabled:opacity-50"
-                          aria-label="🗑"
-                        >
-                          <Trash2 size={14} />
+                          className="inline-flex h-8 items-center justify-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 text-[10px] font-semibold uppercase text-red-600 transition duration-200 hover:-translate-y-0.5 hover:bg-red-100 disabled:bg-slate-100 disabled:text-slate-400"
+                      >
+                        <Trash2 size={13} className="shrink-0" />
                         </button>
                       </div>
                     </div>

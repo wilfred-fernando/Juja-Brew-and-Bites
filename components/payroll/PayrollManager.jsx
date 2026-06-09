@@ -6,7 +6,7 @@ import { formatDate } from "@/lib/dateFormat";
 
 const supabase = getSupabaseClient();
 
-const money = (n) => `PHP ${Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const money = (n) => `₱ ${Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const deductionMoney = (n) => `(${money(n)})`;
 const num = (n) => Number(n || 0);
 
@@ -1132,17 +1132,17 @@ export default function AdminPayrollPage() {
               <thead className="sticky top-0 bg-slate-950 text-left text-[10px] uppercase tracking-[0.16em] text-cyan-50">
                 <tr>
                   <th className="p-3">Emp No.</th>
-                  <th>Employee</th>
-                  <th>Rate</th>
-                  <th>Days</th>
-                  <th>OT</th>
-                  <th>Late</th>
-                  <th>Absent</th>
-                  <th>Gross</th>
-                  <th>Deductions</th>
-                  <th>Cash Adv.</th>
-                  <th>Net</th>
-                  <th>Status</th>
+                  <th className="px-1 py-3">Employee</th>
+                  <th className="px-1 py-3">Rate</th>
+                  <th className="px-1 py-3 text-center">Days</th>
+                  <th className="px-1 py-3 text-center">OT</th>
+                  <th className="px-1 py-3 text-center">Late</th>
+                  <th className="px-1 py-3 text-center">Absent</th>
+                  <th className="px-1 py-3 text-right">Gross</th>
+                  <th className="px-1 py-3 text-right">Deductions</th>
+                  <th className="px-1 py-3 text-right">Cash Adv.</th>
+                  <th className="px-1 py-3 text-right">Net</th>
+                  <th className="px-4 py-3">Status</th>
                     <th className="text-right pr-3">Actions</th>
                 </tr>
               </thead>
@@ -1175,16 +1175,18 @@ export default function AdminPayrollPage() {
                         </div>
                       )}
                     </td>
-                    <td>{money(entry.daily_rate)}</td>
-                    <td>{num(entry.days_worked).toFixed(2)}</td>
-                    <td>{num(entry.overtime_hours).toFixed(2)}</td>
-                    <td>{num(entry.late_minutes).toFixed(0)}m</td>
-                    <td>{num(entry.absent_days).toFixed(2)}</td>
-                    <td>{money(entry.gross_total)}</td>
-                    <td className="font-regular text-red-600">{deductionMoney(entry.deduction_total)}</td>
-                    <td className="font-regular text-red-600">{deductionMoney(entry.cash_advance_deduction)}</td>
-                    <td className="font-semibold text-cyan-700">{money(entry.net_total)}</td>
-                    <td><span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase ${statusClass(entry.status)}`}>{entry.status || "draft"}</span></td>
+                    <td className="px-1">{money(entry.daily_rate)}</td>
+                    <td className="px-1 py-3 text-center">{num(entry.days_worked).toFixed(2)}</td>
+                    <td className="px-1 py-3 text-center">{num(entry.overtime_hours).toFixed(2)}</td>
+                    <td className="px-1 py-3 text-center">{num(entry.late_minutes).toFixed(0)}m</td>
+                    <td className="px-1 py-3 text-center">{num(entry.absent_days).toFixed(2)}</td>
+                    <td className="px-1 py-3 font-regular text-right">{money(entry.gross_total)}</td>
+                    <td className="px-1 py-3 font-regular text-right text-red-600">{deductionMoney(entry.deduction_total)}</td>
+                    <td className="px-1 py-3 font-regular text-right text-red-600">{deductionMoney(entry.cash_advance_deduction)}</td>
+                    <td className="px-3 py-3 font-semibold text-right text-cyan-700">{money(entry.net_total)}</td>
+                    <td className="px-4 py-3">
+                      <span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase ${statusClass(entry.status)}`}>{entry.status || "draft"}</span>
+                    </td>
                     <td className="pr-3 text-right">
                       <div className="flex justify-end gap-2">
                         {canChangePayrollStatus && entry.status !== "approved" && entry.status !== "paid" ? <button onClick={() => updateEntryStatus(entry, "approved")} className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[10px] font-semibold uppercase text-blue-600 transition hover:-translate-y-0.5">Approve</button> : null}
@@ -1399,7 +1401,7 @@ export default function AdminPayrollPage() {
                     <td>{employeeById[row.employee_id]?.full_name || row.employee_id}</td>
                     <td>{periodById[row.period_id]?.label || row.period_id}</td>
                     <td>{row.description || "Misc deduction"}</td>
-                    <td className="font-semibold text-cyan-700">{money(row.amount)}</td>
+                    <td className="px-1 py-3 font-semibold text-cyan-700">{money(row.amount)}</td>
                   </tr>
                 ))}
             </DataTable>
@@ -1413,7 +1415,7 @@ export default function AdminPayrollPage() {
                     <td>{employeeById[row.employee_id]?.full_name || row.employee_id}</td>
                     <td>{dateText(advances.find((advance) => advance.id === row.cash_advance_id)?.advance_date)}</td>
                     <td>{periodById[row.period_id]?.label || row.period_id || "-"}</td>
-                    <td className="font-semibold text-cyan-700">{money(row.amount)}</td>
+                    <td className="px-1 py-3 font-semibold text-cyan-700">{money(row.amount)}</td>
                   </tr>
                 ))}
             </DataTable>

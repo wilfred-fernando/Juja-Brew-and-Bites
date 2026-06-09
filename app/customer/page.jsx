@@ -1926,7 +1926,7 @@ function LoyaltyTab({ member, setMember, user }) {
           <div className="relative z-10 flex flex-col justify-between h-full min-h-[150px]">
             
             <div className="bg-white p-2 rounded-lg inline-block self-start shadow-md border border-slate-100 mt-auto">
-              <Barcode value={member?.customer_code || "JUJA000000"} background="transparent" lineColor="#0f172a" width={1.2} height={50} displayValue fontSize={11} margin={0} />
+              <Barcode value={member?.customer_code || "JUJA000000"} background="transparent" lineColor="#032a85" width={1.2} height={50} displayValue fontSize={11} margin={0} />
             </div>
           </div>
         </div>
@@ -1937,12 +1937,12 @@ function LoyaltyTab({ member, setMember, user }) {
             <span className="text-lg font-extrabold text-[#FC687D] block">{available.toFixed(0)} pts</span>
           </div>
           <div className="p-2 bg-slate-50 border border-slate-100 rounded-lg text-center md:text-left md:flex md:justify-between md:items-center">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block md:inline">Visits</span>
-            <span className="text-sm font-bold text-slate-700 block">{member?.["Total visits"] || 0}</span>
+            <span className="text-[10px] uppercase font-bold text-slate-400 block md:inline">Total Points</span>
+            <span className="text-sm font-bold text-slate-700 block">{member?.["Points Balance"] || 0}</span>
           </div>
           <div className="p-2 bg-slate-50 border border-slate-100 rounded-lg text-center md:text-left md:flex md:justify-between md:items-center">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block md:inline">Location</span>
-            <span className="text-xs font-bold text-slate-700 block truncate max-w-[80px] md:max-w-none">{member?.["City"] || "—"}</span>
+            <span className="text-[10px] uppercase font-bold text-slate-400 block md:inline">Visit</span>
+            <span className="text-xs font-bold text-slate-700 block truncate max-w-[80px] md:max-w-none">{member?.["Total visits"] || "—"}</span>
           </div>
         </div>
       </div>
