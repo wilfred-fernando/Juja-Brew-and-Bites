@@ -1,0 +1,140 @@
+{
+  "counts": {
+    "inventory_items": 33,
+    "finance_expenses": 39,
+    "finance_expenses_linked": 39,
+    "petty": 30,
+    "petty_linked": 30,
+    "stock_movements": 0
+  },
+  "duplicate_inventory_common_names": [],
+  "stock_columns": [
+    {
+      "column_name": "id",
+      "data_type": "uuid"
+    },
+    {
+      "column_name": "store_id",
+      "data_type": "uuid"
+    },
+    {
+      "column_name": "stock_item_id",
+      "data_type": "uuid"
+    },
+    {
+      "column_name": "type",
+      "data_type": "text"
+    },
+    {
+      "column_name": "quantity",
+      "data_type": "numeric"
+    },
+    {
+      "column_name": "ref_entity",
+      "data_type": "text"
+    },
+    {
+      "column_name": "ref_id",
+      "data_type": "text"
+    },
+    {
+      "column_name": "created_by",
+      "data_type": "uuid"
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "column_name": "inventory_item_id",
+      "data_type": "uuid"
+    },
+    {
+      "column_name": "movement_type",
+      "data_type": "text"
+    },
+    {
+      "column_name": "unit",
+      "data_type": "text"
+    },
+    {
+      "column_name": "source_type",
+      "data_type": "text"
+    },
+    {
+      "column_name": "source_id",
+      "data_type": "text"
+    },
+    {
+      "column_name": "notes",
+      "data_type": "text"
+    }
+  ],
+  "inventory_item_columns": [
+    {
+      "column_name": "item_name",
+      "data_type": "text"
+    },
+    {
+      "column_name": "common_name",
+      "data_type": "text"
+    },
+    {
+      "column_name": "normalized_common_name",
+      "data_type": "text"
+    }
+  ],
+  "backups": [
+    {
+      "table_name": "backup_finance_expenses_inventory_links_20260611"
+    },
+    {
+      "table_name": "backup_finance_petty_inventory_links_20260611"
+    },
+    {
+      "table_name": "backup_inventory_items_20260611"
+    }
+  ],
+  "policies": [
+    {
+      "tablename": "inventory_items",
+      "policyname": "inventory_items_admin_write",
+      "cmd": "ALL"
+    },
+    {
+      "tablename": "inventory_items",
+      "policyname": "inventory_items_staff_select",
+      "cmd": "SELECT"
+    },
+    {
+      "tablename": "inventory_transactions",
+      "policyname": "inventory_transactions_admin_write",
+      "cmd": "ALL"
+    },
+    {
+      "tablename": "inventory_transactions",
+      "policyname": "inventory_transactions_staff_select",
+      "cmd": "SELECT"
+    },
+    {
+      "tablename": "menu_item_ingredients",
+      "policyname": "menu_item_ingredients_admin_write",
+      "cmd": "ALL"
+    },
+    {
+      "tablename": "menu_item_ingredients",
+      "policyname": "menu_item_ingredients_staff_select",
+      "cmd": "SELECT"
+    },
+    {
+      "tablename": "stock_movements",
+      "policyname": "stock_movements_admin_write",
+      "cmd": "ALL"
+    },
+    {
+      "tablename": "stock_movements",
+      "policyname": "stock_movements_staff_select",
+      "cmd": "SELECT"
+    }
+  ]
+}

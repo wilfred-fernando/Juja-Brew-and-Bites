@@ -1,0 +1,2090 @@
+{
+  "inspected_at": "2026-06-11T06:14:31.506Z",
+  "existing_tables": [
+    "common_inventory_names",
+    "expense_inventory_links",
+    "finance_expenses",
+    "finance_petty_cash_entries",
+    "inventory_items",
+    "inventory_settings",
+    "inventory_transactions",
+    "inventory_warnings",
+    "menu_item_ingredients",
+    "menu_items",
+    "order_items",
+    "orders",
+    "profiles"
+  ],
+  "columns": [
+    {
+      "table_name": "common_inventory_names",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "table_name": "common_inventory_names",
+      "column_name": "common_name",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "common_inventory_names",
+      "column_name": "category",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "common_inventory_names",
+      "column_name": "default_unit",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "common_inventory_names",
+      "column_name": "description",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "common_inventory_names",
+      "column_name": "is_active",
+      "data_type": "boolean",
+      "is_nullable": "NO",
+      "column_default": "true"
+    },
+    {
+      "table_name": "common_inventory_names",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "table_name": "common_inventory_names",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "table_name": "expense_inventory_links",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "table_name": "expense_inventory_links",
+      "column_name": "expense_id",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "expense_inventory_links",
+      "column_name": "inventory_item_id",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "expense_inventory_links",
+      "column_name": "common_name_id",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "expense_inventory_links",
+      "column_name": "purchased_quantity",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "expense_inventory_links",
+      "column_name": "purchased_unit",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "expense_inventory_links",
+      "column_name": "cost_per_unit",
+      "data_type": "numeric",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "expense_inventory_links",
+      "column_name": "total_cost",
+      "data_type": "numeric",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "expense_inventory_links",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "id",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "expense_date",
+      "data_type": "date",
+      "is_nullable": "NO",
+      "column_default": "CURRENT_DATE"
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "description",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "supplier_name",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "quantity",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": "1"
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "unit",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "unit_price",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": "0"
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "subtotal",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": "0"
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "discount",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": "0"
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "total",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": "0"
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "category",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": "'OP-EX'::text"
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "payment_type",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "cheque_no",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "cheque_date",
+      "data_type": "date",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "cheque_amount",
+      "data_type": "numeric",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "or_si_no",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "or_si_date",
+      "data_type": "date",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "remarks",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "submitted_by",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "date_submitted",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "created_by",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "item_common_name",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "entry_source",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": "'overall'::text"
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "source_tag",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": "'Overall'::text"
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "store_id",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "store_name",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "petty_cash_entry_id",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "inventory_sync_status",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": "'not_inventory'::text"
+    },
+    {
+      "table_name": "finance_expenses",
+      "column_name": "inventory_synced_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "id",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "store_id",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "expense_date",
+      "data_type": "date",
+      "is_nullable": "NO",
+      "column_default": "CURRENT_DATE"
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "description",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "supplier_name",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "quantity",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": "1"
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "unit",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "unit_price",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": "0"
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "subtotal",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": "0"
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "discount",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": "0"
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "total",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": "0"
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "category",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": "'OP-EX'::text"
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "payment_type",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "cheque_no",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "cheque_date",
+      "data_type": "date",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "cheque_amount",
+      "data_type": "numeric",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "or_si_no",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "or_si_date",
+      "data_type": "date",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "remarks",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "submitted_by",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "date_submitted",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "created_by",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "item_common_name",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "inventory_sync_status",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": "'not_inventory'::text"
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "column_name": "inventory_synced_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "inventory_items",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "table_name": "inventory_items",
+      "column_name": "common_name_id",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "inventory_items",
+      "column_name": "item_name",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "inventory_items",
+      "column_name": "sku",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "inventory_items",
+      "column_name": "category",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "inventory_items",
+      "column_name": "current_stock",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": "0"
+    },
+    {
+      "table_name": "inventory_items",
+      "column_name": "unit",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "inventory_items",
+      "column_name": "minimum_stock",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": "0"
+    },
+    {
+      "table_name": "inventory_items",
+      "column_name": "reorder_level",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": "0"
+    },
+    {
+      "table_name": "inventory_items",
+      "column_name": "cost_per_unit",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": "0"
+    },
+    {
+      "table_name": "inventory_items",
+      "column_name": "supplier",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "inventory_items",
+      "column_name": "is_active",
+      "data_type": "boolean",
+      "is_nullable": "NO",
+      "column_default": "true"
+    },
+    {
+      "table_name": "inventory_items",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "table_name": "inventory_items",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "table_name": "inventory_settings",
+      "column_name": "id",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": "'default'::text"
+    },
+    {
+      "table_name": "inventory_settings",
+      "column_name": "inventory_enabled",
+      "data_type": "boolean",
+      "is_nullable": "NO",
+      "column_default": "true"
+    },
+    {
+      "table_name": "inventory_settings",
+      "column_name": "allow_negative_stock",
+      "data_type": "boolean",
+      "is_nullable": "NO",
+      "column_default": "true"
+    },
+    {
+      "table_name": "inventory_settings",
+      "column_name": "warn_missing_recipe",
+      "data_type": "boolean",
+      "is_nullable": "NO",
+      "column_default": "true"
+    },
+    {
+      "table_name": "inventory_settings",
+      "column_name": "auto_sync_expenses",
+      "data_type": "boolean",
+      "is_nullable": "NO",
+      "column_default": "true"
+    },
+    {
+      "table_name": "inventory_settings",
+      "column_name": "low_stock_alert_enabled",
+      "data_type": "boolean",
+      "is_nullable": "NO",
+      "column_default": "true"
+    },
+    {
+      "table_name": "inventory_settings",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "table_name": "inventory_transactions",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "table_name": "inventory_transactions",
+      "column_name": "inventory_item_id",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "inventory_transactions",
+      "column_name": "common_name_id",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "inventory_transactions",
+      "column_name": "transaction_type",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "inventory_transactions",
+      "column_name": "quantity",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "inventory_transactions",
+      "column_name": "unit",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "inventory_transactions",
+      "column_name": "quantity_effect",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "inventory_transactions",
+      "column_name": "reference_type",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "inventory_transactions",
+      "column_name": "reference_id",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "inventory_transactions",
+      "column_name": "notes",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "inventory_transactions",
+      "column_name": "created_by",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "inventory_transactions",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "table_name": "inventory_warnings",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "table_name": "inventory_warnings",
+      "column_name": "warning_type",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "inventory_warnings",
+      "column_name": "reference_type",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "inventory_warnings",
+      "column_name": "reference_id",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "inventory_warnings",
+      "column_name": "menu_item_id",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "inventory_warnings",
+      "column_name": "message",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "inventory_warnings",
+      "column_name": "is_resolved",
+      "data_type": "boolean",
+      "is_nullable": "NO",
+      "column_default": "false"
+    },
+    {
+      "table_name": "inventory_warnings",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "table_name": "menu_item_ingredients",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "table_name": "menu_item_ingredients",
+      "column_name": "menu_item_id",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "menu_item_ingredients",
+      "column_name": "variant_key",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "menu_item_ingredients",
+      "column_name": "variant_name",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "menu_item_ingredients",
+      "column_name": "inventory_item_id",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "menu_item_ingredients",
+      "column_name": "common_name_id",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "menu_item_ingredients",
+      "column_name": "quantity_required",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "menu_item_ingredients",
+      "column_name": "unit",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "menu_item_ingredients",
+      "column_name": "deduction_multiplier",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": "1"
+    },
+    {
+      "table_name": "menu_item_ingredients",
+      "column_name": "is_active",
+      "data_type": "boolean",
+      "is_nullable": "NO",
+      "column_default": "true"
+    },
+    {
+      "table_name": "menu_item_ingredients",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "table_name": "menu_item_ingredients",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()"
+    },
+    {
+      "table_name": "menu_items",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "table_name": "menu_items",
+      "column_name": "name",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "menu_items",
+      "column_name": "description",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "menu_items",
+      "column_name": "price",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": "0.00"
+    },
+    {
+      "table_name": "menu_items",
+      "column_name": "category",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "menu_items",
+      "column_name": "image_url",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "menu_items",
+      "column_name": "is_available",
+      "data_type": "boolean",
+      "is_nullable": "YES",
+      "column_default": "true"
+    },
+    {
+      "table_name": "menu_items",
+      "column_name": "is_featured",
+      "data_type": "boolean",
+      "is_nullable": "YES",
+      "column_default": "false"
+    },
+    {
+      "table_name": "menu_items",
+      "column_name": "option_groups",
+      "data_type": "jsonb",
+      "is_nullable": "YES",
+      "column_default": "'[]'::jsonb"
+    },
+    {
+      "table_name": "menu_items",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES",
+      "column_default": "now()"
+    },
+    {
+      "table_name": "menu_items",
+      "column_name": "variants",
+      "data_type": "jsonb",
+      "is_nullable": "YES",
+      "column_default": "'[]'::jsonb"
+    },
+    {
+      "table_name": "menu_items",
+      "column_name": "pos_only",
+      "data_type": "boolean",
+      "is_nullable": "NO",
+      "column_default": "false"
+    },
+    {
+      "table_name": "menu_items",
+      "column_name": "is_variable_price",
+      "data_type": "boolean",
+      "is_nullable": "YES",
+      "column_default": "false"
+    },
+    {
+      "table_name": "menu_items",
+      "column_name": "store_id",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "order_id",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "menu_item_id",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "name",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "quantity",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": "1"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "unit_price",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": "0"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "modifiers",
+      "data_type": "jsonb",
+      "is_nullable": "YES",
+      "column_default": "'[]'::jsonb"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "instructions",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "line_total",
+      "data_type": "numeric",
+      "is_nullable": "NO",
+      "column_default": "0"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "applied_voucher_code",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES",
+      "column_default": "now()"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "timezone('utc'::text, now())"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "user_id",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "orders",
+      "column_name": "customer_name",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "orders",
+      "column_name": "branch_id",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "orders",
+      "column_name": "items",
+      "data_type": "jsonb",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "orders",
+      "column_name": "subtotal",
+      "data_type": "numeric",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "orders",
+      "column_name": "status",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": "'pending'::text"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "dining_option",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "orders",
+      "column_name": "fulfillment_date",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "orders",
+      "column_name": "fulfillment_time",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "orders",
+      "column_name": "customer_id",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "orders",
+      "column_name": "discount",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "orders",
+      "column_name": "payment_method",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "orders",
+      "column_name": "store_id",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "orders",
+      "column_name": "total",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "orders",
+      "column_name": "inventory_deducted",
+      "data_type": "boolean",
+      "is_nullable": "NO",
+      "column_default": "false"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "inventory_deducted_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "email",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "full_name",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "role",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": "'cashier'::text"
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES",
+      "column_default": "timezone('utc'::text, now())"
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "store_id",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "loyalty_account_id",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "must_change_password",
+      "data_type": "boolean",
+      "is_nullable": "NO",
+      "column_default": "true"
+    }
+  ],
+  "foreign_keys": [
+    {
+      "table_name": "expense_inventory_links",
+      "column_name": "common_name_id",
+      "foreign_table": "common_inventory_names",
+      "foreign_column": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "expense_inventory_links",
+      "column_name": "expense_id",
+      "foreign_table": "finance_expenses",
+      "foreign_column": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "expense_inventory_links",
+      "column_name": "inventory_item_id",
+      "foreign_table": "inventory_items",
+      "foreign_column": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "inventory_items",
+      "column_name": "common_name_id",
+      "foreign_table": "common_inventory_names",
+      "foreign_column": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "inventory_transactions",
+      "column_name": "common_name_id",
+      "foreign_table": "common_inventory_names",
+      "foreign_column": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "inventory_transactions",
+      "column_name": "inventory_item_id",
+      "foreign_table": "inventory_items",
+      "foreign_column": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "menu_item_ingredients",
+      "column_name": "common_name_id",
+      "foreign_table": "common_inventory_names",
+      "foreign_column": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "menu_item_ingredients",
+      "column_name": "inventory_item_id",
+      "foreign_table": "inventory_items",
+      "foreign_column": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "menu_items",
+      "column_name": "category",
+      "foreign_table": "menu_categories",
+      "foreign_column": "name",
+      "update_rule": "CASCADE",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "menu_items",
+      "column_name": "store_id",
+      "foreign_table": "stores",
+      "foreign_column": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "NO ACTION"
+    },
+    {
+      "table_name": "menu_items",
+      "column_name": "store_id",
+      "foreign_table": "stores",
+      "foreign_column": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "NO ACTION"
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "store_id",
+      "foreign_table": "stores",
+      "foreign_column": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "NO ACTION"
+    }
+  ],
+  "triggers": [
+    {
+      "table_name": "finance_expenses",
+      "trigger_name": "set_finance_expenses_updated_at",
+      "action_timing": "BEFORE",
+      "event_manipulation": "UPDATE",
+      "action_statement": "EXECUTE FUNCTION set_finance_updated_at()"
+    },
+    {
+      "table_name": "finance_petty_cash_entries",
+      "trigger_name": "set_finance_petty_cash_entries_updated_at",
+      "action_timing": "BEFORE",
+      "event_manipulation": "UPDATE",
+      "action_statement": "EXECUTE FUNCTION set_finance_updated_at()"
+    },
+    {
+      "table_name": "orders",
+      "trigger_name": "set_orders_branch_id_from_store_trigger",
+      "action_timing": "BEFORE",
+      "event_manipulation": "INSERT",
+      "action_statement": "EXECUTE FUNCTION set_orders_branch_id_from_store()"
+    },
+    {
+      "table_name": "orders",
+      "trigger_name": "set_orders_branch_id_from_store_trigger",
+      "action_timing": "BEFORE",
+      "event_manipulation": "UPDATE",
+      "action_statement": "EXECUTE FUNCTION set_orders_branch_id_from_store()"
+    }
+  ],
+  "policies": [
+    {
+      "schemaname": "public",
+      "tablename": "common_inventory_names",
+      "policyname": "inventory_common_admin_write",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "ALL",
+      "qual": "inventory_is_admin()",
+      "with_check": "inventory_is_admin()"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "common_inventory_names",
+      "policyname": "inventory_common_staff_select",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "SELECT",
+      "qual": "inventory_is_staff()",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "expense_inventory_links",
+      "policyname": "expense_inventory_links_admin_write",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "ALL",
+      "qual": "inventory_is_admin()",
+      "with_check": "inventory_is_admin()"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "expense_inventory_links",
+      "policyname": "expense_inventory_links_staff_select",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "SELECT",
+      "qual": "inventory_is_staff()",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "finance_expenses",
+      "policyname": "finance_expenses_admin_all",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "ALL",
+      "qual": "(EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (lower(COALESCE(p.role, ''::text)) = ANY (ARRAY['admin'::text, 'super_admin'::text])))))",
+      "with_check": "(EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (lower(COALESCE(p.role, ''::text)) = ANY (ARRAY['admin'::text, 'super_admin'::text])))))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "finance_expenses",
+      "policyname": "finance_expenses_cashier_branch_delete_24h",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "DELETE",
+      "qual": "((entry_source = 'petty_cash'::text) AND (created_at >= (now() - '24:00:00'::interval)) AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (lower(COALESCE(p.role, ''::text)) = 'cashier'::text) AND ((p.store_id)::text = finance_expenses.store_id)))))",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "finance_expenses",
+      "policyname": "finance_expenses_cashier_branch_insert",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "INSERT",
+      "qual": null,
+      "with_check": "((entry_source = 'petty_cash'::text) AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (lower(COALESCE(p.role, ''::text)) = 'cashier'::text) AND ((p.store_id)::text = finance_expenses.store_id)))))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "finance_expenses",
+      "policyname": "finance_expenses_cashier_branch_select",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "SELECT",
+      "qual": "((entry_source = 'petty_cash'::text) AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (lower(COALESCE(p.role, ''::text)) = 'cashier'::text) AND ((p.store_id)::text = finance_expenses.store_id)))))",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "finance_expenses",
+      "policyname": "finance_expenses_cashier_branch_update",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "UPDATE",
+      "qual": "((entry_source = 'petty_cash'::text) AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (lower(COALESCE(p.role, ''::text)) = 'cashier'::text) AND ((p.store_id)::text = finance_expenses.store_id)))))",
+      "with_check": "((entry_source = 'petty_cash'::text) AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (lower(COALESCE(p.role, ''::text)) = 'cashier'::text) AND ((p.store_id)::text = finance_expenses.store_id)))))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "finance_petty_cash_entries",
+      "policyname": "finance_petty_cash_entries_admin_all",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "ALL",
+      "qual": "(EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (lower(COALESCE(p.role, ''::text)) = ANY (ARRAY['admin'::text, 'super_admin'::text])))))",
+      "with_check": "(EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (lower(COALESCE(p.role, ''::text)) = ANY (ARRAY['admin'::text, 'super_admin'::text])))))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "finance_petty_cash_entries",
+      "policyname": "finance_petty_cash_entries_cashier_branch_delete_24h",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "DELETE",
+      "qual": "((created_at >= (now() - '24:00:00'::interval)) AND (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (lower(COALESCE(p.role, ''::text)) = 'cashier'::text) AND ((p.store_id)::text = finance_petty_cash_entries.store_id)))))",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "finance_petty_cash_entries",
+      "policyname": "finance_petty_cash_entries_cashier_branch_insert",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "INSERT",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (lower(COALESCE(p.role, ''::text)) = 'cashier'::text) AND ((p.store_id)::text = finance_petty_cash_entries.store_id))))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "finance_petty_cash_entries",
+      "policyname": "finance_petty_cash_entries_cashier_branch_select",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "SELECT",
+      "qual": "(EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (lower(COALESCE(p.role, ''::text)) = 'cashier'::text) AND ((p.store_id)::text = finance_petty_cash_entries.store_id))))",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "finance_petty_cash_entries",
+      "policyname": "finance_petty_cash_entries_cashier_branch_update",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "UPDATE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (lower(COALESCE(p.role, ''::text)) = 'cashier'::text) AND ((p.store_id)::text = finance_petty_cash_entries.store_id))))",
+      "with_check": "(EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE ((p.id = auth.uid()) AND (lower(COALESCE(p.role, ''::text)) = 'cashier'::text) AND ((p.store_id)::text = finance_petty_cash_entries.store_id))))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "inventory_items",
+      "policyname": "inventory_items_admin_write",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "ALL",
+      "qual": "inventory_is_admin()",
+      "with_check": "inventory_is_admin()"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "inventory_items",
+      "policyname": "inventory_items_staff_select",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "SELECT",
+      "qual": "inventory_is_staff()",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "inventory_settings",
+      "policyname": "inventory_settings_admin_write",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "ALL",
+      "qual": "inventory_is_admin()",
+      "with_check": "inventory_is_admin()"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "inventory_settings",
+      "policyname": "inventory_settings_staff_select",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "SELECT",
+      "qual": "inventory_is_staff()",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "inventory_transactions",
+      "policyname": "inventory_transactions_admin_write",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "ALL",
+      "qual": "inventory_is_admin()",
+      "with_check": "inventory_is_admin()"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "inventory_transactions",
+      "policyname": "inventory_transactions_staff_select",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "SELECT",
+      "qual": "inventory_is_staff()",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "inventory_warnings",
+      "policyname": "inventory_warnings_admin_write",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "ALL",
+      "qual": "inventory_is_admin()",
+      "with_check": "inventory_is_admin()"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "inventory_warnings",
+      "policyname": "inventory_warnings_staff_select",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "SELECT",
+      "qual": "inventory_is_staff()",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "menu_item_ingredients",
+      "policyname": "menu_item_ingredients_admin_write",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "ALL",
+      "qual": "inventory_is_admin()",
+      "with_check": "inventory_is_admin()"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "menu_item_ingredients",
+      "policyname": "menu_item_ingredients_staff_select",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "SELECT",
+      "qual": "inventory_is_staff()",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "menu_items",
+      "policyname": "Admin_Full_Access_Menu",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "ALL",
+      "qual": "(((auth.jwt() -> 'user_metadata'::text) ->> 'role'::text) = 'admin'::text)",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "menu_items",
+      "policyname": "Admins can manage menu items",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "cmd": "ALL",
+      "qual": "(auth.uid() = id)",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "menu_items",
+      "policyname": "Allow Admin Access",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "ALL",
+      "qual": "true",
+      "with_check": "true"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "menu_items",
+      "policyname": "Allow Admin Delete",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "cmd": "DELETE",
+      "qual": "true",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "menu_items",
+      "policyname": "Allow Admin Inserts",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "cmd": "INSERT",
+      "qual": null,
+      "with_check": "true"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "menu_items",
+      "policyname": "Allow Admin Update",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "cmd": "UPDATE",
+      "qual": "true",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "menu_items",
+      "policyname": "Allow public read access",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "cmd": "SELECT",
+      "qual": "true",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "menu_items",
+      "policyname": "Master_Public_Read",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "cmd": "SELECT",
+      "qual": "true",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "menu_items",
+      "policyname": "Public can view menu items",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "cmd": "SELECT",
+      "qual": "true",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "menu_items",
+      "policyname": "managers/admin can update menu_items",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "cmd": "UPDATE",
+      "qual": "can_manage_store(store_id)",
+      "with_check": "can_manage_store(store_id)"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "menu_items",
+      "policyname": "managers/admin can write menu_items",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "cmd": "INSERT",
+      "qual": null,
+      "with_check": "can_manage_store(store_id)"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "menu_items",
+      "policyname": "store members can read menu_items",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "cmd": "SELECT",
+      "qual": "(store_id IN ( SELECT my_store_ids() AS my_store_ids))",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "order_items",
+      "policyname": "order_items_authenticated_all",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "ALL",
+      "qual": "true",
+      "with_check": "true"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "orders",
+      "policyname": "Allow authenticated inserts",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "INSERT",
+      "qual": null,
+      "with_check": "true"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "orders",
+      "policyname": "Allow insert for system/backend",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "cmd": "INSERT",
+      "qual": null,
+      "with_check": "true"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "orders",
+      "policyname": "Allow order creation",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "cmd": "INSERT",
+      "qual": null,
+      "with_check": "true"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "orders",
+      "policyname": "Allow users to read own orders",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "SELECT",
+      "qual": "(auth.uid() = user_id)",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "orders",
+      "policyname": "Flexible order insert",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "cmd": "INSERT",
+      "qual": null,
+      "with_check": "((user_id IS NULL) OR (auth.uid() = user_id))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "orders",
+      "policyname": "Users can read their own orders",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "SELECT",
+      "qual": "(auth.uid() = user_id)",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "orders",
+      "policyname": "orders_authenticated_all",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "ALL",
+      "qual": "true",
+      "with_check": "true"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "profiles",
+      "policyname": "Admins can update all profiles",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "UPDATE",
+      "qual": "is_admin()",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "profiles",
+      "policyname": "Admins can view all profiles",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "SELECT",
+      "qual": "((role = 'cashier'::text) OR (role = 'admin'::text) OR (role = 'super_admin'::text))",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "profiles",
+      "policyname": "Profiles: user can read own",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "SELECT",
+      "qual": "(auth.uid() = id)",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "profiles",
+      "policyname": "Profiles: user can update own",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "UPDATE",
+      "qual": "(auth.uid() = id)",
+      "with_check": "(auth.uid() = id)"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "profiles",
+      "policyname": "Users can read own profile",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "cmd": "SELECT",
+      "qual": "(auth.uid() = id)",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "profiles",
+      "policyname": "Users can view own profile",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "cmd": "SELECT",
+      "qual": "(auth.uid() = id)",
+      "with_check": null
+    }
+  ],
+  "functions": [
+    {
+      "function_name": "add_inventory_transaction",
+      "arguments": "p_inventory_item_id uuid, p_common_name_id uuid, p_transaction_type text, p_quantity numeric, p_unit text, p_quantity_effect numeric, p_reference_type text DEFAULT NULL::text, p_reference_id text DEFAULT NULL::text, p_notes text DEFAULT NULL::text, p_created_by uuid DEFAULT NULL::uuid",
+      "result": "inventory_transactions",
+      "language": "plpgsql",
+      "security_definer": true
+    },
+    {
+      "function_name": "deduct_inventory_for_pos_order",
+      "arguments": "p_order_id text, p_items jsonb, p_created_by uuid DEFAULT NULL::uuid",
+      "result": "jsonb",
+      "language": "plpgsql",
+      "security_definer": true
+    },
+    {
+      "function_name": "inventory_convert_quantity",
+      "arguments": "p_quantity numeric, p_from_unit text, p_to_unit text",
+      "result": "numeric",
+      "language": "plpgsql",
+      "security_definer": false
+    },
+    {
+      "function_name": "inventory_current_role",
+      "arguments": "",
+      "result": "text",
+      "language": "sql",
+      "security_definer": false
+    },
+    {
+      "function_name": "inventory_is_admin",
+      "arguments": "",
+      "result": "boolean",
+      "language": "sql",
+      "security_definer": false
+    },
+    {
+      "function_name": "inventory_is_staff",
+      "arguments": "",
+      "result": "boolean",
+      "language": "sql",
+      "security_definer": false
+    },
+    {
+      "function_name": "inventory_normalize_unit",
+      "arguments": "p_unit text",
+      "result": "text",
+      "language": "sql",
+      "security_definer": false
+    },
+    {
+      "function_name": "restore_inventory_for_void_order",
+      "arguments": "p_order_id text, p_created_by uuid DEFAULT NULL::uuid",
+      "result": "jsonb",
+      "language": "plpgsql",
+      "security_definer": true
+    },
+    {
+      "function_name": "sync_expense_to_inventory",
+      "arguments": "p_expense_id text, p_inventory_item_id uuid, p_common_name_id uuid, p_quantity numeric, p_unit text, p_unit_cost numeric DEFAULT NULL::numeric, p_total_cost numeric DEFAULT NULL::numeric, p_created_by uuid DEFAULT NULL::uuid",
+      "result": "jsonb",
+      "language": "plpgsql",
+      "security_definer": true
+    }
+  ],
+  "indexes": [
+    {
+      "tablename": "common_inventory_names",
+      "indexname": "common_inventory_names_common_name_key",
+      "indexdef": "CREATE UNIQUE INDEX common_inventory_names_common_name_key ON public.common_inventory_names USING btree (common_name)"
+    },
+    {
+      "tablename": "common_inventory_names",
+      "indexname": "common_inventory_names_pkey",
+      "indexdef": "CREATE UNIQUE INDEX common_inventory_names_pkey ON public.common_inventory_names USING btree (id)"
+    },
+    {
+      "tablename": "expense_inventory_links",
+      "indexname": "expense_inventory_links_pkey",
+      "indexdef": "CREATE UNIQUE INDEX expense_inventory_links_pkey ON public.expense_inventory_links USING btree (id)"
+    },
+    {
+      "tablename": "expense_inventory_links",
+      "indexname": "idx_expense_inventory_links_expense_item",
+      "indexdef": "CREATE UNIQUE INDEX idx_expense_inventory_links_expense_item ON public.expense_inventory_links USING btree (expense_id, inventory_item_id)"
+    },
+    {
+      "tablename": "finance_expenses",
+      "indexname": "finance_expenses_expense_date_idx",
+      "indexdef": "CREATE INDEX finance_expenses_expense_date_idx ON public.finance_expenses USING btree (expense_date DESC)"
+    },
+    {
+      "tablename": "finance_expenses",
+      "indexname": "finance_expenses_petty_cash_entry_id_idx",
+      "indexdef": "CREATE INDEX finance_expenses_petty_cash_entry_id_idx ON public.finance_expenses USING btree (petty_cash_entry_id)"
+    },
+    {
+      "tablename": "finance_expenses",
+      "indexname": "finance_expenses_pkey",
+      "indexdef": "CREATE UNIQUE INDEX finance_expenses_pkey ON public.finance_expenses USING btree (id)"
+    },
+    {
+      "tablename": "finance_petty_cash_entries",
+      "indexname": "finance_petty_cash_entries_pkey",
+      "indexdef": "CREATE UNIQUE INDEX finance_petty_cash_entries_pkey ON public.finance_petty_cash_entries USING btree (id)"
+    },
+    {
+      "tablename": "finance_petty_cash_entries",
+      "indexname": "finance_petty_cash_entries_store_date_idx",
+      "indexdef": "CREATE INDEX finance_petty_cash_entries_store_date_idx ON public.finance_petty_cash_entries USING btree (store_id, expense_date DESC)"
+    },
+    {
+      "tablename": "inventory_items",
+      "indexname": "idx_inventory_items_common_name",
+      "indexdef": "CREATE INDEX idx_inventory_items_common_name ON public.inventory_items USING btree (common_name_id)"
+    },
+    {
+      "tablename": "inventory_items",
+      "indexname": "inventory_items_pkey",
+      "indexdef": "CREATE UNIQUE INDEX inventory_items_pkey ON public.inventory_items USING btree (id)"
+    },
+    {
+      "tablename": "inventory_settings",
+      "indexname": "inventory_settings_pkey",
+      "indexdef": "CREATE UNIQUE INDEX inventory_settings_pkey ON public.inventory_settings USING btree (id)"
+    },
+    {
+      "tablename": "inventory_transactions",
+      "indexname": "idx_inventory_transactions_reference",
+      "indexdef": "CREATE INDEX idx_inventory_transactions_reference ON public.inventory_transactions USING btree (reference_type, reference_id)"
+    },
+    {
+      "tablename": "inventory_transactions",
+      "indexname": "inventory_transactions_pkey",
+      "indexdef": "CREATE UNIQUE INDEX inventory_transactions_pkey ON public.inventory_transactions USING btree (id)"
+    },
+    {
+      "tablename": "inventory_warnings",
+      "indexname": "inventory_warnings_pkey",
+      "indexdef": "CREATE UNIQUE INDEX inventory_warnings_pkey ON public.inventory_warnings USING btree (id)"
+    },
+    {
+      "tablename": "menu_item_ingredients",
+      "indexname": "idx_menu_item_ingredients_menu_item",
+      "indexdef": "CREATE INDEX idx_menu_item_ingredients_menu_item ON public.menu_item_ingredients USING btree (menu_item_id)"
+    },
+    {
+      "tablename": "menu_item_ingredients",
+      "indexname": "menu_item_ingredients_pkey",
+      "indexdef": "CREATE UNIQUE INDEX menu_item_ingredients_pkey ON public.menu_item_ingredients USING btree (id)"
+    },
+    {
+      "tablename": "menu_items",
+      "indexname": "idx_menu_items_store",
+      "indexdef": "CREATE INDEX idx_menu_items_store ON public.menu_items USING btree (store_id)"
+    },
+    {
+      "tablename": "menu_items",
+      "indexname": "menu_items_pkey",
+      "indexdef": "CREATE UNIQUE INDEX menu_items_pkey ON public.menu_items USING btree (id)"
+    },
+    {
+      "tablename": "order_items",
+      "indexname": "order_items_pkey",
+      "indexdef": "CREATE UNIQUE INDEX order_items_pkey ON public.order_items USING btree (id)"
+    },
+    {
+      "tablename": "orders",
+      "indexname": "orders_pkey",
+      "indexdef": "CREATE UNIQUE INDEX orders_pkey ON public.orders USING btree (id)"
+    },
+    {
+      "tablename": "profiles",
+      "indexname": "profiles_email_key",
+      "indexdef": "CREATE UNIQUE INDEX profiles_email_key ON public.profiles USING btree (email)"
+    },
+    {
+      "tablename": "profiles",
+      "indexname": "profiles_loyalty_account_id_unique",
+      "indexdef": "CREATE UNIQUE INDEX profiles_loyalty_account_id_unique ON public.profiles USING btree (loyalty_account_id) WHERE (loyalty_account_id IS NOT NULL)"
+    },
+    {
+      "tablename": "profiles",
+      "indexname": "profiles_pkey",
+      "indexdef": "CREATE UNIQUE INDEX profiles_pkey ON public.profiles USING btree (id)"
+    }
+  ]
+}

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/dateFormat";
+import { INVENTORY_UNITS, syncExpensePurchaseToInventory } from "@/lib/inventory";
 
 const CATEGORY_OPTIONS = ["OP-EX", "PERSONAL"];
 const PAYMENT_TYPES = ["CASH", "CHEQUE", "GCASH -9393", "GCASH -0668", "GCASH -8199", "CARD", "BANK TRANSFER"];
@@ -48,6 +49,12 @@ const initialExpenseForm = {
   or_si_date: "",
   remarks: "",
   submitted_by: "",
+  is_inventory_purchase: false,
+  inventory_item_id: "",
+  inventory_common_name_id: "",
+  inventory_quantity: "",
+  inventory_unit: "",
+  inventory_unit_cost: "",
 };
 
 const initialFundForm = {
@@ -285,6 +292,8 @@ export default function FinanceExpenseManager() {
   const [overallDateFilter, setOverallDateFilter] = useState(emptyDateFilter);
   const [pettyDateFilter, setPettyDateFilter] = useState(emptyDateFilter);
   const [deleteRequests, setDeleteRequests] = useState([]);
+  const [inventoryItems, setInventoryItems] = useState([]);
+  const [inventoryCommonNames, setInventoryCommonNames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState("");
   const [notice, setNotice] = useState(null);
@@ -418,6 +427,14 @@ export default function FinanceExpenseManager() {
         const commonName = commonNameForItem(value);
         if (commonName) next.item_common_name = commonName;
       }
+      if (key === "inventory_item_id") {
+        const item = inventoryItems.find((row) => row.id === value);
+        if (item) {
+          next.inventory_common_name_id = item.common_name_id || next.inventory_common_name_id;
+          next.inventory_unit = item.unit || next.inventory_unit;
+          next.inventory_unit_cost = item.cost_per_unit ?? next.inventory_unit_cost;
+        }
+      }
       return next;
     });
   }
@@ -489,12 +506,14 @@ export default function FinanceExpenseManager() {
       deleteRequestQuery = deleteRequestQuery.eq("store_id", cashierStoreId);
     }
 
-    const [overallRes, pettyRes, fundsRes, referencesRes, deleteRequestsRes] = await Promise.all([
+    const [overallRes, pettyRes, fundsRes, referencesRes, deleteRequestsRes, inventoryItemsRes, inventoryCommonRes] = await Promise.all([
       overallQuery,
       pettyQuery,
       fundsQuery,
       supabase.from("finance_references").select("*").order("ref_type", { ascending: true }).order("name", { ascending: true }),
       deleteRequestQuery,
+      supabase.from("inventory_items").select("id, item_name, common_name, common_name_id, unit, cost_per_unit, is_active").eq("is_active", true).order("item_name"),
+      supabase.from("common_inventory_names").select("id, common_name, default_unit, is_active").eq("is_active", true).order("common_name"),
     ]);
 
     const tableError = [overallRes.error, pettyRes.error, fundsRes.error, referencesRes.error, deleteRequestsRes.error].find(Boolean);
@@ -527,6 +546,20 @@ export default function FinanceExpenseManager() {
     setPettyFunds(fundsRes.data || []);
     setReferences(referenceRows.map((row) => row.ref_type === "item" ? { ...row, notes: null } : row));
     setDeleteRequests(deleteRequestsRes.data || []);
+    const inventoryItemRows = inventoryItemsRes.error ? [] : inventoryItemsRes.data || [];
+    setInventoryItems(inventoryItemRows);
+    setInventoryCommonNames(
+      inventoryItemRows.length
+        ? [...new Map(inventoryItemRows
+          .filter((row) => row.common_name)
+          .map((row) => [String(row.common_name).toLowerCase().trim(), {
+            id: row.common_name_id || "",
+            common_name: row.common_name,
+            default_unit: row.unit,
+            inventory_item_id: row.id,
+          }])).values()]
+        : inventoryCommonRes.error ? [] : inventoryCommonRes.data || []
+    );
     setLoading(false);
   }
 
@@ -564,6 +597,48 @@ export default function FinanceExpenseManager() {
       created_by: currentUserId,
       ...extra,
     };
+  }
+
+  async function syncExpenseInventoryIfNeeded(form, expenseId) {
+    if (!form.is_inventory_purchase) return { synced: false, status: "not_inventory" };
+    if (!form.inventory_item_id || !numberValue(form.inventory_quantity || form.quantity)) {
+      await supabase
+        .from("finance_expenses")
+        .update({ inventory_sync_status: "needs_mapping" })
+        .eq("id", expenseId);
+      return { synced: false, status: "needs_mapping", message: "Inventory purchase needs an item and quantity mapping." };
+    }
+
+    try {
+      await syncExpensePurchaseToInventory(supabase, {
+        expenseId,
+        inventoryItemId: form.inventory_item_id,
+        commonNameId: form.inventory_common_name_id || null,
+        quantity: numberValue(form.inventory_quantity || form.quantity),
+        unit: form.inventory_unit || form.unit,
+        unitCost: form.inventory_unit_cost === "" ? form.unit_price : form.inventory_unit_cost,
+        totalCost: lineMath(form).total,
+        createdBy: currentUserId,
+      });
+      return { synced: true, status: "synced" };
+    } catch (error) {
+      await supabase
+        .from("finance_expenses")
+        .update({ inventory_sync_status: "needs_mapping" })
+        .eq("id", expenseId);
+      return { synced: false, status: "needs_mapping", message: error.message };
+    }
+  }
+
+  async function markPettyInventoryStatus(pettyId, sync) {
+    if (!pettyId || !sync?.status) return;
+    await supabase
+      .from("finance_petty_cash_entries")
+      .update({
+        inventory_sync_status: sync.status,
+        inventory_synced_at: sync.synced ? new Date().toISOString() : null,
+      })
+      .eq("id", pettyId);
   }
 
   function expenseFormFromRow(row) {
@@ -650,6 +725,9 @@ export default function FinanceExpenseManager() {
       if (error) {
         showNotice("error", error.message);
       } else {
+        const sync = await syncExpenseInventoryIfNeeded(expenseForm, editingExpense.row.id);
+        if (sync.message) showNotice("error", sync.message);
+        payload.inventory_sync_status = sync.status;
         const pettyPatch = { ...payload };
         delete pettyPatch.entry_source;
         delete pettyPatch.source_tag;
@@ -661,14 +739,14 @@ export default function FinanceExpenseManager() {
             .update({ ...pettyPatch, id: editingExpense.row.petty_cash_entry_id, store_id: editingExpense.row.store_id })
             .eq("id", editingExpense.row.petty_cash_entry_id);
         }
-        setOverallExpenses((prev) => prev.map((row) => (row.id === editingExpense.row.id ? { ...row, ...payload } : row)));
+        setOverallExpenses((prev) => prev.map((row) => (row.id === editingExpense.row.id ? { ...row, ...payload, inventory_sync_status: sync.status } : row)));
         if (editingExpense.row.petty_cash_entry_id) {
           setPettyEntries((prev) => prev.map((row) => (
             row.id === editingExpense.row.petty_cash_entry_id ? { ...row, ...pettyPatch, id: row.id, store_id: row.store_id } : row
           )));
         }
         closeExpenseModal();
-        showNotice("success", "Overall expense updated.");
+        if (!sync.message) showNotice("success", sync.synced ? "Overall expense updated and inventory synced." : "Overall expense updated.");
       }
       setSaving("");
       return;
@@ -678,10 +756,13 @@ export default function FinanceExpenseManager() {
     if (error) {
       showNotice("error", error.message);
     } else {
-      setOverallExpenses((prev) => [payload, ...prev]);
+      const sync = await syncExpenseInventoryIfNeeded(expenseForm, payload.id);
+      if (sync.message) showNotice("error", sync.message);
+      const syncedPayload = { ...payload, inventory_sync_status: sync.status };
+      setOverallExpenses((prev) => [syncedPayload, ...prev]);
       setExpenseForm((prev) => freshExpenseForm(prev));
       closeExpenseModal();
-      showNotice("success", "Overall expense saved.");
+      if (!sync.message) showNotice("success", sync.synced ? "Overall expense saved and inventory synced." : "Overall expense saved.");
     }
     setSaving("");
   }
@@ -710,6 +791,12 @@ export default function FinanceExpenseManager() {
       if (error) {
         showNotice("error", error.message);
       } else {
+        const overallRow = overallExpenses.find((row) => row.petty_cash_entry_id === editingExpense.row.id);
+        const sync = overallRow?.id
+          ? await syncExpenseInventoryIfNeeded(pettyForm, overallRow.id)
+          : { synced: false, status: "not_inventory" };
+        if (sync.message) showNotice("error", sync.message);
+        await markPettyInventoryStatus(editingExpense.row.id, sync);
         const overallPatch = {
           ...payload,
           entry_source: "petty_cash",
@@ -720,12 +807,12 @@ export default function FinanceExpenseManager() {
         const overallUpdate = { ...overallPatch };
         delete overallUpdate.id;
         await supabase.from("finance_expenses").update(overallUpdate).eq("petty_cash_entry_id", editingExpense.row.id);
-        setPettyEntries((prev) => prev.map((row) => (row.id === editingExpense.row.id ? { ...row, ...payload } : row)));
+        setPettyEntries((prev) => prev.map((row) => (row.id === editingExpense.row.id ? { ...row, ...payload, inventory_sync_status: sync.status } : row)));
         setOverallExpenses((prev) => prev.map((row) => (
-          row.petty_cash_entry_id === editingExpense.row.id ? { ...row, ...overallUpdate } : row
+          row.petty_cash_entry_id === editingExpense.row.id ? { ...row, ...overallUpdate, inventory_sync_status: sync.status } : row
         )));
         closeExpenseModal();
-        showNotice("success", `${selectedStoreName} petty cash expense updated.`);
+        if (!sync.message) showNotice("success", sync.synced ? `${selectedStoreName} petty cash expense updated and inventory synced.` : `${selectedStoreName} petty cash expense updated.`);
       }
       setSaving("");
       return;
@@ -750,11 +837,14 @@ export default function FinanceExpenseManager() {
         setSaving("");
         return;
       }
-      setPettyEntries((prev) => [payload, ...prev]);
-      setOverallExpenses((prev) => [overallPayload, ...prev]);
+      const sync = await syncExpenseInventoryIfNeeded(pettyForm, overallPayload.id);
+      if (sync.message) showNotice("error", sync.message);
+      await markPettyInventoryStatus(payload.id, sync);
+      setPettyEntries((prev) => [{ ...payload, inventory_sync_status: sync.status }, ...prev]);
+      setOverallExpenses((prev) => [{ ...overallPayload, inventory_sync_status: sync.status }, ...prev]);
       setPettyForm((prev) => freshExpenseForm(prev));
       closeExpenseModal();
-      showNotice("success", `${selectedStoreName} petty cash expense saved.`);
+      if (!sync.message) showNotice("success", sync.synced ? `${selectedStoreName} petty cash expense saved and inventory synced.` : `${selectedStoreName} petty cash expense saved.`);
     }
     setSaving("");
   }
@@ -1217,6 +1307,52 @@ export default function FinanceExpenseManager() {
           </Field>
         </div>
 
+        <div className="rounded-2xl border border-cyan-100 bg-cyan-50/45 p-4">
+          <label className="flex items-center gap-3 text-sm font-semibold text-slate-800">
+            <input
+              type="checkbox"
+              checked={!!form.is_inventory_purchase}
+              onChange={(e) => updateExpenseForm(scope, "is_inventory_purchase", e.target.checked)}
+              className="h-4 w-4 accent-cyan-600"
+            />
+            Inventory purchase
+          </label>
+          {form.is_inventory_purchase ? (
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-5">
+              <Field label="Expense Common Name">
+                <Select value={form.inventory_common_name_id || form.inventory_item_id} onChange={(e) => {
+                  const selected = inventoryCommonNames.find((row) => String(row.id || row.inventory_item_id) === e.target.value);
+                  if (selected?.inventory_item_id) updateExpenseForm(scope, "inventory_item_id", selected.inventory_item_id);
+                  updateExpenseForm(scope, "inventory_common_name_id", selected?.id || "");
+                }}>
+                  <option value="">Select expense common name</option>
+                  {inventoryCommonNames.map((row) => <option key={row.id || row.inventory_item_id} value={row.id || row.inventory_item_id}>{row.common_name}</option>)}
+                </Select>
+              </Field>
+              <Field label="Expense Item Name">
+                <Select value={form.inventory_item_id} onChange={(e) => updateExpenseForm(scope, "inventory_item_id", e.target.value)}>
+                  <option value="">Select expense item name</option>
+                  {inventoryItems.map((row) => <option key={row.id} value={row.id}>{row.item_name}</option>)}
+                </Select>
+              </Field>
+              <Field label="Purchased Qty">
+                <Input type="number" min="0" step="0.001" value={form.inventory_quantity} onChange={(e) => updateExpenseForm(scope, "inventory_quantity", e.target.value)} placeholder={String(form.quantity || 1)} />
+              </Field>
+              <Field label="Purchased Unit">
+                <Select value={form.inventory_unit} onChange={(e) => updateExpenseForm(scope, "inventory_unit", e.target.value)}>
+                  <option value="">Select unit</option>
+                  {INVENTORY_UNITS.map((unit) => <option key={unit}>{unit}</option>)}
+                </Select>
+              </Field>
+              <Field label="Unit Cost">
+                <Input type="number" min="0" step="0.0001" value={form.inventory_unit_cost} onChange={(e) => updateExpenseForm(scope, "inventory_unit_cost", e.target.value)} placeholder={String(form.unit_price || 0)} />
+              </Field>
+            </div>
+          ) : (
+            <p className="mt-2 text-xs text-slate-500">Leave unchecked for non-inventory expenses.</p>
+          )}
+        </div>
+
         <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-5">
           <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
             <p className="text-[9px] font-semibold uppercase text-slate-400">Sub-total</p>
@@ -1248,6 +1384,12 @@ export default function FinanceExpenseManager() {
     const dataPillClass = isOverallTable
       ? "rounded-lg bg-cyan-100/50 px-2 py-1 text-[10px] font-semibold uppercase text-black"
       : "rounded-lg border border-cyan-100 bg-cyan-50 px-2 py-1 text-[10px] font-semibold uppercase text-black";
+    const syncBadge = (status) => {
+      const value = status || "not_inventory";
+      if (value === "synced") return <span className="rounded-lg border border-cyan-100 bg-cyan-50 px-2 py-1 text-[10px] font-semibold uppercase text-cyan-700">Inventory Synced</span>;
+      if (value === "needs_mapping") return <span className="rounded-lg border border-amber-100 bg-amber-50 px-2 py-1 text-[10px] font-semibold uppercase text-amber-700">Needs Mapping</span>;
+      return <span className="rounded-lg border border-slate-100 bg-slate-50 px-2 py-1 text-[10px] font-semibold uppercase text-slate-500">Not Inventory</span>;
+    };
     if (rows.length === 0) return <EmptyState message="No expense records yet." />;
 
     return (
@@ -1268,6 +1410,7 @@ export default function FinanceExpenseManager() {
               <th className="px-4 py-3 text-right">Total</th>
               <th className="px-4 py-3">Category</th>
               <th className="px-4 py-3">Payment</th>
+              <th className="px-4 py-3">Inventory</th>
               <th className="px-4 py-3">Submitted</th>
               <th className="px-4 py-3 text-right">Action</th>
             </tr>
@@ -1298,6 +1441,7 @@ export default function FinanceExpenseManager() {
                     <span className={dataPillClass}>{row.category}</span>
                   </td>
                   <td className="px-4 py-3">{row.payment_type || "-"}</td>
+                  <td className="px-4 py-3">{syncBadge(row.inventory_sync_status)}</td>
                   <td className="px-4 py-3">{row.submitted_by || "-"}</td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-2">

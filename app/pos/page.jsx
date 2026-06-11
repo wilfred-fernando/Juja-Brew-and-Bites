@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
+import { deductInventoryForOrder, restoreInventoryForOrder } from "@/lib/inventory";
 import TicketPanel from "@/components/pos/TicketPanel";
 
 // Initialize Supabase Client instance cleanly at layout bundle level
@@ -1235,6 +1236,7 @@ function getShiftStatusFromRecords(records, storeId) {
 export default function POSPage() {
   const supabase = getSupabaseClient();
   const [storeId, setStoreId] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -1834,6 +1836,7 @@ export default function POSPage() {
       }
 
       const activeStoreId = profile.store_id;
+      setCurrentUserId(session.user.id);
       localStorage.setItem("pos_store_id", activeStoreId);
       setStoreId(activeStoreId);
 
@@ -2334,6 +2337,18 @@ export default function POSPage() {
 
   async function refundReceipt(receipt) {
     if (!receipt?.receipt_number) return;
+    if (receipt.source !== "web_order" && receipt.id) {
+      try {
+        const restoreResult = await restoreInventoryForOrder(supabase, receipt.id, currentUserId);
+        if (restoreResult?.duplicate) {
+          showToast("info", "Inventory Already Restored", receipt.receipt_number);
+        } else {
+          showToast("success", "Inventory Restored", `${restoreResult?.restored || 0} stock movement${Number(restoreResult?.restored || 0) === 1 ? "" : "s"} returned.`);
+        }
+      } catch (error) {
+        showToast("warn", "Inventory Restore Skipped", error.message || "Receipt refund saved, but inventory restore needs review.");
+      }
+    }
     const key = String(receipt.receipt_number);
     const next = { ...receiptRefunds, [key]: { ...(receiptRefunds[key] || {}), receipt: "Refunded" } };
     saveReceiptRefunds(next);
@@ -2647,6 +2662,16 @@ export default function POSPage() {
       }));
       const { error: itemsErr } = await supabase.from("order_items").insert(itemRows);
       if (itemsErr) return showToast("error", "Charge Failed", itemsErr.message);
+
+      try {
+        const inventoryResult = await deductInventoryForOrder(supabase, orderRow.id, cart, currentUserId);
+        const missing = Number(inventoryResult?.missingRecipes || 0);
+        if (missing > 0) {
+          showToast("warn", "Inventory Warning", `${missing} item recipe${missing === 1 ? "" : "s"} missing. Sale completed without those deductions.`);
+        }
+      } catch (inventoryError) {
+        showToast("warn", "Inventory Not Deducted", inventoryError.message || "Sale completed, but inventory deduction needs review.");
+      }
 
       const generatedReceiptNumber = activeWebOrderId 
         ? `WEB-${activeWebOrderId.slice(0, 5).toUpperCase()}` 

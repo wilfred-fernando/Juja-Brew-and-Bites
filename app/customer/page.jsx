@@ -521,6 +521,7 @@ function AddToCartModal({ item, onClose, onAdd }) {
   const [quantity, setQuantity] = useState(1);
   const [selections, setSelections] = useState({});
   const [instructions, setInstructions] = useState("");
+  const [collapsedGroups, setCollapsedGroups] = useState({});
 
   useEffect(() => {
     if (!item) return;
@@ -541,6 +542,14 @@ function AddToCartModal({ item, onClose, onAdd }) {
       });
     }
     setSelections(selected);
+
+    const nextCollapsed = {};
+    (item.variants || [])
+      .filter((g) => !g.posOnly && g.isAvailable !== false && g.is_available !== false)
+      .forEach((g) => {
+        nextCollapsed[g.id] = !g.isRequired;
+      });
+    setCollapsedGroups(nextCollapsed);
   }, [item]);
 
   if (!item) return null;
@@ -558,6 +567,10 @@ function AddToCartModal({ item, onClose, onAdd }) {
     }
   };
 
+  const visibleVariantGroups = (item.variants || []).filter(
+    (g) => !g.posOnly && g.isAvailable !== false && g.is_available !== false
+  );
+
   const variantPrice =
     Object.values(selections)
       .flat()
@@ -570,7 +583,7 @@ function AddToCartModal({ item, onClose, onAdd }) {
     .join(", ");
 
   const canAdd =
-    (item.variants || []).every((g) => !g.isRequired || (selections[g.id] || []).length > 0);
+    visibleVariantGroups.every((g) => !g.isRequired || (selections[g.id] || []).length > 0);
 
   return (
     <div
@@ -598,19 +611,36 @@ function AddToCartModal({ item, onClose, onAdd }) {
           </button>
         </div>
 
-        {Array.isArray(item.variants) && item.variants.length > 0 && (
+        {visibleVariantGroups.length > 0 && (
           <div className="mt-4 space-y-5">
-            {item.variants.map((g) => (
+            {visibleVariantGroups.map((g) => {
+              const isCollapsed = !!collapsedGroups[g.id];
+              const selectedCount = (selections[g.id] || []).length;
+
+              return (
               <div key={g.id} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="customer-item-modal__group-title text-sm font-bold">
-                    {g.name} {g.isRequired ? <span className="customer-item-modal__required">*</span> : null}
-                  </p>
-                  <p className="customer-item-modal__group-mode text-[10px] uppercase font-bold tracking-wider">
-                    {g.isMultiSelect ? "Multi-select" : "Single-select"}
-                  </p>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="customer-item-modal__group-title text-sm font-bold">
+                      {g.name} {g.isRequired ? <span className="customer-item-modal__required">*</span> : null}
+                    </p>
+                    <p className="customer-item-modal__group-mode text-[10px] uppercase font-bold tracking-wider">
+                      {g.isMultiSelect ? "Multi-select" : "Single-select"}
+                      {selectedCount > 0 ? ` • ${selectedCount} selected` : ""}
+                    </p>
+                  </div>
+                  {!g.isRequired && (
+                    <button
+                      type="button"
+                      onClick={() => setCollapsedGroups((current) => ({ ...current, [g.id]: !current[g.id] }))}
+                      className="rounded-full border border-slate-300 bg-white/80 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-700 transition hover:bg-slate-100"
+                    >
+                      {isCollapsed ? "Expand" : "Hide"}
+                    </button>
+                  )}
                 </div>
 
+                {!isCollapsed && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {(g.options || []).map((o) => {
                     const sel = (selections[g.id] || []).find((x) => x.id === o.id);
@@ -630,8 +660,10 @@ function AddToCartModal({ item, onClose, onAdd }) {
                     );
                   })}
                 </div>
+                )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import {
   CalendarCheck,
   CalendarDays,
+  Boxes,
   ChevronDown,
   ChevronUp,
   ClipboardList,
@@ -79,6 +80,7 @@ export default function AdminSidebar({
       label: "Business",
       items: [
         { name: "Menu Builder", path: "/admin/menu", icon: Puzzle },
+        { name: "Inventory", path: "/admin/inventory", icon: Boxes },
         { name: "Loyalty", path: "/admin/loyalty", icon: Star },
         { name: "Promos", path: "/admin/promos", icon: Gift },
         { name: "Sales", path: "/admin/sales", icon: DollarSign },
@@ -100,6 +102,7 @@ export default function AdminSidebar({
     "/admin/orders": "live_orders",
     "/admin/pos-admin": "pos_admin",
     "/admin/menu": "menu_builder",
+    "/admin/inventory": "inventory",
     "/admin/loyalty": "loyalty",
     "/admin/promos": "promos",
     "/admin/sales": "sales",
