@@ -298,6 +298,9 @@ const TARGET_WEB_STATUSES = ["pending", "accepted", "ready", "completed", "Pendi
 const calcLoyaltyPoints = (amount) => Number(((Number(amount) || 0) * 0.04).toFixed(2));
 const SHIFT_DENOMINATIONS = [1000, 500, 200, 100, 50, 20, 10, 5, 1];
 
+const getWebOrderStoreId = (order) => order?.store_id || order?.branch_id || null;
+const buildStoreOrderFilter = (storeId) => `store_id.eq.${storeId},branch_id.eq.${storeId}`;
+
 function playPosAlertSound() {
   if (typeof window === "undefined") return;
   const audio = new Audio("/sound/notification.mp3");
@@ -1496,7 +1499,7 @@ export default function POSPage() {
       .from("web_orders")
       .select('*', { count: 'exact', head: true })
       .in("status", ["pending", "Pending"])
-      .eq("branch_id", sid);
+      .or(buildStoreOrderFilter(sid));
 
     if (!error) {
       setPendingCount(count || 0);
@@ -1657,7 +1660,7 @@ export default function POSPage() {
           table: "web_orders",
         },
         (payload) => {
-          const incomingStore = payload.new?.branch_id;
+          const incomingStore = getWebOrderStoreId(payload.new);
           if (String(incomingStore) === String(storeId)) {
             showIncomingOrder(payload.new || {});
           }
@@ -1665,13 +1668,7 @@ export default function POSPage() {
       )
       .subscribe();
 
-    const branchAlertIds = Array.from(
-      new Set([
-        storeId,
-        "bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e",
-        "e916bee8-3770-4650-9b46-d2e7d3ad49e6",
-      ].filter(Boolean))
-    );
+    const branchAlertIds = [storeId].filter(Boolean);
 
     const broadcastChannels = branchAlertIds.map((branchId) =>
       supabase
@@ -1719,7 +1716,7 @@ export default function POSPage() {
     setCart(incomingOrder.items || []);
     setOriginalTicketId(null);
     setActiveWebOrderId(incomingOrder.id); // Secure the unique ID link 
-    setActiveWebOrderBranchId(incomingOrder.branch_id || storeId || null);
+    setActiveWebOrderBranchId(getWebOrderStoreId(incomingOrder) || storeId || null);
 
     const linkedCustomer = customers.find((c) => c.name === incomingOrder.customer_name);
     if (linkedCustomer) setAttachedCustomer(linkedCustomer);
@@ -1765,7 +1762,7 @@ export default function POSPage() {
         { event: "*", schema: "public", table: "web_orders" },
         (payload) => {
           console.log("🚨 DEBUG SNOOPER INTERCEPTED ROW:", payload.new);
-          const orderStore = payload.new?.branch_id;
+          const orderStore = getWebOrderStoreId(payload.new);
           if (String(orderStore) === String(storeId)) {
             fetchPendingCount(storeId);
             fetchAcceptedWebOrders();
@@ -2080,7 +2077,7 @@ export default function POSPage() {
       .from("web_orders")
       .select("*")
       .in("status", TARGET_WEB_STATUSES)
-      .eq("branch_id", storeId)
+      .or(buildStoreOrderFilter(storeId))
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -2101,7 +2098,7 @@ export default function POSPage() {
     setCart(order.items || []);
     setOriginalTicketId(null);
     setActiveWebOrderId(order.id); // Secure tracking context parameter link
-    setActiveWebOrderBranchId(order.branch_id || storeId || null);
+    setActiveWebOrderBranchId(getWebOrderStoreId(order) || storeId || null);
 
     const optionName = order.dining_option || "";
     const option = (diningOptions || []).find((d) => String(d.name).toLowerCase() === String(optionName).toLowerCase());
@@ -2121,12 +2118,25 @@ export default function POSPage() {
 
     const { error } = await supabase
       .from("web_orders")
-      .update({ status: "ready" })
+      .update({ status: "ready", order_status: "ready", ready_at: new Date().toISOString() })
       .eq("id", order.id);
 
     if (error) {
       showToast("error", "Ready Failed", error.message);
       return;
+    }
+
+    if (order.user_id) {
+      await supabase.from("notifications").insert([{
+        type: "web_order_ready",
+        title: "Order Ready",
+        message: "Your order is ready for pickup or delivery.",
+        web_order_id: order.id,
+        store_id: getWebOrderStoreId(order),
+        target_user_id: order.user_id,
+        target_role: "customer",
+        metadata: { status: "ready" },
+      }]);
     }
 
     await fetchAcceptedWebOrders();
@@ -2140,15 +2150,49 @@ export default function POSPage() {
       return;
     }
     const pointsEarned = calcLoyaltyPoints(order.total || order.subtotal);
+    const orderStoreId = getWebOrderStoreId(order) || storeId;
+    let receiptFields = {};
+    if (!order.receipt_number && orderStoreId) {
+      const { data: receiptData, error: receiptErr } = await supabase.rpc("generate_receipt_number", {
+        p_store_id: orderStoreId,
+      });
+      if (receiptErr) {
+        showToast("error", "Receipt Number Failed", receiptErr.message);
+        return;
+      }
+      const receiptRow = Array.isArray(receiptData) ? receiptData[0] : receiptData;
+      if (!receiptRow?.receipt_number) {
+        showToast("error", "Receipt Number Failed", "No receipt number was returned by the database.");
+        return;
+      }
+      receiptFields = {
+        receipt_number: receiptRow.receipt_number,
+        receipt_sequence: receiptRow.receipt_sequence || null,
+        receipt_date: receiptRow.receipt_date || null,
+      };
+    }
 
     const { error } = await supabase
       .from("web_orders")
-      .update({ status: "completed", payment_method: paymentType, payment_status: "paid" })
+      .update({ status: "completed", order_status: "completed", completed_at: new Date().toISOString(), payment_method: paymentType, payment_status: "paid", ...receiptFields })
       .eq("id", order.id);
 
     if (error) {
       showToast("error", "Completion Failed", error.message);
       return;
+    }
+
+    if (order.user_id) {
+      await supabase.from("notifications").insert([{
+        type: "web_order_completed",
+        title: "Order Completed",
+        message: "Your order has been completed.",
+        web_order_id: order.id,
+        store_id: getWebOrderStoreId(order),
+        target_user_id: order.user_id,
+        target_role: "customer",
+        metadata: { status: "completed", payment_method: paymentType },
+      }]);
     }
 
     await awardWebOrderLoyaltyPoints(order, pointsEarned);
@@ -2254,7 +2298,8 @@ export default function POSPage() {
     }
     const posRows = (receiptRes.data || []).map((order) => ({
       ...order,
-      receipt_number: String(order.id),
+      receipt_number: order.receipt_number || order.order_number || String(order.id),
+      order_id: order.id,
       date: order.created_at ? formatDateTime(order.created_at) : "",
       gross_sales: Number(order.total || 0) + Number(order.discount || 0),
       discounts: Number(order.discount || 0),
@@ -2262,12 +2307,12 @@ export default function POSPage() {
       total_collected: Number(order.total || 0),
       payment_type: order.payment_method || "Other",
       description: order.dining_option || "POS Order",
-      status: refunds[String(order.id)]?.receipt || "Closed",
+      status: refunds[order.receipt_number || order.order_number || String(order.id)]?.receipt || "Closed",
     }));
     const webRows = (webReceiptRes.data || []).map((order) => ({
       ...order,
       id: `WEB-${order.id}`,
-      receipt_number: `WEB-${String(order.id).slice(0, 8).toUpperCase()}`,
+      receipt_number: order.receipt_number || `WEB-${String(order.id).slice(0, 8).toUpperCase()}`,
       date: order.created_at ? formatDateTime(order.created_at) : "",
       gross_sales: Number(order.total || order.subtotal || 0),
       discounts: 0,
@@ -2284,8 +2329,9 @@ export default function POSPage() {
     const activeReceipt = selectedReceiptNumber || rows[0]?.receipt_number || "";
     setSelectedReceiptNumber(activeReceipt);
 
-    const receiptNumbers = posRows.map((r) => r.receipt_number).filter(Boolean);
-    if (receiptNumbers.length === 0) {
+    const posOrderIds = posRows.map((r) => r.order_id).filter(Boolean);
+    const receiptNumberByOrderId = new Map(posRows.map((row) => [String(row.order_id), row.receipt_number]));
+    if (posOrderIds.length === 0) {
       setReceiptItemRows(webRows.flatMap((order) =>
         (order.web_items || []).map((item, idx) => ({
           id: `${order.receipt_number}-${idx}`,
@@ -2303,15 +2349,15 @@ export default function POSPage() {
     const itemRes = await supabase
       .from("order_items")
       .select("*")
-      .in("order_id", receiptNumbers);
+      .in("order_id", posOrderIds);
     if (!itemRes.error) {
       const posItems = (itemRes.data || []).map((item) => ({
           ...item,
-          receipt_number: String(item.order_id),
+          receipt_number: receiptNumberByOrderId.get(String(item.order_id)) || String(item.order_id),
           item: item.name,
           net_sales: item.line_total,
           gross_sales: item.line_total,
-          status: refunds[String(item.order_id)]?.items?.[item.id || item.name] || "Closed",
+          status: refunds[receiptNumberByOrderId.get(String(item.order_id)) || String(item.order_id)]?.items?.[item.id || item.name] || "Closed",
         }));
       const webItems = webRows.flatMap((order) =>
         (order.web_items || []).map((item, idx) => ({
@@ -2348,6 +2394,20 @@ export default function POSPage() {
       } catch (error) {
         showToast("warn", "Inventory Restore Skipped", error.message || "Receipt refund saved, but inventory restore needs review.");
       }
+      const refundAmount = Number(receipt.net_sales || receipt.total_collected || receipt.total || 0);
+      const { error: refundError } = await supabase
+        .from("orders")
+        .update({
+          status: "refunded",
+          refund_amount: refundAmount,
+          refunded_at: new Date().toISOString(),
+          refunded_by: currentUserId || null,
+          refund_reason: "POS receipt refund",
+        })
+        .eq("id", receipt.id);
+      if (refundError) {
+        showToast("warn", "Refund Audit Skipped", refundError.message);
+      }
     }
     const key = String(receipt.receipt_number);
     const next = { ...receiptRefunds, [key]: { ...(receiptRefunds[key] || {}), receipt: "Refunded" } };
@@ -2361,6 +2421,28 @@ export default function POSPage() {
     if (!itemRow?.receipt_number || !itemRow?.item) return;
     const receiptKey = String(itemRow.receipt_number);
     const itemKey = itemRow.id || itemRow.item;
+    if (itemRow.order_id || receiptKey) {
+      const orderId = itemRow.order_id || receiptKey;
+      const { data: orderAudit } = await supabase
+        .from("orders")
+        .select("refund_amount")
+        .eq("id", orderId)
+        .maybeSingle();
+      const nextRefundAmount = Number(orderAudit?.refund_amount || 0) + Number(itemRow.net_sales || itemRow.gross_sales || 0);
+      const { error: refundError } = await supabase
+        .from("orders")
+        .update({
+          status: "partial_refund",
+          refund_amount: nextRefundAmount,
+          refunded_at: new Date().toISOString(),
+          refunded_by: currentUserId || null,
+          refund_reason: "POS item refund",
+        })
+        .eq("id", orderId);
+      if (refundError) {
+        showToast("warn", "Refund Audit Skipped", refundError.message);
+      }
+    }
     const next = {
       ...receiptRefunds,
       [receiptKey]: {
@@ -2635,16 +2717,40 @@ export default function POSPage() {
 
       const discount = Number(discountAmount || 0);
       const total = Number(totalDue || 0);
+      const grossTotal = Number(subtotal || 0);
+      const { data: receiptData, error: receiptErr } = await supabase.rpc("generate_receipt_number", {
+        p_store_id: resolvedBranchId,
+      });
+      if (receiptErr) return showToast("error", "Receipt Number Failed", receiptErr.message);
+
+      const receiptRow = Array.isArray(receiptData) ? receiptData[0] : receiptData;
+      const generatedReceiptNumber = receiptRow?.receipt_number;
+      if (!generatedReceiptNumber) {
+        return showToast("error", "Receipt Number Failed", "No receipt number was returned by the database.");
+      }
 
       const { data: orderRow, error: orderErr } = await supabase
         .from("orders")
         .insert([{
+          order_number: generatedReceiptNumber,
+          receipt_number: generatedReceiptNumber,
+          receipt_sequence: receiptRow.receipt_sequence || null,
+          receipt_date: receiptRow.receipt_date || null,
+          source_web_order_id: activeWebOrderId || null,
           store_id: resolvedBranchId,
           branch_id: resolvedBranchId,
           customer_id: attachedCustomer?.id || null,
           items: cart,
+          subtotal: grossTotal,
           total,
           discount,
+          gross_amount: grossTotal,
+          discount_amount: discount,
+          net_amount: total,
+          order_type: diningOptionName || "WEB_ORDER",
+          cashier_id: currentUserId || null,
+          paid_at: new Date().toISOString(),
+          status: "paid",
           payment_method: paymentLabel,
           dining_option: diningOptionName || "WEB_ORDER",
         }])
@@ -2656,9 +2762,13 @@ export default function POSPage() {
         order_id: orderRow.id,
         menu_item_id: line.id,
         name: line.name,
+        category_name: line.category || line.categoryName || null,
         quantity: line.quantity,
         unit_price: line.unitPrice,
         line_total: Number(line.unitPrice || 0) * Number(line.quantity || 0),
+        gross_amount: Number(line.unitPrice || 0) * Number(line.quantity || 0),
+        discount_amount: 0,
+        net_amount: Number(line.unitPrice || 0) * Number(line.quantity || 0),
       }));
       const { error: itemsErr } = await supabase.from("order_items").insert(itemRows);
       if (itemsErr) return showToast("error", "Charge Failed", itemsErr.message);
@@ -2673,10 +2783,6 @@ export default function POSPage() {
         showToast("warn", "Inventory Not Deducted", inventoryError.message || "Sale completed, but inventory deduction needs review.");
       }
 
-      const generatedReceiptNumber = activeWebOrderId 
-        ? `WEB-${activeWebOrderId.slice(0, 5).toUpperCase()}` 
-        : `2-${Math.floor(1000 + Math.random() * 9000)}`;
-
       // If updating an active web order, close out its row state inside web_orders table
       if (activeWebOrderId) {
         const { data: activeWebOrder } = await supabase
@@ -2689,9 +2795,16 @@ export default function POSPage() {
           .from("web_orders")
           .update({ 
             status: "completed",
+            order_status: "completed",
+            completed_at: new Date().toISOString(),
+            receipt_number: generatedReceiptNumber,
+            receipt_sequence: receiptRow.receipt_sequence || null,
+            receipt_date: receiptRow.receipt_date || null,
+            payment_method: paymentLabel,
+            payment_status: "paid",
             items: cart,
             subtotal: Number(subtotal),
-            total: Number(subtotal)
+            total: total
           })
           .eq("id", activeWebOrderId);
 

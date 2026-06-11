@@ -16,7 +16,7 @@ export default function AdminLayout({ children }) {
   const router = useRouter();
 
   const [mobileOpen, setMobileOpen] = useState(false);
-  const isReportsPage = pathname.startsWith("/admin/pos-admin/reports");
+  const isReportsPage = pathname.startsWith("/admin/pos-admin/reports") || pathname.startsWith("/admin/sales");
 
   const { loading, authorized, userEmail, userRole } = usePortalAuth({
     portal: "admin",

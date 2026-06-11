@@ -1068,6 +1068,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
   const handleOpenCheckoutValidation = () => {
     if (!user?.id) return alert("❌ Session expired: Sign in to submit orders.");
     if (cart.length === 0) return alert("❌ Basket selection empty.");
+    if (!selectedBranch) return alert("Please select a store before sending your order.");
     setConfirmationOpen(true);
   };
 
@@ -1094,13 +1095,18 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       user_id: user.id,
       customer_name: member?.customer_name || user?.user_metadata?.full_name || "Web Customer",
       branch_id: selectedBranch,
+      store_id: selectedBranch,
+      order_source: "web",
+      order_status: "pending",
       items: cart, 
       subtotal: Number(subtotal),
       total: Number(subtotal),
       status: "pending", 
       dining_option: fulfillmentMetadata.diningOption, 
+      fulfillment_type: fulfillmentMetadata.diningOption,
       fulfillment_time: `${fulfillmentMetadata.fulfillmentDate} ${fulfillmentMetadata.fulfillmentTime}`,
       delivery_address: fulfillmentMetadata.deliveryAddress || "",
+      customer_contact: member?.Phone || member?.phone || "",
       payment_method: fulfillmentMetadata.diningOption === "DINEIN" ? "" : fulfillmentMetadata.paymentMethod,
       payment_status: fulfillmentMetadata.paymentMethod === "QRPH" ? "submitted" : "pending",
       payment_proof_url: paymentProofUrl,
@@ -1125,6 +1131,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
             payload: {
               ...freshWebOrderRow,
               order_id: freshWebOrderRow.id,
+              store_id: freshWebOrderRow.store_id,
               customer_name: freshWebOrderRow.customer_name,
               subtotal: freshWebOrderRow.subtotal,
               item_count: itemCount,

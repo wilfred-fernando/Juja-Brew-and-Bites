@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   CalendarCheck,
   CalendarDays,
@@ -13,6 +14,7 @@ import {
   Gift,
   Home,
   Puzzle,
+  ReceiptText,
   Settings,
   ShoppingCart,
   Star,
@@ -34,10 +36,15 @@ export default function AdminSidebar({
   accessRows = [],
 }) {
   const [posOpen, setPosOpen] = useState(false);
+  const [salesOpen, setSalesOpen] = useState(false);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (pathname?.startsWith("/admin/pos-admin")) {
       setPosOpen(true);
+    }
+    if (pathname?.startsWith("/admin/sales")) {
+      setSalesOpen(true);
     }
   }, [pathname]);
 
@@ -48,22 +55,13 @@ export default function AdminSidebar({
         { name: "Dashboard", path: "/admin", icon: Home },
         { name: "Bookings", path: "/admin/bookings", icon: CalendarCheck },
         { name: "Calendar", path: "/admin/calendar", icon: CalendarDays },
-        { name: "Live Orders", path: "/admin/orders", icon: ClipboardList },
+        { name: "Orders", path: "/admin/orders", icon: ClipboardList },
 
         {
           name: "POS Admin",
           path: "/admin/pos-admin",
           icon: ShoppingCart,
           submenu: [
-            { type: "label", name: "Reports" },
-            { name: "Sales Summary", path: "/admin/pos-admin/reports/sales-summary" },
-            { name: "Sales by Item", path: "/admin/pos-admin/reports/sales-by-item" },
-            { name: "Sales by Category", path: "/admin/pos-admin/reports/sales-by-category" },
-            { name: "Sales by Payment", path: "/admin/pos-admin/reports/sales-by-payment" },
-            { name: "Receipts", path: "/admin/pos-admin/reports/receipts" },
-            { name: "Discounts", path: "/admin/pos-admin/reports/discounts" },
-            { name: "Shifts", path: "/admin/pos-admin/reports/shifts" },
-
             { type: "label", name: "Settings" },
             { name: "Payment Types", path: "/admin/pos-admin/settings/payment-types" },
             { name: "Receipt Settings", path: "/admin/pos-admin/settings/receipt-settings" },
@@ -79,11 +77,29 @@ export default function AdminSidebar({
     {
       label: "Business",
       items: [
-        { name: "Menu Builder", path: "/admin/menu", icon: Puzzle },
+        {
+          name: "Sales",
+          path: "/admin/sales",
+          icon: DollarSign,
+          submenu: [
+            { name: "Sales summary", path: "/admin/sales?tab=summary" },
+            { name: "Sales by item", path: "/admin/sales?tab=items" },
+            { name: "Sales by category", path: "/admin/sales?tab=categories" },
+            { name: "Sales by employee", path: "/admin/sales?tab=employees" },
+            { name: "Sales by payment type", path: "/admin/sales?tab=payments" },
+            { name: "Receipts", path: "/admin/sales?tab=receipts" },
+            { name: "Sales by modifier", path: "/admin/sales?tab=modifiers" },
+            { name: "Discounts", path: "/admin/sales?tab=discounts" },
+            { name: "Taxes", path: "/admin/sales?tab=taxes" },
+            { name: "Shifts", path: "/admin/sales?tab=shifts" },
+            { name: "Export Reports", path: "/admin/sales?tab=exports" },
+          ],
+        },
         { name: "Inventory", path: "/admin/inventory", icon: Boxes },
-        { name: "Loyalty", path: "/admin/loyalty", icon: Star },
+        { name: "Expenses", path: "/admin/expenses", icon: ReceiptText },
+        { name: "Menu", path: "/admin/menu", icon: Puzzle },
+        { name: "Customers", path: "/admin/customers", icon: Star },
         { name: "Promos", path: "/admin/promos", icon: Gift },
-        { name: "Sales", path: "/admin/sales", icon: DollarSign },
       ],
     },
     {
@@ -103,7 +119,9 @@ export default function AdminSidebar({
     "/admin/pos-admin": "pos_admin",
     "/admin/menu": "menu_builder",
     "/admin/inventory": "inventory",
-    "/admin/loyalty": "loyalty",
+    "/admin/expenses": "expenses",
+    "/admin/loyalty": "customers",
+    "/admin/customers": "customers",
     "/admin/promos": "promos",
     "/admin/sales": "sales",
     "/admin/settings": "settings",
@@ -115,6 +133,20 @@ export default function AdminSidebar({
   const isActive = (path) => {
     if (path === "/admin") return pathname === "/admin";
     return pathname?.startsWith(path);
+  };
+
+  const isSubActive = (path) => {
+    const [basePath, query = ""] = path.split("?");
+    if (pathname !== basePath) return false;
+    const tab = new URLSearchParams(query).get("tab");
+    if (!tab) return true;
+    return (searchParams.get("tab") || "summary") === tab;
+  };
+
+  const isMenuOpen = (path) => (path === "/admin/pos-admin" ? posOpen : salesOpen);
+  const toggleMenu = (path) => {
+    if (path === "/admin/pos-admin") setPosOpen((value) => !value);
+    if (path === "/admin/sales") setSalesOpen((value) => !value);
   };
 
   return (
@@ -162,7 +194,7 @@ export default function AdminSidebar({
                     return (
                       <div key={item.name}>
                         <button
-                          onClick={() => setPosOpen(!posOpen)}
+                          onClick={() => toggleMenu(item.path)}
                           className={`flex w-full justify-between rounded-xl px-3 py-2 text-sm transition duration-200 hover:-translate-y-0.5 hover:bg-sky-50 hover:text-slate-950 ${
                             active ? "bg-sky-100 text-slate-950 shadow-[0_10px_24px_rgba(51,65,85,0.12)]" : "text-slate-700"
                           }`}
@@ -171,10 +203,10 @@ export default function AdminSidebar({
                             <Icon className="h-4 w-4 shrink-0" />
                             <span>{item.name}</span>
                           </span>
-                          {posOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          {isMenuOpen(item.path) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                         </button>
 
-                        {posOpen && (
+                        {isMenuOpen(item.path) && (
                           <div className="ml-4 mt-2 space-y-1 border-l border-slate-200 pl-3">
                             {item.submenu.map((sub, i) => {
                               if (sub.type === "label") {
@@ -191,7 +223,7 @@ export default function AdminSidebar({
                                   href={sub.path}
                                   onClick={() => setMobileOpen(false)}
                                   className={`block rounded-xl px-3 py-2 text-sm transition duration-200 hover:-translate-y-0.5 ${
-                                    isActive(sub.path)
+                                    isSubActive(sub.path)
                                       ? "bg-sky-100 text-slate-950 shadow-[0_10px_22px_rgba(51,65,85,0.10)]"
                                       : "text-slate-600 hover:bg-sky-50 hover:text-slate-900"
                                   }`}
