@@ -1456,7 +1456,7 @@ export default function FinanceExpenseManager() {
       : "rounded-lg border border-cyan-100 bg-cyan-50 px-2 py-1 text-[10px] font-semibold uppercase text-black";
     const syncBadge = (status) => {
       const value = status || "not_inventory";
-      if (value === "synced") return <span className="rounded-lg border border-cyan-100 bg-cyan-50 px-2 py-1 text-[10px] font-semibold uppercase text-cyan-700">Inventory Synced</span>;
+      if (value === "synced") return <span className="rounded-lg border border-cyan-100 bg-cyan-50 px-2 py-1 text-[10px] font-semibold uppercase text-cyan-700">Synced</span>;
       if (value === "needs_mapping") return <span className="rounded-lg border border-amber-100 bg-amber-50 px-2 py-1 text-[10px] font-semibold uppercase text-amber-700">Needs Mapping</span>;
       return <span className="rounded-lg border border-slate-100 bg-slate-50 px-2 py-1 text-[10px] font-semibold uppercase text-slate-500">Not Inventory</span>;
     };

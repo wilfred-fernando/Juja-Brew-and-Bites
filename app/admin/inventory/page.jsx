@@ -749,7 +749,7 @@ export default function AdminInventoryPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-200">Admin Control Center</p>
-            <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Inventory System</h1>
+            <p className="mt-1 text-2xl font-semibold sm:text-3xl">Inventory System</p>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-200">Manage stock using Item Name as inventory items and Common Name as standardized names.</p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -767,7 +767,7 @@ export default function AdminInventoryPage() {
 
       <div className="grid gap-2 rounded-2xl border border-white/70 bg-white/72 p-1 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
         {tabs.map(([key, label, Icon]) => (
-          <button key={key} onClick={() => setTab(key)} className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl px-3 text-[10px] font-semibold uppercase tracking-wider transition ${tab === key ? "bg-slate-600 text-white shadow-[0_0_28px_rgba(34,211,238,0.16)]" : "text-slate-600 hover:-translate-y-0.5 hover:bg-cyan-50 hover:text-cyan-700"}`}>
+          <button key={key} onClick={() => setTab(key)} className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl px-3 text-[10px] font-semibold uppercase tracking-wider transition ${tab === key ? "bg-slate-300/78 text-white shadow-[0_0_28px_rgba(34,211,238,0.16)]" : "text-slate-600 hover:-translate-y-0.5 hover:bg-cyan-50 hover:text-cyan-700"}`}>
             <Icon size={14} /> {label}
           </button>
         ))}
