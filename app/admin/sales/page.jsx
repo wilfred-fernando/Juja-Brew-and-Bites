@@ -5,12 +5,7 @@ import { useSearchParams } from "next/navigation";
 import {
   Area,
   AreaChart,
-  Bar,
-  BarChart,
   CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -19,14 +14,15 @@ import {
 import {
   BarChart3,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
   Download,
   Eye,
   FileText,
   Filter,
   PackageSearch,
-  ReceiptText,
   RefreshCw,
-  RotateCcw,
   Search,
   Store,
   UserRound,
@@ -39,13 +35,14 @@ import {
   REPORT_TABS,
   STATUS_OPTIONS,
   applyFilters,
+  addDays,
   defaultFilters,
+  daysBetween,
   displayDate,
   displayDateTime,
   getCashierReport,
   getCategorySalesReport,
   getDiscountReport,
-  getHourlySales,
   getPaymentReport,
   getProductSalesReport,
   getSalesSummary,
@@ -61,8 +58,12 @@ import {
 } from "@/lib/reports/salesReports";
 
 const supabase = getSupabaseClient();
-const chartColors = ["#0891b2", "#475569", "#64748b", "#0f766e", "#7c3aed", "#dc2626", "#ca8a04"];
 const PAGE_SIZE = 12;
+
+function formatShortDate(value) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit" }).format(new Date(`${value}T00:00:00+08:00`));
+}
 
 function DateInput({ label, value, onChange }) {
   return (
@@ -105,29 +106,6 @@ function Card({ children, className = "" }) {
   );
 }
 
-function StatCard({ label, value, sub, icon: Icon, tone = "cyan" }) {
-  const tones = {
-    cyan: "bg-cyan-50 text-cyan-700 border-cyan-100",
-    slate: "bg-slate-100 text-slate-700 border-slate-200",
-    red: "bg-red-50 text-red-700 border-red-100",
-    teal: "bg-teal-50 text-teal-700 border-teal-100",
-  };
-  return (
-    <Card>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{label}</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900">{value}</p>
-          {sub ? <p className="mt-1 text-xs text-slate-500">{sub}</p> : null}
-        </div>
-        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl border ${tones[tone] || tones.cyan}`}>
-          <Icon className="h-5 w-5" />
-        </div>
-      </div>
-    </Card>
-  );
-}
-
 function Empty({ message }) {
   return <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 p-8 text-center text-sm text-slate-500">{message}</div>;
 }
@@ -158,6 +136,100 @@ function DataTable({ columns, rows, empty, onView }) {
                   </button>
                 </td>
               ) : null}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function SummarySelectControl({ icon: Icon, value, onChange, options, wide = false, allLabel }) {
+  return (
+    <label className={`inline-flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-white/90 px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-200 hover:bg-cyan-50 ${wide ? "min-w-[210px]" : ""}`}>
+      {Icon ? <Icon className="h-4 w-4 shrink-0 text-slate-500" /> : null}
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-slate-800 outline-none"
+      >
+        {options.map((option) => {
+          const optionValue = option.value || option;
+          const label = option.label || option;
+          return (
+            <option key={optionValue} value={optionValue}>
+              {allLabel && optionValue === "All" ? allLabel : label}
+            </option>
+          );
+        })}
+      </select>
+    </label>
+  );
+}
+
+function SummaryDateRangeControl({ startDate, endDate, onStartChange, onEndChange }) {
+  return (
+    <div className="inline-flex h-10 min-w-[260px] items-center gap-2 rounded-md border border-slate-200 bg-white/90 px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50">
+      <CalendarDays className="h-4 w-4 shrink-0 text-slate-500" />
+      <input
+        type="date"
+        value={startDate}
+        onChange={(event) => onStartChange(event.target.value)}
+        className="w-[116px] bg-transparent text-xs font-semibold text-slate-800 outline-none"
+        aria-label="Sales summary start date"
+      />
+      <span className="text-slate-400">-</span>
+      <input
+        type="date"
+        value={endDate}
+        onChange={(event) => onEndChange(event.target.value)}
+        className="w-[116px] bg-transparent text-xs font-semibold text-slate-800 outline-none"
+        aria-label="Sales summary end date"
+      />
+    </div>
+  );
+}
+
+function SummaryMetricCell({ label, value, delta, active = false }) {
+  const amount = Number(delta?.amount || 0);
+  const percent = Number(delta?.percent || 0);
+  const isPositive = amount >= 0;
+  return (
+    <div className={`relative min-h-[92px] border-b px-5 py-4 sm:border-b-0 sm:border-r ${active ? "border-b-cyan-600 sm:after:absolute sm:after:bottom-0 sm:after:left-0 sm:after:h-[3px] sm:after:w-full sm:after:bg-cyan-600" : "border-slate-100"}`}>
+      <p className="text-xs font-medium text-slate-700">{label}</p>
+      <p className="mt-2 text-2xl font-medium tracking-tight text-slate-950">{value}</p>
+      <p className={`mt-1 text-xs ${isPositive ? "text-emerald-700" : "text-red-600"}`}>
+        {isPositive ? "+" : "-"}{peso(Math.abs(amount)).replace("PHP", "₱")} ({isPositive ? "+" : "-"}{Math.abs(percent).toFixed(2)}%)
+      </p>
+    </div>
+  );
+}
+
+function SummaryExportTable({ rows }) {
+  if (!rows.length) return <Empty message="No daily sales found for this date range." />;
+  return (
+    <div className="overflow-x-auto rounded-sm border border-slate-200 bg-white/92 shadow-[0_14px_38px_rgba(71,85,105,0.14)]">
+      <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+        <button className="text-xs font-semibold uppercase tracking-wide text-slate-800">Export</button>
+        <div className="h-5 w-5 rounded border-2 border-slate-500" aria-hidden="true" />
+      </div>
+      <table className="min-w-full text-left text-sm">
+        <thead className="bg-white text-[11px] text-slate-500">
+          <tr>
+            {["Date", "Gross sales", "Refunds", "Discounts", "Net sales", "Gross profit"].map((header, index) => (
+              <th key={header} className={`border-b border-slate-200 px-5 py-4 font-medium ${index > 0 ? "text-right" : ""}`}>{header}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {rows.map((row) => (
+            <tr key={row.date} className="text-slate-800 transition hover:bg-cyan-50/40">
+              <td className="px-5 py-4">{displayDate(row.date)}</td>
+              <td className="px-5 py-4 text-right tabular-nums">{peso(row.gross)}</td>
+              <td className="px-5 py-4 text-right tabular-nums">{peso(row.refund)}</td>
+              <td className="px-5 py-4 text-right tabular-nums">{peso(row.discount)}</td>
+              <td className="px-5 py-4 text-right tabular-nums">{peso(row.net)}</td>
+              <td className="px-5 py-4 text-right tabular-nums">{peso(row.net)}</td>
             </tr>
           ))}
         </tbody>
@@ -293,7 +365,6 @@ export default function AdminSalesPage() {
   const cashierRows = useMemo(() => getCashierReport(filtered.sales), [filtered.sales]);
   const voidRows = useMemo(() => getVoidRefundReport(filtered.sales), [filtered.sales]);
   const trendRows = useMemo(() => getSalesTrend(filtered.sales, filters.startDate, filters.endDate), [filtered.sales, filters.startDate, filters.endDate]);
-  const hourlyRows = useMemo(() => getHourlySales(filtered.sales), [filtered.sales]);
   const pageRows = useMemo(() => searchedSales.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [searchedSales, page]);
 
   const paymentOptions = useMemo(() => [{ value: "All", label: "All payment methods" }, ...uniqueOptions(rawData.sales, "paymentMethod")], [rawData.sales]);
@@ -316,6 +387,26 @@ export default function AdminSalesPage() {
     setPage(1);
   }
 
+  function updateSummaryFilters(patch) {
+    const next = {
+      ...filters,
+      ...patch,
+      preset: patch.startDate || patch.endDate || patch.preset ? "custom" : filters.preset,
+    };
+    setFilters(next);
+    setPage(1);
+    loadData(next);
+  }
+
+  function shiftSummaryRange(direction) {
+    const span = daysBetween(filters.startDate, filters.endDate);
+    updateSummaryFilters({
+      startDate: addDays(filters.startDate, direction * span),
+      endDate: addDays(filters.endDate, direction * span),
+      preset: "custom",
+    });
+  }
+
   function exportRows(kind) {
     const range = `${filters.startDate}-to-${filters.endDate}`;
     if (kind === "sales") exportReportToCSV(searchedSales, `juja-sales-report-${range}.csv`);
@@ -327,12 +418,13 @@ export default function AdminSalesPage() {
     if (kind === "voids") exportReportToCSV(voidRows, `juja-void-refund-${range}.csv`);
   }
 
-  const cardSub = `${displayDate(filters.startDate)} - ${displayDate(filters.endDate)}`;
   const previous = previousRange(filters.startDate, filters.endDate);
   const previousSummary = getSalesSummary(applyFilters(rawData, { ...filters, startDate: previous.startDate, endDate: previous.endDate }).sales);
-  const netDelta = previousSummary.net ? ((summary.net - previousSummary.net) / previousSummary.net) * 100 : 0;
-  const bestProduct = productRows[0]?.productName || "No sales yet";
-  const bestCategory = categoryRows[0]?.category || "No category yet";
+  const summaryDailyRows = [...trendRows].reverse();
+  const metricDelta = (current, previousValue) => ({
+    amount: Number(current || 0) - Number(previousValue || 0),
+    percent: Number(previousValue || 0) ? ((Number(current || 0) - Number(previousValue || 0)) / Number(previousValue || 0)) * 100 : 0,
+  });
 
   const salesColumns = [
     { key: "createdAt", label: "Date / Time", render: (row) => displayDateTime(row.createdAt) },
@@ -349,63 +441,112 @@ export default function AdminSalesPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[32px] border border-white/70 bg-slate-700/88 p-6 text-white shadow-[0_24px_80px_rgba(51,65,85,0.26)] backdrop-blur-xl">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100">Admin Sales</p>
-            <h1 className="mt-2 text-3xl font-semibold">Sales Report System</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-100">Daily, weekly, monthly, yearly, and custom analytics for POS and completed web orders.</p>
-          </div>
-          <button onClick={() => loadData(filters)} className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/12 px-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/20">
-            <RefreshCw className="h-4 w-4" /> Refresh
-          </button>
-        </div>
-      </section>
+      {activeTab !== "summary" && (
+        <>
+          <section className="rounded-[32px] border border-white/70 bg-slate-700/88 p-6 text-white shadow-[0_24px_80px_rgba(51,65,85,0.26)] backdrop-blur-xl">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100">Admin Sales</p>
+                <h1 className="mt-2 text-3xl font-semibold">Sales Report System</h1>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-100">Daily, weekly, monthly, yearly, and custom analytics for POS and completed web orders.</p>
+              </div>
+              <button onClick={() => loadData(filters)} className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/12 px-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/20">
+                <RefreshCw className="h-4 w-4" /> Refresh
+              </button>
+            </div>
+          </section>
 
-      <Card>
-        <div className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_1fr] xl:grid-cols-[1.2fr_1fr_1fr_1fr_1fr]">
-          <SelectInput label="Date range" value={filters.preset} onChange={updatePreset} options={[
-            { value: "today", label: "Today" }, { value: "yesterday", label: "Yesterday" }, { value: "this_week", label: "This week" }, { value: "last_week", label: "Last week" }, { value: "this_month", label: "This month" }, { value: "last_month", label: "Last month" }, { value: "this_year", label: "This year" }, { value: "custom", label: "Custom date range" },
-          ]} />
-          <DateInput label="Start date" value={filters.startDate} onChange={(value) => updateFilter("startDate", value)} />
-          <DateInput label="End date" value={filters.endDate} onChange={(value) => updateFilter("endDate", value)} />
-          <SelectInput label="Branch" value={filters.branchId} onChange={(value) => updateFilter("branchId", value)} options={branchOptions} />
-          <SelectInput label="Payment" value={filters.paymentMethod} onChange={(value) => updateFilter("paymentMethod", value)} options={paymentOptions} />
-          <SelectInput label="Order type" value={filters.orderType} onChange={(value) => updateFilter("orderType", value)} options={ORDER_TYPE_OPTIONS} />
-          <SelectInput label="Cashier" value={filters.cashierId} onChange={(value) => updateFilter("cashierId", value)} options={cashierOptions} />
-          <SelectInput label="Status" value={filters.status} onChange={(value) => updateFilter("status", value)} options={STATUS_OPTIONS} />
-          <SelectInput label="Category" value={filters.categoryId} onChange={(value) => updateFilter("categoryId", value)} options={categoryOptions} />
-          <SelectInput label="Product" value={filters.productId} onChange={(value) => updateFilter("productId", value)} options={productOptions} />
-        </div>
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 text-xs text-slate-500"><Filter className="h-4 w-4" /> Filters apply to every report tab.</div>
-          <button onClick={() => loadData(filters)} className="rounded-2xl bg-cyan-700 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-900/10 transition hover:-translate-y-0.5 hover:bg-cyan-600">Apply Filters</button>
-        </div>
-      </Card>
+          <Card>
+            <div className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_1fr] xl:grid-cols-[1.2fr_1fr_1fr_1fr_1fr]">
+              <SelectInput label="Date range" value={filters.preset} onChange={updatePreset} options={[
+                { value: "today", label: "Today" }, { value: "yesterday", label: "Yesterday" }, { value: "this_week", label: "This week" }, { value: "last_week", label: "Last week" }, { value: "this_month", label: "This month" }, { value: "last_month", label: "Last month" }, { value: "this_year", label: "This year" }, { value: "custom", label: "Custom date range" },
+              ]} />
+              <DateInput label="Start date" value={filters.startDate} onChange={(value) => updateFilter("startDate", value)} />
+              <DateInput label="End date" value={filters.endDate} onChange={(value) => updateFilter("endDate", value)} />
+              <SelectInput label="Branch" value={filters.branchId} onChange={(value) => updateFilter("branchId", value)} options={branchOptions} />
+              <SelectInput label="Payment" value={filters.paymentMethod} onChange={(value) => updateFilter("paymentMethod", value)} options={paymentOptions} />
+              <SelectInput label="Order type" value={filters.orderType} onChange={(value) => updateFilter("orderType", value)} options={ORDER_TYPE_OPTIONS} />
+              <SelectInput label="Cashier" value={filters.cashierId} onChange={(value) => updateFilter("cashierId", value)} options={cashierOptions} />
+              <SelectInput label="Status" value={filters.status} onChange={(value) => updateFilter("status", value)} options={STATUS_OPTIONS} />
+              <SelectInput label="Category" value={filters.categoryId} onChange={(value) => updateFilter("categoryId", value)} options={categoryOptions} />
+              <SelectInput label="Product" value={filters.productId} onChange={(value) => updateFilter("productId", value)} options={productOptions} />
+            </div>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2 text-xs text-slate-500"><Filter className="h-4 w-4" /> Filters apply to every report tab.</div>
+              <button onClick={() => loadData(filters)} className="rounded-2xl bg-cyan-700 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-900/10 transition hover:-translate-y-0.5 hover:bg-cyan-600">Apply Filters</button>
+            </div>
+          </Card>
+        </>
+      )}
 
       {error ? <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">{error}</div> : null}
       {loading ? <div className="rounded-3xl border border-white/70 bg-white/80 p-10 text-center text-sm font-semibold text-slate-500">Loading sales report...</div> : null}
 
       {!loading && activeTab === "summary" && (
-        <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <StatCard label="Gross Sales" value={peso(summary.gross)} sub={cardSub} icon={BarChart3} />
-            <StatCard label="Net Sales" value={peso(summary.net)} sub={`${netDelta >= 0 ? "+" : ""}${netDelta.toFixed(1)}% vs previous range`} icon={WalletCards} tone="teal" />
-            <StatCard label="Total Orders" value={number(summary.orders)} sub={`AOV ${peso(summary.averageOrderValue)}`} icon={ReceiptText} tone="slate" />
-            <StatCard label="Refunds / Voids" value={peso(summary.refund)} sub={`Discounts ${peso(summary.discount)}`} icon={RotateCcw} tone="red" />
-            <StatCard label="Cash Sales" value={peso(summary.cash)} sub="Cash payment total" icon={WalletCards} tone="slate" />
-            <StatCard label="GCash / QRPH" value={peso(summary.gcash)} sub="Digital wallet total" icon={WalletCards} />
-            <StatCard label="Card Sales" value={peso(summary.card)} sub="Card payment total" icon={WalletCards} tone="slate" />
-            <StatCard label="Online Sales" value={peso(summary.online)} sub="Web / aggregator total" icon={Store} tone="teal" />
-            <StatCard label="Best-Selling Item" value={bestProduct} sub={productRows[0] ? peso(productRows[0].net) : "No sales found"} icon={PackageSearch} />
-            <StatCard label="Best Category" value={bestCategory} sub={categoryRows[0] ? peso(categoryRows[0].net) : "No sales found"} icon={BarChart3} tone="teal" />
+        <div className="space-y-4">
+          <div className="rounded-t-md bg-slate-700 px-4 py-3 shadow-sm">
+            <h1 className="text-lg font-semibold text-white">Sales summary</h1>
           </div>
-          <div className="grid gap-5 xl:grid-cols-2">
-            <Card><h2 className="mb-4 text-lg font-semibold text-slate-900">Sales trend</h2><div className="h-80"><ResponsiveContainer><AreaChart data={trendRows}><defs><linearGradient id="salesNet" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#0891b2" stopOpacity={0.42}/><stop offset="95%" stopColor="#0891b2" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/><XAxis dataKey="date" tick={{ fontSize: 11 }}/><YAxis tickFormatter={(v) => `₱${Number(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }}/><Tooltip formatter={(v) => peso(v)} /><Area type="monotone" dataKey="net" stroke="#0891b2" fill="url(#salesNet)" strokeWidth={3}/></AreaChart></ResponsiveContainer></div></Card>
-            <Card><h2 className="mb-4 text-lg font-semibold text-slate-900">Payment breakdown</h2><div className="h-80"><ResponsiveContainer><PieChart><Pie data={paymentRows} dataKey="net" nameKey="paymentMethod" outerRadius={110} label>{paymentRows.map((_, index) => <Cell key={index} fill={chartColors[index % chartColors.length]} />)}</Pie><Tooltip formatter={(v) => peso(v)} /></PieChart></ResponsiveContainer></div></Card>
-            <Card><h2 className="mb-4 text-lg font-semibold text-slate-900">Top-selling products</h2><div className="h-80"><ResponsiveContainer><BarChart data={productRows.slice(0, 10)}><CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/><XAxis dataKey="productName" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={70}/><YAxis tick={{ fontSize: 11 }}/><Tooltip formatter={(v) => peso(v)} /><Bar dataKey="net" fill="#0f766e" radius={[8, 8, 0, 0]} /></BarChart></ResponsiveContainer></div></Card>
-            <Card><h2 className="mb-4 text-lg font-semibold text-slate-900">Hourly sales</h2><div className="h-80"><ResponsiveContainer><BarChart data={hourlyRows}><CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0"/><XAxis dataKey="hour" tick={{ fontSize: 10 }} interval={2}/><YAxis tick={{ fontSize: 11 }}/><Tooltip formatter={(v) => peso(v)} /><Bar dataKey="net" fill="#475569" radius={[8, 8, 0, 0]} /></BarChart></ResponsiveContainer></div></Card>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="button" onClick={() => shiftSummaryRange(-1)} className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-cyan-50" aria-label="Previous range">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <SummaryDateRangeControl
+              startDate={filters.startDate}
+              endDate={filters.endDate}
+              onStartChange={(value) => updateSummaryFilters({ startDate: value })}
+              onEndChange={(value) => updateSummaryFilters({ endDate: value })}
+            />
+            <button type="button" onClick={() => shiftSummaryRange(1)} className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-cyan-50" aria-label="Next range">
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            <SummarySelectControl icon={Clock} value={filters.paymentMethod} onChange={(value) => updateSummaryFilters({ paymentMethod: value })} options={paymentOptions} allLabel="All day" />
+            <SummarySelectControl icon={Store} value={filters.branchId} onChange={(value) => updateSummaryFilters({ branchId: value })} options={branchOptions} wide />
+            <SummarySelectControl icon={UserRound} value={filters.cashierId} onChange={(value) => updateSummaryFilters({ cashierId: value })} options={cashierOptions} wide />
+            <button onClick={() => loadData(filters)} className="ml-auto inline-flex h-10 items-center justify-center gap-2 rounded-md bg-slate-700 px-4 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-600">
+              <RefreshCw className="h-4 w-4" /> Refresh
+            </button>
           </div>
+
+          <div className="overflow-hidden rounded-sm border border-slate-200 bg-white/94 shadow-[0_14px_38px_rgba(71,85,105,0.14)]">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-5">
+              <SummaryMetricCell active label="Gross sales" value={peso(summary.gross)} delta={metricDelta(summary.gross, previousSummary.gross)} />
+              <SummaryMetricCell label="Refunds" value={peso(summary.refund)} delta={metricDelta(summary.refund, previousSummary.refund)} />
+              <SummaryMetricCell label="Discounts" value={peso(summary.discount)} delta={metricDelta(summary.discount, previousSummary.discount)} />
+              <SummaryMetricCell label="Net sales" value={peso(summary.net)} delta={metricDelta(summary.net, previousSummary.net)} />
+              <SummaryMetricCell label="Gross profit" value={peso(summary.net)} delta={metricDelta(summary.net, previousSummary.net)} />
+            </div>
+
+            <div className="border-t border-slate-200 px-5 py-5">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h2 className="text-base font-medium text-slate-900">Gross sales</h2>
+                <div className="flex gap-6 text-xs font-medium text-slate-600">
+                  <button className="border-b border-slate-400 pb-2">Area</button>
+                  <button className="border-b border-slate-400 pb-2">Days</button>
+                </div>
+              </div>
+              <div className="h-[290px]">
+                <ResponsiveContainer>
+                  <AreaChart data={trendRows} margin={{ top: 12, right: 18, bottom: 12, left: 8 }}>
+                    <defs>
+                      <linearGradient id="summaryGross" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#64748b" stopOpacity={0.32} />
+                        <stop offset="95%" stopColor="#64748b" stopOpacity={0.05} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} stroke="#e5e7eb" />
+                    <XAxis dataKey="date" tickFormatter={formatShortDate} tick={{ fontSize: 11, fill: "#475569" }} angle={-45} textAnchor="end" height={58} />
+                    <YAxis tickFormatter={(value) => peso(value).replace("PHP", "P")} tick={{ fontSize: 11, fill: "#475569" }} width={82} />
+                    <Tooltip formatter={(value) => peso(value)} labelFormatter={displayDate} />
+                    <Area type="monotone" dataKey="gross" stroke="#64748b" fill="url(#summaryGross)" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 2, fill: "#fff" }} activeDot={{ r: 5 }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          <SummaryExportTable rows={summaryDailyRows} />
         </div>
       )}
 

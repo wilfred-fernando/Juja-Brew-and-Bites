@@ -37,6 +37,7 @@ const emptyItem = {
   is_active: true,
 };
 const emptyRecipe = { menu_item_id: "", inventory_item_id: "", common_name_id: "", quantity_required: "", unit: "pc", deduction_multiplier: 1, is_active: true };
+const emptyRecipeLine = { inventory_item_id: "", common_name_id: "", quantity_required: "", unit: "pc", deduction_multiplier: 1, is_active: true };
 const emptyAdjustment = { inventory_item_id: "", mode: "add", quantity: "", notes: "" };
 
 function peso(value) {
@@ -133,6 +134,7 @@ export default function AdminInventoryPage() {
   const [itemForm, setItemForm] = useState(emptyItem);
   const [commonForm, setCommonForm] = useState(emptyCommon);
   const [recipeForm, setRecipeForm] = useState(emptyRecipe);
+  const [recipeLines, setRecipeLines] = useState([emptyRecipeLine]);
   const [adjustmentForm, setAdjustmentForm] = useState(emptyAdjustment);
 
   function showNotice(type, message) {
@@ -233,14 +235,34 @@ export default function AdminInventoryPage() {
     setEditingRecipeId(row?.id || null);
     setRecipeForm(row ? {
       menu_item_id: row.menu_item_id || "",
+      inventory_item_id: "",
+      common_name_id: "",
+      quantity_required: "",
+      unit: "pc",
+      deduction_multiplier: 1,
+      is_active: true,
+    } : emptyRecipe);
+    setRecipeLines(row?.id ? [{
       inventory_item_id: row.inventory_item_id || "",
       common_name_id: row.common_name_id || "",
       quantity_required: row.quantity_required || "",
       unit: row.unit || "pc",
       deduction_multiplier: row.deduction_multiplier || 1,
       is_active: row.is_active !== false,
-    } : emptyRecipe);
+    }] : [emptyRecipeLine]);
     setRecipeModal(true);
+  }
+
+  function updateRecipeLine(index, patch) {
+    setRecipeLines((prev) => prev.map((line, lineIndex) => (lineIndex === index ? { ...line, ...patch } : line)));
+  }
+
+  function addRecipeLine() {
+    setRecipeLines((prev) => [...prev, { ...emptyRecipeLine }]);
+  }
+
+  function removeRecipeLine(index) {
+    setRecipeLines((prev) => (prev.length > 1 ? prev.filter((_, lineIndex) => lineIndex !== index) : prev));
   }
 
   async function saveItem(e) {
@@ -279,23 +301,48 @@ export default function AdminInventoryPage() {
 
   async function saveRecipe(e) {
     e.preventDefault();
-    if (!recipeForm.menu_item_id || !recipeForm.inventory_item_id || !numberValue(recipeForm.quantity_required)) {
-      return showNotice("error", "Menu item, expense item name, and quantity are required.");
+    const validLines = recipeLines
+      .map((line) => ({ ...line, quantity_required: numberValue(line.quantity_required) }))
+      .filter((line) => line.inventory_item_id && line.quantity_required > 0);
+
+    if (!recipeForm.menu_item_id || !validLines.length) {
+      return showNotice("error", "Menu item and at least one ingredient with quantity are required.");
     }
-    const selectedItem = items.find((item) => item.id === recipeForm.inventory_item_id);
-    const payload = {
-      ...recipeForm,
-      common_name_id: recipeForm.common_name_id || selectedItem?.common_name_id || null,
-      quantity_required: numberValue(recipeForm.quantity_required),
-      deduction_multiplier: numberValue(recipeForm.deduction_multiplier || 1),
-      updated_at: new Date().toISOString(),
-    };
-    const response = editingRecipeId
-      ? await supabase.from("menu_item_ingredients").update(payload).eq("id", editingRecipeId)
-      : await supabase.from("menu_item_ingredients").insert([payload]);
+    const payloads = validLines.map((line) => {
+      const selectedItem = items.find((item) => item.id === line.inventory_item_id);
+      return {
+        menu_item_id: recipeForm.menu_item_id,
+        inventory_item_id: line.inventory_item_id,
+        common_name_id: line.common_name_id || selectedItem?.common_name_id || null,
+        quantity_required: numberValue(line.quantity_required),
+        unit: line.unit || selectedItem?.unit || "pc",
+        deduction_multiplier: numberValue(line.deduction_multiplier || 1),
+        is_active: line.is_active !== false,
+        updated_at: new Date().toISOString(),
+      };
+    });
+
+    let response;
+    if (editingRecipeId) {
+      const [firstPayload, ...extraPayloads] = payloads;
+      response = await supabase.from("menu_item_ingredients").update(firstPayload).eq("id", editingRecipeId);
+      if (!response.error && extraPayloads.length) {
+        response = await supabase.from("menu_item_ingredients").insert(extraPayloads);
+      }
+    } else {
+      response = await supabase.from("menu_item_ingredients").insert(payloads);
+    }
+
     if (response.error) return showNotice("error", response.error.message);
     setRecipeModal(false);
-    showNotice("success", editingRecipeId ? "Recipe row updated." : "Recipe ingredient added.");
+    showNotice("success", editingRecipeId ? "Recipe row updated." : "Recipe ingredients added.");
+    loadData();
+  }
+
+  async function reconcileInventoryPurchases() {
+    const { data, error } = await supabase.rpc("reconcile_expense_inventory_purchases");
+    if (error) return showNotice("error", error.message);
+    showNotice("success", `Inventory reconciled. Synced ${data?.synced || 0} expense purchase${Number(data?.synced || 0) === 1 ? "" : "s"}.`);
     loadData();
   }
 
@@ -309,7 +356,7 @@ export default function AdminInventoryPage() {
   async function saveAdjustment(e) {
     e.preventDefault();
     const item = items.find((row) => row.id === adjustmentForm.inventory_item_id);
-    if (!item) return showNotice("error", "Select an expense item name.");
+    if (!item) return showNotice("error", "Select an item name.");
     const qty = numberValue(adjustmentForm.quantity);
     if (!qty && adjustmentForm.mode !== "set") return showNotice("error", "Quantity is required.");
     const current = numberValue(item.current_stock);
@@ -441,35 +488,33 @@ export default function AdminInventoryPage() {
             </Select>
           </div>
           <button onClick={() => openItem()} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-600 px-4 text-xs font-semibold uppercase tracking-wider text-white transition hover:-translate-y-0.5 hover:bg-cyan-600">
-            <Plus size={15} /> Add Expense Item Name
+            <Plus size={15} /> Add Item Name
           </button>
         </div>
         <div className="overflow-x-auto rounded-2xl border border-white/70 bg-white/88 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl">
-          <table className="w-full min-w-[980px] text-sm">
+          <table className="w-full min-w-[860px] table-auto text-sm">
             <thead className="bg-slate-700 text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-50">
               <tr>
                 <th className="px-4 py-3">Item</th>
-                <th className="px-4 py-3">Expense Common Name</th>
+                <th className="px-4 py-3">Common Name</th>
                 <th className="px-4 py-3">Stock</th>
-                <th className="px-4 py-3">Reorder</th>
                 <th className="px-4 py-3">Cost</th>
                 <th className="px-4 py-3">Supplier</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Action</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-200/80">
               {filteredItems.map((item) => {
                 const [label, cls] = stockStatus(item);
                 return (
-                  <tr key={item.id} className="border-t border-slate-100 transition hover:bg-cyan-50/45">
+                  <tr key={item.id} className="transition hover:bg-cyan-50/45">
                     <td className="px-4 py-3">
                       <p className="font-semibold text-slate-950">{item.item_name}</p>
                       <p className="text-xs text-slate-400">{item.sku || item.category || "-"}</p>
                     </td>
                     <td className="px-4 py-3">{item.common_name || item.common_inventory_names?.common_name || "-"}</td>
                     <td className="px-4 py-3 font-semibold">{Number(item.current_stock || 0).toLocaleString("en-PH")} {item.unit}</td>
-                    <td className="px-4 py-3">{item.reorder_level} {item.unit}</td>
                     <td className="px-4 py-3">{peso(item.cost_per_unit)}</td>
                     <td className="px-4 py-3">{item.supplier || "-"}</td>
                     <td className="px-4 py-3"><span className={`rounded-full border px-2 py-1 text-[10px] font-semibold uppercase ${cls}`}>{label}</span></td>
@@ -482,7 +527,7 @@ export default function AdminInventoryPage() {
               })}
             </tbody>
           </table>
-          {!filteredItems.length ? <Empty message="No expense item names found." /> : null}
+          {!filteredItems.length ? <Empty message="No item names found." /> : null}
         </div>
       </div>
     );
@@ -492,7 +537,7 @@ export default function AdminInventoryPage() {
     return (
       <div className="space-y-4">
         <div className="flex justify-end">
-          <button onClick={() => openCommon()} className="inline-flex h-10 items-center gap-2 rounded-xl bg-slate-600 px-4 text-xs font-semibold uppercase tracking-wider text-white transition hover:bg-cyan-600"><Plus size={15} /> Add Expense Common Name</button>
+          <button onClick={() => openCommon()} className="inline-flex h-10 items-center gap-2 rounded-xl bg-slate-600 px-4 text-xs font-semibold uppercase tracking-wider text-white transition hover:bg-cyan-600"><Plus size={15} /> Add Common Name</button>
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {commonNames.map((row) => (
@@ -619,7 +664,7 @@ export default function AdminInventoryPage() {
     return (
       <Card>
         <form onSubmit={saveAdjustment} className="grid gap-4 md:grid-cols-2">
-          <Field label="Expense Item Name">
+          <Field label="Item Name">
             <Select value={adjustmentForm.inventory_item_id} onChange={(e) => setAdjustmentForm((p) => ({ ...p, inventory_item_id: e.target.value }))}>
               <option value="">Select item</option>
               {items.map((item) => <option key={item.id} value={item.id}>{item.item_name} ({item.current_stock} {item.unit})</option>)}
@@ -689,8 +734,8 @@ export default function AdminInventoryPage() {
 
   const tabs = [
     ["dashboard", "Dashboard", BarChart3],
-    ["items", "Expense Item Names", Boxes],
-    ["common", "Expense Common Names", Database],
+    ["items", "Item Names", Boxes],
+    ["common", "Common Names", Database],
     ["recipes", "Recipes", ClipboardList],
     ["transactions", "Transactions", History],
     ["alerts", "Low Stock Alerts", AlertTriangle],
@@ -705,11 +750,16 @@ export default function AdminInventoryPage() {
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-200">Admin Control Center</p>
             <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Inventory System</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-200">Manage stock using Expenses Item Name as inventory items and Expenses Common Name as standardized common names.</p>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-200">Manage stock using Item Name as inventory items and Common Name as standardized names.</p>
           </div>
-          <button onClick={loadData} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-4 text-xs font-semibold uppercase tracking-wider text-cyan-50 transition hover:-translate-y-0.5 hover:bg-cyan-300/18">
-            <RefreshCw size={15} /> Refresh
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button onClick={reconcileInventoryPurchases} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-cyan-300/30 bg-white/12 px-4 text-xs font-semibold uppercase tracking-wider text-cyan-50 transition hover:-translate-y-0.5 hover:bg-cyan-300/18">
+              <Database size={15} /> Reconcile
+            </button>
+            <button onClick={loadData} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-4 text-xs font-semibold uppercase tracking-wider text-cyan-50 transition hover:-translate-y-0.5 hover:bg-cyan-300/18">
+              <RefreshCw size={15} /> Refresh
+            </button>
+          </div>
         </div>
       </header>
 
@@ -736,19 +786,13 @@ export default function AdminInventoryPage() {
         : tab === "adjust" ? renderAdjustment()
         : renderSettings()}
 
-      <Modal open={itemModal} title={editingItemId ? "Edit Expense Item Name" : "Add Expense Item Name"} onClose={() => setItemModal(false)}>
+      <Modal open={itemModal} title={editingItemId ? "Edit Item Name" : "Add Item Name"} onClose={() => setItemModal(false)}>
         <form onSubmit={saveItem} className="grid gap-4 md:grid-cols-2">
-          <Field label="Expense Common Name">
-            <Select value={itemForm.common_name_id} onChange={(e) => {
-              const common = commonNames.find((row) => row.id === e.target.value);
-              setItemForm((p) => ({ ...p, common_name_id: e.target.value, common_name: p.common_name || common?.common_name || "", unit: common?.default_unit || p.unit, category: common?.category || p.category, item_name: p.item_name || common?.common_name || "" }));
-            }}>
-              <option value="">No expense common name</option>
-              {commonNames.map((row) => <option key={row.id} value={row.id}>{row.common_name}</option>)}
-            </Select>
-          </Field>
-          <Field label="Expense Item Name"><Input value={itemForm.item_name} onChange={(e) => setItemForm((p) => ({ ...p, item_name: e.target.value }))} /></Field>
-          <Field label="Master Common Name"><Input value={itemForm.common_name} onChange={(e) => setItemForm((p) => ({ ...p, common_name: e.target.value }))} /></Field>
+          <Field label="Item Name"><Input value={itemForm.item_name} onChange={(e) => setItemForm((p) => ({ ...p, item_name: e.target.value }))} /></Field>
+          <Field label="Common Name"><Input value={itemForm.common_name} list="inventory-common-name-options" onChange={(e) => setItemForm((p) => ({ ...p, common_name: e.target.value, common_name_id: "" }))} /></Field>
+          <datalist id="inventory-common-name-options">
+            {commonNames.map((row) => <option key={row.id} value={row.common_name} />)}
+          </datalist>
           <Field label="SKU"><Input value={itemForm.sku} onChange={(e) => setItemForm((p) => ({ ...p, sku: e.target.value }))} /></Field>
           <Field label="Category"><Input value={itemForm.category} onChange={(e) => setItemForm((p) => ({ ...p, category: e.target.value }))} /></Field>
           <Field label="Unit"><Select value={itemForm.unit} onChange={(e) => setItemForm((p) => ({ ...p, unit: e.target.value }))}>{INVENTORY_UNITS.map((unit) => <option key={unit}>{unit}</option>)}</Select></Field>
@@ -761,29 +805,64 @@ export default function AdminInventoryPage() {
         </form>
       </Modal>
 
-      <Modal open={commonModal} title={editingCommonId ? "Edit Expense Common Name" : "Add Expense Common Name"} onClose={() => setCommonModal(false)} width="max-w-2xl">
+      <Modal open={commonModal} title={editingCommonId ? "Edit Common Name" : "Add Common Name"} onClose={() => setCommonModal(false)} width="max-w-2xl">
         <form onSubmit={saveCommon} className="grid gap-4 md:grid-cols-2">
-          <Field label="Expense Common Name"><Input value={commonForm.common_name} onChange={(e) => setCommonForm((p) => ({ ...p, common_name: e.target.value }))} /></Field>
+          <Field label="Common Name"><Input value={commonForm.common_name} onChange={(e) => setCommonForm((p) => ({ ...p, common_name: e.target.value }))} /></Field>
           <Field label="Category"><Input value={commonForm.category} onChange={(e) => setCommonForm((p) => ({ ...p, category: e.target.value }))} /></Field>
           <Field label="Default Unit"><Select value={commonForm.default_unit} onChange={(e) => setCommonForm((p) => ({ ...p, default_unit: e.target.value }))}>{INVENTORY_UNITS.map((unit) => <option key={unit}>{unit}</option>)}</Select></Field>
           <Field label="Description"><Input value={commonForm.description} onChange={(e) => setCommonForm((p) => ({ ...p, description: e.target.value }))} /></Field>
           <label className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3 text-sm font-semibold text-slate-700"><input type="checkbox" checked={commonForm.is_active} onChange={(e) => setCommonForm((p) => ({ ...p, is_active: e.target.checked }))} /> Active</label>
-          <button className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-600 px-4 text-xs font-semibold uppercase tracking-wider text-white transition hover:bg-cyan-600 md:col-span-2"><Save size={15} /> Save Expense Common Name</button>
+          <button className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-600 px-4 text-xs font-semibold uppercase tracking-wider text-white transition hover:bg-cyan-600 md:col-span-2"><Save size={15} /> Save Common Name</button>
         </form>
       </Modal>
 
-      <Modal open={recipeModal} title={editingRecipeId ? "Edit Recipe Ingredient" : "Add Recipe Ingredient"} onClose={() => setRecipeModal(false)}>
-        <form onSubmit={saveRecipe} className="grid gap-4 md:grid-cols-2">
-          <Field label="Menu Item"><Select value={recipeForm.menu_item_id} onChange={(e) => setRecipeForm((p) => ({ ...p, menu_item_id: e.target.value }))}><option value="">Select menu item</option>{menuItems.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></Field>
-          <Field label="Expense Item Name"><Select value={recipeForm.inventory_item_id} onChange={(e) => {
-            const item = items.find((row) => row.id === e.target.value);
-            setRecipeForm((p) => ({ ...p, inventory_item_id: e.target.value, common_name_id: item?.common_name_id || p.common_name_id, unit: item?.unit || p.unit }));
-          }}><option value="">Select expense item name</option>{items.map((item) => <option key={item.id} value={item.id}>{item.item_name}</option>)}</Select></Field>
-          <Field label="Quantity Required"><Input type="number" step="0.001" value={recipeForm.quantity_required} onChange={(e) => setRecipeForm((p) => ({ ...p, quantity_required: e.target.value }))} /></Field>
-          <Field label="Unit"><Select value={recipeForm.unit} onChange={(e) => setRecipeForm((p) => ({ ...p, unit: e.target.value }))}>{INVENTORY_UNITS.map((unit) => <option key={unit}>{unit}</option>)}</Select></Field>
-          <Field label="Multiplier"><Input type="number" step="0.001" value={recipeForm.deduction_multiplier} onChange={(e) => setRecipeForm((p) => ({ ...p, deduction_multiplier: e.target.value }))} /></Field>
-          <label className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3 text-sm font-semibold text-slate-700"><input type="checkbox" checked={recipeForm.is_active} onChange={(e) => setRecipeForm((p) => ({ ...p, is_active: e.target.checked }))} /> Active</label>
-          <button className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-600 px-4 text-xs font-semibold uppercase tracking-wider text-white transition hover:bg-cyan-600 md:col-span-2"><Save size={15} /> Save Recipe</button>
+      <Modal open={recipeModal} title={editingRecipeId ? "Edit Recipe Ingredient" : "Add Recipe Ingredients"} onClose={() => setRecipeModal(false)}>
+        <form onSubmit={saveRecipe} className="space-y-4">
+          <Field label="Menu Item">
+            <Select value={recipeForm.menu_item_id} onChange={(e) => setRecipeForm((p) => ({ ...p, menu_item_id: e.target.value }))}>
+              <option value="">Select menu item</option>
+              {menuItems.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </Select>
+          </Field>
+
+          <div className="space-y-3">
+            {recipeLines.map((line, index) => (
+              <div key={index} className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
+                <div className="mb-3 flex items-center justify-between border-b border-slate-200 pb-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Ingredient {index + 1}</p>
+                  <button type="button" onClick={() => removeRecipeLine(index)} disabled={recipeLines.length === 1} className="inline-flex h-8 items-center justify-center rounded-lg border border-red-100 bg-red-50 px-3 text-[10px] font-semibold uppercase text-red-600 disabled:cursor-not-allowed disabled:opacity-40">
+                    Remove
+                  </button>
+                </div>
+                <div className="grid gap-3 md:grid-cols-5">
+                  <Field label="Item Name">
+                    <Select value={line.inventory_item_id} onChange={(e) => {
+                      const item = items.find((row) => row.id === e.target.value);
+                      updateRecipeLine(index, {
+                        inventory_item_id: e.target.value,
+                        common_name_id: item?.common_name_id || line.common_name_id,
+                        unit: item?.unit || line.unit,
+                      });
+                    }}>
+                      <option value="">Select expense item name</option>
+                      {items.map((item) => <option key={item.id} value={item.id}>{item.item_name}</option>)}
+                    </Select>
+                  </Field>
+                  <Field label="Qty"><Input type="number" step="0.001" value={line.quantity_required} onChange={(e) => updateRecipeLine(index, { quantity_required: e.target.value })} /></Field>
+                  <Field label="Unit"><Select value={line.unit} onChange={(e) => updateRecipeLine(index, { unit: e.target.value })}>{INVENTORY_UNITS.map((unit) => <option key={unit}>{unit}</option>)}</Select></Field>
+                  <Field label="Multiplier"><Input type="number" step="0.001" value={line.deduction_multiplier} onChange={(e) => updateRecipeLine(index, { deduction_multiplier: e.target.value })} /></Field>
+                  <label className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white p-3 text-sm font-semibold text-slate-700"><input type="checkbox" checked={line.is_active} onChange={(e) => updateRecipeLine(index, { is_active: e.target.checked })} /> Active</label>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <button type="button" onClick={addRecipeLine} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-cyan-200 bg-cyan-50 px-4 text-xs font-semibold uppercase tracking-wider text-cyan-800 transition hover:bg-cyan-100">
+              <Plus size={15} /> Add Another Item
+            </button>
+            <button className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-600 px-5 text-xs font-semibold uppercase tracking-wider text-white transition hover:bg-cyan-600"><Save size={15} /> Save Recipe</button>
+          </div>
         </form>
       </Modal>
     </div>

@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/dateFormat";
-import { INVENTORY_UNITS, syncExpensePurchaseToInventory } from "@/lib/inventory";
+import { INVENTORY_UNITS, normalizeUnit, syncExpensePurchaseToInventory } from "@/lib/inventory";
 
 const CATEGORY_OPTIONS = ["OP-EX", "PERSONAL"];
 const PAYMENT_TYPES = ["CASH", "CHEQUE", "GCASH -9393", "GCASH -0668", "GCASH -8199", "CARD", "BANK TRANSFER"];
@@ -69,6 +69,8 @@ const initialReferenceForm = {
   ref_type: "item",
   name: "",
   common_name: "",
+  reference_quantity: "",
+  reference_unit: "",
   notes: "",
   is_active: true,
 };
@@ -339,6 +341,25 @@ export default function FinanceExpenseManager() {
     return match?.common_name || "";
   }
 
+  function itemReferenceFor(itemName) {
+    return itemReferences.find((row) => normalize(row.name) === normalize(itemName));
+  }
+
+  function inventoryItemFor(itemName, commonName = "") {
+    const normalizedItem = normalize(itemName);
+    const normalizedCommon = normalize(commonName);
+    return inventoryItems.find((row) => (
+      normalize(row.item_name) === normalizedItem
+      || (normalizedCommon && normalize(row.common_name) === normalizedCommon)
+    ));
+  }
+
+  function referenceInventoryQuantity(reference, purchaseQty) {
+    const referenceQty = numberValue(reference?.reference_quantity);
+    const baseQty = numberValue(purchaseQty || 1) || 1;
+    return referenceQty > 0 ? String(referenceQty * baseQty) : "";
+  }
+
   function freshExpenseForm(previous = {}) {
     return {
       ...initialExpenseForm,
@@ -424,8 +445,27 @@ export default function FinanceExpenseManager() {
     setter((prev) => {
       const next = { ...prev, [key]: value };
       if (key === "description") {
-        const commonName = commonNameForItem(value);
+        const itemRef = itemReferenceFor(value);
+        const commonName = itemRef?.common_name || "";
+        const inventoryItem = inventoryItemFor(value, commonName);
         if (commonName) next.item_common_name = commonName;
+        if (inventoryItem) {
+          next.inventory_item_id = inventoryItem.id;
+          next.inventory_common_name_id = inventoryItem.common_name_id || next.inventory_common_name_id;
+          next.inventory_unit_cost = inventoryItem.cost_per_unit ?? next.inventory_unit_cost;
+        }
+        if (itemRef?.reference_quantity && itemRef?.reference_unit) {
+          next.is_inventory_purchase = true;
+          next.inventory_quantity = referenceInventoryQuantity(itemRef, next.quantity);
+          next.inventory_unit = normalizeUnit(itemRef.reference_unit);
+        }
+      }
+      if (key === "quantity") {
+        const itemRef = itemReferenceFor(next.description);
+        if (itemRef?.reference_quantity && itemRef?.reference_unit) {
+          next.inventory_quantity = referenceInventoryQuantity(itemRef, value);
+          next.inventory_unit = normalizeUnit(itemRef.reference_unit);
+        }
       }
       if (key === "inventory_item_id") {
         const item = inventoryItems.find((row) => row.id === value);
@@ -1078,6 +1118,8 @@ export default function FinanceExpenseManager() {
         ref_type: row.ref_type || "item",
         name: row.name || "",
         common_name: row.common_name || "",
+        reference_quantity: row.reference_quantity || "",
+        reference_unit: row.reference_unit || "",
         notes: row.notes || "",
         is_active: row.is_active !== false,
       });
@@ -1106,6 +1148,8 @@ export default function FinanceExpenseManager() {
       ref_type: referenceForm.ref_type,
       name: referenceForm.name.trim(),
       common_name: referenceForm.ref_type === "item" ? referenceForm.common_name.trim() || null : null,
+      reference_quantity: referenceForm.ref_type === "item" && referenceForm.reference_quantity !== "" ? numberValue(referenceForm.reference_quantity) : null,
+      reference_unit: referenceForm.ref_type === "item" ? normalizeUnit(referenceForm.reference_unit) || null : null,
       notes: referenceForm.ref_type === "item" ? null : referenceForm.notes.trim() || null,
       is_active: referenceForm.is_active !== false,
       created_by: currentUserId,
@@ -1172,6 +1216,8 @@ export default function FinanceExpenseManager() {
         ref_type: bulkReferenceType,
         name,
         common_name: null,
+        reference_quantity: null,
+        reference_unit: null,
         notes: null,
         is_active: true,
         created_by: currentUserId,
@@ -1319,26 +1365,26 @@ export default function FinanceExpenseManager() {
           </label>
           {form.is_inventory_purchase ? (
             <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-5">
-              <Field label="Expense Common Name">
+              <Field label="Common Name">
                 <Select value={form.inventory_common_name_id || form.inventory_item_id} onChange={(e) => {
                   const selected = inventoryCommonNames.find((row) => String(row.id || row.inventory_item_id) === e.target.value);
                   if (selected?.inventory_item_id) updateExpenseForm(scope, "inventory_item_id", selected.inventory_item_id);
                   updateExpenseForm(scope, "inventory_common_name_id", selected?.id || "");
                 }}>
-                  <option value="">Select expense common name</option>
+                  <option value="">Select common name</option>
                   {inventoryCommonNames.map((row) => <option key={row.id || row.inventory_item_id} value={row.id || row.inventory_item_id}>{row.common_name}</option>)}
                 </Select>
               </Field>
-              <Field label="Expense Item Name">
+              <Field label="Item Name">
                 <Select value={form.inventory_item_id} onChange={(e) => updateExpenseForm(scope, "inventory_item_id", e.target.value)}>
-                  <option value="">Select expense item name</option>
+                  <option value="">Select item name</option>
                   {inventoryItems.map((row) => <option key={row.id} value={row.id}>{row.item_name}</option>)}
                 </Select>
               </Field>
-              <Field label="Purchased Qty">
+              <Field label="Inventory Qty">
                 <Input type="number" min="0" step="0.001" value={form.inventory_quantity} onChange={(e) => updateExpenseForm(scope, "inventory_quantity", e.target.value)} placeholder={String(form.quantity || 1)} />
               </Field>
-              <Field label="Purchased Unit">
+              <Field label="Inventory Unit">
                 <Select value={form.inventory_unit} onChange={(e) => updateExpenseForm(scope, "inventory_unit", e.target.value)}>
                   <option value="">Select unit</option>
                   {INVENTORY_UNITS.map((unit) => <option key={unit}>{unit}</option>)}
@@ -1585,17 +1631,38 @@ export default function FinanceExpenseManager() {
               {REF_TYPES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
             </Select>
           </Field>
-          <Field label="Name">
+          <Field label={referenceForm.ref_type === "item" ? "Item Name" : "Name"}>
             <Input value={referenceForm.name} onChange={(e) => setReferenceForm((prev) => ({ ...prev, name: e.target.value }))} required />
           </Field>
           {referenceForm.ref_type === "item" ? (
-            <Field label="Common Name">
-              <Input
-                value={referenceForm.common_name}
-                onChange={(e) => setReferenceForm((prev) => ({ ...prev, common_name: e.target.value }))}
-                placeholder="Example: Caramel Sauce"
-              />
-            </Field>
+            <>
+              <Field label="Common Name">
+                <Input
+                  value={referenceForm.common_name}
+                  onChange={(e) => setReferenceForm((prev) => ({ ...prev, common_name: e.target.value }))}
+                  placeholder="Example: Cheese Sauce"
+                />
+              </Field>
+              <Field label="Inventory Qty">
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.001"
+                  value={referenceForm.reference_quantity}
+                  onChange={(e) => setReferenceForm((prev) => ({ ...prev, reference_quantity: e.target.value }))}
+                  placeholder="Example: 500"
+                />
+              </Field>
+              <Field label="Inventory Unit">
+                <Select
+                  value={referenceForm.reference_unit}
+                  onChange={(e) => setReferenceForm((prev) => ({ ...prev, reference_unit: e.target.value }))}
+                >
+                  <option value="">Select unit</option>
+                  {uniqueOptions([referenceForm.reference_unit], INVENTORY_UNITS).filter(Boolean).map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+                </Select>
+              </Field>
+            </>
           ) : null}
           <Field label="Status">
             <Select
@@ -1691,12 +1758,14 @@ export default function FinanceExpenseManager() {
           <EmptyState message="No references yet." />
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-white/70 bg-white/88 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[920px] text-sm">
               <thead className="sticky top-0 bg-slate-950 text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-50">
                 <tr>
                   <th className="px-4 py-3">Type</th>
                   <th className="px-4 py-3">Name</th>
                   <th className="px-4 py-3">Common Name</th>
+                  <th className="px-4 py-3">Qty</th>
+                  <th className="px-4 py-3">Unit</th>
                   <th className="px-4 py-3">Notes</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Action</th>
@@ -1708,6 +1777,8 @@ export default function FinanceExpenseManager() {
                     <td className="px-4 py-3 font-bold text-slate-500">{labelByType[row.ref_type] || row.ref_type}</td>
                     <td className="px-4 py-3 text-slate-950">{row.name}</td>
                     <td className="px-4 py-3">{row.common_name || "-"}</td>
+                    <td className="px-4 py-3">{row.ref_type === "item" && row.reference_quantity != null ? Number(row.reference_quantity).toLocaleString("en-PH") : "-"}</td>
+                    <td className="px-4 py-3">{row.ref_type === "item" ? row.reference_unit || "-" : "-"}</td>
                     <td className="px-4 py-3">{row.ref_type === "item" ? "-" : row.notes || "-"}</td>
                     <td className="px-4 py-3">
                       <span className={`rounded-lg border px-2 py-1 text-[10px] font-semibold uppercase ${row.is_active === false ? "border-slate-200 bg-slate-50 text-slate-500" : "border-cyan-100 bg-cyan-50 text-cyan-700"}`}>
