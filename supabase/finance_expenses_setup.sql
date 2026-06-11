@@ -77,9 +77,10 @@ create table if not exists public.finance_petty_cash_funds (
 
 create table if not exists public.finance_references (
   id text primary key,
-  ref_type text not null check (ref_type in ('item', 'supplier', 'payment_type', 'unit', 'category', 'fund_source')),
+  ref_type text not null check (ref_type in ('item', 'item_category', 'supplier', 'payment_type', 'unit', 'category', 'fund_source')),
   name text not null,
   common_name text,
+  item_category text,
   reference_quantity numeric(14, 3),
   reference_unit text,
   notes text,
@@ -167,6 +168,7 @@ alter table public.finance_references
   add column if not exists ref_type text,
   add column if not exists name text,
   add column if not exists common_name text,
+  add column if not exists item_category text,
   add column if not exists reference_quantity numeric(14, 3),
   add column if not exists reference_unit text,
   add column if not exists notes text,
