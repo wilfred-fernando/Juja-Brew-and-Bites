@@ -17,7 +17,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { INVENTORY_UNITS } from "@/lib/inventory";
+import { INVENTORY_UNITS, normalizeUnit } from "@/lib/inventory";
 import { formatDateTime } from "@/lib/dateFormat";
 
 const supabase = getSupabaseClient();
@@ -47,6 +47,18 @@ function peso(value) {
 function numberValue(value) {
   const parsed = Number(value || 0);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function normalizeText(value) {
+  return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function formatQuantity(value) {
+  return Number(value || 0).toLocaleString("en-PH", { maximumFractionDigits: 3 });
+}
+
+function unitLabel(unit) {
+  return normalizeUnit(unit || "");
 }
 
 function stockStatus(item) {
@@ -118,6 +130,7 @@ export default function AdminInventoryPage() {
   const [transactions, setTransactions] = useState([]);
   const [recipes, setRecipes] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
+  const [financeItemReferences, setFinanceItemReferences] = useState([]);
   const [warnings, setWarnings] = useState([]);
   const [settings, setSettings] = useState(null);
   const [search, setSearch] = useState("");
@@ -144,7 +157,7 @@ export default function AdminInventoryPage() {
 
   async function loadData() {
     setLoading(true);
-    const [itemRes, commonRes, txRes, recipeRes, menuRes, warningRes, settingsRes] = await Promise.all([
+    const [itemRes, commonRes, txRes, recipeRes, menuRes, warningRes, settingsRes, financeRefRes] = await Promise.all([
       supabase.from("inventory_items").select("*, common_inventory_names(common_name)").order("item_name"),
       supabase.from("common_inventory_names").select("*").order("common_name"),
       supabase.from("inventory_transactions").select("*, inventory_items(item_name, common_name), common_inventory_names(common_name)").order("created_at", { ascending: false }).limit(300),
@@ -152,6 +165,7 @@ export default function AdminInventoryPage() {
       supabase.from("menu_items").select("id, name, category, variants").order("name"),
       supabase.from("inventory_warnings").select("*").eq("is_resolved", false).order("created_at", { ascending: false }).limit(100),
       supabase.from("inventory_settings").select("*").eq("id", "default").maybeSingle(),
+      supabase.from("finance_references").select("name, reference_quantity, reference_unit").eq("ref_type", "item").eq("is_active", true),
     ]);
 
     const error = [itemRes.error, commonRes.error, txRes.error, recipeRes.error, menuRes.error, warningRes.error, settingsRes.error].find(Boolean);
@@ -165,6 +179,7 @@ export default function AdminInventoryPage() {
     setTransactions(txRes.data || []);
     setRecipes(recipeRes.data || []);
     setMenuItems(menuRes.data || []);
+    setFinanceItemReferences(financeRefRes.error ? [] : financeRefRes.data || []);
     setWarnings(warningRes.data || []);
     setSettings(settingsRes.data || null);
     setLoading(false);
@@ -201,6 +216,37 @@ export default function AdminInventoryPage() {
 
   const filteredTransactions = transactions.filter((tx) => txFilter === "all" || tx.transaction_type === txFilter);
 
+  function findFinanceReferenceForItem(item) {
+    const itemName = normalizeText(item?.item_name);
+    if (!itemName) return null;
+    return financeItemReferences.find((ref) => normalizeText(ref.name) === itemName) || null;
+  }
+
+  function formatStockDisplay(item) {
+    const stock = numberValue(item.current_stock);
+    const bulkUnit = normalizeUnit(item.unit);
+    const ref = findFinanceReferenceForItem(item);
+    const referenceQuantity = numberValue(ref?.reference_quantity);
+    const smallUnit = normalizeUnit(ref?.reference_unit);
+
+    if (!referenceQuantity || !smallUnit || !bulkUnit || bulkUnit === smallUnit) {
+      return {
+        value: `${formatQuantity(stock)} ${bulkUnit}`.trim(),
+        reference: null,
+      };
+    }
+
+    const sign = stock < 0 ? -1 : 1;
+    const absoluteStock = Math.abs(stock);
+    const bulkCount = Math.trunc(absoluteStock);
+    const smallRemainder = Math.round((absoluteStock - bulkCount) * referenceQuantity * 1000) / 1000;
+
+    return {
+      value: `${sign < 0 ? "-" : ""}${formatQuantity(bulkCount)} ${bulkUnit} ${formatQuantity(smallRemainder)} ${smallUnit}`,
+      reference: `1 ${bulkUnit} = ${formatQuantity(referenceQuantity)} ${smallUnit}`,
+    };
+  }
+
   function openItem(row = null) {
     setEditingItemId(row?.id || null);
     setItemForm(row ? {
@@ -209,7 +255,7 @@ export default function AdminInventoryPage() {
       common_name: row.common_name || row.common_inventory_names?.common_name || row.item_name || "",
       sku: row.sku || "",
       category: row.category || "",
-      unit: row.unit || "pc",
+      unit: unitLabel(row.unit) || "pc",
       minimum_stock: row.minimum_stock || 0,
       reorder_level: row.reorder_level || 0,
       cost_per_unit: row.cost_per_unit || 0,
@@ -224,7 +270,7 @@ export default function AdminInventoryPage() {
     setCommonForm(row ? {
       common_name: row.common_name || "",
       category: row.category || "",
-      default_unit: row.default_unit || "pc",
+      default_unit: unitLabel(row.default_unit) || "pc",
       description: row.description || "",
       is_active: row.is_active !== false,
     } : emptyCommon);
@@ -246,7 +292,7 @@ export default function AdminInventoryPage() {
       inventory_item_id: row.inventory_item_id || "",
       common_name_id: row.common_name_id || "",
       quantity_required: row.quantity_required || "",
-      unit: row.unit || "pc",
+      unit: unitLabel(row.unit) || "pc",
       deduction_multiplier: row.deduction_multiplier || 1,
       is_active: row.is_active !== false,
     }] : [emptyRecipeLine]);
@@ -315,7 +361,7 @@ export default function AdminInventoryPage() {
         inventory_item_id: line.inventory_item_id,
         common_name_id: line.common_name_id || selectedItem?.common_name_id || null,
         quantity_required: numberValue(line.quantity_required),
-        unit: line.unit || selectedItem?.unit || "pc",
+        unit: unitLabel(line.unit || selectedItem?.unit || "pc"),
         deduction_multiplier: numberValue(line.deduction_multiplier || 1),
         is_active: line.is_active !== false,
         updated_at: new Date().toISOString(),
@@ -366,7 +412,7 @@ export default function AdminInventoryPage() {
       p_common_name_id: item.common_name_id || null,
       p_transaction_type: "manual_adjustment",
       p_quantity: Math.abs(effect),
-      p_unit: item.unit,
+      p_unit: unitLabel(item.unit),
       p_quantity_effect: effect,
       p_reference_type: "manual",
       p_reference_id: null,
@@ -390,7 +436,7 @@ export default function AdminInventoryPage() {
       .filter((tx) => tx.transaction_type === "pos_deduction")
       .reduce((map, tx) => {
         const key = tx.inventory_item_id || tx.common_name_id || "unknown";
-        map[key] = map[key] || { name: tx.inventory_items?.item_name || tx.inventory_items?.common_name || tx.common_inventory_names?.common_name || "Unknown", qty: 0, unit: tx.unit };
+        map[key] = map[key] || { name: tx.inventory_items?.item_name || tx.inventory_items?.common_name || tx.common_inventory_names?.common_name || "Unknown", qty: 0, unit: unitLabel(tx.unit) };
         map[key].qty += Math.abs(numberValue(tx.quantity_effect));
         return map;
       }, {});
@@ -436,7 +482,7 @@ export default function AdminInventoryPage() {
               {lowStockItems.slice(0, 8).map((item) => (
                 <div key={item.id} className="flex items-center justify-between rounded-xl border border-slate-100 bg-white/80 p-3 text-sm">
                   <span>{item.item_name}</span>
-                  <span className="font-semibold text-red-600">{item.current_stock} {item.unit}</span>
+                  <span className="text-right font-semibold text-red-600">{formatStockDisplay(item).value}</span>
                 </div>
               ))}
               {!lowStockItems.length ? <Empty message="No low stock items." /> : null}
@@ -449,7 +495,7 @@ export default function AdminInventoryPage() {
                 <div key={tx.id} className="rounded-xl border border-slate-100 bg-white/80 p-3 text-sm">
                   <div className="flex justify-between gap-3">
                     <span>{tx.inventory_items?.item_name || tx.inventory_items?.common_name || tx.common_inventory_names?.common_name || "-"}</span>
-                    <span className={numberValue(tx.quantity_effect) < 0 ? "text-red-600" : "text-cyan-700"}>{tx.quantity_effect} {tx.unit}</span>
+                    <span className={numberValue(tx.quantity_effect) < 0 ? "text-red-600" : "text-cyan-700"}>{tx.quantity_effect} {unitLabel(tx.unit)}</span>
                   </div>
                   <p className="mt-1 text-[10px] uppercase tracking-wider text-slate-400">{tx.transaction_type}</p>
                 </div>
@@ -462,7 +508,7 @@ export default function AdminInventoryPage() {
               {Object.values(topDeducted).sort((a, b) => b.qty - a.qty).slice(0, 8).map((row) => (
                 <div key={row.name} className="flex justify-between rounded-xl border border-slate-100 bg-white/80 p-3 text-sm">
                   <span>{row.name}</span>
-                  <span className="font-semibold text-slate-950">{row.qty.toLocaleString("en-PH")} {row.unit}</span>
+                  <span className="font-semibold text-slate-950">{row.qty.toLocaleString("en-PH")} {unitLabel(row.unit)}</span>
                 </div>
               ))}
               {!Object.keys(topDeducted).length ? <Empty message="No POS deductions yet." /> : null}
@@ -507,6 +553,7 @@ export default function AdminInventoryPage() {
             <tbody className="divide-y divide-slate-200/80">
               {filteredItems.map((item) => {
                 const [label, cls] = stockStatus(item);
+                const stockDisplay = formatStockDisplay(item);
                 return (
                   <tr key={item.id} className="transition hover:bg-cyan-50/45">
                     <td className="px-4 py-3">
@@ -514,7 +561,12 @@ export default function AdminInventoryPage() {
                       <p className="text-xs text-slate-400">{item.sku || item.category || "-"}</p>
                     </td>
                     <td className="px-4 py-3">{item.common_name || item.common_inventory_names?.common_name || "-"}</td>
-                    <td className="px-4 py-3 font-semibold">{Number(item.current_stock || 0).toLocaleString("en-PH")} {item.unit}</td>
+                    <td className="px-4 py-3 font-semibold">
+                      <p className="text-slate-950">{stockDisplay.value}</p>
+                      {stockDisplay.reference ? (
+                        <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{stockDisplay.reference}</p>
+                      ) : null}
+                    </td>
                     <td className="px-4 py-3">{peso(item.cost_per_unit)}</td>
                     <td className="px-4 py-3">{item.supplier || "-"}</td>
                     <td className="px-4 py-3"><span className={`rounded-full border px-2 py-1 text-[10px] font-semibold uppercase ${cls}`}>{label}</span></td>
@@ -545,7 +597,7 @@ export default function AdminInventoryPage() {
               <div className="flex justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-slate-950">{row.common_name}</p>
-                  <p className="mt-1 text-xs text-slate-500">{row.category || "Uncategorized"} / {row.default_unit}</p>
+                  <p className="mt-1 text-xs text-slate-500">{row.category || "Uncategorized"} / {unitLabel(row.default_unit)}</p>
                 </div>
                 <button onClick={() => openCommon(row)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-50 text-cyan-700"><Edit3 size={14} /></button>
               </div>
@@ -582,7 +634,7 @@ export default function AdminInventoryPage() {
                 {(recipesByMenu[String(menu.id)] || []).length ? recipesByMenu[String(menu.id)].map((row) => (
                   <div key={row.id} className="flex items-center justify-between rounded-xl border border-slate-100 bg-white/85 p-3 text-sm">
                     <span>{row.inventory_items?.item_name || row.inventory_items?.common_name || row.common_inventory_names?.common_name || "Ingredient"}</span>
-                    <button onClick={() => openRecipe(row)} className="text-cyan-700">{row.quantity_required} {row.unit}</button>
+                    <button onClick={() => openRecipe(row)} className="text-cyan-700">{row.quantity_required} {unitLabel(row.unit)}</button>
                   </div>
                 )) : <p className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs text-amber-700">No recipe set. POS will complete sale but log a missing recipe warning.</p>}
               </div>
@@ -623,7 +675,7 @@ export default function AdminInventoryPage() {
                   <td className="px-4 py-3">{formatDateTime(tx.created_at)}</td>
                   <td className="px-4 py-3">{tx.inventory_items?.item_name || tx.inventory_items?.common_name || tx.common_inventory_names?.common_name || "-"}</td>
                   <td className="px-4 py-3">{tx.transaction_type}</td>
-                  <td className={`px-4 py-3 font-semibold ${numberValue(tx.quantity_effect) < 0 ? "text-red-600" : "text-cyan-700"}`}>{tx.quantity_effect} {tx.unit}</td>
+                  <td className={`px-4 py-3 font-semibold ${numberValue(tx.quantity_effect) < 0 ? "text-red-600" : "text-cyan-700"}`}>{tx.quantity_effect} {unitLabel(tx.unit)}</td>
                   <td className="px-4 py-3">{tx.reference_type || "-"} {tx.reference_id || ""}</td>
                   <td className="px-4 py-3">{tx.notes || "-"}</td>
                 </tr>
@@ -645,7 +697,7 @@ export default function AdminInventoryPage() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-slate-950">{item.item_name}</p>
-                  <p className="mt-1 text-xs text-slate-500">Current {item.current_stock} {item.unit} / Reorder {item.reorder_level} {item.unit}</p>
+                  <p className="mt-1 text-xs text-slate-500">Current {formatStockDisplay(item).value} / Reorder {item.reorder_level} {unitLabel(item.unit)}</p>
                 </div>
                 <div className="flex gap-2">
                   <span className={`rounded-full border px-3 py-2 text-[10px] font-semibold uppercase ${cls}`}>{label}</span>
@@ -667,7 +719,7 @@ export default function AdminInventoryPage() {
           <Field label="Item Name">
             <Select value={adjustmentForm.inventory_item_id} onChange={(e) => setAdjustmentForm((p) => ({ ...p, inventory_item_id: e.target.value }))}>
               <option value="">Select item</option>
-              {items.map((item) => <option key={item.id} value={item.id}>{item.item_name} ({item.current_stock} {item.unit})</option>)}
+              {items.map((item) => <option key={item.id} value={item.id}>{item.item_name} ({formatStockDisplay(item).value})</option>)}
             </Select>
           </Field>
           <Field label="Adjustment Type">
@@ -718,7 +770,7 @@ export default function AdminInventoryPage() {
       item: tx.inventory_items?.item_name || tx.inventory_items?.common_name || tx.common_inventory_names?.common_name || "",
       type: tx.transaction_type,
       quantity_effect: tx.quantity_effect,
-      unit: tx.unit,
+      unit: unitLabel(tx.unit),
       reference: `${tx.reference_type || ""} ${tx.reference_id || ""}`.trim(),
       notes: tx.notes || "",
     }));
@@ -841,7 +893,7 @@ export default function AdminInventoryPage() {
                       updateRecipeLine(index, {
                         inventory_item_id: e.target.value,
                         common_name_id: item?.common_name_id || line.common_name_id,
-                        unit: item?.unit || line.unit,
+                        unit: unitLabel(item?.unit || line.unit),
                       });
                     }}>
                       <option value="">Select expense item name</option>

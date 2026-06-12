@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Banknote, LogOut, ReceiptText, Users } from "lucide-react";
+import { Banknote, Boxes, LogOut, ReceiptText, Users } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { usePortalAuth } from "@/components/usePortalAuth";
 import { useIdleLogout } from "@/components/useIdleLogout";
@@ -18,7 +18,7 @@ export default function FinanceLayout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const isLogin = pathname === "/finance/login" || pathname === "/login";
-  const activeSection = pathname.includes("/payroll") ? "payroll" : "expenses";
+  const activeSection = pathname.includes("/payroll") ? "payroll" : pathname.includes("/inventory") ? "inventory" : "expenses";
 
   const { loading, authorized, userEmail, userRole, userStoreId } = usePortalAuth({
     portal: "finance",
@@ -74,9 +74,13 @@ export default function FinanceLayout({ children }) {
   if (!authorized || (userRole === "cashier" && !userStoreId)) return null;
 
   const navItems = userRole === "cashier"
-    ? [["expenses", "/expenses", "Expenses", ReceiptText]]
+    ? [
+      ["expenses", "/expenses", "Expenses", ReceiptText],
+      ["inventory", "/inventory", "Inventory", Boxes],
+    ]
     : [
       ["expenses", "/expenses", "Expenses", ReceiptText],
+      ["inventory", "/inventory", "Inventory", Boxes],
       ["payroll", "/payroll", "Payroll", Users],
     ];
 

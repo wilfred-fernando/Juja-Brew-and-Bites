@@ -20,7 +20,7 @@ import { INVENTORY_UNITS, normalizeUnit, syncExpensePurchaseToInventory } from "
 
 const CATEGORY_OPTIONS = ["OP-EX", "PERSONAL"];
 const PAYMENT_TYPES = ["CASH", "CHEQUE", "GCASH -9393", "GCASH -0668", "GCASH -8199", "CARD", "BANK TRANSFER"];
-const UNIT_OPTIONS = ["pc", "pack", "box", "kilo", "sack", "cup", "tin", "lot", "month", "whole"];
+const UNIT_OPTIONS = ["pc", "pack", "box", "kg", "sack", "cup", "tin", "lot", "month", "whole"];
 const FUND_SOURCES = ["CASH SALES", "GCASH -9393", "GCASH -0668", "GCASH -8199", "CBS MRFS"];
 const REF_TYPES = [
   ["item", "Item Name"],
@@ -50,6 +50,7 @@ const initialExpenseForm = {
   or_si_date: "",
   remarks: "",
   submitted_by: "",
+  store_id: "",
   is_inventory_purchase: false,
   inventory_item_id: "",
   inventory_common_name_id: "",
@@ -400,6 +401,7 @@ export default function FinanceExpenseManager() {
       payment_type: paymentTypeOptions[0] || "",
       unit: unitOptions[0] || "",
       submitted_by: previous.submitted_by || "",
+      store_id: previous.store_id || "",
     };
   }
 
@@ -499,11 +501,14 @@ export default function FinanceExpenseManager() {
         const item = inventoryItems.find((row) => row.id === value);
         if (item) {
           next.inventory_common_name_id = item.common_name_id || next.inventory_common_name_id;
-          next.inventory_unit = item.unit || next.inventory_unit;
+          next.inventory_unit = normalizeUnit(item.unit || next.inventory_unit);
           next.inventory_unit_cost = item.cost_per_unit ?? next.inventory_unit_cost;
         }
       }
-      if (key === "is_inventory_purchase" && value) return applyInventoryPurchaseCopy(next);
+      if (key === "is_inventory_purchase" && value) {
+        if (!next.store_id) next.store_id = selectedStoreId || stores[0]?.id || "";
+        return applyInventoryPurchaseCopy(next);
+      }
       if (next.is_inventory_purchase && ["description", "item_common_name", "quantity", "unit", "unit_price"].includes(key)) {
         return applyInventoryPurchaseCopy(next);
       }
@@ -645,6 +650,7 @@ export default function FinanceExpenseManager() {
 
   function buildExpensePayload(form, prefix, extra = {}) {
     const math = lineMath(form);
+    const inventoryForm = form.is_inventory_purchase ? applyInventoryPurchaseCopy(form) : null;
     return {
       id: makeId(prefix),
       expense_date: form.expense_date || new Date().toISOString().slice(0, 10),
@@ -652,7 +658,7 @@ export default function FinanceExpenseManager() {
       supplier_name: form.supplier_name.trim() || null,
       item_common_name: form.item_common_name.trim() || commonNameForItem(form.description) || null,
       quantity: math.quantity,
-      unit: form.unit || null,
+      unit: normalizeUnit(form.unit) || null,
       unit_price: math.unitPrice,
       subtotal: math.subtotal,
       discount: math.discount,
@@ -666,6 +672,7 @@ export default function FinanceExpenseManager() {
       or_si_date: form.or_si_date || null,
       remarks: form.remarks.trim() || null,
       submitted_by: form.submitted_by.trim() || null,
+      inventory_item_id: inventoryForm?.inventory_item_id || null,
       created_by: currentUserId,
       ...extra,
     };
@@ -722,7 +729,7 @@ export default function FinanceExpenseManager() {
       supplier_name: row.supplier_name || "",
       item_common_name: row.item_common_name || "",
       quantity: String(row.quantity ?? "1"),
-      unit: row.unit || "",
+      unit: normalizeUnit(row.unit) || "",
       unit_price: String(row.unit_price ?? ""),
       discount: String(row.discount ?? ""),
       category: row.category || "OP-EX",
@@ -734,6 +741,9 @@ export default function FinanceExpenseManager() {
       or_si_date: dateInputValue(row.or_si_date),
       remarks: row.remarks || "",
       submitted_by: row.submitted_by || expenseForm.submitted_by || pettyForm.submitted_by || "",
+      store_id: row.store_id || "",
+      is_inventory_purchase: row.inventory_sync_status && row.inventory_sync_status !== "not_inventory" || !!row.inventory_item_id,
+      inventory_item_id: row.inventory_item_id || "",
     };
   }
 
@@ -780,12 +790,18 @@ export default function FinanceExpenseManager() {
     event.preventDefault();
     if (!canManageAll) return showNotice("error", "Only admin accounts can manage overall expenses.");
     if (!expenseForm.description.trim()) return showNotice("error", "Description is required.");
+    if (expenseForm.is_inventory_purchase && !expenseForm.store_id) {
+      return showNotice("error", "Select inventory store location for this purchase.");
+    }
 
     setSaving("overall");
     const submittedAt = new Date().toISOString();
+    const inventoryStoreId = expenseForm.is_inventory_purchase ? expenseForm.store_id : null;
     const payload = buildExpensePayload(expenseForm, "exp", {
       entry_source: "overall",
       source_tag: "Overall",
+      store_id: inventoryStoreId,
+      store_name: inventoryStoreId ? storeNameById[inventoryStoreId] || null : null,
       date_submitted: submittedAt,
       created_at: submittedAt,
     });
@@ -1401,7 +1417,25 @@ export default function FinanceExpenseManager() {
             Inventory purchase
           </label>
           {form.is_inventory_purchase ? (
-            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-5">
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-6">
+              {scope === "overall" ? (
+                <Field label="Inventory Store">
+                  <Select
+                    value={form.store_id}
+                    onChange={(e) => updateExpenseForm(scope, "store_id", e.target.value)}
+                    required
+                  >
+                    <option value="">Select store</option>
+                    {stores.map((store) => (
+                      <option key={store.id} value={store.id}>{store.name}</option>
+                    ))}
+                  </Select>
+                </Field>
+              ) : (
+                <Field label="Inventory Store">
+                  <Input value={selectedStoreName} readOnly disabled className="cursor-not-allowed bg-slate-100 text-slate-700" />
+                </Field>
+              )}
               <Field label="Common Name">
                 <Input value={inventoryPreview.commonName || "-"} readOnly disabled className="cursor-not-allowed bg-slate-100 text-slate-700" />
               </Field>
@@ -1503,7 +1537,7 @@ export default function FinanceExpenseManager() {
                   <td className="px-4 py-3">{row.item_common_name || "-"}</td>
                   <td className="px-4 py-3">{row.supplier_name || "-"}</td>
                   <td className="px-4 py-3 text-center">{Number(row.quantity || 0).toLocaleString("en-PH")}</td>
-                  <td className="px-4 py-3 text-center">{row.unit || "-"}</td>
+                  <td className="px-4 py-3 text-center">{normalizeUnit(row.unit) || "-"}</td>
                   <td className="px-4 py-3 text-right">{peso(row.subtotal)}</td>
                   <td className="px-4 py-3 text-right">{peso(row.discount)}</td>
                   <td className="px-4 py-3 text-right font-semibold text-slate-950">{peso(row.total)}</td>
