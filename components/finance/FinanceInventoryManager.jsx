@@ -561,9 +561,9 @@ export default function FinanceInventoryManager() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-100">Finance Inventory Control</p>
-            <h1 className="mt-1 text-3xl font-semibold">Daily Inventory</h1>
+            <p className="mt-1 text-3xl font-semibold">Daily Inventory</p>
             <p className="mt-2 max-w-3xl text-sm text-sky-50">
-              Beginning comes from the previous day ending count. Reorder comes from inventory purchases in Expenses. POS deduction uses recipe ingredient movements.
+              
             </p>
           </div>
           <button onClick={loadDailyData} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/12 px-4 text-xs font-semibold uppercase tracking-wider text-white transition hover:-translate-y-0.5 hover:bg-white/20">
@@ -587,7 +587,7 @@ export default function FinanceInventoryManager() {
               {stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
             </Select>
           </label>
-          <button onClick={saveDailyInventory} disabled={saving || !rows.length} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-sky-700 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_16px_34px_rgba(3,105,161,0.22)] transition hover:-translate-y-0.5 hover:bg-sky-600 disabled:bg-slate-300">
+          <button onClick={saveDailyInventory} disabled={saving || !rows.length} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-400/78 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_16px_34px_rgba(3,105,161,0.22)] transition hover:-translate-y-0.5 hover:bg-slate-300/78 disabled:bg-slate-300">
             <Save size={15} /> {saving ? "Saving..." : "Save Daily Inventory"}
           </button>
         </div>
@@ -628,7 +628,7 @@ export default function FinanceInventoryManager() {
           </Select>
           <Input placeholder="Bulk qty" value={transferForm.bulk} onChange={(e) => setTransferForm((p) => ({ ...p, bulk: e.target.value }))} />
           <Input placeholder="Small qty" value={transferForm.small} onChange={(e) => setTransferForm((p) => ({ ...p, small: e.target.value }))} />
-          <button className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-sky-700 px-4 text-xs font-semibold uppercase tracking-wider text-white transition hover:-translate-y-0.5 hover:bg-sky-600"><Send size={14} /> Save Transfer</button>
+          <button className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-400/78 px-4 text-xs font-semibold uppercase tracking-wider text-white transition hover:-translate-y-0.5 hover:bg-slate-300/78"><Send size={14} /> Save Transfer</button>
           <Input placeholder="Transfer note" value={transferForm.note} onChange={(e) => setTransferForm((p) => ({ ...p, note: e.target.value }))} className="lg:col-span-6" />
         </form>
       </Card>

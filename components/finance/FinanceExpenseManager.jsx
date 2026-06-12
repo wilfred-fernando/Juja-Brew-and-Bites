@@ -190,7 +190,7 @@ function expenseSourceLabel(row, storeNameById) {
 
 function Field({ label, children }) {
   return (
-    <label className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+    <label className="block text-[10px] uppercase font-normal text-slate-500">
       {label}
       <div className="mt-1">{children}</div>
     </label>
@@ -212,6 +212,55 @@ function Select(props) {
       {...props}
       className={`h-10 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm text-slate-800 shadow-sm outline-none transition duration-200 focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20 ${props.className || ""}`}
     />
+  );
+}
+
+function SearchableSelectInput({ value, onChange, options = [], required = false, placeholder = "" }) {
+  const [open, setOpen] = useState(false);
+  const query = normalize(value);
+  const filteredOptions = uniqueOptions([value], options)
+    .filter((option) => !query || normalize(option).includes(query))
+    .slice(0, 80);
+
+  return (
+    <div className="relative">
+      <input
+        value={value}
+        required={required}
+        placeholder={placeholder}
+        onFocus={() => setOpen(true)}
+        onChange={(event) => {
+          onChange(event.target.value);
+          setOpen(true);
+        }}
+        onBlur={() => setTimeout(() => setOpen(false), 120)}
+        className="h-10 w-full rounded-xl border border-slate-200/80 bg-white/90 py-2 pl-3 pr-9 text-sm text-slate-800 shadow-sm outline-none transition duration-200 placeholder:text-slate-400 focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+      />
+      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-700">▼</span>
+      {open ? (
+        <div className="absolute left-0 right-0 z-[260] mt-1 max-h-56 overflow-y-auto rounded-xl border border-slate-300 bg-white py-1 text-sm text-slate-900 shadow-[0_18px_45px_rgba(15,23,42,0.18)]">
+          {filteredOptions.length ? (
+            filteredOptions.map((option) => (
+              <div
+                key={option}
+                role="option"
+                aria-selected={option === value}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  onChange(option);
+                  setOpen(false);
+                }}
+                className={`cursor-pointer px-3 py-2 transition hover:bg-cyan-50 ${option === value ? "bg-cyan-600 text-white hover:bg-cyan-600" : ""}`}
+              >
+                {option}
+              </div>
+            ))
+          ) : (
+            <div className="px-3 py-2 text-slate-500">No matching option</div>
+          )}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -1333,25 +1382,19 @@ export default function FinanceExpenseManager() {
             <Input type="date" value={form.expense_date} onChange={(e) => updateExpenseForm(scope, "expense_date", e.target.value)} />
           </Field>
           <Field label="Description">
-            <Input
+            <SearchableSelectInput
               value={form.description}
-              list={`finance-item-names-${scope}`}
-              onChange={(e) => updateExpenseForm(scope, "description", e.target.value)}
+              options={itemReferences.map((row) => row.name)}
+              onChange={(value) => updateExpenseForm(scope, "description", value)}
               required
             />
-            <datalist id={`finance-item-names-${scope}`}>
-              {itemReferences.map((row) => <option key={row.id} value={row.name} />)}
-            </datalist>
           </Field>
           <Field label="Supplier / Name">
-            <Input
+            <SearchableSelectInput
               value={form.supplier_name}
-              list={`finance-suppliers-${scope}`}
-              onChange={(e) => updateExpenseForm(scope, "supplier_name", e.target.value)}
+              options={supplierReferences.map((row) => row.name)}
+              onChange={(value) => updateExpenseForm(scope, "supplier_name", value)}
             />
-            <datalist id={`finance-suppliers-${scope}`}>
-              {supplierReferences.map((row) => <option key={row.id} value={row.name} />)}
-            </datalist>
           </Field>
           <Field label="Common Name">
             <Input
@@ -1480,7 +1523,7 @@ export default function FinanceExpenseManager() {
           <button
             type="submit"
             disabled={saving === scope || (scope === "petty" && !selectedStoreId)}
-            className="h-full min-h-14 rounded-xl bg-cyan-600 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500 hover:shadow-[0_0_34px_rgba(34,211,238,0.36)] active:translate-y-0 disabled:bg-slate-300"
+            className="h-full min-h-14 rounded-xl bg-slate-400/78 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition duration-200 hover:-translate-y-0.5 hover:bg-slate-300/78 hover:shadow-[0_0_34px_rgba(34,211,238,0.36)] active:translate-y-0 disabled:bg-slate-300"
           >
             {saving === scope ? "Saving..." : editingThisForm ? "Update Entry" : "Save Entry"}
           </button>
@@ -1831,7 +1874,7 @@ export default function FinanceExpenseManager() {
             <button
               type="button"
               onClick={() => openReferenceModal()}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.25)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-400/78 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.25)] transition duration-200 hover:-translate-y-0.5 hover:bg-slate-300/78"
             >
               <Plus size={15} />
               Add Reference
@@ -1984,7 +2027,7 @@ export default function FinanceExpenseManager() {
             <button
               type="button"
               onClick={() => openExpenseModal("overall")}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-400/78 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_30px_rgba(8,145,178,0.30)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500 active:translate-y-0"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-400/78 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_30px_rgba(8,145,178,0.30)] transition duration-200 hover:-translate-y-0.5 hover:bg-slate-300/78 active:translate-y-0"
             >
               <Plus size={15} />
               Add Overall Expense
