@@ -261,6 +261,8 @@ export default function AdminBookingsDashboard() {
 
   const [editModal, setEditModal] = useState(null);
   const [editLoading, setEditLoading] = useState(false);
+  const [manualModal, setManualModal] = useState(null);
+  const [manualLoading, setManualLoading] = useState(false);
 
   // Filters
   const [q, setQ] = useState("");
@@ -638,6 +640,87 @@ export default function AdminBookingsDashboard() {
     }
   }
 
+  function openManualModal() {
+    setManualModal({
+      customer_name: "",
+      event_type: "",
+      guest_count: 1,
+      contact_number: "",
+      email: "",
+      package_id: packages[0]?.id || "",
+      extension_hours: 0,
+      dateISO: toISODate(new Date()),
+      hour: OPERATING_START_HOUR,
+      deposit_amount: 0,
+      status: "confirmed",
+      payment_status: "submitted",
+    });
+  }
+
+  async function saveManualBooking() {
+    if (!manualModal) return;
+    const required = [
+      ["Customer name", manualModal.customer_name],
+      ["Event type", manualModal.event_type],
+      ["Contact number", manualModal.contact_number],
+      ["Email", manualModal.email],
+      ["Package", manualModal.package_id],
+      ["Date", manualModal.dateISO],
+    ];
+    const missing = required.find(([, value]) => String(value || "").trim() === "");
+    if (missing) {
+      alert(`${missing[0]} is required.`);
+      return;
+    }
+
+    setManualLoading(true);
+    try {
+      const startAt = computeDateTime(manualModal.dateISO, Number(manualModal.hour));
+      const endAt = computeEndAt(startAt, Number(manualModal.extension_hours || 0));
+      const payload = {
+        user_id: null,
+        member_id: null,
+        package_id: Number(manualModal.package_id),
+        customer_name: String(manualModal.customer_name || "").trim(),
+        event_type: String(manualModal.event_type || "").trim(),
+        business_date: manualModal.dateISO,
+        start_at: toManilaOffsetISOString(startAt),
+        end_at: toManilaOffsetISOString(endAt),
+        duration_hours: 3,
+        extension_hours: Number(manualModal.extension_hours || 0),
+        guest_count: Number(manualModal.guest_count || 1),
+        contact_number: String(manualModal.contact_number || "").trim(),
+        email: String(manualModal.email || "").trim(),
+        deposit_amount: Number(manualModal.deposit_amount || 0),
+        payment_status: manualModal.payment_status || "submitted",
+        payment_proof_url: null,
+        status: manualModal.status || "confirmed",
+      };
+
+      const { data, error } = await supabase.rpc("create_booking", { data: payload });
+      if (error) {
+        const msg = String(error.message || "");
+        if (msg.includes("no_overlap_function_room")) {
+          alert("This manual booking overlaps an existing booking. Choose another time.");
+        } else {
+          alert(error.message);
+        }
+        return;
+      }
+
+      setManualModal(null);
+      if (data?.id) {
+        setBookings((prev) => [...prev, data].sort((a, b) => new Date(a.start_at) - new Date(b.start_at)));
+      } else {
+        await loadAll();
+      }
+    } catch (e) {
+      alert(e?.message || "Manual booking failed.");
+    } finally {
+      setManualLoading(false);
+    }
+  }
+
   /* =======================
     Calendar View
   ======================= */
@@ -672,6 +755,13 @@ export default function AdminBookingsDashboard() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={openManualModal}
+            className="px-4 py-2 rounded-xl bg-slate-700 text-white text-[11px] uppercase tracking-widest hover:bg-slate-600 active:scale-95"
+          >
+            Manual Booking
+          </button>
+
           <button
             onClick={loadAll}
             className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-[11px] uppercase tracking-widest hover:bg-slate-50 active:scale-95"
@@ -1304,6 +1394,181 @@ export default function AdminBookingsDashboard() {
                 }`}
               >
                 {actionLoading ? "Processing..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MANUAL BOOKING MODAL ================= */}
+      {manualModal && (
+        <div className="fixed inset-0 z-[102] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div
+            className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-slate-500">Admin Manual Encoding</p>
+                <h3 className="text-lg font-semibold text-slate-800">Create Booking Details</h3>
+                <p className="text-xs text-slate-500 mt-1">End time auto-calculates: 2h59 + extension.</p>
+              </div>
+              <button
+                className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
+                onClick={() => !manualLoading && setManualModal(null)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Customer Name</label>
+                <input
+                  value={manualModal.customer_name}
+                  onChange={(e) => setManualModal((p) => ({ ...p, customer_name: e.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Event Type</label>
+                <input
+                  value={manualModal.event_type}
+                  onChange={(e) => setManualModal((p) => ({ ...p, event_type: e.target.value }))}
+                  placeholder="Birthday, meeting, private event"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Guests</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={manualModal.guest_count}
+                  onChange={(e) => setManualModal((p) => ({ ...p, guest_count: Number(e.target.value) }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Contact Number</label>
+                <input
+                  value={manualModal.contact_number}
+                  onChange={(e) => setManualModal((p) => ({ ...p, contact_number: e.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={manualModal.email}
+                  onChange={(e) => setManualModal((p) => ({ ...p, email: e.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Deposit Amount</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={manualModal.deposit_amount}
+                  onChange={(e) => setManualModal((p) => ({ ...p, deposit_amount: Number(e.target.value) }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Package</label>
+                <select
+                  value={manualModal.package_id}
+                  onChange={(e) => setManualModal((p) => ({ ...p, package_id: Number(e.target.value) }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
+                >
+                  <option value="">Select package…</option>
+                  {packages.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} — {formatPeso(p.rental_fee)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Start Date</label>
+                <input
+                  type="date"
+                  value={manualModal.dateISO}
+                  onChange={(e) => setManualModal((p) => ({ ...p, dateISO: e.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Start Time</label>
+                <select
+                  value={manualModal.hour}
+                  onChange={(e) => setManualModal((p) => ({ ...p, hour: Number(e.target.value) }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
+                >
+                  {slotHours.map((h) => (
+                    <option key={h} value={h}>{labelHour(h)}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Extension Hours</label>
+                <select
+                  value={manualModal.extension_hours}
+                  onChange={(e) => setManualModal((p) => ({ ...p, extension_hours: Number(e.target.value) }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
+                >
+                  <option value={0}>0</option>
+                  <option value={1}>1</option>
+                  <option value={2}>2</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Status</label>
+                <select
+                  value={manualModal.status}
+                  onChange={(e) => setManualModal((p) => ({ ...p, status: e.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
+                >
+                  <option value="confirmed">Confirmed</option>
+                  <option value="pending">Pending</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-4 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm text-slate-700">
+              {(() => {
+                const startAt = computeDateTime(manualModal.dateISO, Number(manualModal.hour));
+                const endAt = computeEndAt(startAt, Number(manualModal.extension_hours || 0));
+                return <p><b>Computed:</b> {bookingDateTime(startAt)} → {bookingDateTime(endAt)}</p>;
+              })()}
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setManualModal(null)}
+                disabled={manualLoading}
+                className="flex-1 py-3 rounded-xl bg-white border border-slate-200 text-slate-600 text-[11px] uppercase tracking-widest active:scale-95 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveManualBooking}
+                disabled={manualLoading}
+                className="flex-1 py-3 rounded-xl bg-slate-700 text-white text-[11px] uppercase tracking-widest active:scale-95 disabled:opacity-60"
+              >
+                {manualLoading ? "Saving..." : "Create Booking"}
               </button>
             </div>
           </div>
