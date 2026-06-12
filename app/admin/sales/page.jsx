@@ -65,6 +65,49 @@ function formatShortDate(value) {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit" }).format(new Date(`${value}T00:00:00+08:00`));
 }
 
+function formatRangeDate(value) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit", year: "numeric" }).format(new Date(`${value}T00:00:00+08:00`));
+}
+
+function formatSlashDate(value) {
+  if (!value) return "";
+  const [year, month, day] = value.split("-");
+  return `${month}/${day}/${year}`;
+}
+
+function monthLabel(monthKey) {
+  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(new Date(`${monthKey}-01T00:00:00+08:00`));
+}
+
+function addMonths(monthKey, offset) {
+  const [year, month] = monthKey.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1 + offset, 1));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function calendarDays(monthKey) {
+  const [year, month] = monthKey.split("-").map(Number);
+  const first = new Date(Date.UTC(year, month - 1, 1));
+  const start = new Date(Date.UTC(year, month - 1, 1 - first.getUTCDay()));
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(start);
+    date.setUTCDate(start.getUTCDate() + index);
+    return date.toISOString().slice(0, 10);
+  });
+}
+
+const SUMMARY_DATE_PRESETS = [
+  { value: "today", label: "Today" },
+  { value: "yesterday", label: "Yesterday" },
+  { value: "this_week", label: "This week" },
+  { value: "last_week", label: "Last week" },
+  { value: "this_month", label: "This month" },
+  { value: "last_month", label: "Last month" },
+  { value: "last_7_days", label: "Last 7 days" },
+  { value: "last_30_days", label: "Last 30 days" },
+];
+
 function DateInput({ label, value, onChange }) {
   return (
     <label className="block">
@@ -167,25 +210,132 @@ function SummarySelectControl({ icon: Icon, value, onChange, options, wide = fal
   );
 }
 
-function SummaryDateRangeControl({ startDate, endDate, onStartChange, onEndChange }) {
+function SummaryDateRangeControl({ startDate, endDate, preset, onRangeChange, onPresetChange }) {
+  const [open, setOpen] = useState(false);
+  const [activeEndpoint, setActiveEndpoint] = useState("start");
+  const [viewMonth, setViewMonth] = useState((startDate || manilaDate()).slice(0, 7));
+  const days = useMemo(() => calendarDays(viewMonth), [viewMonth]);
+  const start = startDate || manilaDate();
+  const end = endDate || start;
+
+  useEffect(() => {
+    setViewMonth((startDate || endDate || manilaDate()).slice(0, 7));
+  }, [startDate, endDate]);
+
+  function chooseDate(date) {
+    if (activeEndpoint === "start") {
+      onRangeChange(date, date > end ? date : end);
+      setActiveEndpoint("end");
+      return;
+    }
+    onRangeChange(date < start ? date : start, date);
+    setActiveEndpoint("start");
+  }
+
+  function handleInputChange(endpoint, value) {
+    if (!value) return;
+    setActiveEndpoint(endpoint === "start" ? "end" : "start");
+    if (endpoint === "start") {
+      onRangeChange(value, value > end ? value : end);
+      return;
+    }
+    onRangeChange(value < start ? value : start, value);
+  }
+
   return (
-    <div className="inline-flex h-10 min-w-[260px] items-center gap-2 rounded-md border border-slate-200 bg-white/90 px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50">
-      <CalendarDays className="h-4 w-4 shrink-0 text-slate-500" />
-      <input
-        type="date"
-        value={startDate}
-        onChange={(event) => onStartChange(event.target.value)}
-        className="w-[116px] bg-transparent text-xs font-semibold text-slate-800 outline-none"
-        aria-label="Sales summary start date"
-      />
-      <span className="text-slate-400">-</span>
-      <input
-        type="date"
-        value={endDate}
-        onChange={(event) => onEndChange(event.target.value)}
-        className="w-[116px] bg-transparent text-xs font-semibold text-slate-800 outline-none"
-        aria-label="Sales summary end date"
-      />
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="inline-flex h-10 min-w-[250px] items-center gap-2 rounded-md border border-slate-200 bg-white/95 px-3 text-xs font-semibold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-200 hover:bg-cyan-50"
+        aria-expanded={open}
+      >
+        <CalendarDays className="h-4 w-4 shrink-0 text-slate-500" />
+        <span className="truncate">{formatRangeDate(start)} - {formatRangeDate(end)}</span>
+      </button>
+
+      {open ? (
+        <div className="absolute left-0 z-40 mt-2 grid w-[620px] max-w-[calc(100vw-2rem)] grid-cols-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.2)] md:grid-cols-[1fr_170px]">
+          <div className="p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <button type="button" onClick={() => setViewMonth(addMonths(viewMonth, -1))} className="flex h-8 w-8 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100" aria-label="Previous month">
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <p className="text-sm font-medium text-slate-900">{monthLabel(viewMonth)}</p>
+              <button type="button" onClick={() => setViewMonth(addMonths(viewMonth, 1))} className="flex h-8 w-8 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100" aria-label="Next month">
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-7 text-center text-[11px] font-medium text-slate-700">
+              {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => <div key={day} className="py-1">{day}</div>)}
+            </div>
+            <div className="grid grid-cols-7 overflow-hidden rounded-xl border border-slate-100">
+              {days.map((date) => {
+                const isCurrentMonth = date.slice(0, 7) === viewMonth;
+                const isStart = date === start;
+                const isEnd = date === end;
+                const isInRange = date >= start && date <= end;
+                return (
+                  <button
+                    key={date}
+                    type="button"
+                    onClick={() => chooseDate(date)}
+                    className={`h-9 text-xs transition ${isCurrentMonth ? "text-slate-800" : "text-slate-300"} ${isInRange ? "bg-lime-100" : "bg-white hover:bg-cyan-50"} ${isStart || isEnd ? "font-semibold text-white" : ""}`}
+                  >
+                    <span className={`mx-auto flex h-7 w-7 items-center justify-center rounded-full ${isStart || isEnd ? "bg-lime-500 shadow-sm" : ""}`}>
+                      {Number(date.slice(8, 10))}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-6 border-t border-slate-200 pt-3">
+              <label className="text-[11px] font-medium text-slate-500">
+                Start date
+                <input
+                  type="date"
+                  value={start}
+                  onChange={(event) => handleInputChange("start", event.target.value)}
+                  onFocus={() => setActiveEndpoint("start")}
+                  className="mt-1 block w-full border-b border-slate-200 bg-transparent pb-1 text-xs font-medium text-slate-800 outline-none focus:border-cyan-500"
+                  aria-label="Sales summary start date"
+                />
+                <span className="mt-1 block text-xs text-slate-700">{formatSlashDate(start)}</span>
+              </label>
+              <label className="text-[11px] font-medium text-slate-500">
+                End date
+                <input
+                  type="date"
+                  value={end}
+                  onChange={(event) => handleInputChange("end", event.target.value)}
+                  onFocus={() => setActiveEndpoint("end")}
+                  className="mt-1 block w-full border-b border-slate-200 bg-transparent pb-1 text-xs font-medium text-slate-800 outline-none focus:border-cyan-500"
+                  aria-label="Sales summary end date"
+                />
+                <span className="mt-1 block text-xs text-slate-700">{formatSlashDate(end)}</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="border-t border-slate-200 bg-slate-50 md:border-l md:border-t-0">
+            {SUMMARY_DATE_PRESETS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  onPresetChange(option.value);
+                  setOpen(false);
+                }}
+                className={`block w-full px-4 py-3 text-left text-sm transition ${preset === option.value ? "bg-slate-200 text-slate-950" : "text-slate-700 hover:bg-white"}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -393,7 +543,7 @@ export default function AdminSalesPage() {
     const next = {
       ...filters,
       ...patch,
-      preset: patch.startDate || patch.endDate || patch.preset ? "custom" : filters.preset,
+      preset: patch.preset || (patch.startDate || patch.endDate ? "custom" : filters.preset),
     };
     setFilters(next);
     setPage(1);
@@ -461,7 +611,7 @@ export default function AdminSalesPage() {
           <Card>
             <div className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_1fr] xl:grid-cols-[1.2fr_1fr_1fr_1fr_1fr]">
               <SelectInput label="Date range" value={filters.preset} onChange={updatePreset} options={[
-                { value: "today", label: "Today" }, { value: "yesterday", label: "Yesterday" }, { value: "this_week", label: "This week" }, { value: "last_week", label: "Last week" }, { value: "this_month", label: "This month" }, { value: "last_month", label: "Last month" }, { value: "this_year", label: "This year" }, { value: "custom", label: "Custom date range" },
+                { value: "today", label: "Today" }, { value: "yesterday", label: "Yesterday" }, { value: "this_week", label: "This week" }, { value: "last_week", label: "Last week" }, { value: "this_month", label: "This month" }, { value: "last_month", label: "Last month" }, { value: "last_7_days", label: "Last 7 days" }, { value: "last_30_days", label: "Last 30 days" }, { value: "this_year", label: "This year" }, { value: "custom", label: "Custom date range" },
               ]} />
               <DateInput label="Start date" value={filters.startDate} onChange={(value) => updateFilter("startDate", value)} />
               <DateInput label="End date" value={filters.endDate} onChange={(value) => updateFilter("endDate", value)} />
@@ -497,8 +647,9 @@ export default function AdminSalesPage() {
             <SummaryDateRangeControl
               startDate={filters.startDate}
               endDate={filters.endDate}
-              onStartChange={(value) => updateSummaryFilters({ startDate: value })}
-              onEndChange={(value) => updateSummaryFilters({ endDate: value })}
+              preset={filters.preset}
+              onRangeChange={(startDate, endDate) => updateSummaryFilters({ startDate, endDate, preset: "custom" })}
+              onPresetChange={updatePreset}
             />
             <button type="button" onClick={() => shiftSummaryRange(1)} className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-cyan-50" aria-label="Next range">
               <ChevronRight className="h-4 w-4" />
