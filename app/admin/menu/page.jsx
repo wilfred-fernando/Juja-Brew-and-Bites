@@ -120,6 +120,7 @@ export default function MenuAdminPage() {
         (item.variants || []).map((group) => ({
           ...group,
           posOnly: !!group.posOnly,
+          hidePublic: !!group.hidePublic,
         }))
       );
     } else {
@@ -160,6 +161,7 @@ export default function MenuAdminPage() {
         variants: optionGroups.map((group) => ({
           ...group,
           posOnly: !!group.posOnly,
+          hidePublic: !!group.hidePublic,
         })),
       };
 
@@ -248,6 +250,7 @@ export default function MenuAdminPage() {
         isRequired: true,
         isMultiSelect: false,
         posOnly: false,
+        hidePublic: false,
         options: [{ id: Date.now() + 1, name: "", price: "" }],
       },
     ]);
@@ -289,6 +292,7 @@ export default function MenuAdminPage() {
         is_required: group.isRequired,
         is_multi_select: group.isMultiSelect,
         pos_only: !!group.posOnly,
+        hide_public: !!group.hidePublic,
         options: group.options,
       };
 
@@ -312,6 +316,7 @@ export default function MenuAdminPage() {
           is_required: templateForm.is_required,
           is_multi_select: templateForm.is_multi_select,
           pos_only: !!templateForm.pos_only,
+          hide_public: !!templateForm.hide_public,
           options: templateForm.options,
         })
         .eq("id", editingTemplate.id);
@@ -885,6 +890,15 @@ export default function MenuAdminPage() {
                 POS Only
               </label>
 
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={!!templateForm.hide_public}
+                  onChange={(e) => setTemplateForm({ ...templateForm, hide_public: e.target.checked })}
+                />
+                Hide in public menu
+              </label>
+
               <div className="space-y-3">
                 {templateForm.options.map((opt, idx) => (
                   <div key={idx} className="flex gap-2">
@@ -1157,6 +1171,7 @@ export default function MenuAdminPage() {
                             isRequired: selected.is_required,
                             isMultiSelect: selected.is_multi_select,
                             posOnly: !!selected.pos_only,
+                            hidePublic: !!selected.hide_public,
                             options: selected.options.map((opt) => ({
                               id: Date.now() + Math.random(),
                               name: opt.name,
@@ -1199,6 +1214,7 @@ export default function MenuAdminPage() {
                                   is_required: template.is_required,
                                   is_multi_select: template.is_multi_select,
                                   pos_only: !!template.pos_only,
+                                  hide_public: !!template.hide_public,
                                   options: template.options || [],
                                 });
                               }}
@@ -1259,6 +1275,16 @@ export default function MenuAdminPage() {
                               className="w-3.5 h-3.5 accent-sky-700 cursor-pointer"
                             />
                             POS only
+                          </label>
+
+                          <label className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-600 font-medium cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={!!group.hidePublic}
+                              onChange={(e) => updateOptionGroup(group.id, "hidePublic", e.target.checked)}
+                              className="w-3.5 h-3.5 accent-sky-700 cursor-pointer"
+                            />
+                            Hide in public menu
                           </label>
 
                           <div className="flex items-center gap-2 ml-auto lg:ml-2">

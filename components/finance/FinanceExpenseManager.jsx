@@ -75,6 +75,7 @@ const initialReferenceForm = {
   reference_quantity: "",
   reference_unit: "",
   notes: "",
+  show_to_cashier: true,
   is_active: true,
 };
 
@@ -621,7 +622,10 @@ export default function FinanceExpenseManager() {
     setOverallExpenses(overallRes.data || []);
     setPettyEntries(pettyRes.data || []);
     setPettyFunds(fundsRes.data || []);
-    setReferences(referenceRows.map((row) => row.ref_type === "item" ? { ...row, notes: null } : row));
+    const cashierReferenceRows = profileRole === "cashier"
+      ? referenceRows.filter((row) => !["item", "item_category"].includes(row.ref_type) || row.show_to_cashier !== false)
+      : referenceRows;
+    setReferences(cashierReferenceRows.map((row) => row.ref_type === "item" ? { ...row, notes: null } : row));
     setDeleteRequests(deleteRequestsRes.data || []);
     const inventoryItemRows = inventoryItemsRes.error ? [] : inventoryItemsRes.data || [];
     setInventoryItems(inventoryItemRows);
@@ -1171,6 +1175,7 @@ export default function FinanceExpenseManager() {
         reference_quantity: row.reference_quantity || "",
         reference_unit: row.reference_unit || "",
         notes: row.notes || "",
+        show_to_cashier: row.show_to_cashier !== false,
         is_active: row.is_active !== false,
       });
     } else {
@@ -1202,6 +1207,7 @@ export default function FinanceExpenseManager() {
       reference_quantity: referenceForm.ref_type === "item" && referenceForm.reference_quantity !== "" ? numberValue(referenceForm.reference_quantity) : null,
       reference_unit: referenceForm.ref_type === "item" ? normalizeUnit(referenceForm.reference_unit) || null : null,
       notes: referenceForm.ref_type === "item" ? null : referenceForm.notes.trim() || null,
+      show_to_cashier: ["item", "item_category"].includes(referenceForm.ref_type) ? referenceForm.show_to_cashier !== false : true,
       is_active: referenceForm.is_active !== false,
       created_by: currentUserId,
     };
@@ -1271,6 +1277,7 @@ export default function FinanceExpenseManager() {
         reference_quantity: null,
         reference_unit: null,
         notes: null,
+        show_to_cashier: true,
         is_active: true,
         created_by: currentUserId,
       }));
@@ -1731,6 +1738,17 @@ export default function FinanceExpenseManager() {
               </Field>
             </>
           ) : null}
+          {["item", "item_category"].includes(referenceForm.ref_type) ? (
+            <Field label="Cashier Visibility">
+              <Select
+                value={referenceForm.show_to_cashier === false ? "hidden" : "shown"}
+                onChange={(e) => setReferenceForm((prev) => ({ ...prev, show_to_cashier: e.target.value === "shown" }))}
+              >
+                <option value="shown">Show in cashier account</option>
+                <option value="hidden">Hide from cashier account</option>
+              </Select>
+            </Field>
+          ) : null}
           <Field label="Status">
             <Select
               value={referenceForm.is_active ? "active" : "inactive"}
@@ -1835,6 +1853,7 @@ export default function FinanceExpenseManager() {
                   <th className="px-4 py-3">Qty</th>
                   <th className="px-4 py-3">Unit</th>
                   <th className="px-4 py-3">Notes</th>
+                  <th className="px-4 py-3">Cashier</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Action</th>
                 </tr>
@@ -1849,6 +1868,13 @@ export default function FinanceExpenseManager() {
                     <td className="px-4 py-3">{row.ref_type === "item" && row.reference_quantity != null ? Number(row.reference_quantity).toLocaleString("en-PH") : "-"}</td>
                     <td className="px-4 py-3">{row.ref_type === "item" ? row.reference_unit || "-" : "-"}</td>
                     <td className="px-4 py-3">{row.ref_type === "item" ? "-" : row.notes || "-"}</td>
+                    <td className="px-4 py-3">
+                      {["item", "item_category"].includes(row.ref_type) ? (
+                        <span className={`rounded-lg border px-2 py-1 text-[10px] font-semibold uppercase ${row.show_to_cashier === false ? "border-amber-200 bg-amber-50 text-amber-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>
+                          {row.show_to_cashier === false ? "Hidden" : "Shown"}
+                        </span>
+                      ) : "-"}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`rounded-lg border px-2 py-1 text-[10px] font-semibold uppercase ${row.is_active === false ? "border-slate-200 bg-slate-50 text-slate-500" : "border-cyan-100 bg-cyan-50 text-cyan-700"}`}>
                         {row.is_active === false ? "Inactive" : "Active"}

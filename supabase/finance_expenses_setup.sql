@@ -84,6 +84,7 @@ create table if not exists public.finance_references (
   reference_quantity numeric(14, 3),
   reference_unit text,
   notes text,
+  show_to_cashier boolean not null default true,
   is_active boolean not null default true,
   created_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
@@ -606,6 +607,10 @@ create policy "finance_references_cashier_select"
       from public.profiles p
       where p.id = auth.uid()
         and lower(coalesce(p.role, '')) = 'cashier'
+    )
+    and (
+      ref_type not in ('item', 'item_category')
+      or show_to_cashier is true
     )
   );
 

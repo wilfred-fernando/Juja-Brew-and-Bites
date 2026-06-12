@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeftRight, Boxes, CalendarDays, RefreshCw, Save, Send, Table2 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { convertQuantity, normalizeUnit } from "@/lib/inventory";
+import { manilaDate, shiftBusinessDate } from "@/lib/businessDay";
 
 const supabase = getSupabaseClient();
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => manilaDate();
 
 function numberValue(value) {
   const parsed = Number(value || 0);
@@ -33,18 +34,6 @@ function addDays(date, days) {
   const [year, month, day] = String(date || "").split("-").map(Number);
   const next = new Date(Date.UTC(year, month - 1, day + days));
   return next.toISOString().slice(0, 10);
-}
-
-function manilaDate(value) {
-  if (!value) return "";
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Manila",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date(value));
-  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${byType.year}-${byType.month}-${byType.day}`;
 }
 
 function Input(props) {
@@ -89,6 +78,8 @@ export default function FinanceInventoryManager() {
   const [ordersById, setOrdersById] = useState({});
   const [transfers, setTransfers] = useState([]);
   const [edits, setEdits] = useState({});
+  const [itemSearch, setItemSearch] = useState("");
+  const [categorySearch, setCategorySearch] = useState("");
   const [transferForm, setTransferForm] = useState({ inventory_item_id: "", from_store_id: "", to_store_id: "", bulk: "", small: "", note: "" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -106,6 +97,18 @@ export default function FinanceInventoryManager() {
     });
     return map;
   }, [references]);
+  const visibleItems = useMemo(() => {
+    const itemTerm = normalizeText(itemSearch);
+    const categoryTerm = normalizeText(categorySearch);
+    return items.filter((item) => {
+      const ref = itemReference(item);
+      const itemText = normalizeText(`${item.item_name || ""} ${item.common_name || ""} ${ref?.common_name || ""}`);
+      const categoryText = normalizeText(`${item.category || ""} ${ref?.item_category || ""}`);
+      if (itemTerm && !itemText.includes(itemTerm)) return false;
+      if (categoryTerm && !categoryText.includes(categoryTerm)) return false;
+      return true;
+    });
+  }, [categorySearch, itemSearch, items, referencesByItem]);
 
   const entriesByItem = useMemo(() => Object.fromEntries(dailyEntries.map((row) => [row.inventory_item_id, row])), [dailyEntries]);
   const previousByItem = useMemo(() => Object.fromEntries(previousEntries.map((row) => [row.inventory_item_id, row])), [previousEntries]);
@@ -233,7 +236,7 @@ export default function FinanceInventoryManager() {
     const [storesRes, itemsRes, refsRes] = await Promise.all([
       supabase.from("stores").select("id, name, is_active, sort_order, created_at").order("sort_order").order("created_at"),
       supabase.from("inventory_items").select("id, item_name, common_name, common_name_id, category, unit, is_active").eq("is_active", true).order("item_name"),
-      supabase.from("finance_references").select("name, common_name, reference_quantity, reference_unit").eq("ref_type", "item").eq("is_active", true),
+      supabase.from("finance_references").select("name, common_name, item_category, reference_quantity, reference_unit, show_to_cashier").eq("ref_type", "item").eq("is_active", true),
     ]);
 
     const error = [storesRes.error, itemsRes.error, refsRes.error].find(Boolean);
@@ -249,8 +252,12 @@ export default function FinanceInventoryManager() {
 
     setProfile(profileRow || null);
     setStores(visibleStores);
-    setItems(itemsRes.data || []);
-    setReferences(refsRes.data || []);
+    const profileIsCashier = String(profileRow?.role || "").toLowerCase() === "cashier";
+    const referenceRows = (refsRes.data || []).filter((row) => !profileIsCashier || row.show_to_cashier !== false);
+    const visibleItemNames = new Set(referenceRows.map((row) => normalizeText(row.name)));
+    const itemRows = (itemsRes.data || []).filter((item) => !profileIsCashier || visibleItemNames.size === 0 || visibleItemNames.has(normalizeText(item.item_name)));
+    setItems(itemRows);
+    setReferences(referenceRows);
     setSelectedStoreId((prev) => {
       if (profileRow?.store_id && String(profileRow.role || "").toLowerCase() === "cashier") return profileRow.store_id;
       return prev && visibleStores.some((store) => String(store.id) === String(prev)) ? prev : visibleStores[0]?.id || "";
@@ -264,20 +271,21 @@ export default function FinanceInventoryManager() {
     const previousDate = addDays(inventoryDate, -1);
     const { start, end } = dateRangeForManila(inventoryDate);
 
-    const [entriesRes, historicalEntriesRes, transfersRes, expensesRes, pettyRes, txRes, historicalTransfersRes, historicalExpensesRes, historicalPettyRes, historicalTxRes] = await Promise.all([
+    const [entriesRes, historicalEntriesRes, transfersRes, expensesRes, pettyRes, txRes, historicalTransfersRes, historicalExpensesRes, historicalPettyRes, historicalTxRes, shiftRes] = await Promise.all([
       supabase.from("finance_daily_inventory_entries").select("*").eq("store_id", selectedStoreId).eq("inventory_date", inventoryDate),
       supabase.from("finance_daily_inventory_entries").select("*").eq("store_id", selectedStoreId).lte("inventory_date", previousDate).order("inventory_date").limit(10000),
       supabase.from("finance_inventory_transfers").select("*").eq("transfer_date", inventoryDate).or(`from_store_id.eq.${selectedStoreId},to_store_id.eq.${selectedStoreId}`),
       supabase.from("finance_expenses").select("id, expense_date, store_id, petty_cash_entry_id, inventory_item_id, quantity, unit").eq("expense_date", inventoryDate),
       supabase.from("finance_petty_cash_entries").select("id, expense_date, inventory_item_id, quantity, unit").eq("store_id", selectedStoreId).eq("expense_date", inventoryDate),
-      supabase.from("inventory_transactions").select("*").eq("transaction_type", "pos_deduction").gte("created_at", start).lt("created_at", end),
+      supabase.from("inventory_transactions").select("*").eq("transaction_type", "pos_deduction").lt("created_at", addDays(inventoryDate, 2) + "T00:00:00+08:00").order("created_at").limit(10000),
       supabase.from("finance_inventory_transfers").select("*").lte("transfer_date", previousDate).or(`from_store_id.eq.${selectedStoreId},to_store_id.eq.${selectedStoreId}`).order("transfer_date").limit(10000),
       supabase.from("finance_expenses").select("id, expense_date, store_id, petty_cash_entry_id, inventory_item_id, quantity, unit").lte("expense_date", previousDate).order("expense_date").limit(10000),
       supabase.from("finance_petty_cash_entries").select("id, expense_date, inventory_item_id, quantity, unit").eq("store_id", selectedStoreId).lte("expense_date", previousDate).order("expense_date").limit(10000),
       supabase.from("inventory_transactions").select("*").eq("transaction_type", "pos_deduction").lt("created_at", start).order("created_at").limit(10000),
+      supabase.from("cashier_pos").select("*").lte("created_at", addDays(inventoryDate, 2) + "T00:00:00+08:00").order("created_at").limit(10000),
     ]);
 
-    const error = [entriesRes.error, historicalEntriesRes.error, transfersRes.error, expensesRes.error, pettyRes.error, txRes.error, historicalTransfersRes.error, historicalExpensesRes.error, historicalPettyRes.error, historicalTxRes.error].find(Boolean);
+    const error = [entriesRes.error, historicalEntriesRes.error, transfersRes.error, expensesRes.error, pettyRes.error, txRes.error, historicalTransfersRes.error, historicalExpensesRes.error, historicalPettyRes.error, historicalTxRes.error, shiftRes.error].find(Boolean);
     if (error) {
       showNotice("error", `Daily inventory failed: ${error.message}`);
       setLoading(false);
@@ -285,6 +293,13 @@ export default function FinanceInventoryManager() {
     }
 
     const selectedPettyIds = new Set((pettyRes.data || []).map((row) => String(row.id)));
+    const shiftRows = shiftRes.data || [];
+    const currentTxRows = (txRes.data || []).filter((tx) => (
+      shiftBusinessDate(tx.created_at, selectedStoreId, shiftRows) === inventoryDate
+    ));
+    const historicalTxRows = (historicalTxRes.data || []).filter((tx) => (
+      shiftBusinessDate(tx.created_at, selectedStoreId, shiftRows) <= previousDate
+    ));
     const relevantExpenses = (expensesRes.data || []).filter((row) => (
       String(row.store_id || "") === String(selectedStoreId)
       || (row.petty_cash_entry_id && selectedPettyIds.has(String(row.petty_cash_entry_id)))
@@ -305,10 +320,10 @@ export default function FinanceInventoryManager() {
       ? await supabase.from("expense_inventory_links").select("*").in("expense_id", historicalExpenseIds)
       : { data: [], error: null };
 
-    const orderIds = [...new Set((txRes.data || [])
+    const orderIds = [...new Set(currentTxRows
       .filter((tx) => tx.reference_type === "pos_order" && tx.reference_id)
       .map((tx) => tx.reference_id))];
-    const historicalOrderIds = [...new Set((historicalTxRes.data || [])
+    const historicalOrderIds = [...new Set(historicalTxRows
       .filter((tx) => tx.reference_type === "pos_order" && tx.reference_id)
       .map((tx) => tx.reference_id))];
     const ordersRes = orderIds.length
@@ -330,7 +345,7 @@ export default function FinanceInventoryManager() {
       ...historicalRelevantExpenses.map((row) => row.expense_date),
       ...(historicalPettyRes.data || []).map((row) => row.expense_date),
       ...(historicalTransfersRes.data || []).map((row) => row.transfer_date),
-      ...(historicalTxRes.data || []).map((row) => manilaDate(row.created_at)),
+      ...historicalTxRows.map((row) => shiftBusinessDate(row.created_at, selectedStoreId, shiftRows)),
     ].filter(Boolean))].sort();
     const runningByItem = Object.fromEntries(items.map((item) => [item.id, 0]));
 
@@ -346,7 +361,7 @@ export default function FinanceInventoryManager() {
         expenseRows: historicalRelevantExpenses.filter((row) => row.expense_date === date),
         pettyRows: (historicalPettyRes.data || []).filter((row) => row.expense_date === date),
         transfers: (historicalTransfersRes.data || []).filter((row) => row.transfer_date === date),
-        posTransactions: (historicalTxRes.data || []).filter((row) => manilaDate(row.created_at) === date),
+        posTransactions: historicalTxRows.filter((row) => shiftBusinessDate(row.created_at, selectedStoreId, shiftRows) === date),
         ordersById: historicalOrdersById,
       });
 
@@ -372,7 +387,7 @@ export default function FinanceInventoryManager() {
     setPurchaseLinks(linksRes.data || []);
     setExpenseRows(relevantExpenses);
     setPettyRows(pettyRes.data || []);
-    setPosTransactions(txRes.data || []);
+    setPosTransactions(currentTxRows);
     setOrdersById(Object.fromEntries((ordersRes.data || []).map((row) => [String(row.id), row])));
     setEdits({});
     setTransferForm((prev) => ({
@@ -415,6 +430,10 @@ export default function FinanceInventoryManager() {
     const ending = computedEnding;
     return { item, saved, beginning, reorder, total: beginning + reorder, transfer, posDeduction, manual, ending, note: edit.note ?? saved?.manual_adjustment_note ?? "", computedEnding };
   }), [edits, entriesByItem, items, previousByItem, sourceTotals]);
+  const visibleRows = useMemo(() => {
+    const visibleIds = new Set(visibleItems.map((item) => item.id));
+    return rows.filter((row) => visibleIds.has(row.item.id));
+  }, [rows, visibleItems]);
 
   const summary = useMemo(() => rows.reduce((acc, row) => {
     acc.reorder += row.reorder;
@@ -615,9 +634,21 @@ export default function FinanceInventoryManager() {
       </Card>
 
       <Card className="p-0">
-        <div className="flex items-center gap-2 border-b border-slate-200/80 px-4 py-4">
-          <Table2 className="h-5 w-5 text-sky-700" />
-          <h2 className="text-lg font-semibold text-slate-950">{storeNameById[String(selectedStoreId)] || "Store"} Inventory Form</h2>
+        <div className="flex flex-col gap-4 border-b border-slate-200/80 px-4 py-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex items-center gap-2">
+            <Table2 className="h-5 w-5 text-sky-700" />
+            <h2 className="text-lg font-semibold text-slate-950">{storeNameById[String(selectedStoreId)] || "Store"} Inventory Form</h2>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:w-[520px]">
+            <label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+              Item Category
+              <Input value={categorySearch} onChange={(e) => setCategorySearch(e.target.value)} placeholder="Search category" className="mt-1" />
+            </label>
+            <label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+              Item Name
+              <Input value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} placeholder="Search item name" className="mt-1" />
+            </label>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1680px] border-collapse text-sm">
@@ -630,9 +661,9 @@ export default function FinanceInventoryManager() {
                 <th className="border-r border-slate-300 px-3 py-2">Reorder</th>
                 <th colSpan={2} className="border-r border-slate-300 px-3 py-2">Total</th>
                 <th colSpan={2} className="border-r border-slate-300 px-3 py-2">Transfer</th>
-                <th className="border-r border-slate-300 px-3 py-2">POS Auto Deduct</th>
+                <th className="w-[88px] border-r border-slate-300 px-2 py-2">POS Auto Deduct</th>
                 <th colSpan={3} className="border-r border-slate-300 px-2 py-2">Manual Adjustment</th>
-                <th colSpan={2} className="px-3 py-2">Ending</th>
+                <th colSpan={2} className="w-[170px] px-4 py-2">Ending</th>
               </tr>
               <tr className="border-b border-slate-300 text-center text-[10px] font-semibold uppercase tracking-[0.12em]">
                 <th className="border-r border-slate-300 px-3 py-2">Qty</th>
@@ -641,19 +672,19 @@ export default function FinanceInventoryManager() {
                 <th className="border-r border-slate-300 px-2 py-2">Small</th>
                 <th className="border-r border-slate-300 px-3 py-2">Bulk</th>
                 <th className="border-r border-slate-300 px-3 py-2">Bulk</th>
-                <th className="border-r border-slate-300 px-3 py-2">Small</th>
+                <th className="w-[88px] border-r border-slate-300 px-2 py-2">Small</th>
                 <th className="border-r border-slate-300 px-3 py-2">Bulk</th>
                 <th className="border-r border-slate-300 px-3 py-2">Small</th>
                 <th className="border-r border-slate-300 px-3 py-2">Small</th>
                 <th className="border-r border-slate-300 px-3 py-2">Bulk</th>
                 <th className="border-r border-slate-300 px-3 py-2">Small</th>
                 <th className="border-r border-slate-300 px-3 py-2">Note</th>
-                <th className="border-r border-slate-300 px-3 py-2">Bulk</th>
-                <th className="px-3 py-2">Small</th>
+                <th className="w-[86px] border-r border-slate-300 px-4 py-2">Bulk</th>
+                <th className="w-[86px] px-4 py-2">Small</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white/82">
-              {rows.map((row) => {
+              {visibleRows.map((row) => {
                 const ref = itemReference(row.item);
                 const posSmall = splitBulk(row.item, row.posDeduction);
                 return (
@@ -669,18 +700,18 @@ export default function FinanceInventoryManager() {
                     <td className="border-r border-slate-200 px-3 py-3"><QuantityCell item={row.item} value={row.total} part="small" /></td>
                     <td className="border-r border-slate-200 px-3 py-3"><QuantityCell item={row.item} value={row.transfer} part="bulk" /></td>
                     <td className="border-r border-slate-200 px-3 py-3"><QuantityCell item={row.item} value={row.transfer} part="small" /></td>
-                    <td className="border-r border-slate-200 px-3 py-3 text-right tabular-nums text-red-700">{qty(posSmall.small || posSmall.bulk)} {posSmall.smallUnit}</td>
+                    <td className="border-r border-slate-200 px-2 py-3 text-right text-xs tabular-nums text-red-700">{qty(posSmall.small || posSmall.bulk)} {posSmall.smallUnit}</td>
                     <td className="border-r border-slate-200 px-1.5 py-2"><ManualInput item={row.item} row={row} part="bulk" /></td>
                     <td className="border-r border-slate-200 px-1.5 py-2"><ManualInput item={row.item} row={row} part="small" /></td>
                     <td className="border-r border-slate-200 px-2 py-2"><Input value={row.note} onChange={(e) => updateRow(row.item, "note", e.target.value)} placeholder="Note" /></td>
-                    <td className="border-r border-slate-200 bg-sky-50/50 px-3 py-3 font-semibold"><QuantityCell item={row.item} value={row.ending} part="bulk" /></td>
-                    <td className="bg-sky-50/50 px-3 py-3 font-semibold"><QuantityCell item={row.item} value={row.ending} part="small" /></td>
+                    <td className="border-r border-slate-200 bg-sky-50/50 px-4 py-3 font-semibold"><QuantityCell item={row.item} value={row.ending} part="bulk" /></td>
+                    <td className="bg-sky-50/50 px-4 py-3 font-semibold"><QuantityCell item={row.item} value={row.ending} part="small" /></td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
-          {!rows.length ? (
+          {!visibleRows.length ? (
             <div className="p-8 text-center text-sm text-slate-500">
               <Boxes className="mx-auto mb-2 h-8 w-8 text-slate-300" />
               No inventory items found.

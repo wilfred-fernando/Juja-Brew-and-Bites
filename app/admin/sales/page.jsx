@@ -295,16 +295,17 @@ export default function AdminSalesPage() {
     setError("");
     const comparisonRange = previousRange(nextFilters.startDate, nextFilters.endDate);
     const start = `${comparisonRange.startDate}T00:00:00+08:00`;
-    const end = `${nextFilters.endDate}T23:59:59+08:00`;
+    const fetchEnd = `${addDays(nextFilters.endDate, 1)}T12:00:00+08:00`;
     try {
-      const [ordersRes, webRes, menuRes, storesRes, profilesRes] = await Promise.all([
-        supabase.from("orders").select("*").gte("created_at", start).lte("created_at", end).order("created_at", { ascending: false }).limit(5000),
-        supabase.from("web_orders").select("*").gte("created_at", start).lte("created_at", end).order("created_at", { ascending: false }).limit(5000),
+      const [ordersRes, webRes, menuRes, storesRes, profilesRes, shiftsRes] = await Promise.all([
+        supabase.from("orders").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: false }).limit(5000),
+        supabase.from("web_orders").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: false }).limit(5000),
         supabase.from("menu_items").select("id,name,category,price"),
         supabase.from("stores").select("id,name").order("name"),
         supabase.from("profiles").select("id,full_name,email,role"),
+        supabase.from("cashier_pos").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: true }).limit(5000),
       ]);
-      const errors = [ordersRes.error, webRes.error, menuRes.error, storesRes.error, profilesRes.error].filter(Boolean);
+      const errors = [ordersRes.error, webRes.error, menuRes.error, storesRes.error, profilesRes.error, shiftsRes.error].filter(Boolean);
       if (errors.length) throw errors[0];
 
       const orderIds = (ordersRes.data || []).map((row) => row.id);
@@ -322,6 +323,7 @@ export default function AdminSalesPage() {
           menuItems: menuRes.data || [],
           profiles: profilesRes.data || [],
           stores: storesRes.data || [],
+          shiftRecords: shiftsRes.data || [],
         })
       );
     } catch (err) {
