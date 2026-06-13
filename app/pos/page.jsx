@@ -236,7 +236,7 @@ function ModalShell({ open, onClose, title, subtitle, children, z = 120 }) {
   return (
     <div
       style={{ zIndex: z }}
-      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
@@ -350,34 +350,6 @@ function ConfirmModal({ open, title, message, confirmText = "Confirm", cancelTex
         >
           {confirmText}
         </button>
-      </div>
-    </ModalShell>
-  );
-}
-
-function CategoryModal({ open, onClose, categories, active, onSelect }) {
-  return (
-    <ModalShell open={open} onClose={onClose} title="Category" subtitle="Select Category" z={140}>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {(categories || []).map((cat) => {
-          const isActive = active === cat.name;
-          return (
-            <button
-              key={cat.id}
-              onClick={() => {
-                onSelect(cat.name);
-                onClose();
-              }}
-              className={`w-full text-left p-3.5 rounded-xl border font-bold text-sm transition ${
-                isActive
-                  ? "border-rose-400 bg-rose-50 text-rose-900"
-                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              {cat.name}
-            </button>
-          );
-        })}
       </div>
     </ModalShell>
   );
@@ -776,13 +748,13 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
   return (
     <ModalShell open={!!item} onClose={onClose} title={item.editData ? "Modify Line Item" : "Configure Item Add"} subtitle={item.name} z={145}>
       <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-        <p className="text-xs font-semibold text-slate-600">
-          Base {peso0(basePrice)}{variantPrice > 0 ? ` • Modifiers: +${peso0(variantPrice)}` : ""}
+        <p className="text-[16px] font-semibold text-slate-600">
+          {peso0(basePrice)}{variantPrice > 0 ? ` • Modifiers: +${peso0(variantPrice)}` : ""}
         </p>
         <button
           disabled={!canAdd}
           onClick={submitLine}
-          className="h-9 px-3 rounded-lg bg-[#FC687D] text-white text-[10px] font-black uppercase tracking-wider shadow-sm transition disabled:opacity-50 shrink-0"
+          className="h-9 px-3 rounded-lg bg-slate-200 text-white text-[12px] font-semibold uppercase tracking-wider shadow-sm transition disabled:opacity-50 shrink-0"
         >
           {item.editData ? `Save • ₱${totalLine}` : `Add • ₱${totalLine}`}
         </button>
@@ -1267,7 +1239,6 @@ export default function POSPage() {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("");
-  const [categoryOpen, setCategoryOpen] = useState(false);
   const [menuSearch, setMenuSearch] = useState("");
 
   const [customerSearch, setCustomerSearch] = useState("");
@@ -3173,16 +3144,16 @@ export default function POSPage() {
 
       <div className="max-w-[1600px] mx-auto p-3 sm:p-4 lg:p-6 transition-all">
         {posMenuOpen && (
-          <div className="fixed inset-0 z-[145] bg-rose-950/45 backdrop-blur-sm p-4 flex items-center justify-center" onClick={() => setPosMenuOpen(false)}>
+          <div className="fixed inset-0 z-[145] bg-slate-800/30 backdrop-blur-sm p-4 flex items-center justify-center" onClick={() => setPosMenuOpen(false)}>
               <div className="w-full max-w-sm rounded-2xl border border-rose-100 bg-white p-3 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                <div className="rounded-xl bg-rose-50 border border-rose-100 px-3 py-2 mb-3">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-rose-400">Cashier</p>
+                <div className="rounded-xl bg-slate-300/78 border border-rose-100 px-3 py-2 mb-3">
+                  <p className="text-[9px] font-semibold uppercase tracking-widest text-rose-400">Cashier</p>
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-black text-slate-800 truncate">{cashierName || "Operator"}</p>
+                    <p className="text-[14px] font-black text-slate-800 truncate">{cashierName || "Operator"}</p>
                     <button
                       type="button"
                       onClick={signOut}
-                      className="h-8 px-3 rounded-lg bg-white border border-rose-100 text-[10px] font-black uppercase tracking-wider text-rose-600"
+                      className="h-8 px-3 rounded-lg bg-white border border-rose-100 text-[10px] font-semibold uppercase tracking-wider text-rose-600"
                     >
                       Sign Out
                     </button>
@@ -3200,9 +3171,9 @@ export default function POSPage() {
                       key={key}
                       type="button"
                       onClick={() => openManagement(key)}
-                      className={`h-10 rounded-xl border text-xs font-black uppercase tracking-wider ${
+                      className={`h-10 rounded-xl border text-xs font-semibold uppercase tracking-wider ${
                         managementView === key
-                          ? "border-rose-300 bg-rose-50 text-[#FC687D]"
+                          ? "border-rose-300 bg-slate-200/50 text-[#FC687D]"
                           : "border-slate-200 bg-white text-slate-600"
                       }`}
                     >
@@ -3218,23 +3189,23 @@ export default function POSPage() {
         )}
 
         {managementOpen && (
-          <div className="fixed inset-0 z-[140] bg-rose-950/45 backdrop-blur-sm p-3 sm:p-6 flex items-center justify-center" onClick={() => setManagementOpen(false)}>
+          <div className="fixed inset-0 z-[140] bg-slate-950/45 backdrop-blur-sm p-3 sm:p-6 flex items-center justify-center" onClick={() => setManagementOpen(false)}>
             <div className="w-full max-w-5xl max-h-[88vh] overflow-y-auto rounded-2xl border border-rose-100 bg-white p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-rose-50 pb-3 mb-3">
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-[#FC687D]">POS Control</p>
-              <h2 className="text-sm font-black text-slate-800">
+              <h2 className="text-md font-black text-slate-800">
                 {managementView === "receipts" ? "Receipts" : managementView === "shift" ? "Shift" : managementView === "items" ? "Items" : "Settings"}
               </h2>
             </div>
             <div className="flex items-center gap-2">
               {(managementView === "receipts" || managementView === "shift") && (
-                <button type="button" onClick={fetchReceiptLogs} className="h-9 px-3 rounded-xl bg-rose-50 border border-rose-100 text-[10px] font-black uppercase tracking-wider text-[#FC687D]">
+                <button type="button" onClick={fetchReceiptLogs} className="h-9 px-3 rounded-xl bg-rose-50 border border-rose-100 text-[10px] font-semibold uppercase tracking-wider text-[#FC687D]">
                   Refresh
                 </button>
               )}
-              <button type="button" onClick={() => setManagementOpen(false)} className="h-9 w-9 rounded-xl bg-slate-100 text-slate-500 font-black">
-                x
+              <button type="button" onClick={() => setManagementOpen(false)} className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500 font-semibold">
+                X
               </button>
             </div>
           </div>
@@ -3254,10 +3225,10 @@ export default function POSPage() {
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-black text-slate-800 truncate">{r.receipt_number}</p>
-                      <span className="text-[10px] font-black text-[#FC687D]">{peso2(r.total_collected || r.net_sales || 0)}</span>
+                      <p className="text-[12px] font-bold text-slate-800 truncate">{r.receipt_number}</p>
+                      <span className="text-[10px] font-semibold text-[#FC687D]">{peso2(r.total_collected || r.net_sales || 0)}</span>
                     </div>
-                    <p className="text-[10px] font-semibold text-slate-400 truncate">{r.date || ""} · {r.status || "Closed"}</p>
+                    <p className="text-[10px] font-semibold italic text-slate-400 truncate">{r.date || ""} · {r.status || "Closed"}</p>
                   </button>
                 ))}
               </div>
@@ -3272,7 +3243,7 @@ export default function POSPage() {
                         <h3 className="text-base font-black text-slate-800">{selectedReceipt.receipt_number}</h3>
                         <p className="text-xs font-semibold text-slate-500">{selectedReceipt.description || "Receipt details"}</p>
                       </div>
-                      <button type="button" onClick={() => refundReceipt(selectedReceipt)} className="h-9 px-3 rounded-xl bg-red-50 border border-red-100 text-[10px] font-black uppercase tracking-wider text-red-600">
+                      <button type="button" onClick={() => refundReceipt(selectedReceipt)} className="h-9 px-3 rounded-xl bg-red-50 border border-red-100 text-[10px] font-bold uppercase tracking-wider text-red-600">
                         Refund Receipt
                       </button>
                     </div>
@@ -3286,10 +3257,10 @@ export default function POSPage() {
                       {selectedReceiptItems.map((row, idx) => (
                         <div key={`${row.receipt_number}-${row.item}-${idx}`} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-slate-100 bg-white p-2">
                           <div>
-                            <p className="text-xs font-black text-slate-800">{row.item}</p>
-                            <p className="text-[10px] font-semibold text-slate-400">Qty {row.quantity} · {peso2(row.net_sales || row.gross_sales || 0)} · {row.status || "Closed"}</p>
+                            <p className="text-xs font-bold uppercase text-slate-800">{row.item}</p>
+                            <p className="text-[10px] font-semibold italic text-slate-400">Qty {row.quantity} · {peso2(row.net_sales || row.gross_sales || 0)} · {row.status || "Closed"}</p>
                           </div>
-                          <button type="button" onClick={() => refundReceiptItem(row)} className="h-8 px-3 rounded-lg border border-red-100 bg-red-50 text-[10px] font-black uppercase tracking-wider text-red-600">
+                          <button type="button" onClick={() => refundReceiptItem(row)} className="h-8 px-3 rounded-lg border border-red-100 bg-red-50 text-[10px] font-bold uppercase tracking-wider text-red-600">
                             Refund Item
                           </button>
                         </div>
@@ -3397,7 +3368,7 @@ export default function POSPage() {
                         <div key={item.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
                           <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0">
-                              <p className="text-xs font-black text-slate-800 truncate">{item.name}</p>
+                              <p className="text-xs font-bold text-slate-800 truncate">{item.name}</p>
                               <p className="text-[10px] font-semibold text-slate-400">{peso2(item.price || 0)}</p>
                             </div>
                             <button type="button" onClick={() => toggleMenuItemAvailability(item)} className={`h-8 px-3 rounded-full text-[10px] font-black uppercase tracking-wider ${item.is_available === false ? "bg-slate-200 text-slate-500" : "bg-emerald-50 text-emerald-600 border border-emerald-100"}`}>
@@ -3422,7 +3393,7 @@ export default function POSPage() {
                       {group.options.map((option) => (
                         <div key={option.key} className="flex items-center justify-between gap-3 rounded-lg border border-white bg-white p-2">
                           <div className="min-w-0">
-                            <p className="text-xs font-black text-slate-700 truncate">{option.optionName}</p>
+                            <p className="text-xs font-semibold text-slate-700 truncate">{option.optionName}</p>
                             <p className="text-[10px] font-semibold text-slate-400">{option.count} item link(s)</p>
                           </div>
                           <button type="button" onClick={() => toggleOptionSelectionAvailability(option.groupName, option.optionName)} className={`h-8 px-3 rounded-full text-[10px] font-black uppercase tracking-wider ${option.enabled ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-slate-200 text-slate-500"}`}>
@@ -3474,14 +3445,22 @@ export default function POSPage() {
             
             {/* Catalog Controller Sorting filters bars */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-50 pb-3">
-              <button
-                onClick={() => setCategoryOpen(true)}
-                className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100/70 transition flex items-center justify-between gap-3"
-                type="button"
-              >
-                <span>Category: <span className="text-[#FC687D]">{activeCategory || "None"}</span></span>
-                <span>▼</span>
-              </button>
+              <label className="relative w-full sm:w-64">
+                <span className="sr-only">Category</span>
+                <select
+                  value={activeCategory}
+                  onChange={(e) => setActiveCategory(e.target.value)}
+                  className="h-10 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 pr-9 text-xs font-bold text-slate-700 outline-none transition focus:border-rose-200 focus:bg-white"
+                >
+                  {!activeCategory ? <option value="">Select Category</option> : null}
+                  {categories.map((cat) => (
+                    <option key={cat.id || cat.name} value={cat.name}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500">▼</span>
+              </label>
               
               <div className="relative w-full sm:w-64">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
@@ -3494,7 +3473,7 @@ export default function POSPage() {
               </div>
             </div>
 
-            {/* Product tile grid with category popup selection */}
+            {/* Product tile grid with category dropdown selection */}
             {loading ? (
               <div className="py-24 text-center"><div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full mx-auto" /></div>
             ) : (
@@ -3517,12 +3496,11 @@ export default function POSPage() {
                               <span className="text-2xl text-rose-200/50">📷</span>
                             )}
                           </div>
-                          <div className="mt-2.5 px-0.5">
-                            <p className="text-[9px] uppercase font-extrabold tracking-wider text-[#FC687D]">{item.category || "General"}</p>
-                            <p className="text-xs font-bold text-slate-800 leading-tight truncate mt-1">{item.name}</p>
+                          <div className="mt-2.5 px-0.5">                            
+                            <p className="text-[14px] font-bold text-slate-800 leading-tight truncate mt-1">{item.name}</p>
                           </div>
                         </div>
-                        <p className="text-xs font-black text-slate-800 mt-2 px-0.5 pt-2 border-t border-slate-50 w-full">
+                        <p className="text-[14px] font-semibold text-slate-800 mt-2 px-0.5 pt-2 border-t border-slate-50 w-full">
                           {item.is_variable_price ? "Variable Price" : `₱${Number(item.price || 0).toFixed(0)}`}
                         </p>
                       </button>
@@ -3694,7 +3672,6 @@ export default function POSPage() {
         onEdit={editIncomingWebOrder} 
         onReject={rejectIncomingWebOrder} 
       />
-      <CategoryModal open={categoryOpen} onClose={() => setCategoryOpen(false)} categories={categories} active={activeCategory} onSelect={setActiveCategory} />
       <BarcodeScannerModal open={scannerOpen} onClose={() => setScannerOpen(false)} onResult={(txt) => handleCodeInput(txt)} />
       <SavedTicketsModal
         open={savedOpen}

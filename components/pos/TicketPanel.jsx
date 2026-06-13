@@ -86,7 +86,7 @@ export default function TicketPanel({
           <button
             type="button"
             onClick={onOpenPosMenu}
-            className="relative h-9 px-3 rounded-xl bg-[#FC687D] text-white text-[10px] font-black uppercase tracking-wider shadow-sm"
+            className="relative h-9 px-3 rounded-xl bg-slate-400/78 text-white text-[12px] font-semibold uppercase shadow-sm"
           >
             Menu
             {pendingCount > 0 && (
@@ -283,8 +283,8 @@ export default function TicketPanel({
                 }`}
               >
                 <div className="flex justify-between items-baseline gap-2">
-                  <p className="text-xs font-semibold text-slate-800 truncate">{line.name}</p>
-                  <p className="text-xs font-bold text-slate-700 font-mono whitespace-nowrap">
+                  <p className="text-[14px] font-semibold text-slate-800 truncate">{line.name}</p>
+                  <p className="text-[14px] font-bold text-slate-700 font-mono whitespace-nowrap">
                     ₱{Number(line.unitPrice * line.quantity).toLocaleString("en-PH", { maximumFractionDigits: 0 })}
                   </p>
                 </div>
