@@ -1569,11 +1569,11 @@ export default function FinanceExpenseManager() {
               <th className="px-4 py-3 text-right">Action</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-200/80">
             {rows.map((row) => {
               const sourceLabel = expenseSourceLabel(row, storeNameById);
               return (
-                <tr key={row.id} className="border-t border-slate-100 text-slate-700 transition duration-200 hover:bg-cyan-50/45">
+                <tr key={row.id} className="text-slate-700 transition duration-200 hover:bg-cyan-50/45">
                   <td className="px-4 py-3 font-semibold">{dateText(row.expense_date)}</td>
                   {showSource ? (
                     <td className="px-4 py-3">
@@ -1901,9 +1901,9 @@ export default function FinanceExpenseManager() {
                   <th className="px-4 py-3 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-200/80">
                 {rows.map((row) => (
-                  <tr key={row.id} className="border-t border-slate-100 transition duration-200 hover:bg-cyan-50/45">
+                  <tr key={row.id} className="transition duration-200 hover:bg-cyan-50/45">
                     <td className="px-4 py-3 font-bold text-slate-500">{labelByType[row.ref_type] || row.ref_type}</td>
                     <td className="px-4 py-3 text-slate-950">{row.name}</td>
                     <td className="px-4 py-3">{row.ref_type === "item" ? row.item_category || "-" : "-"}</td>

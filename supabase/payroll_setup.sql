@@ -6,6 +6,7 @@ create table if not exists public.payroll_employees (
   employee_no text unique,
   full_name text not null unique,
   designation text,
+  date_hired date,
   default_daily_rate numeric(12, 2) not null default 0,
   role text default 'staff',
   active boolean not null default true,

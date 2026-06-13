@@ -1,5 +1,6 @@
 alter table public.payroll_employees
   add column if not exists designation text,
+  add column if not exists date_hired date,
   add column if not exists birthday date,
   add column if not exists address text,
   add column if not exists contact_number text,

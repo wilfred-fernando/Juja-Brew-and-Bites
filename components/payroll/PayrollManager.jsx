@@ -8,6 +8,7 @@ const supabase = getSupabaseClient();
 
 const money = (n) => `₱ ${Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const deductionMoney = (n) => `(${money(n)})`;
+const amountOnly = (n) => Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const num = (n) => Number(n || 0);
 
 function localDate(date = new Date()) {
@@ -87,6 +88,7 @@ function blankEmployeeForm() {
     employee_no: "",
     full_name: "",
     designation: "",
+    date_hired: "",
     default_daily_rate: "",
     birthday: "",
     address: "",
@@ -734,6 +736,7 @@ export default function AdminPayrollPage() {
       employee_no: employeeForm.employee_no.trim() || null,
       full_name: employeeForm.full_name.trim().toUpperCase(),
       designation: employeeForm.designation.trim() || null,
+      date_hired: employeeForm.date_hired || null,
       default_daily_rate: num(employeeForm.default_daily_rate),
       birthday: employeeForm.birthday || null,
       address: employeeForm.address.trim() || null,
@@ -762,6 +765,7 @@ export default function AdminPayrollPage() {
       employee_no: employee.employee_no || "",
       full_name: employee.full_name || "",
       designation: employee.designation || "",
+      date_hired: employee.date_hired || "",
       default_daily_rate: employee.default_daily_rate ?? "",
       birthday: employee.birthday || "",
       address: employee.address || "",
@@ -1274,11 +1278,11 @@ export default function AdminPayrollPage() {
                     <th className="text-right pr-3">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-200/80">
                 {payrollRows.length === 0 ? (
                   <tr><td colSpan="14" className="p-8 text-center text-sm font-semibold text-slate-400">No payroll rows found.</td></tr>
                 ) : payrollRows.map((entry) => (
-                  <tr key={entry.id} className="border-t border-slate-100 transition duration-200 hover:bg-cyan-50/45">
+                  <tr key={entry.id} className="transition duration-200 hover:bg-cyan-50/45">
                     <td className="p-3 font-semibold text-slate-600">{entry.employee?.employee_no || "-"}</td>
                     <td>
                       {canViewPayslip(entry) ? (
@@ -1315,7 +1319,7 @@ export default function AdminPayrollPage() {
                     <td className="px-1 py-3 text-center">{num(entry.late_minutes).toFixed(0)}m</td>
                     <td className="px-1 py-3 text-center">{num(entry.absent_days).toFixed(2)}</td>
                     <td className="px-1 py-3 font-regular text-right">{money(entry.gross_total)}</td>
-                    <td className={`px-1 py-3 font-regular text-right ${num(entry.payroll_adjustment) < 0 ? "text-red-600" : "text-cyan-700"}`}>{money(entry.payroll_adjustment)}</td>
+                    <td className={`px-1 py-3 font-regular text-right ${num(entry.payroll_adjustment) < 0 ? "text-red-600" : "text-cyan-700"}`}>{num(entry.payroll_adjustment) < 0 ? deductionMoney(Math.abs(num(entry.payroll_adjustment))) : money(entry.payroll_adjustment)}</td>
                     <td className="px-1 py-3 font-regular text-right text-red-600">{deductionMoney(entry.deduction_total)}</td>
                     <td className="px-1 py-3 font-regular text-right text-red-600">{deductionMoney(entry.cash_advance_deduction)}</td>
                     <td className="px-3 py-3 font-semibold text-right text-cyan-700">{money(entry.net_total)}</td>
@@ -1348,6 +1352,7 @@ export default function AdminPayrollPage() {
                 <input value={employeeForm.employee_no} onChange={(e) => setEmployeeForm((p) => ({ ...p, employee_no: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Employee no." />
                 <input value={employeeForm.full_name} onChange={(e) => setEmployeeForm((p) => ({ ...p, full_name: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Employee name" />
                 <input value={employeeForm.designation} onChange={(e) => setEmployeeForm((p) => ({ ...p, designation: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Designation" />
+                <input type="date" value={employeeForm.date_hired} onChange={(e) => setEmployeeForm((p) => ({ ...p, date_hired: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" title="Date hired" />
                 <input value={employeeForm.default_daily_rate} onChange={(e) => setEmployeeForm((p) => ({ ...p, default_daily_rate: e.target.value }))} type="number" step="0.01" className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Daily rate" />
                 <input type="date" value={employeeForm.birthday} onChange={(e) => setEmployeeForm((p) => ({ ...p, birthday: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" title="Birthday" />
                 <input value={employeeForm.contact_number} onChange={(e) => setEmployeeForm((p) => ({ ...p, contact_number: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Contact number" />
@@ -1404,6 +1409,7 @@ export default function AdminPayrollPage() {
                   <div className="mt-3 grid gap-2 rounded-xl border border-slate-100 bg-white/70 p-3 text-xs text-slate-600 sm:grid-cols-2">
                     <p><span className="text-slate-400">Birthday:</span> {dateText(employee.birthday)}</p>
                     <p><span className="text-slate-400">Designation:</span> {employee.designation || "-"}</p>
+                    <p><span className="text-slate-400">Date hired:</span> {dateText(employee.date_hired)}</p>
                     <p><span className="text-slate-400">Contact:</span> {employee.contact_number || "-"}</p>
                     <p className="sm:col-span-2"><span className="text-slate-400">Address:</span> {employee.address || "-"}</p>
                     <p><span className="text-slate-400">SSS:</span> {employee.sss_no || "-"}</p>
@@ -1825,72 +1831,101 @@ export default function AdminPayrollPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <section className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-800">Earnings</h3>
-                  <div className="mt-4 space-y-3 text-sm">
+                <section className="rounded-2xl border border-slate-200 bg-white/92 p-4">
+                  <div className="space-y-2 text-sm">
                     {[
-                      ["Daily Rate", money(payslipEntry.daily_rate)],
-                      ["Days Worked", num(payslipEntry.days_worked).toFixed(2)],
-                      ["Overtime Hours", num(payslipEntry.overtime_hours).toFixed(2)],
-                      ["OT Rate", money(payslipEntry.overtime_rate)],
-                      ["Allowance 15th", money(payslipEntry.allowance_15th)],
-                      ["Allowance 30th", money(payslipEntry.allowance_30th)],
-                      ["Allowance", money(payslipEntry.payroll_allowance)],
-                      ["Payroll Adjustment", money(payslipEntry.payroll_adjustment)],
+                      ["Employee No.", payslipEntry.employee?.employee_no || "-"],
+                      ["Daily Rate", amountOnly(payslipEntry.daily_rate)],
+                      ["Date Hired", dateText(payslipEntry.employee?.date_hired)],
+                      ["Designation", payslipEntry.employee?.designation || "-"],
                     ].map(([label, value]) => (
-                      <div key={label} className="flex items-center justify-between gap-4 border-b border-slate-100 pb-2 last:border-0 last:pb-0">
-                        <span className="text-slate-600">{label}</span>
-                        <b className="text-slate-950">{value}</b>
+                      <div key={label} className="grid grid-cols-[1fr_auto] gap-4 border-b border-slate-200/80 pb-2 last:border-0">
+                        <span className="text-slate-700">{label}</span>
+                        <span className="text-right font-semibold text-slate-950">{value}</span>
                       </div>
                     ))}
                   </div>
-                </section>
 
-                <section className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-800">Deductions</h3>
-                  <div className="mt-4 space-y-3 text-sm">
+                  <div className="mt-8 space-y-2 text-sm">
                     {[
-                      ["Late Minutes", `${num(payslipEntry.late_minutes).toFixed(0)}m`],
-                      ["Late Rate / Min", money(payslipEntry.late_rate_per_minute)],
-                      ["Undertime Minutes", `${num(payslipEntry.undertime_minutes).toFixed(0)}m`],
-                      ["UT Rate / Min", money(payslipEntry.undertime_rate_per_minute)],
-                      ["SSS", money(payslipEntry.sss_deduction)],
-                      ["PhilHealth", money(payslipEntry.philhealth_deduction)],
-                      ["HMDF", money(payslipEntry.hmdf_deduction)],
-                      ["Misc Deduction", money(payslipEntry.misc_deduction_total)],
-                      ["Cash Advance", money(payslipEntry.cash_advance_deduction)],
+                      ["Days Worked", `${amountOnly(payslipEntry.days_worked)} Day/s`],
+                      ["OT Hours", `${amountOnly(payslipEntry.overtime_hours)} Hour/s`],
+                      ["Late", `${num(payslipEntry.late_minutes).toFixed(0)} min/s`],
+                      ["Undertime", `${num(payslipEntry.undertime_minutes).toFixed(0)} min/s`],
                     ].map(([label, value]) => (
-                      <div key={label} className="flex items-center justify-between gap-4 border-b border-slate-100 pb-2 last:border-0 last:pb-0">
-                        <span className="text-slate-600">{label}</span>
-                        <b className="text-slate-950">{value}</b>
+                      <div key={label} className="grid grid-cols-[1fr_auto] gap-4 border-b border-slate-200/80 pb-2 last:border-0">
+                        <span className="text-slate-700">{label}</span>
+                        <span className="text-right font-semibold text-slate-950">{value}</span>
                       </div>
                     ))}
+                  </div>
+
+                  <div className="mt-8">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-950">Contributions</h3>
+                    <div className="mt-3 space-y-2 text-sm">
+                      {[
+                        ["SSS", payslipEntry.sss_deduction],
+                        ["PhilHealth", payslipEntry.philhealth_deduction],
+                        ["HMDF", payslipEntry.hmdf_deduction],
+                      ].map(([label, value]) => (
+                        <AmountLine key={label} label={label} value={value} negative />
+                      ))}
+                      <AmountLine label="Total" value={num(payslipEntry.sss_deduction) + num(payslipEntry.philhealth_deduction) + num(payslipEntry.hmdf_deduction)} negative strong />
+                    </div>
+                  </div>
+                </section>
+
+                <section className="rounded-2xl border border-slate-200 bg-white/92 p-4">
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-950">Basic Pay</h3>
+                  <div className="mt-3 space-y-2 text-sm">
+                    <AmountLine label="Gross Pay" value={num(payslipEntry.daily_rate) * num(payslipEntry.days_worked)} />
+                    <AmountLine label="Overtime" value={num(payslipEntry.overtime_hours) * num(payslipEntry.overtime_rate)} />
+                    <AmountLine label="Late" value={num(payslipEntry.late_minutes) * num(payslipEntry.late_rate_per_minute)} negative />
+                    <AmountLine label="Undertime" value={num(payslipEntry.undertime_minutes) * num(payslipEntry.undertime_rate_per_minute)} negative />
+                    <AmountLine
+                      label="Net Basic Pay"
+                      value={
+                        num(payslipEntry.daily_rate) * num(payslipEntry.days_worked) +
+                        num(payslipEntry.overtime_hours) * num(payslipEntry.overtime_rate) -
+                        num(payslipEntry.late_minutes) * num(payslipEntry.late_rate_per_minute) -
+                        num(payslipEntry.undertime_minutes) * num(payslipEntry.undertime_rate_per_minute)
+                      }
+                      strong
+                    />
+                  </div>
+
+                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">Allowances</h3>
+                  <div className="mt-3 space-y-2 text-sm">
+                    <AmountLine label="Allowance 15th" value={payslipEntry.allowance_15th} />
+                    <AmountLine label="Allowance 30th" value={payslipEntry.allowance_30th} />
+                    <AmountLine label="Allowance" value={payslipEntry.payroll_allowance} />
+                    <AmountLine label="Total" value={num(payslipEntry.allowance_15th) + num(payslipEntry.allowance_30th) + num(payslipEntry.payroll_allowance)} strong />
+                  </div>
+
+                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">Adjustments</h3>
+                  <div className="mt-3 space-y-2 text-sm">
+                    <AmountLine label="Payroll Adjustment" value={payslipEntry.payroll_adjustment} negative={num(payslipEntry.payroll_adjustment) < 0} />
+                    <AmountLine label="Other Adjustment" value={0} />
+                    <AmountLine label="Total" value={payslipEntry.payroll_adjustment} negative={num(payslipEntry.payroll_adjustment) < 0} strong />
+                  </div>
+
+                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">Deductions</h3>
+                  <div className="mt-3 space-y-2 text-sm">
+                    <AmountLine label="Cash Advance" value={payslipEntry.cash_advance_deduction} negative />
+                    <AmountLine label="Misc Deduction" value={payslipEntry.misc_deduction_total} negative />
+                    <AmountLine label="Total" value={num(payslipEntry.cash_advance_deduction) + num(payslipEntry.misc_deduction_total)} negative strong />
                   </div>
                 </section>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4 text-sm sm:grid-cols-4">
-                <div>
-                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-cyan-800">Gross Pay</span>
-                  <b className="mt-1 block text-lg text-slate-950">{money(payslipEntry.gross_total)}</b>
-                </div>
-                <div>
-                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-cyan-800">Adjustment</span>
-                  <b className={`mt-1 block text-lg ${num(payslipEntry.payroll_adjustment) < 0 ? "text-red-600" : "text-slate-950"}`}>
-                    {money(payslipEntry.payroll_adjustment)}
-                  </b>
-                </div>
-                <div>
-                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-cyan-800">Total Deductions</span>
-                  <b className="mt-1 block text-lg text-slate-950">
-                    {money(num(payslipEntry.deduction_total) + num(payslipEntry.cash_advance_deduction))}
-                  </b>
-                </div>
-                <div>
-                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-cyan-800">Net Pay</span>
-                  <b className="mt-1 block text-xl text-cyan-700">{money(payslipEntry.net_total)}</b>
-                </div>
+              <div className="grid grid-cols-2 gap-3 rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4 text-sm md:grid-cols-4">
+                <SummaryAmount label="Gross Pay" value={payslipEntry.gross_total} />
+                <SummaryAmount label="Adjustment" value={payslipEntry.payroll_adjustment} negative={num(payslipEntry.payroll_adjustment) < 0} />
+                <SummaryAmount label="Total Deductions" value={num(payslipEntry.deduction_total) + num(payslipEntry.cash_advance_deduction)} negative />
+                <SummaryAmount label="Net Pay" value={payslipEntry.net_total} highlight />
               </div>
+
+              <p className="text-xs text-slate-500">*This is computer generated and does not require a signature.</p>
 
               {payslipEntry.notes ? (
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
@@ -1914,10 +1949,37 @@ function DataTable({ headers, children, empty, minWidth }) {
         <thead className="sticky top-0 bg-slate-950 text-left text-[10px] uppercase tracking-[0.16em] text-cyan-50">
           <tr>{headers.map((header, idx) => <th key={header} className={idx === 0 ? "p-3" : ""}>{header}</th>)}</tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-slate-200/80">
           {rows.length === 0 ? <tr><td colSpan={headers.length} className="p-8 text-center text-sm font-semibold text-slate-400">{empty}</td></tr> : rows}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function AmountLine({ label, value, negative = false, strong = false }) {
+  const amount = num(value);
+  const showNegative = negative && amount !== 0;
+  return (
+    <div className={`grid grid-cols-[1fr_40px_110px] gap-2 border-b border-slate-200/80 pb-2 last:border-0 ${strong ? "font-semibold text-slate-950" : "text-slate-700"}`}>
+      <span>{label}</span>
+      <span className="text-right text-slate-700">PHP</span>
+      <span className={`text-right ${showNegative ? "text-red-600" : "text-slate-950"}`}>
+        {showNegative ? `(${amountOnly(Math.abs(amount))})` : amount === 0 ? "-" : amountOnly(amount)}
+      </span>
+    </div>
+  );
+}
+
+function SummaryAmount({ label, value, negative = false, highlight = false }) {
+  const amount = num(value);
+  const showNegative = negative && amount !== 0;
+  return (
+    <div>
+      <span className="block text-[10px] font-semibold uppercase tracking-wider text-cyan-800">{label}</span>
+      <b className={`mt-1 block text-lg ${highlight ? "text-cyan-700" : showNegative ? "text-red-600" : "text-slate-950"}`}>
+        {showNegative ? `(${amountOnly(Math.abs(amount))})` : amountOnly(amount)}
+      </b>
     </div>
   );
 }
