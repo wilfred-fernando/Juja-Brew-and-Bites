@@ -324,6 +324,29 @@ function buildPayrollEntryFromAttendance({ employee, period, rows, repaymentRows
   };
 }
 
+function payrollTotals(entry) {
+  const gross =
+    num(entry.daily_rate) * num(entry.days_worked) +
+    num(entry.overtime_hours) * num(entry.overtime_rate) +
+    num(entry.allowance_15th) +
+    num(entry.allowance_30th) +
+    num(entry.payroll_allowance) +
+    num(entry.payroll_adjustment);
+  const baseDeductions =
+    num(entry.late_minutes) * num(entry.late_rate_per_minute) +
+    num(entry.undertime_minutes) * num(entry.undertime_rate_per_minute);
+  const statutoryDeductions =
+    num(entry.sss_deduction) +
+    num(entry.philhealth_deduction) +
+    num(entry.hmdf_deduction);
+  const totalDeductions = baseDeductions + num(entry.misc_deduction_total) + statutoryDeductions;
+  return {
+    gross_total: gross,
+    deduction_total: totalDeductions,
+    net_total: gross - totalDeductions - num(entry.cash_advance_deduction),
+  };
+}
+
 export default function AdminPayrollPage() {
   const [employees, setEmployees] = useState([]);
   const [periods, setPeriods] = useState([]);
@@ -353,6 +376,7 @@ export default function AdminPayrollPage() {
   const [advanceForm, setAdvanceForm] = useState({ employee_id: "", advance_date: localDate(), amount: "", reason: "" });
   const [repaymentForm, setRepaymentForm] = useState({ cash_advance_id: "", period_id: "", payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
   const [miscDeductionForm, setMiscDeductionForm] = useState({ employee_id: "", period_id: "", deduction_date: localDate(), amount: "", description: "" });
+  const [adjustmentDrafts, setAdjustmentDrafts] = useState({});
   const [cutoffForm, setCutoffForm] = useState(() => {
     const start = previousSaturday();
     return { cutoff_start: start, cutoff_end: addDays(start, 6), payday: addDays(start, 7) };
@@ -475,6 +499,23 @@ export default function AdminPayrollPage() {
       })
       .sort((a, b) => String(a.employee?.employee_no || a.employee?.full_name || "").localeCompare(String(b.employee?.employee_no || b.employee?.full_name || "")));
   }, [employeeById, entries, search, selectedPeriodId]);
+
+  useEffect(() => {
+    if (activeTab !== "adjustments") return;
+    setAdjustmentDrafts((current) => {
+      const next = {};
+      payrollRows.forEach((entry) => {
+        next[entry.id] = current[entry.id] || {
+          allowance_15th: entry.allowance_15th ?? "",
+          allowance_30th: entry.allowance_30th ?? "",
+          payroll_allowance: entry.payroll_allowance ?? "",
+          payroll_adjustment: entry.payroll_adjustment ?? "",
+          notes: entry.notes || "",
+        };
+      });
+      return next;
+    });
+  }, [activeTab, payrollRows]);
 
   const summary = useMemo(() => {
     const rows = payrollRows;
@@ -987,6 +1028,64 @@ export default function AdminPayrollPage() {
     setSaving(false);
   }
 
+  function updateAdjustmentDraft(entryId, field, value) {
+    setAdjustmentDrafts((current) => ({
+      ...current,
+      [entryId]: {
+        ...(current[entryId] || {}),
+        [field]: value,
+      },
+    }));
+  }
+
+  async function savePayrollAdjustment(entry) {
+    const draft = adjustmentDrafts[entry.id] || {};
+    const nextEntry = {
+      ...entry,
+      allowance_15th: num(draft.allowance_15th),
+      allowance_30th: num(draft.allowance_30th),
+      payroll_allowance: num(draft.payroll_allowance),
+      payroll_adjustment: num(draft.payroll_adjustment),
+      notes: draft.notes || null,
+    };
+    const totals = payrollTotals(nextEntry);
+    const payload = {
+      allowance_15th: nextEntry.allowance_15th,
+      allowance_30th: nextEntry.allowance_30th,
+      payroll_allowance: nextEntry.payroll_allowance,
+      payroll_adjustment: nextEntry.payroll_adjustment,
+      gross_total: totals.gross_total,
+      deduction_total: totals.deduction_total,
+      net_total: totals.net_total,
+      notes: nextEntry.notes,
+    };
+
+    setSaving(`adjustment-${entry.id}`);
+    const { data, error } = await supabase
+      .from("payroll_entries")
+      .update(payload)
+      .eq("id", entry.id)
+      .select()
+      .maybeSingle();
+    if (error) {
+      setNotice(`Adjustment Save Failed: ${error.message}`);
+    } else {
+      setEntries((prev) => prev.map((row) => (row.id === data.id ? data : row)));
+      setAdjustmentDrafts((current) => ({
+        ...current,
+        [data.id]: {
+          allowance_15th: data.allowance_15th ?? "",
+          allowance_30th: data.allowance_30th ?? "",
+          payroll_allowance: data.payroll_allowance ?? "",
+          payroll_adjustment: data.payroll_adjustment ?? "",
+          notes: data.notes || "",
+        },
+      }));
+      setNotice("Payroll adjustment saved.");
+    }
+    setSaving(false);
+  }
+
   async function updateEntryStatus(entry, status) {
     if (!canChangePayrollStatus) return setNotice("Only super admin accounts can approve payroll or mark it as paid.");
     const { data, error } = await supabase.from("payroll_entries").update({ status }).eq("id", entry.id).select().maybeSingle();
@@ -1088,13 +1187,14 @@ export default function AdminPayrollPage() {
         ))}
       </section>
 
-      <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/70 bg-white/72 p-1 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl md:grid-cols-3 xl:grid-cols-7">
+      <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/70 bg-white/72 p-1 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl md:grid-cols-4 xl:grid-cols-8">
         {[
           ["payroll", "Payroll"],
           ["generate", "Generate"],
           ["employees", "Employees"],
           ["schedule", "Schedule"],
           ["attendance", "Attendance"],
+          ["adjustments", "Adjustments"],
           ["deductions", "Deductions"],
           ["cashAdvance", "Cash Advance"],
         ].map(([key, label]) => (
@@ -1354,6 +1454,76 @@ export default function AdminPayrollPage() {
                     </select>
                   </td>
                   <td><input value={row.notes || ""} onChange={(e) => updateAttendanceDraft(row.work_date, "notes", e.target.value)} className="h-9 w-40 rounded-lg border border-slate-200 px-2 text-xs font-semibold outline-none focus:border-cyan-400/70" placeholder="Notes" /></td>
+                </tr>
+              );
+            })}
+          </DataTable>
+        </section>
+      ) : activeTab === "adjustments" ? (
+        <section className="space-y-4">
+          <div className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-950">Payroll Adjustments and Allowances</p>
+                <p className="mt-1 text-xs font-semibold text-slate-500">
+                  Add balance from previous payroll, extra payroll adjustment, and allowance amounts for the selected cutoff.
+                </p>
+              </div>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-4 text-sm outline-none transition duration-200 focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20 lg:max-w-sm"
+                placeholder="Search employee or employee no."
+              />
+            </div>
+          </div>
+
+          <DataTable empty="Generate payroll for this cutoff before adding adjustments." minWidth="1240px" headers={["Emp No.", "Employee", "15th Allowance", "30th Allowance", "Allowance", "Balance / Adjustment", "Notes", "Gross", "Net", "Action"]}>
+            {payrollRows.map((entry) => {
+              const draft = adjustmentDrafts[entry.id] || {};
+              const locked = ["approved", "paid"].includes(String(entry.status || "").toLowerCase()) && !canChangePayrollStatus;
+              const preview = payrollTotals({
+                ...entry,
+                allowance_15th: draft.allowance_15th,
+                allowance_30th: draft.allowance_30th,
+                payroll_allowance: draft.payroll_allowance,
+                payroll_adjustment: draft.payroll_adjustment,
+              });
+              const inputClass = "h-9 w-28 rounded-lg border border-slate-200 bg-white px-2 text-right text-xs font-semibold outline-none transition focus:border-cyan-400/70 disabled:bg-slate-50 disabled:text-slate-400";
+              return (
+                <tr key={entry.id} className="border-t border-slate-100 transition hover:bg-cyan-50/45">
+                  <td className="p-3 font-semibold text-slate-600">{entry.employee?.employee_no || "-"}</td>
+                  <td className="px-2 py-3">
+                    <p className="font-semibold text-slate-950">{entry.employee?.full_name || entry.employee_id}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{periodById[entry.period_id]?.label || entry.period_id}</p>
+                  </td>
+                  <td className="px-2 py-3">
+                    <input type="number" step="0.01" disabled={locked} value={draft.allowance_15th ?? ""} onChange={(e) => updateAdjustmentDraft(entry.id, "allowance_15th", e.target.value)} className={inputClass} />
+                  </td>
+                  <td className="px-2 py-3">
+                    <input type="number" step="0.01" disabled={locked} value={draft.allowance_30th ?? ""} onChange={(e) => updateAdjustmentDraft(entry.id, "allowance_30th", e.target.value)} className={inputClass} />
+                  </td>
+                  <td className="px-2 py-3">
+                    <input type="number" step="0.01" disabled={locked} value={draft.payroll_allowance ?? ""} onChange={(e) => updateAdjustmentDraft(entry.id, "payroll_allowance", e.target.value)} className={inputClass} />
+                  </td>
+                  <td className="px-2 py-3">
+                    <input type="number" step="0.01" disabled={locked} value={draft.payroll_adjustment ?? ""} onChange={(e) => updateAdjustmentDraft(entry.id, "payroll_adjustment", e.target.value)} className={inputClass} />
+                  </td>
+                  <td className="px-2 py-3">
+                    <input disabled={locked} value={draft.notes ?? ""} onChange={(e) => updateAdjustmentDraft(entry.id, "notes", e.target.value)} className="h-9 w-56 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold outline-none transition focus:border-cyan-400/70 disabled:bg-slate-50 disabled:text-slate-400" placeholder="Example: Previous payroll balance" />
+                  </td>
+                  <td className="px-2 py-3 text-right font-semibold text-slate-800">{money(preview.gross_total)}</td>
+                  <td className="px-2 py-3 text-right font-semibold text-cyan-700">{money(preview.net_total)}</td>
+                  <td className="px-3 py-3 text-right">
+                    <button
+                      type="button"
+                      disabled={locked || saving === `adjustment-${entry.id}`}
+                      onClick={() => savePayrollAdjustment(entry)}
+                      className="rounded-lg border border-cyan-100 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase text-cyan-700 transition hover:-translate-y-0.5 hover:bg-cyan-100 disabled:cursor-not-allowed disabled:border-slate-100 disabled:bg-slate-50 disabled:text-slate-400"
+                    >
+                      {locked ? "Locked" : saving === `adjustment-${entry.id}` ? "Saving" : "Save"}
+                    </button>
+                  </td>
                 </tr>
               );
             })}
