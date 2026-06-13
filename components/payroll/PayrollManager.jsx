@@ -1832,7 +1832,7 @@ export default function AdminPayrollPage() {
 
       {payslipEntry ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
-          <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-white/70 bg-white/95 shadow-[0_30px_90px_rgba(2,6,23,0.35)] backdrop-blur-xl">
+          <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-white/70 bg-white/95 shadow-[0_30px_90px_rgba(2,6,23,0.35)] backdrop-blur-xl">
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-5">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-700">Payslip</p>
@@ -1847,9 +1847,9 @@ export default function AdminPayrollPage() {
               <button
                 type="button"
                 onClick={() => setPayslipEntry(null)}
-                className="h-9 w-9 rounded-full bg-slate-100 text-lg font-semibold text-slate-500 transition hover:bg-slate-200"
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90 font-bold"
               >
-                x
+                X
               </button>
             </div>
 
@@ -1873,7 +1873,7 @@ export default function AdminPayrollPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-[0.95fr_1.05fr]">
                 <section className="rounded-2xl border border-slate-200 bg-white/92 p-4">
                   <div className="space-y-2 text-sm">
                     {[
@@ -1881,44 +1881,39 @@ export default function AdminPayrollPage() {
                       ["Daily Rate", amountOnly(payslipEntry.daily_rate)],
                       ["Date Hired", dateText(payslipEntry.employee?.date_hired)],
                       ["Designation", payslipEntry.employee?.designation || "-"],
-                    ].map(([label, value]) => (
-                      <div key={label} className="grid grid-cols-[1fr_auto] gap-4 border-b border-slate-200/80 pb-2 last:border-0">
-                        <span className="text-slate-700">{label}</span>
-                        <span className="text-right font-semibold text-slate-950">{value}</span>
-                      </div>
-                    ))}
+                      ["SSS No.", payslipEntry.employee?.sss_no || "-"],
+                      ["PhilHealth No.", payslipEntry.employee?.philhealth_no || "-"],
+                      ["HMDF No.", payslipEntry.employee?.hmdf_no || "-"],
+                    ].map(([label, value]) => <DetailLine key={label} label={label} value={value} />)}
                   </div>
 
-                  <div className="mt-8 space-y-2 text-sm">
+                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">Attendance</h3>
+                  <div className="mt-3 space-y-2 text-sm">
                     {[
                       ["Days Worked", `${amountOnly(payslipEntry.days_worked)} Day/s`],
                       ["OT Hours", `${amountOnly(payslipEntry.overtime_hours)} Hour/s`],
                       ["Late", `${num(payslipEntry.late_minutes).toFixed(0)} min/s`],
                       ["Undertime", `${num(payslipEntry.undertime_minutes).toFixed(0)} min/s`],
-                    ].map(([label, value]) => (
-                      <div key={label} className="grid grid-cols-[1fr_auto] gap-4 border-b border-slate-200/80 pb-2 last:border-0">
-                        <span className="text-slate-700">{label}</span>
-                        <span className="text-right font-semibold text-slate-950">{value}</span>
-                      </div>
-                    ))}
+                    ].map(([label, value]) => <DetailLine key={label} label={label} value={value} />)}
                   </div>
 
-                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">Basic Pay</h3>
+                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">Contributions</h3>
+                  <div className="mt-3 space-y-2 text-sm">
+                    <AmountLine label="SSS" value={payslipEntry.sss_deduction} negative />
+                    <AmountLine label="PhilHealth" value={payslipEntry.philhealth_deduction} negative />
+                    <AmountLine label="HMDF" value={payslipEntry.hmdf_deduction} negative />
+                    <AmountLine label="Total" value={num(payslipEntry.sss_deduction) + num(payslipEntry.philhealth_deduction) + num(payslipEntry.hmdf_deduction)} negative strong />
+                  </div>
+                </section>
+
+                <section className="rounded-2xl border border-slate-200 bg-white/92 p-4">
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-950">Basic Pay</h3>
                   <div className="mt-3 space-y-2 text-sm">
                     <AmountLine label="Gross Pay" value={num(payslipEntry.daily_rate) * num(payslipEntry.days_worked)} />
                     <AmountLine label="Overtime" value={num(payslipEntry.overtime_hours) * num(payslipEntry.overtime_rate)} />
                     <AmountLine label="Late" value={num(payslipEntry.late_minutes) * num(payslipEntry.late_rate_per_minute)} negative />
                     <AmountLine label="Undertime" value={num(payslipEntry.undertime_minutes) * num(payslipEntry.undertime_rate_per_minute)} negative />
-                    <AmountLine
-                      label="Net Basic Pay"
-                      value={
-                        num(payslipEntry.daily_rate) * num(payslipEntry.days_worked) +
-                        num(payslipEntry.overtime_hours) * num(payslipEntry.overtime_rate) -
-                        num(payslipEntry.late_minutes) * num(payslipEntry.late_rate_per_minute) -
-                        num(payslipEntry.undertime_minutes) * num(payslipEntry.undertime_rate_per_minute)
-                      }
-                      strong
-                    />
+                    <AmountLine label="Net Basic Pay" value={payrollNetBasicPay(payslipEntry)} strong />
                   </div>
 
                   <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">Allowances</h3>
@@ -1926,12 +1921,10 @@ export default function AdminPayrollPage() {
                     <AmountLine label="Allowance 15th" value={payslipEntry.allowance_15th} />
                     <AmountLine label="Allowance 30th" value={payslipEntry.allowance_30th} />
                     <AmountLine label="Allowance" value={payslipEntry.payroll_allowance} />
-                    <AmountLine label="Total" value={num(payslipEntry.allowance_15th) + num(payslipEntry.allowance_30th) + num(payslipEntry.payroll_allowance)} strong />
+                    <AmountLine label="Total" value={payrollAllowanceTotal(payslipEntry)} strong />
                   </div>
-                </section>
 
-                <section className="rounded-2xl border border-slate-200 bg-white/92 p-4">
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-950">Adjustments</h3>
+                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">Adjustments</h3>
                   <div className="mt-3 space-y-2 text-sm">
                     <AmountLine label="Payroll Adjustment" value={payslipEntry.payroll_adjustment} negative={num(payslipEntry.payroll_adjustment) < 0} />
                     <AmountLine label="Other Adjustment" value={0} />
@@ -1943,18 +1936,6 @@ export default function AdminPayrollPage() {
                     <AmountLine label="Cash Advance" value={payslipEntry.cash_advance_deduction} negative />
                     <AmountLine label="Misc Deduction" value={payslipEntry.misc_deduction_total} negative />
                     <AmountLine label="Total" value={num(payslipEntry.cash_advance_deduction) + num(payslipEntry.misc_deduction_total)} negative strong />
-                  </div>
-
-                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">Contributions</h3>
-                  <div className="mt-3 space-y-2 text-sm">
-                    {[
-                      ["SSS", payslipEntry.sss_deduction],
-                      ["PhilHealth", payslipEntry.philhealth_deduction],
-                      ["HMDF", payslipEntry.hmdf_deduction],
-                    ].map(([label, value]) => (
-                      <AmountLine key={label} label={label} value={value} negative />
-                    ))}
-                    <AmountLine label="Total" value={num(payslipEntry.sss_deduction) + num(payslipEntry.philhealth_deduction) + num(payslipEntry.hmdf_deduction)} negative strong />
                   </div>
                 </section>
               </div>
@@ -1991,14 +1972,23 @@ function DataTable({ headers, children, empty, minWidth }) {
   );
 }
 
+function DetailLine({ label, value }) {
+  return (
+    <div className="grid grid-cols-[minmax(110px,1fr)_auto] gap-4 border-b border-slate-200/80 pb-2 last:border-0">
+      <span className="whitespace-nowrap text-slate-700">{label}</span>
+      <span className="whitespace-nowrap text-right font-semibold text-slate-950">{value}</span>
+    </div>
+  );
+}
+
 function AmountLine({ label, value, negative = false, strong = false }) {
   const amount = num(value);
   const showNegative = negative && amount !== 0;
   return (
-    <div className={`grid grid-cols-[1fr_40px_110px] gap-2 border-b border-slate-200/80 pb-2 last:border-0 ${strong ? "font-semibold text-slate-950" : "text-slate-700"}`}>
-      <span>{label}</span>
-      <span className="text-right text-slate-700">PHP</span>
-      <span className={`text-right ${showNegative ? "text-red-600" : "text-slate-950"}`}>
+    <div className={`grid grid-cols-[minmax(140px,1fr)_48px_118px] gap-2 border-b border-slate-200/80 pb-2 last:border-0 ${strong ? "font-semibold text-slate-950" : "text-slate-700"}`}>
+      <span className="whitespace-nowrap">{label}</span>
+      <span className="whitespace-nowrap text-right text-slate-700">PHP</span>
+      <span className={`whitespace-nowrap text-right ${showNegative ? "text-red-600" : "text-slate-950"}`}>
         {showNegative ? `(${amountOnly(Math.abs(amount))})` : amount === 0 ? "-" : amountOnly(amount)}
       </span>
     </div>
