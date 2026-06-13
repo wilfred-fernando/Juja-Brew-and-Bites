@@ -388,40 +388,75 @@ function SummaryExportTable({ rows }) {
   );
 }
 
-function ReceiptDrawer({ order, onClose }) {
+function receiptPeso(value) {
+  return peso(value).replace("PHP", "₱");
+}
+
+function ReceiptDrawer({ order, items = [], onClose }) {
   if (!order) return null;
+  const totalCollected = Number(order.raw?.total_collected ?? order.raw?.["Total collected"] ?? order.net ?? 0);
+  const change = Math.max(0, totalCollected - Number(order.net || 0));
+  const tableLabel = order.raw?.table_name || order.raw?.table || (String(order.orderType || "").toLowerCase().includes("dine") ? "TABLE 1" : "");
+  const paymentAmount = totalCollected || order.net;
   return (
     <div className="fixed inset-0 z-[80] flex justify-end bg-slate-900/35 backdrop-blur-sm" onClick={onClose}>
-      <div className="h-full w-full max-w-md overflow-y-auto bg-white p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Receipt Details</p>
-            <h2 className="mt-1 text-2xl font-semibold text-slate-900">{order.orderNumber}</h2>
-          </div>
-          <button onClick={onClose} className="h-10 w-10 rounded-full border border-slate-200 bg-slate-50 text-slate-700">x</button>
+      <div className="h-full w-full max-w-[320px] overflow-y-auto bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
+        <div className="flex h-8 items-center justify-between border-b border-slate-200 px-3 text-slate-500">
+          <button onClick={onClose} className="text-2xl leading-none text-slate-500 transition hover:text-slate-900" aria-label="Close receipt">×</button>
+          <span className="text-lg leading-none text-slate-500">...</span>
         </div>
-        <div className="mt-5 space-y-4 text-sm text-slate-700">
-          {[
-            ["Date", displayDateTime(order.createdAt)],
-            ["Customer", order.customerName],
-            ["Order type", order.orderType],
-            ["Payment", order.paymentMethod],
-            ["Cashier", order.cashierName],
-            ["Store", order.storeName],
-            ["Status", order.status],
-          ].map(([label, value]) => (
-            <div key={label} className="flex justify-between gap-4 border-b border-slate-100 pb-2">
-              <span className="text-slate-500">{label}</span>
-              <span className="text-right font-semibold text-slate-900">{value}</span>
-            </div>
-          ))}
-          <div className="rounded-2xl bg-slate-50 p-4">
-            <div className="flex justify-between"><span>Gross</span><span>{peso(order.gross)}</span></div>
-            <div className="mt-2 flex justify-between text-red-600"><span>Discount</span><span>({peso(order.discount)})</span></div>
-            <div className="mt-2 flex justify-between text-red-600"><span>Refund / Void</span><span>({peso(order.refund)})</span></div>
-            <div className="mt-3 flex justify-between border-t border-slate-200 pt-3 text-lg font-semibold text-slate-950"><span>Net</span><span>{peso(order.net)}</span></div>
+
+        <div className="px-3 pb-6 pt-6 text-[11px] text-slate-900">
+          <div className="text-center">
+            <p className="text-2xl font-normal tracking-tight text-slate-950">{receiptPeso(order.net)}</p>
+            <p className="mt-1 text-[11px] text-slate-500">Total</p>
           </div>
-          <button onClick={() => window.print()} className="w-full rounded-2xl bg-slate-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-600">Print Receipt</button>
+
+          <div className="mt-4 border-t border-slate-200 py-2 leading-4">
+            <p>Order: {order.orderNumber}</p>
+            <p>Employee: {order.cashierName || "-"}</p>
+            <p>POS: {order.raw?.pos || order.raw?.POS || order.storeName || "-"}</p>
+          </div>
+
+          {tableLabel ? (
+            <div className="border-t border-slate-200 py-2 text-xs font-semibold uppercase text-slate-900">
+              {tableLabel}
+            </div>
+          ) : null}
+
+          <div className="border-t border-slate-200">
+            {(items.length ? items : [{ itemName: order.raw?.description || order.raw?.Description || "Receipt total", quantity: 1, unitPrice: order.net, net: order.net }]).map((item, index) => (
+              <div key={item.id || index} className="flex gap-3 border-b border-slate-200 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-slate-900">{item.itemName}</p>
+                  <p className="text-slate-500">{number(item.quantity)} × {receiptPeso(item.unitPrice || (item.quantity ? item.net / item.quantity : item.net))}</p>
+                </div>
+                <p className="shrink-0 text-right text-slate-900">{receiptPeso(item.net)}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-b border-slate-200 py-2">
+            <div className="flex justify-between gap-3 font-semibold">
+              <span>Total</span>
+              <span>{receiptPeso(order.net)}</span>
+            </div>
+            <div className="mt-2 flex justify-between gap-3">
+              <span>{order.paymentMethod || "Payment"}</span>
+              <span>{receiptPeso(paymentAmount)}</span>
+            </div>
+            {change > 0 ? (
+              <div className="flex justify-between gap-3">
+                <span>Change</span>
+                <span>{receiptPeso(change)}</span>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="flex justify-between gap-3 pt-3 text-[11px] text-slate-500">
+            <span>{displayDateTime(order.createdAt)}</span>
+            <span>№ {order.orderNumber}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -432,7 +467,6 @@ export default function AdminSalesPage() {
   const [activeTab, setActiveTab] = useState("summary");
   const [filters, setFilters] = useState(defaultFilters);
   const [rawData, setRawData] = useState({ sales: [], lineItems: [] });
-  const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -447,15 +481,17 @@ export default function AdminSalesPage() {
     const start = `${comparisonRange.startDate}T00:00:00+08:00`;
     const fetchEnd = `${addDays(nextFilters.endDate, 1)}T12:00:00+08:00`;
     try {
-      const [ordersRes, webRes, menuRes, storesRes, profilesRes, shiftsRes] = await Promise.all([
+      const [ordersRes, webRes, menuRes, storesRes, profilesRes, shiftsRes, importedReceiptsRes, importedReceiptItemsRes] = await Promise.all([
         supabase.from("orders").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: false }).limit(5000),
         supabase.from("web_orders").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: false }).limit(5000),
         supabase.from("menu_items").select("id,name,category,price"),
         supabase.from("stores").select("id,name").order("name"),
         supabase.from("profiles").select("id,full_name,email,role"),
         supabase.from("cashier_pos").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: true }).limit(5000),
+        supabase.from("imported_receipts").select("*").gte("receipt_date", start).lte("receipt_date", fetchEnd).order("receipt_date", { ascending: false }).limit(100000),
+        supabase.from("imported_receipt_items").select("*").gte("receipt_date", start).lte("receipt_date", fetchEnd).order("receipt_date", { ascending: false }).limit(100000),
       ]);
-      const errors = [ordersRes.error, webRes.error, menuRes.error, storesRes.error, profilesRes.error, shiftsRes.error].filter(Boolean);
+      const errors = [ordersRes.error, webRes.error, menuRes.error, storesRes.error, profilesRes.error, shiftsRes.error, importedReceiptsRes.error, importedReceiptItemsRes.error].filter(Boolean);
       if (errors.length) throw errors[0];
 
       const orderIds = (ordersRes.data || []).map((row) => row.id);
@@ -464,7 +500,6 @@ export default function AdminSalesPage() {
         : { data: [], error: null };
       if (itemsRes.error) throw itemsRes.error;
 
-      setStores(storesRes.data || []);
       setRawData(
         normalizeSalesData({
           orders: ordersRes.data || [],
@@ -474,6 +509,8 @@ export default function AdminSalesPage() {
           profiles: profilesRes.data || [],
           stores: storesRes.data || [],
           shiftRecords: shiftsRes.data || [],
+          importedReceipts: importedReceiptsRes.data || [],
+          importedReceiptItems: importedReceiptItemsRes.data || [],
         })
       );
     } catch (err) {
@@ -518,12 +555,17 @@ export default function AdminSalesPage() {
   const voidRows = useMemo(() => getVoidRefundReport(filtered.sales), [filtered.sales]);
   const trendRows = useMemo(() => getSalesTrend(filtered.sales, filters.startDate, filters.endDate), [filtered.sales, filters.startDate, filters.endDate]);
   const pageRows = useMemo(() => searchedSales.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [searchedSales, page]);
+  const selectedReceiptItems = useMemo(() => {
+    if (!selectedOrder) return [];
+    const key = String(selectedOrder.orderKey || selectedOrder.id);
+    return rawData.lineItems.filter((item) => String(item.orderId) === key);
+  }, [rawData.lineItems, selectedOrder]);
 
   const paymentOptions = useMemo(() => [{ value: "All", label: "All payment methods" }, ...uniqueOptions(rawData.sales, "paymentMethod")], [rawData.sales]);
   const cashierOptions = useMemo(() => [{ value: "All", label: "All employees" }, ...uniqueOptions(rawData.sales, "cashierId", "cashierName")], [rawData.sales]);
   const categoryOptions = useMemo(() => [{ value: "All", label: "All categories" }, ...uniqueOptions(rawData.lineItems, "category")], [rawData.lineItems]);
   const productOptions = useMemo(() => [{ value: "All", label: "All products" }, ...uniqueOptions(rawData.lineItems, "itemId", "itemName")], [rawData.lineItems]);
-  const branchOptions = useMemo(() => [{ value: "All", label: "All stores" }, ...stores.map((store) => ({ value: String(store.id), label: store.name }))], [stores]);
+  const branchOptions = useMemo(() => [{ value: "All", label: "All stores" }, ...uniqueOptions(rawData.sales, "storeId", "storeName")], [rawData.sales]);
 
   function updatePreset(preset) {
     const range = rangeFromPreset(preset);
@@ -737,7 +779,7 @@ export default function AdminSalesPage() {
         </Card>
       )}
 
-      <ReceiptDrawer order={selectedOrder} onClose={() => setSelectedOrder(null)} />
+      <ReceiptDrawer order={selectedOrder} items={selectedReceiptItems} onClose={() => setSelectedOrder(null)} />
     </div>
   );
 }
