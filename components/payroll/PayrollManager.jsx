@@ -1903,23 +1903,7 @@ export default function AdminPayrollPage() {
                     ))}
                   </div>
 
-                  <div className="mt-8">
-                    <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-950">Contributions</h3>
-                    <div className="mt-3 space-y-2 text-sm">
-                      {[
-                        ["SSS", payslipEntry.sss_deduction],
-                        ["PhilHealth", payslipEntry.philhealth_deduction],
-                        ["HMDF", payslipEntry.hmdf_deduction],
-                      ].map(([label, value]) => (
-                        <AmountLine key={label} label={label} value={value} negative />
-                      ))}
-                      <AmountLine label="Total" value={num(payslipEntry.sss_deduction) + num(payslipEntry.philhealth_deduction) + num(payslipEntry.hmdf_deduction)} negative strong />
-                    </div>
-                  </div>
-                </section>
-
-                <section className="rounded-2xl border border-slate-200 bg-white/92 p-4">
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-950">Basic Pay</h3>
+                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">Basic Pay</h3>
                   <div className="mt-3 space-y-2 text-sm">
                     <AmountLine label="Gross Pay" value={num(payslipEntry.daily_rate) * num(payslipEntry.days_worked)} />
                     <AmountLine label="Overtime" value={num(payslipEntry.overtime_hours) * num(payslipEntry.overtime_rate)} />
@@ -1944,8 +1928,10 @@ export default function AdminPayrollPage() {
                     <AmountLine label="Allowance" value={payslipEntry.payroll_allowance} />
                     <AmountLine label="Total" value={num(payslipEntry.allowance_15th) + num(payslipEntry.allowance_30th) + num(payslipEntry.payroll_allowance)} strong />
                   </div>
+                </section>
 
-                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">Adjustments</h3>
+                <section className="rounded-2xl border border-slate-200 bg-white/92 p-4">
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-950">Adjustments</h3>
                   <div className="mt-3 space-y-2 text-sm">
                     <AmountLine label="Payroll Adjustment" value={payslipEntry.payroll_adjustment} negative={num(payslipEntry.payroll_adjustment) < 0} />
                     <AmountLine label="Other Adjustment" value={0} />
@@ -1958,6 +1944,18 @@ export default function AdminPayrollPage() {
                     <AmountLine label="Misc Deduction" value={payslipEntry.misc_deduction_total} negative />
                     <AmountLine label="Total" value={num(payslipEntry.cash_advance_deduction) + num(payslipEntry.misc_deduction_total)} negative strong />
                   </div>
+
+                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">Contributions</h3>
+                  <div className="mt-3 space-y-2 text-sm">
+                    {[
+                      ["SSS", payslipEntry.sss_deduction],
+                      ["PhilHealth", payslipEntry.philhealth_deduction],
+                      ["HMDF", payslipEntry.hmdf_deduction],
+                    ].map(([label, value]) => (
+                      <AmountLine key={label} label={label} value={value} negative />
+                    ))}
+                    <AmountLine label="Total" value={num(payslipEntry.sss_deduction) + num(payslipEntry.philhealth_deduction) + num(payslipEntry.hmdf_deduction)} negative strong />
+                  </div>
                 </section>
               </div>
 
@@ -1969,13 +1967,6 @@ export default function AdminPayrollPage() {
               </div>
 
               <p className="text-xs text-slate-500">*This is computer generated and does not require a signature.</p>
-
-              {payslipEntry.notes ? (
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
-                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Notes</span>
-                  <p className="mt-1">{payslipEntry.notes}</p>
-                </div>
-              ) : null}
             </div>
           </div>
         </div>
