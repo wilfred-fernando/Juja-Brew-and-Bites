@@ -350,6 +350,40 @@ function payrollTotals(entry) {
   };
 }
 
+function payrollAllowanceTotal(entry) {
+  return num(entry.allowance_15th) + num(entry.allowance_30th) + num(entry.payroll_allowance);
+}
+
+function payrollBaseGross(entry) {
+  return num(entry.daily_rate) * num(entry.days_worked);
+}
+
+function payrollOvertimePay(entry) {
+  return num(entry.overtime_hours) * num(entry.overtime_rate);
+}
+
+function payrollLateDeduction(entry) {
+  return num(entry.late_minutes) * num(entry.late_rate_per_minute);
+}
+
+function payrollUndertimeDeduction(entry) {
+  return num(entry.undertime_minutes) * num(entry.undertime_rate_per_minute);
+}
+
+function payrollOtherDeductions(entry) {
+  return num(entry.misc_deduction_total) + num(entry.sss_deduction) + num(entry.philhealth_deduction) + num(entry.hmdf_deduction);
+}
+
+function payrollNetBasicPay(entry) {
+  return payrollBaseGross(entry) + payrollOvertimePay(entry) - payrollLateDeduction(entry) - payrollUndertimeDeduction(entry);
+}
+
+function moneyOrDash(value, { negative = false } = {}) {
+  const amount = num(value);
+  if (!amount) return "-";
+  return negative ? deductionMoney(Math.abs(amount)) : money(amount);
+}
+
 export default function AdminPayrollPage() {
   const [employees, setEmployees] = useState([]);
   const [periods, setPeriods] = useState([]);
@@ -1259,81 +1293,90 @@ export default function AdminPayrollPage() {
             <button onClick={() => openEntryModal()} className="h-11 rounded-xl border border-cyan-100 bg-cyan-50 px-5 text-xs font-semibold uppercase tracking-wider text-cyan-700 transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-100">Add Payroll</button>
           </div>
           <div className="overflow-x-auto rounded-2xl border border-white/70 bg-white/88 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl">
-            <table className="w-full min-w-[1360px] text-sm">
+            <table className="w-full min-w-[1580px] text-sm">
               <thead className="sticky top-0 bg-slate-950 text-left text-[10px] uppercase tracking-[0.16em] text-cyan-50">
                 <tr>
                   <th className="p-3">Emp No.</th>
                   <th className="px-1 py-3">Employee</th>
                   <th className="px-1 py-3">Rate</th>
                   <th className="px-1 py-3 text-center">Days</th>
-                  <th className="px-1 py-3 text-center">OT</th>
-                  <th className="px-1 py-3 text-center">Late</th>
-                  <th className="px-1 py-3 text-center">Absent</th>
                   <th className="px-1 py-3 text-right">Gross</th>
+                  <th className="px-1 py-3 text-center">OT</th>
+                  <th className="px-1 py-3 text-right">Late</th>
+                  <th className="px-1 py-3 text-right">UT</th>
+                  <th className="px-1 py-3 text-right">Net Basic Pay</th>
+                  <th className="px-1 py-3 text-right">Allowance</th>
                   <th className="px-1 py-3 text-right">Adjustment</th>
                   <th className="px-1 py-3 text-right">Deductions</th>
                   <th className="px-1 py-3 text-right">Cash Adv.</th>
-                  <th className="px-1 py-3 text-right">Net</th>
+                  <th className="px-1 py-3 text-right">Net Pay</th>
                   <th className="px-4 py-3">Status</th>
                     <th className="text-right pr-3">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200/80">
                 {payrollRows.length === 0 ? (
-                  <tr><td colSpan="14" className="p-8 text-center text-sm font-semibold text-slate-400">No payroll rows found.</td></tr>
-                ) : payrollRows.map((entry) => (
-                  <tr key={entry.id} className="transition duration-200 hover:bg-cyan-50/45">
-                    <td className="p-3 font-semibold text-slate-600">{entry.employee?.employee_no || "-"}</td>
-                    <td>
-                      {canViewPayslip(entry) ? (
-                        <button
-                          type="button"
-                          onClick={() => setPayslipEntry(entry)}
-                          className="group text-left"
-                        >
-                          <span className="font-semibold text-slate-900 underline-offset-4 transition group-hover:text-cyan-700 group-hover:underline">
-                            {entry.employee?.full_name || entry.employee_id}
-                          </span>
-                          {entry.employee?.designation ? (
-                            <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">{entry.employee.designation}</span>
-                          ) : null}
-                          <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                            View payslip
-                          </span>
-                        </button>
-                      ) : (
-                        <div>
-                          <span className="font-semibold text-slate-900">{entry.employee?.full_name || entry.employee_id}</span>
-                          {entry.employee?.designation ? (
-                            <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">{entry.employee.designation}</span>
-                          ) : null}
-                          <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-amber-600">
-                            Payslip locked until approval
-                          </span>
+                  <tr><td colSpan="16" className="p-8 text-center text-sm font-semibold text-slate-400">No payroll rows found.</td></tr>
+                ) : payrollRows.map((entry) => {
+                  const allowanceTotal = payrollAllowanceTotal(entry);
+                  const adjustment = num(entry.payroll_adjustment);
+                  const otherDeductions = payrollOtherDeductions(entry);
+                  return (
+                    <tr key={entry.id} className="transition duration-200 hover:bg-cyan-50/45">
+                      <td className="p-3 font-semibold text-slate-600">{entry.employee?.employee_no || "-"}</td>
+                      <td>
+                        {canViewPayslip(entry) ? (
+                          <button
+                            type="button"
+                            onClick={() => setPayslipEntry(entry)}
+                            className="group text-left"
+                          >
+                            <span className="font-semibold text-slate-900 underline-offset-4 transition group-hover:text-cyan-700 group-hover:underline">
+                              {entry.employee?.full_name || entry.employee_id}
+                            </span>
+                            {entry.employee?.designation ? (
+                              <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">{entry.employee.designation}</span>
+                            ) : null}
+                            <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                              View payslip
+                            </span>
+                          </button>
+                        ) : (
+                          <div>
+                            <span className="font-semibold text-slate-900">{entry.employee?.full_name || entry.employee_id}</span>
+                            {entry.employee?.designation ? (
+                              <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">{entry.employee.designation}</span>
+                            ) : null}
+                            <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-amber-600">
+                              Payslip locked until approval
+                            </span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-1">{money(entry.daily_rate)}</td>
+                      <td className="px-1 py-3 text-center">{num(entry.days_worked).toLocaleString("en-PH", { maximumFractionDigits: 2 })}</td>
+                      <td className="px-1 py-3 text-right">{moneyOrDash(payrollBaseGross(entry))}</td>
+                      <td className="px-1 py-3 text-right">{moneyOrDash(payrollOvertimePay(entry))}</td>
+                      <td className="px-1 py-3 text-right text-red-600">{moneyOrDash(payrollLateDeduction(entry), { negative: true })}</td>
+                      <td className="px-1 py-3 text-right text-red-600">{moneyOrDash(payrollUndertimeDeduction(entry), { negative: true })}</td>
+                      <td className="px-1 py-3 text-right font-semibold text-slate-900">{moneyOrDash(payrollNetBasicPay(entry))}</td>
+                      <td className="px-1 py-3 text-right text-cyan-700">{moneyOrDash(allowanceTotal)}</td>
+                      <td className={`px-1 py-3 text-right ${adjustment < 0 ? "text-red-600" : "text-cyan-700"}`}>{moneyOrDash(adjustment, { negative: adjustment < 0 })}</td>
+                      <td className="px-1 py-3 text-right text-red-600">{moneyOrDash(otherDeductions, { negative: true })}</td>
+                      <td className="px-1 py-3 text-right">{moneyOrDash(entry.cash_advance_deduction)}</td>
+                      <td className="px-3 py-3 font-semibold text-right text-cyan-700">{money(entry.net_total)}</td>
+                      <td className="px-4 py-3">
+                        <span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase ${statusClass(entry.status)}`}>{entry.status || "draft"}</span>
+                      </td>
+                      <td className="pr-3 text-right">
+                        <div className="flex justify-end gap-2">
+                          {canApprovePayroll && entry.status !== "approved" && entry.status !== "paid" ? <button onClick={() => updateEntryStatus(entry, "approved")} className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[10px] font-semibold uppercase text-blue-600 transition hover:-translate-y-0.5">Approve</button> : null}
+                          {canMarkPayrollPaid && entry.status !== "paid" ? <button onClick={() => updateEntryStatus(entry, "paid")} className="rounded-lg border border-cyan-100 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase text-cyan-700 transition hover:-translate-y-0.5">Paid</button> : null}
                         </div>
-                      )}
-                    </td>
-                    <td className="px-1">{money(entry.daily_rate)}</td>
-                    <td className="px-1 py-3 text-center">{num(entry.days_worked).toFixed(2)}</td>
-                    <td className="px-1 py-3 text-center">{num(entry.overtime_hours).toFixed(2)}</td>
-                    <td className="px-1 py-3 text-center">{num(entry.late_minutes).toFixed(0)}m</td>
-                    <td className="px-1 py-3 text-center">{num(entry.absent_days).toFixed(2)}</td>
-                    <td className="px-1 py-3 font-regular text-right">{money(entry.gross_total)}</td>
-                    <td className={`px-1 py-3 font-regular text-right ${num(entry.payroll_adjustment) < 0 ? "text-red-600" : "text-cyan-700"}`}>{num(entry.payroll_adjustment) < 0 ? deductionMoney(Math.abs(num(entry.payroll_adjustment))) : money(entry.payroll_adjustment)}</td>
-                    <td className="px-1 py-3 font-regular text-right text-red-600">{deductionMoney(entry.deduction_total)}</td>
-                    <td className="px-1 py-3 font-regular text-right text-red-600">{deductionMoney(entry.cash_advance_deduction)}</td>
-                    <td className="px-3 py-3 font-semibold text-right text-cyan-700">{money(entry.net_total)}</td>
-                    <td className="px-4 py-3">
-                      <span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase ${statusClass(entry.status)}`}>{entry.status || "draft"}</span>
-                    </td>
-                    <td className="pr-3 text-right">
-                      <div className="flex justify-end gap-2">
-                        {canApprovePayroll && entry.status !== "approved" && entry.status !== "paid" ? <button onClick={() => updateEntryStatus(entry, "approved")} className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[10px] font-semibold uppercase text-blue-600 transition hover:-translate-y-0.5">Approve</button> : null}
-                        {canMarkPayrollPaid && entry.status !== "paid" ? <button onClick={() => updateEntryStatus(entry, "paid")} className="rounded-lg border border-cyan-100 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase text-cyan-700 transition hover:-translate-y-0.5">Paid</button> : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
