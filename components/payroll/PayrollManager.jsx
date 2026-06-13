@@ -86,6 +86,7 @@ function blankEmployeeForm() {
   return {
     employee_no: "",
     full_name: "",
+    designation: "",
     default_daily_rate: "",
     birthday: "",
     address: "",
@@ -421,8 +422,10 @@ export default function AdminPayrollPage() {
   }, [periods]);
 
   const selectedPeriod = periodById[selectedPeriodId];
-  const canChangePayrollStatus = currentRole === "super_admin";
-  const canViewPayslip = (entry) => canChangePayrollStatus || ["approved", "paid"].includes(String(entry?.status || "").toLowerCase());
+  const canApprovePayroll = currentRole === "super_admin";
+  const canMarkPayrollPaid = currentRole === "super_admin" || currentRole === "admin";
+  const canChangePayrollStatus = canApprovePayroll;
+  const canViewPayslip = (entry) => canApprovePayroll || ["approved", "paid"].includes(String(entry?.status || "").toLowerCase());
 
   const cutoffDates = useMemo(
     () => datesBetween(selectedPeriod?.period_start, selectedPeriod?.period_end),
@@ -730,6 +733,7 @@ export default function AdminPayrollPage() {
       id,
       employee_no: employeeForm.employee_no.trim() || null,
       full_name: employeeForm.full_name.trim().toUpperCase(),
+      designation: employeeForm.designation.trim() || null,
       default_daily_rate: num(employeeForm.default_daily_rate),
       birthday: employeeForm.birthday || null,
       address: employeeForm.address.trim() || null,
@@ -757,6 +761,7 @@ export default function AdminPayrollPage() {
     setEmployeeForm({
       employee_no: employee.employee_no || "",
       full_name: employee.full_name || "",
+      designation: employee.designation || "",
       default_daily_rate: employee.default_daily_rate ?? "",
       birthday: employee.birthday || "",
       address: employee.address || "",
@@ -894,11 +899,11 @@ export default function AdminPayrollPage() {
       ...(data || []),
       ...prev.filter((row) => !(row.period_id === selectedPeriodId && row.employee_id === selectedEmployeeId)),
     ]);
-    const payrollSynced = await syncPayrollEntryForEmployee(selectedEmployeeId, selectedPeriod, nextAttendance);
+    const payrollSynced = await syncPayrollEntryForEmployee(selectedEmployeeId, selectedPeriod, nextAttendance, { revertApprovedToDraft: true });
     if (payrollSynced) setNotice("Cutoff attendance saved and payroll details updated.");
   }
 
-  async function syncPayrollEntryForEmployee(employeeId, period, attendanceRowsSource = attendance) {
+  async function syncPayrollEntryForEmployee(employeeId, period, attendanceRowsSource = attendance, options = {}) {
     const employee = employeeById[employeeId];
     if (!employee || !period?.id) return false;
     const existingEntry = entries.find((row) => row.period_id === period.id && row.employee_id === employeeId);
@@ -906,12 +911,15 @@ export default function AdminPayrollPage() {
       employee,
       period,
       rows: attendanceRowsSource,
-      repaymentRows: repayments,
-      miscDeductionRows: miscDeductions,
+      repaymentRows: options.repaymentRows || repayments,
+      miscDeductionRows: options.miscDeductionRows || miscDeductions,
       rateChanges,
       existingEntry,
     });
     if (!payload) return false;
+    if (options.revertApprovedToDraft && String(existingEntry?.status || "").toLowerCase() === "approved") {
+      payload.status = "draft";
+    }
 
     const { data, error } = await supabase.from("payroll_entries").upsert(payload).select().maybeSingle();
     if (error) {
@@ -954,13 +962,16 @@ export default function AdminPayrollPage() {
     const { data, error } = await supabase.from("payroll_cash_advance_repayments").insert(payload).select().maybeSingle();
     if (error) return setNotice(`Repayment Failed: ${error.message}`);
     const paid = (repaymentsByAdvance[advance.id] || []).reduce((sum, row) => sum + num(row.amount), 0) + num(data.amount);
-    setRepayments((prev) => [data, ...prev]);
+    const nextRepayments = [data, ...repayments];
+    setRepayments(nextRepayments);
     if (paid >= num(advance.amount)) {
       const { data: updated } = await supabase.from("payroll_cash_advances").update({ status: "paid" }).eq("id", advance.id).select().maybeSingle();
       if (updated) setAdvances((prev) => prev.map((row) => (row.id === updated.id ? updated : row)));
     }
     setRepaymentForm({ cash_advance_id: advance.id, period_id: repaymentForm.period_id, payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
-    setNotice("Repayment recorded.");
+    const period = periodById[payload.period_id];
+    const payrollSynced = await syncPayrollEntryForEmployee(advance.employee_id, period, attendance, { repaymentRows: nextRepayments, revertApprovedToDraft: true });
+    setNotice(payrollSynced ? "Repayment recorded and payroll details updated." : "Repayment recorded.");
   }
 
   async function saveMiscDeduction(e) {
@@ -979,16 +990,23 @@ export default function AdminPayrollPage() {
     };
     const { data, error } = await supabase.from("payroll_misc_deductions").insert(payload).select().maybeSingle();
     if (error) return setNotice(`Misc Deduction Failed: ${error.message}. Run supabase/payroll_employee_deductions_update.sql first.`);
-    setMiscDeductions((prev) => [data, ...prev]);
+    const nextMiscDeductions = [data, ...miscDeductions];
+    setMiscDeductions(nextMiscDeductions);
     setMiscDeductionForm((current) => ({ ...current, deduction_date: localDate(), amount: "", description: "" }));
-    setNotice("Misc deduction recorded.");
+    const period = periodById[payload.period_id];
+    const payrollSynced = await syncPayrollEntryForEmployee(payload.employee_id, period, attendance, { miscDeductionRows: nextMiscDeductions, revertApprovedToDraft: true });
+    setNotice(payrollSynced ? "Misc deduction recorded and payroll details updated." : "Misc deduction recorded.");
   }
 
   async function saveEntry(e) {
     e.preventDefault();
     if (!entryForm.period_id || !entryForm.employee_id) return setNotice("Select a period and employee first.");
+    if (["approved", "paid"].includes(String(entryForm.status || "").toLowerCase()) && !canApprovePayroll) {
+      return setNotice("Only super admin accounts can edit approved payroll.");
+    }
     setSaving(true);
     const id = entryForm.id || `${entryForm.period_id}-${entryForm.employee_id}`;
+    const entryStatus = String(entryForm.status || "draft").toLowerCase();
     const payload = {
       id,
       period_id: entryForm.period_id,
@@ -1014,7 +1032,7 @@ export default function AdminPayrollPage() {
       gross_total: formTotals.gross,
       deduction_total: formTotals.deductions,
       net_total: formTotals.net,
-      status: entryForm.status || "draft",
+      status: entryStatus === "approved" ? "draft" : entryForm.status || "draft",
       notes: entryForm.notes || null,
     };
     const { data, error } = await supabase.from("payroll_entries").upsert(payload).select().maybeSingle();
@@ -1059,6 +1077,9 @@ export default function AdminPayrollPage() {
       net_total: totals.net_total,
       notes: nextEntry.notes,
     };
+    if (String(entry.status || "").toLowerCase() === "approved") {
+      payload.status = "draft";
+    }
 
     setSaving(`adjustment-${entry.id}`);
     const { data, error } = await supabase
@@ -1087,7 +1108,8 @@ export default function AdminPayrollPage() {
   }
 
   async function updateEntryStatus(entry, status) {
-    if (!canChangePayrollStatus) return setNotice("Only super admin accounts can approve payroll or mark it as paid.");
+    if (status === "approved" && !canApprovePayroll) return setNotice("Only super admin accounts can approve payroll.");
+    if (status === "paid" && !canMarkPayrollPaid) return setNotice("Only admin or super admin accounts can tag payroll as paid.");
     const { data, error } = await supabase.from("payroll_entries").update({ status }).eq("id", entry.id).select().maybeSingle();
     if (error) return setNotice(`Status Failed: ${error.message}`);
     setEntries((prev) => prev.map((row) => (row.id === entry.id ? data : row)));
@@ -1119,15 +1141,20 @@ export default function AdminPayrollPage() {
 
     const activeEmployees = employees.filter((employee) => employee.active !== false);
     const generatedRows = activeEmployees
-      .map((employee) => buildPayrollEntryFromAttendance({
-        employee,
-        period,
-        rows: attendance,
-        repaymentRows: repayments,
-        miscDeductionRows: miscDeductions,
-        rateChanges,
-        existingEntry: entries.find((row) => row.period_id === periodId && row.employee_id === employee.id),
-      }))
+      .map((employee) => {
+        const existingEntry = entries.find((row) => row.period_id === periodId && row.employee_id === employee.id);
+        const row = buildPayrollEntryFromAttendance({
+          employee,
+          period,
+          rows: attendance,
+          repaymentRows: repayments,
+          miscDeductionRows: miscDeductions,
+          rateChanges,
+          existingEntry,
+        });
+        if (row && String(existingEntry?.status || "").toLowerCase() === "approved") row.status = "draft";
+        return row;
+      })
       .filter(Boolean);
 
     const { data, error } = await supabase.from("payroll_entries").upsert(generatedRows).select();
@@ -1228,7 +1255,7 @@ export default function AdminPayrollPage() {
             <button onClick={() => openEntryModal()} className="h-11 rounded-xl border border-cyan-100 bg-cyan-50 px-5 text-xs font-semibold uppercase tracking-wider text-cyan-700 transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-100">Add Payroll</button>
           </div>
           <div className="overflow-x-auto rounded-2xl border border-white/70 bg-white/88 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl">
-            <table className="w-full min-w-[1280px] text-sm">
+            <table className="w-full min-w-[1360px] text-sm">
               <thead className="sticky top-0 bg-slate-950 text-left text-[10px] uppercase tracking-[0.16em] text-cyan-50">
                 <tr>
                   <th className="p-3">Emp No.</th>
@@ -1239,6 +1266,7 @@ export default function AdminPayrollPage() {
                   <th className="px-1 py-3 text-center">Late</th>
                   <th className="px-1 py-3 text-center">Absent</th>
                   <th className="px-1 py-3 text-right">Gross</th>
+                  <th className="px-1 py-3 text-right">Adjustment</th>
                   <th className="px-1 py-3 text-right">Deductions</th>
                   <th className="px-1 py-3 text-right">Cash Adv.</th>
                   <th className="px-1 py-3 text-right">Net</th>
@@ -1248,7 +1276,7 @@ export default function AdminPayrollPage() {
               </thead>
               <tbody>
                 {payrollRows.length === 0 ? (
-                  <tr><td colSpan="13" className="p-8 text-center text-sm font-semibold text-slate-400">No payroll rows found.</td></tr>
+                  <tr><td colSpan="14" className="p-8 text-center text-sm font-semibold text-slate-400">No payroll rows found.</td></tr>
                 ) : payrollRows.map((entry) => (
                   <tr key={entry.id} className="border-t border-slate-100 transition duration-200 hover:bg-cyan-50/45">
                     <td className="p-3 font-semibold text-slate-600">{entry.employee?.employee_no || "-"}</td>
@@ -1262,6 +1290,9 @@ export default function AdminPayrollPage() {
                           <span className="font-semibold text-slate-900 underline-offset-4 transition group-hover:text-cyan-700 group-hover:underline">
                             {entry.employee?.full_name || entry.employee_id}
                           </span>
+                          {entry.employee?.designation ? (
+                            <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">{entry.employee.designation}</span>
+                          ) : null}
                           <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                             View payslip
                           </span>
@@ -1269,6 +1300,9 @@ export default function AdminPayrollPage() {
                       ) : (
                         <div>
                           <span className="font-semibold text-slate-900">{entry.employee?.full_name || entry.employee_id}</span>
+                          {entry.employee?.designation ? (
+                            <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">{entry.employee.designation}</span>
+                          ) : null}
                           <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-amber-600">
                             Payslip locked until approval
                           </span>
@@ -1281,6 +1315,7 @@ export default function AdminPayrollPage() {
                     <td className="px-1 py-3 text-center">{num(entry.late_minutes).toFixed(0)}m</td>
                     <td className="px-1 py-3 text-center">{num(entry.absent_days).toFixed(2)}</td>
                     <td className="px-1 py-3 font-regular text-right">{money(entry.gross_total)}</td>
+                    <td className={`px-1 py-3 font-regular text-right ${num(entry.payroll_adjustment) < 0 ? "text-red-600" : "text-cyan-700"}`}>{money(entry.payroll_adjustment)}</td>
                     <td className="px-1 py-3 font-regular text-right text-red-600">{deductionMoney(entry.deduction_total)}</td>
                     <td className="px-1 py-3 font-regular text-right text-red-600">{deductionMoney(entry.cash_advance_deduction)}</td>
                     <td className="px-3 py-3 font-semibold text-right text-cyan-700">{money(entry.net_total)}</td>
@@ -1289,8 +1324,8 @@ export default function AdminPayrollPage() {
                     </td>
                     <td className="pr-3 text-right">
                       <div className="flex justify-end gap-2">
-                        {canChangePayrollStatus && entry.status !== "approved" && entry.status !== "paid" ? <button onClick={() => updateEntryStatus(entry, "approved")} className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[10px] font-semibold uppercase text-blue-600 transition hover:-translate-y-0.5">Approve</button> : null}
-                        {canChangePayrollStatus && entry.status !== "paid" ? <button onClick={() => updateEntryStatus(entry, "paid")} className="rounded-lg border border-cyan-100 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase text-cyan-700 transition hover:-translate-y-0.5">Paid</button> : null}
+                        {canApprovePayroll && entry.status !== "approved" && entry.status !== "paid" ? <button onClick={() => updateEntryStatus(entry, "approved")} className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[10px] font-semibold uppercase text-blue-600 transition hover:-translate-y-0.5">Approve</button> : null}
+                        {canMarkPayrollPaid && entry.status !== "paid" ? <button onClick={() => updateEntryStatus(entry, "paid")} className="rounded-lg border border-cyan-100 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase text-cyan-700 transition hover:-translate-y-0.5">Paid</button> : null}
                       </div>
                     </td>
                   </tr>
@@ -1312,6 +1347,7 @@ export default function AdminPayrollPage() {
               <div className="mt-4 space-y-3">
                 <input value={employeeForm.employee_no} onChange={(e) => setEmployeeForm((p) => ({ ...p, employee_no: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Employee no." />
                 <input value={employeeForm.full_name} onChange={(e) => setEmployeeForm((p) => ({ ...p, full_name: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Employee name" />
+                <input value={employeeForm.designation} onChange={(e) => setEmployeeForm((p) => ({ ...p, designation: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Designation" />
                 <input value={employeeForm.default_daily_rate} onChange={(e) => setEmployeeForm((p) => ({ ...p, default_daily_rate: e.target.value }))} type="number" step="0.01" className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Daily rate" />
                 <input type="date" value={employeeForm.birthday} onChange={(e) => setEmployeeForm((p) => ({ ...p, birthday: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" title="Birthday" />
                 <input value={employeeForm.contact_number} onChange={(e) => setEmployeeForm((p) => ({ ...p, contact_number: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Contact number" />
@@ -1358,6 +1394,7 @@ export default function AdminPayrollPage() {
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-cyan-700">{employee.employee_no || "No employee no."}</p>
                       <h3 className="font-semibold text-slate-950">{employee.full_name}</h3>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">{employee.designation || "No designation"}</p>
                       <p className="mt-1 text-xs font-semibold text-slate-500">Daily rate {money(employee.default_daily_rate)}</p>
                     </div>
                     <button onClick={() => toggleEmployee(employee)} className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase transition hover:-translate-y-0.5 ${employee.active ? "bg-cyan-50 text-cyan-700" : "bg-slate-100 text-slate-500"}`}>
@@ -1366,6 +1403,7 @@ export default function AdminPayrollPage() {
                   </div>
                   <div className="mt-3 grid gap-2 rounded-xl border border-slate-100 bg-white/70 p-3 text-xs text-slate-600 sm:grid-cols-2">
                     <p><span className="text-slate-400">Birthday:</span> {dateText(employee.birthday)}</p>
+                    <p><span className="text-slate-400">Designation:</span> {employee.designation || "-"}</p>
                     <p><span className="text-slate-400">Contact:</span> {employee.contact_number || "-"}</p>
                     <p className="sm:col-span-2"><span className="text-slate-400">Address:</span> {employee.address || "-"}</p>
                     <p><span className="text-slate-400">SSS:</span> {employee.sss_no || "-"}</p>
@@ -1754,6 +1792,7 @@ export default function AdminPayrollPage() {
                 </h2>
                 <p className="mt-1 text-xs font-semibold text-slate-500">
                   {payslipEntry.employee?.employee_no || "No employee no."}
+                  {payslipEntry.employee?.designation ? ` / ${payslipEntry.employee.designation}` : ""}
                 </p>
               </div>
               <button
@@ -1830,10 +1869,16 @@ export default function AdminPayrollPage() {
                 </section>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4 text-sm sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4 text-sm sm:grid-cols-4">
                 <div>
                   <span className="block text-[10px] font-semibold uppercase tracking-wider text-cyan-800">Gross Pay</span>
                   <b className="mt-1 block text-lg text-slate-950">{money(payslipEntry.gross_total)}</b>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-cyan-800">Adjustment</span>
+                  <b className={`mt-1 block text-lg ${num(payslipEntry.payroll_adjustment) < 0 ? "text-red-600" : "text-slate-950"}`}>
+                    {money(payslipEntry.payroll_adjustment)}
+                  </b>
                 </div>
                 <div>
                   <span className="block text-[10px] font-semibold uppercase tracking-wider text-cyan-800">Total Deductions</span>
