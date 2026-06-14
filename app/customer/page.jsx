@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
+import { Barcode as BarcodeIcon, CalendarDays, DollarSign, MapPin, Phone, ShoppingBasket, Star } from "lucide-react";
 
 import { supabase } from "@/lib/supabase";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
@@ -2134,12 +2135,19 @@ function LoyaltyTab({ member, setMember, user }) {
     )}
     {showDetailsModal && (
       <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm">
-        <div className="w-full max-w-md rounded-3xl border border-white/70 bg-white/95 p-5 shadow-2xl">
-          <div className="mb-4 flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-700">Membership</p>
-              <h3 className="text-xl font-bold text-slate-900">Account Details</h3>
-              <p className="mt-1 text-xs text-slate-500">Only name and contact number can be corrected.</p>
+        <div className="w-full max-w-md overflow-hidden rounded-sm border border-slate-200 bg-white shadow-2xl">
+          <div className="relative px-6 pb-5 pt-5">
+            <div className="mx-auto max-w-[290px] text-center">
+              {editingDetails ? (
+                <input
+                  value={detailsForm.customer_name}
+                  onChange={(e) => setDetailsForm((prev) => ({ ...prev, customer_name: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-center text-xl font-semibold text-slate-950 shadow-sm outline-none focus:border-cyan-600"
+                  aria-label="Full name"
+                />
+              ) : (
+                <h3 className="text-xl font-medium text-slate-950">{member?.customer_name || "Membership Account"}</h3>
+              )}
             </div>
             <button
               type="button"
@@ -2147,49 +2155,40 @@ function LoyaltyTab({ member, setMember, user }) {
                 setShowDetailsModal(false);
                 setEditingDetails(false);
               }}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-lg font-bold text-slate-700 shadow-sm"
+              className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-lg font-bold text-slate-700 shadow-sm"
               aria-label="Close account details"
             >
               ×
             </button>
           </div>
 
-          <div className="space-y-3">
-            <label className="block">
-              <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Full Name</span>
-              <input
-                value={detailsForm.customer_name}
-                disabled={!editingDetails}
-                onChange={(e) => setDetailsForm((prev) => ({ ...prev, customer_name: e.target.value }))}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm disabled:bg-slate-100 disabled:text-slate-700"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Contact Number</span>
+          <div className="space-y-5 px-6 pb-5 text-[12px] text-slate-900">
+            <div className="grid grid-cols-[22px_1fr] items-center gap-4">
+              <Phone className="h-4 w-4 text-slate-500" />
               <input
                 value={detailsForm.Phone}
                 disabled={!editingDetails}
                 onChange={(e) => setDetailsForm((prev) => ({ ...prev, Phone: e.target.value }))}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm disabled:bg-slate-100 disabled:text-slate-700"
+                className="w-full rounded-lg border border-transparent bg-transparent px-0 py-1 text-sm font-medium text-slate-950 outline-none disabled:text-slate-900 enabled:border-slate-200 enabled:bg-white enabled:px-3 enabled:py-2 enabled:shadow-sm enabled:focus:border-cyan-600"
+                aria-label="Contact number"
               />
-            </label>
+            </div>
 
-            {[
-              ["Customer Code", member?.customer_code || member?.["Customer ID"] || "—"],
-              ["Email", member?.Email || user?.email || "—"],
-              ["Birthday", member?.Note || "—"],
-              ["Total Points", member?.["Points balance"] ?? member?.["Points Balance"] ?? 0],
-              ["Available Points", member?.["Available points"] ?? 0],
-              ["Total Visits", member?.["Total visits"] ?? "—"],
-            ].map(([label, value]) => (
-              <div key={label} className="flex items-center justify-between gap-4 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-                <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{label}</span>
-                <span className="text-right text-sm font-semibold text-slate-800">{value}</span>
-              </div>
-            ))}
+            <div className="grid grid-cols-[22px_1fr] items-center gap-4">
+              <MapPin className="h-4 w-4 text-slate-500" />
+              <span>{member?.City || "-"}</span>
+            </div>
+            <div className="grid grid-cols-[22px_1fr] items-center gap-4">
+              <BarcodeIcon className="h-4 w-4 text-slate-500" />
+              <span>{member?.customer_code || member?.["Customer ID"] || "-"}</span>
+            </div>
+            <div className="grid grid-cols-[22px_1fr] items-center gap-4">
+              <CalendarDays className="h-4 w-4 text-slate-500" />
+              <span>{member?.Note || "-"}</span>
+            </div>
           </div>
 
-          <div className="mt-5 flex gap-2">
+          <div className="flex gap-2 px-6 pb-5">
             {editingDetails ? (
               <>
                 <button
@@ -2198,7 +2197,7 @@ function LoyaltyTab({ member, setMember, user }) {
                     setEditingDetails(false);
                     setDetailsForm({ customer_name: member?.customer_name || "", Phone: member?.Phone || member?.phone || "" });
                   }}
-                  className="h-11 flex-1 rounded-xl border border-slate-200 bg-white text-xs font-bold uppercase tracking-wider text-slate-700"
+                  className="h-10 flex-1 rounded-xl border border-slate-200 bg-white text-xs font-semibold uppercase tracking-wider text-slate-700"
                 >
                   Cancel
                 </button>
@@ -2206,7 +2205,7 @@ function LoyaltyTab({ member, setMember, user }) {
                   type="button"
                   onClick={saveMemberDetails}
                   disabled={savingDetails}
-                  className="h-11 flex-1 rounded-xl bg-cyan-700 text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-cyan-900/15 disabled:opacity-60"
+                  className="h-10 flex-1 rounded-xl bg-cyan-700 text-xs font-semibold uppercase tracking-wider text-white shadow-lg shadow-cyan-900/15 disabled:bg-slate-200 disabled:text-slate-600"
                 >
                   {savingDetails ? "Saving..." : "Save"}
                 </button>
@@ -2215,11 +2214,49 @@ function LoyaltyTab({ member, setMember, user }) {
               <button
                 type="button"
                 onClick={() => setEditingDetails(true)}
-                className="h-11 w-full rounded-xl bg-slate-700 text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-slate-900/15"
+                className="h-10 w-full rounded-xl bg-slate-700 text-xs font-semibold uppercase tracking-wider text-white shadow-lg shadow-slate-900/15"
               >
                 Edit Name / Contact
               </button>
             )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-6 gap-y-6 border-t border-slate-200 bg-slate-50 px-6 py-5 text-[12px] text-slate-900">
+            {[
+              {
+                icon: CalendarDays,
+                value: fmtDate(member?.["First visit"]),
+                label: "First visit",
+              },
+              {
+                icon: CalendarDays,
+                value: member?.["Last visit"] ? formatDateTime(member["Last visit"], fmtDate(member["Last visit"])) : "-",
+                label: "Last visit",
+              },
+              {
+                icon: ShoppingBasket,
+                value: Number(member?.["Total visits"] || 0).toLocaleString("en-PH"),
+                label: "Visits",
+              },
+              {
+                icon: DollarSign,
+                value: `PHP ${Number(member?.["Total spent"] || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                label: "Total spent",
+              },
+              {
+                icon: Star,
+                value: Number(member?.["Points balance"] ?? member?.["Points Balance"] ?? 0).toLocaleString("en-PH", { maximumFractionDigits: 2 }),
+                label: "Points",
+              },
+            ].map(({ icon: Icon, value, label }) => (
+              <div key={label} className="grid grid-cols-[22px_1fr] gap-3">
+                <Icon className="mt-0.5 h-4 w-4 text-slate-500" />
+                <div>
+                  <p className="font-medium leading-tight text-slate-950">{value}</p>
+                  <p className="mt-0.5 text-[11px] leading-tight text-slate-500">{label}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
