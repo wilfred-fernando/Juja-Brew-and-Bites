@@ -148,6 +148,64 @@ function needsRawImportedReceipts(tab) {
   return ["receipts", "exports"].includes(tab);
 }
 
+function normalizeStoreLookup(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function storeIdForImportedRow(row, stores = []) {
+  const storeName = row.store_name || row.storeName || "Imported store";
+  const store = stores.find((item) => normalizeStoreLookup(item.name) === normalizeStoreLookup(storeName));
+  return store?.id ? String(store.id) : `import:${storeName}`;
+}
+
+function matchesReportFilter(value, selected) {
+  return selected === "All" || !selected || String(value) === String(selected);
+}
+
+function mergeProductReportRows(rows, totalNet = 0) {
+  const map = new Map();
+  rows.forEach((row) => {
+    const key = row.productId || row.productName;
+    const current = map.get(key) || {
+      productId: key,
+      productName: row.productName,
+      category: row.category,
+      quantity: 0,
+      gross: 0,
+      discount: 0,
+      net: 0,
+    };
+    current.quantity += Number(row.quantity || 0);
+    current.gross += Number(row.gross || 0);
+    current.discount += Number(row.discount || 0);
+    current.net += Number(row.net || 0);
+    map.set(key, current);
+  });
+  return Array.from(map.values())
+    .map((row) => ({
+      ...row,
+      averageSellingPrice: row.quantity ? row.net / row.quantity : 0,
+      share: totalNet ? (row.net / totalNet) * 100 : 0,
+    }))
+    .sort((a, b) => b.net - a.net);
+}
+
+function mergeCategoryReportRows(rows, totalNet = 0) {
+  const map = new Map();
+  rows.forEach((row) => {
+    const key = row.category || "Uncategorized";
+    const current = map.get(key) || { category: key, quantity: 0, gross: 0, net: 0, orderCount: 0 };
+    current.quantity += Number(row.quantity || 0);
+    current.gross += Number(row.gross || 0);
+    current.net += Number(row.net || 0);
+    current.orderCount += Number(row.orderCount || 0);
+    map.set(key, current);
+  });
+  return Array.from(map.values())
+    .map((row) => ({ ...row, share: totalNet ? (row.net / totalNet) * 100 : 0 }))
+    .sort((a, b) => b.net - a.net);
+}
+
 async function fetchAllRows(buildQuery, pageSize = SUPABASE_PAGE_SIZE) {
   const rows = [];
   for (let from = 0; ; from += pageSize) {
@@ -887,7 +945,7 @@ function ReceiptDrawer({ order, items = [], onClose }) {
 export default function AdminSalesPage() {
   const [activeTab, setActiveTab] = useState("summary");
   const [filters, setFilters] = useState(defaultFilters);
-  const [rawData, setRawData] = useState({ sales: [], lineItems: [], shiftRecords: [], importedShifts: [], stores: [] });
+  const [rawData, setRawData] = useState({ sales: [], lineItems: [], shiftRecords: [], importedShifts: [], stores: [], importedItemRows: [], importedCategoryRows: [], importedModifierRows: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -896,26 +954,35 @@ export default function AdminSalesPage() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedShift, setSelectedShift] = useState(null);
   const [receiptDetailItems, setReceiptDetailItems] = useState([]);
-  const [importedLineItemsLoaded, setImportedLineItemsLoaded] = useState(false);
+  const [importedLineItemsLoaded, setImportedLineItemsLoaded] = useState("");
   const [importedReceiptMode, setImportedReceiptMode] = useState("summary");
   const searchParams = useSearchParams();
 
   async function loadData(nextFilters = filters, options = {}) {
     const includeImportedItems = Boolean(options.includeImportedItems);
     const includeRawImportedReceipts = Boolean(options.includeRawImportedReceipts);
+    const reportTab = options.reportTab || activeTab;
     setLoading(true);
     setError("");
     const comparisonRange = previousRange(nextFilters.startDate, nextFilters.endDate);
     const start = `${comparisonRange.startDate}T00:00:00+08:00`;
     const fetchEnd = `${addDays(nextFilters.endDate, 1)}T12:00:00+08:00`;
     try {
-      const importedItemsPromise = includeImportedItems
-        ? fetchAllRows(() => supabase.from("imported_sales").select(IMPORTED_RECEIPT_ITEM_SELECT).gte("receipt_date", start).lte("receipt_date", fetchEnd).order("receipt_date", { ascending: false }))
-        : Promise.resolve([]);
+      const rpcRange = { p_start_date: nextFilters.startDate, p_end_date: nextFilters.endDate };
+      const importedItemsPromise = Promise.resolve([]);
+      const importedItemReportPromise = includeImportedItems && reportTab === "items"
+        ? supabase.rpc("get_imported_item_sales_report", rpcRange)
+        : Promise.resolve({ data: [], error: null });
+      const importedCategoryReportPromise = includeImportedItems && reportTab === "categories"
+        ? supabase.rpc("get_imported_category_sales_report", rpcRange)
+        : Promise.resolve({ data: [], error: null });
+      const importedModifierReportPromise = includeImportedItems && reportTab === "modifiers"
+        ? supabase.rpc("get_imported_modifier_sales_report", rpcRange)
+        : Promise.resolve({ data: [], error: null });
       const importedReceiptsPromise = includeRawImportedReceipts
         ? fetchAllRows(() => supabase.from("imported_sales_receipts").select(IMPORTED_RECEIPT_SELECT).gte("receipt_date", start).lte("receipt_date", fetchEnd).order("receipt_date", { ascending: false }))
         : fetchAllRows(() => supabase.from("imported_sales_summary").select(IMPORTED_SALES_SUMMARY_SELECT).gte("receipt_date", start).lte("receipt_date", fetchEnd).order("receipt_date", { ascending: false }));
-      const [orders, webOrders, menuRes, storesRes, profilesRes, shiftRecords, importedShifts, importedReceipts, importedReceiptItems] = await Promise.all([
+      const [orders, webOrders, menuRes, storesRes, profilesRes, shiftRecords, importedShifts, importedReceipts, importedReceiptItems, importedItemReportRes, importedCategoryReportRes, importedModifierReportRes] = await Promise.all([
         fetchAllRows(() => supabase.from("orders").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: false })),
         fetchAllRows(() => supabase.from("web_orders").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: false })),
         supabase.from("menu_items").select("id,name,category,price"),
@@ -925,11 +992,16 @@ export default function AdminSalesPage() {
         fetchAllRows(() => supabase.from("imported_loyverse_shifts").select(IMPORTED_SHIFT_SELECT).gte("shift_opening_time", start).lte("shift_opening_time", fetchEnd).order("shift_opening_time", { ascending: false })),
         importedReceiptsPromise,
         importedItemsPromise,
+        importedItemReportPromise,
+        importedCategoryReportPromise,
+        importedModifierReportPromise,
       ]);
-      const errors = [menuRes.error, storesRes.error, profilesRes.error].filter(Boolean);
+      const errors = [menuRes.error, storesRes.error, profilesRes.error, importedItemReportRes.error, importedCategoryReportRes.error, importedModifierReportRes.error].filter(Boolean);
       if (errors.length) throw errors[0];
 
-      const orderItems = await fetchOrderItems(orders.map((row) => row.id));
+      const orderItems = includeImportedItems && reportTab !== "modifiers"
+        ? await fetchOrderItems(orders.map((row) => row.id))
+        : [];
 
       const normalized = normalizeSalesData({
         orders,
@@ -942,8 +1014,16 @@ export default function AdminSalesPage() {
         importedReceipts,
         importedReceiptItems,
       });
-      setRawData({ ...normalized, stores: storesRes.data || [], shiftRecords, importedShifts });
-      setImportedLineItemsLoaded(includeImportedItems);
+      setRawData({
+        ...normalized,
+        stores: storesRes.data || [],
+        shiftRecords,
+        importedShifts,
+        importedItemRows: importedItemReportRes.data || [],
+        importedCategoryRows: importedCategoryReportRes.data || [],
+        importedModifierRows: importedModifierReportRes.data || [],
+      });
+      setImportedLineItemsLoaded(includeImportedItems ? reportTab : "");
       setImportedReceiptMode(includeRawImportedReceipts ? "raw" : "summary");
     } catch (err) {
       setError(err.message || "Unable to load sales report. Please try again.");
@@ -972,7 +1052,7 @@ export default function AdminSalesPage() {
   }, []);
 
   useEffect(() => {
-    if (needsImportedLineItems(activeTab) && !importedLineItemsLoaded && !loading) {
+    if (needsImportedLineItems(activeTab) && importedLineItemsLoaded !== activeTab && !loading) {
       loadData(filters, { includeImportedItems: true, includeRawImportedReceipts: needsRawImportedReceipts(activeTab) });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -993,8 +1073,43 @@ export default function AdminSalesPage() {
   }, [filtered.sales, search]);
 
   const summary = useMemo(() => getSalesSummary(filtered.sales), [filtered.sales]);
-  const productRows = useMemo(() => getProductSalesReport(filtered.lineItems, summary.net), [filtered.lineItems, summary.net]);
-  const categoryRows = useMemo(() => getCategorySalesReport(filtered.lineItems, summary.net), [filtered.lineItems, summary.net]);
+  const importedProductRows = useMemo(() => {
+    return (rawData.importedItemRows || [])
+      .map((row) => ({
+        productId: row.product_id || row.product_name,
+        productName: row.product_name || "Item",
+        category: row.category || "Uncategorized",
+        storeId: storeIdForImportedRow(row, rawData.stores),
+        quantity: Number(row.quantity || 0),
+        gross: Number(row.gross || 0),
+        discount: Number(row.discount || 0),
+        net: Number(row.net || 0),
+      }))
+      .filter((row) => matchesReportFilter(row.storeId, filters.branchId))
+      .filter((row) => matchesReportFilter(row.category, filters.categoryId))
+      .filter((row) => matchesReportFilter(row.productId, filters.productId));
+  }, [rawData.importedItemRows, rawData.stores, filters.branchId, filters.categoryId, filters.productId]);
+  const importedCategoryRows = useMemo(() => {
+    return (rawData.importedCategoryRows || [])
+      .map((row) => ({
+        category: row.category || "Uncategorized",
+        storeId: storeIdForImportedRow(row, rawData.stores),
+        quantity: Number(row.quantity || 0),
+        gross: Number(row.gross || 0),
+        net: Number(row.net || 0),
+        orderCount: Number(row.order_count || row.orderCount || 0),
+      }))
+      .filter((row) => matchesReportFilter(row.storeId, filters.branchId))
+      .filter((row) => matchesReportFilter(row.category, filters.categoryId));
+  }, [rawData.importedCategoryRows, rawData.stores, filters.branchId, filters.categoryId]);
+  const productRows = useMemo(() => {
+    const liveRows = getProductSalesReport(filtered.lineItems.filter((item) => item.source !== "Imported"), 0);
+    return mergeProductReportRows([...liveRows, ...importedProductRows], summary.net);
+  }, [filtered.lineItems, importedProductRows, summary.net]);
+  const categoryRows = useMemo(() => {
+    const liveRows = getCategorySalesReport(filtered.lineItems.filter((item) => item.source !== "Imported"), 0);
+    return mergeCategoryReportRows([...liveRows, ...importedCategoryRows], summary.net);
+  }, [filtered.lineItems, importedCategoryRows, summary.net]);
   const paymentRows = useMemo(() => getPaymentReport(filtered.sales, summary.net), [filtered.sales, summary.net]);
   const discountRows = useMemo(() => getDiscountReport(filtered.sales), [filtered.sales]);
   const cashierRows = useMemo(() => getCashierReport(filtered.sales), [filtered.sales]);
@@ -1015,8 +1130,37 @@ export default function AdminSalesPage() {
       if (!selectedOrder) return;
       const key = String(selectedOrder.orderKey || selectedOrder.id);
       const existing = rawData.lineItems.filter((item) => String(item.orderId) === key);
-      if (existing.length || selectedOrder.source !== "Imported") {
+      if (existing.length) {
         setReceiptDetailItems(existing);
+        return;
+      }
+      if (selectedOrder.source !== "Imported") {
+        if (selectedOrder.source !== "POS") {
+          setReceiptDetailItems([]);
+          return;
+        }
+        const { data, error } = await supabase
+          .from("order_items")
+          .select("*")
+          .eq("order_id", selectedOrder.id)
+          .order("created_at", { ascending: true });
+        if (cancelled) return;
+        if (error) {
+          console.error(error);
+          setReceiptDetailItems([]);
+          return;
+        }
+        setReceiptDetailItems((data || []).map((item) => {
+          const quantity = Number(item.quantity || 0);
+          const net = Number(item.net_amount || item.line_total || 0);
+          return {
+            id: item.id,
+            itemName: item.item_name || item.name || "Item",
+            quantity,
+            unitPrice: Number(item.unit_price || (quantity ? net / quantity : net)),
+            net,
+          };
+        }));
         return;
       }
       const { data, error } = await supabase
@@ -1051,8 +1195,19 @@ export default function AdminSalesPage() {
 
   const paymentOptions = useMemo(() => [{ value: "All", label: "All payment methods" }, ...uniqueOptions(rawData.sales, "paymentMethod")], [rawData.sales]);
   const cashierOptions = useMemo(() => [{ value: "All", label: "All employees" }, ...uniqueOptions(rawData.sales, "cashierId", "cashierName")], [rawData.sales]);
-  const categoryOptions = useMemo(() => [{ value: "All", label: "All categories" }, ...uniqueOptions(rawData.lineItems, "category")], [rawData.lineItems]);
-  const productOptions = useMemo(() => [{ value: "All", label: "All products" }, ...uniqueOptions(rawData.lineItems, "itemId", "itemName")], [rawData.lineItems]);
+  const categoryOptions = useMemo(() => {
+    const importedCategories = [...(rawData.importedItemRows || []), ...(rawData.importedCategoryRows || [])].map((row) => ({
+      category: row.category || "Uncategorized",
+    }));
+    return [{ value: "All", label: "All categories" }, ...uniqueOptions([...rawData.lineItems, ...importedCategories], "category")];
+  }, [rawData.lineItems, rawData.importedItemRows, rawData.importedCategoryRows]);
+  const productOptions = useMemo(() => {
+    const importedProducts = (rawData.importedItemRows || []).map((row) => ({
+      itemId: row.product_id || row.product_name,
+      itemName: row.product_name || "Item",
+    }));
+    return [{ value: "All", label: "All products" }, ...uniqueOptions([...rawData.lineItems, ...importedProducts], "itemId", "itemName")];
+  }, [rawData.lineItems, rawData.importedItemRows]);
   const branchOptions = useMemo(() => [{ value: "All", label: "All stores" }, ...uniqueOptions(rawData.sales, "storeId", "storeName")], [rawData.sales]);
 
   function updatePreset(preset) {

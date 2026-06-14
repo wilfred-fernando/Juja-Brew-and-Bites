@@ -1,0 +1,5211 @@
+{
+  "generated_at": "2026-06-14T06:11:19.905Z",
+  "tables": [
+    {
+      "table": "public.imported_loyverse_category_sales_summary",
+      "row_count": "35",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": "gen_random_uuid()"
+        },
+        {
+          "column_name": "import_batch_id",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "source_file",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "source_row_number",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "row_hash",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "imported_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "NO",
+          "column_default": "now()"
+        },
+        {
+          "column_name": "report_start_date",
+          "data_type": "date",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "report_end_date",
+          "data_type": "date",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "category",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "items_sold",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "gross_sales",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "items_refunded",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "refunds",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "discounts",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "net_sales",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "cost_of_goods",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "gross_profit",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "margin_percent",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "taxes",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "raw_data",
+          "data_type": "jsonb",
+          "is_nullable": "NO",
+          "column_default": "'{}'::jsonb"
+        },
+        {
+          "column_name": "Category",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Items sold",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Gross sales",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Items refunded",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Refunds",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Discounts",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Net sales",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Cost of goods",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Gross profit",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Margin",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Taxes",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        }
+      ],
+      "constraints": [
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22848_10_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22848_11_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22848_12_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22848_13_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22848_14_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22848_15_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22848_16_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22848_17_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22848_18_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22848_19_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22848_1_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22848_20_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22848_2_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22848_3_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22848_4_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22848_5_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22848_6_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "PRIMARY KEY",
+          "constraint_name": "imported_loyverse_category_sales_summary_pkey",
+          "column_name": "id",
+          "foreign_table_name": "imported_loyverse_category_sales_summary",
+          "foreign_column_name": "id"
+        },
+        {
+          "constraint_type": "UNIQUE",
+          "constraint_name": "imported_loyverse_category_sales_summary_row_hash_key",
+          "column_name": "row_hash",
+          "foreign_table_name": "imported_loyverse_category_sales_summary",
+          "foreign_column_name": "row_hash"
+        }
+      ],
+      "sample": [
+        {
+          "id": "9dcc3773-221b-44bf-98d4-404a9e03097e",
+          "import_batch_id": "loyverse-summary-2026-06-13",
+          "source_file": "category-sales-summary-2024-04-01-2026-05-31.csv",
+          "source_row_number": 1,
+          "row_hash": "6473c42469a2031b9525ce2d193075e98cd545802b28b8dab9e3cbca8cab7f9f",
+          "imported_at": "2026-06-13T17:33:26.333Z",
+          "report_start_date": "2024-03-31T16:00:00.000Z",
+          "report_end_date": "2026-05-30T16:00:00.000Z",
+          "category": ".ADD-ON",
+          "items_sold": "561.000",
+          "gross_sales": "13265.00",
+          "items_refunded": "18.000",
+          "refunds": "415.00",
+          "discounts": "4393.49",
+          "net_sales": "8456.51",
+          "cost_of_goods": "0.00",
+          "gross_profit": "8456.51",
+          "margin_percent": "100.0000",
+          "taxes": "0.00",
+          "raw_data": {
+            "Taxes": "0.00",
+            "Margin": "100.00%",
+            "Refunds": "415.00",
+            "Category": ".ADD-ON",
+            "Discounts": "4393.49",
+            "Net sales": "8456.51",
+            "Items sold": "561.000",
+            "Gross sales": "13265.00",
+            "Gross profit": "8456.51",
+            "Cost of goods": "0.00",
+            "Items refunded": "18.000"
+          },
+          "Category": ".ADD-ON",
+          "Items sold": "561.000",
+          "Gross sales": "13265.00",
+          "Items refunded": "18.000",
+          "Refunds": "415.00",
+          "Discounts": "4393.49",
+          "Net sales": "8456.51",
+          "Cost of goods": "0.00",
+          "Gross profit": "8456.51",
+          "Margin": "100.00%",
+          "Taxes": "0.00"
+        },
+        {
+          "id": "455320a0-4a48-4da4-8598-6962f4312a78",
+          "import_batch_id": "loyverse-summary-2026-06-13",
+          "source_file": "category-sales-summary-2024-04-01-2026-05-31.csv",
+          "source_row_number": 2,
+          "row_hash": "8724950ba23cc1c8a2ceff5c94250ce62a6737666df5201cb8f2a0644c54875c",
+          "imported_at": "2026-06-13T17:33:26.333Z",
+          "report_start_date": "2024-03-31T16:00:00.000Z",
+          "report_end_date": "2026-05-30T16:00:00.000Z",
+          "category": ".EXTRA",
+          "items_sold": "3363.000",
+          "gross_sales": "71949.00",
+          "items_refunded": "58.000",
+          "refunds": "1213.00",
+          "discounts": "3244.04",
+          "net_sales": "67491.96",
+          "cost_of_goods": "0.00",
+          "gross_profit": "67491.96",
+          "margin_percent": "100.0000",
+          "taxes": "0.00",
+          "raw_data": {
+            "Taxes": "0.00",
+            "Margin": "100.00%",
+            "Refunds": "1213.00",
+            "Category": ".EXTRA",
+            "Discounts": "3244.04",
+            "Net sales": "67491.96",
+            "Items sold": "3363.000",
+            "Gross sales": "71949.00",
+            "Gross profit": "67491.96",
+            "Cost of goods": "0.00",
+            "Items refunded": "58.000"
+          },
+          "Category": ".EXTRA",
+          "Items sold": "3363.000",
+          "Gross sales": "71949.00",
+          "Items refunded": "58.000",
+          "Refunds": "1213.00",
+          "Discounts": "3244.04",
+          "Net sales": "67491.96",
+          "Cost of goods": "0.00",
+          "Gross profit": "67491.96",
+          "Margin": "100.00%",
+          "Taxes": "0.00"
+        }
+      ]
+    },
+    {
+      "table": "public.imported_loyverse_item_sales_summary",
+      "row_count": "786",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": "gen_random_uuid()"
+        },
+        {
+          "column_name": "import_batch_id",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "source_file",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "source_row_number",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "row_hash",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "imported_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "NO",
+          "column_default": "now()"
+        },
+        {
+          "column_name": "report_start_date",
+          "data_type": "date",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "report_end_date",
+          "data_type": "date",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "item_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "sku",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "category",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "items_sold",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "gross_sales",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "items_refunded",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "refunds",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "discounts",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "net_sales",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "cost_of_goods",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "gross_profit",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "margin_percent",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "taxes",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "raw_data",
+          "data_type": "jsonb",
+          "is_nullable": "NO",
+          "column_default": "'{}'::jsonb"
+        },
+        {
+          "column_name": "Item name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "SKU",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Category",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Items sold",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Gross sales",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Items refunded",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Refunds",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Discounts",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Net sales",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Cost of goods",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Gross profit",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Margin",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Taxes",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        }
+      ],
+      "constraints": [
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22826_12_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22826_13_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22826_14_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22826_15_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22826_16_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22826_17_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22826_18_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22826_19_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22826_1_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22826_20_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22826_21_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22826_22_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22826_2_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22826_3_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22826_4_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22826_5_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22826_6_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "PRIMARY KEY",
+          "constraint_name": "imported_loyverse_item_sales_summary_pkey",
+          "column_name": "id",
+          "foreign_table_name": "imported_loyverse_item_sales_summary",
+          "foreign_column_name": "id"
+        },
+        {
+          "constraint_type": "UNIQUE",
+          "constraint_name": "imported_loyverse_item_sales_summary_row_hash_key",
+          "column_name": "row_hash",
+          "foreign_table_name": "imported_loyverse_item_sales_summary",
+          "foreign_column_name": "row_hash"
+        }
+      ],
+      "sample": [
+        {
+          "id": "1f8557ea-45cd-4c8e-8563-40bf5394035f",
+          "import_batch_id": "loyverse-summary-2026-06-13",
+          "source_file": "item-sales-summary-2024-04-01-2026-05-31.csv",
+          "source_row_number": 1,
+          "row_hash": "a1ef9f6c604480192104d5362707fe546d377acf980df5eaccf2e3127d2897ab",
+          "imported_at": "2026-06-13T17:33:25.770Z",
+          "report_start_date": "2024-03-31T16:00:00.000Z",
+          "report_end_date": "2026-05-30T16:00:00.000Z",
+          "item_name": "'Caffeine Free",
+          "sku": "10000",
+          "category": "No category",
+          "items_sold": "28.000",
+          "gross_sales": "2912.00",
+          "items_refunded": "1.000",
+          "refunds": "119.00",
+          "discounts": "94.28",
+          "net_sales": "2698.72",
+          "cost_of_goods": "0.00",
+          "gross_profit": "2698.72",
+          "margin_percent": "100.0000",
+          "taxes": "0.00",
+          "raw_data": {
+            "SKU": "10000",
+            "Taxes": "0.00",
+            "Margin": "100.00%",
+            "Refunds": "119.00",
+            "Category": "No category",
+            "Discounts": "94.28",
+            "Item name": "'Caffeine Free",
+            "Net sales": "2698.72",
+            "Items sold": "28.000",
+            "Gross sales": "2912.00",
+            "Gross profit": "2698.72",
+            "Cost of goods": "0.00",
+            "Items refunded": "1.000"
+          },
+          "Item name": "'Caffeine Free",
+          "SKU": "10000",
+          "Category": "No category",
+          "Items sold": "28.000",
+          "Gross sales": "2912.00",
+          "Items refunded": "1.000",
+          "Refunds": "119.00",
+          "Discounts": "94.28",
+          "Net sales": "2698.72",
+          "Cost of goods": "0.00",
+          "Gross profit": "2698.72",
+          "Margin": "100.00%",
+          "Taxes": "0.00"
+        },
+        {
+          "id": "fae77a64-96bd-44e6-a109-a49700c02b4f",
+          "import_batch_id": "loyverse-summary-2026-06-13",
+          "source_file": "item-sales-summary-2024-04-01-2026-05-31.csv",
+          "source_row_number": 2,
+          "row_hash": "021f1026f5d576d89cb0725ce128d7196a9fe94a0caff6c6fe8a294c1b458199",
+          "imported_at": "2026-06-13T17:33:25.770Z",
+          "report_start_date": "2024-03-31T16:00:00.000Z",
+          "report_end_date": "2026-05-30T16:00:00.000Z",
+          "item_name": "'Coffee",
+          "sku": "10207",
+          "category": "No category",
+          "items_sold": "105.000",
+          "gross_sales": "10145.00",
+          "items_refunded": "4.000",
+          "refunds": "436.00",
+          "discounts": "172.70",
+          "net_sales": "9536.30",
+          "cost_of_goods": "0.00",
+          "gross_profit": "9536.30",
+          "margin_percent": "100.0000",
+          "taxes": "0.00",
+          "raw_data": {
+            "SKU": "10207",
+            "Taxes": "0.00",
+            "Margin": "100.00%",
+            "Refunds": "436.00",
+            "Category": "No category",
+            "Discounts": "172.70",
+            "Item name": "'Coffee",
+            "Net sales": "9536.30",
+            "Items sold": "105.000",
+            "Gross sales": "10145.00",
+            "Gross profit": "9536.30",
+            "Cost of goods": "0.00",
+            "Items refunded": "4.000"
+          },
+          "Item name": "'Coffee",
+          "SKU": "10207",
+          "Category": "No category",
+          "Items sold": "105.000",
+          "Gross sales": "10145.00",
+          "Items refunded": "4.000",
+          "Refunds": "436.00",
+          "Discounts": "172.70",
+          "Net sales": "9536.30",
+          "Cost of goods": "0.00",
+          "Gross profit": "9536.30",
+          "Margin": "100.00%",
+          "Taxes": "0.00"
+        }
+      ]
+    },
+    {
+      "table": "public.imported_loyverse_payins_payouts",
+      "row_count": "0",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": "gen_random_uuid()"
+        },
+        {
+          "column_name": "import_batch_id",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "source_file",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "source_row_number",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "row_hash",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "imported_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "NO",
+          "column_default": "now()"
+        },
+        {
+          "column_name": "entry_date",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "store_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "pos",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "shift_number",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "entry_type",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "employee",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "comment",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "amount",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "raw_data",
+          "data_type": "jsonb",
+          "is_nullable": "NO",
+          "column_default": "'{}'::jsonb"
+        },
+        {
+          "column_name": "Date",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Store",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "POS",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Shift number",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Type",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Employee",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Comment",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Amount",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        }
+      ],
+      "constraints": [
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22905_14_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22905_15_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22905_1_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22905_2_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22905_3_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22905_4_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22905_5_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22905_6_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "PRIMARY KEY",
+          "constraint_name": "imported_loyverse_payins_payouts_pkey",
+          "column_name": "id",
+          "foreign_table_name": "imported_loyverse_payins_payouts",
+          "foreign_column_name": "id"
+        },
+        {
+          "constraint_type": "UNIQUE",
+          "constraint_name": "imported_loyverse_payins_payouts_row_hash_key",
+          "column_name": "row_hash",
+          "foreign_table_name": "imported_loyverse_payins_payouts",
+          "foreign_column_name": "row_hash"
+        }
+      ],
+      "sample": []
+    },
+    {
+      "table": "public.imported_loyverse_shifts",
+      "row_count": "684",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": "gen_random_uuid()"
+        },
+        {
+          "column_name": "import_batch_id",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "source_file",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "source_row_number",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "row_hash",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "imported_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "NO",
+          "column_default": "now()"
+        },
+        {
+          "column_name": "store_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "pos",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "shift_number",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "shift_opening_time",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "shift_opened",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "shift_closing_time",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "shift_closed",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "starting_cash",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "cash_payments",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "cash_refunds",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "paid_in",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "paid_out",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "expected_cash_amount",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "actual_cash_amount",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "difference",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "raw_data",
+          "data_type": "jsonb",
+          "is_nullable": "NO",
+          "column_default": "'{}'::jsonb"
+        },
+        {
+          "column_name": "Store",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "POS",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Shift number",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Shift opening time",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Shift opened",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Shift closing time",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Shift closed",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Starting cash",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Cash payments",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Cash refunds",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Paid in",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Paid out",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Expected cash amount",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Actual cash amount",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Difference",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        }
+      ],
+      "constraints": [
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22885_14_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22885_15_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22885_16_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22885_17_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22885_18_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22885_19_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22885_1_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22885_20_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22885_21_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22885_22_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22885_2_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22885_3_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22885_4_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22885_5_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22885_6_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "PRIMARY KEY",
+          "constraint_name": "imported_loyverse_shifts_pkey",
+          "column_name": "id",
+          "foreign_table_name": "imported_loyverse_shifts",
+          "foreign_column_name": "id"
+        },
+        {
+          "constraint_type": "UNIQUE",
+          "constraint_name": "imported_loyverse_shifts_row_hash_key",
+          "column_name": "row_hash",
+          "foreign_table_name": "imported_loyverse_shifts",
+          "foreign_column_name": "row_hash"
+        }
+      ],
+      "sample": [
+        {
+          "id": "4594b7f4-b647-4c45-82a7-6dd878a1a35a",
+          "import_batch_id": "loyverse-shifts-2026-06-13",
+          "source_file": "shifts-2024-04-01-2026-05-31.csv",
+          "source_row_number": 1,
+          "row_hash": "3593bd03b8cb8bf48f29ad2b9b23cad82fa9b2f4cf22201d09c4c7ce032eb2d8",
+          "imported_at": "2026-06-13T18:48:54.265Z",
+          "store_name": "Juja Brew & Bites - Pasong Tamo",
+          "pos": "Tab",
+          "shift_number": "678",
+          "shift_opening_time": "2026-03-31T02:11:00.000Z",
+          "shift_opened": "jujabrewandbites@gmail.com",
+          "shift_closing_time": "2026-03-31T22:57:00.000Z",
+          "shift_closed": "jujabrewandbites@gmail.com",
+          "starting_cash": "5000.00",
+          "cash_payments": "14973.00",
+          "cash_refunds": "149.00",
+          "paid_in": "0.00",
+          "paid_out": "0.00",
+          "expected_cash_amount": "19824.00",
+          "actual_cash_amount": "19657.00",
+          "difference": "-167.00",
+          "raw_data": {
+            "POS": "Tab",
+            "Store": "Juja Brew & Bites - Pasong Tamo",
+            "Paid in": "0.00",
+            "Paid out": "0.00",
+            "Difference": "-167.00",
+            "Cash refunds": "149.00",
+            "Shift closed": "jujabrewandbites@gmail.com",
+            "Shift number": "678",
+            "Shift opened": "jujabrewandbites@gmail.com",
+            "Cash payments": "14973.00",
+            "Starting cash": "5000.00",
+            "Actual cash amount": "19657.00",
+            "Shift closing time": "4/1/26 6:57 AM",
+            "Shift opening time": "3/31/26 10:11 AM",
+            "Expected cash amount": "19824.00"
+          },
+          "Store": "Juja Brew & Bites - Pasong Tamo",
+          "POS": "Tab",
+          "Shift number": "678",
+          "Shift opening time": "3/31/26 10:11 AM",
+          "Shift opened": "jujabrewandbites@gmail.com",
+          "Shift closing time": "4/1/26 6:57 AM",
+          "Shift closed": "jujabrewandbites@gmail.com",
+          "Starting cash": "5000.00",
+          "Cash payments": "14973.00",
+          "Cash refunds": "149.00",
+          "Paid in": "0.00",
+          "Paid out": "0.00",
+          "Expected cash amount": "19824.00",
+          "Actual cash amount": "19657.00",
+          "Difference": "-167.00"
+        },
+        {
+          "id": "214640af-90c1-43be-9c0d-e13eb8bc1d43",
+          "import_batch_id": "loyverse-shifts-2026-06-13",
+          "source_file": "shifts-2024-04-01-2026-05-31.csv",
+          "source_row_number": 2,
+          "row_hash": "4b327b6c1c8afd0d792be2ab058b08d98a701c5a528d692ae977f8024fd5cbe4",
+          "imported_at": "2026-06-13T18:48:54.265Z",
+          "store_name": "Juja Brew & Bites - Diliman",
+          "pos": "Cashier - Diliman",
+          "shift_number": "6",
+          "shift_opening_time": "2026-03-31T00:25:00.000Z",
+          "shift_opened": "jujabrewandbites@gmail.com",
+          "shift_closing_time": "2026-03-31T15:53:00.000Z",
+          "shift_closed": "jujabrewandbites@gmail.com",
+          "starting_cash": "5000.00",
+          "cash_payments": "8571.40",
+          "cash_refunds": "115.00",
+          "paid_in": "0.00",
+          "paid_out": "0.00",
+          "expected_cash_amount": "13456.40",
+          "actual_cash_amount": "13463.00",
+          "difference": "6.60",
+          "raw_data": {
+            "POS": "Cashier - Diliman",
+            "Store": "Juja Brew & Bites - Diliman",
+            "Paid in": "0.00",
+            "Paid out": "0.00",
+            "Difference": "6.60",
+            "Cash refunds": "115.00",
+            "Shift closed": "jujabrewandbites@gmail.com",
+            "Shift number": "6",
+            "Shift opened": "jujabrewandbites@gmail.com",
+            "Cash payments": "8571.40",
+            "Starting cash": "5000.00",
+            "Actual cash amount": "13463.00",
+            "Shift closing time": "3/31/26 11:53 PM",
+            "Shift opening time": "3/31/26 8:25 AM",
+            "Expected cash amount": "13456.40"
+          },
+          "Store": "Juja Brew & Bites - Diliman",
+          "POS": "Cashier - Diliman",
+          "Shift number": "6",
+          "Shift opening time": "3/31/26 8:25 AM",
+          "Shift opened": "jujabrewandbites@gmail.com",
+          "Shift closing time": "3/31/26 11:53 PM",
+          "Shift closed": "jujabrewandbites@gmail.com",
+          "Starting cash": "5000.00",
+          "Cash payments": "8571.40",
+          "Cash refunds": "115.00",
+          "Paid in": "0.00",
+          "Paid out": "0.00",
+          "Expected cash amount": "13456.40",
+          "Actual cash amount": "13463.00",
+          "Difference": "6.60"
+        }
+      ]
+    },
+    {
+      "table": "public.imported_receipt_items",
+      "row_count": "67809",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": "gen_random_uuid()"
+        },
+        {
+          "column_name": "import_batch_id",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "source_file",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "source_row_number",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "row_hash",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "imported_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "NO",
+          "column_default": "now()"
+        },
+        {
+          "column_name": "receipt_date",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "receipt_day",
+          "data_type": "date",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "receipt_number",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "receipt_type",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "category",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "sku",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "item",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "variant",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "modifiers_applied",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "quantity",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "gross_sales",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "discounts",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "net_sales",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "cost_of_goods",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "gross_profit",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "taxes",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "dining_option",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "pos",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "store_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "cashier_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "customer_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "comment",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "status",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "raw_data",
+          "data_type": "jsonb",
+          "is_nullable": "NO",
+          "column_default": "'{}'::jsonb"
+        },
+        {
+          "column_name": "Date",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Receipt number",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Receipt type",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Category",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "SKU",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Item",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Variant",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Modifiers applied",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Quantity",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Gross sales",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Discounts",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Net sales",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Cost of goods",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Gross profit",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Taxes",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Dining option",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "POS",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Store",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Cashier name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Customer name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Comment",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Status",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "payment_type",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "total_collected",
+          "data_type": "numeric",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "customer_contacts",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "receipt_description",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Payment type",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Total collected",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Customer contacts",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Description",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        }
+      ],
+      "constraints": [
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22530_16_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22530_17_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22530_18_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22530_19_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22530_1_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22530_20_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22530_21_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22530_22_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22530_2_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22530_30_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22530_3_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22530_4_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22530_5_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22530_6_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "PRIMARY KEY",
+          "constraint_name": "imported_receipt_items_pkey",
+          "column_name": "id",
+          "foreign_table_name": "imported_receipt_items",
+          "foreign_column_name": "id"
+        },
+        {
+          "constraint_type": "UNIQUE",
+          "constraint_name": "imported_receipt_items_row_hash_key",
+          "column_name": "row_hash",
+          "foreign_table_name": "imported_receipt_items",
+          "foreign_column_name": "row_hash"
+        }
+      ],
+      "sample": [
+        {
+          "id": "c630137b-3d7d-4dd9-984d-1619f7353be9",
+          "import_batch_id": "loyverse-2026-06-13",
+          "source_file": "receipts-by-item-2024-04-01-2026-05-31.csv",
+          "source_row_number": 1,
+          "row_hash": "391d5c6ad13ce9f74a2efd630800ab86ac4a3c2aab110310960043c7b40f9a01",
+          "imported_at": "2026-06-13T16:36:56.664Z",
+          "receipt_date": "2026-04-01T01:22:00.000Z",
+          "receipt_day": "2026-03-31T16:00:00.000Z",
+          "receipt_number": "7-0198",
+          "receipt_type": "Refund",
+          "category": ".TIRAMISU SERIES",
+          "sku": "10433",
+          "item": "CAKE",
+          "variant": "Tiramisu",
+          "modifiers_applied": "",
+          "quantity": "-1.000",
+          "gross_sales": "-219.00",
+          "discounts": "0.00",
+          "net_sales": "-219.00",
+          "cost_of_goods": "0.00",
+          "gross_profit": "-219.00",
+          "taxes": "0.00",
+          "dining_option": "TAKE-OUT",
+          "pos": "Cashier - Diliman",
+          "store_name": "Juja Brew & Bites - Diliman",
+          "cashier_name": "jujabrewandbites@gmail.com",
+          "customer_name": "",
+          "comment": "",
+          "status": "Closed",
+          "raw_data": {
+            "POS": "Cashier - Diliman",
+            "SKU": "10433",
+            "Date": "4/1/26 9:22 AM",
+            "Item": "CAKE",
+            "Store": "Juja Brew & Bites - Diliman",
+            "Taxes": "0",
+            "Status": "Closed",
+            "Comment": "",
+            "Variant": "Tiramisu",
+            "Category": ".TIRAMISU SERIES",
+            "Quantity": "-1",
+            "Discounts": "0",
+            "Net sales": "-219",
+            "Gross sales": "-219",
+            "Cashier name": "jujabrewandbites@gmail.com",
+            "Gross profit": "-219",
+            "Receipt type": "Refund",
+            "Cost of goods": "0",
+            "Customer name": "",
+            "Dining option": "TAKE-OUT",
+            "Receipt number": "7-0198",
+            "Modifiers applied": ""
+          },
+          "Date": "4/1/26 9:22 AM",
+          "Receipt number": "7-0198",
+          "Receipt type": "Refund",
+          "Category": ".TIRAMISU SERIES",
+          "SKU": "10433",
+          "Item": "CAKE",
+          "Variant": "Tiramisu",
+          "Modifiers applied": "",
+          "Quantity": "-1",
+          "Gross sales": "-219",
+          "Discounts": "0",
+          "Net sales": "-219",
+          "Cost of goods": "0",
+          "Gross profit": "-219",
+          "Taxes": "0",
+          "Dining option": "TAKE-OUT",
+          "POS": "Cashier - Diliman",
+          "Store": "Juja Brew & Bites - Diliman",
+          "Cashier name": "jujabrewandbites@gmail.com",
+          "Customer name": "",
+          "Comment": "",
+          "Status": "Closed",
+          "payment_type": "Cash",
+          "total_collected": "-219.00",
+          "customer_contacts": "",
+          "receipt_description": "1 x CAKE (Tiramisu)",
+          "Payment type": null,
+          "Total collected": null,
+          "Customer contacts": null,
+          "Description": null
+        },
+        {
+          "id": "71cb9684-1d04-48fa-8ff1-85b53282f8ef",
+          "import_batch_id": "loyverse-2026-06-13",
+          "source_file": "receipts-by-item-2024-04-01-2026-05-31.csv",
+          "source_row_number": 2,
+          "row_hash": "4e27e9294302902d6788d071f2dde2be55a6383fad6f6976f04b454a32541f0b",
+          "imported_at": "2026-06-13T16:36:56.664Z",
+          "receipt_date": "2026-04-01T01:22:00.000Z",
+          "receipt_day": "2026-03-31T16:00:00.000Z",
+          "receipt_number": "7-0197",
+          "receipt_type": "Refund",
+          "category": "01 COFFEE",
+          "sku": "10019",
+          "item": "COFFEE JELLY LATTE",
+          "variant": "Cold 16oz",
+          "modifiers_applied": "",
+          "quantity": "-1.000",
+          "gross_sales": "-119.00",
+          "discounts": "0.00",
+          "net_sales": "-119.00",
+          "cost_of_goods": "0.00",
+          "gross_profit": "-119.00",
+          "taxes": "0.00",
+          "dining_option": "TAKE-OUT",
+          "pos": "Cashier - Diliman",
+          "store_name": "Juja Brew & Bites - Diliman",
+          "cashier_name": "jujabrewandbites@gmail.com",
+          "customer_name": "",
+          "comment": "",
+          "status": "Closed",
+          "raw_data": {
+            "POS": "Cashier - Diliman",
+            "SKU": "10019",
+            "Date": "4/1/26 9:22 AM",
+            "Item": "COFFEE JELLY LATTE",
+            "Store": "Juja Brew & Bites - Diliman",
+            "Taxes": "0",
+            "Status": "Closed",
+            "Comment": "",
+            "Variant": "Cold 16oz",
+            "Category": "01 COFFEE",
+            "Quantity": "-1",
+            "Discounts": "0",
+            "Net sales": "-119",
+            "Gross sales": "-119",
+            "Cashier name": "jujabrewandbites@gmail.com",
+            "Gross profit": "-119",
+            "Receipt type": "Refund",
+            "Cost of goods": "0",
+            "Customer name": "",
+            "Dining option": "TAKE-OUT",
+            "Receipt number": "7-0197",
+            "Modifiers applied": ""
+          },
+          "Date": "4/1/26 9:22 AM",
+          "Receipt number": "7-0197",
+          "Receipt type": "Refund",
+          "Category": "01 COFFEE",
+          "SKU": "10019",
+          "Item": "COFFEE JELLY LATTE",
+          "Variant": "Cold 16oz",
+          "Modifiers applied": "",
+          "Quantity": "-1",
+          "Gross sales": "-119",
+          "Discounts": "0",
+          "Net sales": "-119",
+          "Cost of goods": "0",
+          "Gross profit": "-119",
+          "Taxes": "0",
+          "Dining option": "TAKE-OUT",
+          "POS": "Cashier - Diliman",
+          "Store": "Juja Brew & Bites - Diliman",
+          "Cashier name": "jujabrewandbites@gmail.com",
+          "Customer name": "",
+          "Comment": "",
+          "Status": "Closed",
+          "payment_type": "Cash",
+          "total_collected": "-119.00",
+          "customer_contacts": "",
+          "receipt_description": "1 x COFFEE JELLY LATTE (Cold 16oz)",
+          "Payment type": null,
+          "Total collected": null,
+          "Customer contacts": null,
+          "Description": null
+        }
+      ]
+    },
+    {
+      "table": "public.imported_receipts",
+      "row_count": "0",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": "gen_random_uuid()"
+        },
+        {
+          "column_name": "import_batch_id",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "source_file",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "source_row_number",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "row_hash",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "imported_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "NO",
+          "column_default": "now()"
+        },
+        {
+          "column_name": "receipt_date",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "receipt_day",
+          "data_type": "date",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "receipt_number",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "receipt_type",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "gross_sales",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "discounts",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "net_sales",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "taxes",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "total_collected",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "cost_of_goods",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "gross_profit",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "payment_type",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "description",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "dining_option",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "pos",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "store_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "cashier_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "customer_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "customer_contacts",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "status",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "raw_data",
+          "data_type": "jsonb",
+          "is_nullable": "NO",
+          "column_default": "'{}'::jsonb"
+        },
+        {
+          "column_name": "Date",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Receipt number",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Receipt type",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Gross sales",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Discounts",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Net sales",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Taxes",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Total collected",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Cost of goods",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Gross profit",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Payment type",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Description",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Dining option",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "POS",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Store",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Cashier name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Customer name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Customer contacts",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Status",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        }
+      ],
+      "constraints": [
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22511_11_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22511_12_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22511_13_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22511_14_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22511_15_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22511_16_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22511_17_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22511_1_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22511_27_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22511_2_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22511_3_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22511_4_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22511_5_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22511_6_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "PRIMARY KEY",
+          "constraint_name": "imported_receipts_pkey",
+          "column_name": "id",
+          "foreign_table_name": "imported_receipts",
+          "foreign_column_name": "id"
+        },
+        {
+          "constraint_type": "UNIQUE",
+          "constraint_name": "imported_receipts_row_hash_key",
+          "column_name": "row_hash",
+          "foreign_table_name": "imported_receipts",
+          "foreign_column_name": "row_hash"
+        }
+      ],
+      "sample": []
+    },
+    {
+      "table": "public.imported_sales",
+      "row_count": "67809",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": "gen_random_uuid()"
+        },
+        {
+          "column_name": "source_item_id",
+          "data_type": "uuid",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "import_batch_id",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "source_file",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "source_row_number",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "row_hash",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "imported_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "NO",
+          "column_default": "now()"
+        },
+        {
+          "column_name": "receipt_key",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "receipt_date",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "receipt_day",
+          "data_type": "date",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "receipt_number",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "receipt_type",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "gross_sales",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "discounts",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "net_sales",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "refund_amount",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "taxes",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "total_collected",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "cost_of_goods",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "gross_profit",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "payment_type",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "receipt_description",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "dining_option",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "pos",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "store_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "cashier_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "customer_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "customer_contacts",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "status",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "category",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "sku",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "item",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "variant",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "modifiers_applied",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "quantity",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "comment",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "raw_data",
+          "data_type": "jsonb",
+          "is_nullable": "NO",
+          "column_default": "'{}'::jsonb"
+        },
+        {
+          "column_name": "source_type",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": "'loyverse'::text"
+        },
+        {
+          "column_name": "source_order_id",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "source_line_id",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        }
+      ],
+      "constraints": [
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22623_13_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22623_14_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22623_15_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22623_16_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22623_17_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22623_18_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22623_19_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22623_1_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22623_20_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22623_35_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22623_37_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22623_38_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22623_6_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22623_7_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22623_8_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "PRIMARY KEY",
+          "constraint_name": "imported_sales_pkey",
+          "column_name": "id",
+          "foreign_table_name": "imported_sales",
+          "foreign_column_name": "id"
+        },
+        {
+          "constraint_type": "UNIQUE",
+          "constraint_name": "imported_sales_row_hash_key",
+          "column_name": "row_hash",
+          "foreign_table_name": "imported_sales",
+          "foreign_column_name": "row_hash"
+        }
+      ],
+      "sample": [
+        {
+          "id": "b91a8ec2-4a16-42a3-8cc3-0e43aed04c3a",
+          "source_item_id": "c630137b-3d7d-4dd9-984d-1619f7353be9",
+          "import_batch_id": "loyverse-2026-06-13",
+          "source_file": "receipts-by-item-2024-04-01-2026-05-31.csv",
+          "source_row_number": 1,
+          "row_hash": "391d5c6ad13ce9f74a2efd630800ab86ac4a3c2aab110310960043c7b40f9a01",
+          "imported_at": "2026-06-13T16:36:56.664Z",
+          "receipt_key": "d2b6cbe55e30984c18fa013389fb9083",
+          "receipt_date": "2026-04-01T01:22:00.000Z",
+          "receipt_day": "2026-03-31T16:00:00.000Z",
+          "receipt_number": "7-0198",
+          "receipt_type": "Refund",
+          "gross_sales": "0.00",
+          "discounts": "0.00",
+          "net_sales": "0.00",
+          "refund_amount": "219.00",
+          "taxes": "0.00",
+          "total_collected": "-219.00",
+          "cost_of_goods": "0.00",
+          "gross_profit": "-219.00",
+          "payment_type": "Cash",
+          "receipt_description": "1 x CAKE (Tiramisu)",
+          "dining_option": "TAKE-OUT",
+          "pos": "Cashier - Diliman",
+          "store_name": "Juja Brew & Bites - Diliman",
+          "cashier_name": "jujabrewandbites@gmail.com",
+          "customer_name": "",
+          "customer_contacts": "",
+          "status": "Refunded",
+          "category": ".TIRAMISU SERIES",
+          "sku": "10433",
+          "item": "CAKE",
+          "variant": "Tiramisu",
+          "modifiers_applied": "",
+          "quantity": "-1.000",
+          "comment": "",
+          "raw_data": {
+            "POS": "Cashier - Diliman",
+            "SKU": "10433",
+            "Date": "4/1/26 9:22 AM",
+            "Item": "CAKE",
+            "Store": "Juja Brew & Bites - Diliman",
+            "Taxes": "0",
+            "Status": "Closed",
+            "Comment": "",
+            "Variant": "Tiramisu",
+            "Category": ".TIRAMISU SERIES",
+            "Quantity": "-1",
+            "Discounts": "0",
+            "Net sales": "-219",
+            "Gross sales": "-219",
+            "Cashier name": "jujabrewandbites@gmail.com",
+            "Gross profit": "-219",
+            "Receipt type": "Refund",
+            "Cost of goods": "0",
+            "Customer name": "",
+            "Dining option": "TAKE-OUT",
+            "Receipt number": "7-0198",
+            "Modifiers applied": ""
+          },
+          "source_type": "loyverse",
+          "source_order_id": "7-0198",
+          "source_line_id": "391d5c6ad13ce9f74a2efd630800ab86ac4a3c2aab110310960043c7b40f9a01"
+        },
+        {
+          "id": "05177ef7-edc1-432a-8efb-00fe64c149fd",
+          "source_item_id": "71cb9684-1d04-48fa-8ff1-85b53282f8ef",
+          "import_batch_id": "loyverse-2026-06-13",
+          "source_file": "receipts-by-item-2024-04-01-2026-05-31.csv",
+          "source_row_number": 2,
+          "row_hash": "4e27e9294302902d6788d071f2dde2be55a6383fad6f6976f04b454a32541f0b",
+          "imported_at": "2026-06-13T16:36:56.664Z",
+          "receipt_key": "3ff0fec429c6816f14a038849463a0ef",
+          "receipt_date": "2026-04-01T01:22:00.000Z",
+          "receipt_day": "2026-03-31T16:00:00.000Z",
+          "receipt_number": "7-0197",
+          "receipt_type": "Refund",
+          "gross_sales": "0.00",
+          "discounts": "0.00",
+          "net_sales": "0.00",
+          "refund_amount": "119.00",
+          "taxes": "0.00",
+          "total_collected": "-119.00",
+          "cost_of_goods": "0.00",
+          "gross_profit": "-119.00",
+          "payment_type": "Cash",
+          "receipt_description": "1 x COFFEE JELLY LATTE (Cold 16oz)",
+          "dining_option": "TAKE-OUT",
+          "pos": "Cashier - Diliman",
+          "store_name": "Juja Brew & Bites - Diliman",
+          "cashier_name": "jujabrewandbites@gmail.com",
+          "customer_name": "",
+          "customer_contacts": "",
+          "status": "Refunded",
+          "category": "01 COFFEE",
+          "sku": "10019",
+          "item": "COFFEE JELLY LATTE",
+          "variant": "Cold 16oz",
+          "modifiers_applied": "",
+          "quantity": "-1.000",
+          "comment": "",
+          "raw_data": {
+            "POS": "Cashier - Diliman",
+            "SKU": "10019",
+            "Date": "4/1/26 9:22 AM",
+            "Item": "COFFEE JELLY LATTE",
+            "Store": "Juja Brew & Bites - Diliman",
+            "Taxes": "0",
+            "Status": "Closed",
+            "Comment": "",
+            "Variant": "Cold 16oz",
+            "Category": "01 COFFEE",
+            "Quantity": "-1",
+            "Discounts": "0",
+            "Net sales": "-119",
+            "Gross sales": "-119",
+            "Cashier name": "jujabrewandbites@gmail.com",
+            "Gross profit": "-119",
+            "Receipt type": "Refund",
+            "Cost of goods": "0",
+            "Customer name": "",
+            "Dining option": "TAKE-OUT",
+            "Receipt number": "7-0197",
+            "Modifiers applied": ""
+          },
+          "source_type": "loyverse",
+          "source_order_id": "7-0197",
+          "source_line_id": "4e27e9294302902d6788d071f2dde2be55a6383fad6f6976f04b454a32541f0b"
+        }
+      ]
+    },
+    {
+      "table": "public.imported_sales_receipts",
+      "row_count": "30973",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "receipt_date",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "receipt_day",
+          "data_type": "date",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "receipt_number",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "receipt_type",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "gross_sales",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "discounts",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "net_sales",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "refund_amount",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "total_collected",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "payment_type",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "dining_option",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "pos",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "store_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "cashier_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "customer_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "status",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "order_count",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": "1"
+        },
+        {
+          "column_name": "source_type",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": "'loyverse'::text"
+        },
+        {
+          "column_name": "source_order_id",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "customer_contacts",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        }
+      ],
+      "constraints": [
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22644_10_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22644_18_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22644_19_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22644_1_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22644_6_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22644_7_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22644_8_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22644_9_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "PRIMARY KEY",
+          "constraint_name": "imported_sales_receipts_pkey",
+          "column_name": "id",
+          "foreign_table_name": "imported_sales_receipts",
+          "foreign_column_name": "id"
+        }
+      ],
+      "sample": [
+        {
+          "id": "imported-sales-receipt:81c808346ef89c07a088d361261de52a",
+          "receipt_date": "2025-05-23T09:57:00.000Z",
+          "receipt_day": "2025-05-22T16:00:00.000Z",
+          "receipt_number": "4-14084",
+          "receipt_type": "Sale",
+          "gross_sales": "784.00",
+          "discounts": "0.00",
+          "net_sales": "784.00",
+          "refund_amount": "0.00",
+          "total_collected": "784.00",
+          "payment_type": "Cash",
+          "dining_option": "TABLE 4",
+          "pos": "Tab",
+          "store_name": "Juja Brew & Bites - Pasong Tamo",
+          "cashier_name": "jujabrewandbites@gmail.com",
+          "customer_name": "",
+          "status": "Paid",
+          "order_count": 1,
+          "source_type": "loyverse",
+          "source_order_id": "4-14084",
+          "customer_contacts": null
+        },
+        {
+          "id": "imported-sales-receipt:e70d5ddb63a1693e808d214605edef76",
+          "receipt_date": "2025-05-24T07:55:00.000Z",
+          "receipt_day": "2025-05-23T16:00:00.000Z",
+          "receipt_number": "4-14125",
+          "receipt_type": "Sale",
+          "gross_sales": "109.00",
+          "discounts": "0.00",
+          "net_sales": "109.00",
+          "refund_amount": "0.00",
+          "total_collected": "109.00",
+          "payment_type": "Cash",
+          "dining_option": "TABLE 1",
+          "pos": "Tab",
+          "store_name": "Juja Brew & Bites - Pasong Tamo",
+          "cashier_name": "jujabrewandbites@gmail.com",
+          "customer_name": "",
+          "status": "Paid",
+          "order_count": 1,
+          "source_type": "loyverse",
+          "source_order_id": "4-14125",
+          "customer_contacts": null
+        }
+      ]
+    },
+    {
+      "table": "public.imported_sales_summary",
+      "row_count": "13576",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "receipt_date",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "receipt_day",
+          "data_type": "date",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "receipt_type",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "gross_sales",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "discounts",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "net_sales",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "refund_amount",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "payment_type",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "dining_option",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "store_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "cashier_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "customer_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "status",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "order_count",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "source_type",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": "'loyverse'::text"
+        }
+      ],
+      "constraints": [
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22657_15_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22657_16_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22657_1_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22657_5_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22657_6_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22657_7_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_22657_8_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "PRIMARY KEY",
+          "constraint_name": "imported_sales_summary_pkey",
+          "column_name": "id",
+          "foreign_table_name": "imported_sales_summary",
+          "foreign_column_name": "id"
+        }
+      ],
+      "sample": [
+        {
+          "id": "imported-sales-summary:2025-04-14:fe2f93da04f3895643ff41b9ad1bc5dd",
+          "receipt_date": "2025-04-14T06:46:00.000Z",
+          "receipt_day": "2025-04-13T16:00:00.000Z",
+          "receipt_type": "Sale",
+          "gross_sales": "258.00",
+          "discounts": "0.00",
+          "net_sales": "258.00",
+          "refund_amount": "0.00",
+          "payment_type": "GRAB",
+          "dining_option": "GRAB|PANDA",
+          "store_name": "Juja Brew & Bites - Pasong Tamo",
+          "cashier_name": "jujabrewandbites@gmail.com",
+          "customer_name": "",
+          "status": "Paid",
+          "order_count": 1,
+          "source_type": "loyverse"
+        },
+        {
+          "id": "imported-sales-summary:2025-05-10:5d408ea256caa72340ed246b28ca415e",
+          "receipt_date": "2025-05-10T11:40:00.000Z",
+          "receipt_day": "2025-05-09T16:00:00.000Z",
+          "receipt_type": "Sale",
+          "gross_sales": "397.00",
+          "discounts": "0.00",
+          "net_sales": "397.00",
+          "refund_amount": "0.00",
+          "payment_type": "Cash",
+          "dining_option": "TABLE 4",
+          "store_name": "Juja Brew & Bites - Pasong Tamo",
+          "cashier_name": "jujabrewandbites@gmail.com",
+          "customer_name": "",
+          "status": "Paid",
+          "order_count": 1,
+          "source_type": "loyverse"
+        }
+      ]
+    },
+    {
+      "table": "public.loyalty_members",
+      "row_count": "920",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": "gen_random_uuid()"
+        },
+        {
+          "column_name": "user_id",
+          "data_type": "uuid",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Customer ID",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "customer_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Email",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Phone",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Address",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "City",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Province",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Postal code",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Country",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "customer_code",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Points balance",
+          "data_type": "numeric",
+          "is_nullable": "YES",
+          "column_default": "0"
+        },
+        {
+          "column_name": "Note",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "First visit",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Last visit",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "Total visits",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "column_default": "0"
+        },
+        {
+          "column_name": "Total spent",
+          "data_type": "numeric",
+          "is_nullable": "YES",
+          "column_default": "0"
+        },
+        {
+          "column_name": "Available points",
+          "data_type": "numeric",
+          "is_nullable": "YES",
+          "column_default": "0"
+        },
+        {
+          "column_name": "store_id",
+          "data_type": "uuid",
+          "is_nullable": "YES",
+          "column_default": null
+        }
+      ],
+      "constraints": [
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_17966_1_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "FOREIGN KEY",
+          "constraint_name": "fk_loyalty_members_store",
+          "column_name": "store_id",
+          "foreign_table_name": "stores",
+          "foreign_column_name": "id"
+        },
+        {
+          "constraint_type": "FOREIGN KEY",
+          "constraint_name": "loyalty_members_store_id_fkey",
+          "column_name": "store_id",
+          "foreign_table_name": "stores",
+          "foreign_column_name": "id"
+        },
+        {
+          "constraint_type": "FOREIGN KEY",
+          "constraint_name": "loyalty_members_user_id_fkey",
+          "column_name": "user_id",
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "PRIMARY KEY",
+          "constraint_name": "loyalty_members_pkey",
+          "column_name": "id",
+          "foreign_table_name": "loyalty_members",
+          "foreign_column_name": "id"
+        },
+        {
+          "constraint_type": "UNIQUE",
+          "constraint_name": "loyalty_members_Customer ID_key",
+          "column_name": "Customer ID",
+          "foreign_table_name": "loyalty_members",
+          "foreign_column_name": "Customer ID"
+        },
+        {
+          "constraint_type": "UNIQUE",
+          "constraint_name": "loyalty_members_Customer code_key",
+          "column_name": "customer_code",
+          "foreign_table_name": "loyalty_members",
+          "foreign_column_name": "customer_code"
+        }
+      ],
+      "sample": [
+        {
+          "id": "6dde6d45-191b-4ec4-9ecc-6bcf943c9fee",
+          "user_id": null,
+          "Customer ID": "4065838",
+          "customer_name": "Jessie Juangco",
+          "Email": null,
+          "Phone": null,
+          "Address": null,
+          "City": null,
+          "Province": null,
+          "Postal code": null,
+          "Country": null,
+          "customer_code": "JUJA2025000004",
+          "Points balance": "678.30",
+          "Note": null,
+          "First visit": "5/8/25 6:54 PM",
+          "Last visit": "6/7/26 8:26 PM",
+          "Total visits": 56,
+          "Total spent": "16957.60",
+          "Available points": "0",
+          "store_id": null
+        },
+        {
+          "id": "16a76758-956e-4bda-9ce3-cd4560fe1b9d",
+          "user_id": null,
+          "Customer ID": "5997285",
+          "customer_name": "Cheska Ecalnir",
+          "Email": null,
+          "Phone": null,
+          "Address": null,
+          "City": null,
+          "Province": null,
+          "Postal code": null,
+          "Country": null,
+          "customer_code": "JUJA2025000009",
+          "Points balance": "149.06",
+          "Note": null,
+          "First visit": "5/15/25 2:50 PM",
+          "Last visit": "3/1/26 5:26 PM",
+          "Total visits": 38,
+          "Total spent": "3726.60",
+          "Available points": "40.4",
+          "store_id": null
+        }
+      ]
+    },
+    {
+      "table": "public.menu_items",
+      "row_count": "168",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": "gen_random_uuid()"
+        },
+        {
+          "column_name": "name",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "description",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "price",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0.00"
+        },
+        {
+          "column_name": "category",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "image_url",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "is_available",
+          "data_type": "boolean",
+          "is_nullable": "YES",
+          "column_default": "true"
+        },
+        {
+          "column_name": "is_featured",
+          "data_type": "boolean",
+          "is_nullable": "YES",
+          "column_default": "false"
+        },
+        {
+          "column_name": "option_groups",
+          "data_type": "jsonb",
+          "is_nullable": "YES",
+          "column_default": "'[]'::jsonb"
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": "now()"
+        },
+        {
+          "column_name": "variants",
+          "data_type": "jsonb",
+          "is_nullable": "YES",
+          "column_default": "'[]'::jsonb"
+        },
+        {
+          "column_name": "pos_only",
+          "data_type": "boolean",
+          "is_nullable": "NO",
+          "column_default": "false"
+        },
+        {
+          "column_name": "is_variable_price",
+          "data_type": "boolean",
+          "is_nullable": "YES",
+          "column_default": "false"
+        },
+        {
+          "column_name": "store_id",
+          "data_type": "uuid",
+          "is_nullable": "YES",
+          "column_default": null
+        }
+      ],
+      "constraints": [
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_17481_12_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_17481_1_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_17481_2_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_17481_4_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "FOREIGN KEY",
+          "constraint_name": "fk_menu_items_store",
+          "column_name": "store_id",
+          "foreign_table_name": "stores",
+          "foreign_column_name": "id"
+        },
+        {
+          "constraint_type": "FOREIGN KEY",
+          "constraint_name": "menu_items_category_fkey",
+          "column_name": "category",
+          "foreign_table_name": "menu_categories",
+          "foreign_column_name": "name"
+        },
+        {
+          "constraint_type": "FOREIGN KEY",
+          "constraint_name": "menu_items_store_id_fkey",
+          "column_name": "store_id",
+          "foreign_table_name": "stores",
+          "foreign_column_name": "id"
+        },
+        {
+          "constraint_type": "PRIMARY KEY",
+          "constraint_name": "menu_items_pkey",
+          "column_name": "id",
+          "foreign_table_name": "menu_items",
+          "foreign_column_name": "id"
+        }
+      ],
+      "sample": [
+        {
+          "id": "095fc2eb-7bb7-402f-ad7a-81c7ad13585e",
+          "name": "Hershey's Smores Cookie",
+          "description": "",
+          "price": "80.00",
+          "category": "COOKIES",
+          "image_url": "https://images.jujabrewandbites.com/Hershey's%20Smores%20Cookie.png",
+          "is_available": true,
+          "is_featured": true,
+          "option_groups": [],
+          "created_at": "2026-05-10T10:33:57.261Z",
+          "variants": [],
+          "pos_only": false,
+          "is_variable_price": false,
+          "store_id": null
+        },
+        {
+          "id": "6a578b5e-728c-49c4-a599-7ec6a7f64213",
+          "name": "Mocha Frappe",
+          "description": "",
+          "price": "0.00",
+          "category": "FRAPPE (COFFEE)",
+          "image_url": "",
+          "is_available": true,
+          "is_featured": false,
+          "option_groups": [],
+          "created_at": "2026-05-15T12:19:11.278Z",
+          "variants": [
+            {
+              "id": 1778847540040,
+              "name": "Variant",
+              "options": [
+                {
+                  "id": 1778847540040.6626,
+                  "name": "Regular",
+                  "price": "129"
+                },
+                {
+                  "id": 1778847540040.2275,
+                  "name": "Large",
+                  "price": "149"
+                }
+              ],
+              "isRequired": true,
+              "isMultiSelect": false
+            },
+            {
+              "id": 1778847541628,
+              "name": "Sugar Level",
+              "options": [
+                {
+                  "id": 1778847541628.4277,
+                  "name": "75%",
+                  "price": ""
+                },
+                {
+                  "id": 1778847541628.9944,
+                  "name": "50%",
+                  "price": ""
+                },
+                {
+                  "id": 1778847541628.4053,
+                  "name": "25%",
+                  "price": ""
+                },
+                {
+                  "id": 1778847541628.7717,
+                  "name": "0%",
+                  "price": ""
+                }
+              ],
+              "isRequired": false,
+              "isMultiSelect": false
+            },
+            {
+              "id": 1778847542636,
+              "name": "Add on",
+              "options": [
+                {
+                  "id": 1778847542636.7122,
+                  "name": "Black Pearl",
+                  "price": "20"
+                },
+                {
+                  "id": 1778847542636.2124,
+                  "name": "White Pearl",
+                  "price": "20"
+                },
+                {
+                  "id": 1778847542636.9373,
+                  "name": "Grass Jelly",
+                  "price": "20"
+                },
+                {
+                  "id": 1778847542636.414,
+                  "name": "Egg Pudding",
+                  "price": "20"
+                },
+                {
+                  "id": 1778847542636.617,
+                  "name": "Oats",
+                  "price": "20"
+                },
+                {
+                  "id": 1778847542636.365,
+                  "name": "Whipped Cream",
+                  "price": "20"
+                },
+                {
+                  "id": 1778847542636.6853,
+                  "name": "Nata",
+                  "price": "30"
+                },
+                {
+                  "id": 1778847542636.497,
+                  "name": "Cheesecake",
+                  "price": "30"
+                },
+                {
+                  "id": 1778847542636.8933,
+                  "name": "Sea Salt",
+                  "price": "30"
+                },
+                {
+                  "id": 1778847542636.9832,
+                  "name": "Coffee Jelly",
+                  "price": "30"
+                },
+                {
+                  "id": 1778847542636.5256,
+                  "name": "Popping Boba",
+                  "price": "30"
+                },
+                {
+                  "id": 1778847542636.4546,
+                  "name": "Oreo",
+                  "price": "30"
+                },
+                {
+                  "id": 1778847542636.8,
+                  "name": "Ice Cream",
+                  "price": "30"
+                },
+                {
+                  "id": 1778847542636.8433,
+                  "name": "Nutella",
+                  "price": "40"
+                },
+                {
+                  "id": 1778847542636.2915,
+                  "name": "Espresso Shot",
+                  "price": "40"
+                },
+                {
+                  "id": 1778847542636.3652,
+                  "name": "Oat Milk",
+                  "price": "40"
+                },
+                {
+                  "id": 1778847542636.0938,
+                  "name": "Coconut Milk",
+                  "price": "40"
+                },
+                {
+                  "id": 1778847542636.8188,
+                  "name": "Syrup",
+                  "price": "30"
+                },
+                {
+                  "id": 1778847542636.9548,
+                  "name": "Sauce",
+                  "price": "40"
+                }
+              ],
+              "isRequired": false,
+              "isMultiSelect": true
+            }
+          ],
+          "pos_only": false,
+          "is_variable_price": false,
+          "store_id": null
+        }
+      ]
+    },
+    {
+      "table": "public.order_items",
+      "row_count": "3",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": "gen_random_uuid()"
+        },
+        {
+          "column_name": "order_id",
+          "data_type": "uuid",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "menu_item_id",
+          "data_type": "uuid",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "name",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "quantity",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "1"
+        },
+        {
+          "column_name": "unit_price",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "modifiers",
+          "data_type": "jsonb",
+          "is_nullable": "YES",
+          "column_default": "'[]'::jsonb"
+        },
+        {
+          "column_name": "instructions",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "line_total",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "applied_voucher_code",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": "now()"
+        },
+        {
+          "column_name": "item_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "category_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "gross_amount",
+          "data_type": "numeric",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "discount_amount",
+          "data_type": "numeric",
+          "is_nullable": "YES",
+          "column_default": "0"
+        },
+        {
+          "column_name": "net_amount",
+          "data_type": "numeric",
+          "is_nullable": "YES",
+          "column_default": null
+        }
+      ],
+      "constraints": [
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_19441_1_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_19441_4_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_19441_5_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_19441_6_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_19441_9_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "PRIMARY KEY",
+          "constraint_name": "order_items_pkey",
+          "column_name": "id",
+          "foreign_table_name": "order_items",
+          "foreign_column_name": "id"
+        }
+      ],
+      "sample": [
+        {
+          "id": "1b7e3240-f200-49e5-b001-94cea29f8788",
+          "order_id": "2d9bc35a-0699-4905-a95f-69f98011e21c",
+          "menu_item_id": "4da1c187-c82a-426e-b52a-a6f169916589",
+          "name": "Caramel Hazelnut Latte",
+          "quantity": "1.00",
+          "unit_price": "119.00",
+          "modifiers": [],
+          "instructions": null,
+          "line_total": "119.00",
+          "applied_voucher_code": null,
+          "created_at": "2026-06-02T16:37:06.941Z",
+          "item_name": "Caramel Hazelnut Latte",
+          "category_name": null,
+          "gross_amount": "119.00",
+          "discount_amount": "0",
+          "net_amount": "119.00"
+        },
+        {
+          "id": "d24f343f-733a-480b-ac52-72a746b0a2f5",
+          "order_id": "0fe33f9e-a548-4a4e-bcf1-f3ae7452c281",
+          "menu_item_id": "cc8c8d1c-2a44-4729-b917-a8be481899bb",
+          "name": "Cornedbeef Silog",
+          "quantity": "1.00",
+          "unit_price": "169.00",
+          "modifiers": [],
+          "instructions": null,
+          "line_total": "169.00",
+          "applied_voucher_code": null,
+          "created_at": "2026-06-05T14:40:46.685Z",
+          "item_name": "Cornedbeef Silog",
+          "category_name": null,
+          "gross_amount": "169.00",
+          "discount_amount": "0",
+          "net_amount": "169.00"
+        }
+      ]
+    },
+    {
+      "table": "public.orders",
+      "row_count": "3",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": "gen_random_uuid()"
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "NO",
+          "column_default": "timezone('utc'::text, now())"
+        },
+        {
+          "column_name": "user_id",
+          "data_type": "uuid",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "customer_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "branch_id",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "items",
+          "data_type": "jsonb",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "subtotal",
+          "data_type": "numeric",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "status",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": "'pending'::text"
+        },
+        {
+          "column_name": "dining_option",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "fulfillment_date",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "fulfillment_time",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "customer_id",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "discount",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "payment_method",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "store_id",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "total",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "inventory_deducted",
+          "data_type": "boolean",
+          "is_nullable": "NO",
+          "column_default": "false"
+        },
+        {
+          "column_name": "inventory_deducted_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "order_number",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "gross_amount",
+          "data_type": "numeric",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "discount_amount",
+          "data_type": "numeric",
+          "is_nullable": "YES",
+          "column_default": "0"
+        },
+        {
+          "column_name": "net_amount",
+          "data_type": "numeric",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "order_type",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "cashier_id",
+          "data_type": "uuid",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "paid_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "voided_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "voided_by",
+          "data_type": "uuid",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "void_reason",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "refunded_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "refunded_by",
+          "data_type": "uuid",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "refund_reason",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "refund_amount",
+          "data_type": "numeric",
+          "is_nullable": "YES",
+          "column_default": "0"
+        },
+        {
+          "column_name": "receipt_number",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "receipt_sequence",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "receipt_date",
+          "data_type": "date",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "source_web_order_id",
+          "data_type": "uuid",
+          "is_nullable": "YES",
+          "column_default": null
+        }
+      ],
+      "constraints": [
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_20055_17_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_20055_1_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_20055_2_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_20055_5_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_20055_6_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "FOREIGN KEY",
+          "constraint_name": "orders_user_id_fkey",
+          "column_name": "user_id",
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "PRIMARY KEY",
+          "constraint_name": "orders_pkey",
+          "column_name": "id",
+          "foreign_table_name": "orders",
+          "foreign_column_name": "id"
+        }
+      ],
+      "sample": [
+        {
+          "id": "87159398-1a96-4050-9dc6-a380ff686113",
+          "created_at": "2026-06-11T05:27:59.615Z",
+          "user_id": null,
+          "customer_name": null,
+          "branch_id": "bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e",
+          "items": [
+            {
+              "id": "230dce27-1c0c-418b-bcc7-322048e37c6c",
+              "name": "Sausage Silog",
+              "quantity": 1,
+              "unitPrice": 169,
+              "cartItemId": 1781184466589,
+              "instructions": "",
+              "variantDetails": "Scrambled"
+            }
+          ],
+          "subtotal": "169",
+          "status": "refunded",
+          "dining_option": "TABLE 1",
+          "fulfillment_date": null,
+          "fulfillment_time": null,
+          "customer_id": null,
+          "discount": "0",
+          "payment_method": "CASH",
+          "store_id": "bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e",
+          "total": "169",
+          "inventory_deducted": false,
+          "inventory_deducted_at": null,
+          "order_number": "PTM-0002",
+          "gross_amount": "169",
+          "discount_amount": "0",
+          "net_amount": "169",
+          "order_type": "TABLE 1",
+          "cashier_id": "0fc7b460-3579-4d56-94ec-c88dbdc3cdc2",
+          "paid_at": "2026-06-11T13:27:58.134Z",
+          "voided_at": null,
+          "voided_by": null,
+          "void_reason": null,
+          "refunded_at": "2026-06-11T13:28:16.359Z",
+          "refunded_by": "0fc7b460-3579-4d56-94ec-c88dbdc3cdc2",
+          "refund_reason": "POS receipt refund",
+          "refund_amount": "169",
+          "receipt_number": "PTM-0002",
+          "receipt_sequence": 2,
+          "receipt_date": "2026-06-10T16:00:00.000Z",
+          "source_web_order_id": null
+        },
+        {
+          "id": "2d9bc35a-0699-4905-a95f-69f98011e21c",
+          "created_at": "2026-06-02T16:37:06.681Z",
+          "user_id": null,
+          "customer_name": null,
+          "branch_id": "bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e",
+          "items": [
+            {
+              "id": "4da1c187-c82a-426e-b52a-a6f169916589",
+              "name": "Caramel Hazelnut Latte",
+              "quantity": 1,
+              "unitPrice": 119,
+              "cartItemId": 1780417925042,
+              "instructions": "",
+              "variantDetails": "Iced (R)"
+            }
+          ],
+          "subtotal": null,
+          "status": "pending",
+          "dining_option": "TABLE 1",
+          "fulfillment_date": null,
+          "fulfillment_time": null,
+          "customer_id": null,
+          "discount": "0",
+          "payment_method": "CASH",
+          "store_id": "bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e",
+          "total": "119",
+          "inventory_deducted": false,
+          "inventory_deducted_at": null,
+          "order_number": null,
+          "gross_amount": "119",
+          "discount_amount": "0",
+          "net_amount": "119",
+          "order_type": "TABLE 1",
+          "cashier_id": null,
+          "paid_at": "2026-06-02T16:37:06.681Z",
+          "voided_at": null,
+          "voided_by": null,
+          "void_reason": null,
+          "refunded_at": null,
+          "refunded_by": null,
+          "refund_reason": null,
+          "refund_amount": "0",
+          "receipt_number": null,
+          "receipt_sequence": null,
+          "receipt_date": null,
+          "source_web_order_id": null
+        }
+      ]
+    },
+    {
+      "table": "public.pos_receipt_settings",
+      "row_count": "0",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": "gen_random_uuid()"
+        },
+        {
+          "column_name": "store_id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "header_text",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": "''::text"
+        },
+        {
+          "column_name": "footer_text",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": "''::text"
+        },
+        {
+          "column_name": "show_store_name",
+          "data_type": "boolean",
+          "is_nullable": "NO",
+          "column_default": "true"
+        },
+        {
+          "column_name": "show_cashier",
+          "data_type": "boolean",
+          "is_nullable": "NO",
+          "column_default": "true"
+        },
+        {
+          "column_name": "show_order_number",
+          "data_type": "boolean",
+          "is_nullable": "NO",
+          "column_default": "true"
+        },
+        {
+          "column_name": "show_datetime",
+          "data_type": "boolean",
+          "is_nullable": "NO",
+          "column_default": "true"
+        },
+        {
+          "column_name": "show_payment_type",
+          "data_type": "boolean",
+          "is_nullable": "NO",
+          "column_default": "true"
+        },
+        {
+          "column_name": "auto_print",
+          "data_type": "boolean",
+          "is_nullable": "NO",
+          "column_default": "false"
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "NO",
+          "column_default": "now()"
+        },
+        {
+          "column_name": "updated_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "NO",
+          "column_default": "now()"
+        }
+      ],
+      "constraints": [
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_19719_10_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_19719_11_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_19719_12_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_19719_1_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_19719_2_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_19719_5_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_19719_6_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_19719_7_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_19719_8_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_19719_9_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "FOREIGN KEY",
+          "constraint_name": "pos_receipt_settings_store_id_fkey",
+          "column_name": "store_id",
+          "foreign_table_name": "stores",
+          "foreign_column_name": "id"
+        },
+        {
+          "constraint_type": "PRIMARY KEY",
+          "constraint_name": "pos_receipt_settings_pkey",
+          "column_name": "id",
+          "foreign_table_name": "pos_receipt_settings",
+          "foreign_column_name": "id"
+        },
+        {
+          "constraint_type": "UNIQUE",
+          "constraint_name": "pos_receipt_settings_store_id_key",
+          "column_name": "store_id",
+          "foreign_table_name": "pos_receipt_settings",
+          "foreign_column_name": "store_id"
+        }
+      ],
+      "sample": []
+    },
+    {
+      "table": "public.profiles",
+      "row_count": "8",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "email",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "full_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "role",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": "'cashier'::text"
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": "timezone('utc'::text, now())"
+        },
+        {
+          "column_name": "store_id",
+          "data_type": "uuid",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "loyalty_account_id",
+          "data_type": "uuid",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "must_change_password",
+          "data_type": "boolean",
+          "is_nullable": "NO",
+          "column_default": "true"
+        }
+      ],
+      "constraints": [
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_18153_1_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_18153_8_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "FOREIGN KEY",
+          "constraint_name": "profiles_id_fkey",
+          "column_name": "id",
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "FOREIGN KEY",
+          "constraint_name": "profiles_store_id_fkey",
+          "column_name": "store_id",
+          "foreign_table_name": "stores",
+          "foreign_column_name": "id"
+        },
+        {
+          "constraint_type": "PRIMARY KEY",
+          "constraint_name": "profiles_pkey",
+          "column_name": "id",
+          "foreign_table_name": "profiles",
+          "foreign_column_name": "id"
+        },
+        {
+          "constraint_type": "UNIQUE",
+          "constraint_name": "profiles_email_key",
+          "column_name": "email",
+          "foreign_table_name": "profiles",
+          "foreign_column_name": "email"
+        }
+      ],
+      "sample": [
+        {
+          "id": "0fc7b460-3579-4d56-94ec-c88dbdc3cdc2",
+          "email": "cindy@gmail.com",
+          "full_name": "Cindy",
+          "role": "cashier",
+          "created_at": "2026-05-24T06:11:02.107Z",
+          "store_id": "bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e",
+          "loyalty_account_id": null,
+          "must_change_password": false
+        },
+        {
+          "id": "b86c9b5d-48e4-45ee-bfc8-96625679e2c6",
+          "email": "jujabrewandbites@gmail.com",
+          "full_name": "Owner",
+          "role": "super_admin",
+          "created_at": "2026-05-11T02:15:34.539Z",
+          "store_id": null,
+          "loyalty_account_id": null,
+          "must_change_password": false
+        }
+      ]
+    },
+    {
+      "table": "public.receipt_counters",
+      "row_count": "2",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": "gen_random_uuid()"
+        },
+        {
+          "column_name": "store_id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "receipt_date",
+          "data_type": "date",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "last_sequence",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": "0"
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "NO",
+          "column_default": "now()"
+        },
+        {
+          "column_name": "updated_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "NO",
+          "column_default": "now()"
+        }
+      ],
+      "constraints": [
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_21788_1_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_21788_2_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_21788_3_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_21788_4_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_21788_5_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_21788_6_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "FOREIGN KEY",
+          "constraint_name": "receipt_counters_store_id_fkey",
+          "column_name": "store_id",
+          "foreign_table_name": "stores",
+          "foreign_column_name": "id"
+        },
+        {
+          "constraint_type": "PRIMARY KEY",
+          "constraint_name": "receipt_counters_pkey",
+          "column_name": "id",
+          "foreign_table_name": "receipt_counters",
+          "foreign_column_name": "id"
+        },
+        {
+          "constraint_type": "UNIQUE",
+          "constraint_name": "receipt_counters_store_id_receipt_date_key",
+          "column_name": "store_id",
+          "foreign_table_name": "receipt_counters",
+          "foreign_column_name": "store_id"
+        },
+        {
+          "constraint_type": "UNIQUE",
+          "constraint_name": "receipt_counters_store_id_receipt_date_key",
+          "column_name": "store_id",
+          "foreign_table_name": "receipt_counters",
+          "foreign_column_name": "receipt_date"
+        },
+        {
+          "constraint_type": "UNIQUE",
+          "constraint_name": "receipt_counters_store_id_receipt_date_key",
+          "column_name": "receipt_date",
+          "foreign_table_name": "receipt_counters",
+          "foreign_column_name": "store_id"
+        },
+        {
+          "constraint_type": "UNIQUE",
+          "constraint_name": "receipt_counters_store_id_receipt_date_key",
+          "column_name": "receipt_date",
+          "foreign_table_name": "receipt_counters",
+          "foreign_column_name": "receipt_date"
+        }
+      ],
+      "sample": [
+        {
+          "id": "f303fcea-8a9f-41df-a843-ab4eab1da015",
+          "store_id": "bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e",
+          "receipt_date": "2026-06-10T16:00:00.000Z",
+          "last_sequence": 2,
+          "created_at": "2026-06-11T13:23:54.466Z",
+          "updated_at": "2026-06-11T13:27:59.413Z"
+        },
+        {
+          "id": "d88cd44b-c61a-41b3-b7d9-598482b38616",
+          "store_id": "bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e",
+          "receipt_date": "2026-06-11T16:00:00.000Z",
+          "last_sequence": 1,
+          "created_at": "2026-06-12T03:24:24.669Z",
+          "updated_at": "2026-06-12T03:24:24.669Z"
+        }
+      ]
+    },
+    {
+      "table": "public.stores",
+      "row_count": "2",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": "gen_random_uuid()"
+        },
+        {
+          "column_name": "name",
+          "data_type": "text",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "timezone",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": "'Asia/Manila'::text"
+        },
+        {
+          "column_name": "is_active",
+          "data_type": "boolean",
+          "is_nullable": "YES",
+          "column_default": "true"
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": "now()"
+        },
+        {
+          "column_name": "sort_order",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "column_default": "0"
+        },
+        {
+          "column_name": "store_code",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "store_name",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "address",
+          "data_type": "text",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "updated_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": "now()"
+        }
+      ],
+      "constraints": [
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_19415_1_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "CHECK",
+          "constraint_name": "2200_19415_2_not_null",
+          "column_name": null,
+          "foreign_table_name": null,
+          "foreign_column_name": null
+        },
+        {
+          "constraint_type": "PRIMARY KEY",
+          "constraint_name": "stores_pkey",
+          "column_name": "id",
+          "foreign_table_name": "stores",
+          "foreign_column_name": "id"
+        }
+      ],
+      "sample": [
+        {
+          "id": "bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e",
+          "name": "Juja Brew & Bites - Pasong Tamo",
+          "timezone": "Asia/Manila",
+          "is_active": true,
+          "created_at": "2026-05-23T12:12:22.780Z",
+          "sort_order": 0,
+          "store_code": "PTM",
+          "store_name": "Juja Brew & Bites - Pasong Tamo",
+          "address": null,
+          "updated_at": "2026-06-11T12:17:13.335Z"
+        },
+        {
+          "id": "e916bee8-3770-4650-9b46-d2e7d3ad49e6",
+          "name": "Juja Brew & Bites - Diliman",
+          "timezone": "Asia/Manila",
+          "is_active": true,
+          "created_at": "2026-05-23T14:52:25.753Z",
+          "sort_order": 1,
+          "store_code": "DIL",
+          "store_name": "Juja Brew & Bites - Diliman",
+          "address": null,
+          "updated_at": "2026-06-11T12:17:13.335Z"
+        }
+      ]
+    }
+  ]
+}

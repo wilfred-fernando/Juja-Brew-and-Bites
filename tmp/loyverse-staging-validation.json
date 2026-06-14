@@ -1,0 +1,166 @@
+{
+  "refresh": {
+    "staged_orders": 30973,
+    "staged_items": 67809,
+    "unmatched_customers": 23325,
+    "low_confidence_matches": 1180,
+    "duplicate_orders": 0,
+    "duplicate_items": 0
+  },
+  "validation": [
+    {
+      "metric": "duplicate_orders",
+      "value": "0"
+    },
+    {
+      "metric": "low_confidence_matches",
+      "value": "1180"
+    },
+    {
+      "metric": "ready_orders",
+      "value": "29647"
+    },
+    {
+      "metric": "review_orders",
+      "value": "1326"
+    },
+    {
+      "metric": "source_line_items",
+      "value": "67809"
+    },
+    {
+      "metric": "source_net_sales",
+      "value": "9649940.66"
+    },
+    {
+      "metric": "source_receipts",
+      "value": "30973"
+    },
+    {
+      "metric": "staged_grand_total",
+      "value": "9649940.66"
+    },
+    {
+      "metric": "staged_line_total",
+      "value": "9649940.66"
+    },
+    {
+      "metric": "staged_order_items",
+      "value": "67809"
+    },
+    {
+      "metric": "staged_orders",
+      "value": "30973"
+    },
+    {
+      "metric": "unmatched_customers",
+      "value": "23325"
+    },
+    {
+      "metric": "unmatched_menu_items",
+      "value": "23356"
+    }
+  ],
+  "dry_run": {
+    "migration_batch_id": "b56f6684-40e5-4b98-aaad-3bbf9cf8d1c3",
+    "dry_run": true,
+    "ready_orders": 29647,
+    "inserted_orders": 0,
+    "ready_items": 67809,
+    "inserted_items": 0,
+    "skipped_orders": 1326,
+    "skipped_items": 0
+  },
+  "review_samples": [
+    {
+      "source_receipt_number": "4-13163",
+      "loyverse_customer_name": "Julian Juangco",
+      "loyverse_phone": null,
+      "loyverse_email": null,
+      "match_confidence": "name_only_low",
+      "reason": "Matched normalized full name only; review required.",
+      "status": "pending_review"
+    },
+    {
+      "source_receipt_number": "4-13164",
+      "loyverse_customer_name": "Jackielyn Juangco",
+      "loyverse_phone": null,
+      "loyverse_email": null,
+      "match_confidence": "name_only_low",
+      "reason": "Matched normalized full name only; review required.",
+      "status": "pending_review"
+    },
+    {
+      "source_receipt_number": "4-13178",
+      "loyverse_customer_name": "Julian Juangco",
+      "loyverse_phone": null,
+      "loyverse_email": null,
+      "match_confidence": "name_only_low",
+      "reason": "Matched normalized full name only; review required.",
+      "status": "pending_review"
+    },
+    {
+      "source_receipt_number": "4-13179",
+      "loyverse_customer_name": "Julian Juangco",
+      "loyverse_phone": null,
+      "loyverse_email": null,
+      "match_confidence": "name_only_low",
+      "reason": "Matched normalized full name only; review required.",
+      "status": "pending_review"
+    },
+    {
+      "source_receipt_number": "4-13186",
+      "loyverse_customer_name": "Wilfred Fernando",
+      "loyverse_phone": null,
+      "loyverse_email": null,
+      "match_confidence": "name_only_low",
+      "reason": "Matched normalized full name only; review required.",
+      "status": "pending_review"
+    },
+    {
+      "source_receipt_number": "4-13187",
+      "loyverse_customer_name": "Jackielyn Juangco",
+      "loyverse_phone": null,
+      "loyverse_email": null,
+      "match_confidence": "name_only_low",
+      "reason": "Matched normalized full name only; review required.",
+      "status": "pending_review"
+    },
+    {
+      "source_receipt_number": "4-13192",
+      "loyverse_customer_name": "Angeline Moris",
+      "loyverse_phone": null,
+      "loyverse_email": null,
+      "match_confidence": "name_only_low",
+      "reason": "Matched normalized full name only; review required.",
+      "status": "pending_review"
+    },
+    {
+      "source_receipt_number": "4-13226",
+      "loyverse_customer_name": "Angeline Moris",
+      "loyverse_phone": null,
+      "loyverse_email": null,
+      "match_confidence": "name_only_low",
+      "reason": "Matched normalized full name only; review required.",
+      "status": "pending_review"
+    },
+    {
+      "source_receipt_number": "4-13235",
+      "loyverse_customer_name": "Jackielyn Juangco",
+      "loyverse_phone": null,
+      "loyverse_email": null,
+      "match_confidence": "name_only_low",
+      "reason": "Matched normalized full name only; review required.",
+      "status": "pending_review"
+    },
+    {
+      "source_receipt_number": "4-13115",
+      "loyverse_customer_name": "Grace Fernando",
+      "loyverse_phone": null,
+      "loyverse_email": null,
+      "match_confidence": "name_only_low",
+      "reason": "Matched normalized full name only; review required.",
+      "status": "pending_review"
+    }
+  ]
+}

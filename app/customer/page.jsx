@@ -1593,10 +1593,22 @@ function LoyaltyTab({ member, setMember, user }) {
   const [matchedPreview, setMatchedPreview] = useState(null);
   const [sendingLinkRequest, setSendingLinkRequest] = useState(false);
   const [linkRequestSent, setLinkRequestSent] = useState(false);
+  const [showPerksModal, setShowPerksModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [editingDetails, setEditingDetails] = useState(false);
+  const [savingDetails, setSavingDetails] = useState(false);
+  const [detailsForm, setDetailsForm] = useState({ customer_name: "", Phone: "" });
 
   const available = Number(member?.["Available points"] || 0);
   const progress = ((available % 100) / 100) * 100;
   const nextReward = (Math.floor(available / 100) + 1) * 100;
+
+  useEffect(() => {
+    setDetailsForm({
+      customer_name: member?.customer_name || "",
+      Phone: member?.Phone || member?.phone || "",
+    });
+  }, [member?.customer_name, member?.Phone, member?.phone]);
 
   useEffect(() => {
     const d = setInterval(() => setNowTick(Date.now()), 60 * 1000);
@@ -1741,13 +1753,46 @@ function LoyaltyTab({ member, setMember, user }) {
       const { data, error } = await supabase.from("loyalty_members").insert([{
         user_id: user.id, "Customer ID": genCustomerId(), customer_name: form.customer_name,
         Email: user.email, Phone: form.Phone, City: form.City,
-        "Points balance": 0, "Available points": 0, Note: b.value, first_visit: todayISO()
+        "Points balance": 0,
+        "Available points": 0,
+        "Total visits": 0,
+        "Total spent": 0,
+        "First visit": todayISO(),
+        "Last visit": todayISO(),
+        Note: b.value,
       }]).select().single();
       if (error) throw error;
       setMember(data);
       setMode(null);
     } catch (err) { setNotice("❌ " + err.message); }
     setLoading(false);
+  };
+
+  const saveMemberDetails = async () => {
+    if (!member?.id) return;
+    const nextName = detailsForm.customer_name.trim();
+    const nextPhone = detailsForm.Phone.trim();
+    if (!nextName || !nextPhone) {
+      setNotice("⚠️ Name and contact number are required.");
+      return;
+    }
+    setSavingDetails(true);
+    try {
+      const { data, error } = await supabase
+        .from("loyalty_members")
+        .update({ customer_name: nextName, Phone: nextPhone })
+        .eq("id", member.id)
+        .select()
+        .single();
+      if (error) throw error;
+      setMember(data);
+      setEditingDetails(false);
+      setNotice("");
+    } catch (err) {
+      setNotice("❌ " + (err?.message || "Unable to update membership details."));
+    } finally {
+      setSavingDetails(false);
+    }
   };
 
   const checkMatchPreview = async () => {
@@ -1951,6 +1996,7 @@ function LoyaltyTab({ member, setMember, user }) {
   }
 
   return (
+    <>
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in duration-300">
       <div className="md:col-span-1 space-y-4">
         <div
@@ -1978,6 +2024,25 @@ function LoyaltyTab({ member, setMember, user }) {
             <span className="text-[10px] uppercase font-bold text-slate-400 block md:inline">Visit</span>
             <span className="text-xs font-bold text-slate-700 block truncate max-w-[80px] md:max-w-none">{member?.["Total visits"] || "—"}</span>
           </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setShowPerksModal(true)}
+            className="h-11 rounded-xl border border-cyan-100 bg-cyan-50 text-xs font-bold uppercase tracking-wider text-cyan-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-cyan-100"
+          >
+            Perks
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setEditingDetails(false);
+              setShowDetailsModal(true);
+            }}
+            className="h-11 rounded-xl border border-slate-200 bg-white text-xs font-bold uppercase tracking-wider text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50"
+          >
+            Details
+          </button>
         </div>
       </div>
 
@@ -2044,9 +2109,122 @@ function LoyaltyTab({ member, setMember, user }) {
           })()}
         </div>
 
-        <LoyaltyPerksPanel compact />
       </div>
     </div>
+    {showPerksModal && (
+      <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm">
+        <div className="max-h-[88vh] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white/95 p-4 shadow-2xl">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-700">Perks</p>
+              <h3 className="text-xl font-bold text-slate-900">JUJA Rewards Perks</h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowPerksModal(false)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-lg font-bold text-slate-700 shadow-sm"
+              aria-label="Close perks"
+            >
+              ×
+            </button>
+          </div>
+          <LoyaltyPerksPanel compact />
+        </div>
+      </div>
+    )}
+    {showDetailsModal && (
+      <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm">
+        <div className="w-full max-w-md rounded-3xl border border-white/70 bg-white/95 p-5 shadow-2xl">
+          <div className="mb-4 flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-700">Membership</p>
+              <h3 className="text-xl font-bold text-slate-900">Account Details</h3>
+              <p className="mt-1 text-xs text-slate-500">Only name and contact number can be corrected.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setShowDetailsModal(false);
+                setEditingDetails(false);
+              }}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-lg font-bold text-slate-700 shadow-sm"
+              aria-label="Close account details"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            <label className="block">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Full Name</span>
+              <input
+                value={detailsForm.customer_name}
+                disabled={!editingDetails}
+                onChange={(e) => setDetailsForm((prev) => ({ ...prev, customer_name: e.target.value }))}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm disabled:bg-slate-100 disabled:text-slate-700"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Contact Number</span>
+              <input
+                value={detailsForm.Phone}
+                disabled={!editingDetails}
+                onChange={(e) => setDetailsForm((prev) => ({ ...prev, Phone: e.target.value }))}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm disabled:bg-slate-100 disabled:text-slate-700"
+              />
+            </label>
+
+            {[
+              ["Customer Code", member?.customer_code || member?.["Customer ID"] || "—"],
+              ["Email", member?.Email || user?.email || "—"],
+              ["Birthday", member?.Note || "—"],
+              ["Total Points", member?.["Points balance"] ?? member?.["Points Balance"] ?? 0],
+              ["Available Points", member?.["Available points"] ?? 0],
+              ["Total Visits", member?.["Total visits"] ?? "—"],
+            ].map(([label, value]) => (
+              <div key={label} className="flex items-center justify-between gap-4 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{label}</span>
+                <span className="text-right text-sm font-semibold text-slate-800">{value}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-5 flex gap-2">
+            {editingDetails ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingDetails(false);
+                    setDetailsForm({ customer_name: member?.customer_name || "", Phone: member?.Phone || member?.phone || "" });
+                  }}
+                  className="h-11 flex-1 rounded-xl border border-slate-200 bg-white text-xs font-bold uppercase tracking-wider text-slate-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={saveMemberDetails}
+                  disabled={savingDetails}
+                  className="h-11 flex-1 rounded-xl bg-cyan-700 text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-cyan-900/15 disabled:opacity-60"
+                >
+                  {savingDetails ? "Saving..." : "Save"}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEditingDetails(true)}
+                className="h-11 w-full rounded-xl bg-slate-700 text-xs font-bold uppercase tracking-wider text-white shadow-lg shadow-slate-900/15"
+              >
+                Edit Name / Contact
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -2121,15 +2299,57 @@ export default function Customer() {
     if (!userId) return;
     setLoadingOrders(true);
     try {
-      const { data, error } = await supabase
+      const { data: webRows, error: webError } = await supabase
         .from("web_orders")
         .select("*")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
-      if (!error && data) {
-        setOrders(data);
+      const { data: posRows, error: posError } = await supabase
+        .from("orders")
+        .select("id,created_at,status,items,subtotal,total,net_amount,dining_option,order_type,payment_method,source_system,receipt_number,order_number")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+
+      if (webError || posError) throw webError || posError;
+
+      let itemRows = [];
+      const posOrderIds = (posRows || []).map((order) => order.id).filter(Boolean);
+      if (posOrderIds.length) {
+        const { data: lines, error: lineError } = await supabase
+          .from("order_items")
+          .select("id,order_id,name,item_name,quantity,unit_price,line_total,net_amount")
+          .in("order_id", posOrderIds);
+        if (lineError) throw lineError;
+        itemRows = lines || [];
       }
+
+      const itemsByOrder = new Map();
+      itemRows.forEach((line) => {
+        const key = String(line.order_id);
+        if (!itemsByOrder.has(key)) itemsByOrder.set(key, []);
+        const quantity = Number(line.quantity || 1);
+        const net = Number(line.net_amount || line.line_total || 0);
+        itemsByOrder.get(key).push({
+          cartItemId: line.id,
+          name: line.item_name || line.name || "Item",
+          quantity,
+          unitPrice: Number(line.unit_price || (quantity ? net / quantity : net)),
+        });
+      });
+
+      const migratedRows = (posRows || []).map((order) => {
+        const jsonItems = Array.isArray(order.items) ? order.items : [];
+        const lineItems = itemsByOrder.get(String(order.id)) || jsonItems;
+        return {
+          ...order,
+          items: lineItems,
+          dining_option: order.dining_option || order.order_type || (order.source_system === "loyverse" ? "Historical" : "POS"),
+          subtotal: Number(order.net_amount || order.total || order.subtotal || 0),
+        };
+      });
+
+      setOrders([...(webRows || []), ...migratedRows].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)));
     } catch (err) {
       console.warn("Unable to sync log metrics:", err);
     } finally {

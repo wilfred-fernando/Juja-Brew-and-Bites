@@ -172,7 +172,7 @@ export default function LoyaltyAdminPage() {
     setPurchaseHistory({ open: true, loading: true, member, rows: [], error: "" });
 
     try {
-      const importedFilter = buildOrFilter(["customer_name"], [name, phone]);
+      const importedFilter = buildOrFilter(["customer_name", "customer_contacts"], [name, phone, email]);
       const webFilter = buildOrFilter(["customer_name", "customer_contact", "payment_method"], [name, email, phone]);
       const posFilter = buildOrFilter(["customer_name", "payment_method"], [name, phone]);
 
@@ -182,7 +182,7 @@ export default function LoyaltyAdminPage() {
               "Imported receipts",
               supabase
                 .from("imported_sales_receipts")
-                .select("id,receipt_date,receipt_number,store_name,cashier_name,customer_name,payment_type,net_sales,total_collected,status")
+                .select("id,receipt_date,receipt_number,store_name,cashier_name,customer_name,customer_contacts,payment_type,net_sales,total_collected,status")
                 .or(importedFilter)
                 .order("receipt_date", { ascending: false })
                 .limit(100),
