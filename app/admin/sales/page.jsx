@@ -218,6 +218,64 @@ async function fetchAllRows(buildQuery, pageSize = SUPABASE_PAGE_SIZE) {
   return rows;
 }
 
+function yearsForRange(startDate, endDate) {
+  const startYear = Number(String(startDate || "").slice(0, 4));
+  const endYear = Number(String(endDate || startDate || "").slice(0, 4));
+  if (!startYear || !endYear) return [];
+  return Array.from({ length: endYear - startYear + 1 }, (_, index) => startYear + index);
+}
+
+function clampDate(value, min, max) {
+  if (value < min) return min;
+  if (value > max) return max;
+  return value;
+}
+
+function isMissingReportTableError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return error?.code === "42P01" || error?.code === "PGRST205" || message.includes("could not find the table") || message.includes("does not exist");
+}
+
+async function fetchImportedRowsByYear({ baseTable, select, startDate, endDate, orderColumn = "receipt_date", ascending = false }) {
+  const years = yearsForRange(startDate, endDate);
+  const rows = [];
+
+  for (const year of years) {
+    const yearStart = clampDate(`${year}-01-01`, startDate, endDate);
+    const yearEnd = clampDate(`${year}-12-31`, startDate, endDate);
+    const rangeStart = `${yearStart}T00:00:00+08:00`;
+    const rangeEnd = `${addDays(yearEnd, 1)}T12:00:00+08:00`;
+    const yearlyTable = `${baseTable}_${year}`;
+
+    try {
+      rows.push(
+        ...(await fetchAllRows(() =>
+          supabase
+            .from(yearlyTable)
+            .select(select)
+            .gte("receipt_date", rangeStart)
+            .lte("receipt_date", rangeEnd)
+            .order(orderColumn, { ascending })
+        ))
+      );
+    } catch (error) {
+      if (!isMissingReportTableError(error)) throw error;
+      rows.push(
+        ...(await fetchAllRows(() =>
+          supabase
+            .from(baseTable)
+            .select(select)
+            .gte("receipt_date", rangeStart)
+            .lte("receipt_date", rangeEnd)
+            .order(orderColumn, { ascending })
+        ))
+      );
+    }
+  }
+
+  return rows;
+}
+
 async function fetchOrderItems(orderIds) {
   const ids = orderIds.filter(Boolean);
   const rows = [];
@@ -277,21 +335,8 @@ const SUMMARY_DATE_PRESETS = [
   { value: "last_month", label: "Last month" },
   { value: "last_7_days", label: "Last 7 days" },
   { value: "last_30_days", label: "Last 30 days" },
+  { value: "this_year", label: "This year" },
 ];
-
-function DateInput({ label, value, onChange }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</span>
-      <input
-        type="date"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-11 w-full rounded-2xl border border-slate-200 bg-white/85 px-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
-      />
-    </label>
-  );
-}
 
 function SelectInput({ label, value, onChange, options }) {
   return (
@@ -689,7 +734,7 @@ function SummarySelectControl({ icon: Icon, value, onChange, options, wide = fal
   );
 }
 
-function SummaryDateRangeControl({ startDate, endDate, preset, onRangeChange, onPresetChange }) {
+function SummaryDateRangeControl({ startDate, endDate, preset, onRangeChange, onPresetChange, buttonClassName = "" }) {
   const [open, setOpen] = useState(false);
   const [activeEndpoint, setActiveEndpoint] = useState("start");
   const [viewMonth, setViewMonth] = useState((startDate || manilaDate()).slice(0, 7));
@@ -709,6 +754,7 @@ function SummaryDateRangeControl({ startDate, endDate, preset, onRangeChange, on
     }
     onRangeChange(date < start ? date : start, date);
     setActiveEndpoint("start");
+    setOpen(false);
   }
 
   function handleInputChange(endpoint, value) {
@@ -726,7 +772,7 @@ function SummaryDateRangeControl({ startDate, endDate, preset, onRangeChange, on
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="inline-flex h-10 min-w-[250px] items-center gap-2 rounded-md border border-slate-200 bg-white/95 px-3 text-xs font-semibold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-200 hover:bg-cyan-50"
+        className={`inline-flex h-10 min-w-[250px] items-center gap-2 rounded-md border border-slate-200 bg-white/95 px-3 text-xs font-semibold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-200 hover:bg-cyan-50 ${buttonClassName}`}
         aria-expanded={open}
       >
         <CalendarDays className="h-4 w-4 shrink-0 text-slate-500" />
@@ -980,8 +1026,20 @@ export default function AdminSalesPage() {
         ? supabase.rpc("get_imported_modifier_sales_report", rpcRange)
         : Promise.resolve({ data: [], error: null });
       const importedReceiptsPromise = includeRawImportedReceipts
-        ? fetchAllRows(() => supabase.from("imported_sales_receipts").select(IMPORTED_RECEIPT_SELECT).gte("receipt_date", start).lte("receipt_date", fetchEnd).order("receipt_date", { ascending: false }))
-        : fetchAllRows(() => supabase.from("imported_sales_summary").select(IMPORTED_SALES_SUMMARY_SELECT).gte("receipt_date", start).lte("receipt_date", fetchEnd).order("receipt_date", { ascending: false }));
+        ? fetchImportedRowsByYear({
+            baseTable: "imported_sales_receipts",
+            select: IMPORTED_RECEIPT_SELECT,
+            startDate: nextFilters.startDate,
+            endDate: nextFilters.endDate,
+            ascending: false,
+          })
+        : fetchImportedRowsByYear({
+            baseTable: "imported_sales_summary",
+            select: IMPORTED_SALES_SUMMARY_SELECT,
+            startDate: nextFilters.startDate,
+            endDate: nextFilters.endDate,
+            ascending: false,
+          });
       const [orders, webOrders, menuRes, storesRes, profilesRes, shiftRecords, importedShifts, importedReceipts, importedReceiptItems, importedItemReportRes, importedCategoryReportRes, importedModifierReportRes] = await Promise.all([
         fetchAllRows(() => supabase.from("orders").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: false })),
         fetchAllRows(() => supabase.from("web_orders").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: false })),
@@ -1297,12 +1355,18 @@ export default function AdminSalesPage() {
           </section>
 
           <Card>
-            <div className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_1fr] xl:grid-cols-[1.2fr_1fr_1fr_1fr_1fr]">
-              <SelectInput label="Date range" value={filters.preset} onChange={updatePreset} options={[
-                { value: "today", label: "Today" }, { value: "yesterday", label: "Yesterday" }, { value: "this_week", label: "This week" }, { value: "last_week", label: "Last week" }, { value: "this_month", label: "This month" }, { value: "last_month", label: "Last month" }, { value: "last_7_days", label: "Last 7 days" }, { value: "last_30_days", label: "Last 30 days" }, { value: "this_year", label: "This year" }, { value: "custom", label: "Custom date range" },
-              ]} />
-              <DateInput label="Start date" value={filters.startDate} onChange={(value) => updateFilter("startDate", value)} />
-              <DateInput label="End date" value={filters.endDate} onChange={(value) => updateFilter("endDate", value)} />
+            <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr_1fr] xl:grid-cols-[1.5fr_1fr_1fr_1fr_1fr]">
+              <div className="block">
+                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Date range</span>
+                <SummaryDateRangeControl
+                  startDate={filters.startDate}
+                  endDate={filters.endDate}
+                  preset={filters.preset}
+                  onRangeChange={(startDate, endDate) => updateSummaryFilters({ startDate, endDate, preset: "custom" })}
+                  onPresetChange={updatePreset}
+                  buttonClassName="w-full justify-start"
+                />
+              </div>
               <SelectInput label="Branch" value={filters.branchId} onChange={(value) => updateFilter("branchId", value)} options={branchOptions} />
               <SelectInput label="Payment" value={filters.paymentMethod} onChange={(value) => updateFilter("paymentMethod", value)} options={paymentOptions} />
               <SelectInput label="Order type" value={filters.orderType} onChange={(value) => updateFilter("orderType", value)} options={ORDER_TYPE_OPTIONS} />
