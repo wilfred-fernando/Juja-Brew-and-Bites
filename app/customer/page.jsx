@@ -166,11 +166,6 @@ function playGeneratedCustomerTone(status = "ready") {
   }
 }
 
-function genMemberCode() {
-  const n = String(Math.floor(Math.random() * 999999) + 1).padStart(6, "0");
-  return `JUJA${new Date().getFullYear()}${n}`;
-}
-
 function getManilaDateString(offsetDays = 0) {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
@@ -1745,7 +1740,7 @@ function LoyaltyTab({ member, setMember, user }) {
     try {
       const { data, error } = await supabase.from("loyalty_members").insert([{
         user_id: user.id, "Customer ID": genCustomerId(), customer_name: form.customer_name,
-        Email: user.email, Phone: form.Phone, City: form.City, customer_code: genMemberCode(),
+        Email: user.email, Phone: form.Phone, City: form.City,
         "Points balance": 0, "Available points": 0, Note: b.value, first_visit: todayISO()
       }]).select().single();
       if (error) throw error;

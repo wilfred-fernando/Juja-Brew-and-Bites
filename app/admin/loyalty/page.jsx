@@ -57,6 +57,13 @@ export default function LoyaltyAdminPage() {
   // =========================
   const [notice, setNotice] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
+  const [purchaseHistory, setPurchaseHistory] = useState({
+    open: false,
+    loading: false,
+    member: null,
+    rows: [],
+    error: "",
+  });
 
   // Select user by email (searchable)
   const [userQuery, setUserQuery] = useState("");
@@ -105,6 +112,141 @@ export default function LoyaltyAdminPage() {
       confirmText: "Confirm",
       tone: "danger",
     });
+  }
+
+  function peso(value) {
+    return Number(value || 0).toLocaleString("en-PH", {
+      style: "currency",
+      currency: "PHP",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
+  function displayDateTime(value) {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Manila",
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(date);
+  }
+
+  function memberValue(member, keys, fallback = "—") {
+    for (const key of keys) {
+      const value = member?.[key];
+      if (value !== null && value !== undefined && String(value).trim() !== "") return value;
+    }
+    return fallback;
+  }
+
+  function buildOrFilter(fields, values) {
+    const clauses = [];
+    values.filter(Boolean).forEach((value) => {
+      const clean = String(value).replace(/[%(),]/g, "").trim();
+      if (!clean) return;
+      fields.forEach((field) => clauses.push(`${field}.ilike.%${clean}%`));
+    });
+    return clauses.join(",");
+  }
+
+  async function safeHistoryQuery(label, query, mapper) {
+    const { data, error } = await query;
+    if (error) {
+      console.warn(`${label} purchase history skipped:`, error.message);
+      return [];
+    }
+    return (data || []).map(mapper);
+  }
+
+  async function openPurchaseHistory(member) {
+    const name = String(member?.customer_name || member?.["customer_name"] || "").trim();
+    const email = String(member?.Email || member?.email || "").trim();
+    const phone = String(member?.Phone || member?.phone || "").trim();
+
+    setPurchaseHistory({ open: true, loading: true, member, rows: [], error: "" });
+
+    try {
+      const importedFilter = buildOrFilter(["customer_name"], [name, phone]);
+      const webFilter = buildOrFilter(["customer_name", "customer_contact", "payment_method"], [name, email, phone]);
+      const posFilter = buildOrFilter(["customer_name", "payment_method"], [name, phone]);
+
+      const [importedRows, webRows, posRows] = await Promise.all([
+        importedFilter
+          ? safeHistoryQuery(
+              "Imported receipts",
+              supabase
+                .from("imported_sales_receipts")
+                .select("id,receipt_date,receipt_number,store_name,cashier_name,customer_name,payment_type,net_sales,total_collected,status")
+                .or(importedFilter)
+                .order("receipt_date", { ascending: false })
+                .limit(100),
+              (row) => ({
+                id: `imported-${row.id}`,
+                source: "Imported receipt",
+                date: row.receipt_date,
+                receipt: row.receipt_number,
+                store: row.store_name,
+                payment: row.payment_type,
+                total: Number(row.net_sales || row.total_collected || 0),
+                status: row.status || "Paid",
+              })
+            )
+          : Promise.resolve([]),
+        webFilter
+          ? safeHistoryQuery(
+              "Web orders",
+              supabase
+                .from("web_orders")
+                .select("id,created_at,customer_name,customer_contact,total,payment_method,status,dining_option")
+                .or(webFilter)
+                .order("created_at", { ascending: false })
+                .limit(100),
+              (row) => ({
+                id: `web-${row.id}`,
+                source: "Web order",
+                date: row.created_at,
+                receipt: `WEB-${String(row.id).slice(0, 8).toUpperCase()}`,
+                store: row.dining_option || "Web",
+                payment: row.payment_method,
+                total: Number(row.total || 0),
+                status: row.status,
+              })
+            )
+          : Promise.resolve([]),
+        posFilter
+          ? safeHistoryQuery(
+              "POS orders",
+              supabase
+                .from("orders")
+                .select("id,created_at,customer_name,total,net_amount,payment_method,status,order_type")
+                .or(posFilter)
+                .order("created_at", { ascending: false })
+                .limit(100),
+              (row) => ({
+                id: `pos-${row.id}`,
+                source: "POS order",
+                date: row.created_at,
+                receipt: String(row.id).slice(0, 12),
+                store: row.order_type || "POS",
+                payment: row.payment_method,
+                total: Number(row.net_amount || row.total || 0),
+                status: row.status,
+              })
+            )
+          : Promise.resolve([]),
+      ]);
+
+      const rows = [...importedRows, ...webRows, ...posRows].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      setPurchaseHistory({ open: true, loading: false, member, rows, error: "" });
+    } catch (err) {
+      setPurchaseHistory({ open: true, loading: false, member, rows: [], error: err?.message || "Unable to load purchase history." });
+    }
   }
 
   // =========================
@@ -764,17 +906,25 @@ export default function LoyaltyAdminPage() {
           </div>
 
           <p className="mt-1 text-xs text-slate-500">
-            Code: <span className="font-mono">{member.customer_code || member["customer_code"] || "—"}</span>
-            {" • "}
-            Phone: <span className="font-mono">{member["Phone"] || "—"}</span>
+            Code: <span className="font-mono">{member.customer_code || member["customer_code"] || "-"}</span>
+            {" | "}
+            Phone: <span className="font-mono">{member["Phone"] || "-"}</span>
           </p>
 
           <p className="mt-1 text-xs text-slate-500">
             Total: <span className="font-mono">{totalPts}</span>
-            {" • "}
+            {" | "}
             Available: <span className="font-mono">{availPts}</span>
-            {" • "}
+            {" | "}
             Visits: <span className="font-mono">{visits}</span>
+          </p>
+
+          <p className="mt-1 text-xs text-slate-500">
+            Spent: <span className="font-mono">{peso(memberValue(member, ["Total spent", "total_spent"], 0))}</span>
+            {" | "}
+            First: <span className="font-mono">{memberValue(member, ["First visit", "first_visit"])}</span>
+            {" | "}
+            Last: <span className="font-mono">{memberValue(member, ["Last visit", "last_visit"])}</span>
           </p>
 
           {member.user_id && (
@@ -784,7 +934,14 @@ export default function LoyaltyAdminPage() {
           )}
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => openPurchaseHistory(member)}
+            className="px-3 py-2 bg-cyan-50 border border-cyan-100 text-xs text-cyan-800 rounded-xl hover:bg-cyan-100 active:scale-95"
+          >
+            View Purchase History
+          </button>
+
           <button
             onClick={() => openModal(member)}
             className="px-3 py-2 bg-slate-50 border border-slate-100 text-xs text-slate-600 rounded-xl hover:bg-sky-50 hover:text-slate-700 active:scale-95"
@@ -1220,6 +1377,107 @@ export default function LoyaltyAdminPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* PURCHASE HISTORY MODAL */}
+      {purchaseHistory.open && purchaseHistory.member && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
+          onClick={() => setPurchaseHistory((prev) => ({ ...prev, open: false }))}
+        >
+          <div
+            className="bg-white w-full max-w-4xl rounded-t-[24px] md:rounded-[28px] p-5 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start gap-4 mb-5">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-slate-500">Purchase History</p>
+                <h3 className="text-xl md:text-2xl font-semibold text-slate-800">
+                  {purchaseHistory.member.customer_name || purchaseHistory.member["customer_name"] || "Customer"}
+                </h3>
+                <p className="font-mono text-[10px] text-slate-500 mt-1">
+                  {purchaseHistory.member.customer_code || purchaseHistory.member["customer_code"] || purchaseHistory.member.id}
+                </p>
+              </div>
+              <button
+                onClick={() => setPurchaseHistory((prev) => ({ ...prev, open: false }))}
+                className="w-9 h-9 flex items-center justify-center rounded-full bg-slate-50 text-slate-500 hover:text-slate-800 hover:bg-slate-100 active:scale-90"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-[10px] uppercase tracking-widest text-slate-500">Total Spent</p>
+                <p className="mt-2 text-xl font-semibold text-slate-800">
+                  {peso(memberValue(purchaseHistory.member, ["Total spent", "total_spent"], 0))}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-[10px] uppercase tracking-widest text-slate-500">First Visit</p>
+                <p className="mt-2 text-lg font-semibold text-slate-800">
+                  {memberValue(purchaseHistory.member, ["First visit", "first_visit"])}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-[10px] uppercase tracking-widest text-slate-500">Last Visit</p>
+                <p className="mt-2 text-lg font-semibold text-slate-800">
+                  {memberValue(purchaseHistory.member, ["Last visit", "last_visit"])}
+                </p>
+              </div>
+            </div>
+
+            {purchaseHistory.error ? (
+              <div className="mt-4 rounded-2xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">
+                {purchaseHistory.error}
+              </div>
+            ) : null}
+
+            <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
+              <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-slate-600">Transactions</p>
+                <p className="text-xs text-slate-500">{purchaseHistory.rows.length} record(s)</p>
+              </div>
+
+              {purchaseHistory.loading ? (
+                <div className="p-8 text-center text-sm text-slate-500">Loading purchase history...</div>
+              ) : purchaseHistory.rows.length === 0 ? (
+                <div className="p-8 text-center text-sm text-slate-500">No matching purchase records found.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="bg-white text-[10px] uppercase tracking-widest text-slate-500">
+                      <tr>
+                        <th className="border-b border-slate-200 px-4 py-3">Date</th>
+                        <th className="border-b border-slate-200 px-4 py-3">Receipt</th>
+                        <th className="border-b border-slate-200 px-4 py-3">Source</th>
+                        <th className="border-b border-slate-200 px-4 py-3">Store / Type</th>
+                        <th className="border-b border-slate-200 px-4 py-3">Payment</th>
+                        <th className="border-b border-slate-200 px-4 py-3 text-right">Total</th>
+                        <th className="border-b border-slate-200 px-4 py-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {purchaseHistory.rows.map((row) => (
+                        <tr key={row.id} className="text-slate-700">
+                          <td className="px-4 py-3">{displayDateTime(row.date)}</td>
+                          <td className="px-4 py-3 font-mono text-xs">{row.receipt || "—"}</td>
+                          <td className="px-4 py-3">{row.source}</td>
+                          <td className="px-4 py-3">{row.store || "—"}</td>
+                          <td className="px-4 py-3">{row.payment || "—"}</td>
+                          <td className="px-4 py-3 text-right tabular-nums font-semibold text-slate-800">{peso(row.total)}</td>
+                          <td className="px-4 py-3">{row.status || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

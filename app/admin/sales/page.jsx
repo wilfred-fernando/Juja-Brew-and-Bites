@@ -21,6 +21,9 @@ import {
   Eye,
   FileText,
   Filter,
+  Check,
+  AlertTriangle,
+  X,
   PackageSearch,
   RefreshCw,
   Search,
@@ -58,7 +61,117 @@ import {
 } from "@/lib/reports/salesReports";
 
 const supabase = getSupabaseClient();
-const PAGE_SIZE = 12;
+const DEFAULT_ROWS_PER_PAGE = 10;
+const ROWS_PER_PAGE_OPTIONS = [10, 25, 50, 100];
+const SUPABASE_PAGE_SIZE = 1000;
+const IMPORTED_RECEIPT_SELECT = [
+  "id",
+  "receipt_date",
+  "receipt_day",
+  "receipt_number",
+  "receipt_type",
+  "gross_sales",
+  "discounts",
+  "net_sales",
+  "refund_amount",
+  "total_collected",
+  "payment_type",
+  "dining_option",
+  "pos",
+  "store_name",
+  "cashier_name",
+  "customer_name",
+  "status",
+  "order_count",
+].join(",");
+const IMPORTED_SALES_SUMMARY_SELECT = [
+  "id",
+  "receipt_date",
+  "receipt_day",
+  "receipt_type",
+  "gross_sales",
+  "discounts",
+  "net_sales",
+  "refund_amount",
+  "payment_type",
+  "dining_option",
+  "store_name",
+  "cashier_name",
+  "customer_name",
+  "status",
+  "order_count",
+].join(",");
+const IMPORTED_RECEIPT_ITEM_SELECT = [
+  "id",
+  "row_hash",
+  "receipt_date",
+  "receipt_day",
+  "receipt_number",
+  "receipt_type",
+  "category",
+  "sku",
+  "item",
+  "variant",
+  "quantity",
+  "gross_sales",
+  "discounts",
+  "net_sales",
+  "dining_option",
+  "store_name",
+  "status",
+].join(",");
+const IMPORTED_SHIFT_SELECT = [
+  "id",
+  "store_name",
+  "pos",
+  "shift_number",
+  "shift_opening_time",
+  "shift_opened",
+  "shift_closing_time",
+  "shift_closed",
+  "starting_cash",
+  "cash_payments",
+  "cash_refunds",
+  "paid_in",
+  "paid_out",
+  "expected_cash_amount",
+  "actual_cash_amount",
+  "difference",
+].join(",");
+const SHIFT_DIFF_TOLERANCE = 1;
+
+function needsImportedLineItems(tab) {
+  return ["items", "categories", "modifiers"].includes(tab);
+}
+
+function needsRawImportedReceipts(tab) {
+  return ["receipts", "exports"].includes(tab);
+}
+
+async function fetchAllRows(buildQuery, pageSize = SUPABASE_PAGE_SIZE) {
+  const rows = [];
+  for (let from = 0; ; from += pageSize) {
+    const to = from + pageSize - 1;
+    const { data, error } = await buildQuery().range(from, to);
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+  }
+  return rows;
+}
+
+async function fetchOrderItems(orderIds) {
+  const ids = orderIds.filter(Boolean);
+  const rows = [];
+  const chunkSize = 250;
+  for (let start = 0; start < ids.length; start += chunkSize) {
+    const chunk = ids.slice(start, start + chunkSize);
+    const { data, error } = await supabase.from("order_items").select("*").in("order_id", chunk);
+    if (error) throw error;
+    rows.push(...(data || []));
+  }
+  return rows;
+}
 
 function formatShortDate(value) {
   if (!value) return "";
@@ -143,7 +256,7 @@ function SelectInput({ label, value, onChange, options }) {
 
 function Card({ children, className = "" }) {
   return (
-    <div className={`rounded-[26px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_55px_rgba(71,85,105,0.14)] backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 hover:border-cyan-200 ${className}`}>
+    <div className={`rounded-[26px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_55px_rgba(71,85,105,0.14)] backdrop-blur-xl transition duration-300 ${className}`}>
       {children}
     </div>
   );
@@ -160,20 +273,20 @@ function DataTable({ columns, rows, empty, onView }) {
       <table className="min-w-full text-left text-sm">
         <thead className="sticky top-0 bg-slate-100/90 text-[10px] uppercase tracking-[0.18em] text-slate-500">
           <tr>
-            {columns.map((column) => <th key={column.key} className={`px-4 py-4 font-semibold ${column.align === "right" ? "text-right" : ""}`}>{column.label}</th>)}
-            {onView ? <th className="px-4 py-4 text-right font-semibold">Actions</th> : null}
+            {columns.map((column) => <th key={column.key} className={`border-b border-slate-200 px-4 py-3 font-semibold ${column.align === "right" ? "text-right" : ""}`}>{column.label}</th>)}
+            {onView ? <th className="border-b border-slate-200 px-4 py-3 text-right font-semibold">Actions</th> : null}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-slate-200/80">
           {rows.map((row, index) => (
             <tr key={row.id || row.orderNumber || row.productName || row.category || index} className="text-slate-700 transition hover:bg-cyan-50/45">
               {columns.map((column) => (
-                <td key={column.key} className={`px-4 py-4 ${column.align === "right" ? "text-right tabular-nums" : ""} ${column.emphasis ? "font-semibold text-slate-950" : ""}`}>
+                <td key={column.key} className={`px-4 py-2.5 ${column.align === "right" ? "text-right tabular-nums" : ""} ${column.emphasis ? "font-semibold text-slate-950" : ""}`}>
                   {column.render ? column.render(row) : row[column.key]}
                 </td>
               ))}
               {onView ? (
-                <td className="px-4 py-4 text-right">
+                <td className="px-4 py-2.5 text-right">
                   <button onClick={() => onView(row)} className="inline-flex h-9 items-center gap-2 rounded-xl border border-cyan-100 bg-cyan-50 px-3 text-xs font-semibold text-cyan-800 transition hover:-translate-y-0.5 hover:bg-cyan-100">
                     <Eye className="h-4 w-4" /> View
                   </button>
@@ -183,6 +296,314 @@ function DataTable({ columns, rows, empty, onView }) {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function num(value, fallback = 0) {
+  const parsed = Number(value ?? fallback);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function jsonNumber(source, key, fallback = 0) {
+  return num(source?.[key], fallback);
+}
+
+function formatDifference(value) {
+  const amount = num(value);
+  if (Math.abs(amount) < SHIFT_DIFF_TOLERANCE) return "-";
+  return amount < 0 ? `(${peso(Math.abs(amount))})` : peso(amount);
+}
+
+function normalizeStoreName(store) {
+  return store?.name || store?.store_name || store?.store_code || "Store";
+}
+
+function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters()) {
+  const storeById = new Map(stores.map((store) => [String(store.id), normalizeStoreName(store)]));
+  const sorted = [...shiftRecords].sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+  const openQueues = new Map();
+  const rows = [];
+
+  sorted.forEach((record) => {
+    const mode = String(record.mode || "").toLowerCase();
+    const storeId = String(record.store_id || "MAIN");
+    if (mode === "open") {
+      if (!openQueues.has(storeId)) openQueues.set(storeId, []);
+      openQueues.get(storeId).push(record);
+      return;
+    }
+    if (mode !== "close") return;
+
+    const opens = openQueues.get(storeId) || [];
+    const open = opens.pop() || null;
+    const summary = record.sales_summary || {};
+    const payments = summary.payments || {};
+    const startingCash = num(open?.cash_total);
+    const cashPayments = jsonNumber(summary, "cashPayments");
+    const cashRefunds = jsonNumber(summary, "cashRefunds");
+    const expectedCash = num(summary.expectedCash, startingCash + cashPayments - cashRefunds);
+    const actualCash = num(record.cash_total);
+    const difference = actualCash - expectedCash;
+    const openedAt = open?.created_at || record.created_at;
+    const closedAt = record.created_at;
+    const rowDate = (closedAt || openedAt || "").slice(0, 10);
+    const storeName = storeById.get(storeId) || storeId || "Store";
+
+    rows.push({
+      id: record.id,
+      shiftNumber: String(record.id || "").replace(/^\D+/, "").slice(-6) || rows.length + 1,
+      storeId,
+      storeName,
+      pos: storeName.includes("Diliman") ? "Cashier - Diliman" : storeName.includes("Pasong") ? "Cashier - Pasong Tamo" : `Cashier - ${storeName}`,
+      cashierName: record.cashier_name || open?.cashier_name || "Owner",
+      openedBy: open?.cashier_name || record.cashier_name || "Owner",
+      closedBy: record.cashier_name || "Owner",
+      openedAt,
+      closedAt,
+      startingCash,
+      cashPayments,
+      cashRefunds,
+      paidIn: 0,
+      paidOut: 0,
+      expectedCash,
+      actualCash,
+      difference,
+      grossSales: cashPayments + Object.values(payments).reduce((sum, value) => sum + num(value), 0),
+      refunds: cashRefunds,
+      discounts: num(summary.discounts),
+      netSales: num(summary.netSales, cashPayments + Object.values(payments).reduce((sum, value) => sum + num(value), 0) - cashRefunds),
+      payments: {
+        Cash: cashPayments,
+        CARD: num(payments.Card),
+        GCASH: num(payments.Gcash),
+        GRABFOOD: num(payments.GrabFood),
+        QRPH: num(payments.QRPH),
+        Panda: num(payments.Panda),
+        "Grab Dine Out": num(payments["Grab Dine Out"]),
+      },
+      taxes: num(summary.taxes),
+      rawOpen: open,
+      rawClose: record,
+      rowDate,
+    });
+  });
+
+  return rows
+    .filter((row) => row.rowDate >= filters.startDate && row.rowDate <= filters.endDate)
+    .filter((row) => filters.branchId === "All" || String(row.storeId) === String(filters.branchId) || row.storeName === filters.branchId)
+    .sort((a, b) => new Date(b.closedAt || 0) - new Date(a.closedAt || 0));
+}
+
+function buildImportedShiftRows(importedShifts = [], filters = defaultFilters()) {
+  return importedShifts
+    .map((record) => {
+      const openedAt = record.shift_opening_time;
+      const closedAt = record.shift_closing_time;
+      const rowDate = (openedAt || closedAt || "").slice(0, 10);
+      const cashPayments = num(record.cash_payments);
+      const cashRefunds = num(record.cash_refunds);
+      const paidIn = num(record.paid_in);
+      const paidOut = num(record.paid_out);
+      const expectedCash = num(record.expected_cash_amount, num(record.starting_cash) + cashPayments - cashRefunds + paidIn - paidOut);
+      const actualCash = num(record.actual_cash_amount);
+      const difference = num(record.difference, actualCash - expectedCash);
+      const grossSales = cashPayments;
+      const refunds = cashRefunds;
+      const discounts = 0;
+      return {
+        id: `imported-shift:${record.id}`,
+        source: "Imported",
+        shiftNumber: record.shift_number || "-",
+        storeId: record.store_name || "Imported",
+        storeName: record.store_name || "Imported store",
+        pos: record.pos || (record.store_name ? `Cashier - ${record.store_name}` : "Cashier"),
+        cashierName: record.shift_closed || record.shift_opened || "Imported cashier",
+        openedBy: record.shift_opened || "-",
+        closedBy: record.shift_closed || "-",
+        openedAt,
+        closedAt,
+        startingCash: num(record.starting_cash),
+        cashPayments,
+        cashRefunds,
+        paidIn,
+        paidOut,
+        expectedCash,
+        actualCash,
+        difference,
+        grossSales,
+        refunds,
+        discounts,
+        netSales: Math.max(0, grossSales - refunds - discounts),
+        payments: { Cash: cashPayments },
+        taxes: 0,
+        rowDate,
+      };
+    })
+    .filter((row) => row.rowDate >= filters.startDate && row.rowDate <= filters.endDate)
+    .filter((row) => filters.branchId === "All" || row.storeName === filters.branchId || row.storeId === filters.branchId)
+    .sort((a, b) => new Date(b.openedAt || b.closedAt || 0) - new Date(a.openedAt || a.closedAt || 0));
+}
+
+function ShiftsTable({ rows, page, rowsPerPage, onPageChange, onRowsPerPageChange, onSelect, onExport }) {
+  const pageRows = rows.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+  if (!rows.length) return <Empty message="No shift records found for this date range." />;
+  return (
+    <div className="overflow-hidden rounded-sm border border-slate-200 bg-white/94 shadow-[0_14px_38px_rgba(71,85,105,0.14)]">
+      <div onClick={onExport} className="flex h-12 cursor-pointer items-center border-b border-slate-200 px-5">
+        <button className="inline-flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-slate-800">Export <span className="text-slate-500">⌄</span></button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-left text-sm">
+          <thead className="bg-white text-[11px] font-medium text-slate-500">
+            <tr>
+              <th className="border-b border-slate-200 px-5 py-3">POS</th>
+              <th className="border-b border-slate-200 px-5 py-3">Opening time</th>
+              <th className="border-b border-slate-200 px-5 py-3">Closing time</th>
+              <th className="border-b border-slate-200 px-5 py-3 text-right">Expected cash amount</th>
+              <th className="border-b border-slate-200 px-5 py-3 text-right">Actual cash amount</th>
+              <th className="border-b border-slate-200 px-5 py-3 text-right">Difference</th>
+              <th className="border-b border-slate-200 px-5 py-3 text-center"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200">
+            {pageRows.map((row) => {
+              const isOk = Math.abs(row.difference) < SHIFT_DIFF_TOLERANCE;
+              return (
+                <tr key={row.id} onClick={() => onSelect(row)} className="cursor-pointer text-slate-800 transition hover:bg-slate-50">
+                  <td className="px-5 py-3">{row.pos}</td>
+                  <td className="px-5 py-3">{displayDateTime(row.openedAt)}</td>
+                  <td className="px-5 py-3">{displayDateTime(row.closedAt)}</td>
+                  <td className="px-5 py-3 text-right tabular-nums">{peso(row.expectedCash)}</td>
+                  <td className="px-5 py-3 text-right tabular-nums">{peso(row.actualCash)}</td>
+                  <td className={`px-5 py-3 text-right tabular-nums ${isOk ? "text-slate-600" : row.difference < 0 ? "text-red-600" : "text-orange-600"}`}>
+                    {formatDifference(row.difference)}
+                  </td>
+                  <td className="px-5 py-3 text-center">
+                    {isOk ? <Check className="mx-auto h-4 w-4 text-emerald-600" /> : <AlertTriangle className={`mx-auto h-4 w-4 ${Math.abs(row.difference) > 100 ? "text-red-600" : "text-orange-500"}`} />}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <PaginationFooter
+        page={page}
+        totalRows={rows.length}
+        rowsPerPage={rowsPerPage}
+        onPageChange={onPageChange}
+        onRowsPerPageChange={onRowsPerPageChange}
+      />
+    </div>
+  );
+}
+
+function ShiftReportDrawer({ shift, onClose }) {
+  if (!shift) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/20">
+      <button className="flex-1 cursor-default" aria-label="Close shift report" onClick={onClose} />
+      <aside className="h-full w-full max-w-[360px] overflow-y-auto bg-white px-5 py-5 text-sm text-slate-800 shadow-[-18px_0_40px_rgba(15,23,42,0.16)]">
+        <div className="mb-5 flex items-center justify-between">
+          <h2 className="flex-1 text-center text-sm font-semibold uppercase tracking-wide text-slate-950">Shift Report</h2>
+          <button onClick={onClose} className="rounded-full p-1 text-slate-300 transition hover:bg-slate-100 hover:text-slate-700" aria-label="Close">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="space-y-2 border-t border-dashed border-slate-300 pt-4 text-xs">
+          <div className="flex justify-between gap-4"><span>Shift number: {shift.shiftNumber}</span></div>
+          <div>Store: {shift.storeName}</div>
+          <div>POS: {shift.pos}</div>
+          <div className="flex justify-between gap-4"><span>Shift opened: {shift.openedBy}</span><span>{displayDateTime(shift.openedAt)}</span></div>
+          <div className="flex justify-between gap-4"><span>Shift closed: {shift.closedBy}</span><span>{displayDateTime(shift.closedAt)}</span></div>
+        </div>
+
+        <ReportDrawerSection title="Cash drawer">
+          <DrawerAmount label="Starting cash" value={shift.startingCash} />
+          <DrawerAmount label="Cash payments" value={shift.cashPayments} />
+          <DrawerAmount label="Cash refunds" value={shift.cashRefunds} />
+          <DrawerAmount label="Paid in" value={shift.paidIn} />
+          <DrawerAmount label="Paid out" value={shift.paidOut} />
+          <DrawerAmount label="Expected cash amount" value={shift.expectedCash} />
+          <DrawerAmount label="Actual cash amount" value={shift.actualCash} />
+          <DrawerAmount label="Difference" value={shift.difference} strong negative={shift.difference < 0} />
+        </ReportDrawerSection>
+
+        <ReportDrawerSection title="Sales summary">
+          <DrawerAmount label="Gross sales" value={shift.grossSales} strong />
+          <DrawerAmount label="Refunds" value={shift.refunds} />
+          <DrawerAmount label="Discounts" value={shift.discounts} />
+          <DrawerAmount label="Net sales" value={shift.netSales} strong />
+          {Object.entries(shift.payments).filter(([, value]) => Math.abs(num(value)) > 0).map(([label, value]) => (
+            <DrawerAmount key={label} label={label} value={value} />
+          ))}
+          <DrawerAmount label="Taxes" value={shift.taxes} />
+        </ReportDrawerSection>
+      </aside>
+    </div>
+  );
+}
+
+function ReportDrawerSection({ title, children }) {
+  return (
+    <div className="mt-4 border-t border-dashed border-slate-300 pt-3">
+      <h3 className="mb-2 text-xs font-medium text-emerald-700">{title}</h3>
+      <div className="space-y-2 text-xs">{children}</div>
+    </div>
+  );
+}
+
+function DrawerAmount({ label, value, strong = false, negative = false }) {
+  return (
+    <div className={`flex justify-between gap-4 ${strong ? "font-semibold text-slate-950" : "text-slate-700"}`}>
+      <span>{label}</span>
+      <span className={`tabular-nums ${negative ? "text-red-600" : ""}`}>{negative ? `(${peso(Math.abs(num(value)))})` : peso(value)}</span>
+    </div>
+  );
+}
+
+function PaginationFooter({ page, totalRows, rowsPerPage, onPageChange, onRowsPerPageChange }) {
+  const pageCount = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+  return (
+    <div className="flex flex-wrap items-center gap-4 border-t border-slate-200 bg-white/90 px-4 py-3 text-xs text-slate-700">
+      <div className="inline-flex overflow-hidden border border-slate-200 bg-white">
+        <button
+          type="button"
+          disabled={page <= 1}
+          onClick={() => onPageChange(Math.max(1, page - 1))}
+          className="flex h-8 w-10 items-center justify-center border-r border-slate-200 text-slate-700 transition hover:bg-slate-50 disabled:opacity-40"
+          aria-label="Previous page"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          disabled={page >= pageCount}
+          onClick={() => onPageChange(Math.min(pageCount, page + 1))}
+          className="flex h-8 w-10 items-center justify-center text-slate-700 transition hover:bg-slate-50 disabled:opacity-40"
+          aria-label="Next page"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="flex items-center gap-2">
+        <span>Page:</span>
+        <span className="flex h-8 min-w-8 items-center justify-center border border-slate-200 bg-white px-2">{page}</span>
+        <span>of {pageCount}</span>
+      </div>
+      <label className="ml-auto flex items-center gap-2">
+        <span>Rows per page:</span>
+        <select
+          value={rowsPerPage}
+          onChange={(event) => onRowsPerPageChange(Number(event.target.value))}
+          className="h-8 min-w-20 border border-slate-200 bg-white px-2 text-xs text-slate-800 outline-none"
+        >
+          {ROWS_PER_PAGE_OPTIONS.map((option) => (
+            <option key={option} value={option}>{option}</option>
+          ))}
+        </select>
+      </label>
     </div>
   );
 }
@@ -371,15 +792,15 @@ function SummaryExportTable({ rows }) {
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-slate-200/80">
           {rows.map((row) => (
             <tr key={row.date} className="text-slate-800 transition hover:bg-cyan-50/40">
-              <td className="px-5 py-4">{displayDate(row.date)}</td>
-              <td className="px-5 py-4 text-right tabular-nums">{peso(row.gross)}</td>
-              <td className="px-5 py-4 text-right tabular-nums">{peso(row.refund)}</td>
-              <td className="px-5 py-4 text-right tabular-nums">{peso(row.discount)}</td>
-              <td className="px-5 py-4 text-right tabular-nums">{peso(row.net)}</td>
-              <td className="px-5 py-4 text-right tabular-nums">{peso(row.net)}</td>
+              <td className="px-5 py-2.5">{displayDate(row.date)}</td>
+              <td className="px-5 py-2.5 text-right tabular-nums">{peso(row.gross)}</td>
+              <td className="px-5 py-2.5 text-right tabular-nums">{peso(row.refund)}</td>
+              <td className="px-5 py-2.5 text-right tabular-nums">{peso(row.discount)}</td>
+              <td className="px-5 py-2.5 text-right tabular-nums">{peso(row.net)}</td>
+              <td className="px-5 py-2.5 text-right tabular-nums">{peso(row.net)}</td>
             </tr>
           ))}
         </tbody>
@@ -466,53 +887,64 @@ function ReceiptDrawer({ order, items = [], onClose }) {
 export default function AdminSalesPage() {
   const [activeTab, setActiveTab] = useState("summary");
   const [filters, setFilters] = useState(defaultFilters);
-  const [rawData, setRawData] = useState({ sales: [], lineItems: [] });
+  const [rawData, setRawData] = useState({ sales: [], lineItems: [], shiftRecords: [], importedShifts: [], stores: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_ROWS_PER_PAGE);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedShift, setSelectedShift] = useState(null);
+  const [receiptDetailItems, setReceiptDetailItems] = useState([]);
+  const [importedLineItemsLoaded, setImportedLineItemsLoaded] = useState(false);
+  const [importedReceiptMode, setImportedReceiptMode] = useState("summary");
   const searchParams = useSearchParams();
 
-  async function loadData(nextFilters = filters) {
+  async function loadData(nextFilters = filters, options = {}) {
+    const includeImportedItems = Boolean(options.includeImportedItems);
+    const includeRawImportedReceipts = Boolean(options.includeRawImportedReceipts);
     setLoading(true);
     setError("");
     const comparisonRange = previousRange(nextFilters.startDate, nextFilters.endDate);
     const start = `${comparisonRange.startDate}T00:00:00+08:00`;
     const fetchEnd = `${addDays(nextFilters.endDate, 1)}T12:00:00+08:00`;
     try {
-      const [ordersRes, webRes, menuRes, storesRes, profilesRes, shiftsRes, importedReceiptsRes, importedReceiptItemsRes] = await Promise.all([
-        supabase.from("orders").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: false }).limit(5000),
-        supabase.from("web_orders").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: false }).limit(5000),
+      const importedItemsPromise = includeImportedItems
+        ? fetchAllRows(() => supabase.from("imported_sales").select(IMPORTED_RECEIPT_ITEM_SELECT).gte("receipt_date", start).lte("receipt_date", fetchEnd).order("receipt_date", { ascending: false }))
+        : Promise.resolve([]);
+      const importedReceiptsPromise = includeRawImportedReceipts
+        ? fetchAllRows(() => supabase.from("imported_sales_receipts").select(IMPORTED_RECEIPT_SELECT).gte("receipt_date", start).lte("receipt_date", fetchEnd).order("receipt_date", { ascending: false }))
+        : fetchAllRows(() => supabase.from("imported_sales_summary").select(IMPORTED_SALES_SUMMARY_SELECT).gte("receipt_date", start).lte("receipt_date", fetchEnd).order("receipt_date", { ascending: false }));
+      const [orders, webOrders, menuRes, storesRes, profilesRes, shiftRecords, importedShifts, importedReceipts, importedReceiptItems] = await Promise.all([
+        fetchAllRows(() => supabase.from("orders").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: false })),
+        fetchAllRows(() => supabase.from("web_orders").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: false })),
         supabase.from("menu_items").select("id,name,category,price"),
         supabase.from("stores").select("id,name").order("name"),
         supabase.from("profiles").select("id,full_name,email,role"),
-        supabase.from("cashier_pos").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: true }).limit(5000),
-        supabase.from("imported_receipts").select("*").gte("receipt_date", start).lte("receipt_date", fetchEnd).order("receipt_date", { ascending: false }).limit(100000),
-        supabase.from("imported_receipt_items").select("*").gte("receipt_date", start).lte("receipt_date", fetchEnd).order("receipt_date", { ascending: false }).limit(100000),
+        fetchAllRows(() => supabase.from("cashier_pos").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: true })),
+        fetchAllRows(() => supabase.from("imported_loyverse_shifts").select(IMPORTED_SHIFT_SELECT).gte("shift_opening_time", start).lte("shift_opening_time", fetchEnd).order("shift_opening_time", { ascending: false })),
+        importedReceiptsPromise,
+        importedItemsPromise,
       ]);
-      const errors = [ordersRes.error, webRes.error, menuRes.error, storesRes.error, profilesRes.error, shiftsRes.error, importedReceiptsRes.error, importedReceiptItemsRes.error].filter(Boolean);
+      const errors = [menuRes.error, storesRes.error, profilesRes.error].filter(Boolean);
       if (errors.length) throw errors[0];
 
-      const orderIds = (ordersRes.data || []).map((row) => row.id);
-      const itemsRes = orderIds.length
-        ? await supabase.from("order_items").select("*").in("order_id", orderIds)
-        : { data: [], error: null };
-      if (itemsRes.error) throw itemsRes.error;
+      const orderItems = await fetchOrderItems(orders.map((row) => row.id));
 
-      setRawData(
-        normalizeSalesData({
-          orders: ordersRes.data || [],
-          orderItems: itemsRes.data || [],
-          webOrders: webRes.data || [],
-          menuItems: menuRes.data || [],
-          profiles: profilesRes.data || [],
-          stores: storesRes.data || [],
-          shiftRecords: shiftsRes.data || [],
-          importedReceipts: importedReceiptsRes.data || [],
-          importedReceiptItems: importedReceiptItemsRes.data || [],
-        })
-      );
+      const normalized = normalizeSalesData({
+        orders,
+        orderItems,
+        webOrders,
+        menuItems: menuRes.data || [],
+        profiles: profilesRes.data || [],
+        stores: storesRes.data || [],
+        shiftRecords,
+        importedReceipts,
+        importedReceiptItems,
+      });
+      setRawData({ ...normalized, stores: storesRes.data || [], shiftRecords, importedShifts });
+      setImportedLineItemsLoaded(includeImportedItems);
+      setImportedReceiptMode(includeRawImportedReceipts ? "raw" : "summary");
     } catch (err) {
       setError(err.message || "Unable to load sales report. Please try again.");
     } finally {
@@ -535,9 +967,23 @@ export default function AdminSalesPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    loadData(filters);
+    loadData(filters, { includeImportedItems: needsImportedLineItems(activeTab), includeRawImportedReceipts: needsRawImportedReceipts(activeTab) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (needsImportedLineItems(activeTab) && !importedLineItemsLoaded && !loading) {
+      loadData(filters, { includeImportedItems: true, includeRawImportedReceipts: needsRawImportedReceipts(activeTab) });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, importedLineItemsLoaded, loading]);
+
+  useEffect(() => {
+    if (needsRawImportedReceipts(activeTab) && importedReceiptMode !== "raw" && !loading) {
+      loadData(filters, { includeImportedItems: needsImportedLineItems(activeTab), includeRawImportedReceipts: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, importedReceiptMode, loading]);
 
   const filtered = useMemo(() => applyFilters(rawData, filters), [rawData, filters]);
   const searchedSales = useMemo(() => {
@@ -554,11 +1000,53 @@ export default function AdminSalesPage() {
   const cashierRows = useMemo(() => getCashierReport(filtered.sales), [filtered.sales]);
   const voidRows = useMemo(() => getVoidRefundReport(filtered.sales), [filtered.sales]);
   const trendRows = useMemo(() => getSalesTrend(filtered.sales, filters.startDate, filters.endDate), [filtered.sales, filters.startDate, filters.endDate]);
-  const pageRows = useMemo(() => searchedSales.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [searchedSales, page]);
-  const selectedReceiptItems = useMemo(() => {
-    if (!selectedOrder) return [];
-    const key = String(selectedOrder.orderKey || selectedOrder.id);
-    return rawData.lineItems.filter((item) => String(item.orderId) === key);
+  const shiftRows = useMemo(() => {
+    const liveRows = buildShiftRows(rawData.shiftRecords || [], rawData.stores || [], filters);
+    const importedRows = buildImportedShiftRows(rawData.importedShifts || [], filters);
+    return [...liveRows, ...importedRows].sort((a, b) => new Date(b.openedAt || b.closedAt || 0) - new Date(a.openedAt || a.closedAt || 0));
+  }, [rawData.shiftRecords, rawData.stores, rawData.importedShifts, filters]);
+  const pageRows = useMemo(() => searchedSales.slice((page - 1) * rowsPerPage, page * rowsPerPage), [searchedSales, page, rowsPerPage]);
+  const selectedReceiptItems = receiptDetailItems;
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadReceiptItems() {
+      setReceiptDetailItems([]);
+      if (!selectedOrder) return;
+      const key = String(selectedOrder.orderKey || selectedOrder.id);
+      const existing = rawData.lineItems.filter((item) => String(item.orderId) === key);
+      if (existing.length || selectedOrder.source !== "Imported") {
+        setReceiptDetailItems(existing);
+        return;
+      }
+      const { data, error } = await supabase
+        .from("imported_sales")
+        .select(IMPORTED_RECEIPT_ITEM_SELECT)
+        .eq("receipt_number", selectedOrder.orderNumber)
+        .eq("store_name", selectedOrder.storeName)
+        .order("receipt_date", { ascending: true });
+      if (cancelled) return;
+      if (error) {
+        console.error(error);
+        setReceiptDetailItems([]);
+        return;
+      }
+      setReceiptDetailItems((data || []).map((item) => {
+        const quantity = Number(item.quantity || 0);
+        const net = Number(item.net_sales || 0);
+        return {
+          id: item.id || item.row_hash,
+          itemName: item.variant ? `${item.item} (${item.variant})` : item.item || "Item",
+          quantity,
+          unitPrice: quantity ? net / quantity : net,
+          net,
+        };
+      }));
+    }
+    loadReceiptItems();
+    return () => {
+      cancelled = true;
+    };
   }, [rawData.lineItems, selectedOrder]);
 
   const paymentOptions = useMemo(() => [{ value: "All", label: "All payment methods" }, ...uniqueOptions(rawData.sales, "paymentMethod")], [rawData.sales]);
@@ -572,7 +1060,8 @@ export default function AdminSalesPage() {
     const next = { ...filters, preset, ...range };
     setFilters(next);
     setPage(1);
-    loadData(next);
+    setImportedLineItemsLoaded(false);
+    loadData(next, { includeImportedItems: needsImportedLineItems(activeTab), includeRawImportedReceipts: needsRawImportedReceipts(activeTab) });
   }
 
   function updateFilter(key, value) {
@@ -589,7 +1078,8 @@ export default function AdminSalesPage() {
     };
     setFilters(next);
     setPage(1);
-    loadData(next);
+    setImportedLineItemsLoaded(false);
+    loadData(next, { includeImportedItems: needsImportedLineItems(activeTab), includeRawImportedReceipts: needsRawImportedReceipts(activeTab) });
   }
 
   function shiftSummaryRange(direction) {
@@ -610,6 +1100,7 @@ export default function AdminSalesPage() {
     if (kind === "discounts") exportReportToCSV(discountRows, `juja-discounts-${range}.csv`);
     if (kind === "cashiers") exportReportToCSV(cashierRows, `juja-cashier-sales-${range}.csv`);
     if (kind === "voids") exportReportToCSV(voidRows, `juja-void-refund-${range}.csv`);
+    if (kind === "shifts") exportReportToCSV(shiftRows, `juja-shifts-${range}.csv`);
   }
 
   const previous = previousRange(filters.startDate, filters.endDate);
@@ -644,7 +1135,7 @@ export default function AdminSalesPage() {
                 <h1 className="mt-2 text-3xl font-semibold">Sales Report System</h1>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-100">Daily, weekly, monthly, yearly, and custom analytics for POS and completed web orders.</p>
               </div>
-              <button onClick={() => loadData(filters)} className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/12 px-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/20">
+              <button onClick={() => loadData(filters, { includeImportedItems: needsImportedLineItems(activeTab), includeRawImportedReceipts: needsRawImportedReceipts(activeTab) })} className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/12 px-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/20">
                 <RefreshCw className="h-4 w-4" /> Refresh
               </button>
             </div>
@@ -667,7 +1158,7 @@ export default function AdminSalesPage() {
             </div>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2 text-xs text-slate-500"><Filter className="h-4 w-4" /> Filters apply to every report tab.</div>
-              <button onClick={() => loadData(filters)} className="rounded-2xl bg-cyan-700 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-900/10 transition hover:-translate-y-0.5 hover:bg-cyan-600">Apply Filters</button>
+              <button onClick={() => loadData(filters, { includeImportedItems: needsImportedLineItems(activeTab), includeRawImportedReceipts: needsRawImportedReceipts(activeTab) })} className="rounded-2xl bg-cyan-700 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-900/10 transition hover:-translate-y-0.5 hover:bg-cyan-600">Apply Filters</button>
             </div>
           </Card>
         </>
@@ -699,7 +1190,7 @@ export default function AdminSalesPage() {
             <SummarySelectControl icon={Clock} value={filters.paymentMethod} onChange={(value) => updateSummaryFilters({ paymentMethod: value })} options={paymentOptions} allLabel="All day" />
             <SummarySelectControl icon={Store} value={filters.branchId} onChange={(value) => updateSummaryFilters({ branchId: value })} options={branchOptions} wide />
             <SummarySelectControl icon={UserRound} value={filters.cashierId} onChange={(value) => updateSummaryFilters({ cashierId: value })} options={cashierOptions} wide />
-            <button onClick={() => loadData(filters)} className="ml-auto inline-flex h-10 items-center justify-center gap-2 rounded-md bg-slate-700 px-4 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-600">
+            <button onClick={() => loadData(filters, { includeImportedItems: needsImportedLineItems(activeTab), includeRawImportedReceipts: needsRawImportedReceipts(activeTab) })} className="ml-auto inline-flex h-10 items-center justify-center gap-2 rounded-md bg-slate-700 px-4 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-600">
               <RefreshCw className="h-4 w-4" /> Refresh
             </button>
           </div>
@@ -752,10 +1243,16 @@ export default function AdminSalesPage() {
             <button onClick={() => exportRows("sales")} className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-slate-700 px-4 text-sm font-semibold text-white transition hover:bg-slate-600"><Download className="h-4 w-4" /> Export CSV</button>
           </div>
           <DataTable columns={salesColumns} rows={pageRows} empty="No sales found for this date range." onView={setSelectedOrder} />
-          <div className="flex justify-end gap-2">
-            <button disabled={page === 1} onClick={() => setPage((value) => Math.max(1, value - 1))} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 disabled:opacity-40">Previous</button>
-            <button disabled={page * PAGE_SIZE >= searchedSales.length} onClick={() => setPage((value) => value + 1)} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 disabled:opacity-40">Next</button>
-          </div>
+          <PaginationFooter
+            page={page}
+            totalRows={searchedSales.length}
+            rowsPerPage={rowsPerPage}
+            onPageChange={setPage}
+            onRowsPerPageChange={(value) => {
+              setRowsPerPage(value);
+              setPage(1);
+            }}
+          />
         </div>
       )}
 
@@ -766,7 +1263,20 @@ export default function AdminSalesPage() {
       {!loading && activeTab === "employees" && <ReportSection icon={UserRound} title="Sales by employee" exportAction={() => exportRows("cashiers")}><DataTable rows={cashierRows} empty="No employee sales found." columns={[{ key: "cashierName", label: "Employee", emphasis: true }, { key: "orders", label: "Orders", align: "right", render: (r) => number(r.orders) }, { key: "gross", label: "Gross sales", align: "right", render: (r) => peso(r.gross) }, { key: "discounts", label: "Discounts", align: "right", render: (r) => peso(r.discounts) }, { key: "refunds", label: "Refunds", align: "right", render: (r) => peso(r.refunds) }, { key: "net", label: "Net sales", align: "right", emphasis: true, render: (r) => peso(r.net) }, { key: "averageOrderValue", label: "AOV", align: "right", render: (r) => peso(r.averageOrderValue) }, { key: "paymentBreakdown", label: "Payment breakdown" }]} /></ReportSection>}
       {!loading && activeTab === "modifiers" && <ReportSection icon={PackageSearch} title="Sales by modifier" exportAction={() => exportRows("products")}><Empty message="Modifier-level sales are not stored separately yet. POS currently saves selected variants inside item notes/details, so this report needs modifier line persistence before totals can be exact." /></ReportSection>}
       {!loading && activeTab === "taxes" && <ReportSection icon={FileText} title="Taxes" exportAction={() => exportRows("sales")}><Empty message="No tax records found. The current POS flow does not store separate tax lines yet." /></ReportSection>}
-      {!loading && activeTab === "shifts" && <ReportSection icon={CalendarDays} title="Shifts" exportAction={() => exportRows("cashiers")}><DataTable rows={cashierRows} empty="No shift sales found." columns={[{ key: "cashierName", label: "Employee", emphasis: true }, { key: "orders", label: "Orders", align: "right", render: (r) => number(r.orders) }, { key: "gross", label: "Gross sales", align: "right", render: (r) => peso(r.gross) }, { key: "net", label: "Net sales", align: "right", emphasis: true, render: (r) => peso(r.net) }, { key: "paymentBreakdown", label: "Payment breakdown" }]} /></ReportSection>}
+      {!loading && activeTab === "shifts" && (
+        <ShiftsTable
+          rows={shiftRows}
+          page={page}
+          rowsPerPage={rowsPerPage}
+          onPageChange={setPage}
+          onRowsPerPageChange={(value) => {
+            setRowsPerPage(value);
+            setPage(1);
+          }}
+          onSelect={setSelectedShift}
+          onExport={() => exportRows("shifts")}
+        />
+      )}
       {!loading && activeTab === "exports" && (
         <Card>
           <h2 className="text-xl font-semibold text-slate-900">Export Reports</h2>
@@ -780,6 +1290,7 @@ export default function AdminSalesPage() {
       )}
 
       <ReceiptDrawer order={selectedOrder} items={selectedReceiptItems} onClose={() => setSelectedOrder(null)} />
+      <ShiftReportDrawer shift={selectedShift} onClose={() => setSelectedShift(null)} />
     </div>
   );
 }

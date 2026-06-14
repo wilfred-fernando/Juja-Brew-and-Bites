@@ -78,6 +78,10 @@ const RECEIPT_ITEM_COLUMNS = [
   "cost_of_goods",
   "gross_profit",
   "taxes",
+  "payment_type",
+  "total_collected",
+  "customer_contacts",
+  "receipt_description",
   "dining_option",
   "pos",
   "store_name",
@@ -101,6 +105,10 @@ const RECEIPT_ITEM_COLUMNS = [
   "Cost of goods",
   "Gross profit",
   "Taxes",
+  "Payment type",
+  "Total collected",
+  "Customer contacts",
+  "Description",
   "Dining option",
   "POS",
   "Store",
@@ -196,6 +204,10 @@ function receiptValues(row, sourceFile, rowNumber, batchId) {
   };
 }
 
+function receiptKey(row) {
+  return [row.receipt_day, row.receipt_number, row.store_name].map((value) => cleanText(value)).join("|");
+}
+
 function receiptItemValues(row, sourceFile, rowNumber, batchId) {
   const parsedDate = parseReceiptDate(row.Date);
   return {
@@ -219,6 +231,10 @@ function receiptItemValues(row, sourceFile, rowNumber, batchId) {
     cost_of_goods: amount(row["Cost of goods"]),
     gross_profit: amount(row["Gross profit"]),
     taxes: amount(row.Taxes),
+    payment_type: cleanText(row["Payment type"]),
+    total_collected: amount(row["Total collected"]),
+    customer_contacts: cleanText(row["Customer contacts"]),
+    receipt_description: cleanText(row.Description),
     dining_option: cleanText(row["Dining option"]),
     pos: cleanText(row.POS),
     store_name: cleanText(row.Store),
@@ -229,6 +245,21 @@ function receiptItemValues(row, sourceFile, rowNumber, batchId) {
     raw_data: JSON.stringify(row),
     ...Object.fromEntries(RECEIPT_ITEM_COLUMNS.filter((column) => row[column] !== undefined).map((column) => [column, cleanText(row[column])])),
   };
+}
+
+function enrichReceiptItems(receipts, receiptItems) {
+  const receiptByKey = new Map(receipts.map((receipt) => [receiptKey(receipt), receipt]));
+  return receiptItems.map((item) => {
+    const receipt = receiptByKey.get(receiptKey(item));
+    if (!receipt) return item;
+    return {
+      ...item,
+      payment_type: item.payment_type || receipt.payment_type,
+      total_collected: item.total_collected || receipt.total_collected,
+      customer_contacts: item.customer_contacts || receipt.customer_contacts,
+      receipt_description: item.receipt_description || receipt.description,
+    };
+  });
 }
 
 async function readCsv(filePath, mapper, batchId) {
@@ -288,6 +319,7 @@ async function main() {
     readCsv(receiptsFile, receiptValues, batchId),
     readCsv(receiptItemsFile, receiptItemValues, batchId),
   ]);
+  const enrichedReceiptItems = enrichReceiptItems(receipts, receiptItems);
 
   const client = new Client({
     connectionString: process.env.DATABASE_URL,
@@ -295,14 +327,14 @@ async function main() {
   });
   await client.connect();
   try {
-    await upsertRows(client, "imported_receipts", RECEIPT_COLUMNS, receipts);
-    await upsertRows(client, "imported_receipt_items", RECEIPT_ITEM_COLUMNS, receiptItems);
+    await upsertRows(client, "imported_receipt_items", RECEIPT_ITEM_COLUMNS, enrichedReceiptItems);
+    await client.query("select public.refresh_imported_sales_tables()");
   } finally {
     await client.end();
   }
 
-  console.log(`Imported receipts: ${receipts.length}`);
-  console.log(`Imported receipt item rows: ${receiptItems.length}`);
+  console.log(`Parsed receipt metadata rows: ${receipts.length}`);
+  console.log(`Imported receipt item rows: ${enrichedReceiptItems.length}`);
 }
 
 main().catch((error) => {
