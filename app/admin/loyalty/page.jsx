@@ -145,16 +145,6 @@ export default function LoyaltyAdminPage() {
     return fallback;
   }
 
-  function buildOrFilter(fields, values) {
-    const clauses = [];
-    values.filter(Boolean).forEach((value) => {
-      const clean = String(value).replace(/[%(),]/g, "").trim();
-      if (!clean) return;
-      fields.forEach((field) => clauses.push(`${field}.ilike.%${clean}%`));
-    });
-    return clauses.join(",");
-  }
-
   async function safeHistoryQuery(label, query, mapper) {
     const { data, error } = await query;
     if (error) {
@@ -164,82 +154,197 @@ export default function LoyaltyAdminPage() {
     return (data || []).map(mapper);
   }
 
+  function cleanHistorySearchValue(value) {
+    return String(value || "")
+      .replace(/[%(),]/g, "")
+      .trim();
+  }
+
+  function uniqueHistoryValues(values) {
+    return Array.from(new Set(values.map(cleanHistorySearchValue).filter(Boolean)));
+  }
+
+  function dedupeHistoryRows(rows) {
+    const seen = new Map();
+    rows.flat().forEach((row) => {
+      if (!row?.id) return;
+      seen.set(row.id, row);
+    });
+    return Array.from(seen.values());
+  }
+
   async function openPurchaseHistory(member) {
     const name = String(member?.customer_name || member?.["customer_name"] || "").trim();
     const email = String(member?.Email || member?.email || "").trim();
     const phone = String(member?.Phone || member?.phone || "").trim();
+    const memberId = String(member?.id || "").trim();
+    const userId = String(member?.user_id || member?.profile_id || "").trim();
+    const customerCodes = uniqueHistoryValues([
+      member?.customer_code,
+      member?.["customer_code"],
+      member?.["Customer ID"],
+      member?.customer_id,
+      memberId,
+    ]);
 
     setPurchaseHistory({ open: true, loading: true, member, rows: [], error: "" });
 
     try {
-      const importedFilter = buildOrFilter(["customer_name", "customer_contacts"], [name, phone, email]);
-      const webFilter = buildOrFilter(["customer_name", "customer_contact", "payment_method"], [name, email, phone]);
-      const posFilter = buildOrFilter(["customer_name", "payment_method"], [name, phone]);
+      const importedMapper = (row) => ({
+        id: `imported-${row.id}`,
+        source: "Imported receipt",
+        date: row.receipt_date,
+        receipt: row.receipt_number,
+        store: row.store_name,
+        payment: row.payment_type,
+        total: Number(row.net_sales || row.total_collected || 0),
+        status: row.status || "Paid",
+      });
 
-      const [importedRows, webRows, posRows] = await Promise.all([
-        importedFilter
+      const webMapper = (row) => ({
+        id: `web-${row.id}`,
+        source: "Web order",
+        date: row.created_at,
+        receipt: row.receipt_number || `WEB-${String(row.id).slice(0, 8).toUpperCase()}`,
+        store: row.dining_option || row.fulfillment_type || "Web",
+        payment: row.payment_method,
+        total: Number(row.total || 0),
+        status: row.status,
+      });
+
+      const posMapper = (row) => ({
+        id: `pos-${row.id}`,
+        source: "POS order",
+        date: row.created_at,
+        receipt: row.receipt_number || row.order_number || String(row.id).slice(0, 12),
+        store: row.source_store_name || row.order_type || row.dining_option || "POS",
+        payment: row.payment_method,
+        total: Number(row.net_amount || row.total || row.total_amount || 0),
+        status: row.status,
+      });
+
+      const importedSearches = uniqueHistoryValues([name, phone, email]);
+      const webContactSearches = uniqueHistoryValues([phone, email]);
+      const webNameSearches = uniqueHistoryValues([name]);
+      const posNameSearches = uniqueHistoryValues([name]);
+
+      const importedQueries = importedSearches.flatMap((value) => [
+        safeHistoryQuery(
+          "Imported receipts by customer name",
+          supabase
+            .from("imported_sales_receipts")
+            .select("id,receipt_date,receipt_number,store_name,cashier_name,customer_name,customer_contacts,payment_type,net_sales,total_collected,status")
+            .ilike("customer_name", `%${value}%`)
+            .order("receipt_date", { ascending: false })
+            .limit(100),
+          importedMapper
+        ),
+        safeHistoryQuery(
+          "Imported receipts by customer contact",
+          supabase
+            .from("imported_sales_receipts")
+            .select("id,receipt_date,receipt_number,store_name,cashier_name,customer_name,customer_contacts,payment_type,net_sales,total_collected,status")
+            .ilike("customer_contacts", `%${value}%`)
+            .order("receipt_date", { ascending: false })
+            .limit(100),
+          importedMapper
+        ),
+      ]);
+
+      const webQueries = [
+        ...webNameSearches.map((value) =>
+          safeHistoryQuery(
+            "Web orders by customer name",
+            supabase
+              .from("web_orders")
+              .select("id,created_at,receipt_number,customer_name,customer_contact,total,payment_method,status,dining_option,fulfillment_type,user_id")
+              .ilike("customer_name", `%${value}%`)
+              .order("created_at", { ascending: false })
+              .limit(100),
+            webMapper
+          )
+        ),
+        ...webContactSearches.map((value) =>
+          safeHistoryQuery(
+            "Web orders by customer contact",
+            supabase
+              .from("web_orders")
+              .select("id,created_at,receipt_number,customer_name,customer_contact,total,payment_method,status,dining_option,fulfillment_type,user_id")
+              .ilike("customer_contact", `%${value}%`)
+              .order("created_at", { ascending: false })
+              .limit(100),
+            webMapper
+          )
+        ),
+        userId
           ? safeHistoryQuery(
-              "Imported receipts",
-              supabase
-                .from("imported_sales_receipts")
-                .select("id,receipt_date,receipt_number,store_name,cashier_name,customer_name,customer_contacts,payment_type,net_sales,total_collected,status")
-                .or(importedFilter)
-                .order("receipt_date", { ascending: false })
-                .limit(100),
-              (row) => ({
-                id: `imported-${row.id}`,
-                source: "Imported receipt",
-                date: row.receipt_date,
-                receipt: row.receipt_number,
-                store: row.store_name,
-                payment: row.payment_type,
-                total: Number(row.net_sales || row.total_collected || 0),
-                status: row.status || "Paid",
-              })
-            )
-          : Promise.resolve([]),
-        webFilter
-          ? safeHistoryQuery(
-              "Web orders",
+              "Web orders by user",
               supabase
                 .from("web_orders")
-                .select("id,created_at,customer_name,customer_contact,total,payment_method,status,dining_option")
-                .or(webFilter)
+                .select("id,created_at,receipt_number,customer_name,customer_contact,total,payment_method,status,dining_option,fulfillment_type,user_id")
+                .eq("user_id", userId)
                 .order("created_at", { ascending: false })
                 .limit(100),
-              (row) => ({
-                id: `web-${row.id}`,
-                source: "Web order",
-                date: row.created_at,
-                receipt: `WEB-${String(row.id).slice(0, 8).toUpperCase()}`,
-                store: row.dining_option || "Web",
-                payment: row.payment_method,
-                total: Number(row.total || 0),
-                status: row.status,
-              })
+              webMapper
             )
           : Promise.resolve([]),
-        posFilter
+      ];
+
+      const posQueries = [
+        ...posNameSearches.map((value) =>
+          safeHistoryQuery(
+            "POS orders by customer name",
+            supabase
+              .from("orders")
+              .select("id,created_at,receipt_number,order_number,customer_name,customer_id,loyalty_member_id,user_id,total,total_amount,net_amount,payment_method,status,order_type,dining_option,source_store_name")
+              .ilike("customer_name", `%${value}%`)
+              .order("created_at", { ascending: false })
+              .limit(100),
+            posMapper
+          )
+        ),
+        ...customerCodes.map((value) =>
+          safeHistoryQuery(
+            "POS orders by customer id",
+            supabase
+              .from("orders")
+              .select("id,created_at,receipt_number,order_number,customer_name,customer_id,loyalty_member_id,user_id,total,total_amount,net_amount,payment_method,status,order_type,dining_option,source_store_name")
+              .eq("customer_id", value)
+              .order("created_at", { ascending: false })
+              .limit(100),
+            posMapper
+          )
+        ),
+        memberId
           ? safeHistoryQuery(
-              "POS orders",
+              "POS orders by loyalty member",
               supabase
                 .from("orders")
-                .select("id,created_at,customer_name,total,net_amount,payment_method,status,order_type")
-                .or(posFilter)
+                .select("id,created_at,receipt_number,order_number,customer_name,customer_id,loyalty_member_id,user_id,total,total_amount,net_amount,payment_method,status,order_type,dining_option,source_store_name")
+                .eq("loyalty_member_id", memberId)
                 .order("created_at", { ascending: false })
                 .limit(100),
-              (row) => ({
-                id: `pos-${row.id}`,
-                source: "POS order",
-                date: row.created_at,
-                receipt: String(row.id).slice(0, 12),
-                store: row.order_type || "POS",
-                payment: row.payment_method,
-                total: Number(row.net_amount || row.total || 0),
-                status: row.status,
-              })
+              posMapper
             )
           : Promise.resolve([]),
+        userId
+          ? safeHistoryQuery(
+              "POS orders by user",
+              supabase
+                .from("orders")
+                .select("id,created_at,receipt_number,order_number,customer_name,customer_id,loyalty_member_id,user_id,total,total_amount,net_amount,payment_method,status,order_type,dining_option,source_store_name")
+                .eq("user_id", userId)
+                .order("created_at", { ascending: false })
+                .limit(100),
+              posMapper
+            )
+          : Promise.resolve([]),
+      ];
+
+      const [importedRows, webRows, posRows] = await Promise.all([
+        Promise.all(importedQueries).then(dedupeHistoryRows),
+        Promise.all(webQueries).then(dedupeHistoryRows),
+        Promise.all(posQueries).then(dedupeHistoryRows),
       ]);
 
       const rows = [...importedRows, ...webRows, ...posRows].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));

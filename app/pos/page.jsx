@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { deductInventoryForOrder, restoreInventoryForOrder } from "@/lib/inventory";
+import { markKdsTicketStatus, upsertKdsTicket } from "@/lib/kds";
 import TicketPanel from "@/components/pos/TicketPanel";
 
 // Initialize Supabase Client instance cleanly at layout bundle level
@@ -1662,11 +1663,19 @@ export default function POSPage() {
     stopContinuousAlertChime();
 
     try {
+      const acceptedAt = new Date().toISOString();
       const { error: updateErr } = await supabase
         .from("web_orders")
-        .update({ status: "accepted" })
+        .update({ status: "accepted", order_status: "accepted", accepted_at: acceptedAt })
         .eq("id", incomingOrder.id);
       if (updateErr) throw updateErr;
+
+      const { error: kdsErr } = await upsertKdsTicket(supabase, {
+        sourceType: "web",
+        order: { ...incomingOrder, status: "accepted", order_status: "accepted", accepted_at: acceptedAt },
+        status: "accepted",
+      });
+      if (kdsErr) showToast("warn", "KDS Sync Warning", kdsErr.message);
 
       await fetchPendingCount(storeId);
       await fetchAcceptedWebOrders();
@@ -2097,6 +2106,8 @@ export default function POSPage() {
       return;
     }
 
+    await markKdsTicketStatus(supabase, { sourceType: "web", sourceId: order.id, status: "ready" });
+
     if (order.user_id) {
       await supabase.from("notifications").insert([{
         type: "web_order_ready",
@@ -2152,6 +2163,8 @@ export default function POSPage() {
       showToast("error", "Completion Failed", error.message);
       return;
     }
+
+    await markKdsTicketStatus(supabase, { sourceType: "web", sourceId: order.id, status: "completed" });
 
     if (order.user_id) {
       await supabase.from("notifications").insert([{
@@ -2379,6 +2392,7 @@ export default function POSPage() {
       if (refundError) {
         showToast("warn", "Refund Audit Skipped", refundError.message);
       }
+      await markKdsTicketStatus(supabase, { sourceType: "pos", sourceId: receipt.id, status: "voided" });
     }
     const key = String(receipt.receipt_number);
     const next = { ...receiptRefunds, [key]: { ...(receiptRefunds[key] || {}), receipt: "Refunded" } };
@@ -2413,6 +2427,7 @@ export default function POSPage() {
       if (refundError) {
         showToast("warn", "Refund Audit Skipped", refundError.message);
       }
+      await markKdsTicketStatus(supabase, { sourceType: "pos", sourceId: orderId, status: "voided" });
     }
     const next = {
       ...receiptRefunds,
@@ -2626,7 +2641,8 @@ export default function POSPage() {
       if (!confirmWebVoid) return;
       setSavingTicket(true);
       try {
-        await supabase.from("web_orders").update({ status: "rejected" }).eq("id", activeWebOrderId);
+        await supabase.from("web_orders").update({ status: "rejected", order_status: "rejected", rejected_at: new Date().toISOString() }).eq("id", activeWebOrderId);
+        await markKdsTicketStatus(supabase, { sourceType: "web", sourceId: activeWebOrderId, status: "rejected" });
         clearTicketSoft();
         showToast("warn", "Web Order Cancelled", "Order updated to rejected status rows.");
       } catch (err) {
@@ -2644,6 +2660,9 @@ export default function POSPage() {
 
     setSavingTicket(true);
     try {
+      if (originalTicketId) {
+        await markKdsTicketStatus(supabase, { sourceType: "pos", sourceId: originalTicketId, status: "voided" });
+      }
       await supabase.from("open_tickets").delete().eq("order_type", diningOption);
       await supabase.from("open_tickets").delete().eq("order_type", diningOptionName);
       clearTicketSoft();
@@ -2729,6 +2748,15 @@ export default function POSPage() {
         .single();
       if (orderErr) return showToast("error", "Charge Failed", orderErr.message);
 
+      if (!activeWebOrderId) {
+        const { error: kdsErr } = await upsertKdsTicket(supabase, {
+          sourceType: "pos",
+          order: orderRow,
+          status: "pending",
+        });
+        if (kdsErr) showToast("warn", "KDS Sync Warning", kdsErr.message);
+      }
+
       const itemRows = cart.map((line) => ({
         order_id: orderRow.id,
         menu_item_id: line.id,
@@ -2778,6 +2806,8 @@ export default function POSPage() {
             total: total
           })
           .eq("id", activeWebOrderId);
+
+        await markKdsTicketStatus(supabase, { sourceType: "web", sourceId: activeWebOrderId, status: "completed" });
 
         await awardWebOrderLoyaltyPoints(activeWebOrder, calcLoyaltyPoints(total));
       } else {
