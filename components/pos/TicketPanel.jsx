@@ -15,6 +15,8 @@ export default function TicketPanel({
   setDiningOption,
   subtotal = 0,
   attachedCustomer,
+  onRemoveCustomer,
+  onChangeCustomer,
   appliedVoucher,
   onOpenVouchers,
   onRemoveVoucher,
@@ -79,6 +81,24 @@ export default function TicketPanel({
               ? `👤 ${attachedCustomer.name || attachedCustomer.customer_name}`
               : "Walk-in Guest"}
           </p>
+          {attachedCustomer && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={onChangeCustomer}
+                className="px-2.5 py-1 rounded-full border border-slate-200 bg-white text-[10px] font-semibold uppercase tracking-wide text-slate-700 hover:bg-slate-50 transition"
+              >
+                Change
+              </button>
+              <button
+                type="button"
+                onClick={onRemoveCustomer}
+                className="px-2.5 py-1 rounded-full border border-rose-100 bg-rose-50 text-[10px] font-semibold uppercase tracking-wide text-rose-700 hover:bg-rose-100 transition"
+              >
+                Remove
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 shrink-0">

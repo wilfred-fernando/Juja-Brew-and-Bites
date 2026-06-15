@@ -1954,6 +1954,14 @@ export default function POSPage() {
       .maybeSingle();
 
     if (data) {
+      if (cart.length > 0) {
+        setOriginalTicketId(null);
+        setActiveWebOrderId(null);
+        setActiveWebOrderBranchId(null);
+        showToast("info", "Dining Option Changed", `${optionName} has a saved ticket. Your current cart was kept.`);
+        return;
+      }
+
       setOriginalTicketId(data.id);
       setCart(data.items || []);
       setActiveWebOrderId(null); // Clear web tracking context when switching to a physical table
@@ -1963,10 +1971,9 @@ export default function POSPage() {
       showToast("info", "Table Loaded", optionName);
     } else {
       setOriginalTicketId(null);
-      setCart([]);
-      setAttachedCustomer(null);
       setActiveWebOrderId(null);
       setActiveWebOrderBranchId(null);
+      showToast("info", "Dining Option Changed", optionName);
     }
   }
 
@@ -1977,8 +1984,6 @@ export default function POSPage() {
 
     if (!name) {
       setOriginalTicketId(null);
-      setCart([]);
-      setAttachedCustomer(null);
       setActiveWebOrderId(null);
       setActiveWebOrderBranchId(null);
       return;
@@ -1995,10 +2000,29 @@ export default function POSPage() {
         .update({
           items: cart,
           subtotal: Number(subtotal),
-          total: Number(subtotal)
+          total: Number(subtotal),
+          dining_option: diningOptionName || null,
+          fulfillment_type: diningOptionName || null,
         })
         .eq("id", activeWebOrderId);
       if (error) throw error;
+      const { error: kdsErr } = await upsertKdsTicket(supabase, {
+        sourceType: "web",
+        order: {
+          id: activeWebOrderId,
+          store_id: activeWebOrderBranchId || storeId,
+          branch_id: activeWebOrderBranchId || storeId,
+          customer_name: attachedCustomer?.name || "Web Customer",
+          dining_option: diningOptionName || "Web Order",
+          fulfillment_type: diningOptionName || "Web Order",
+          items: cart,
+          subtotal: Number(subtotal),
+          total: Number(subtotal),
+          accepted_at: new Date().toISOString(),
+        },
+        status: "accepted",
+      });
+      if (kdsErr) throw kdsErr;
       return;
     }
 
@@ -2015,11 +2039,44 @@ export default function POSPage() {
     };
 
     if (originalTicketId) {
-      const { error } = await supabase.from("open_tickets").update(payload).eq("id", originalTicketId);
+      const { data: ticketRow, error } = await supabase.from("open_tickets").update(payload).eq("id", originalTicketId).select("*").single();
       if (error) throw error;
+      const { error: kdsErr } = await upsertKdsTicket(supabase, {
+        sourceType: "pos",
+        order: {
+          id: ticketRow.id,
+          store_id: storeId,
+          branch_id: storeId,
+          customer_name: attachedCustomer?.name || "Walk-in",
+          order_type: name,
+          dining_option: name,
+          items: cart,
+          total_amount: Number(subtotal || 0),
+          created_at: ticketRow.created_at,
+        },
+        status: "pending",
+      });
+      if (kdsErr) throw kdsErr;
     } else {
-      const { error } = await supabase.from("open_tickets").insert([payload]);
+      const { data: ticketRow, error } = await supabase.from("open_tickets").insert([payload]).select("*").single();
       if (error) throw error;
+      setOriginalTicketId(ticketRow.id);
+      const { error: kdsErr } = await upsertKdsTicket(supabase, {
+        sourceType: "pos",
+        order: {
+          id: ticketRow.id,
+          store_id: storeId,
+          branch_id: storeId,
+          customer_name: attachedCustomer?.name || "Walk-in",
+          order_type: name,
+          dining_option: name,
+          items: cart,
+          total_amount: Number(subtotal || 0),
+          created_at: ticketRow.created_at,
+        },
+        status: "pending",
+      });
+      if (kdsErr) throw kdsErr;
     }
   }
 
@@ -2574,6 +2631,7 @@ export default function POSPage() {
       showToast("error", "Void Failed", error.message);
       return;
     }
+    await markKdsTicketStatus(supabase, { sourceType: "pos", sourceId: ticketId, status: "voided" });
     await fetchSavedTickets();
     showToast("success", "Ticket Voided", "Ticket removed successfully.");
   }
@@ -2811,6 +2869,9 @@ export default function POSPage() {
 
         await awardWebOrderLoyaltyPoints(activeWebOrder, calcLoyaltyPoints(total));
       } else {
+        if (originalTicketId) {
+          await markKdsTicketStatus(supabase, { sourceType: "pos", sourceId: originalTicketId, status: "completed" });
+        }
         await supabase.from("open_tickets").delete().eq("order_type", diningOptionName);
       }
 
@@ -2879,6 +2940,33 @@ export default function POSPage() {
       e.preventDefault();
       handleCodeInput(customerSearch);
     }
+  };
+
+  const removeAttachedCustomer = () => {
+    setAttachedCustomer(null);
+    setCustomerSearch("");
+    setAppliedVoucher(null);
+    setAvailableVouchers([]);
+    setVoucherTargetCartItemId(null);
+    setCart((prev) =>
+      prev.map((line) => {
+        const x = { ...line };
+        if (x.appliedVoucher) {
+          if (typeof x._origUnitPrice === "number") x.unitPrice = x._origUnitPrice;
+          delete x._origUnitPrice;
+          delete x.appliedVoucher;
+        }
+        return x;
+      })
+    );
+    showToast("info", "Customer Removed", "Ticket is now assigned to walk-in.");
+  };
+
+  const prepareCustomerChange = () => {
+    const currentName = attachedCustomer?.name || attachedCustomer?.customer_name || "";
+    setCustomerSearch(currentName);
+    setIsCustListOpen(true);
+    showToast("info", "Change Customer", "Search or scan the replacement customer.");
   };
 
   const applyVoucherToTicket = (voucher) => {
@@ -3558,6 +3646,8 @@ export default function POSPage() {
               ticketTitle={ticketTitle}
               ticketSubtitle={ticketSubtitle}
               attachedCustomer={attachedCustomer}
+              onRemoveCustomer={removeAttachedCustomer}
+              onChangeCustomer={prepareCustomerChange}
               appliedVoucher={appliedVoucher}
               onOpenVouchers={async () => {
                 if (!attachedCustomer?.id) return showToast("error", "Attach Customer", "Scan/select a customer first.");
@@ -3651,6 +3741,8 @@ export default function POSPage() {
                 ticketTitle={ticketTitle}
                 ticketSubtitle={ticketSubtitle}
                 attachedCustomer={attachedCustomer}
+                onRemoveCustomer={removeAttachedCustomer}
+                onChangeCustomer={prepareCustomerChange}
                 appliedVoucher={appliedVoucher}
                 onOpenVouchers={async () => {
                   if (!attachedCustomer?.id) return showToast("error", "Attach Customer", "Scan/select a customer first.");

@@ -40,6 +40,10 @@ export function middleware(req: NextRequest) {
 
   const basePath = subdomain ? routes[subdomain] : null;
 
+  if (cleanHost.startsWith("pos.") && pathname.startsWith("/kitchen")) {
+    return NextResponse.next();
+  }
+
   if (basePath && !pathname.startsWith(basePath)) {
     const url = req.nextUrl.clone();
     url.pathname = `${basePath}${pathname === "/" ? "" : pathname}`;
