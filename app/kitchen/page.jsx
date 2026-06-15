@@ -72,16 +72,6 @@ export default function KitchenDisplay() {
     return rows.filter((ticket) => String(ticket.status || "").toLowerCase() === statusFilter);
   }, [tickets, statusFilter, allowedStatuses, kitchenCategoriesByStore, menuItemCategoryLookup]);
 
-  const stats = useMemo(
-    () => ({
-      all: tickets.filter((ticket) => allowedStatuses.includes(String(ticket.status || "").toLowerCase()) && getKitchenItems(ticket).length > 0).length,
-      pending: tickets.filter((ticket) => ["pending", "accepted"].includes(String(ticket.status || "").toLowerCase()) && getKitchenItems(ticket).length > 0).length,
-      preparing: tickets.filter((ticket) => String(ticket.status || "").toLowerCase() === "preparing" && getKitchenItems(ticket).length > 0).length,
-      ready: tickets.filter((ticket) => String(ticket.status || "").toLowerCase() === "ready" && getKitchenItems(ticket).length > 0).length,
-    }),
-    [tickets, allowedStatuses, kitchenCategoriesByStore, menuItemCategoryLookup]
-  );
-
   const playAlert = () => {
     const audio = audioRef.current || new Audio(ALERT_SOUND_SRC);
     audioRef.current = audio;
@@ -288,10 +278,6 @@ export default function KitchenDisplay() {
       return;
     }
 
-    if (allReady && ticket.source_type === "web" && ticket.web_order_id) {
-      await supabase.from("web_orders").update({ status: "ready", order_status: "ready", ready_at: timestamp }).eq("id", ticket.web_order_id);
-    }
-
     await fetchTickets({ silent: true });
   };
 
@@ -361,28 +347,6 @@ export default function KitchenDisplay() {
             KDS load failed: {loadError}
           </div>
         )}
-
-        <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {[
-            ["all", showHistory ? "History" : "All", stats.all],
-            ["pending", "New", stats.pending],
-            ["preparing", "Preparing", stats.preparing],
-            ["ready", "Ready", stats.ready],
-          ].map(([key, label, value]) => (
-            <button
-              key={key}
-              type="button"
-              disabled={showHistory && key !== "all"}
-              onClick={() => setStatusFilter(key)}
-              className={`rounded-3xl border p-4 text-left shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${
-                statusFilter === key ? "border-cyan-300 bg-cyan-50" : "border-slate-200 bg-white/90"
-              }`}
-            >
-              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500">{label}</p>
-              <p className="mt-1 text-3xl font-bold text-slate-950">{value}</p>
-            </button>
-          ))}
-        </section>
 
         {loading ? (
           <div className="rounded-3xl border border-slate-200 bg-white/90 p-16 text-center shadow-sm">

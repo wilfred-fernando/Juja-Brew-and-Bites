@@ -1678,6 +1678,9 @@ export default function POSPage() {
         status: "accepted",
       });
       if (kdsErr) showToast("warn", "KDS Sync Warning", kdsErr.message);
+      window.setTimeout(() => {
+        markKdsTicketStatus(supabase, { sourceType: "web", sourceId: incomingOrder.id, status: "preparing" });
+      }, 5000);
 
       await fetchPendingCount(storeId);
       await fetchAcceptedWebOrders();
@@ -2022,7 +2025,7 @@ export default function POSPage() {
           total: Number(subtotal),
           accepted_at: new Date().toISOString(),
         },
-        status: "accepted",
+        status: "preparing",
       });
       if (kdsErr) throw kdsErr;
       return;
@@ -2056,7 +2059,7 @@ export default function POSPage() {
           total_amount: Number(subtotal || 0),
           created_at: ticketRow.created_at,
         },
-        status: "pending",
+        status: "preparing",
       });
       if (kdsErr) throw kdsErr;
     } else {
@@ -2076,7 +2079,7 @@ export default function POSPage() {
           total_amount: Number(subtotal || 0),
           created_at: ticketRow.created_at,
         },
-        status: "pending",
+        status: "preparing",
       });
       if (kdsErr) throw kdsErr;
     }
@@ -2812,7 +2815,7 @@ export default function POSPage() {
         const { error: kdsErr } = await upsertKdsTicket(supabase, {
           sourceType: "pos",
           order: orderRow,
-          status: "pending",
+          status: "preparing",
         });
         if (kdsErr) showToast("warn", "KDS Sync Warning", kdsErr.message);
       }
