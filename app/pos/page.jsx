@@ -739,6 +739,8 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
     onAddToCart({
       id: item.id,
       name: item.name,
+      category: item.category || item.category_name || null,
+      categoryId: item.category_id || item.menu_category_id || null,
       unitPrice,
       quantity,
       variantDetails,

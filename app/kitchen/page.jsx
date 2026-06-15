@@ -57,25 +57,29 @@ export default function KitchenDisplay() {
   const [alertMessage, setAlertMessage] = useState("");
   const [loadError, setLoadError] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+  const [kitchenCategoriesByStore, setKitchenCategoriesByStore] = useState({});
+  const [menuItemCategoryLookup, setMenuItemCategoryLookup] = useState({});
   const knownTicketIds = useRef(new Set());
   const audioRef = useRef(null);
 
   const allowedStatuses = showHistory ? KDS_HISTORY_STATUSES : KDS_VISIBLE_STATUSES;
 
   const visibleTickets = useMemo(() => {
-    const rows = tickets.filter((ticket) => allowedStatuses.includes(String(ticket.status || "").toLowerCase()));
+    const rows = tickets
+      .filter((ticket) => allowedStatuses.includes(String(ticket.status || "").toLowerCase()))
+      .filter((ticket) => getKitchenItems(ticket).length > 0);
     if (statusFilter === "all") return rows;
     return rows.filter((ticket) => String(ticket.status || "").toLowerCase() === statusFilter);
-  }, [tickets, statusFilter, allowedStatuses]);
+  }, [tickets, statusFilter, allowedStatuses, kitchenCategoriesByStore, menuItemCategoryLookup]);
 
   const stats = useMemo(
     () => ({
-      all: tickets.filter((ticket) => allowedStatuses.includes(String(ticket.status || "").toLowerCase())).length,
-      pending: tickets.filter((ticket) => ["pending", "accepted"].includes(String(ticket.status || "").toLowerCase())).length,
-      preparing: tickets.filter((ticket) => String(ticket.status || "").toLowerCase() === "preparing").length,
-      ready: tickets.filter((ticket) => String(ticket.status || "").toLowerCase() === "ready").length,
+      all: tickets.filter((ticket) => allowedStatuses.includes(String(ticket.status || "").toLowerCase()) && getKitchenItems(ticket).length > 0).length,
+      pending: tickets.filter((ticket) => ["pending", "accepted"].includes(String(ticket.status || "").toLowerCase()) && getKitchenItems(ticket).length > 0).length,
+      preparing: tickets.filter((ticket) => String(ticket.status || "").toLowerCase() === "preparing" && getKitchenItems(ticket).length > 0).length,
+      ready: tickets.filter((ticket) => String(ticket.status || "").toLowerCase() === "ready" && getKitchenItems(ticket).length > 0).length,
     }),
-    [tickets, allowedStatuses]
+    [tickets, allowedStatuses, kitchenCategoriesByStore, menuItemCategoryLookup]
   );
 
   const playAlert = () => {
@@ -85,6 +89,82 @@ export default function KitchenDisplay() {
     audio.volume = 0.95;
     audio.play().catch(() => {});
   };
+
+  function normalizeText(value) {
+    return String(value || "").trim().toLowerCase();
+  }
+
+  function getKitchenCategoryRule(storeId) {
+    const key = String(storeId || "");
+    return kitchenCategoriesByStore[key] || kitchenCategoriesByStore.__global || { ids: new Set(), names: new Set(), configured: false };
+  }
+
+  function getItemCategoryMeta(item) {
+    const lookup = menuItemCategoryLookup[String(item?.menuItemId || item?.menu_item_id || item?.id || "")] || {};
+    return {
+      categoryId: item?.categoryId || item?.category_id || item?.menu_category_id || lookup.categoryId || null,
+      categoryName: item?.category || item?.categoryName || item?.category_name || lookup.categoryName || null,
+    };
+  }
+
+  function isKitchenItem(ticket, item) {
+    const rule = getKitchenCategoryRule(ticket?.store_id);
+    if (!rule.configured) return false;
+    const meta = getItemCategoryMeta(item);
+    return Boolean(
+      (meta.categoryId && rule.ids.has(String(meta.categoryId))) ||
+      (meta.categoryName && rule.names.has(normalizeText(meta.categoryName)))
+    );
+  }
+
+  function getKitchenItems(ticket) {
+    const rows = Array.isArray(ticket?.items) ? ticket.items : [];
+    return rows.map((item, index) => ({ ...item, __kdsIndex: index })).filter((item) => isKitchenItem(ticket, item));
+  }
+
+  async function loadKitchenPrinterCategories() {
+    const [groupsRes, mapRes, categoriesRes, itemsRes] = await Promise.all([
+      supabase
+        .from("pos_printer_groups")
+        .select("id, store_id, name, is_active")
+        .ilike("name", "%Kitchen%")
+        .eq("is_active", true),
+      supabase.from("pos_printer_group_categories").select("printer_group_id, store_id, menu_category_id"),
+      supabase.from("menu_categories").select("id, name"),
+      supabase.from("menu_items").select("id, category, category_id"),
+    ]);
+
+    if (groupsRes.error || mapRes.error || categoriesRes.error) {
+      setLoadError(groupsRes.error?.message || mapRes.error?.message || categoriesRes.error?.message || "Unable to load kitchen printer categories.");
+      return;
+    }
+
+    const categoryById = new Map((categoriesRes.data || []).map((cat) => [String(cat.id), cat]));
+    const kitchenGroupIds = new Set((groupsRes.data || []).map((group) => String(group.id)));
+    const nextRules = {};
+
+    (mapRes.data || [])
+      .filter((row) => kitchenGroupIds.has(String(row.printer_group_id)))
+      .forEach((row) => {
+        const storeKey = String(row.store_id || "__global");
+        const categoryId = String(row.menu_category_id || "");
+        const category = categoryById.get(categoryId);
+        if (!nextRules[storeKey]) nextRules[storeKey] = { ids: new Set(), names: new Set(), configured: true };
+        if (categoryId) nextRules[storeKey].ids.add(categoryId);
+        if (category?.name) nextRules[storeKey].names.add(normalizeText(category.name));
+      });
+
+    const itemLookup = {};
+    (itemsRes.data || []).forEach((item) => {
+      itemLookup[String(item.id)] = {
+        categoryId: item.category_id || null,
+        categoryName: item.category || null,
+      };
+    });
+
+    setKitchenCategoriesByStore(nextRules);
+    setMenuItemCategoryLookup(itemLookup);
+  }
 
   const showNewTicketAlert = (ticket) => {
     const label = ticket?.dining_option || ticket?.ticket_number || "Kitchen order";
@@ -135,6 +215,7 @@ export default function KitchenDisplay() {
   }, []);
 
   useEffect(() => {
+    loadKitchenPrinterCategories();
     fetchTickets();
 
     const channel = supabase
@@ -317,7 +398,7 @@ export default function KitchenDisplay() {
             {visibleTickets.map((ticket) => {
               const status = String(ticket.status || "pending").toLowerCase();
               const minutes = ticket.created_at ? Math.floor((Date.now() - new Date(ticket.created_at).getTime()) / 60000) : 0;
-              const ticketItems = Array.isArray(ticket.items) ? ticket.items : [];
+              const ticketItems = getKitchenItems(ticket);
               const allItemsReady = ticketItems.length > 0 && ticketItems.every(isItemReady);
               const terminalStatus = ["completed", "voided", "rejected"].includes(status);
 
@@ -349,13 +430,14 @@ export default function KitchenDisplay() {
                   <div className="space-y-2 p-4">
                     {ticketItems.map((item, idx) => {
                       const ready = isItemReady(item);
+                      const showReadyStrike = ready && !showHistory && status !== "completed";
                       return (
                         <div
                           key={item.id || idx}
                           className={`rounded-2xl border p-3 transition ${ready ? "border-emerald-200 bg-emerald-50/70" : "border-slate-200 bg-white"}`}
                         >
                           <div className="flex items-start justify-between gap-3">
-                            <div className={ready ? "text-slate-500 line-through decoration-2" : "text-slate-900"}>
+                            <div className={showReadyStrike ? "text-slate-500 line-through decoration-2" : "text-slate-900"}>
                               <p className="text-base font-bold">
                                 {item.quantity || 1} x {item.name}
                               </p>
@@ -363,7 +445,7 @@ export default function KitchenDisplay() {
                             </div>
                             <button
                               type="button"
-                              onClick={() => markItemReady(ticket, idx)}
+                              onClick={() => markItemReady(ticket, item.__kdsIndex ?? idx)}
                               disabled={ready || terminalStatus}
                               className="h-9 rounded-xl bg-emerald-600 px-3 text-[11px] font-bold uppercase tracking-wider text-white transition hover:bg-emerald-500 disabled:bg-slate-200 disabled:text-slate-500"
                             >
