@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, Clock3, History, Maximize2, RefreshCcw, Trash2, Utensils } from "lucide-react";
+import { CheckCircle2, Clock3, History, Maximize2, RefreshCcw, Trash2, Utensils, X } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDateTime } from "@/lib/dateFormat";
 import { KDS_ACTIVE_STATUSES, KDS_VISIBLE_STATUSES } from "@/lib/kds";
@@ -57,6 +57,7 @@ export default function KitchenDisplay() {
   const [alertMessage, setAlertMessage] = useState("");
   const [loadError, setLoadError] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+  const [selectedHistoryTicket, setSelectedHistoryTicket] = useState(null);
   const [kitchenCategoriesByStore, setKitchenCategoriesByStore] = useState({});
   const [menuItemCategoryLookup, setMenuItemCategoryLookup] = useState({});
   const knownTicketIds = useRef(new Set());
@@ -114,6 +115,12 @@ export default function KitchenDisplay() {
   function getKitchenItems(ticket) {
     const rows = Array.isArray(ticket?.items) ? ticket.items : [];
     return rows.map((item, index) => ({ ...item, __kdsIndex: index })).filter((item) => isKitchenItem(ticket, item));
+  }
+
+  function getDisplayItems(ticket) {
+    const kitchenItems = getKitchenItems(ticket);
+    if (kitchenItems.length > 0 || !showHistory) return kitchenItems;
+    return Array.isArray(ticket?.items) ? ticket.items : [];
   }
 
   async function loadKitchenPrinterCategories() {
@@ -317,6 +324,7 @@ export default function KitchenDisplay() {
                 onClick={() => {
                   setShowHistory((value) => !value);
                   setStatusFilter("all");
+                  setSelectedHistoryTicket(null);
                 }}
                 className="inline-flex h-11 items-center gap-2 rounded-2xl border border-cyan-200 bg-cyan-50 px-4 text-xs font-bold uppercase tracking-wider text-cyan-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-cyan-100"
               >
@@ -361,13 +369,59 @@ export default function KitchenDisplay() {
             <Utensils className="mx-auto h-10 w-10 text-slate-400" />
             <p className="mt-3 text-sm font-bold text-slate-500">{showHistory ? "No order history found." : "No active kitchen orders."}</p>
           </div>
+        ) : showHistory ? (
+          <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white/95 shadow-lg backdrop-blur">
+            <div className="border-b border-slate-200 bg-slate-50/90 px-4 py-3">
+              <p className="text-xs font-bold uppercase tracking-[0.25em] text-slate-500">Order History</p>
+              <p className="mt-1 text-sm text-slate-600">Newest completed, voided, and rejected KDS orders first.</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead className="bg-slate-100/80 text-[11px] uppercase tracking-[0.22em] text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3">Date / Time</th>
+                    <th className="px-4 py-3">Dining</th>
+                    <th className="px-4 py-3">Customer</th>
+                    <th className="px-4 py-3">Source</th>
+                    <th className="px-4 py-3">Items</th>
+                    <th className="px-4 py-3 text-right">Total</th>
+                    <th className="px-4 py-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {visibleTickets.map((ticket) => {
+                    const status = String(ticket.status || "completed").toLowerCase();
+                    const items = getDisplayItems(ticket);
+                    return (
+                      <tr
+                        key={ticket.id}
+                        onClick={() => setSelectedHistoryTicket(ticket)}
+                        className="cursor-pointer transition hover:bg-cyan-50/70"
+                      >
+                        <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-800">
+                          {ticket.created_at ? formatDateTime(ticket.created_at) : "-"}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-lg font-bold text-slate-950">{ticket.dining_option || "Kitchen Order"}</td>
+                        <td className="px-4 py-3 text-slate-700">{ticket.customer_name || "Walk-in"}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-slate-700">{String(ticket.source_type || "").toUpperCase()}</td>
+                        <td className="px-4 py-3 text-slate-700">{items.length}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-right font-bold text-slate-950">{peso(ticket.total)}</td>
+                        <td className="px-4 py-3">
+                          <span className={`rounded-xl border px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${statusStyle(status)}`}>{status}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
             {visibleTickets.map((ticket) => {
               const status = String(ticket.status || "pending").toLowerCase();
               const minutes = ticket.created_at ? Math.floor((Date.now() - new Date(ticket.created_at).getTime()) / 60000) : 0;
-              const kitchenItems = getKitchenItems(ticket);
-              const ticketItems = kitchenItems.length > 0 || !showHistory ? kitchenItems : Array.isArray(ticket.items) ? ticket.items : [];
+              const ticketItems = getDisplayItems(ticket);
               const allItemsReady = ticketItems.length > 0 && ticketItems.every(isItemReady);
               const terminalStatus = ["completed", "voided", "rejected"].includes(status);
 
@@ -455,6 +509,68 @@ export default function KitchenDisplay() {
           </div>
         )}
       </div>
+
+      {selectedHistoryTicket && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" onClick={() => setSelectedHistoryTicket(null)}>
+          <section
+            className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50 px-5 py-4">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-slate-500">Order Details</p>
+                <h2 className="mt-1 text-3xl font-bold text-slate-950">{selectedHistoryTicket.dining_option || "Kitchen Order"}</h2>
+                <p className="mt-1 text-sm font-semibold text-slate-600">
+                  {selectedHistoryTicket.customer_name || "Walk-in"} - {selectedHistoryTicket.created_at ? formatDateTime(selectedHistoryTicket.created_at) : ""}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedHistoryTicket(null)}
+                className="grid h-10 w-10 place-items-center rounded-2xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100"
+                aria-label="Close order details"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="max-h-[70vh] overflow-y-auto p-5">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Source</p>
+                  <p className="mt-1 font-bold text-slate-950">{String(selectedHistoryTicket.source_type || "").toUpperCase()}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Status</p>
+                  <span className={`mt-1 inline-flex rounded-xl border px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${statusStyle(selectedHistoryTicket.status)}`}>
+                    {selectedHistoryTicket.status}
+                  </span>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Total</p>
+                  <p className="mt-1 font-bold text-slate-950">{peso(selectedHistoryTicket.total)}</p>
+                </div>
+              </div>
+
+              <div className="mt-5 space-y-2">
+                {getDisplayItems(selectedHistoryTicket).map((item, idx) => (
+                  <div key={item.id || idx} className="rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-lg font-bold text-slate-950">
+                          {item.quantity || 1} x {item.name}
+                        </p>
+                        {itemOptionsText(item) && <p className="mt-1 text-sm font-semibold text-slate-700">{itemOptionsText(item)}</p>}
+                        {item.instructions && <p className="mt-2 rounded-xl bg-cyan-50 px-3 py-2 text-xs font-bold text-cyan-900">Note: {item.instructions}</p>}
+                      </div>
+                      {isItemReady(item) && <span className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold uppercase text-emerald-700">Ready</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
