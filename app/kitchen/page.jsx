@@ -43,6 +43,7 @@ export default function KitchenDisplay() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
   const [alertMessage, setAlertMessage] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [soundEnabled, setSoundEnabled] = useState(false);
   const knownTicketIds = useRef(new Set());
   const audioRef = useRef(null);
@@ -92,7 +93,10 @@ export default function KitchenDisplay() {
       .order("created_at", { ascending: true })
       .limit(150);
 
-    if (!error) {
+    if (error) {
+      setLoadError(error.message || "Unable to load KDS tickets.");
+    } else {
+      setLoadError("");
       const rows = data || [];
       const previous = knownTicketIds.current;
       const next = new Set(rows.map((ticket) => ticket.id));
@@ -248,6 +252,12 @@ export default function KitchenDisplay() {
         {alertMessage && (
           <div className="rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-bold text-cyan-900 shadow-lg">
             {alertMessage}
+          </div>
+        )}
+
+        {loadError && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-800 shadow-lg">
+            KDS load failed: {loadError}
           </div>
         )}
 
