@@ -67,7 +67,11 @@ export default function KitchenDisplay() {
   const visibleTickets = useMemo(() => {
     const rows = tickets
       .filter((ticket) => allowedStatuses.includes(String(ticket.status || "").toLowerCase()))
-      .filter((ticket) => getKitchenItems(ticket).length > 0);
+      .filter((ticket) => {
+        const kitchenItems = getKitchenItems(ticket);
+        if (kitchenItems.length > 0) return true;
+        return showHistory && Array.isArray(ticket.items) && ticket.items.length > 0;
+      });
     if (statusFilter === "all") return rows;
     return rows.filter((ticket) => String(ticket.status || "").toLowerCase() === statusFilter);
   }, [tickets, statusFilter, allowedStatuses, kitchenCategoriesByStore, menuItemCategoryLookup]);
@@ -362,7 +366,8 @@ export default function KitchenDisplay() {
             {visibleTickets.map((ticket) => {
               const status = String(ticket.status || "pending").toLowerCase();
               const minutes = ticket.created_at ? Math.floor((Date.now() - new Date(ticket.created_at).getTime()) / 60000) : 0;
-              const ticketItems = getKitchenItems(ticket);
+              const kitchenItems = getKitchenItems(ticket);
+              const ticketItems = kitchenItems.length > 0 || !showHistory ? kitchenItems : Array.isArray(ticket.items) ? ticket.items : [];
               const allItemsReady = ticketItems.length > 0 && ticketItems.every(isItemReady);
               const terminalStatus = ["completed", "voided", "rejected"].includes(status);
 
