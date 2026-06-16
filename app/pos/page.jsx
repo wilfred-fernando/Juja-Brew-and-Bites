@@ -2622,7 +2622,7 @@ export default function POSPage() {
     );
     const { error } = await supabase.from("pos_printers").insert([{
       store_id: storeId,
-      name: printerForm.name.trim(),
+      ble_device_name: printerForm.name.trim(),
       role: printerForm.role,
       transport: "ble",
       ble_service_uuid: serviceUuid,
@@ -3729,7 +3729,7 @@ export default function POSPage() {
                 {Object.entries(printerConfig).map(([role, printer]) => (
                   <div key={role} className="flex justify-between rounded-lg border border-slate-100 p-2 text-xs font-bold mb-2">
                     <span className="text-slate-500 capitalize">{role.replace("_", " ")}</span>
-                    <span className="text-slate-800 truncate max-w-[180px]">{printer?.name || "Not set"}</span>
+                    <span className="text-slate-800 truncate max-w-[180px]">{printer?.ble_device_name || printer?.name || "Not set"}</span>
                   </div>
                 ))}
               </div>
