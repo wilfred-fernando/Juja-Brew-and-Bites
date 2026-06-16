@@ -1404,6 +1404,14 @@ export default function POSPage() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [categories, items]);
 
+  const visibleMenuItems = useMemo(() => {
+    const search = menuSearch.trim().toLowerCase();
+    return (items || [])
+      .filter((item) => item.is_available !== false)
+      .filter((item) => (activeCategory ? item.category === activeCategory : item.is_featured === true))
+      .filter((item) => !search || (item.name || "").toLowerCase().includes(search));
+  }, [items, activeCategory, menuSearch]);
+
   const optionSelectionGroups = useMemo(() => {
     const map = new Map();
     (items || []).forEach((item) => {
@@ -1938,8 +1946,6 @@ export default function POSPage() {
       setItems(iRes.data || []);
       setCategories(cats);
       setCustomers(cRes.data || []);
-
-      if (cats.length && !activeCategory) setActiveCategory(cats[0].name);
 
       await loadPosSettings(sid);
       await loadPrinters(sid);
@@ -3585,7 +3591,7 @@ export default function POSPage() {
                   onChange={(e) => setActiveCategory(e.target.value)}
                   className="h-10 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 pr-9 text-xs font-bold text-slate-700 outline-none transition focus:border-rose-200 focus:bg-white"
                 >
-                  {!activeCategory ? <option value="">Select Category</option> : null}
+                  <option value="">Featured Menu Items</option>
                   {categories.map((cat) => (
                     <option key={cat.id || cat.name} value={cat.name}>
                       {cat.name}
@@ -3611,11 +3617,11 @@ export default function POSPage() {
               <div className="py-24 text-center"><div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full mx-auto" /></div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 max-h-[calc(100vh-190px)] overflow-y-auto pr-1">
-                  {items
-                    .filter((i) => i.category === activeCategory)
-                    .filter((i) => i.is_available !== false)
-                    .filter((i) => (i.name || "").toLowerCase().includes(menuSearch.toLowerCase()))
-                    .map((item) => (
+                  {visibleMenuItems.length === 0 ? (
+                    <div className="col-span-full rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-xs font-semibold text-slate-500">
+                      {activeCategory ? "No available items found in this category." : "No featured menu items found."}
+                    </div>
+                  ) : visibleMenuItems.map((item) => (
                       <button
                         key={item.id}
                         onClick={() => setSelectedItemForModal(item)}
