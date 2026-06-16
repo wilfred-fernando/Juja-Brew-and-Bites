@@ -1,0 +1,25 @@
+{
+  "name": "JUJA KDS",
+  "short_name": "JUJA KDS",
+  "description": "Kitchen display system for Juja Brew & Bites.",
+  "start_url": "/kitchen",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#ffffff",
+  "theme_color": "#7f7f7f",
+  "icons": [
+    {
+      "src": "/images/juja-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/juja-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

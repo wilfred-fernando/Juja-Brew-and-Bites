@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, Clock3, History, Maximize2, RefreshCcw, Trash2, Utensils, X } from "lucide-react";
+import { CheckCircle2, Clock3, Download, History, Maximize2, RefreshCcw, Trash2, Utensils, X } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDateTime } from "@/lib/dateFormat";
 import { KDS_ACTIVE_STATUSES, KDS_VISIBLE_STATUSES } from "@/lib/kds";
@@ -58,6 +58,8 @@ export default function KitchenDisplay() {
   const [loadError, setLoadError] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const [selectedHistoryTicket, setSelectedHistoryTicket] = useState(null);
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [showInstallButton, setShowInstallButton] = useState(false);
   const [kitchenCategoriesByStore, setKitchenCategoriesByStore] = useState({});
   const [menuItemCategoryLookup, setMenuItemCategoryLookup] = useState({});
   const knownTicketIds = useRef(new Set());
@@ -216,6 +218,39 @@ export default function KitchenDisplay() {
   }, []);
 
   useEffect(() => {
+    const isStandalone = () =>
+      window.matchMedia?.("(display-mode: standalone)")?.matches || window.navigator?.standalone === true;
+
+    const handleBeforeInstallPrompt = (event) => {
+      event.preventDefault();
+      setInstallPrompt(event);
+      setShowInstallButton(!isStandalone());
+    };
+
+    const handleAppInstalled = () => {
+      setInstallPrompt(null);
+      setShowInstallButton(false);
+    };
+
+    if (isStandalone()) setShowInstallButton(false);
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+    };
+  }, []);
+
+  const installKdsPwa = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    await installPrompt.userChoice.catch(() => null);
+    setInstallPrompt(null);
+    setShowInstallButton(false);
+  };
+
+  useEffect(() => {
     loadKitchenPrinterCategories();
     fetchTickets();
 
@@ -319,6 +354,15 @@ export default function KitchenDisplay() {
               <p className="mt-1 text-sm text-slate-600">Live kitchen queue for POS charged orders and accepted web orders.</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              {showInstallButton && (
+                <button
+                  type="button"
+                  onClick={installKdsPwa}
+                  className="inline-flex h-11 items-center gap-2 rounded-2xl bg-cyan-700 px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md transition hover:-translate-y-0.5 hover:bg-cyan-600"
+                >
+                  <Download className="h-4 w-4" /> Install KDS
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {
