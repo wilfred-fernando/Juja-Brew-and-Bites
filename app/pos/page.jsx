@@ -12,8 +12,10 @@ const supabaseGlobalInstance = getSupabaseClient();
 
 const DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID = "000018f0-0000-1000-8000-00805f9b34fb";
 const DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID = "00002af1-0000-1000-8000-00805f9b34fb";
-const RECEIPT_COLUMNS = 42;
+const THERMAL_PAPER_WIDTH_MM = 50;
+const RECEIPT_COLUMNS = 32;
 const RECEIPT_LOGO_URL = "https://images.jujabrewandbites.com/SIGNAGE%20light%20with%20korean%20letters%203.png";
+const bluetoothPrinterDeviceCache = new Map();
 
 function normalizeBluetoothUuid(value, fallback = "") {
   return String(value || fallback).trim().toLowerCase();
@@ -33,12 +35,12 @@ function print58mmTextBrowser(text) {
   <head>
     <meta charset="utf-8" />
     <style>
-      @page { size: 58mm auto; margin: 0; }
-      html, body { width: 58mm; margin: 0; padding: 0; background: #fff; }
+      @page { size: ${THERMAL_PAPER_WIDTH_MM}mm auto; margin: 0; }
+      html, body { width: ${THERMAL_PAPER_WIDTH_MM}mm; margin: 0; padding: 0; background: #fff; }
       body { color: #020617; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.25; }
-      .receipt { padding: 8px 10px 10px; }
-      .logo { display: block; width: 34mm; max-width: 78%; margin: 4px auto 10px; }
-      pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: "Courier New", ui-monospace, monospace; font-size: 11px; line-height: 1.35; }
+      .receipt { padding: 7px 8px 10px; }
+      .logo { display: block; width: 30mm; max-width: 78%; margin: 4px auto 10px; }
+      pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: "Courier New", ui-monospace, monospace; font-size: 10.5px; line-height: 1.35; }
     </style>
   </head>
   <body>
@@ -69,11 +71,35 @@ function print58mmTextBrowser(text) {
 
 // ================= BLE PRINT =================
 
-async function bleConnect(serviceUuid, characteristicUuid) {
-  const device = await navigator.bluetooth.requestDevice({
-    acceptAllDevices: true,
-    optionalServices: [serviceUuid],
-  });
+async function findSavedBluetoothDevice(cfg, serviceUuid) {
+  const deviceKey = cfg?.ble_device_id || cfg?.ble_device_name || cfg?.name || cfg?.id || "default";
+  const cached = bluetoothPrinterDeviceCache.get(deviceKey);
+  if (cached) return cached;
+
+  if (navigator.bluetooth?.getDevices) {
+    const devices = await navigator.bluetooth.getDevices();
+    const match = devices.find((device) => {
+      if (cfg?.ble_device_id && device.id === cfg.ble_device_id) return true;
+      if (cfg?.ble_device_name && device.name === cfg.ble_device_name) return true;
+      if (cfg?.name && device.name === cfg.name) return true;
+      return false;
+    });
+    if (match) {
+      bluetoothPrinterDeviceCache.set(deviceKey, match);
+      return match;
+    }
+  }
+
+  throw new Error("Printer permission is not available in this browser. Select the Bluetooth printer once from Settings, then print again.");
+}
+
+async function bleConnect(cfg) {
+  const serviceUuid = normalizeBluetoothUuid(cfg?.ble_service_uuid, DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID);
+  const characteristicUuid = normalizeBluetoothUuid(
+    cfg?.ble_characteristic_uuid,
+    DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID
+  );
+  const device = await findSavedBluetoothDevice(cfg, serviceUuid);
 
   const server = await device.gatt?.connect();
   const service = await server?.getPrimaryService(serviceUuid);
@@ -101,10 +127,7 @@ async function printByRole(role, text, printerConfig) {
   }
 
   try {
-    const characteristic = await bleConnect(
-      cfg.ble_service_uuid,
-      cfg.ble_characteristic_uuid
-    );
+    const characteristic = await bleConnect(cfg);
     await blePrint(characteristic, text);
   } catch (err) {
     console.warn("Bluetooth failed → fallback printing", err);
@@ -288,7 +311,7 @@ const peso0 = (n) => `₱${Number(n || 0).toLocaleString("en-PH", { maximumFract
 const peso2 = (n) => `₱${Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function printReceiptText(receiptText, opts = {}) {
-  const { title = "Receipt", widthMm = 80, fontSize = 12, lineHeight = 1.25 } = opts;
+  const { title = "Receipt", widthMm = THERMAL_PAPER_WIDTH_MM, fontSize = 11, lineHeight = 1.25 } = opts;
 
   const html = `
 <!doctype html>
@@ -305,10 +328,10 @@ function printReceiptText(receiptText, opts = {}) {
       font-family: Arial, sans-serif;
       font-size: ${fontSize}px;
       line-height: ${lineHeight};
-      padding: 8px 10px;
+      padding: 7px 8px 10px;
       color: #000;
     }
-    .logo { display: block; width: 48mm; max-width: 78%; margin: 4px auto 10px; }
+    .logo { display: block; width: 30mm; max-width: 78%; margin: 4px auto 10px; }
     .receipt { white-space: pre-wrap; word-break: break-word; font-family: "Courier New", ui-monospace, monospace; }
   </style>
 </head>
@@ -1221,7 +1244,7 @@ function ReceiptPreviewModal({ open, onClose, receiptText }) {
           Dismiss
         </button>
         <button
-          onClick={() => printReceiptText(receiptText, { widthMm: 80 })}
+          onClick={() => printReceiptText(receiptText, { widthMm: THERMAL_PAPER_WIDTH_MM })}
           className="w-full h-11 rounded-xl bg-rose-950 text-white text-xs font-bold uppercase tracking-wider shadow-sm"
         >
           Print Thermal
@@ -1452,6 +1475,7 @@ export default function POSPage() {
     role: "receipt",
     service_uuid: "",
     characteristic_uuid: "",
+    device_id: "",
   });
 
   const [toast, setToast] = useState(null);
@@ -2802,12 +2826,14 @@ export default function POSPage() {
       ble_device_name: printerForm.name.trim(),
       role: printerForm.role,
       transport: "ble",
+      paper_width_mm: THERMAL_PAPER_WIDTH_MM,
       ble_service_uuid: serviceUuid,
       ble_characteristic_uuid: characteristicUuid,
+      ble_device_id: printerForm.device_id || null,
       is_active: true,
     }]);
     if (error) return showToast("error", "Printer Save Failed", error.message);
-    setPrinterForm({ name: "", role: "receipt", service_uuid: "", characteristic_uuid: "" });
+    setPrinterForm({ name: "", role: "receipt", service_uuid: "", characteristic_uuid: "", device_id: "" });
     await loadPrinters(storeId);
     showToast("success", "Bluetooth Printer Added", "Printer saved to POS settings.");
   }
@@ -2850,7 +2876,9 @@ export default function POSPage() {
         name: prev.name.trim() || device.name || "Bluetooth Printer",
         service_uuid: serviceUuid,
         characteristic_uuid: characteristicUuid,
+        device_id: device.id || "",
       }));
+      bluetoothPrinterDeviceCache.set(device.id || device.name || "default", device);
       showToast(
         connectionVerified ? "success" : "info",
         connectionVerified ? "Bluetooth Printer Selected" : "Bluetooth Device Selected",
@@ -3905,7 +3933,7 @@ export default function POSPage() {
                   Select Paired Bluetooth Device
                 </button>
                 <p className="text-[11px] leading-relaxed text-slate-500">
-                  Opens the Bluetooth picker for paired or discoverable printers. Web Bluetooth requires Chrome or Edge over HTTPS or localhost.
+                  Select once on this browser to grant printer permission. Receipts, reprints, order slips, and labels will reuse the saved printer without re-pairing.
                 </p>
                 <input value={printerForm.service_uuid} onChange={(e) => setPrinterForm((p) => ({ ...p, service_uuid: e.target.value }))} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none" placeholder="Service UUID" />
                 <input value={printerForm.characteristic_uuid} onChange={(e) => setPrinterForm((p) => ({ ...p, characteristic_uuid: e.target.value }))} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none" placeholder="Characteristic UUID" />
