@@ -10,6 +10,13 @@ import TicketPanel from "@/components/pos/TicketPanel";
 // Initialize Supabase Client instance cleanly at layout bundle level
 const supabaseGlobalInstance = getSupabaseClient();
 
+const DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID = "000018f0-0000-1000-8000-00805f9b34fb";
+const DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID = "00002af1-0000-1000-8000-00805f9b34fb";
+
+function normalizeBluetoothUuid(value, fallback = "") {
+  return String(value || fallback).trim().toLowerCase();
+}
+
 // ================= PRINT HELPERS =================
 
 function print58mmTextBrowser(text) {
@@ -274,7 +281,7 @@ function Toast({ toast, onClose }) {
       ? "bg-red-600"
       : toast.type === "warn"
       ? "bg-orange-600"
-      : "bg-rose-950";
+      : "bg-slate-700";
 
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150] px-4 w-full max-w-md">
@@ -2570,19 +2577,79 @@ export default function POSPage() {
   async function addBluetoothPrinter() {
     if (!storeId) return showToast("error", "Store Missing", "Store profile is not loaded.");
     if (!printerForm.name.trim()) return showToast("error", "Printer Name Required", "Enter a printer name.");
+    const serviceUuid = normalizeBluetoothUuid(printerForm.service_uuid, DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID);
+    const characteristicUuid = normalizeBluetoothUuid(
+      printerForm.characteristic_uuid,
+      DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID
+    );
     const { error } = await supabase.from("pos_printers").insert([{
       store_id: storeId,
       name: printerForm.name.trim(),
       role: printerForm.role,
       transport: "ble",
-      ble_service_uuid: printerForm.service_uuid.trim() || null,
-      ble_characteristic_uuid: printerForm.characteristic_uuid.trim() || null,
+      ble_service_uuid: serviceUuid,
+      ble_characteristic_uuid: characteristicUuid,
       is_active: true,
     }]);
     if (error) return showToast("error", "Printer Save Failed", error.message);
     setPrinterForm({ name: "", role: "receipt", service_uuid: "", characteristic_uuid: "" });
     await loadPrinters(storeId);
     showToast("success", "Bluetooth Printer Added", "Printer saved to POS settings.");
+  }
+
+  async function selectBluetoothPrinterDevice() {
+    if (typeof navigator === "undefined" || !navigator.bluetooth) {
+      showToast(
+        "error",
+        "Bluetooth Not Supported",
+        "Use Chrome or Edge on a Bluetooth-capable device over HTTPS or localhost."
+      );
+      return;
+    }
+
+    const serviceUuid = normalizeBluetoothUuid(printerForm.service_uuid, DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID);
+    const characteristicUuid = normalizeBluetoothUuid(
+      printerForm.characteristic_uuid,
+      DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID
+    );
+
+    try {
+      const device = await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: [serviceUuid],
+      });
+
+      let connectionVerified = false;
+      try {
+        const server = await device.gatt?.connect();
+        const service = await server?.getPrimaryService(serviceUuid);
+        await service?.getCharacteristic(characteristicUuid);
+        connectionVerified = true;
+        device.gatt?.disconnect?.();
+      } catch (err) {
+        console.warn("Bluetooth printer validation skipped or failed", err);
+      }
+
+      setPrinterForm((prev) => ({
+        ...prev,
+        name: prev.name.trim() || device.name || "Bluetooth Printer",
+        service_uuid: serviceUuid,
+        characteristic_uuid: characteristicUuid,
+      }));
+      showToast(
+        connectionVerified ? "success" : "info",
+        connectionVerified ? "Bluetooth Printer Selected" : "Bluetooth Device Selected",
+        connectionVerified
+          ? "The printer was found and the Bluetooth settings were filled in."
+          : "The device was selected. Save it, then test printing from this browser."
+      );
+    } catch (err) {
+      if (err?.name === "NotFoundError") {
+        showToast("info", "Bluetooth Selection Cancelled", "No printer was selected.");
+        return;
+      }
+      showToast("error", "Bluetooth Selection Failed", err?.message || "Unable to open Bluetooth device picker.");
+    }
   }
 
   function openShiftCashModal(mode) {
@@ -3557,9 +3624,15 @@ export default function POSPage() {
                   <option value="order_slip">Order Slip</option>
                   <option value="cup_label">Cup Label</option>
                 </select>
+                <button type="button" onClick={selectBluetoothPrinterDevice} className="w-full h-10 rounded-xl border border-cyan-200 bg-cyan-50 text-slate-800 text-xs font-black uppercase tracking-wider transition hover:border-cyan-300 hover:bg-cyan-100">
+                  Select Paired Bluetooth Device
+                </button>
+                <p className="text-[11px] leading-relaxed text-slate-500">
+                  Opens the Bluetooth picker for paired or discoverable printers. Web Bluetooth requires Chrome or Edge over HTTPS or localhost.
+                </p>
                 <input value={printerForm.service_uuid} onChange={(e) => setPrinterForm((p) => ({ ...p, service_uuid: e.target.value }))} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none" placeholder="Service UUID" />
                 <input value={printerForm.characteristic_uuid} onChange={(e) => setPrinterForm((p) => ({ ...p, characteristic_uuid: e.target.value }))} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none" placeholder="Characteristic UUID" />
-                <button type="button" onClick={addBluetoothPrinter} className="w-full h-10 rounded-xl bg-[#FC687D] text-white text-xs font-black uppercase tracking-wider">Add Bluetooth Printer</button>
+                <button type="button" onClick={addBluetoothPrinter} className="w-full h-10 rounded-xl bg-slate-700 text-white text-xs font-black uppercase tracking-wider transition hover:bg-slate-600">Add Bluetooth Printer</button>
               </div>
               <div className="rounded-xl border border-slate-100 bg-white p-4">
                 <h3 className="text-sm font-black text-slate-800 mb-3">Active Printers</h3>
