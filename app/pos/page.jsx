@@ -242,7 +242,7 @@ function buildReceiptText({
   lines.push(centerReceiptText("Total"));
   lines.push(receiptLine());
 
-  if (rs.show_order_number !== false) lines.push(`Order: ${shortReceiptNumber(receiptId)}`);
+  if (rs.show_order_number !== false) lines.push(`Order: ${receiptId}`);
   if (rs.show_cashier !== false) lines.push(`Employee: ${employee}`);
   if (rs.show_store_name !== false) lines.push(`POS: ${posName}`);
   lines.push(receiptLine());
@@ -283,7 +283,7 @@ function buildReceiptText({
   }
 
   lines.push("");
-  lines.push(receiptPair(rs.show_datetime === false ? "" : formatReceiptDate(printedAt || new Date()), `N° ${shortReceiptNumber(receiptId)}`));
+  lines.push(receiptPair(rs.show_datetime === false ? "" : formatReceiptDate(printedAt || new Date()), `${receiptId}`));
 
   return lines.join("\n");
 }
