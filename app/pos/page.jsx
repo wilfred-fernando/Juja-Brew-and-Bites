@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { deductInventoryForOrder, restoreInventoryForOrder } from "@/lib/inventory";
-import { markKdsTicketStatus, upsertKdsTicket } from "@/lib/kds";
+import { markKdsTicketItemVoided, markKdsTicketStatus, upsertKdsTicket } from "@/lib/kds";
 import TicketPanel from "@/components/pos/TicketPanel";
 
 // Initialize Supabase Client instance cleanly at layout bundle level
@@ -2509,7 +2509,12 @@ export default function POSPage() {
       if (refundError) {
         showToast("warn", "Refund Audit Skipped", refundError.message);
       }
-      await markKdsTicketStatus(supabase, { sourceType: "pos", sourceId: orderId, status: "voided" });
+      await markKdsTicketItemVoided(supabase, {
+        sourceType: "pos",
+        sourceId: orderId,
+        itemId: itemRow.id,
+        itemName: itemRow.item,
+      });
     }
     const next = {
       ...receiptRefunds,

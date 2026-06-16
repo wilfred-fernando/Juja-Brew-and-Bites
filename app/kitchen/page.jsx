@@ -50,6 +50,19 @@ function isItemReady(item) {
   return Boolean(item?.kitchenReady || item?.kitchen_ready || item?.ready);
 }
 
+function isItemVoided(item) {
+  const status = String(item?.status || item?.item_status || "").toLowerCase();
+  return Boolean(
+    item?.voided ||
+      item?.isVoided ||
+      item?.is_voided ||
+      item?.voided_at ||
+      item?.voidedAt ||
+      status.includes("void") ||
+      status.includes("refund")
+  );
+}
+
 export default function KitchenDisplay() {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -466,17 +479,22 @@ export default function KitchenDisplay() {
               const status = String(ticket.status || "pending").toLowerCase();
               const minutes = ticket.created_at ? Math.floor((Date.now() - new Date(ticket.created_at).getTime()) / 60000) : 0;
               const ticketItems = getDisplayItems(ticket);
-              const allItemsReady = ticketItems.length > 0 && ticketItems.every(isItemReady);
+              const allItemsReady = ticketItems.length > 0 && ticketItems.every((item) => isItemReady(item) || isItemVoided(item));
               const terminalStatus = ["completed", "voided", "rejected"].includes(status);
+              const voidedOrder = ["voided", "rejected"].includes(status);
 
               return (
                 <article
                   key={ticket.id}
-                  className={`overflow-hidden rounded-3xl border bg-white/95 shadow-lg backdrop-blur ${
-                    minutes > 15 && !["ready", "voided", "rejected", "completed"].includes(status) ? "border-amber-300" : "border-slate-200"
+                  className={`overflow-hidden rounded-3xl border shadow-lg backdrop-blur transition ${
+                    voidedOrder
+                      ? "animate-pulse border-red-500 bg-red-50/95 shadow-red-200"
+                      : minutes > 15 && !["ready", "voided", "rejected", "completed"].includes(status)
+                      ? "border-amber-300 bg-white/95"
+                      : "border-slate-200 bg-white/95"
                   }`}
                 >
-                  <div className="border-b border-slate-200 bg-slate-50/80 p-4">
+                  <div className={`border-b p-4 ${voidedOrder ? "border-red-200 bg-red-100/80" : "border-slate-200 bg-slate-50/80"}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-2xl font-bold tracking-tight text-slate-950">{ticket.dining_option || "Kitchen Order"}</p>
@@ -497,27 +515,40 @@ export default function KitchenDisplay() {
                   <div className="space-y-2 p-4">
                     {ticketItems.map((item, idx) => {
                       const ready = isItemReady(item);
-                      const showReadyStrike = ready && !showHistory && status !== "completed";
+                      const voidedItem = isItemVoided(item) || voidedOrder;
+                      const showReadyStrike = ready && !showHistory && status !== "completed" && !voidedItem;
                       return (
                         <div
                           key={item.id || idx}
-                          className={`rounded-2xl border p-3 transition ${ready ? "border-emerald-200 bg-emerald-50/70" : "border-slate-200 bg-white"}`}
+                          className={`rounded-2xl border p-3 transition ${
+                            voidedItem
+                              ? "animate-pulse border-red-400 bg-red-50 shadow-sm shadow-red-100"
+                              : ready
+                              ? "border-emerald-200 bg-emerald-50/70"
+                              : "border-slate-200 bg-white"
+                          }`}
                         >
                           <div className="flex items-start justify-between gap-3">
-                            <div className={showReadyStrike ? "text-slate-500 line-through decoration-2" : "text-slate-900"}>
+                            <div className={voidedItem ? "text-red-800 line-through decoration-2" : showReadyStrike ? "text-slate-500 line-through decoration-2" : "text-slate-900"}>
                               <p className="text-base font-bold">
                                 {item.quantity || 1} x {item.name}
                               </p>
                               {itemOptionsText(item) && <p className="mt-1 text-sm font-semibold">{itemOptionsText(item)}</p>}
                             </div>
+                            {voidedItem ? (
+                              <span className="h-9 rounded-xl border border-red-300 bg-red-100 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-red-800">
+                                Voided
+                              </span>
+                            ) : (
                             <button
                               type="button"
                               onClick={() => markItemReady(ticket, item.__kdsIndex ?? idx)}
-                              disabled={ready || terminalStatus}
+                              disabled={ready || terminalStatus || voidedItem}
                               className="h-9 rounded-xl bg-emerald-600 px-3 text-[11px] font-bold uppercase tracking-wider text-white transition hover:bg-emerald-500 disabled:bg-slate-200 disabled:text-slate-500"
                             >
                               Ready
                             </button>
+                            )}
                           </div>
                           {item.instructions && <p className="mt-2 rounded-xl bg-cyan-50 px-3 py-2 text-xs font-bold text-cyan-900">Note: {item.instructions}</p>}
                         </div>
@@ -596,20 +627,27 @@ export default function KitchenDisplay() {
               </div>
 
               <div className="mt-5 space-y-2">
-                {getDisplayItems(selectedHistoryTicket).map((item, idx) => (
-                  <div key={item.id || idx} className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-lg font-bold text-slate-950">
-                          {item.quantity || 1} x {item.name}
-                        </p>
-                        {itemOptionsText(item) && <p className="mt-1 text-sm font-semibold text-slate-700">{itemOptionsText(item)}</p>}
-                        {item.instructions && <p className="mt-2 rounded-xl bg-cyan-50 px-3 py-2 text-xs font-bold text-cyan-900">Note: {item.instructions}</p>}
+                {getDisplayItems(selectedHistoryTicket).map((item, idx) => {
+                  const voidedItem = isItemVoided(item) || ["voided", "rejected"].includes(String(selectedHistoryTicket.status || "").toLowerCase());
+                  return (
+                    <div key={item.id || idx} className={`rounded-2xl border p-4 ${voidedItem ? "border-red-300 bg-red-50" : "border-slate-200 bg-white"}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className={voidedItem ? "text-red-800 line-through decoration-2" : ""}>
+                          <p className={`text-lg font-bold ${voidedItem ? "text-red-800" : "text-slate-950"}`}>
+                            {item.quantity || 1} x {item.name}
+                          </p>
+                          {itemOptionsText(item) && <p className={`mt-1 text-sm font-semibold ${voidedItem ? "text-red-700" : "text-slate-700"}`}>{itemOptionsText(item)}</p>}
+                          {item.instructions && <p className="mt-2 rounded-xl bg-cyan-50 px-3 py-2 text-xs font-bold text-cyan-900">Note: {item.instructions}</p>}
+                        </div>
+                        {voidedItem ? (
+                          <span className="rounded-xl border border-red-300 bg-red-100 px-3 py-1 text-[11px] font-bold uppercase text-red-700">Voided</span>
+                        ) : isItemReady(item) ? (
+                          <span className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold uppercase text-emerald-700">Ready</span>
+                        ) : null}
                       </div>
-                      {isItemReady(item) && <span className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold uppercase text-emerald-700">Ready</span>}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </section>
