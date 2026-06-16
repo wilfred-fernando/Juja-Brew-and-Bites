@@ -221,8 +221,8 @@ function buildReceiptText({
   const footer = (rs.footer_text || "").trim();
   const branchName = store?.store_name || store?.name || store?.branch_name || "Pasong Tamo";
   const businessName = store?.business_name || "Juja Brew & Bites";
-  const receiptTitle = store?.receipt_title || `Juja BnB - ${branchName}`;
-  const address = store?.address || "Juja Brew & Bites - Visayas Ave. Pasong Tamo 36D Visayas Ave., Pasong Tamo, Quezon City";
+  const receiptTitle = store?.receipt_title || `${branchName}`;
+  const address = store?.address || "36D Visayas Ave., Pasong Tamo, Quezon City";
   const receiptId = order.receipt_number || order.order_number || order.id;
   const dining = diningOptionName || order.dining_option || order.order_type || "-";
   const employee = cashierName || order.cashier_name || "Owner";
