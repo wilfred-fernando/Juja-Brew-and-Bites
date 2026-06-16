@@ -12,6 +12,8 @@ const supabaseGlobalInstance = getSupabaseClient();
 
 const DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID = "000018f0-0000-1000-8000-00805f9b34fb";
 const DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID = "00002af1-0000-1000-8000-00805f9b34fb";
+const RECEIPT_COLUMNS = 42;
+const RECEIPT_LOGO_URL = "https://images.jujabrewandbites.com/SIGNAGE%20light%20with%20korean%20letters%203.png";
 
 function normalizeBluetoothUuid(value, fallback = "") {
   return String(value || fallback).trim().toLowerCase();
@@ -28,8 +30,22 @@ function print58mmTextBrowser(text) {
   const html = `
 <!doctype html>
 <html>
-  <body style="font-family: monospace; font-size:12px; padding:8px;">
-    <pre>${safe}</pre>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      @page { size: 58mm auto; margin: 0; }
+      html, body { width: 58mm; margin: 0; padding: 0; background: #fff; }
+      body { color: #020617; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.25; }
+      .receipt { padding: 8px 10px 10px; }
+      .logo { display: block; width: 34mm; max-width: 78%; margin: 4px auto 10px; }
+      pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: "Courier New", ui-monospace, monospace; font-size: 11px; line-height: 1.35; }
+    </style>
+  </head>
+  <body>
+    <div class="receipt">
+      <img class="logo" src="${RECEIPT_LOGO_URL}" alt="Juja Brew & Bites" />
+      <pre>${safe}</pre>
+    </div>
   </body>
 </html>
   `;
@@ -98,6 +114,66 @@ async function printByRole(role, text, printerConfig) {
 
 // ================= TEXT BUILDERS =================
 
+function receiptLine(char = "-", width = RECEIPT_COLUMNS) {
+  return char.repeat(width);
+}
+
+function centerReceiptText(value, width = RECEIPT_COLUMNS) {
+  const text = String(value || "");
+  if (text.length >= width) return text;
+  const left = Math.floor((width - text.length) / 2);
+  return `${" ".repeat(left)}${text}`;
+}
+
+function splitReceiptText(value, width = RECEIPT_COLUMNS) {
+  const words = String(value || "").split(/\s+/).filter(Boolean);
+  const lines = [];
+  let current = "";
+  words.forEach((word) => {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length > width && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = next;
+    }
+  });
+  if (current) lines.push(current);
+  return lines.length ? lines : [""];
+}
+
+function receiptAmount(value) {
+  return peso2(value).replace("₱", "P");
+}
+
+function receiptPair(left, right, width = RECEIPT_COLUMNS) {
+  const l = String(left || "");
+  const r = String(right || "");
+  const maxLeft = Math.max(0, width - r.length - 1);
+  const safeLeft = l.length > maxLeft ? l.slice(0, Math.max(0, maxLeft - 1)) + "…" : l;
+  return `${safeLeft}${" ".repeat(Math.max(1, width - safeLeft.length - r.length))}${r}`;
+}
+
+function formatReceiptDate(value) {
+  const date = value ? new Date(value) : new Date();
+  if (isNaN(date.getTime())) return formatDateTime(new Date());
+  return date.toLocaleString("en-PH", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).replace(",", "");
+}
+
+function shortReceiptNumber(value) {
+  const text = String(value || "");
+  const match = text.match(/(\d+)[^\d]*(\d+)$/);
+  if (match) return `${match[1]}-${match[2]}`;
+  return text.slice(-8) || text;
+}
+
 function buildReceiptText({
   receiptSettings,
   order,
@@ -112,40 +188,79 @@ function buildReceiptText({
   appliedDiscount,
   printedAt,
   copyLabel,
+  store,
+  cashierName,
 }) {
   const rs = receiptSettings || {};
   const lines = [];
 
-  const header = rs.header_text || "";
-  const footer = rs.footer_text || "";
+  const header = (rs.header_text || "").trim();
+  const footer = (rs.footer_text || "").trim();
+  const branchName = store?.store_name || store?.name || store?.branch_name || "Pasong Tamo";
+  const businessName = store?.business_name || "Juja Brew & Bites";
+  const receiptTitle = store?.receipt_title || `Juja BnB - ${branchName}`;
+  const address = store?.address || "Juja Brew & Bites - Visayas Ave. Pasong Tamo 36D Visayas Ave., Pasong Tamo, Quezon City";
+  const receiptId = order.receipt_number || order.order_number || order.id;
+  const dining = diningOptionName || order.dining_option || order.order_type || "-";
+  const employee = cashierName || order.cashier_name || "Owner";
+  const posName = `Cashier - ${branchName}`;
+  const paidBy = payment || order.payment_method || "QRPH";
+  const subtotalValue = Number(subtotal || 0);
+  const discountValue = Number(discount || 0);
+  const totalValue = Number(total || subtotalValue - discountValue || 0);
 
-  if (header) lines.push(header);
-  if (copyLabel) lines.push(copyLabel);
+  lines.push(centerReceiptText(businessName));
+  lines.push("");
+  lines.push(centerReceiptText(header || receiptTitle));
+  splitReceiptText(address, RECEIPT_COLUMNS).forEach((line) => lines.push(centerReceiptText(line)));
+  lines.push(receiptLine());
+  if (copyLabel) lines.push(centerReceiptText(copyLabel));
+  lines.push(centerReceiptText(receiptAmount(totalValue)));
+  lines.push(centerReceiptText("Total"));
+  lines.push(receiptLine());
 
-  if (rs.show_store_name !== false) lines.push(`Store: ${order.store_id || order.branch_id}`);
-  if (rs.show_datetime !== false) lines.push(`Date: ${formatDateTime(printedAt || new Date())}`);
-  if (rs.show_order_number !== false) lines.push(`Receipt: ${order.id}`);
+  if (rs.show_order_number !== false) lines.push(`Order: ${shortReceiptNumber(receiptId)}`);
+  if (rs.show_cashier !== false) lines.push(`Employee: ${employee}`);
+  if (rs.show_store_name !== false) lines.push(`POS: ${posName}`);
+  lines.push(receiptLine());
 
-  lines.push(`Dining: ${diningOptionName || "-"}`);
-  if (rs.show_payment_type !== false) lines.push(`Payment: ${payment}`);
+  lines.push(String(dining).toUpperCase());
+  lines.push(receiptLine());
+
   if (customer?.name) lines.push(`Customer: ${customer.name}`);
-
   if (voucher?.code) lines.push(`Voucher: ${voucher.code}`);
   if (appliedDiscount?.name) lines.push(`Discount: ${appliedDiscount.name}`);
+  if (customer?.name || voucher?.code || appliedDiscount?.name) lines.push(receiptLine());
 
-  lines.push("—");
   cart.forEach((x) => {
-    lines.push(`${x.name} x${x.quantity}  ${peso0(Number(x.unitPrice) * Number(x.quantity))}`);
+    const quantity = Number(x.quantity || 1);
+    const unitPrice = Number(x.unitPrice || 0);
+    const lineTotal = unitPrice * quantity;
+    const nameLines = splitReceiptText(x.name || "Item", RECEIPT_COLUMNS - 12);
+    lines.push(receiptPair(nameLines[0], receiptAmount(lineTotal)));
+    nameLines.slice(1).forEach((line) => lines.push(line));
+    lines.push(`${quantity} x ${receiptAmount(unitPrice)}`);
   });
-  lines.push("—");
-  lines.push(`Subtotal: ${peso2(subtotal)}`);
-  if (discount > 0) lines.push(`Discount: -${peso2(discount)}`);
-  lines.push(`TOTAL: ${peso2(total)}`);
+  lines.push(receiptLine());
+  if (discountValue > 0) {
+    lines.push(receiptPair("Subtotal", receiptAmount(subtotalValue)));
+    lines.push(receiptPair("Discount", `-${receiptAmount(discountValue)}`));
+  }
+  lines.push(receiptPair("Total", receiptAmount(totalValue)));
+  if (rs.show_payment_type !== false) lines.push(receiptPair(paidBy, receiptAmount(totalValue)));
+  lines.push(receiptLine());
+
+  lines.push(centerReceiptText("THIS IS NOT VALID"));
+  lines.push(centerReceiptText("FOR CLAIM OF INPUT TAX"));
+  lines.push(centerReceiptText("For Orders: 0939 9228383"));
 
   if (footer) {
-    lines.push("—");
-    lines.push(footer);
+    lines.push("");
+    splitReceiptText(footer, RECEIPT_COLUMNS).forEach((line) => lines.push(centerReceiptText(line)));
   }
+
+  lines.push("");
+  lines.push(receiptPair(rs.show_datetime === false ? "" : formatReceiptDate(printedAt || new Date()), `N° ${shortReceiptNumber(receiptId)}`));
 
   return lines.join("\n");
 }
@@ -187,16 +302,18 @@ function printReceiptText(receiptText, opts = {}) {
       html, body { width: ${widthMm}mm; margin: 0; padding: 0; }
     }
     body {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-family: Arial, sans-serif;
       font-size: ${fontSize}px;
       line-height: ${lineHeight};
-      padding: 8px;
+      padding: 8px 10px;
       color: #000;
     }
-    .receipt { white-space: pre-wrap; word-break: break-word; }
+    .logo { display: block; width: 48mm; max-width: 78%; margin: 4px auto 10px; }
+    .receipt { white-space: pre-wrap; word-break: break-word; font-family: "Courier New", ui-monospace, monospace; }
   </style>
 </head>
 <body>
+  <img class="logo" src="${RECEIPT_LOGO_URL}" alt="Juja Brew & Bites" />
   <div class="receipt">${String(receiptText || "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -1255,6 +1372,7 @@ function getShiftStatusFromRecords(records, storeId) {
 export default function POSPage() {
   const supabase = getSupabaseClient();
   const [storeId, setStoreId] = useState(null);
+  const [currentStore, setCurrentStore] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
@@ -1955,12 +2073,13 @@ export default function POSPage() {
       });
     };
 
-    const [payRes, dineRes, ticketRes, discRes, receiptRes] = await Promise.all([
+    const [payRes, dineRes, ticketRes, discRes, receiptRes, storeRes] = await Promise.all([
       supabase.from("pos_payment_types").select("*").or(`store_id.eq.${sid},store_id.is.null`).eq("is_active", true),
       supabase.from("pos_dining_options").select("*").eq("store_id", sid).eq("is_active", true).order("sort_order", { ascending: true }),
       supabase.from("pos_open_ticket_templates").select("*").eq("store_id", sid),
       supabase.from("pos_discounts").select("*").eq("store_id", sid),
       supabase.from("pos_receipt_settings").select("*").eq("store_id", sid).maybeSingle(),
+      supabase.from("stores").select("*").eq("id", sid).maybeSingle(),
     ]);
 
     const mergedPaymentTypes = mergeGlobalThenStore(payRes.data || []);
@@ -1969,6 +2088,7 @@ export default function POSPage() {
     setTicketTemplates(ticketRes.data || []);
     setDiscountRules(discRes.data || []);
     setReceiptSettings(receiptRes.data || null);
+    setCurrentStore(storeRes.data || null);
 
     if (!hasInitializedDining.current && (dineRes.data || []).length > 0) {
       setDiningOption(dineRes.data[0].id);
@@ -2557,6 +2677,8 @@ export default function POSPage() {
       total,
       printedAt: receipt.created_at || receipt.receipt_date || new Date(),
       copyLabel: "*** REPRINT ***",
+      store: currentStore,
+      cashierName,
     });
 
     setReprintingReceipt(true);
@@ -3107,7 +3229,7 @@ export default function POSPage() {
 
       const receipt = buildReceiptText({
         receiptSettings, order: { ...orderRow, id: generatedReceiptNumber }, cart, diningOptionName: diningOptionName || "WEB ORDER", payment: paymentLabel,
-        customer: attachedCustomer, subtotal, discount, total, voucher: appliedVoucher, appliedDiscount,
+        customer: attachedCustomer, subtotal, discount, total, voucher: appliedVoucher, appliedDiscount, store: currentStore, cashierName,
       });
 
       setReceiptText(receipt);
