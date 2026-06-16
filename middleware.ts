@@ -20,6 +20,7 @@ export function middleware(req: NextRequest) {
     pathname.startsWith("/admin/login") ||
     pathname.startsWith("/finance/login") ||
     pathname.startsWith("/pos/login") ||
+    pathname.startsWith("/kitchen/login") ||
     pathname.startsWith("/customer/login") ||
     pathname.startsWith("/customer/reset-password") ||
     pathname.startsWith("/customer/auth/callback")

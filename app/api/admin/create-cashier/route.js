@@ -41,9 +41,14 @@ export async function POST(req) {
       return Response.json({ error: "Admin access required." }, { status: 403 });
     }
 
-    const { email, full_name, store_id } = await req.json();
+    const { email, full_name, store_id, role = "cashier" } = await req.json();
     if (!email || !full_name || !store_id) {
       return Response.json({ error: "Email, full name, and store are required." }, { status: 400 });
+    }
+
+    const accountRole = String(role || "cashier").toLowerCase();
+    if (!["cashier", "kds"].includes(accountRole)) {
+      return Response.json({ error: "Unsupported store account role." }, { status: 400 });
     }
 
     const supabaseAdmin = createSupabaseClient(
@@ -67,11 +72,11 @@ export async function POST(req) {
       .upsert({
         id: userId,
         full_name,
-        role: "cashier",
+        role: accountRole,
         store_id,
         is_active: true,
         sort_order: 0,
-        must_change_password: true,
+        must_change_password: accountRole === "cashier",
       });
 
     if (profileErr) {

@@ -117,6 +117,7 @@ export default function Page() {
 
   const [stores, setStores] = useState([]);
   const [cashiers, setCashiers] = useState([]);
+  const [kdsAccounts, setKdsAccounts] = useState([]);
 
   // ✅ super admin store filter toggle
   const [storeFilter, setStoreFilter] = useState("ALL");
@@ -250,6 +251,31 @@ export default function Page() {
     }
 
     setCashiers(cRes.data || []);
+
+    let kq = supabase
+      .from("profiles")
+      .select("id, full_name, role, store_id, must_change_password, created_at")
+      .eq("role", "kds");
+
+    if (role === "super_admin") {
+      if (storeFilter !== "ALL") kq = kq.eq("store_id", storeFilter);
+    } else if (auth.sid) {
+      kq = kq.eq("store_id", auth.sid);
+    } else {
+      kq = kq.eq("store_id", "__NO_STORE__");
+    }
+
+    const kdsRes = await kq.order("created_at", { ascending: true });
+
+    if (kdsRes.error) {
+      console.error(kdsRes.error);
+      showToast("error", kdsRes.error.message);
+      setKdsAccounts([]);
+      setLoading(false);
+      return;
+    }
+
+    setKdsAccounts(kdsRes.data || []);
     setLoading(false);
   }
 
@@ -420,6 +446,9 @@ export default function Page() {
   const [newCashierStore, setNewCashierStore] = useState("");
   const [newCashierName, setNewCashierName] = useState("");
   const [newCashierEmail, setNewCashierEmail] = useState("");
+  const [newKdsStore, setNewKdsStore] = useState("");
+  const [newKdsName, setNewKdsName] = useState("");
+  const [newKdsEmail, setNewKdsEmail] = useState("");
 
   async function addCashier() {
     const email = newCashierEmail.trim().toLowerCase();
@@ -470,6 +499,60 @@ export default function Page() {
     } catch (err) {
       setBusyKey(null);
       console.error("Add cashier failed:", err, text);
+      showToast("error", "Failed to fetch API. Check network/logs.");
+    }
+  }
+
+  async function addKdsAccount() {
+    const email = newKdsEmail.trim().toLowerCase();
+    const name = newKdsName.trim();
+
+    if (!newKdsStore) return showToast("warn", "Select a store.");
+    if (!name) return showToast("warn", "KDS account name is required.");
+    if (!email) return showToast("warn", "KDS email is required.");
+
+    setBusyKey("ADD_KDS");
+
+    let text = "";
+    try {
+      const res = await fetch("/api/admin/create-cashier", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          full_name: name,
+          store_id: newKdsStore,
+          role: "kds",
+        }),
+      });
+
+      text = await res.text();
+
+      let json;
+      try {
+        json = JSON.parse(text);
+      } catch {
+        setBusyKey(null);
+        console.error("API returned non-JSON:", text);
+        showToast("error", "Server error (non-JSON response). Check API logs.");
+        return;
+      }
+
+      setBusyKey(null);
+
+      if (!res.ok) {
+        showToast("error", json.error || "Failed to create KDS account");
+        return;
+      }
+
+      showToast("success", "KDS account created. Default password: Juja@123456");
+      setNewKdsName("");
+      setNewKdsEmail("");
+      setNewKdsStore("");
+      loadAll();
+    } catch (err) {
+      setBusyKey(null);
+      console.error("Add KDS account failed:", err, text);
       showToast("error", "Failed to fetch API. Check network/logs.");
     }
   }
@@ -558,6 +641,23 @@ export default function Page() {
     }
 
     showToast("success", "Cashier disabled.");
+    loadAll();
+  }
+
+  async function updateKdsStore(row, storeId) {
+    if (!row?.id || !storeId) return;
+    setBusyKey(`KDS_${row.id}`);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ store_id: storeId, role: "kds" })
+      .eq("id", row.id);
+
+    setBusyKey(null);
+    if (error) {
+      showToast("error", error.message);
+      return;
+    }
+    showToast("success", "KDS store assignment updated.");
     loadAll();
   }
 
@@ -821,6 +921,92 @@ export default function Page() {
                       Disable
                     </button>
                   </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ----------------------------- KDS ACCOUNTS ----------------------------- */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-bold text-slate-900">KDS Accounts</h2>
+            <p className="text-xs text-slate-500">Assign one kitchen display login per store to prevent mixed branch orders.</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+          <select
+            value={newKdsStore}
+            onChange={(e) => setNewKdsStore(e.target.value)}
+            className="px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-sky-300"
+          >
+            <option value="">Select store</option>
+            {stores.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+
+          <input
+            value={newKdsName}
+            onChange={(e) => setNewKdsName(e.target.value)}
+            placeholder="KDS display name"
+            className="px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-sky-300"
+          />
+
+          <input
+            value={newKdsEmail}
+            onChange={(e) => setNewKdsEmail(e.target.value)}
+            placeholder="KDS email (e.g. kitchen@email.com)"
+            className="px-3 py-3 rounded-xl border border-slate-200 outline-none focus:border-sky-300"
+          />
+
+          <button
+            onClick={addKdsAccount}
+            disabled={busyKey === "ADD_KDS"}
+            className="px-4 py-3 rounded-xl bg-slate-600 text-white text-sm font-bold disabled:opacity-50 active:scale-95"
+            type="button"
+          >
+            {busyKey === "ADD_KDS" ? "Adding..." : "Add KDS Login"}
+          </button>
+        </div>
+
+        {kdsAccounts.length === 0 ? (
+          <div className="text-sm text-slate-500">No KDS accounts found.</div>
+        ) : (
+          <div className="space-y-2">
+            {kdsAccounts.map((account) => {
+              const disabled = busyKey === `KDS_${account.id}`;
+              return (
+                <div
+                  key={account.id}
+                  className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 md:grid-cols-[1fr_260px]"
+                >
+                  <div className="min-w-0">
+                    <div className="font-semibold text-slate-900 truncate">{account.full_name || "KDS Account"}</div>
+                    <div className="text-xs text-slate-500 truncate">
+                      Store: <span className="font-semibold">{storeNameById[account.store_id] || "-"}</span>
+                      {" - "}
+                      Default role: <span className="font-mono">kds</span>
+                    </div>
+                  </div>
+                  <select
+                    value={account.store_id || ""}
+                    disabled={disabled}
+                    onChange={(e) => updateKdsStore(account, e.target.value)}
+                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm outline-none focus:border-sky-300 disabled:opacity-50"
+                  >
+                    <option value="">Assign store</option>
+                    {stores.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               );
             })}

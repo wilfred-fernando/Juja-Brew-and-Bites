@@ -8,6 +8,7 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 export type Role =
   | "cashier"
   | "cashier_disabled"
+  | "kds"
   | "admin"
   | "super_admin";
 

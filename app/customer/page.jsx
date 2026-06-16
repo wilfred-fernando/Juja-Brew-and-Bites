@@ -20,6 +20,7 @@ const loyaltyPoints = (amount) => Number(((Number(amount) || 0) * 0.04).toFixed(
 const peso0 = (amount) => `₱${Number(amount || 0).toLocaleString("en-PH", { maximumFractionDigits: 0 })}`;
 const ALERT_SOUND_SRC = "/sound/notification.mp3";
 const CUSTOMER_NOTIFICATION_ICON = "/images/juja-logo.png";
+const isMenuItemMarkedAvailable = (item) => item?.is_available !== false && item?.available !== false;
 
 const loyaltyPerkSections = [  
   {
@@ -974,7 +975,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
     async function fetchMenu() {
       setLoading(true);
       const [itemRes, catRes, storeRes, availabilityRes, categoryAvailabilityRes] = await Promise.all([
-        supabase.from("menu_items").select("*").eq("is_available", true).eq("pos_only", false).order("name"),
+        supabase.from("menu_items").select("*").eq("pos_only", false).order("name"),
         supabase.from("menu_categories").select("*").eq("is_active", true).eq("pos_only", false).order("name", { ascending: true }),
         supabase.from("stores").select("id, name, is_active").eq("is_active", true).order("name"),
         supabase.from("menu_item_store_availability").select("item_id, store_id, is_available"),
@@ -996,6 +997,35 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       setLoading(false);
     }
     fetchMenu();
+  }, []);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("customer-menu-item-availability")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "menu_items" },
+        (payload) => {
+          const nextItem = payload.new || {};
+          const previousItem = payload.old || {};
+          const rowId = nextItem.id || previousItem.id;
+          if (!rowId) return;
+
+          if (payload.eventType === "DELETE" || nextItem.pos_only === true) {
+            setItems((prev) => prev.filter((item) => item.id !== rowId));
+            setSelectedItemForModal((current) => (current?.id === rowId ? null : current));
+            return;
+          }
+
+          setItems((prev) => (prev.some((item) => item.id === rowId) ? prev.map((item) => (item.id === rowId ? nextItem : item)) : [...prev, nextItem]));
+          setSelectedItemForModal((current) => (current?.id === rowId && !isMenuItemMarkedAvailable(nextItem) ? null : current));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const q = itemSearch.trim().toLowerCase();
@@ -1032,6 +1062,8 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       .filter((i) => (activeTab === "ALL" ? true : i.category === activeTab))
       .filter((i) => (q ? (i.name || "").toLowerCase().includes(q) : true));
   }, [items, itemStoreAvailability, selectedBranch, visibleCategories, activeTab, q]);
+
+  const isItemOrderable = (item) => isMenuItemMarkedAvailable(item);
 
   const subtotal = useMemo(() => cart.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0), [cart]);
   const itemCount = useMemo(() => cart.reduce((sum, i) => sum + i.quantity, 0), [cart]);
@@ -1302,12 +1334,29 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3">
-            {filteredItems.map((item) => (
+            {filteredItems.map((item) => {
+              const orderable = isItemOrderable(item);
+
+              return (
               <button
                 key={item.id}
-                onClick={() => setSelectedItemForModal(item)}
-                className="group flex h-full min-h-[230px] flex-col items-center justify-between rounded-[100px] border border-cyan-100 bg-white/88 p-3 text-center shadow-[0_18px_45px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-1 hover:border-cyan-300 hover:bg-cyan-50/80 hover:shadow-[0_24px_60px_rgba(8,145,178,0.14)]"
+                type="button"
+                disabled={!orderable}
+                onClick={() => {
+                  if (!orderable) return;
+                  setSelectedItemForModal(item);
+                }}
+                className={`group relative flex h-full min-h-[230px] flex-col items-center justify-between rounded-[100px] border p-3 text-center shadow-[0_18px_45px_rgba(15,23,42,0.08)] transition-all duration-300 ${
+                  orderable
+                    ? "border-cyan-100 bg-white/88 hover:-translate-y-1 hover:border-cyan-300 hover:bg-cyan-50/80 hover:shadow-[0_24px_60px_rgba(8,145,178,0.14)]"
+                    : "cursor-not-allowed border-slate-200 bg-slate-100/85 opacity-75 grayscale"
+                }`}
               >
+                {!orderable && (
+                  <span className="absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-full bg-slate-800 px-3 py-1 text-[9px] font-semibold uppercase tracking-wider text-white shadow-sm">
+                    Unavailable
+                  </span>
+                )}
                 <div className="flex w-full flex-1 flex-col items-center text-center">
                   <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl border border-cyan-100 bg-white">
                     {item.image_url ? (
@@ -1329,7 +1378,8 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
                   {peso0(item.price)}
                 </p>
               </button>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

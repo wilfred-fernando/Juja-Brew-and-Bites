@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, Clock3, Download, History, Maximize2, RefreshCcw, Trash2, Utensils, X } from "lucide-react";
+import { CheckCircle2, Clock3, Download, History, LogOut, Maximize2, RefreshCcw, Trash2, Utensils, X } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDateTime } from "@/lib/dateFormat";
 import { KDS_ACTIVE_STATUSES, KDS_VISIBLE_STATUSES } from "@/lib/kds";
@@ -75,6 +75,11 @@ export default function KitchenDisplay() {
   const [showInstallButton, setShowInstallButton] = useState(false);
   const [kitchenCategoriesByStore, setKitchenCategoriesByStore] = useState({});
   const [menuItemCategoryLookup, setMenuItemCategoryLookup] = useState({});
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+  const [userRole, setUserRole] = useState("");
+  const [assignedStoreId, setAssignedStoreId] = useState("");
   const knownTicketIds = useRef(new Set());
   const audioRef = useRef(null);
 
@@ -102,6 +107,54 @@ export default function KitchenDisplay() {
 
   function normalizeText(value) {
     return String(value || "").trim().toLowerCase();
+  }
+
+  function getKitchenLoginPath() {
+    return "/kitchen/login";
+  }
+
+  async function bootstrapAuth() {
+    setAuthLoading(true);
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    const user = sessionData?.session?.user;
+
+    if (sessionError || !user) {
+      window.location.href = getKitchenLoginPath();
+      return;
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role, store_id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      setLoadError(profileError.message || "Unable to load KDS account profile.");
+      setAuthorized(false);
+      setAuthLoading(false);
+      return;
+    }
+
+    const role = String(profile?.role || "").toLowerCase();
+    if (!["kds", "admin", "super_admin"].includes(role)) {
+      await supabase.auth.signOut();
+      window.location.href = getKitchenLoginPath();
+      return;
+    }
+
+    if (role !== "super_admin" && !profile?.store_id) {
+      setLoadError("This KDS account has no assigned store. Ask admin to assign a branch.");
+      setAuthorized(false);
+      setAuthLoading(false);
+      return;
+    }
+
+    setUserEmail(user.email || "");
+    setUserRole(role);
+    setAssignedStoreId(role === "super_admin" ? "" : profile.store_id);
+    setAuthorized(true);
+    setAuthLoading(false);
   }
 
   function getKitchenCategoryRule(storeId) {
@@ -198,13 +251,18 @@ export default function KitchenDisplay() {
   };
 
   const fetchTickets = async ({ silent = false } = {}) => {
+    if (!authorized) return;
     if (!silent) setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from("kds_tickets")
       .select("*")
       .in("status", allowedStatuses)
       .order("created_at", { ascending: !showHistory })
       .limit(200);
+
+    if (assignedStoreId) query = query.eq("store_id", assignedStoreId);
+
+    const { data, error } = await query;
 
     if (error) {
       setLoadError(error.message || "Unable to load KDS tickets.");
@@ -220,6 +278,10 @@ export default function KitchenDisplay() {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    bootstrapAuth();
+  }, []);
 
   useEffect(() => {
     const audio = new Audio(ALERT_SOUND_SRC);
@@ -264,12 +326,15 @@ export default function KitchenDisplay() {
   };
 
   useEffect(() => {
+    if (!authorized || authLoading) return undefined;
     loadKitchenPrinterCategories();
     fetchTickets();
 
     const channel = supabase
       .channel("kds-tickets-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "kds_tickets" }, (payload) => {
+        const changed = payload.new || payload.old || {};
+        if (assignedStoreId && String(changed.store_id || "") !== String(assignedStoreId)) return;
         if (payload.eventType === "INSERT") showNewTicketAlert(payload.new);
         fetchTickets({ silent: true });
       })
@@ -281,7 +346,12 @@ export default function KitchenDisplay() {
       clearInterval(timer);
       supabase.removeChannel(channel);
     };
-  }, [showHistory, statusFilter]);
+  }, [showHistory, statusFilter, authorized, authLoading, assignedStoreId]);
+
+  async function signOutKitchen() {
+    await supabase.auth.signOut();
+    window.location.href = getKitchenLoginPath();
+  }
 
   const updateTicketStatus = async (ticket, status) => {
     const timestamp = new Date().toISOString();
@@ -356,6 +426,31 @@ export default function KitchenDisplay() {
     return `${Math.floor(diff / 60)} hr ago`;
   };
 
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[url('https://images.jujabrewandbites.com/page%20background.png')] bg-cover bg-center p-6">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-cyan-100 border-t-cyan-700" />
+      </div>
+    );
+  }
+
+  if (!authorized) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[url('https://images.jujabrewandbites.com/page%20background.png')] bg-cover bg-center p-6">
+        <div className="w-full max-w-md rounded-3xl border border-red-200 bg-white/90 p-6 text-center shadow-xl backdrop-blur">
+          <p className="text-sm font-bold text-red-700">{loadError || "KDS access is not authorized."}</p>
+          <button
+            type="button"
+            onClick={signOutKitchen}
+            className="mt-4 rounded-2xl bg-slate-700 px-5 py-3 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-slate-600"
+          >
+            Back to KDS Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[url('https://images.jujabrewandbites.com/page%20background.png')] bg-cover bg-center p-3 text-slate-900 sm:p-5">
       <div className="mx-auto max-w-[1600px] space-y-4">
@@ -364,7 +459,11 @@ export default function KitchenDisplay() {
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-cyan-700">Kitchen Display System</p>
               <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">KDS Orders</h1>
-              <p className="mt-1 text-sm text-slate-600">Live kitchen queue for POS charged orders and accepted web orders.</p>
+              <p className="mt-1 text-sm text-slate-600">
+                Live kitchen queue for POS charged orders and accepted web orders.
+                {assignedStoreId ? <span className="ml-2 font-bold text-cyan-800">Store locked</span> : <span className="ml-2 font-bold text-slate-700">All stores</span>}
+              </p>
+              <p className="mt-1 text-xs font-semibold text-slate-500">{userEmail} {userRole ? `- ${userRole.toUpperCase()}` : ""}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {showInstallButton && (
@@ -400,6 +499,13 @@ export default function KitchenDisplay() {
                 className="inline-flex h-11 items-center gap-2 rounded-2xl bg-slate-700 px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md transition hover:-translate-y-0.5 hover:bg-slate-600"
               >
                 <Maximize2 className="h-4 w-4" /> Full Screen
+              </button>
+              <button
+                type="button"
+                onClick={signOutKitchen}
+                className="inline-flex h-11 items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 text-xs font-bold uppercase tracking-wider text-red-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-red-100"
+              >
+                <LogOut className="h-4 w-4" /> Sign Out
               </button>
             </div>
           </div>

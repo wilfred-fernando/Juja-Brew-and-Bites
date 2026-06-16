@@ -8,6 +8,7 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 const supabase = getSupabaseClient();
 
 const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
+const isMenuItemMarkedAvailable = (item) => item?.is_available !== false && item?.available !== false;
 const peso0 = (amount) => `₱${Number(amount || 0).toLocaleString("en-PH", { maximumFractionDigits: 0 })}`;
 
 // ─── Shared Nav (Integrated Perfectly) ───────────────────────────────────────
@@ -252,7 +253,7 @@ export default function PublicMenuPage() {
 
       // Only allow items from visible categories
       const allowedCatNames = new Set(catsData.map(c => c.name));
-      const safeItems = itemsData.filter(i => allowedCatNames.has(i.category));
+      const safeItems = itemsData.filter((i) => isMenuItemMarkedAvailable(i) && allowedCatNames.has(i.category));
 
       setCats(catsData);
       setItems(safeItems);
@@ -275,6 +276,37 @@ export default function PublicMenuPage() {
       setSelectedCategory(categoryList[0]);
     }
   }, [categoryList, selectedCategory]);
+
+  useEffect(() => {
+    if (promoOpen) return undefined;
+
+    const channel = supabase
+      .channel("public-menu-item-availability")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "menu_items" },
+        (payload) => {
+          const nextItem = payload.new || {};
+          const previousItem = payload.old || {};
+          const rowId = nextItem.id || previousItem.id;
+          if (!rowId) return;
+
+          if (payload.eventType === "DELETE" || nextItem.pos_only === true || !isMenuItemMarkedAvailable(nextItem)) {
+            setItems((prev) => prev.filter((item) => item.id !== rowId));
+            return;
+          }
+
+          const allowedCategories = new Set((cats || []).map((cat) => cat.name));
+          if (!allowedCategories.has(nextItem.category)) return;
+          setItems((prev) => (prev.some((item) => item.id === rowId) ? prev.map((item) => (item.id === rowId ? nextItem : item)) : [...prev, nextItem]));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [promoOpen, cats]);
 
   // 4) Search across ALL items
   const q = search.trim().toLowerCase();
