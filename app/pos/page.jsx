@@ -6,6 +6,7 @@ import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { deductInventoryForOrder, restoreInventoryForOrder } from "@/lib/inventory";
 import { markKdsTicketItemVoided, markKdsTicketStatus, upsertKdsTicket } from "@/lib/kds";
 import TicketPanel from "@/components/pos/TicketPanel";
+import { Printer, Save, Search, Trash2 } from "lucide-react";
 
 // Initialize Supabase Client instance cleanly at layout bundle level
 const supabaseGlobalInstance = getSupabaseClient();
@@ -20,9 +21,22 @@ const bluetoothPrinterDeviceCache = new Map();
 const DEFAULT_PRINTER_FORM = {
   name: "Xprinter Thermal Printer",
   role: "receipt",
+  roles: { receipt: true, order_slip: true, cup_label: false },
+  model: "Other model",
+  interface: "Bluetooth",
+  paper_width_mm: THERMAL_PAPER_WIDTH_MM,
+  print_receipts_bills: true,
+  print_orders: true,
+  print_single_item_per_order_ticket: false,
+  group_identical_items: false,
   service_uuid: DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID,
   characteristic_uuid: DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID,
   device_id: "",
+};
+const PRINTER_ROLE_LABELS = {
+  receipt: "Bar",
+  order_slip: "Kitchen",
+  cup_label: "Cup Labels",
 };
 
 function normalizeBluetoothUuid(value, fallback = "") {
@@ -1289,6 +1303,31 @@ function ReceiptPreviewModal({ open, onClose, receiptText }) {
   );
 }
 
+function PrinterEditField({ label, children }) {
+  return (
+    <label className="block">
+      <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</span>
+      <div className="mt-1 border-b border-slate-300 pb-1">{children}</div>
+    </label>
+  );
+}
+
+function PrinterSwitch({ label, checked, onChange, disabled = false }) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className="flex w-full items-center justify-between gap-4 py-3 text-left disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <span className="text-sm font-semibold text-slate-800">{label}</span>
+      <span className={`relative h-6 w-11 rounded-full transition ${checked ? "bg-[#6DBE45]" : "bg-slate-300"}`}>
+        <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition ${checked ? "left-6" : "left-1"}`} />
+      </span>
+    </button>
+  );
+}
+
 function ShiftCashModal({ open, mode, counts, onChange, onClose, onSave }) {
   if (!open) return null;
   const title = mode === "open" ? "Open Shift" : "Close Shift";
@@ -2073,6 +2112,26 @@ export default function POSPage() {
     const map = { receipt: null, order_slip: null, cup_label: null };
     (data || []).forEach((p) => { map[p.role] = p; });
     setPrinterConfig(map);
+
+    const primaryPrinter = map.receipt || map.order_slip || map.cup_label;
+    if (primaryPrinter) {
+      setPrinterForm((prev) => ({
+        ...prev,
+        name: primaryPrinter.ble_device_name || primaryPrinter.name || prev.name,
+        role: primaryPrinter.role || prev.role,
+        roles: {
+          receipt: !!map.receipt,
+          order_slip: !!map.order_slip,
+          cup_label: !!map.cup_label,
+        },
+        print_receipts_bills: !!map.receipt,
+        print_orders: !!map.order_slip,
+        paper_width_mm: Number(primaryPrinter.paper_width_mm || THERMAL_PAPER_WIDTH_MM),
+        service_uuid: primaryPrinter.ble_service_uuid || prev.service_uuid,
+        characteristic_uuid: primaryPrinter.ble_characteristic_uuid || prev.characteristic_uuid,
+        device_id: primaryPrinter.ble_device_id || prev.device_id,
+      }));
+    }
   }
 
   async function fetchActiveVouchers(memberId) {
@@ -2877,29 +2936,119 @@ export default function POSPage() {
     showToast("success", "Option Updated", `${optionName} is now ${nextAvailable ? "available" : "unavailable"}.`);
   }
 
-  async function addBluetoothPrinter() {
+  function updatePrinterRole(role, enabled) {
+    setPrinterForm((prev) => {
+      const roles = { ...prev.roles, [role]: enabled };
+      return {
+        ...prev,
+        roles,
+        role: enabled ? role : prev.role,
+        print_receipts_bills: role === "receipt" ? enabled : prev.print_receipts_bills,
+        print_orders: role === "order_slip" ? enabled : prev.print_orders,
+      };
+    });
+  }
+
+  async function savePrinterSettings() {
     if (!storeId) return showToast("error", "Store Missing", "Store profile is not loaded.");
     if (!printerForm.name.trim()) return showToast("error", "Printer Name Required", "Enter a printer name.");
+    const selectedRoles = Object.entries(printerForm.roles || {})
+      .filter(([, enabled]) => enabled)
+      .map(([role]) => role);
+    if (selectedRoles.length === 0) return showToast("error", "Printer Group Required", "Turn on at least one printer group.");
+
     const serviceUuid = normalizeBluetoothUuid(printerForm.service_uuid, DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID);
     const characteristicUuid = normalizeBluetoothUuid(
       printerForm.characteristic_uuid,
       DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID
     );
-    const { error } = await supabase.from("pos_printers").insert([{
+
+    const payloadForRole = (role) => ({
       store_id: storeId,
       ble_device_name: printerForm.name.trim(),
-      role: printerForm.role,
+      role,
       transport: "ble",
-      paper_width_mm: THERMAL_PAPER_WIDTH_MM,
+      paper_width_mm: Number(printerForm.paper_width_mm || THERMAL_PAPER_WIDTH_MM),
       ble_service_uuid: serviceUuid,
       ble_characteristic_uuid: characteristicUuid,
       ble_device_id: printerForm.device_id || null,
       is_active: true,
-    }]);
-    if (error) return showToast("error", "Printer Save Failed", error.message);
-    setPrinterForm({ ...DEFAULT_PRINTER_FORM });
+    });
+
+    for (const role of Object.keys(PRINTER_ROLE_LABELS)) {
+      const existing = printerConfig?.[role];
+      if (selectedRoles.includes(role)) {
+        const payload = payloadForRole(role);
+        const res = existing?.id
+          ? await supabase.from("pos_printers").update(payload).eq("id", existing.id)
+          : await supabase.from("pos_printers").insert([payload]);
+        if (res.error) return showToast("error", "Printer Save Failed", res.error.message);
+      } else if (existing?.id) {
+        const { error } = await supabase.from("pos_printers").update({ is_active: false }).eq("id", existing.id);
+        if (error) return showToast("error", "Printer Save Failed", error.message);
+      }
+    }
+
+    const receiptPayload = {
+      store_id: storeId,
+      ...(receiptSettings || {}),
+      auto_print: !!receiptSettings?.auto_print,
+      updated_at: new Date().toISOString(),
+    };
+    const { error: receiptError } = await supabase
+      .from("pos_receipt_settings")
+      .upsert(receiptPayload, { onConflict: "store_id" });
+    if (receiptError) return showToast("error", "Printer Save Failed", receiptError.message);
+
     await loadPrinters(storeId);
-    showToast("success", "Bluetooth Printer Added", "Printer saved to POS settings.");
+    showToast("success", "Printer Saved", "Xprinter settings were updated.");
+  }
+
+  async function updateAutoPrintSetting(enabled) {
+    const nextSettings = { ...(receiptSettings || {}), store_id: storeId, auto_print: enabled };
+    setReceiptSettings(nextSettings);
+    if (!storeId) return;
+    const { error } = await supabase
+      .from("pos_receipt_settings")
+      .upsert({ ...nextSettings, updated_at: new Date().toISOString() }, { onConflict: "store_id" });
+    if (error) showToast("error", "Auto Print Save Failed", error.message);
+  }
+
+  async function printPrinterTest() {
+    const sample = [
+      centerReceiptText("JUJA BREW & BITES"),
+      receiptLine(),
+      centerReceiptText("XPRINTER TEST"),
+      `Paper width: ${Number(printerForm.paper_width_mm || THERMAL_PAPER_WIDTH_MM)} mm`,
+      `Interface: ${printerForm.interface}`,
+      `Printer: ${printerForm.name || "Xprinter"}`,
+      receiptLine(),
+      "Bluetooth print ready.",
+    ].join("\n");
+
+    try {
+      await printByRole("receipt", sample, printerConfig, { fallbackToBrowser: false });
+      showToast("success", "Print Test Sent", "Check the Xprinter output.");
+    } catch (error) {
+      showToast("error", "Print Test Failed", error?.message || "Unable to print the test receipt.");
+    }
+  }
+
+  async function deletePrinterSettings() {
+    if (!storeId) return;
+    const ok = confirm("Delete this printer from POS settings?");
+    if (!ok) return;
+    const ids = Object.values(printerConfig || {}).filter(Boolean).map((printer) => printer.id).filter(Boolean);
+    if (ids.length === 0) {
+      setPrinterForm({ ...DEFAULT_PRINTER_FORM });
+      showToast("info", "No Printer Saved", "There is no saved printer to delete.");
+      return;
+    }
+    const { error } = await supabase.from("pos_printers").update({ is_active: false }).in("id", ids);
+    if (error) return showToast("error", "Delete Failed", error.message);
+    setPrinterConfig({ receipt: null, order_slip: null, cup_label: null });
+    setPrinterForm({ ...DEFAULT_PRINTER_FORM });
+    showToast("success", "Printer Deleted", "Printer was removed from active POS settings.");
   }
 
   async function selectBluetoothPrinterDevice() {
@@ -3992,34 +4141,111 @@ export default function POSPage() {
           )}
 
           {managementView === "settings" && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-3">
-                <h3 className="text-sm font-black text-slate-800">Xprinter Bluetooth Printers</h3>
-                <input value={printerForm.name} onChange={(e) => setPrinterForm((p) => ({ ...p, name: e.target.value }))} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none" placeholder="Xprinter Thermal Printer" />
-                <select value={printerForm.role} onChange={(e) => setPrinterForm((p) => ({ ...p, role: e.target.value }))} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none">
-                  <option value="receipt">Receipt</option>
-                  <option value="order_slip">Order Slip</option>
-                  <option value="cup_label">Cup Label</option>
-                </select>
-                <button type="button" onClick={selectBluetoothPrinterDevice} className="w-full h-10 rounded-xl border border-cyan-200 bg-cyan-50 text-slate-800 text-xs font-black uppercase tracking-wider transition hover:border-cyan-300 hover:bg-cyan-100">
-                  Select Xprinter Bluetooth Device
+            <div className="mx-auto max-w-xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex h-14 items-center justify-between bg-[#45B649] px-4 text-white">
+                <div>
+                  <p className="text-sm font-black">Edit printer</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-green-50">50 mm Xprinter thermal</p>
+                </div>
+                <button type="button" onClick={savePrinterSettings} className="inline-flex h-9 items-center gap-2 rounded-md px-3 text-xs font-black uppercase tracking-wider transition hover:bg-white/10">
+                  <Save size={15} />
+                  Save
                 </button>
-                <p className="text-[11px] leading-relaxed text-slate-500">
-                  Pairing in the device settings is not enough for browser printing. Select the 50 mm Xprinter once here to grant this browser permission, then save it.
-                </p>
-                <input value={printerForm.service_uuid} onChange={(e) => setPrinterForm((p) => ({ ...p, service_uuid: e.target.value }))} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none" placeholder="Service UUID" />
-                <input value={printerForm.characteristic_uuid} onChange={(e) => setPrinterForm((p) => ({ ...p, characteristic_uuid: e.target.value }))} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none" placeholder="Characteristic UUID" />
-                <button type="button" onClick={addBluetoothPrinter} className="w-full h-10 rounded-xl bg-slate-700 text-white text-xs font-black uppercase tracking-wider transition hover:bg-slate-600">Add Bluetooth Printer</button>
               </div>
-              <div className="rounded-xl border border-slate-100 bg-white p-4">
-                <h3 className="text-sm font-black text-slate-800 mb-3">Active Printers</h3>
-                {Object.entries(printerConfig).map(([role, printer]) => (
-                  <div key={role} className="flex justify-between rounded-lg border border-slate-100 p-2 text-xs font-bold mb-2">
-                    <span className="text-slate-500 capitalize">{role.replace("_", " ")}</span>
-                    <span className="text-slate-800 truncate max-w-[180px]">{printer?.ble_device_name || printer?.name || "Not set"}</span>
-                  </div>
+
+              <div className="space-y-7 px-4 py-5">
+                <PrinterEditField label="Name">
+                  <input
+                    value={printerForm.name}
+                    onChange={(e) => setPrinterForm((p) => ({ ...p, name: e.target.value }))}
+                    className="h-8 w-full bg-transparent text-sm font-semibold text-slate-900 outline-none"
+                    placeholder="Xprinter Thermal Printer"
+                  />
+                </PrinterEditField>
+
+                <PrinterEditField label="Printer model">
+                  <select
+                    value={printerForm.model}
+                    onChange={(e) => setPrinterForm((p) => ({ ...p, model: e.target.value }))}
+                    className="h-8 w-full bg-transparent text-sm font-semibold text-slate-900 outline-none"
+                  >
+                    <option>Other model</option>
+                    <option>Xprinter thermal printer</option>
+                    <option>ESC/POS compatible</option>
+                  </select>
+                </PrinterEditField>
+
+                <PrinterEditField label="Interface">
+                  <select
+                    value={printerForm.interface}
+                    onChange={(e) => setPrinterForm((p) => ({ ...p, interface: e.target.value }))}
+                    className="h-8 w-full bg-transparent text-sm font-semibold text-slate-900 outline-none"
+                  >
+                    <option>Bluetooth</option>
+                  </select>
+                </PrinterEditField>
+
+                <div className="grid grid-cols-[1fr_96px] items-end gap-4">
+                  <PrinterEditField label="Bluetooth printer">
+                    <input
+                      value={printerForm.device_id || printerForm.name}
+                      readOnly
+                      className="h-8 w-full bg-transparent text-sm font-semibold text-slate-700 outline-none"
+                      placeholder="Select paired Xprinter"
+                    />
+                  </PrinterEditField>
+                  <button type="button" onClick={selectBluetoothPrinterDevice} className="inline-flex h-10 items-center justify-center gap-2 rounded border border-slate-200 bg-slate-50 text-xs font-black uppercase tracking-wider text-slate-700 shadow-sm transition hover:bg-slate-100">
+                    <Search size={14} />
+                    Search
+                  </button>
+                </div>
+
+                <PrinterEditField label="Paper width">
+                  <select
+                    value={String(printerForm.paper_width_mm)}
+                    onChange={(e) => setPrinterForm((p) => ({ ...p, paper_width_mm: Number(e.target.value) }))}
+                    className="h-8 w-full bg-transparent text-sm font-semibold text-slate-900 outline-none"
+                  >
+                    <option value="50">50 mm</option>
+                    <option value="58">58 mm</option>
+                    <option value="80">80 mm</option>
+                  </select>
+                </PrinterEditField>
+              </div>
+
+              <div className="border-t border-slate-200 px-4 py-4">
+                <p className="mb-2 text-sm font-semibold text-slate-800">Advanced settings</p>
+                <PrinterSwitch label="Print receipts and bills" checked={!!printerForm.roles?.receipt} onChange={(v) => updatePrinterRole("receipt", v)} />
+                <PrinterSwitch label="Print orders" checked={!!printerForm.roles?.order_slip} onChange={(v) => updatePrinterRole("order_slip", v)} />
+              </div>
+
+              <div className="border-t border-slate-200 px-4 py-1">
+                <PrinterSwitch label="Automatically print receipt" checked={!!receiptSettings?.auto_print} onChange={updateAutoPrintSetting} />
+                <PrinterSwitch label="Print single item per order ticket" checked={!!printerForm.print_single_item_per_order_ticket} onChange={(v) => setPrinterForm((p) => ({ ...p, print_single_item_per_order_ticket: v }))} />
+                <PrinterSwitch label="Group identical items in order tickets" checked={!!printerForm.group_identical_items} onChange={(v) => setPrinterForm((p) => ({ ...p, group_identical_items: v }))} />
+              </div>
+
+              <button type="button" onClick={printPrinterTest} className="flex h-14 w-full items-center justify-center gap-3 border-t border-slate-200 bg-white text-xs font-black uppercase tracking-wider text-slate-800 transition hover:bg-slate-50">
+                <Printer size={20} className="text-slate-500" />
+                Print Test
+              </button>
+
+              <div className="border-t border-slate-200 bg-white px-4 py-5">
+                <p className="mb-4 text-xs font-black text-[#45B649]">Printer groups</p>
+                {Object.entries(PRINTER_ROLE_LABELS).map(([role, label]) => (
+                  <PrinterSwitch
+                    key={role}
+                    label={label}
+                    checked={!!printerForm.roles?.[role]}
+                    onChange={(v) => updatePrinterRole(role, v)}
+                  />
                 ))}
               </div>
+
+              <button type="button" onClick={deletePrinterSettings} className="flex h-16 w-full items-center justify-center gap-3 border-t border-slate-200 bg-white text-xs font-black uppercase tracking-wider text-slate-700 transition hover:bg-red-50 hover:text-red-600">
+                <Trash2 size={19} />
+                Delete Printer
+              </button>
             </div>
           )}
             </div>
