@@ -110,6 +110,8 @@ function buildReceiptText({
   total,
   voucher,
   appliedDiscount,
+  printedAt,
+  copyLabel,
 }) {
   const rs = receiptSettings || {};
   const lines = [];
@@ -118,9 +120,10 @@ function buildReceiptText({
   const footer = rs.footer_text || "";
 
   if (header) lines.push(header);
+  if (copyLabel) lines.push(copyLabel);
 
   if (rs.show_store_name !== false) lines.push(`Store: ${order.store_id || order.branch_id}`);
-  if (rs.show_datetime !== false) lines.push(`Date: ${formatDateTime(new Date())}`);
+  if (rs.show_datetime !== false) lines.push(`Date: ${formatDateTime(printedAt || new Date())}`);
   if (rs.show_order_number !== false) lines.push(`Receipt: ${order.id}`);
 
   lines.push(`Dining: ${diningOptionName || "-"}`);
@@ -1319,6 +1322,7 @@ export default function POSPage() {
   const [receiptItemRows, setReceiptItemRows] = useState([]);
   const [receiptRefunds, setReceiptRefunds] = useState({});
   const [selectedReceiptNumber, setSelectedReceiptNumber] = useState("");
+  const [reprintingReceipt, setReprintingReceipt] = useState(false);
   const [startingCash, setStartingCash] = useState("");
   const [shiftCashOpen, setShiftCashOpen] = useState(false);
   const [shiftCashMode, setShiftCashMode] = useState("open");
@@ -2517,6 +2521,57 @@ export default function POSPage() {
     showToast("success", "Receipt Refunded", receipt.receipt_number);
   }
 
+  async function reprintReceipt(receipt) {
+    if (!receipt?.receipt_number || reprintingReceipt) return;
+    const items = receiptItemRows.filter((row) => row.receipt_number === receipt.receipt_number);
+    if (items.length === 0) {
+      showToast("error", "Reprint Failed", "No receipt items were found for this receipt.");
+      return;
+    }
+
+    const cartForReceipt = items.map((row) => {
+      const quantity = Number(row.quantity || 1);
+      const lineTotal = Number(row.net_sales ?? row.gross_sales ?? 0);
+      return {
+        name: row.item || row.name || "Item",
+        quantity,
+        unitPrice: quantity > 0 ? lineTotal / quantity : lineTotal,
+      };
+    });
+    const gross = Number(receipt.gross_sales || 0);
+    const discount = Number(receipt.discounts || 0);
+    const total = Number(receipt.net_sales || receipt.total_collected || receipt.total || 0);
+
+    const receiptCopy = buildReceiptText({
+      receiptSettings,
+      order: {
+        ...receipt,
+        id: receipt.receipt_number,
+        store_id: receipt.store_id || receipt.branch_id || storeId,
+      },
+      cart: cartForReceipt,
+      diningOptionName: receipt.dining_option || receipt.order_type || receipt.description || "Receipt",
+      payment: receipt.payment_type || receipt.payment_method || "Other",
+      subtotal: gross || cartForReceipt.reduce((sum, item) => sum + Number(item.unitPrice || 0) * Number(item.quantity || 0), 0),
+      discount,
+      total,
+      printedAt: receipt.created_at || receipt.receipt_date || new Date(),
+      copyLabel: "*** REPRINT ***",
+    });
+
+    setReprintingReceipt(true);
+    try {
+      setReceiptText(receiptCopy);
+      setReceiptOpen(true);
+      await printByRole("receipt", receiptCopy, printerConfig);
+      showToast("success", "Receipt Reprinted", receipt.receipt_number);
+    } catch (error) {
+      showToast("error", "Reprint Failed", error?.message || "Unable to reprint receipt.");
+    } finally {
+      setReprintingReceipt(false);
+    }
+  }
+
   async function refundReceiptItem(itemRow) {
     if (!itemRow?.receipt_number || !itemRow?.item) return;
     const receiptKey = String(itemRow.receipt_number);
@@ -3539,9 +3594,19 @@ export default function POSPage() {
                         <h3 className="text-base font-black text-slate-800">{selectedReceipt.receipt_number}</h3>
                         <p className="text-xs font-semibold text-slate-500">{selectedReceipt.description || "Receipt details"}</p>
                       </div>
-                      <button type="button" onClick={() => refundReceipt(selectedReceipt)} className="h-9 px-3 rounded-xl bg-red-50 border border-red-100 text-[10px] font-bold uppercase tracking-wider text-red-600">
-                        Refund Receipt
-                      </button>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => reprintReceipt(selectedReceipt)}
+                          disabled={reprintingReceipt}
+                          className="h-9 px-3 rounded-xl bg-cyan-50 border border-cyan-100 text-[10px] font-bold uppercase tracking-wider text-cyan-700 disabled:opacity-60"
+                        >
+                          {reprintingReceipt ? "Reprinting..." : "Reprint Receipt"}
+                        </button>
+                        <button type="button" onClick={() => refundReceipt(selectedReceipt)} className="h-9 px-3 rounded-xl bg-red-50 border border-red-100 text-[10px] font-bold uppercase tracking-wider text-red-600">
+                          Refund Receipt
+                        </button>
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                       <div className="rounded-lg bg-white border border-slate-100 p-2"><span className="block text-[9px] font-black uppercase text-slate-400">Gross</span><b>{peso2(selectedReceipt.gross_sales || 0)}</b></div>
