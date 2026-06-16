@@ -298,6 +298,7 @@ function Toast({ toast, onClose }) {
 const TARGET_WEB_STATUSES = ["pending", "accepted", "ready", "completed", "Pending", "Accepted", "Ready", "Completed"];
 const calcLoyaltyPoints = (amount) => Number(((Number(amount) || 0) * 0.04).toFixed(2));
 const SHIFT_DENOMINATIONS = [1000, 500, 200, 100, 50, 20, 10, 5, 1];
+const POS_RECEIPT_HISTORY_DAYS = 15;
 
 const getWebOrderStoreId = (order) => order?.store_id || order?.branch_id || null;
 const buildStoreOrderFilter = (storeId) => `store_id.eq.${storeId},branch_id.eq.${storeId}`;
@@ -2316,16 +2317,22 @@ export default function POSPage() {
   }
 
   async function fetchReceiptLogs() {
+    const receiptCutoff = new Date();
+    receiptCutoff.setDate(receiptCutoff.getDate() - POS_RECEIPT_HISTORY_DAYS);
+    const receiptCutoffIso = receiptCutoff.toISOString();
+
     const [receiptRes, webReceiptRes] = await Promise.all([
       supabase
       .from("orders")
       .select("*")
+      .gte("created_at", receiptCutoffIso)
       .order("created_at", { ascending: false })
         .limit(120),
       supabase
         .from("web_orders")
         .select("*")
         .in("status", ["completed", "Completed"])
+        .gte("created_at", receiptCutoffIso)
         .order("created_at", { ascending: false })
         .limit(120),
     ]);
@@ -2372,7 +2379,7 @@ export default function POSPage() {
     }));
     const rows = [...posRows, ...webRows].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
     setReceiptRows(rows);
-    const activeReceipt = selectedReceiptNumber || rows[0]?.receipt_number || "";
+    const activeReceipt = rows.some((row) => row.receipt_number === selectedReceiptNumber) ? selectedReceiptNumber : rows[0]?.receipt_number || "";
     setSelectedReceiptNumber(activeReceipt);
 
     const posOrderIds = posRows.map((r) => r.order_id).filter(Boolean);
@@ -3336,6 +3343,9 @@ export default function POSPage() {
           {managementView === "receipts" && (
             <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
               <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                <p className="rounded-xl border border-slate-100 bg-white px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Showing latest {POS_RECEIPT_HISTORY_DAYS} days only
+                </p>
                 {receiptRows.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-slate-200 p-4 text-xs font-semibold text-slate-400">No receipts found.</div>
                 ) : receiptRows.map((r) => (
