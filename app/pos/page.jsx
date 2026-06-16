@@ -453,7 +453,12 @@ function BarcodeScannerModal({ open, onClose, onResult }) {
   );
 }
 
-function SavedTicketsModal({ open, onClose, tickets, onSelect, onRefresh, onVoid, mode = "resume" }) {
+function isVoidedLine(line) {
+  const status = String(line?.status || line?.item_status || "").toLowerCase();
+  return Boolean(line?.voided || line?.isVoided || line?.is_voided || status.includes("void") || status.includes("refund"));
+}
+
+function SavedTicketsModal({ open, onClose, tickets, onSelect, onRefresh, onVoid, onVoidItem, mode = "resume" }) {
   return (
     <ModalShell open={open} onClose={onClose} title="Saved Tickets" subtitle={mode === "move" ? "Move Items" : "Resume"} z={145}>
       <div className="flex mb-3">
@@ -468,12 +473,14 @@ function SavedTicketsModal({ open, onClose, tickets, onSelect, onRefresh, onVoid
         <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 text-xs font-medium">No parked orders located.</div>
       ) : (
         <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
-          {tickets.map((t) => (
+          {tickets.map((t) => {
+            const activeItems = (t.items || []).filter((line) => !isVoidedLine(line));
+            return (
             <div key={t.id} className="p-3.5 border rounded-xl bg-white shadow-sm hover:border-rose-100 transition">
               <div className="flex justify-between items-start gap-3">
                 <div className="min-w-0 text-left">
                   <p className="font-bold text-slate-800 text-sm truncate">{t.order_type || t.ticket_name}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">Lines: {(t.items || []).length} • <span className="font-bold text-slate-700">{peso0(t.total_amount)}</span></p>
+                  <p className="text-xs text-slate-400 mt-0.5">Active lines: {activeItems.length} / {(t.items || []).length} • <span className="font-bold text-slate-700">{peso0(t.total_amount)}</span></p>
                   <p className="text-[11px] font-medium text-slate-400 mt-1 truncate">Client: {t._customerName || "Walk-in"}</p>
                 </div>
                 <button
@@ -481,18 +488,41 @@ function SavedTicketsModal({ open, onClose, tickets, onSelect, onRefresh, onVoid
                   onClick={() => onVoid(t)}
                   className="text-xs text-red-500 font-bold hover:text-red-700 transition px-2 py-1 bg-red-50 rounded-md"
                 >
-                  VOID
+                  VOID TICKET
                 </button>
+              </div>
+              <div className="mt-3 space-y-1.5">
+                {(t.items || []).map((line, idx) => {
+                  const voided = isVoidedLine(line);
+                  return (
+                    <div key={line.cartItemId || line.id || idx} className={`flex items-center justify-between gap-2 rounded-lg border px-2 py-1.5 text-xs ${voided ? "border-red-200 bg-red-50 text-red-700 line-through decoration-2" : "border-slate-100 bg-slate-50 text-slate-700"}`}>
+                      <span className="min-w-0 truncate font-semibold">{line.quantity || 1} x {line.name}</span>
+                      {voided ? (
+                        <span className="shrink-0 rounded-md bg-red-100 px-2 py-0.5 text-[10px] font-black uppercase text-red-700 no-underline">Voided</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onVoidItem(t, line, idx)}
+                          className="shrink-0 rounded-md bg-red-50 px-2 py-1 text-[10px] font-black uppercase text-red-600 transition hover:bg-red-100"
+                        >
+                          Void Item
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               <button
                 type="button"
                 onClick={() => onSelect(t)}
-                className="mt-3 w-full text-center h-9 rounded-lg bg-slate-50 hover:bg-rose-50 hover:text-[#FC687D] text-xs font-bold text-slate-700 transition"
+                disabled={activeItems.length === 0}
+                className="mt-3 w-full text-center h-9 rounded-lg bg-slate-50 hover:bg-rose-50 hover:text-[#FC687D] text-xs font-bold text-slate-700 transition disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
               >
                 {mode === "move" ? "Move selected lines here" : "Resume This Order"}
               </button>
             </div>
-          ))}
+          );
+          })}
         </div>
       )}
       <button
@@ -1331,7 +1361,10 @@ export default function POSPage() {
   };
 
   const calcTotal = (lines) =>
-    (lines || []).reduce((sum, i) => sum + (Number(i.unitPrice || i.price || 0) * Number(i.quantity || 0)), 0);
+    (lines || []).reduce((sum, i) => {
+      if (isVoidedLine(i)) return sum;
+      return sum + (Number(i.unitPrice || i.price || 0) * Number(i.quantity || 0));
+    }, 0);
 
   const subtotal = useMemo(() => calcTotal(cart), [cart]);
 
@@ -2726,9 +2759,61 @@ export default function POSPage() {
     showToast("success", "Ticket Voided", "Ticket removed successfully.");
   }
 
+  async function voidSavedTicketItem(ticket, line, index) {
+    if (!ticket?.id || !line) return;
+    const confirmVoid = confirm(`Void "${line.name}" from ${ticket.order_type || ticket.ticket_name || "saved ticket"}?`);
+    if (!confirmVoid) return;
+
+    const timestamp = new Date().toISOString();
+    const nextItems = (ticket.items || []).map((item, idx) => {
+      const sameItem =
+        idx === index ||
+        (line.cartItemId && item.cartItemId === line.cartItemId) ||
+        (line.id && item.id === line.id && item.name === line.name);
+      if (!sameItem) return item;
+      return {
+        ...item,
+        voided: true,
+        isVoided: true,
+        status: "voided",
+        voidedAt: item.voidedAt || timestamp,
+        voided_at: item.voided_at || timestamp,
+      };
+    });
+    const nextTotal = calcTotal(nextItems);
+
+    const { error } = await supabase
+      .from("open_tickets")
+      .update({ items: nextItems, total_amount: nextTotal })
+      .eq("id", ticket.id);
+
+    if (error) {
+      showToast("error", "Void Item Failed", error.message);
+      return;
+    }
+
+    const { error: kdsError } = await markKdsTicketItemVoided(supabase, {
+      sourceType: "pos",
+      sourceId: ticket.id,
+      itemId: line.cartItemId || line.id || line.menuItemId || line.menu_item_id,
+      itemName: line.name,
+    });
+    if (kdsError) showToast("warn", "KDS Void Warning", kdsError.message);
+
+    setSavedTickets((prev) =>
+      prev.map((row) => (row.id === ticket.id ? { ...row, items: nextItems, total_amount: nextTotal } : row))
+    );
+
+    if (String(originalTicketId || "") === String(ticket.id)) {
+      setCart(nextItems.filter((item) => !isVoidedLine(item)));
+    }
+
+    showToast("success", "Item Voided", `${line.name} marked voided.`);
+  }
+
   async function resumeTicket(t) {
     setOriginalTicketId(t.id);
-    setCart(t.items || []);
+    setCart((t.items || []).filter((line) => !isVoidedLine(line)));
     setActiveWebOrderId(null); // This layout block references physical tickets, clear web target references
     setActiveWebOrderBranchId(null);
     const name = t.order_type || t.ticket_name || "";
@@ -3905,6 +3990,7 @@ export default function POSPage() {
           else resumeTicket(t);
         }}
         onVoid={(t) => voidTicket(t.id)}
+        onVoidItem={voidSavedTicketItem}
       />
       <WebOrdersModal
         open={webOrdersOpen}
