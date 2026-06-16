@@ -15,10 +15,35 @@ const DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID = "00002af1-0000-1000-8000-0
 const THERMAL_PAPER_WIDTH_MM = 50;
 const RECEIPT_COLUMNS = 32;
 const RECEIPT_LOGO_URL = "https://images.jujabrewandbites.com/SIGNAGE%20light%20with%20korean%20letters%203.png";
+const POS_AUTO_REFRESH_MS = 5000;
 const bluetoothPrinterDeviceCache = new Map();
+const DEFAULT_PRINTER_FORM = {
+  name: "Xprinter Thermal Printer",
+  role: "receipt",
+  service_uuid: DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID,
+  characteristic_uuid: DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID,
+  device_id: "",
+};
 
 function normalizeBluetoothUuid(value, fallback = "") {
   return String(value || fallback).trim().toLowerCase();
+}
+
+function bluetoothDeviceCacheKeys(device, cfg = {}) {
+  return [
+    device?.id,
+    device?.name,
+    cfg?.ble_device_id,
+    cfg?.ble_device_name,
+    cfg?.name,
+    "default",
+  ].filter(Boolean);
+}
+
+function cacheBluetoothPrinterDevice(device, cfg = {}) {
+  bluetoothDeviceCacheKeys(device, cfg).forEach((key) => {
+    bluetoothPrinterDeviceCache.set(key, device);
+  });
 }
 
 // ================= PRINT HELPERS =================
@@ -82,15 +107,18 @@ async function findSavedBluetoothDevice(cfg, serviceUuid) {
       if (cfg?.ble_device_id && device.id === cfg.ble_device_id) return true;
       if (cfg?.ble_device_name && device.name === cfg.ble_device_name) return true;
       if (cfg?.name && device.name === cfg.name) return true;
+      const configuredName = String(cfg?.ble_device_name || cfg?.name || "").trim().toLowerCase();
+      const deviceName = String(device.name || "").trim().toLowerCase();
+      if (configuredName && deviceName && (configuredName.includes(deviceName) || deviceName.includes(configuredName))) return true;
       return false;
     });
     if (match) {
-      bluetoothPrinterDeviceCache.set(deviceKey, match);
+      cacheBluetoothPrinterDevice(match, cfg);
       return match;
     }
   }
 
-  throw new Error("Printer permission is not available in this browser. Select the Bluetooth printer once from Settings, then print again.");
+  throw new Error("Bluetooth printer permission is not available in this browser. Open POS Settings, choose Select Xprinter Bluetooth Device, select the paired Xprinter once, then save it.");
 }
 
 async function bleConnect(cfg) {
@@ -118,20 +146,27 @@ async function blePrint(characteristic, text) {
 
 // ================= PRINT ROUTER =================
 
-async function printByRole(role, text, printerConfig) {
+async function printByRole(role, text, printerConfig, opts = {}) {
   const cfg = printerConfig?.[role];
+  const fallbackToBrowser = opts.fallbackToBrowser !== false;
 
-  if (!cfg || cfg.transport === "browser") {
+  if (!cfg) {
+    if (fallbackToBrowser) print58mmTextBrowser(text);
+    return false;
+  }
+
+  if (cfg.transport === "browser") {
     print58mmTextBrowser(text);
-    return;
+    return true;
   }
 
   try {
     const characteristic = await bleConnect(cfg);
     await blePrint(characteristic, text);
+    return true;
   } catch (err) {
-    console.warn("Bluetooth failed → fallback printing", err);
-    print58mmTextBrowser(text);
+    console.warn("Bluetooth printing failed", err);
+    throw err;
   }
 }
 
@@ -1409,6 +1444,7 @@ export default function POSPage() {
   const [incomingOrderModalOpen, setIncomingOrderModalOpen] = useState(false);
   const audioIntervalRef = useRef(null);
   const seenIncomingOrderIds = useRef(new Set());
+  const autoRefreshInFlightRef = useRef(false);
 
   const [printerConfig, setPrinterConfig] = useState({ receipt: null, order_slip: null, cup_label: null });
   const [items, setItems] = useState([]);
@@ -1471,11 +1507,7 @@ export default function POSPage() {
   const [shiftRecords, setShiftRecords] = useState([]);
   const [shiftStatus, setShiftStatus] = useState("loading");
   const [printerForm, setPrinterForm] = useState({
-    name: "",
-    role: "receipt",
-    service_uuid: "",
-    characteristic_uuid: "",
-    device_id: "",
+    ...DEFAULT_PRINTER_FORM,
   });
 
   const [toast, setToast] = useState(null);
@@ -2120,9 +2152,10 @@ export default function POSPage() {
     }
   }
 
-  async function fetchData(sid) {
+  async function fetchData(sid, opts = {}) {
     if (!sid) return;
-    setLoading(true);
+    const showLoadingState = opts.showLoading !== false;
+    if (showLoadingState) setLoading(true);
     try {
       const [iRes, catRes, cRes] = await Promise.all([
         supabase.from("menu_items").select("*").order("name"),
@@ -2140,7 +2173,7 @@ export default function POSPage() {
     } catch (e) {
       showToast("error", "Loading Error", e.message);
     } finally {
-      setLoading(false);
+      if (showLoadingState) setLoading(false);
     }
   }
 
@@ -2325,6 +2358,37 @@ export default function POSPage() {
 
     setWebOrders(data || []);
   }
+
+  useEffect(() => {
+    if (!storeId || shiftStatus === "loading") return;
+
+    let cancelled = false;
+    const refreshPos = async () => {
+      if (autoRefreshInFlightRef.current || cancelled) return;
+      autoRefreshInFlightRef.current = true;
+
+      try {
+        await Promise.all([
+          fetchPendingCount(storeId),
+          loadShiftState(storeId),
+          fetchData(storeId, { showLoading: false }),
+          fetchSavedTickets(),
+          fetchAcceptedWebOrders(),
+          managementOpen ? fetchReceiptLogs() : Promise.resolve(),
+        ]);
+      } catch (err) {
+        console.warn("POS auto refresh failed", err);
+      } finally {
+        autoRefreshInFlightRef.current = false;
+      }
+    };
+
+    const timer = window.setInterval(refreshPos, POS_AUTO_REFRESH_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [storeId, shiftStatus, managementOpen]);
 
   async function openAcceptedWebOrders() {
     await fetchAcceptedWebOrders();
@@ -2833,7 +2897,7 @@ export default function POSPage() {
       is_active: true,
     }]);
     if (error) return showToast("error", "Printer Save Failed", error.message);
-    setPrinterForm({ name: "", role: "receipt", service_uuid: "", characteristic_uuid: "", device_id: "" });
+    setPrinterForm({ ...DEFAULT_PRINTER_FORM });
     await loadPrinters(storeId);
     showToast("success", "Bluetooth Printer Added", "Printer saved to POS settings.");
   }
@@ -2878,7 +2942,11 @@ export default function POSPage() {
         characteristic_uuid: characteristicUuid,
         device_id: device.id || "",
       }));
-      bluetoothPrinterDeviceCache.set(device.id || device.name || "default", device);
+      cacheBluetoothPrinterDevice(device, {
+        ble_device_id: device.id,
+        ble_device_name: device.name || printerForm.name,
+        name: printerForm.name,
+      });
       showToast(
         connectionVerified ? "success" : "info",
         connectionVerified ? "Bluetooth Printer Selected" : "Bluetooth Device Selected",
@@ -3264,16 +3332,20 @@ export default function POSPage() {
       setReceiptOpen(true);
 
       if (receiptSettings?.auto_print) {
-        await printByRole("receipt", receipt, printerConfig);
-        if (selectedDining?.print_kitchen || activeWebOrderId) {
-          const slip = buildOrderSlipText({ orderId: generatedReceiptNumber, cart });
-          await printByRole("order_slip", slip, printerConfig);
-        }
-        if (selectedDining?.print_labels || activeWebOrderId) {
-          const labels = buildCupLabels({ orderId: generatedReceiptNumber, cart });
-          for (const l of labels) {
-            await printByRole("cup_label", l, printerConfig);
+        try {
+          await printByRole("receipt", receipt, printerConfig, { fallbackToBrowser: false });
+          if (selectedDining?.print_kitchen || activeWebOrderId) {
+            const slip = buildOrderSlipText({ orderId: generatedReceiptNumber, cart });
+            await printByRole("order_slip", slip, printerConfig, { fallbackToBrowser: false });
           }
+          if (selectedDining?.print_labels || activeWebOrderId) {
+            const labels = buildCupLabels({ orderId: generatedReceiptNumber, cart });
+            for (const l of labels) {
+              await printByRole("cup_label", l, printerConfig, { fallbackToBrowser: false });
+            }
+          }
+        } catch (printError) {
+          showToast("warn", "Sale Saved, Printer Needs Permission", printError?.message || "Select the Xprinter in POS Settings, then reprint the receipt.");
         }
       }
 
@@ -3922,18 +3994,18 @@ export default function POSPage() {
           {managementView === "settings" && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-3">
-                <h3 className="text-sm font-black text-slate-800">Printers</h3>
-                <input value={printerForm.name} onChange={(e) => setPrinterForm((p) => ({ ...p, name: e.target.value }))} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none" placeholder="Bluetooth printer name" />
+                <h3 className="text-sm font-black text-slate-800">Xprinter Bluetooth Printers</h3>
+                <input value={printerForm.name} onChange={(e) => setPrinterForm((p) => ({ ...p, name: e.target.value }))} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none" placeholder="Xprinter Thermal Printer" />
                 <select value={printerForm.role} onChange={(e) => setPrinterForm((p) => ({ ...p, role: e.target.value }))} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none">
                   <option value="receipt">Receipt</option>
                   <option value="order_slip">Order Slip</option>
                   <option value="cup_label">Cup Label</option>
                 </select>
                 <button type="button" onClick={selectBluetoothPrinterDevice} className="w-full h-10 rounded-xl border border-cyan-200 bg-cyan-50 text-slate-800 text-xs font-black uppercase tracking-wider transition hover:border-cyan-300 hover:bg-cyan-100">
-                  Select Paired Bluetooth Device
+                  Select Xprinter Bluetooth Device
                 </button>
                 <p className="text-[11px] leading-relaxed text-slate-500">
-                  Select once on this browser to grant printer permission. Receipts, reprints, order slips, and labels will reuse the saved printer without re-pairing.
+                  Pairing in the device settings is not enough for browser printing. Select the 50 mm Xprinter once here to grant this browser permission, then save it.
                 </p>
                 <input value={printerForm.service_uuid} onChange={(e) => setPrinterForm((p) => ({ ...p, service_uuid: e.target.value }))} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none" placeholder="Service UUID" />
                 <input value={printerForm.characteristic_uuid} onChange={(e) => setPrinterForm((p) => ({ ...p, characteristic_uuid: e.target.value }))} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none" placeholder="Characteristic UUID" />
