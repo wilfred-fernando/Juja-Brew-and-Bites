@@ -3909,10 +3909,10 @@ export default function POSPage() {
 
         {managementOpen && (
           <div className="fixed inset-0 z-[140] bg-slate-950/45 backdrop-blur-sm p-3 sm:p-6 flex items-center justify-center" onClick={() => setManagementOpen(false)}>
-            <div className="w-full max-w-5xl max-h-[88vh] overflow-y-auto rounded-2xl border border-rose-100 bg-white p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="w-full max-w-5xl max-h-[100vh] overflow-y-auto rounded-2xl border border-rose-100 bg-white p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-rose-50 pb-3 mb-3">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-[#FC687D]">POS Control</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#FC687D]">POS Control</p>
               <h2 className="text-md font-black text-slate-800">
                 {managementView === "receipts" ? "Receipts" : managementView === "shift" ? "Shift" : managementView === "items" ? "Items" : "Settings"}
               </h2>
@@ -3932,9 +3932,7 @@ export default function POSPage() {
           {managementView === "receipts" && (
             <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
               <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                <p className="rounded-xl border border-slate-100 bg-white px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  Showing latest {POS_RECEIPT_HISTORY_DAYS} days only
-                </p>
+                
                 {receiptRows.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-slate-200 p-4 text-xs font-semibold text-slate-400">No receipts found.</div>
                 ) : receiptRows.map((r) => (
@@ -3948,7 +3946,7 @@ export default function POSPage() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-[12px] font-bold text-slate-800 truncate">{r.receipt_number}</p>
-                      <span className="text-[10px] font-semibold text-[#FC687D]">{peso2(r.total_collected || r.net_sales || 0)}</span>
+                      <span className="text-[12px] font-semibold text-[#FC687D]">{peso2(r.total_collected || r.net_sales || 0)}</span>
                     </div>
                     <p className="text-[10px] font-semibold italic text-slate-400 truncate">{r.date || ""} · {r.status || "Closed"}</p>
                   </button>
@@ -3980,10 +3978,10 @@ export default function POSPage() {
                       </div>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                      <div className="rounded-lg bg-white border border-slate-100 p-2"><span className="block text-[9px] font-black uppercase text-slate-400">Gross</span><b>{peso2(selectedReceipt.gross_sales || 0)}</b></div>
-                      <div className="rounded-lg bg-white border border-slate-100 p-2"><span className="block text-[9px] font-black uppercase text-slate-400">Discount</span><b>{peso2(selectedReceipt.discounts || 0)}</b></div>
-                      <div className="rounded-lg bg-white border border-slate-100 p-2"><span className="block text-[9px] font-black uppercase text-slate-400">Net</span><b>{peso2(selectedReceipt.net_sales || 0)}</b></div>
-                      <div className="rounded-lg bg-white border border-slate-100 p-2"><span className="block text-[9px] font-black uppercase text-slate-400">Payment</span><b>{selectedReceipt.payment_type || "-"}</b></div>
+                      <div className="rounded-lg bg-white border border-slate-100 p-2"><span className="block text-[9px] font-bold uppercase text-slate-400">Gross</span><b>{peso2(selectedReceipt.gross_sales || 0)}</b></div>
+                      <div className="rounded-lg bg-white border border-slate-100 p-2"><span className="block text-[9px] font-bold uppercase text-slate-400">Discount</span><b>{peso2(selectedReceipt.discounts || 0)}</b></div>
+                      <div className="rounded-lg bg-white border border-slate-100 p-2"><span className="block text-[9px] font-bold uppercase text-slate-400">Net</span><b>{peso2(selectedReceipt.net_sales || 0)}</b></div>
+                      <div className="rounded-lg bg-white border border-slate-100 p-2"><span className="block text-[9px] font-bold uppercase text-slate-400">Payment</span><b>{selectedReceipt.payment_type || "-"}</b></div>
                     </div>
                     <div className="space-y-2">
                       {selectedReceiptItems.map((row, idx) => (
@@ -4141,13 +4139,13 @@ export default function POSPage() {
           )}
 
           {managementView === "settings" && (
-            <div className="mx-auto max-w-xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="mx-auto overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               <div className="flex h-14 items-center justify-between bg-[#45B649] px-4 text-white">
                 <div>
-                  <p className="text-sm font-black">Edit printer</p>
+                  <p className="text-sm font-bold">Edit printer</p>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-green-50">50 mm Xprinter thermal</p>
                 </div>
-                <button type="button" onClick={savePrinterSettings} className="inline-flex h-9 items-center gap-2 rounded-md px-3 text-xs font-black uppercase tracking-wider transition hover:bg-white/10">
+                <button type="button" onClick={savePrinterSettings} className="inline-flex h-9 items-center gap-2 rounded-md px-3 text-xs font-bold uppercase tracking-wider transition hover:bg-white/10">
                   <Save size={15} />
                   Save
                 </button>
@@ -4194,7 +4192,7 @@ export default function POSPage() {
                       placeholder="Select paired Xprinter"
                     />
                   </PrinterEditField>
-                  <button type="button" onClick={selectBluetoothPrinterDevice} className="inline-flex h-10 items-center justify-center gap-2 rounded border border-slate-200 bg-slate-50 text-xs font-black uppercase tracking-wider text-slate-700 shadow-sm transition hover:bg-slate-100">
+                  <button type="button" onClick={selectBluetoothPrinterDevice} className="inline-flex h-10 items-center justify-center gap-2 rounded border border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-700 shadow-sm transition hover:bg-slate-100">
                     <Search size={14} />
                     Search
                   </button>
@@ -4231,7 +4229,7 @@ export default function POSPage() {
               </button>
 
               <div className="border-t border-slate-200 bg-white px-4 py-5">
-                <p className="mb-4 text-xs font-black text-[#45B649]">Printer groups</p>
+                <p className="mb-4 text-[12px] font-bold text-[#45B649]">Printer groups</p>
                 {Object.entries(PRINTER_ROLE_LABELS).map(([role, label]) => (
                   <PrinterSwitch
                     key={role}
