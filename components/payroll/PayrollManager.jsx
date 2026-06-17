@@ -1362,7 +1362,7 @@ export default function AdminPayrollPage() {
           ["Cash Advance", money(summary.cashAdvances), `${summary.late.toFixed(0)} late minutes`],
           ["Paid Status", `${summary.paid}/${summary.employees}`, selectedPeriod ? `${dateText(selectedPeriod.period_start)} - ${dateText(selectedPeriod.period_end)}` : "No period"],
         ].map(([label, value, sub]) => (
-          <div key={label} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-cyan-200/80 hover:shadow-[0_24px_60px_rgba(8,145,178,0.14)]">
+          <div key={label} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl transition duration-300 hover:border-cyan-200/80 hover:shadow-[0_24px_60px_rgba(8,145,178,0.14)]">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{label}</p>
             <p className="mt-2 text-2xl font-semibold text-slate-950">{value}</p>
             <p className="mt-1 text-xs text-slate-500">{sub}</p>
@@ -1482,7 +1482,7 @@ export default function AdminPayrollPage() {
                       <td className="px-1 py-3 text-right text-cyan-700">{moneyOrDash(allowanceTotal)}</td>
                       <td className={`px-1 py-3 text-right ${adjustment < 0 ? "text-red-600" : "text-cyan-700"}`}>{moneyOrDash(adjustment, { negative: adjustment < 0 })}</td>
                       <td className="px-1 py-3 text-right text-red-600">{moneyOrDash(otherDeductions, { negative: true })}</td>
-                      <td className="px-1 py-3 text-right">{moneyOrDash(entry.cash_advance_deduction)}</td>
+                      <td className="px-1 py-3 text-right text-red-600">{moneyOrDash(entry.cash_advance_deduction, { negative: true })}</td>
                       <td className="px-3 py-3 font-semibold text-right text-cyan-700">{money(entry.net_total)}</td>
                       <td className="px-4 py-3">
                         <span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase ${statusClass(entry.status)}`}>{entry.status || "draft"}</span>
@@ -1556,7 +1556,7 @@ export default function AdminPayrollPage() {
               const total = employeeTotals[employee.id] || {};
               const advance = employeeAdvanceSummary[employee.id] || {};
               return (
-                <div key={employee.id} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-cyan-200/80 hover:shadow-[0_24px_60px_rgba(8,145,178,0.14)]">
+                <div key={employee.id} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl transition duration-300 hover:border-cyan-200/80 hover:shadow-[0_24px_60px_rgba(8,145,178,0.14)]">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-cyan-700">{employee.employee_no || "No employee no."}</p>

@@ -106,9 +106,9 @@ export default function TicketPanel({
           <button
             type="button"
             onClick={onOpenPosMenu}
-            className="relative h-9 px-3 rounded-xl bg-slate-400/78 text-white text-[12px] font-semibold uppercase shadow-sm"
+            className="relative h-9 px-3 rounded-xl bg-slate-100/78 text-white text-[12px] font-semibold uppercase shadow-sm"
           >
-            Menu
+            ☰
             {pendingCount > 0 && (
               <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 rounded-full bg-white border border-rose-100 text-[#FC687D] text-[9px] flex items-center justify-center">
                 {pendingCount}
@@ -140,7 +140,7 @@ export default function TicketPanel({
 
         <button
           onClick={onOpenScanner}
-          className="w-10 bg-slate-50 rounded-xl"
+          className="bg-slate-50 rounded-xl"
         >
           📷
         </button>
