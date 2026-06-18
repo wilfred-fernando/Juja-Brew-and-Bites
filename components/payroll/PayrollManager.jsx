@@ -1276,7 +1276,6 @@ export default function AdminPayrollPage() {
     const end = cutoffForm.cutoff_end || addDays(start, 6);
     const payday = addDays(end, 1);
     if (!start || !end || end < start) return setNotice("Cutoff end must be on or after cutoff start.");
-    if (new Date(`${start}T00:00:00`).getDay() !== 6) return setNotice("Cutoff start must be a Saturday.");
     setSaving(true);
     const periodId = `cutoff-${start}`;
     const periodPayload = {
@@ -1342,7 +1341,7 @@ export default function AdminPayrollPage() {
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-widest text-cyan-200">Finance</p>
           <p className="text-3xl font-semibold text-white">Payroll System</p>
-          <p className="mt-2 text-sm text-slate-300">Saturday-Friday cutoff with Saturday payday.</p>
+          <p className="mt-2 text-sm text-slate-300">Flexible cutoff range with payday on the next day after cutoff end.</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <select value={selectedPeriodId} onChange={(e) => setSelectedPeriodId(e.target.value)} className="h-11 rounded-xl border border-cyan-300/30 bg-white/10 px-3 text-sm font-semibold text-white outline-none transition duration-200 focus:border-cyan-300/70 focus:ring-4 focus:ring-cyan-300/20">
