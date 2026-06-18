@@ -470,7 +470,7 @@ export default function KitchenDisplay() {
                 <button
                   type="button"
                   onClick={installKdsPwa}
-                  className="inline-flex h-11 items-center gap-2 rounded-2xl bg-cyan-700 px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md transition hover:-translate-y-0.5 hover:bg-cyan-600"
+                  className="inline-flex h-11 items-center gap-2 rounded-2xl bg-blue-300 px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md transition hover:-translate-y-0.5 hover:bg-blue-300"
                 >
                   <Download className="h-4 w-4" /> Install KDS
                 </button>
@@ -482,7 +482,7 @@ export default function KitchenDisplay() {
                   setStatusFilter("all");
                   setSelectedHistoryTicket(null);
                 }}
-                className="inline-flex h-11 items-center gap-2 rounded-2xl border border-cyan-200 bg-cyan-50 px-4 text-xs font-bold uppercase tracking-wider text-cyan-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-cyan-100"
+                className="inline-flex h-11 items-center gap-2 rounded-2xl border border-cyan-200 bg-white px-4 text-xs font-bold uppercase tracking-wider text-cyan-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-cyan-100"
               >
                 <History className="h-4 w-4" /> {showHistory ? "Live Orders" : "Order History"}
               </button>
@@ -496,7 +496,7 @@ export default function KitchenDisplay() {
               <button
                 type="button"
                 onClick={() => document.documentElement.requestFullscreen?.()}
-                className="inline-flex h-11 items-center gap-2 rounded-2xl bg-slate-700 px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md transition hover:-translate-y-0.5 hover:bg-slate-600"
+                className="inline-flex h-11 items-center gap-2 rounded-2xl bg-white px-4 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-600"
               >
                 <Maximize2 className="h-4 w-4" /> Full Screen
               </button>
@@ -636,10 +636,10 @@ export default function KitchenDisplay() {
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className={voidedItem ? "text-red-800 line-through decoration-2" : showReadyStrike ? "text-slate-500 line-through decoration-2" : "text-slate-900"}>
-                              <p className="text-base font-bold">
+                              <p className="text-[20px] font-bold">
                                 {item.quantity || 1} x {item.name}
                               </p>
-                              {itemOptionsText(item) && <p className="mt-1 text-sm font-semibold">{itemOptionsText(item)}</p>}
+                              {itemOptionsText(item) && <p className="mt-1 text-[14px] font-semibold">{itemOptionsText(item)}</p>}
                             </div>
                             {voidedItem ? (
                               <span className="h-9 rounded-xl border border-red-300 bg-red-100 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-red-800">
@@ -650,23 +650,18 @@ export default function KitchenDisplay() {
                               type="button"
                               onClick={() => markItemReady(ticket, item.__kdsIndex ?? idx)}
                               disabled={ready || terminalStatus || voidedItem}
-                              className="h-9 rounded-xl bg-emerald-600 px-3 text-[11px] font-bold uppercase tracking-wider text-white transition hover:bg-emerald-500 disabled:bg-slate-200 disabled:text-slate-500"
+                              className="h-9 rounded-xl bg-emerald-300 px-3 text-[11px] font-bold uppercase tracking-wider text-white shadow-sm transition hover:bg-emerald-500 disabled:bg-slate-200 disabled:text-slate-500"
                             >
                               Ready
                             </button>
                             )}
                           </div>
-                          {item.instructions && <p className="mt-2 rounded-xl bg-cyan-50 px-3 py-2 text-xs font-bold text-cyan-900">Note: {item.instructions}</p>}
+                          {item.instructions && <p className="mt-2 rounded-xl bg-cyan-50 px-3 py-2 text-[14px] font-bold text-cyan-900">Note: {item.instructions}</p>}
                         </div>
                       );
                     })}
                   </div>
-
-                  <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm font-bold text-slate-900">
-                    <span>Total</span>
-                    <span>{peso(ticket.total)}</span>
-                  </div>
-
+                  
                   <div className="grid grid-cols-1 gap-2 border-t border-slate-200 bg-slate-50/80 p-3 sm:grid-cols-2">
                     {["voided", "rejected"].includes(status) && (
                       <button
@@ -679,7 +674,7 @@ export default function KitchenDisplay() {
                     <button
                       onClick={() => updateTicketStatus(ticket, "completed")}
                       disabled={!allItemsReady || terminalStatus}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-slate-700 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-slate-600 disabled:bg-slate-200 disabled:text-slate-500"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-slate-400 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-slate-300 disabled:bg-slate-200 disabled:text-slate-500"
                     >
                       <CheckCircle2 className="h-4 w-4" /> Done
                     </button>
@@ -742,8 +737,8 @@ export default function KitchenDisplay() {
                           <p className={`text-lg font-bold ${voidedItem ? "text-red-800" : "text-slate-950"}`}>
                             {item.quantity || 1} x {item.name}
                           </p>
-                          {itemOptionsText(item) && <p className={`mt-1 text-sm font-semibold ${voidedItem ? "text-red-700" : "text-slate-700"}`}>{itemOptionsText(item)}</p>}
-                          {item.instructions && <p className="mt-2 rounded-xl bg-cyan-50 px-3 py-2 text-xs font-bold text-cyan-900">Note: {item.instructions}</p>}
+                          {itemOptionsText(item) && <p className={`mt-1 text-[12px] font-semibold ${voidedItem ? "text-red-700" : "text-slate-700"}`}>{itemOptionsText(item)}</p>}
+                          {item.instructions && <p className="mt-2 rounded-xl bg-cyan-50 px-3 py-2 text-[12px] font-bold text-cyan-900">Note: {item.instructions}</p>}
                         </div>
                         {voidedItem ? (
                           <span className="rounded-xl border border-red-300 bg-red-100 px-3 py-1 text-[11px] font-bold uppercase text-red-700">Voided</span>

@@ -706,7 +706,7 @@ function AddToCartModal({ item, onClose, onAdd }) {
                 cartItemId: item.editData?.cartItemId || Date.now(),
               })
             }
-            className="customer-item-modal__submit w-full sm:flex-1 h-12 rounded-xl text-sm font-bold transition-all active:scale-[0.98]"
+            className="bg-blue-200 w-full sm:flex-1 h-12 rounded-xl text-sm font-bold transition-all active:scale-[0.98]"
           >
             {canAdd ? `Add To Basket • ${peso0(unitPrice * quantity)}` : "Select Required Configurations"}
           </button>
@@ -772,8 +772,8 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems,
                   onClick={() => { setDiningOption(opt.id); setPaymentProof(null); if (opt.id === "DELIVERY") setPaymentMethod("QRPH"); else if (opt.id === "DINEIN") setPaymentMethod(""); else setPaymentMethod("Cash"); }}
                   className={`py-3 rounded-xl border flex flex-col items-center justify-center gap-1.5 font-bold text-xs transition ${
                     diningOption === opt.id
-                      ? "border-[#FC687D] bg-white text-[#FC687D]"
-                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      ? "border-[#FC687D] bg-blue-300/50 text-[#FC687D]"
+                      : "border-slate-200 bg-white text-slate-600 hover:bg-blue-100"
                   }`}
                 >
                   <span className="text-base">{opt.icon}</span>
@@ -837,10 +837,10 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems,
                       setPaymentMethod(method);
                       if (method !== "QRPH") setPaymentProof(null);
                     }}
-                    className={`h-10 rounded-xl border text-xs font-black uppercase tracking-wider ${
+                    className={`h-10 rounded-xl border text-xs font-bold uppercase tracking-wider ${
                       paymentMethod === method
-                        ? "border-[#FC687D] bg-white text-[#FC687D]"
-                        : "border-slate-200 bg-white text-slate-600"
+                        ? "border-[#FC687D] bg-blue-300/50 text-[#FC687D]"
+                      : "border-slate-200 bg-white text-slate-600 hover:bg-blue-100"
                     }`}
                   >
                     {method}
