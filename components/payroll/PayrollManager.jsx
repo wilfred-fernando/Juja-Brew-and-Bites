@@ -63,6 +63,7 @@ function compareDate(value, start, end) {
 
 function dailyRateForWorkDate(employee, workDate, rateChanges = []) {
   const currentRate = num(employee?.current_daily_rate ?? employee?.default_daily_rate);
+  const startingRate = employeeStartingDailyRate(employee) || currentRate;
   const date = String(workDate || "").slice(0, 10);
   const employeeChanges = rateChanges
     .filter((change) => change.employee_id === employee?.id && change.effective_date)
@@ -76,7 +77,7 @@ function dailyRateForWorkDate(employee, workDate, rateChanges = []) {
     if (effectiveDate <= date) {
       applicableChange = change;
     } else {
-      return applicableChange ? num(applicableChange.new_daily_rate) : num(change.old_daily_rate);
+      return applicableChange ? num(applicableChange.new_daily_rate) : num(change.old_daily_rate || startingRate);
     }
   }
 
@@ -796,8 +797,7 @@ export default function AdminPayrollPage() {
         .from("payroll_rate_changes")
         .select("*")
         .order("effective_date", { ascending: false })
-        .order("created_at", { ascending: false })
-        .limit(50);
+        .order("created_at", { ascending: false });
       setNotice("");
       setEmployees(employeeRes.data || []);
       setPeriods(periodRes.data || []);
@@ -926,11 +926,12 @@ export default function AdminPayrollPage() {
     const employee = employeeById[rateIncreaseForm.employee_id];
     const newRate = num(rateIncreaseForm.new_daily_rate);
     if (!employee || !rateIncreaseForm.effective_date || !newRate) return setNotice("Employee, effective date, and new daily rate are required.");
+    const previousRate = dailyRateForWorkDate(employee, addDays(rateIncreaseForm.effective_date, -1), rateChanges);
 
     const changePayload = {
       id: `rate-${employee.id}-${rateIncreaseForm.effective_date}-${Date.now()}`,
       employee_id: employee.id,
-      old_daily_rate: employeeCurrentDailyRate(employee),
+      old_daily_rate: previousRate,
       new_daily_rate: newRate,
       effective_date: rateIncreaseForm.effective_date,
       notes: rateIncreaseForm.notes.trim() || null,
@@ -938,17 +939,22 @@ export default function AdminPayrollPage() {
     const { error: changeError } = await supabase.from("payroll_rate_changes").insert(changePayload);
     if (changeError) return setNotice(`Rate Increase Failed: ${changeError.message}. Run supabase/payroll_setup.sql in Supabase first.`);
 
+    const latestRateChange = [...rateChanges.filter((change) => change.employee_id === employee.id), changePayload]
+      .filter((change) => String(change.effective_date || "").slice(0, 10) <= localDate())
+      .sort((a, b) => String(b.effective_date).localeCompare(String(a.effective_date)))[0];
+    const nextCurrentRate = latestRateChange ? num(latestRateChange.new_daily_rate) : employeeCurrentDailyRate(employee);
+
     const { data, error } = await supabase
       .from("payroll_employees")
-      .update({ default_daily_rate: newRate, current_daily_rate: newRate })
+      .update({ default_daily_rate: nextCurrentRate, current_daily_rate: nextCurrentRate })
       .eq("id", employee.id)
       .select()
       .maybeSingle();
     if (error) return setNotice(`Rate Update Failed: ${error.message}`);
 
     setEmployees((prev) => prev.map((row) => (row.id === employee.id ? data : row)));
-    setRateChanges((prev) => [changePayload, ...prev].slice(0, 50));
-    if (editingEmployeeId === employee.id) setEmployeeForm((current) => ({ ...current, default_daily_rate: newRate, current_daily_rate: newRate }));
+    setRateChanges((prev) => [changePayload, ...prev]);
+    if (editingEmployeeId === employee.id) setEmployeeForm((current) => ({ ...current, default_daily_rate: nextCurrentRate, current_daily_rate: nextCurrentRate }));
     setRateIncreaseForm((current) => ({ ...current, new_daily_rate: "", notes: "" }));
     setNotice("Daily rate increase saved.");
   }
