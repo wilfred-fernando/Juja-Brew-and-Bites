@@ -211,7 +211,7 @@ export default function DiningOptionsPage() {
             <button
               onClick={add}
               disabled={!name.trim()}
-              className="w-full py-2.5 bg-slate-600 text-white rounded-xl text-sm font-bold tracking-wide transition active:scale-[0.98] disabled:opacity-40"
+              className="w-full py-2.5 bg-slate-400/78 text-white rounded-xl text-sm font-bold tracking-wide transition active:scale-[0.98] disabled:opacity-40"
             >
               Add Option
             </button>

@@ -36,6 +36,11 @@ function stripCitationsAndLinks(text = "") {
     .trim();
 }
 
+function normalizeRpcRow(result, fallback = {}) {
+  const row = Array.isArray(result) ? result[0] : result;
+  return { ...fallback, ...(row || {}) };
+}
+
 /* =====================================================
  PACKAGE POLICIES (1–6)
 ===================================================== */
@@ -340,7 +345,7 @@ export function BookingAvailabilityOnly({
       const { data, error } = await supabase
         .from("function_room_bookings")
         .select("id, start_at, end_at, status")
-        .in("status", ["pending", "confirmed"])
+        .in("status", ["pending", "confirmed", "cancellation_requested"])
         .lt("start_at", queryEnd)
         .gt("end_at", queryStart)
         .order("start_at", { ascending: true });
@@ -505,6 +510,8 @@ export default function BookingForm({ user, member }) {
   const [detailsPkg, setDetailsPkg] = useState(null);
 
   const [payOpen, setPayOpen] = useState(false);
+  const [paymentBooking, setPaymentBooking] = useState(null);
+  const [paymentChoice, setPaymentChoice] = useState("");
   const [proofFile, setProofFile] = useState(null);
   const [proofPreview, setProofPreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -558,7 +565,7 @@ export default function BookingForm({ user, member }) {
       const { data, error } = await supabase
         .from("function_room_bookings")
         .select("id, start_at, end_at, status")
-        .in("status", ["pending", "confirmed"])
+        .in("status", ["pending", "confirmed", "cancellation_requested"])
         .lt("start_at", queryEnd)
         .gt("end_at", queryStart)
         .order("start_at", { ascending: true });
@@ -660,7 +667,7 @@ export default function BookingForm({ user, member }) {
       const { data, error } = await supabase
         .from("function_room_bookings")
         .select("id, start_at, end_at, status")
-        .in("status", ["pending", "confirmed"])
+        .in("status", ["pending", "confirmed", "cancellation_requested"])
         .lt("start_at", queryEnd)
         .gt("end_at", queryStart)
         .order("start_at", { ascending: true });
@@ -742,7 +749,196 @@ export default function BookingForm({ user, member }) {
   function onBookNowClick() {
     const err = validateBookingInputs();
     if (err) return setNotice(err);
+    submitBookingRequest();
+  }
+
+  async function uploadBookingProof(bookingId) {
+    if (!proofFile) return null;
+
+    const fileExt = (proofFile.name.split(".").pop() || "jpg").toLowerCase();
+    const path = `${user?.id || "guest"}/${bookingId || Date.now()}_${Math.random()
+      .toString(16)
+      .slice(2)}.${fileExt}`;
+
+    const { data: uploadData, error: uploadErr } = await supabase.storage
+      .from("booking_proofs")
+      .upload(path, proofFile, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: proofFile.type || "image/jpeg",
+      });
+
+    if (uploadErr) throw uploadErr;
+
+    const { data: pub } = supabase.storage
+      .from("booking_proofs")
+      .getPublicUrl(uploadData.path);
+
+    return pub?.publicUrl || null;
+  }
+
+  function bookingNotifyPayload(booking, overrides = {}) {
+    return {
+      adminEmail: ADMIN_EMAIL,
+      bookingId: booking?.id,
+      customerName: booking?.customer_name,
+      eventType: booking?.event_type,
+      businessDate: booking?.business_date,
+      timeLabel: `${formatManilaDateTime(booking?.start_at)} - ${formatManilaDateTime(
+        booking?.end_at
+      )}`,
+      packageId: booking?.package_id,
+      guestCount: booking?.guest_count,
+      contactNumber: booking?.contact_number,
+      customerEmail: booking?.email,
+      extensionHours: booking?.extension_hours,
+      depositAmount: booking?.deposit_amount,
+      ...overrides,
+    };
+  }
+
+  async function notifyBookingAdmin(booking, overrides = {}) {
+    try {
+      await fetch("/api/booking-notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bookingNotifyPayload(booking, overrides)),
+      }).then(async (res) => {
+        if (!res.ok) {
+          console.warn("Booking email notification failed:", await res.text());
+        }
+      });
+    } catch (error) {
+      console.warn("Booking email notification failed:", error);
+    }
+  }
+
+  async function submitBookingRequest() {
+    const err = validateBookingInputs();
+    if (err) return setNotice(err);
+
+    const extensionHours = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
+    const start = computeDateTime(dateISO, selectedHour);
+    const totalMinutes = BASE_BOOKING_MINUTES + extensionHours * 60;
+    const end = new Date(start.getTime() + totalMinutes * 60000);
+
+    setSubmitting(true);
+    setNotice(null);
+
+    try {
+      const payload = {
+        user_id: user?.id || null,
+        member_id: member?.id || null,
+        package_id: Number(form.package_id),
+        customer_name: form.name.trim(),
+        event_type: form.event_type.trim(),
+        business_date: dateISO,
+        start_at: toManilaOffsetISOString(start),
+        end_at: toManilaOffsetISOString(end),
+        duration_hours: 3,
+        extension_hours: extensionHours,
+        guest_count: Number(form.guest_count),
+        contact_number: form.contact_number.trim(),
+        email: form.email.trim(),
+        deposit_amount: DEPOSIT_AMOUNT,
+        payment_status: "waiting_for_payment",
+        payment_method: null,
+        payment_proof_url: null,
+        status: "pending",
+      };
+
+      const { data: bookingRow, error: bookErr } = await supabase.rpc("create_booking", {
+        data: payload,
+      });
+
+      if (bookErr) throw bookErr;
+
+      const savedBooking = normalizeRpcRow(bookingRow, payload);
+      await notifyBookingAdmin(savedBooking, {
+        notificationType: "booking_request",
+        paymentMethod: "waiting_for_payment",
+      });
+
+      setSuccessBooking(savedBooking);
+      if (savedBooking?.id) setMyBookings((prev) => [savedBooking, ...prev]);
+      setProofFile(null);
+      setProofPreview(null);
+      setSelectedHour(null);
+      setTab("manage");
+    } catch (e) {
+      console.error("Booking request failed:", e);
+      const msg = String(e?.message || "");
+      if (msg.includes("no_overlap_function_room")) {
+        setNotice("Selected time is no longer available. Please choose another slot.");
+      } else {
+        alert(e?.message || "Something went wrong");
+        setNotice(e?.message || "Something went wrong");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function openPaymentModal(booking) {
+    setPaymentBooking(booking);
+    setPaymentChoice("");
+    setProofFile(null);
+    setProofPreview(null);
     setPayOpen(true);
+    setNotice(null);
+  }
+
+  async function submitBookingPayment() {
+    if (!paymentBooking?.id) return setNotice("Booking record was not found.");
+    if (!paymentChoice) return setNotice("Please choose Cash or Online payment.");
+    if (paymentChoice === "online" && !proofFile) {
+      return setNotice("Please attach a screenshot of your online payment confirmation.");
+    }
+
+    setSubmitting(true);
+    setNotice(null);
+
+    try {
+      const proofUrl = paymentChoice === "online" ? await uploadBookingProof(paymentBooking.id) : null;
+      const updatePayload = {
+        payment_method: paymentChoice,
+        payment_status: paymentChoice === "cash" ? "cash_pending" : "submitted",
+        payment_proof_url: proofUrl,
+      };
+
+      const { data, error } = await supabase
+        .from("function_room_bookings")
+        .update(updatePayload)
+        .eq("id", paymentBooking.id)
+        .select("*")
+        .single();
+
+      if (error) throw error;
+
+      const updatedBooking = data || { ...paymentBooking, ...updatePayload };
+      setMyBookings((prev) => prev.map((x) => (x.id === paymentBooking.id ? updatedBooking : x)));
+      await notifyBookingAdmin(updatedBooking, {
+        notificationType: paymentChoice === "cash" ? "cash_payment_request" : "payment_proof",
+        paymentMethod: paymentChoice,
+        proofUrl,
+      });
+
+      setPayOpen(false);
+      setPaymentBooking(null);
+      setPaymentChoice("");
+      setProofFile(null);
+      setProofPreview(null);
+      setNotice(
+        paymentChoice === "cash"
+          ? "Cash payment request sent. Admin will confirm your payment."
+          : "Payment proof sent. Admin will review and approve your booking."
+      );
+    } catch (e) {
+      console.error("Payment update failed:", e);
+      setNotice(e?.message || "Unable to submit payment details.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function confirmPaymentAndSubmit() {
@@ -854,7 +1050,7 @@ export default function BookingForm({ user, member }) {
         <div className="bg-white rounded-[28px] border border-sky-50 shadow-sm p-6 max-w-md w-full space-y-4 animate-in fade-in">
           <div className="text-center space-y-1">
             <p className="text-[10px] uppercase tracking-widest text-slate-500">
-              Booking Confirmed
+              Booking Request Sent
             </p>
             <h2 className="text-xl font-semibold text-slate-800">
               Reservation Received ✅
@@ -876,12 +1072,12 @@ export default function BookingForm({ user, member }) {
             </p>
             <p>
               <span className="text-slate-500">Status:</span>{" "}
-              <b className="text-blue-500">Pending Confirmation</b>
+              <b className="text-blue-500">Waiting for Payment</b>
             </p>
           </div>
 
           <p className="text-[12px] text-slate-500 text-center">
-            We will review your payment and confirm shortly.
+            ₱1,000 reservation fee is required to confirm your booking. Open Manage Booking for payment options and instructions.
           </p>
 
           <button
@@ -889,7 +1085,7 @@ export default function BookingForm({ user, member }) {
               setSuccessBooking(null);
               setTab("availability");
             }}
-            className="w-full py-3 rounded-xl bg-slate-600 text-white text-[11px] uppercase tracking-widest active:scale-95 hover:bg-sky-500"
+            className="w-full py-3 rounded-xl bg-slate-300/78 font-bold text-white text-[11px] uppercase tracking-widest active:scale-95 hover:bg-slate-400/78"
           >
             Back to Booking
           </button>
@@ -901,19 +1097,42 @@ export default function BookingForm({ user, member }) {
   function renderBookingCard(b) {
     const now = new Date();
     const isPast = new Date(b.start_at) < now;
-    const allowChange = !isPast && canChangeBooking(b.start_at);
+    const isPending = b.status === "pending";
+    const isConfirmed = b.status === "confirmed";
+    const allowChange = !isPast && (isPending || canChangeBooking(b.start_at));
+    const canCancel = !isPast && (isPending || isConfirmed);
 
     const statusMap = {
       confirmed: { text: "Confirmed", color: "bg-green-100 text-green-700" },
       pending: { text: "Pending", color: "bg-blue-100 text-blue-700" },
       rejected: { text: "Rejected", color: "bg-red-100 text-red-700" },
       cancelled_gc: { text: "Gift Certificate", color: "bg-yellow-100 text-yellow-700" },
+      cancelled: { text: "Cancelled", color: "bg-slate-100 text-slate-700" },
+      cancellation_requested: { text: "Cancel Request", color: "bg-orange-100 text-orange-700" },
     };
 
     const status = statusMap[b.status] || {
       text: String(b.status || "Unknown"),
       color: "bg-slate-100 text-slate-600",
     };
+
+    const paymentStatusMap = {
+      waiting_for_payment: {
+        text: "Waiting for payment",
+        color: "bg-amber-50 text-amber-700 border-amber-200",
+      },
+      cash_pending: {
+        text: "Cash payment pending",
+        color: "bg-orange-50 text-orange-700 border-orange-200",
+      },
+      submitted: { text: "Proof submitted", color: "bg-sky-50 text-sky-700 border-sky-200" },
+      approved: {
+        text: "Payment approved",
+        color: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      },
+    };
+    const paymentStatus = paymentStatusMap[b.payment_status] || null;
+    const canSubmitPayment = !isPast && b.status === "pending" && b.payment_status === "waiting_for_payment";
 
     return (
       <div
@@ -941,6 +1160,11 @@ export default function BookingForm({ user, member }) {
               <span className="inline-block px-3 py-1 text-xs rounded-full font-medium bg-slate-50 text-slate-600 border border-slate-200">
                 Guests: {b.guest_count || 0} • Ext: {b.extension_hours || 0}h
               </span>
+              {paymentStatus && (
+                <span className={`inline-block px-3 py-1 text-xs rounded-full font-medium border ${paymentStatus.color}`}>
+                  {paymentStatus.text}
+                </span>
+              )}
             </div>
 
             {!isPast && !allowChange && (
@@ -958,12 +1182,21 @@ export default function BookingForm({ user, member }) {
 
           {!isPast && (
             <div className="flex flex-col gap-2 min-w-[140px]">
+              {canSubmitPayment && (
+                <button
+                  onClick={() => openPaymentModal(b)}
+                  className="w-full py-2 rounded-lg text-xs font-bold bg-white text-white hover:bg-sky-600"
+                >
+                  Payment
+                </button>
+              )}
+
               <button
                 disabled={!allowChange}
                 onClick={() => allowChange && setEditBooking({ ...b })}
-                className={`w-full py-2 rounded-lg text-xs font-medium ${
+                className={`w-full py-2 rounded-lg text-xs font-bold ${
                   allowChange
-                    ? "bg-blue-500 text-white hover:bg-blue-600"
+                    ? "bg-white text-white hover:bg-blue-600"
                     : "bg-slate-100 text-slate-500 cursor-not-allowed"
                 }`}
               >
@@ -979,7 +1212,7 @@ export default function BookingForm({ user, member }) {
                   setReschedHour(null);
                   setReschedOpen(true);
                 }}
-                className={`w-full py-2 rounded-lg text-xs font-medium ${
+                className={`w-full py-2 rounded-lg text-xs font-bold ${
                   allowChange
                     ? "border border-slate-200 bg-white hover:bg-slate-50"
                     : "bg-slate-100 text-slate-500 cursor-not-allowed"
@@ -988,16 +1221,21 @@ export default function BookingForm({ user, member }) {
                 Reschedule
               </button>
 
+              {canCancel && (
               <button
                 onClick={async () => {
+                  const nextStatus = isPending ? "cancelled" : "cancellation_requested";
+                  const message = isPending
+                    ? "Cancel this pending booking?"
+                    : "Request cancellation for this approved booking? Admin approval is required before the reservation fee is converted to a gift certificate.";
                   const ok = confirm(
-                    "Cancel this booking? It will convert into a gift certificate."
+                    message
                   );
                   if (!ok) return;
 
                   const { error } = await supabase
                     .from("function_room_bookings")
-                    .update({ status: "cancelled_gc" })
+                    .update({ status: nextStatus })
                     .eq("id", b.id);
 
                   if (error) {
@@ -1006,15 +1244,26 @@ export default function BookingForm({ user, member }) {
                   }
 
                   setMyBookings((prev) =>
-                    prev.map((x) => (x.id === b.id ? { ...x, status: "cancelled_gc" } : x))
+                    prev.map((x) => (x.id === b.id ? { ...x, status: nextStatus } : x))
                   );
+                  if (nextStatus === "cancellation_requested") {
+                    await notifyBookingAdmin({ ...b, status: nextStatus }, {
+                      notificationType: "cancellation_request",
+                      paymentMethod: b.payment_method || b.payment_status || "approved",
+                    });
+                  }
 
-                  setNotice("✅ Booking cancelled and converted to gift certificate.");
+                  setNotice(
+                    isPending
+                      ? "Booking cancelled."
+                      : "Cancellation request sent. Admin will review the gift certificate conversion."
+                  );
                 }}
-                className="w-full py-2 rounded-lg text-xs font-medium bg-red-500 text-white hover:bg-red-600"
+                className="w-full py-2 rounded-lg text-xs font-bold bg-red-500 text-white hover:bg-red-600"
               >
                 Cancel
               </button>
+              )}
             </div>
           )}
         </div>
@@ -1199,9 +1448,9 @@ export default function BookingForm({ user, member }) {
                         setForm((f) => ({ ...f, package_id: String(p.id) }));
                         setTab("book");
                       }}
-                      className="px-4 py-2 rounded-full bg-slate-600 text-white text-[10px] uppercase tracking-widest active:scale-95"
+                      className="px-4 py-2 rounded-full bg-slate-200/78 font-bold text-white text-[10px] uppercase tracking-widest active:scale-95"
                     >
-                      Choose
+                      Select
                     </button>
                   </div>
                 </div>
@@ -1292,7 +1541,7 @@ export default function BookingForm({ user, member }) {
             type="button"
             onClick={onBookNowClick}
             disabled={submitting}
-            className="w-full py-3.5 rounded-xl bg-slate-600 text-white font-normal text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-sky-500 active:scale-95 disabled:opacity-60"
+            className="w-full py-3.5 rounded-xl bg-slate-300/78 font-bold text-white text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-sky-500 active:scale-95 disabled:opacity-60"
           >
             Book Now
           </button>
@@ -1392,8 +1641,28 @@ export default function BookingForm({ user, member }) {
             </div>
 
             <p className="text-[11px] text-slate-500 mb-4">
-              Only package, guests, and event type can be changed. Allowed only if booking is at least {RESCHEDULE_MIN_DAYS} days away.
+              Pending bookings can update all details. Approved bookings keep the {RESCHEDULE_MIN_DAYS}-day update rule.
             </p>
+
+            {[
+              ["customer_name", "Customer Name", "text"],
+              ["contact_number", "Contact Number", "tel"],
+              ["email", "Email Address", "email"],
+            ].map(([key, label, type]) => (
+              <div key={key}>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
+                  {label}
+                </label>
+                <input
+                  type={type}
+                  value={editBooking[key] || ""}
+                  onChange={(e) =>
+                    setEditBooking((prev) => ({ ...prev, [key]: e.target.value }))
+                  }
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm mb-3"
+                />
+              </div>
+            ))}
 
             <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
               Package
@@ -1450,7 +1719,8 @@ export default function BookingForm({ user, member }) {
                 type="button"
                 disabled={editLoading}
                 onClick={async () => {
-                  if (!canChangeBooking(editBooking.start_at)) {
+                  const pendingEdit = editBooking.status === "pending";
+                  if (!pendingEdit && !canChangeBooking(editBooking.start_at)) {
                     alert(`Updates are only allowed at least ${RESCHEDULE_MIN_DAYS} days before the booking.`);
                     return;
                   }
@@ -1461,6 +1731,9 @@ export default function BookingForm({ user, member }) {
                     .from("function_room_bookings")
                     .update({
                       package_id: editBooking.package_id,
+                      customer_name: editBooking.customer_name,
+                      contact_number: editBooking.contact_number,
+                      email: editBooking.email,
                       guest_count: editBooking.guest_count,
                       event_type: editBooking.event_type,
                       status: "pending",
@@ -1625,7 +1898,12 @@ export default function BookingForm({ user, member }) {
       {payOpen && (
         <div
           className="fixed inset-0 z-[95] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
-          onClick={() => !submitting && setPayOpen(false)}
+          onClick={() => {
+            if (submitting) return;
+            setPayOpen(false);
+            setPaymentBooking(null);
+            setPaymentChoice("");
+          }}
         >
           <div
             className="w-full max-w-lg bg-white rounded-t-[28px] md:rounded-[32px] p-6 md:p-7 max-h-[90vh] overflow-y-auto"
@@ -1633,11 +1911,16 @@ export default function BookingForm({ user, member }) {
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg md:text-xl font-semibold text-slate-800">
-                Secure Your Booking
+                Booking Payment
               </h3>
               <button
                 type="button"
-                onClick={() => !submitting && setPayOpen(false)}
+                onClick={() => {
+                  if (submitting) return;
+                  setPayOpen(false);
+                  setPaymentBooking(null);
+                  setPaymentChoice("");
+                }}
                 className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
               >
                 ✕
@@ -1651,6 +1934,37 @@ export default function BookingForm({ user, member }) {
                 )}
               </p>
 
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  ["cash", "Cash"],
+                  ["online", "Online"],
+                ].map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => {
+                      setPaymentChoice(value);
+                      if (value === "cash") setProofFile(null);
+                    }}
+                    disabled={submitting}
+                    className={`rounded-xl border px-4 py-3 text-sm font-medium transition ${
+                      paymentChoice === value
+                        ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {paymentChoice === "cash" && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-800">
+                  Admin will confirm your cash payment and approve the booking after verification.
+                </div>
+              )}
+
+              {paymentChoice === "online" && (
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
                 <p className="text-[11px] uppercase tracking-widest text-slate-500 mb-2">
                   Scan QR to Pay
@@ -1669,7 +1983,7 @@ export default function BookingForm({ user, member }) {
                 <input
                   type="file"
                   accept="image/*"
-                  className="mt-3 w-full text-sm"
+                  className="mt-3 w-full font-bold text-sm"
                   onChange={(e) => setProofFile(e.target.files?.[0] || null)}
                   disabled={submitting}
                 />
@@ -1685,19 +1999,20 @@ export default function BookingForm({ user, member }) {
                 )}
 
                 {!proofFile && (
-                  <p className="mt-2 text-[11px] text-sky-500">
-                    Please upload your payment proof before submitting.
+                  <p className="mt-2 text-[11px] font-italic text-sky-500">
+                    Please upload your proof of payment before submitting.
                   </p>
                 )}
               </div>
+              )}
 
               <button
                 type="button"
-                onClick={confirmPaymentAndSubmit}
-                disabled={submitting || !proofFile}
-                className="w-full py-3.5 rounded-xl bg-slate-600 text-white font-normal text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-sky-500 active:scale-95 disabled:opacity-60"
+                onClick={submitBookingPayment}
+                disabled={submitting || !paymentChoice || (paymentChoice === "online" && !proofFile)}
+                className="w-full py-3.5 rounded-xl bg-white text-slate-700 font-bold text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-sky-500 active:scale-95 disabled:opacity-60"
               >
-                {submitting ? "Submitting…" : "Submit Proof & Confirm Booking"}
+                {submitting ? "Submitting..." : "Send Payment Details"}
               </button>
             </div>
           </div>

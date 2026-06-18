@@ -747,11 +747,11 @@ body .customer-item-modal__qty-btn {
 
 .juja-page-bg .customer-item-modal__submit,
 body .customer-item-modal__submit {
-  background: #087830 !important;
-  background-color: #087830 !important;
-  border: 1px solid #087830 !important;
+  background: #4b4b4b !important;
+  background-color: rgb(100, 100, 100) !important;
+  border: 1px solid #575757 !important;
   color: #ffffff !important;
-  box-shadow: 0 16px 36px rgba(8, 120, 48, 0.22) !important;
+  box-shadow: 0 16px 36px rgba(190, 190, 190, 0.22) !important;
 }
 
 .juja-page-bg .customer-item-modal__submit:disabled,

@@ -128,7 +128,7 @@ export default function KitchenPrintersPage() {
               placeholder="Add group (e.g. Kitchen, Bar)"
               className="border rounded px-3 py-2 w-full"
             />
-            <button onClick={addGroup} className="px-4 py-2 rounded bg-slate-600 text-white">
+            <button onClick={addGroup} className="px-4 py-2 font-bold rounded bg-slate-400/78 text-white">
               Add
             </button>
           </div>

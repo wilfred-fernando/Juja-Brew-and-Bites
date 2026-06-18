@@ -121,7 +121,7 @@ export default function DiscountsSettingsPage() {
           />
         </div>
 
-        <button onClick={add} className="px-4 py-2 rounded bg-slate-600 text-white text-sm">
+        <button onClick={add} className="px-4 py-2 rounded font-bold bg-slate-400/78 text-white text-sm">
           Add Discount
         </button>
       </div>

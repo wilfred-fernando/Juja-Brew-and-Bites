@@ -772,7 +772,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems,
                   onClick={() => { setDiningOption(opt.id); setPaymentProof(null); if (opt.id === "DELIVERY") setPaymentMethod("QRPH"); else if (opt.id === "DINEIN") setPaymentMethod(""); else setPaymentMethod("Cash"); }}
                   className={`py-3 rounded-xl border flex flex-col items-center justify-center gap-1.5 font-bold text-xs transition ${
                     diningOption === opt.id
-                      ? "border-[#FC687D] bg-rose-50/40 text-[#FC687D]"
+                      ? "border-[#FC687D] bg-white text-[#FC687D]"
                       : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                   }`}
                 >
@@ -839,7 +839,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems,
                     }}
                     className={`h-10 rounded-xl border text-xs font-black uppercase tracking-wider ${
                       paymentMethod === method
-                        ? "border-[#FC687D] bg-rose-50 text-[#FC687D]"
+                        ? "border-[#FC687D] bg-white text-[#FC687D]"
                         : "border-slate-200 bg-white text-slate-600"
                     }`}
                   >
@@ -905,7 +905,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems,
             type="button"
             onClick={() => onConfirm({ diningOption, fulfillmentDate, fulfillmentTime, deliveryAddress, paymentMethod, paymentProof })}
             disabled={isSubmitting || !canSubmit}
-            className="w-full py-3 bg-[#FC687D] hover:bg-rose-500 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-md disabled:opacity-40"
+            className="w-full py-3 bg-cyan-400/78 hover:bg-cyan-500/78 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-md disabled:opacity-40"
           >
             {isSubmitting ? "Sending..." : "CHECKOUT ✓"}
           </button>
@@ -1261,7 +1261,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
             </div>
             <button
               onClick={handleOpenCheckoutValidation}
-              className="w-full h-11 rounded-xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-rose-500 transition"
+              className="w-full h-11 rounded-xl bg-rose-500 text-white text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-rose-500 transition"
             >
              CHECKOUT
             </button>

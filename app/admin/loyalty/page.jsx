@@ -1491,7 +1491,7 @@ export default function LoyaltyAdminPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="w-full py-3 rounded-xl bg-slate-600 text-white text-xs font-bold disabled:opacity-70"
+                  className="w-full py-3 rounded-xl bg-slate-400/78 text-white text-xs font-bold disabled:opacity-70"
                 >
                   {saving ? "Saving..." : "Save"}
                 </button>

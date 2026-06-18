@@ -105,6 +105,8 @@ function statusPill(status) {
     pending: "bg-blue-100 text-blue-700 border-blue-200",
     rejected: "bg-red-100 text-red-700 border-red-200",
     cancelled_gc: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    cancelled: "bg-slate-100 text-slate-700 border-slate-200",
+    cancellation_requested: "bg-orange-100 text-orange-700 border-orange-200",
   };
   return map[status] || "bg-slate-100 text-slate-700 border-slate-200";
 }
@@ -113,6 +115,8 @@ function niceStatus(status) {
   if (status === "pending") return "Pending";
   if (status === "rejected") return "Rejected";
   if (status === "cancelled_gc") return "Gift Cert";
+  if (status === "cancelled") return "Cancelled";
+  if (status === "cancellation_requested") return "Cancel Request";
   return String(status || "—");
 }
 function safeLower(s) {
@@ -289,9 +293,36 @@ export default function AdminBookingsDashboard() {
 
   const isPastBooking = (b) => new Date(b.start_at) < now;
   const isConfirmedBooking = (b) => b.status === "confirmed";
+  const terminalBookingStatuses = new Set(["rejected", "cancelled", "cancelled_gc"]);
 
   const disableEdit = (b) => isPastBooking(b);
-  const disableApproveReject = (b) => isPastBooking(b) || isConfirmedBooking(b);
+  const disableApproveReject = (b) =>
+    isPastBooking(b) || isConfirmedBooking(b) || terminalBookingStatuses.has(b.status);
+
+  function statusUpdatePayload(type, booking) {
+    const approving = type === "approve" || type === "approve_bulk";
+    if (booking?.status === "cancellation_requested") {
+      return approving ? { status: "cancelled_gc" } : { status: "confirmed" };
+    }
+    const nextStatus = approving ? "confirmed" : "rejected";
+    return approving
+      ? { status: nextStatus, payment_status: "approved" }
+      : { status: nextStatus };
+  }
+
+  async function approveCancellationWithGiftCertificate(bookingId) {
+    const res = await fetch("/api/admin/booking-cancellation-gift-certificate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bookingId }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.error || "Unable to approve cancellation.");
+    return {
+      status: json?.booking?.status || "cancelled_gc",
+      giftCertificate: json?.giftCertificate || null,
+    };
+  }
 
   /* =======================
     Load Data + Realtime
@@ -377,10 +408,10 @@ export default function AdminBookingsDashboard() {
   ======================= */
   const stats = useMemo(() => {
     const total = bookings.length;
-    const pending = bookings.filter((b) => b.status === "pending").length;
+    const pending = bookings.filter((b) => b.status === "pending" || b.status === "cancellation_requested").length;
     const confirmed = bookings.filter((b) => b.status === "confirmed").length;
     const rejected = bookings.filter((b) => b.status === "rejected").length;
-    const cancelled = bookings.filter((b) => b.status === "cancelled_gc").length;
+    const cancelled = bookings.filter((b) => b.status === "cancelled_gc" || b.status === "cancelled").length;
 
     const revenueConfirmed = bookings
       .filter((b) => b.status === "confirmed")
@@ -479,6 +510,28 @@ export default function AdminBookingsDashboard() {
     return data;
   }, [bookings, q, statusFilter, timeFilter, dateFrom, dateTo, now]);
 
+  const bookingSections = useMemo(() => {
+    const pending = [];
+    const upcoming = [];
+    const past = [];
+
+    for (const booking of filteredBookings) {
+      if (booking.status === "pending" || booking.status === "cancellation_requested") {
+        pending.push(booking);
+      } else if (new Date(booking.start_at) < now) {
+        past.push(booking);
+      } else {
+        upcoming.push(booking);
+      }
+    }
+
+    return [
+      { key: "pending", title: "Pending for Approval", rows: pending },
+      { key: "upcoming", title: "Upcoming Bookings", rows: upcoming },
+      { key: "past", title: "Past Bookings", rows: past },
+    ].filter((section) => section.rows.length > 0);
+  }, [filteredBookings, now]);
+
   const selectedCount = useMemo(() => selectedIds.size, [selectedIds]);
 
   function toggleSelected(id) {
@@ -501,7 +554,6 @@ export default function AdminBookingsDashboard() {
   ======================= */
   async function runStatusUpdate(type, bookingOrIds) {
     setActionLoading(true);
-    const newStatus = type === "approve" ? "confirmed" : "rejected";
 
     try {
       // BULK
@@ -524,15 +576,26 @@ export default function AdminBookingsDashboard() {
           return;
         }
 
-        const { error } = await supabase
-          .from("function_room_bookings")
-          .update({ status: newStatus })
-          .in("id", eligibleIds);
-
-        if (error) throw error;
+        const updates = await Promise.all(
+          eligibleIds.map(async (id) => {
+            const booking = bookings.find((x) => x.id === id);
+            if (booking?.status === "cancellation_requested" && type === "approve_bulk") {
+              const result = await approveCancellationWithGiftCertificate(id);
+              return { id, payload: { status: result.status } };
+            }
+            const payload = statusUpdatePayload(type, booking);
+            const { error } = await supabase
+              .from("function_room_bookings")
+              .update(payload)
+              .eq("id", id);
+            if (error) throw error;
+            return { id, payload };
+          })
+        );
+        const updateMap = new Map(updates.map((x) => [x.id, x.payload]));
 
         setBookings((prev) =>
-          prev.map((x) => (eligibleIds.includes(x.id) ? { ...x, status: newStatus } : x))
+          prev.map((x) => (updateMap.has(x.id) ? { ...x, ...updateMap.get(x.id) } : x))
         );
 
         clearSelected();
@@ -551,15 +614,25 @@ export default function AdminBookingsDashboard() {
           return;
         }
 
+        const updatePayload = statusUpdatePayload(type, booking);
+        if (booking?.status === "cancellation_requested" && type === "approve") {
+          const result = await approveCancellationWithGiftCertificate(booking.id);
+          setBookings((prev) =>
+            prev.map((x) => (x.id === booking.id ? { ...x, status: result.status } : x))
+          );
+          setActionModal(null);
+          return;
+        }
+
         const { error } = await supabase
           .from("function_room_bookings")
-          .update({ status: newStatus })
+          .update(updatePayload)
           .eq("id", booking.id);
 
         if (error) throw error;
 
         setBookings((prev) =>
-          prev.map((x) => (x.id === booking.id ? { ...x, status: newStatus } : x))
+          prev.map((x) => (x.id === booking.id ? { ...x, ...updatePayload } : x))
         );
       }
 
@@ -757,7 +830,7 @@ export default function AdminBookingsDashboard() {
         <div className="flex items-center gap-2">
           <button
             onClick={openManualModal}
-            className="px-4 py-2 rounded-xl bg-slate-700 text-white text-[11px] uppercase tracking-widest hover:bg-slate-600 active:scale-95"
+            className="px-4 py-2 rounded-xl font-bold bg-slate-400/78 text-white text-[11px] uppercase tracking-widest hover:bg-slate-600 active:scale-95"
           >
             Manual Booking
           </button>
@@ -779,7 +852,7 @@ export default function AdminBookingsDashboard() {
                 key={k}
                 onClick={() => setView(k)}
                 className={`px-3 py-2 rounded-lg text-[11px] uppercase tracking-widest active:scale-95 ${
-                  view === k ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50"
+                  view === k ? "bg-slate-300/78 font-bold text-white" : "text-slate-600 hover:bg-slate-50"
                 }`}
               >
                 {label}
@@ -846,7 +919,7 @@ export default function AdminBookingsDashboard() {
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button
                       onClick={() => setView("list")}
-                      className="px-4 py-2 rounded-xl bg-slate-900 text-white text-[11px] uppercase tracking-widest active:scale-95"
+                      className="px-4 py-2 rounded-xl font-bold bg-white text-white text-[11px] uppercase tracking-widest active:scale-95"
                     >
                       Go to list
                     </button>
@@ -1094,6 +1167,8 @@ export default function AdminBookingsDashboard() {
                     <option value="pending">Pending</option>
                     <option value="confirmed">Confirmed</option>
                     <option value="rejected">Rejected</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="cancellation_requested">Cancel Request</option>
                     <option value="cancelled_gc">Cancelled (GC)</option>
                   </select>
 
@@ -1170,8 +1245,16 @@ export default function AdminBookingsDashboard() {
               {filteredBookings.length === 0 ? (
                 <div className="text-slate-500">No bookings found.</div>
               ) : (
-                <div className="space-y-3">
-                  {filteredBookings.map((b) => {
+                <div className="space-y-6">
+                  {bookingSections.map((section) => (
+                    <div key={section.key} className="space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                        <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
+                          {section.title}
+                        </h3>
+                        <span className="text-[11px] text-slate-500">{section.rows.length} booking(s)</span>
+                      </div>
+                  {section.rows.map((b) => {
                     const pkg = pkgById.get(Number(b.package_id));
                     const pkgName = pkg?.name || `Package #${b.package_id || "—"}`;
                     const fee = pkg?.rental_fee;
@@ -1216,9 +1299,10 @@ export default function AdminBookingsDashboard() {
                                 {niceStatus(b.status)}
                               </span>
 
-                              {b.payment_status === "submitted" ? (
+                              {b.payment_status ? (
                                 <span className="px-2.5 py-1 rounded-full border text-[10px] font-semibold bg-slate-50 text-slate-700 border-slate-200">
-                                  Payment: submitted
+                                  Payment: {String(b.payment_status).replace(/_/g, " ")}
+                                  {b.payment_method ? ` / ${b.payment_method}` : ""}
                                 </span>
                               ) : null}
                             </div>
@@ -1293,7 +1377,7 @@ export default function AdminBookingsDashboard() {
                                     : "bg-green-500 text-white hover:bg-green-600 active:scale-95"
                                 }`}
                               >
-                                ✅ Approve
+                                {b.status === "cancellation_requested" ? "Approve Cancel" : "Approve"}
                               </button>
 
                               <button
@@ -1305,7 +1389,7 @@ export default function AdminBookingsDashboard() {
                                     : "bg-red-500 text-white hover:bg-red-600 active:scale-95"
                                 }`}
                               >
-                                ❌ Reject
+                                {b.status === "cancellation_requested" ? "Reject Cancel" : "Reject"}
                               </button>
                             </div>
                           </div>
@@ -1313,6 +1397,8 @@ export default function AdminBookingsDashboard() {
                       </div>
                     );
                   })}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -1352,8 +1438,14 @@ export default function AdminBookingsDashboard() {
               <div>
                 <p className="text-[10px] uppercase tracking-widest text-slate-500">Confirm Action</p>
                 <h3 className="text-lg font-semibold text-slate-800">
-                  {actionModal.type === "approve" && "Approve Booking"}
-                  {actionModal.type === "reject" && "Reject Booking"}
+                  {actionModal.type === "approve" &&
+                    (actionModal.booking?.status === "cancellation_requested"
+                      ? "Approve Cancellation"
+                      : "Approve Booking")}
+                  {actionModal.type === "reject" &&
+                    (actionModal.booking?.status === "cancellation_requested"
+                      ? "Reject Cancellation"
+                      : "Reject Booking")}
                   {actionModal.type === "approve_bulk" && "Approve Selected"}
                   {actionModal.type === "reject_bulk" && "Reject Selected"}
                 </h3>

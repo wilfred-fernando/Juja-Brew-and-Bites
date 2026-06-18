@@ -714,7 +714,7 @@ export default function Page() {
           <button
             onClick={addStore}
             disabled={busyKey === "ADD_STORE"}
-            className="px-4 py-3 rounded-xl bg-slate-600 text-white text-sm font-bold disabled:opacity-50 active:scale-95"
+            className="px-4 py-3 rounded-xl bg-slate-400/78 text-white text-sm font-bold disabled:opacity-50 active:scale-95"
             type="button"
           >
             {busyKey === "ADD_STORE" ? "Adding…" : "Add Store"}
@@ -853,7 +853,7 @@ export default function Page() {
           <button
             onClick={addCashier}
             disabled={busyKey === "ADD_CASHIER"}
-            className="px-4 py-3 rounded-xl bg-slate-600 text-white text-sm font-bold disabled:opacity-50 active:scale-95"
+            className="px-4 py-3 rounded-xl bg-slate-400/78 text-white text-sm font-bold disabled:opacity-50 active:scale-95"
             type="button"
           >
             {busyKey === "ADD_CASHIER" ? "Adding…" : "Add Cashier"}
@@ -968,7 +968,7 @@ export default function Page() {
           <button
             onClick={addKdsAccount}
             disabled={busyKey === "ADD_KDS"}
-            className="px-4 py-3 rounded-xl bg-slate-600 text-white text-sm font-bold disabled:opacity-50 active:scale-95"
+            className="px-4 py-3 rounded-xl bg-slate-400/78 text-white text-sm font-bold disabled:opacity-50 active:scale-95"
             type="button"
           >
             {busyKey === "ADD_KDS" ? "Adding..." : "Add KDS Login"}

@@ -440,7 +440,7 @@ export default function MenuAdminPage() {
         <div className="flex w-full md:w-auto gap-2 md:gap-3">
           <button
             onClick={() => openModal()}
-            className="flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3.5 bg-slate-600 text-white text-[11px] md:text-sm font-normal uppercase rounded-xl md:rounded-2xl hover:bg-sky-500 transition-all shadow-[0_4px_15px_rgba(252,104,125,0.25)] hover:-translate-y-0.5 active:scale-95"
+            className="flex-1 md:flex-none px-4 md:px-6 py-2.5 md:py-3.5 bg-white text-white text-[11px] md:text-sm font-normal uppercase rounded-xl md:rounded-2xl hover:bg-sky-500 transition-all shadow-[0_4px_15px_rgba(252,104,125,0.25)] hover:-translate-y-0.5 active:scale-95"
           >
             + Add Item
           </button>
@@ -528,7 +528,7 @@ export default function MenuAdminPage() {
             <button
               onClick={() => setCatFilter("All")}
               className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-normal uppercase transition-all duration-300 active:scale-95 ${
-                catFilter === "All" ? "bg-slate-800 text-white shadow-sm" : "bg-transparent text-slate-500 hover:bg-slate-50 border-transparent"
+                catFilter === "All" ? "bg-slate-300/78 text-white shadow-sm" : "bg-transparent text-slate-500 hover:bg-slate-50 border-transparent"
               }`}
             >
               <span className="text-left break-words whitespace-normal leading-tight pr-2">All Items</span>
@@ -828,7 +828,7 @@ export default function MenuAdminPage() {
                 <button
                   type="submit"
                   disabled={catSaving}
-                  className="w-full py-3.5 rounded-xl bg-slate-600 text-white font-bold text-xs hover:bg-sky-500 transition-all shadow-md shadow-sky-200 disabled:opacity-70 active:scale-95"
+                  className="w-full py-3.5 rounded-xl bg-slate-400/78 text-white font-bold text-xs hover:bg-slate-300 transition-all shadow-md shadow-slate-200 disabled:opacity-70 active:scale-95"
                 >
                   {catSaving ? "Saving..." : editingCategory ? "Update Category" : "Add Category"}
                 </button>
@@ -1366,7 +1366,7 @@ export default function MenuAdminPage() {
                   onClick={handleSave}
                   form="item-form"
                   disabled={saving}
-                  className="w-full py-3 md:py-3.5 rounded-xl bg-slate-600 text-white font-bold text-xs hover:bg-sky-500 transition-all shadow-md shadow-sky-200 disabled:opacity-70 active:scale-95"
+                  className="w-full py-3 md:py-3.5 rounded-xl bg-slate-400/78 text-white font-bold text-xs hover:bg-slate-300 transition-all shadow-md shadow-slate-200 disabled:opacity-70 active:scale-95"
                 >
                   {saving ? "Saving..." : "Save Menu Item"}
                 </button>

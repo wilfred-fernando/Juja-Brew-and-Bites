@@ -470,7 +470,7 @@ export default function Page() {
         <button
           onClick={addRow}
           disabled={busyId === "ADD"}
-          className="px-4 py-3 rounded-xl bg-slate-600 text-white text-sm font-bold disabled:opacity-50 active:scale-95"
+          className="px-4 py-3 rounded-xl bg-slate-400/78 text-white text-sm font-bold disabled:opacity-50 active:scale-95"
           type="button"
         >
           {busyId === "ADD" ? "Adding…" : "Add"}

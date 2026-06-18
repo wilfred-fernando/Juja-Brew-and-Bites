@@ -805,10 +805,10 @@ export default function AdminInventoryPage() {
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-200">Manage stock using Item Name as inventory items and Common Name as standardized names.</p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <button onClick={reconcileInventoryPurchases} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-cyan-300/30 bg-white/12 px-4 text-xs font-semibold uppercase tracking-wider text-cyan-50 transition hover:-translate-y-0.5 hover:bg-cyan-300/18">
+            <button onClick={reconcileInventoryPurchases} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-cyan-300/30 bg-white/12 px-4 text-xs font-semibold uppercase tracking-wider text-cyan-50 transition hover:-translate-y-0.5 hover:bg-slate-600">
               <Database size={15} /> Reconcile
             </button>
-            <button onClick={loadData} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-4 text-xs font-semibold uppercase tracking-wider text-cyan-50 transition hover:-translate-y-0.5 hover:bg-cyan-300/18">
+            <button onClick={loadData} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-4 text-xs font-semibold uppercase tracking-wider text-cyan-50 transition hover:-translate-y-0.5 hover:bg-slate-600">
               <RefreshCw size={15} /> Refresh
             </button>
           </div>

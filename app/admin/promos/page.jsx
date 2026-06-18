@@ -55,7 +55,7 @@ export default function AdminPromos() {
           </h1>
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">Manage Discounts & Offers</p>
         </div>
-        <button onClick={() => setAdding(true)} className="px-6 py-3 bg-slate-600 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-sky-500 transition-colors rounded-full shadow-sm">
+        <button onClick={() => setAdding(true)} className="px-6 py-3 bg-slate-400/78 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-slate-300 transition-colors rounded-full shadow-sm">
           + Create Promo
         </button>
       </header>
