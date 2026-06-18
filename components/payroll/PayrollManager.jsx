@@ -62,7 +62,7 @@ function compareDate(value, start, end) {
 }
 
 function dailyRateForWorkDate(employee, workDate, rateChanges = []) {
-  const currentRate = num(employee?.default_daily_rate);
+  const currentRate = num(employee?.current_daily_rate ?? employee?.default_daily_rate);
   const date = String(workDate || "").slice(0, 10);
   const employeeChanges = rateChanges
     .filter((change) => change.employee_id === employee?.id && change.effective_date)
@@ -83,12 +83,29 @@ function dailyRateForWorkDate(employee, workDate, rateChanges = []) {
   return applicableChange ? num(applicableChange.new_daily_rate) : currentRate;
 }
 
+function employeeCurrentDailyRate(employee) {
+  return num(employee?.current_daily_rate ?? employee?.default_daily_rate);
+}
+
+function employeeStartingDailyRate(employee) {
+  return num(employee?.starting_daily_rate ?? employee?.default_daily_rate);
+}
+
+function employeeEmploymentStatus(employee) {
+  return employee?.employment_status || (employee?.active === false ? "resigned" : "active");
+}
+
 function blankEmployeeForm() {
   return {
     employee_no: "",
     full_name: "",
     designation: "",
     date_hired: "",
+    date_resigned_terminated: "",
+    date_reemployment: "",
+    employment_status: "active",
+    starting_daily_rate: "",
+    current_daily_rate: "",
     default_daily_rate: "",
     birthday: "",
     address: "",
@@ -802,7 +819,7 @@ export default function AdminPayrollPage() {
       setEntryForm({ ...blankEntry(), ...entry });
     } else {
       const employee = employeeById[selectedEmployeeId] || employees[0];
-      setEntryForm(blankEntry(selectedPeriodId, employee?.id || "", employee?.default_daily_rate || 0));
+      setEntryForm(blankEntry(selectedPeriodId, employee?.id || "", employeeCurrentDailyRate(employee)));
     }
     setEntryModalOpen(true);
   }
@@ -813,7 +830,7 @@ export default function AdminPayrollPage() {
       if (field === "employee_id") {
         const employee = employeeById[value];
         if (employee && !current.id) {
-          const rate = num(employee.default_daily_rate);
+          const rate = employeeCurrentDailyRate(employee);
           next.daily_rate = rate;
           next.overtime_rate = rate / 8;
           next.late_rate_per_minute = rate / 8 / 60;
@@ -835,13 +852,21 @@ export default function AdminPayrollPage() {
     if (!employeeForm.full_name.trim()) return setNotice("Employee name is required.");
     const id = editingEmployeeId || slug(employeeForm.full_name);
     if (!id) return setNotice("Employee ID could not be created.");
+    const status = employeeForm.employment_status || "active";
+    const currentRate = num(employeeForm.current_daily_rate || employeeForm.default_daily_rate);
+    const startingRate = num(employeeForm.starting_daily_rate || currentRate || employeeForm.default_daily_rate);
     const payload = {
       id,
       employee_no: employeeForm.employee_no.trim() || null,
       full_name: employeeForm.full_name.trim().toUpperCase(),
       designation: employeeForm.designation.trim() || null,
       date_hired: employeeForm.date_hired || null,
-      default_daily_rate: num(employeeForm.default_daily_rate),
+      date_resigned_terminated: employeeForm.date_resigned_terminated || null,
+      date_reemployment: employeeForm.date_reemployment || null,
+      employment_status: status,
+      starting_daily_rate: startingRate,
+      current_daily_rate: currentRate,
+      default_daily_rate: currentRate,
       birthday: employeeForm.birthday || null,
       address: employeeForm.address.trim() || null,
       contact_number: employeeForm.contact_number.trim() || null,
@@ -849,7 +874,7 @@ export default function AdminPayrollPage() {
       philhealth_no: employeeForm.philhealth_no.trim() || null,
       hmdf_no: employeeForm.hmdf_no.trim() || null,
       emergency_contact_person: employeeForm.emergency_contact_person.trim() || null,
-      active: true,
+      active: status === "active",
     };
     const { data, error } = await supabase.from("payroll_employees").upsert(payload).select().maybeSingle();
     if (error) return setNotice(`Employee Save Failed: ${error.message}`);
@@ -870,7 +895,12 @@ export default function AdminPayrollPage() {
       full_name: employee.full_name || "",
       designation: employee.designation || "",
       date_hired: employee.date_hired || "",
-      default_daily_rate: employee.default_daily_rate ?? "",
+      date_resigned_terminated: employee.date_resigned_terminated || "",
+      date_reemployment: employee.date_reemployment || "",
+      employment_status: employeeEmploymentStatus(employee),
+      starting_daily_rate: employee.starting_daily_rate ?? employee.default_daily_rate ?? "",
+      current_daily_rate: employee.current_daily_rate ?? employee.default_daily_rate ?? "",
+      default_daily_rate: employee.default_daily_rate ?? employee.current_daily_rate ?? "",
       birthday: employee.birthday || "",
       address: employee.address || "",
       contact_number: employee.contact_number || "",
@@ -900,7 +930,7 @@ export default function AdminPayrollPage() {
     const changePayload = {
       id: `rate-${employee.id}-${rateIncreaseForm.effective_date}-${Date.now()}`,
       employee_id: employee.id,
-      old_daily_rate: num(employee.default_daily_rate),
+      old_daily_rate: employeeCurrentDailyRate(employee),
       new_daily_rate: newRate,
       effective_date: rateIncreaseForm.effective_date,
       notes: rateIncreaseForm.notes.trim() || null,
@@ -910,7 +940,7 @@ export default function AdminPayrollPage() {
 
     const { data, error } = await supabase
       .from("payroll_employees")
-      .update({ default_daily_rate: newRate })
+      .update({ default_daily_rate: newRate, current_daily_rate: newRate })
       .eq("id", employee.id)
       .select()
       .maybeSingle();
@@ -918,15 +948,16 @@ export default function AdminPayrollPage() {
 
     setEmployees((prev) => prev.map((row) => (row.id === employee.id ? data : row)));
     setRateChanges((prev) => [changePayload, ...prev].slice(0, 50));
-    if (editingEmployeeId === employee.id) setEmployeeForm((current) => ({ ...current, default_daily_rate: newRate }));
+    if (editingEmployeeId === employee.id) setEmployeeForm((current) => ({ ...current, default_daily_rate: newRate, current_daily_rate: newRate }));
     setRateIncreaseForm((current) => ({ ...current, new_daily_rate: "", notes: "" }));
     setNotice("Daily rate increase saved.");
   }
 
   async function toggleEmployee(employee) {
+    const nextActive = !employee.active;
     const { data, error } = await supabase
       .from("payroll_employees")
-      .update({ active: !employee.active })
+      .update({ active: nextActive, employment_status: nextActive ? "active" : "resigned" })
       .eq("id", employee.id)
       .select()
       .maybeSingle();
@@ -1293,7 +1324,7 @@ export default function AdminPayrollPage() {
       return setNotice(`Generate Failed: ${periodError.message}`);
     }
 
-    const activeEmployees = employees.filter((employee) => employee.active !== false);
+    const activeEmployees = employees.filter((employee) => employee.active !== false && employeeEmploymentStatus(employee) === "active");
     const generatedRows = activeEmployees
       .map((employee) => {
         const existingEntry = entries.find((row) => row.period_id === periodId && row.employee_id === employee.id);
@@ -1513,8 +1544,35 @@ export default function AdminPayrollPage() {
                 <input value={employeeForm.employee_no} onChange={(e) => setEmployeeForm((p) => ({ ...p, employee_no: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Employee no." />
                 <input value={employeeForm.full_name} onChange={(e) => setEmployeeForm((p) => ({ ...p, full_name: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Employee name" />
                 <input value={employeeForm.designation} onChange={(e) => setEmployeeForm((p) => ({ ...p, designation: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Designation" />
-                <input type="date" value={employeeForm.date_hired} onChange={(e) => setEmployeeForm((p) => ({ ...p, date_hired: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" title="Date hired" />
-                <input value={employeeForm.default_daily_rate} onChange={(e) => setEmployeeForm((p) => ({ ...p, default_daily_rate: e.target.value }))} type="number" step="0.01" className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Daily rate" />
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Starting daily rate</span>
+                    <input value={employeeForm.starting_daily_rate} onChange={(e) => setEmployeeForm((p) => ({ ...p, starting_daily_rate: e.target.value }))} type="number" step="0.01" className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="0.00" />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Current daily rate</span>
+                    <input value={employeeForm.current_daily_rate} onChange={(e) => setEmployeeForm((p) => ({ ...p, current_daily_rate: e.target.value, default_daily_rate: e.target.value }))} type="number" step="0.01" className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="0.00" />
+                  </label>
+                </div>
+                <select value={employeeForm.employment_status} onChange={(e) => setEmployeeForm((p) => ({ ...p, employment_status: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm capitalize outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
+                  <option value="active">Active</option>
+                  <option value="resigned">Resigned</option>
+                  <option value="terminated">Terminated</option>
+                </select>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Date hired</span>
+                    <input type="date" value={employeeForm.date_hired} onChange={(e) => setEmployeeForm((p) => ({ ...p, date_hired: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Resigned/terminated</span>
+                    <input type="date" value={employeeForm.date_resigned_terminated} onChange={(e) => setEmployeeForm((p) => ({ ...p, date_resigned_terminated: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Re-employment</span>
+                    <input type="date" value={employeeForm.date_reemployment} onChange={(e) => setEmployeeForm((p) => ({ ...p, date_reemployment: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
+                  </label>
+                </div>
                 <input type="date" value={employeeForm.birthday} onChange={(e) => setEmployeeForm((p) => ({ ...p, birthday: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" title="Birthday" />
                 <input value={employeeForm.contact_number} onChange={(e) => setEmployeeForm((p) => ({ ...p, contact_number: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Contact number" />
                 <input value={employeeForm.address} onChange={(e) => setEmployeeForm((p) => ({ ...p, address: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Address" />
@@ -1554,6 +1612,7 @@ export default function AdminPayrollPage() {
             {employees.map((employee) => {
               const total = employeeTotals[employee.id] || {};
               const advance = employeeAdvanceSummary[employee.id] || {};
+              const employmentStatus = employeeEmploymentStatus(employee);
               return (
                 <div key={employee.id} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl transition duration-300 hover:border-cyan-200/80 hover:shadow-[0_24px_60px_rgba(8,145,178,0.14)]">
                   <div className="flex items-start justify-between gap-3">
@@ -1561,16 +1620,20 @@ export default function AdminPayrollPage() {
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-cyan-700">{employee.employee_no || "No employee no."}</p>
                       <h3 className="font-semibold text-slate-950">{employee.full_name}</h3>
                       <p className="mt-1 text-xs font-semibold text-slate-500">{employee.designation || "No designation"}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">Daily rate {money(employee.default_daily_rate)}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">Current daily rate {money(employeeCurrentDailyRate(employee))}</p>
                     </div>
-                    <button onClick={() => toggleEmployee(employee)} className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase transition hover:-translate-y-0.5 ${employee.active ? "bg-cyan-50 text-cyan-700" : "bg-slate-100 text-slate-500"}`}>
-                      {employee.active ? "Active" : "Off"}
+                    <button onClick={() => toggleEmployee(employee)} className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase transition hover:-translate-y-0.5 ${employmentStatus === "active" ? "bg-cyan-50 text-cyan-700" : employmentStatus === "terminated" ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-600"}`}>
+                      {employmentStatus}
                     </button>
                   </div>
                   <div className="mt-3 grid gap-2 rounded-xl border border-slate-100 bg-white/70 p-3 text-xs text-slate-600 sm:grid-cols-2">
                     <p><span className="text-slate-400">Birthday:</span> {dateText(employee.birthday)}</p>
                     <p><span className="text-slate-400">Designation:</span> {employee.designation || "-"}</p>
+                    <p><span className="text-slate-400">Starting rate:</span> {money(employeeStartingDailyRate(employee))}</p>
+                    <p><span className="text-slate-400">Current rate:</span> {money(employeeCurrentDailyRate(employee))}</p>
                     <p><span className="text-slate-400">Date hired:</span> {dateText(employee.date_hired)}</p>
+                    <p><span className="text-slate-400">Resigned/terminated:</span> {dateText(employee.date_resigned_terminated)}</p>
+                    <p><span className="text-slate-400">Re-employment:</span> {dateText(employee.date_reemployment)}</p>
                     <p><span className="text-slate-400">Contact:</span> {employee.contact_number || "-"}</p>
                     <p className="sm:col-span-2"><span className="text-slate-400">Address:</span> {employee.address || "-"}</p>
                     <p><span className="text-slate-400">SSS:</span> {employee.sss_no || "-"}</p>
