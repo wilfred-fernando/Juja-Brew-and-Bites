@@ -218,6 +218,29 @@ function receiptAmount(value) {
   return peso2(value).replace("₱", "P");
 }
 
+function customerDisplayName(customer) {
+  return customer?.name || customer?.customer_name || customer?.full_name || "";
+}
+
+function customerDisplayCode(customer) {
+  return customer?.code || customer?.customer_code || "";
+}
+
+function customerAvailablePoints(customer) {
+  return Number(customer?.availablePoints ?? customer?.available_points ?? customer?.["Available points"] ?? 0);
+}
+
+function formatReceiptFooterDate(value) {
+  const date = value ? new Date(value) : new Date();
+  if (isNaN(date.getTime())) return "";
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = date.getFullYear();
+  const hh = String(date.getHours()).padStart(2, "0");
+  const min = String(date.getMinutes()).padStart(2, "0");
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+}
+
 function receiptPair(left, right, width = RECEIPT_COLUMNS) {
   const l = String(left || "");
   const r = String(right || "");
@@ -280,9 +303,12 @@ function buildReceiptText({
   const subtotalValue = Number(subtotal || 0);
   const discountValue = Number(discount || 0);
   const totalValue = Number(total || subtotalValue - discountValue || 0);
+  const customerName = customerDisplayName(customer);
+  const customerCode = customerDisplayCode(customer);
+  const pointsEarned = customerName ? calcLoyaltyPoints(totalValue) : 0;
+  const availablePoints = customerName ? Number((customerAvailablePoints(customer) + pointsEarned).toFixed(2)) : 0;
 
   lines.push(centerReceiptText(businessName));
-  lines.push("");
   lines.push(centerReceiptText(header || receiptTitle));
   splitReceiptText(address, RECEIPT_COLUMNS).forEach((line) => lines.push(centerReceiptText(line)));
   lines.push(receiptLine());
@@ -296,13 +322,18 @@ function buildReceiptText({
   if (rs.show_store_name !== false) lines.push(`POS: ${posName}`);
   lines.push(receiptLine());
 
+  if (customerName) {
+    lines.push(`Customer: ${customerName}`);
+    if (customerCode) lines.push(`Code: ${customerCode}`);
+    lines.push(receiptLine());
+  }
+
   lines.push(String(dining).toUpperCase());
   lines.push(receiptLine());
 
-  if (customer?.name) lines.push(`Customer: ${customer.name}`);
   if (voucher?.code) lines.push(`Voucher: ${voucher.code}`);
   if (appliedDiscount?.name) lines.push(`Discount: ${appliedDiscount.name}`);
-  if (customer?.name || voucher?.code || appliedDiscount?.name) lines.push(receiptLine());
+  if (voucher?.code || appliedDiscount?.name) lines.push(receiptLine());
 
   cart.forEach((x) => {
     const quantity = Number(x.quantity || 1);
@@ -312,8 +343,17 @@ function buildReceiptText({
     lines.push(receiptPair(nameLines[0], receiptAmount(lineTotal)));
     nameLines.slice(1).forEach((line) => lines.push(line));
     lines.push(`${quantity} x ${receiptAmount(unitPrice)}`);
+    const variants = normalizeLabelLine(x.variantDetails || "");
+    const instructions = normalizeLabelLine(x.instructions || x.specialInstructions || x.special_instructions || "");
+    if (variants) splitReceiptText(variants, RECEIPT_COLUMNS).forEach((line) => lines.push(`  ${line}`));
+    if (instructions) splitReceiptText(`Note: ${instructions}`, RECEIPT_COLUMNS).forEach((line) => lines.push(`  ${line}`));
   });
   lines.push(receiptLine());
+  if (customerName) {
+    lines.push(receiptPair("Points earned", receiptAmount(pointsEarned)));
+    lines.push(receiptPair("Available points", receiptAmount(availablePoints)));
+    lines.push(receiptLine());
+  }
   if (discountValue > 0) {
     lines.push(receiptPair("Subtotal", receiptAmount(subtotalValue)));
     lines.push(receiptPair("Discount", `-${receiptAmount(discountValue)}`));
@@ -332,7 +372,7 @@ function buildReceiptText({
   }
 
   lines.push("");
-  lines.push(receiptPair(rs.show_datetime === false ? "" : formatReceiptDate(printedAt || new Date()), `${receiptId}`));
+  lines.push(receiptPair(rs.show_datetime === false ? "" : formatReceiptFooterDate(printedAt || new Date()), `N° ${shortReceiptNumber(receiptId)}`));
 
   return lines.join("\n");
 }
@@ -346,11 +386,46 @@ function buildOrderSlipText({ orderId, cart }) {
   ].join("\n");
 }
 
-function buildCupLabels({ orderId, cart }) {
+function getLineCategoryId(line) {
+  return line?.categoryId || line?.category_id || line?.menu_category_id || line?.category?.id || null;
+}
+
+function normalizeLabelLine(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function buildCupLabels({ orderId, cart, diningOptionName, printedAt, barCategoryIds = [], barCategoryNames = [] }) {
+  const barIds = new Set((barCategoryIds || []).map((id) => String(id)));
+  const barNames = new Set((barCategoryNames || []).map((name) => String(name || "").trim().toLowerCase()).filter(Boolean));
+  if (barIds.size === 0 && barNames.size === 0) return [];
+
   const labels = [];
   cart.forEach((x) => {
+    const categoryId = getLineCategoryId(x);
+    const categoryName = String(x.category || x.categoryName || x.category_name || "").trim().toLowerCase();
+    const matchesCategory = (categoryId && barIds.has(String(categoryId))) || (categoryName && barNames.has(categoryName));
+    if (!matchesCategory) return;
+
+    const dining = normalizeLabelLine(diningOptionName || "POS ORDER").toUpperCase();
+    const itemName = normalizeLabelLine(x.name || "Item");
+    const variants = normalizeLabelLine(x.variantDetails || "")
+      .split(",")
+      .map((value) => normalizeLabelLine(value))
+      .filter(Boolean);
+    const instructions = normalizeLabelLine(x.instructions || x.specialInstructions || x.special_instructions || "");
+    const footer = normalizeLabelLine(`${formatReceiptDate(printedAt || new Date())}  #${shortReceiptNumber(orderId)}`);
+
     for (let i = 0; i < x.quantity; i++) {
-      labels.push(`${x.name}\nOrder ${orderId}`);
+      const lines = [
+        dining,
+        itemName,
+        receiptLine("-", RECEIPT_COLUMNS),
+        ...variants,
+      ];
+      if (instructions) lines.push(`Note: ${instructions}`);
+      lines.push("");
+      lines.push(footer);
+      labels.push(lines.join("\n"));
     }
   });
   return labels;
@@ -1486,6 +1561,8 @@ export default function POSPage() {
   const autoRefreshInFlightRef = useRef(false);
 
   const [printerConfig, setPrinterConfig] = useState({ receipt: null, order_slip: null, cup_label: null });
+  const [barPrinterCategoryIds, setBarPrinterCategoryIds] = useState([]);
+  const [barPrinterCategoryNames, setBarPrinterCategoryNames] = useState([]);
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -2134,6 +2211,55 @@ export default function POSPage() {
     }
   }
 
+  async function loadBarPrinterCategories(sid, categoryRows = categories) {
+    if (!sid) return;
+    const { data: groups, error: groupError } = await supabase
+      .from("pos_printer_groups")
+      .select("id, name, is_active")
+      .eq("store_id", sid);
+
+    if (groupError) {
+      console.warn("Unable to load printer groups", groupError);
+      setBarPrinterCategoryIds([]);
+      setBarPrinterCategoryNames([]);
+      return;
+    }
+
+    const barGroupIds = (groups || [])
+      .filter((group) => String(group.name || "").trim().toLowerCase() === "bar")
+      .filter((group) => group.is_active !== false)
+      .map((group) => group.id);
+
+    if (barGroupIds.length === 0) {
+      setBarPrinterCategoryIds([]);
+      setBarPrinterCategoryNames([]);
+      return;
+    }
+
+    const { data: mapping, error: mappingError } = await supabase
+      .from("pos_printer_group_categories")
+      .select("menu_category_id")
+      .eq("store_id", sid)
+      .in("printer_group_id", barGroupIds);
+
+    if (mappingError) {
+      console.warn("Unable to load Bar printer categories", mappingError);
+      setBarPrinterCategoryIds([]);
+      setBarPrinterCategoryNames([]);
+      return;
+    }
+
+    const mappedIds = Array.from(new Set((mapping || []).map((row) => row.menu_category_id).filter(Boolean)));
+    const mappedIdSet = new Set(mappedIds.map((id) => String(id)));
+    const mappedNames = (categoryRows || [])
+      .filter((category) => mappedIdSet.has(String(category.id)))
+      .map((category) => category.name)
+      .filter(Boolean);
+
+    setBarPrinterCategoryIds(mappedIds);
+    setBarPrinterCategoryNames(Array.from(new Set(mappedNames)));
+  }
+
   async function fetchActiveVouchers(memberId) {
     const now = Date.now();
     let res = await supabase
@@ -2219,20 +2345,48 @@ export default function POSPage() {
       const [iRes, catRes, cRes] = await Promise.all([
         supabase.from("menu_items").select("*").order("name"),
         supabase.from("menu_categories").select("*").order("name", { ascending: true }),
-        supabase.from("loyalty_members").select("id, name:customer_name, code:customer_code"),
+        supabase.from("loyalty_members").select("*"),
       ]);
 
       const cats = catRes.data || [];
       setItems(iRes.data || []);
       setCategories(cats);
-      setCustomers(cRes.data || []);
+      setCustomers((cRes.data || []).map((row) => ({
+        ...row,
+        name: row.customer_name || row.name || row.full_name || "",
+        code: row.customer_code || row.code || "",
+        availablePoints: row["Available points"] ?? row.available_points ?? 0,
+        pointsBalance: row["Points balance"] ?? row.points_balance ?? 0,
+      })));
 
       await loadPosSettings(sid);
       await loadPrinters(sid);
+      await loadBarPrinterCategories(sid, cats);
     } catch (e) {
       showToast("error", "Loading Error", e.message);
     } finally {
       if (showLoadingState) setLoading(false);
+    }
+  }
+
+  async function autoPrintBarCupLabels({ orderId, labelCart = cart, labelDining = diningOptionName || "WEB ORDER", printedAt = new Date() } = {}) {
+    const labels = buildCupLabels({
+      orderId,
+      cart: labelCart,
+      diningOptionName: labelDining,
+      printedAt,
+      barCategoryIds: barPrinterCategoryIds,
+      barCategoryNames: barPrinterCategoryNames,
+    });
+
+    if (labels.length === 0) return;
+
+    try {
+      for (const label of labels) {
+        await printByRole("cup_label", label, printerConfig, { fallbackToBrowser: false });
+      }
+    } catch (printError) {
+      showToast("warn", "Cup Label Not Printed", printError?.message || "Select and save the Bluetooth cup label printer in POS Settings.");
     }
   }
 
@@ -2315,6 +2469,12 @@ export default function POSPage() {
         status: "preparing",
       });
       if (kdsErr) throw kdsErr;
+      await autoPrintBarCupLabels({
+        orderId: activeWebOrderId,
+        labelCart: cart,
+        labelDining: diningOptionName || "WEB ORDER",
+        printedAt: new Date(),
+      });
       return;
     }
 
@@ -2349,6 +2509,12 @@ export default function POSPage() {
         status: "preparing",
       });
       if (kdsErr) throw kdsErr;
+      await autoPrintBarCupLabels({
+        orderId: ticketRow.id,
+        labelCart: cart,
+        labelDining: name,
+        printedAt: ticketRow.updated_at || ticketRow.created_at || new Date(),
+      });
     } else {
       const { data: ticketRow, error } = await supabase.from("open_tickets").insert([payload]).select("*").single();
       if (error) throw error;
@@ -2369,6 +2535,12 @@ export default function POSPage() {
         status: "preparing",
       });
       if (kdsErr) throw kdsErr;
+      await autoPrintBarCupLabels({
+        orderId: ticketRow.id,
+        labelCart: cart,
+        labelDining: name,
+        printedAt: ticketRow.created_at || new Date(),
+      });
     }
   }
 
@@ -3480,18 +3652,19 @@ export default function POSPage() {
       setReceiptText(receipt);
       setReceiptOpen(true);
 
+      await autoPrintBarCupLabels({
+        orderId: generatedReceiptNumber,
+        labelCart: cart,
+        labelDining: diningOptionName || "WEB ORDER",
+        printedAt: orderRow.paid_at || orderRow.created_at || new Date(),
+      });
+
       if (receiptSettings?.auto_print) {
         try {
           await printByRole("receipt", receipt, printerConfig, { fallbackToBrowser: false });
           if (selectedDining?.print_kitchen || activeWebOrderId) {
             const slip = buildOrderSlipText({ orderId: generatedReceiptNumber, cart });
             await printByRole("order_slip", slip, printerConfig, { fallbackToBrowser: false });
-          }
-          if (selectedDining?.print_labels || activeWebOrderId) {
-            const labels = buildCupLabels({ orderId: generatedReceiptNumber, cart });
-            for (const l of labels) {
-              await printByRole("cup_label", l, printerConfig, { fallbackToBrowser: false });
-            }
           }
         } catch (printError) {
           showToast("warn", "Sale Saved, Printer Needs Permission", printError?.message || "Select the Xprinter in POS Settings, then reprint the receipt.");

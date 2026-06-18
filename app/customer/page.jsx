@@ -1713,6 +1713,7 @@ function LoyaltyTab({ member, setMember, user }) {
   useEffect(() => {
     async function createPointsVouchersIfNeeded() {
       if (!member?.id) return;
+      if (!member?.user_id || String(member.user_id) !== String(user?.id)) return;
       const lifetimePoints = Number(member?.["Points balance"] || member?.["Available points"] || 0);
       const earnedVoucherCount = Math.floor(lifetimePoints / 100);
       if (earnedVoucherCount <= 0) return;
@@ -1746,7 +1747,7 @@ function LoyaltyTab({ member, setMember, user }) {
     }
 
     createPointsVouchersIfNeeded();
-  }, [member?.id, member?.["Points balance"], member?.["Available points"]]);
+  }, [member?.id, member?.user_id, user?.id, member?.["Points balance"], member?.["Available points"]]);
 
   const computeStatus = (v) => {
     if (!v) return "active";

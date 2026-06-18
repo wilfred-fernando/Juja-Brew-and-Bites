@@ -27,6 +27,7 @@ function Nav({ active }) {
     ["menu", "Menu", "/menu"],
     ["promo", "Promos", "/promos"],
     ["function room", "Function Room", "/function-room"],
+    ["event-cart", "Event Cart", "/event-cart"],
     ["about", "About Us", "/about"],
   ];
 
@@ -35,6 +36,7 @@ function Nav({ active }) {
     ["Menu", "/menu"],
     ["Promos", "/promos"],
     ["Function Room", "/function-room"],
+    ["Event Cart", "/event-cart"],
     ["About Us", "/about"],
   ];
 

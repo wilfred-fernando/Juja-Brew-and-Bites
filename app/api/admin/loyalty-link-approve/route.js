@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies, headers } from "next/headers";
+import { createMissingPointRewardVouchers } from "@/lib/loyalty/pointVouchers";
 
 function supabaseConfig() {
   return {
@@ -164,7 +165,9 @@ export async function POST(req) {
 
     if (updateRequestError) throw updateRequestError;
 
-    return Response.json({ success: true });
+    const voucherResult = await createMissingPointRewardVouchers(admin, chosenMemberId);
+
+    return Response.json({ success: true, pointVouchersCreated: voucherResult.created || 0 });
   } catch (error) {
     return Response.json({ error: error?.message || "Unable to approve loyalty link request." }, { status: 500 });
   }

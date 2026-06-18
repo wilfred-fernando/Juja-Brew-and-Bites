@@ -902,7 +902,22 @@ export default function LoyaltyAdminPage() {
         throw profErr;
       }
 
-      setNotice("✅ Linked successfully.");
+      let voucherMessage = "";
+      try {
+        const voucherRes = await fetch("/api/admin/loyalty-point-vouchers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ memberId: selectedMember.id }),
+        });
+        const voucherJson = await voucherRes.json().catch(() => ({}));
+        if (!voucherRes.ok) throw new Error(voucherJson?.error || "Unable to allocate point vouchers.");
+        const created = Number(voucherJson?.pointVouchersCreated || 0);
+        if (created > 0) voucherMessage = ` ${created} point voucher${created === 1 ? "" : "s"} created.`;
+      } catch (voucherErr) {
+        voucherMessage = ` Voucher allocation skipped: ${voucherErr?.message || "Unknown error"}.`;
+      }
+
+      setNotice(`✅ Linked successfully.${voucherMessage}`);
       setSelectedUser(null);
       setSelectedMember(null);
       setUserQuery("");
