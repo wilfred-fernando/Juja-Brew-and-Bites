@@ -74,6 +74,9 @@ const initialReferenceForm = {
   item_category: "",
   reference_quantity: "",
   reference_unit: "",
+  supplier_company_name: "",
+  supplier_city_address: "",
+  supplier_tin_number: "",
   notes: "",
   show_to_cashier: true,
   is_active: true,
@@ -1223,6 +1226,9 @@ export default function FinanceExpenseManager() {
         item_category: row.item_category || "",
         reference_quantity: row.reference_quantity || "",
         reference_unit: row.reference_unit || "",
+        supplier_company_name: row.supplier_company_name || "",
+        supplier_city_address: row.supplier_city_address || "",
+        supplier_tin_number: row.supplier_tin_number || "",
         notes: row.notes || "",
         show_to_cashier: row.show_to_cashier !== false,
         is_active: row.is_active !== false,
@@ -1255,6 +1261,9 @@ export default function FinanceExpenseManager() {
       item_category: referenceForm.ref_type === "item" ? referenceForm.item_category.trim() || null : null,
       reference_quantity: referenceForm.ref_type === "item" && referenceForm.reference_quantity !== "" ? numberValue(referenceForm.reference_quantity) : null,
       reference_unit: referenceForm.ref_type === "item" ? normalizeUnit(referenceForm.reference_unit) || null : null,
+      supplier_company_name: referenceForm.ref_type === "supplier" ? referenceForm.supplier_company_name.trim() || null : null,
+      supplier_city_address: referenceForm.ref_type === "supplier" ? referenceForm.supplier_city_address.trim() || null : null,
+      supplier_tin_number: referenceForm.ref_type === "supplier" ? referenceForm.supplier_tin_number.trim() || null : null,
       notes: referenceForm.ref_type === "item" ? null : referenceForm.notes.trim() || null,
       show_to_cashier: ["item", "item_category"].includes(referenceForm.ref_type) ? referenceForm.show_to_cashier !== false : true,
       is_active: referenceForm.is_active !== false,
@@ -1783,6 +1792,31 @@ export default function FinanceExpenseManager() {
               </Field>
             </>
           ) : null}
+          {referenceForm.ref_type === "supplier" ? (
+            <>
+              <Field label="Company Name">
+                <Input
+                  value={referenceForm.supplier_company_name}
+                  onChange={(e) => setReferenceForm((prev) => ({ ...prev, supplier_company_name: e.target.value }))}
+                  placeholder="Registered company name"
+                />
+              </Field>
+              <Field label="City Address">
+                <Input
+                  value={referenceForm.supplier_city_address}
+                  onChange={(e) => setReferenceForm((prev) => ({ ...prev, supplier_city_address: e.target.value }))}
+                  placeholder="City address"
+                />
+              </Field>
+              <Field label="TIN Number">
+                <Input
+                  value={referenceForm.supplier_tin_number}
+                  onChange={(e) => setReferenceForm((prev) => ({ ...prev, supplier_tin_number: e.target.value }))}
+                  placeholder="TIN number"
+                />
+              </Field>
+            </>
+          ) : null}
           {["item", "item_category"].includes(referenceForm.ref_type) ? (
             <Field label="Cashier Visibility">
               <Select
@@ -1888,13 +1922,16 @@ export default function FinanceExpenseManager() {
           <EmptyState message="No references yet." />
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-white/70 bg-white/88 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl">
-            <table className="w-full min-w-[980px] text-sm">
+            <table className="w-full min-w-[1200px] text-sm">
               <thead className="sticky top-0 bg-slate-950 text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-50">
                 <tr>
                   <th className="px-4 py-3">Type</th>
                   <th className="px-4 py-3">Name</th>
                   <th className="px-4 py-3">Item Category</th>
                   <th className="px-4 py-3">Common Name</th>
+                  <th className="px-4 py-3">Company Name</th>
+                  <th className="px-4 py-3">City Address</th>
+                  <th className="px-4 py-3">TIN Number</th>
                   <th className="px-4 py-3">Qty</th>
                   <th className="px-4 py-3">Unit</th>
                   <th className="px-4 py-3">Notes</th>
@@ -1910,6 +1947,9 @@ export default function FinanceExpenseManager() {
                     <td className="px-4 py-3 text-slate-950">{row.name}</td>
                     <td className="px-4 py-3">{row.ref_type === "item" ? row.item_category || "-" : "-"}</td>
                     <td className="px-4 py-3">{row.common_name || "-"}</td>
+                    <td className="px-4 py-3">{row.ref_type === "supplier" ? row.supplier_company_name || "-" : "-"}</td>
+                    <td className="px-4 py-3">{row.ref_type === "supplier" ? row.supplier_city_address || "-" : "-"}</td>
+                    <td className="px-4 py-3">{row.ref_type === "supplier" ? row.supplier_tin_number || "-" : "-"}</td>
                     <td className="px-4 py-3">{row.ref_type === "item" && row.reference_quantity != null ? Number(row.reference_quantity).toLocaleString("en-PH") : "-"}</td>
                     <td className="px-4 py-3">{row.ref_type === "item" ? row.reference_unit || "-" : "-"}</td>
                     <td className="px-4 py-3">{row.ref_type === "item" ? "-" : row.notes || "-"}</td>
