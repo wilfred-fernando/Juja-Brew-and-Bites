@@ -137,7 +137,7 @@ export default function KitchenDisplay() {
     }
 
     const role = String(profile?.role || "").toLowerCase();
-    if (!["kds", "admin", "super_admin"].includes(role)) {
+    if (!["kds", "kitchen", "admin", "super_admin"].includes(role)) {
       await supabase.auth.signOut();
       window.location.href = getKitchenLoginPath();
       return;

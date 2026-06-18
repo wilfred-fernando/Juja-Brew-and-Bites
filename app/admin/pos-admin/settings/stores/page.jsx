@@ -255,7 +255,7 @@ export default function Page() {
     let kq = supabase
       .from("profiles")
       .select("id, full_name, role, store_id, must_change_password, created_at")
-      .eq("role", "kds");
+      .in("role", ["kds", "kitchen"]);
 
     if (role === "super_admin") {
       if (storeFilter !== "ALL") kq = kq.eq("store_id", storeFilter);

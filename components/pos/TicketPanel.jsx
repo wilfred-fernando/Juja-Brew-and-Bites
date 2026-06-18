@@ -33,6 +33,7 @@ export default function TicketPanel({
   onOpenWebOrdersModal,
   onOpenSavedTicketsModal,
   onCartItemClick,
+  onRemoveCartItem,
   onCloseMobile,
   onOpenPosMenu,
   pendingCount = 0,
@@ -309,6 +310,19 @@ export default function TicketPanel({
                   </p>
                 </div>
                 
+                {onRemoveCartItem && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onRemoveCartItem(idx);
+                    }}
+                    className="self-end rounded-lg border border-red-100 bg-red-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-red-600 transition hover:bg-red-100"
+                  >
+                    Remove
+                  </button>
+                )}
+
                 <div className="flex justify-between items-center text-[11px]">
                   <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md font-bold font-mono text-[10px]">
                     x{line.quantity}

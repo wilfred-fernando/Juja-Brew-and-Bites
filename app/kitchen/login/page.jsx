@@ -40,7 +40,7 @@ export default function KitchenLoginPage() {
         .maybeSingle();
 
       const role = String(profile?.role || "").toLowerCase();
-      if (["kds", "admin", "super_admin"].includes(role) && (role === "super_admin" || profile?.store_id)) {
+      if (["kds", "kitchen", "admin", "super_admin"].includes(role) && (role === "super_admin" || profile?.store_id)) {
         window.location.href = kitchenPath("");
         return;
       }
@@ -89,7 +89,7 @@ export default function KitchenLoginPage() {
       if (profileError) throw profileError;
 
       const role = String(profile?.role || "").toLowerCase();
-      if (!["kds", "admin", "super_admin"].includes(role)) {
+      if (!["kds", "kitchen", "admin", "super_admin"].includes(role)) {
         await supabase.auth.signOut();
         throw new Error("This account is not allowed to use KDS.");
       }

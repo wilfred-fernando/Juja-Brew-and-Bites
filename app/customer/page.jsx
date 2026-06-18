@@ -399,13 +399,13 @@ function HomeTab({ member, user, setTab }) {
               <div className="grid grid-cols-3 gap-2 mt-8 bg-[#FFF9FA] p-4 rounded-2xl border border-rose-50">
                 <div className="text-center md:text-left">
                   <p className="text-[#FC687D] font-bold text-xl md:text-2xl lg:text-3xl leading-none">
-                    {availablePts.toFixed(0)}
+                    {availablePts.toFixed(2)}
                   </p>
                   <p className="text-slate-500 text-[9px] uppercase font-semibold tracking-widest mt-1.5">Available</p>
                 </div>
                 <div className="text-center md:text-left border-l border-rose-100 pl-2">
                   <p className="text-slate-800 font-bold text-xl md:text-2xl lg:text-3xl leading-none">
-                    {totalPts.toFixed(0)}
+                    {totalPts.toFixed(2)}
                   </p>
                   <p className="text-slate-500 text-[9px] uppercase font-semibold tracking-widest mt-1.5">Total</p>
                 </div>
@@ -2066,11 +2066,11 @@ function LoyaltyTab({ member, setMember, user }) {
         <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm grid grid-cols-3 md:grid-cols-1 gap-2">
           <div className="p-2 bg-rose-50/40 border border-rose-100/50 rounded-lg text-center md:text-left md:flex md:justify-between md:items-center">
             <span className="text-[10px] uppercase font-bold text-slate-400 block md:inline">Balance</span>
-            <span className="text-lg font-extrabold text-[#FC687D] block">{available.toFixed(0)} pts</span>
+            <span className="text-lg font-extrabold text-[#FC687D] block">{available.toFixed(2)} pts</span>
           </div>
           <div className="p-2 bg-slate-50 border border-slate-100 rounded-lg text-center md:text-left md:flex md:justify-between md:items-center">
             <span className="text-[10px] uppercase font-bold text-slate-400 block md:inline">Total Points</span>
-            <span className="text-sm font-bold text-slate-700 block">{member?.["Points Balance"] || 0}</span>
+            <span className="text-sm font-bold text-slate-700 block">{Number(member?.["Points Balance"] ?? member?.["Points balance"] ?? 0).toFixed(2)}</span>
           </div>
           <div className="p-2 bg-slate-50 border border-slate-100 rounded-lg text-center md:text-left md:flex md:justify-between md:items-center">
             <span className="text-[10px] uppercase font-bold text-slate-400 block md:inline">Visit</span>
@@ -2102,12 +2102,12 @@ function LoyaltyTab({ member, setMember, user }) {
         <div className="bg-white border border-rose-50 rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
             <h3 className="font-bold text-slate-800 text-sm">Reward Progress Milestone</h3>
-            <span className="text-xs font-bold text-slate-400">{available.toFixed(0)} / {nextReward} pts</span>
+            <span className="text-xs font-bold text-slate-400">{available.toFixed(2)} / {nextReward.toFixed(2)} pts</span>
           </div>
           <div className="w-full h-3 bg-slate-100 border border-slate-200/60 rounded-full overflow-hidden">
             <div className="h-full bg-[#FC687D] rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
           </div>
-          <p className="text-xs font-medium text-slate-500 mt-2.5">🎁 Only {(nextReward - available).toFixed(0)} additional points required to qualify for subsequent product voucher allocation metrics.</p>
+          <p className="text-xs font-medium text-slate-500 mt-2.5">🎁 Only {Math.max(nextReward - available, 0).toFixed(2)} additional points required to qualify for subsequent product voucher allocation metrics.</p>
         </div>
 
         <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">

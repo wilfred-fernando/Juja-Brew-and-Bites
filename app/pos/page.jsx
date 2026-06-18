@@ -802,8 +802,7 @@ function SavedTicketsModal({ open, onClose, tickets, onSelect, onRefresh, onVoid
   );
 }
 
-function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onDelivered, paymentTypes = [] }) {
-  const [deliveryPayments, setDeliveryPayments] = useState({});
+function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onDelivered }) {
   const statusClass = (status) => {
     const s = String(status || "").toLowerCase();
     if (s === "pending") return "bg-amber-50 text-amber-700 border-amber-200";
@@ -834,7 +833,6 @@ function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onD
             const readyDisabled = status === "ready" || status === "completed";
             const deliveredDisabled = status === "completed";
             const total = Number(order.total || order.subtotal || 0);
-            const selectedPayment = deliveryPayments[order.id] || order.payment_method || "";
 
             return (
               <div key={order.id} className="p-3.5 border rounded-xl bg-white shadow-sm hover:border-rose-100 transition">
@@ -872,22 +870,12 @@ function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onD
                   <button
                     type="button"
                     disabled={deliveredDisabled}
-                    onClick={() => onDelivered(order, selectedPayment)}
+                    onClick={() => onDelivered(order)}
                     className="h-9 rounded-lg bg-[#FC687D] hover:bg-rose-500 text-xs font-bold text-white transition disabled:opacity-40"
                   >
                     Delivered
                   </button>
                 </div>
-                <select
-                  value={selectedPayment}
-                  onChange={(e) => setDeliveryPayments((prev) => ({ ...prev, [order.id]: e.target.value }))}
-                  className="mt-2 w-full h-9 rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-bold text-slate-700 outline-none"
-                >
-                  <option value="">Select payment before delivered</option>
-                  {(paymentTypes || []).map((p) => (
-                    <option key={p.id || p.name} value={p.name}>{p.name}</option>
-                  ))}
-                </select>
               </div>
             );
           })}
@@ -1649,6 +1637,29 @@ export default function POSPage() {
     return null;
   };
 
+  const enrichOrderItemsForKds = (orderItems = []) => {
+    const menuItemsById = new Map((items || []).map((item) => [String(item.id), item]));
+    return (Array.isArray(orderItems) ? orderItems : []).map((line) => {
+      const menuItemId = line?.menuItemId || line?.menu_item_id || line?.id || null;
+      const menuItem = menuItemId ? menuItemsById.get(String(menuItemId)) : null;
+      return {
+        ...line,
+        menuItemId,
+        menu_item_id: menuItemId,
+        category: line?.category || line?.categoryName || line?.category_name || menuItem?.category || menuItem?.category_name || null,
+        categoryId: line?.categoryId || line?.category_id || line?.menu_category_id || menuItem?.category_id || menuItem?.menu_category_id || null,
+      };
+    });
+  };
+
+  const buildWebOrderForKds = (order, overrides = {}) => ({
+    ...order,
+    ...overrides,
+    store_id: overrides.store_id || getWebOrderStoreId(order) || activeWebOrderBranchId || storeId || null,
+    branch_id: overrides.branch_id || getWebOrderStoreId(order) || activeWebOrderBranchId || storeId || null,
+    items: enrichOrderItemsForKds(overrides.items || order?.items || []),
+  });
+
   const showToast = (type, title, message) => {
     setToast({ type, title, message });
     setTimeout(() => setToast(null), 3500);
@@ -1661,6 +1672,12 @@ export default function POSPage() {
     }, 0);
 
   const subtotal = useMemo(() => calcTotal(cart), [cart]);
+
+  const removeCartItemAt = (index) => {
+    setCart((prev) => prev.filter((_, idx) => idx !== index));
+    setVoucherTargetCartItemId(null);
+    showToast("info", "Item Removed", "The item was removed from the active ticket.");
+  };
 
   const discountAmount = useMemo(() => {
     const amt = discountAmountFromRule(appliedDiscount, subtotal);
@@ -2017,7 +2034,7 @@ export default function POSPage() {
 
       const { error: kdsErr } = await upsertKdsTicket(supabase, {
         sourceType: "web",
-        order: { ...incomingOrder, status: "accepted", order_status: "accepted", accepted_at: acceptedAt },
+        order: buildWebOrderForKds(incomingOrder, { status: "accepted", order_status: "accepted", accepted_at: acceptedAt }),
         status: "accepted",
       });
       if (kdsErr) showToast("warn", "KDS Sync Warning", kdsErr.message);
@@ -2041,7 +2058,7 @@ export default function POSPage() {
     stopContinuousAlertChime();
 
     // Route attributes into workspace memory cache tracking rows
-    setCart(incomingOrder.items || []);
+    setCart(enrichOrderItemsForKds(incomingOrder.items || []));
     setOriginalTicketId(null);
     setActiveWebOrderId(incomingOrder.id); // Secure the unique ID link 
     setActiveWebOrderBranchId(getWebOrderStoreId(incomingOrder) || storeId || null);
@@ -2444,7 +2461,7 @@ export default function POSPage() {
       const { error } = await supabase
         .from("web_orders")
         .update({
-          items: cart,
+          items: enrichOrderItemsForKds(cart),
           subtotal: Number(subtotal),
           total: Number(subtotal),
           dining_option: diningOptionName || null,
@@ -2461,7 +2478,7 @@ export default function POSPage() {
           customer_name: attachedCustomer?.name || "Web Customer",
           dining_option: diningOptionName || "Web Order",
           fulfillment_type: diningOptionName || "Web Order",
-          items: cart,
+          items: enrichOrderItemsForKds(cart),
           subtotal: Number(subtotal),
           total: Number(subtotal),
           accepted_at: new Date().toISOString(),
@@ -2502,7 +2519,7 @@ export default function POSPage() {
           customer_name: attachedCustomer?.name || "Walk-in",
           order_type: name,
           dining_option: name,
-          items: cart,
+          items: enrichOrderItemsForKds(cart),
           total_amount: Number(subtotal || 0),
           created_at: ticketRow.created_at,
         },
@@ -2528,7 +2545,7 @@ export default function POSPage() {
           customer_name: attachedCustomer?.name || "Walk-in",
           order_type: name,
           dining_option: name,
-          items: cart,
+          items: enrichOrderItemsForKds(cart),
           total_amount: Number(subtotal || 0),
           created_at: ticketRow.created_at,
         },
@@ -2627,7 +2644,7 @@ export default function POSPage() {
   }
 
   function editAcceptedWebOrder(order) {
-    setCart(order.items || []);
+    setCart(enrichOrderItemsForKds(order.items || []));
     setOriginalTicketId(null);
     setActiveWebOrderId(order.id); // Secure tracking context parameter link
     setActiveWebOrderBranchId(getWebOrderStoreId(order) || storeId || null);
@@ -2677,63 +2694,13 @@ export default function POSPage() {
     showToast("success", "Customer Alert Sent", "Order status is now ready for pickup or delivery.");
   }
 
-  async function markWebOrderDelivered(order, paymentType) {
+  function openWebOrderCharge(order) {
     if (!order?.id) return;
-    if (!paymentType) {
-      showToast("error", "Payment Required", "Select payment type before marking delivered.");
-      return;
-    }
-    const pointsEarned = calcLoyaltyPoints(order.total || order.subtotal);
-    const orderStoreId = getWebOrderStoreId(order) || storeId;
-    let receiptFields = {};
-    if (!order.receipt_number && orderStoreId) {
-      const { data: receiptData, error: receiptErr } = await supabase.rpc("generate_receipt_number", {
-        p_store_id: orderStoreId,
-      });
-      if (receiptErr) {
-        showToast("error", "Receipt Number Failed", receiptErr.message);
-        return;
-      }
-      const receiptRow = Array.isArray(receiptData) ? receiptData[0] : receiptData;
-      if (!receiptRow?.receipt_number) {
-        showToast("error", "Receipt Number Failed", "No receipt number was returned by the database.");
-        return;
-      }
-      receiptFields = {
-        receipt_number: receiptRow.receipt_number,
-        receipt_sequence: receiptRow.receipt_sequence || null,
-        receipt_date: receiptRow.receipt_date || null,
-      };
-    }
-
-    const { error } = await supabase
-      .from("web_orders")
-      .update({ status: "completed", order_status: "completed", completed_at: new Date().toISOString(), payment_method: paymentType, payment_status: "paid", ...receiptFields })
-      .eq("id", order.id);
-
-    if (error) {
-      showToast("error", "Completion Failed", error.message);
-      return;
-    }
-
-    await markKdsTicketStatus(supabase, { sourceType: "web", sourceId: order.id, status: "completed" });
-
-    if (order.user_id) {
-      await supabase.from("notifications").insert([{
-        type: "web_order_completed",
-        title: "Order Completed",
-        message: "Your order has been completed.",
-        web_order_id: order.id,
-        store_id: getWebOrderStoreId(order),
-        target_user_id: order.user_id,
-        target_role: "customer",
-        metadata: { status: "completed", payment_method: paymentType },
-      }]);
-    }
-
-    await awardWebOrderLoyaltyPoints(order, pointsEarned);
-    await fetchAcceptedWebOrders();
-    showToast("success", "Order Completed", `Web order completed. Loyalty points: +${pointsEarned.toFixed(2)}.`);
+    editAcceptedWebOrder(order);
+    setSelectedPayment("");
+    setPaymentAmount("");
+    window.setTimeout(() => setPaymentOpen(true), 0);
+    showToast("info", "Charge Web Order", "Select payment details to complete this web order.");
   }
 
   async function createPointRewardVouchers(memberId, lifetimePoints) {
@@ -3557,7 +3524,7 @@ export default function POSPage() {
           store_id: resolvedBranchId,
           branch_id: resolvedBranchId,
           customer_id: attachedCustomer?.id || null,
-          items: cart,
+          items: enrichOrderItemsForKds(cart),
           subtotal: grossTotal,
           total,
           discount,
@@ -3578,7 +3545,7 @@ export default function POSPage() {
       if (!activeWebOrderId) {
         const { error: kdsErr } = await upsertKdsTicket(supabase, {
           sourceType: "pos",
-          order: orderRow,
+          order: { ...orderRow, items: enrichOrderItemsForKds(cart) },
           status: "preparing",
         });
         if (kdsErr) showToast("warn", "KDS Sync Warning", kdsErr.message);
@@ -3628,7 +3595,7 @@ export default function POSPage() {
             receipt_date: receiptRow.receipt_date || null,
             payment_method: paymentLabel,
             payment_status: "paid",
-            items: cart,
+            items: enrichOrderItemsForKds(cart),
             subtotal: Number(subtotal),
             total: total
           })
@@ -4552,6 +4519,7 @@ export default function POSPage() {
                 if (!base) return;
                 setSelectedItemForModal({ ...base, editData: line, editIndex: idx });
               }}
+              onRemoveCartItem={removeCartItemAt}
             />
           </div>
         </div>
@@ -4647,6 +4615,7 @@ export default function POSPage() {
                   if (!base) return;
                   setSelectedItemForModal({ ...base, editData: line, editIndex: idx });
                 }}
+                onRemoveCartItem={removeCartItemAt}
                 onCloseMobile={() => setTicketDrawerOpen(false)}
               />
             </div>
@@ -4683,8 +4652,7 @@ export default function POSPage() {
         onRefresh={fetchAcceptedWebOrders}
         onEdit={editAcceptedWebOrder}
         onReady={markWebOrderReady}
-        onDelivered={markWebOrderDelivered}
-        paymentTypes={paymentTypes}
+        onDelivered={openWebOrderCharge}
       />
       <DiningOptionModal open={diningOptionPickOpen} onClose={() => setDiningOptionPickOpen(false)} options={diningOptions} onPick={createNewTicketWithItems} />
       <VouchersModal

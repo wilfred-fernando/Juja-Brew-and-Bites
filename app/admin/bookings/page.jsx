@@ -830,7 +830,7 @@ export default function AdminBookingsDashboard() {
         <div className="flex items-center gap-2">
           <button
             onClick={openManualModal}
-            className="px-4 py-2 rounded-xl font-bold bg-slate-400/78 text-white text-[11px] uppercase tracking-widest hover:bg-slate-600 active:scale-95"
+            className="px-4 py-2 rounded-xl font-bold bg-blue-200 text-white text-[11px] uppercase tracking-widest hover:bg-blue-300 active:scale-95"
           >
             Manual Booking
           </button>
@@ -1362,7 +1362,7 @@ export default function AdminBookingsDashboard() {
                                 className={`px-3 py-2 rounded-xl text-[10px] uppercase tracking-widest transition ${
                                   past
                                     ? "bg-slate-100 text-slate-500 cursor-not-allowed"
-                                    : "bg-blue-500 text-white hover:bg-blue-600 active:scale-95"
+                                    : "bg-blue-300 font-bold text-white hover:bg-blue-400 active:scale-95"
                                 }`}
                               >
                                 ✏️ Edit
@@ -1833,7 +1833,7 @@ export default function AdminBookingsDashboard() {
               <button
                 onClick={saveAdminUpdate}
                 disabled={editLoading}
-                className="flex-1 py-3 rounded-xl bg-slate-600 text-white text-[11px] uppercase tracking-widest active:scale-95 disabled:opacity-60"
+                className="flex-1 py-3 rounded-xl font-bold bg-blue-200 text-[11px] uppercase tracking-widest active:scale-95 disabled:opacity-60"
               >
                 {editLoading ? "Saving..." : "Save Update"}
               </button>
