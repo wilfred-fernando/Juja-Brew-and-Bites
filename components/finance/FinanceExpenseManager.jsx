@@ -1548,7 +1548,7 @@ export default function FinanceExpenseManager() {
 
     return (
       <div className="overflow-x-auto rounded-2xl border border-white/70 bg-white/88 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl">
-        <table className="w-full min-w-[980px] text-sm">
+        <table className="w-full min-w-[1080px] text-sm">
           <thead className="sticky top-0 bg-slate-950 text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-50">
             <tr>
               <th className="px-4 py-3">Date</th>
@@ -1559,6 +1559,7 @@ export default function FinanceExpenseManager() {
               <th className="px-4 py-3">Supplier / Name</th>
               <th className="px-4 py-3 text-center">Qty</th>
               <th className="px-4 py-3 text-center">Unit</th>
+              <th className="px-4 py-3 text-right">Unit Price</th>
               <th className="px-4 py-3 text-right">Sub-total</th>
               <th className="px-4 py-3 text-right">Discount</th>
               <th className="px-4 py-3 text-right">Total</th>
@@ -1588,6 +1589,7 @@ export default function FinanceExpenseManager() {
                   <td className="px-4 py-3">{row.supplier_name || "-"}</td>
                   <td className="px-4 py-3 text-center">{Number(row.quantity || 0).toLocaleString("en-PH")}</td>
                   <td className="px-4 py-3 text-center">{normalizeUnit(row.unit) || "-"}</td>
+                  <td className="px-4 py-3 text-right">{peso(row.unit_price)}</td>
                   <td className="px-4 py-3 text-right">{peso(row.subtotal)}</td>
                   <td className="px-4 py-3 text-right">{peso(row.discount)}</td>
                   <td className="px-4 py-3 text-right font-semibold text-slate-950">{peso(row.total)}</td>
