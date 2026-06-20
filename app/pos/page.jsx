@@ -1127,7 +1127,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-bold text-slate-700">{g.name} {g.isRequired ? <span className="text-rose-500">*</span> : null}</p>
-                    <p className="text-[10px] text-slate-400 font-semibold">{g.isMultiSelect ? "Multi-select" : "Single-select"}{selectedCount > 0 ? ` • Active: ${selectedCount}` : ""}</p>
+                    <p className="text-[10px] text-slate-400 font-normal italic">{g.isMultiSelect ? "Multi-select" : "Single-select"}{selectedCount > 0 ? ` • Active: ${selectedCount}` : ""}</p>
                   </div>
                   {!g.isRequired && (
                     <button
