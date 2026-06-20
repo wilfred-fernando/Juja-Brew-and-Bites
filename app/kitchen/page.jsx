@@ -49,7 +49,9 @@ function itemOptionRows(item) {
     if (!label) return;
     grouped.set(group, [...(grouped.get(group) || []), label]);
   });
-  grouped.forEach((values, group) => rows.push({ group, values: values.join(", ") }));
+  grouped.forEach((values, group) => {
+    values.forEach((value) => rows.push({ group, values: value }));
+  });
   if (!rows.length && item?.variantDetails) {
     String(item.variantDetails)
       .split(/\n+/)
@@ -58,14 +60,18 @@ function itemOptionRows(item) {
       .forEach((line) => {
         const [maybeGroup, ...rest] = line.split(":");
         if (rest.length) {
-          rows.push({ group: maybeGroup.trim(), values: rest.join(":").trim() });
+          rest
+            .join(":")
+            .split(",")
+            .map((part) => part.trim())
+            .filter(Boolean)
+            .forEach((value) => rows.push({ group: maybeGroup.trim(), values: value }));
           return;
         }
 
         const parts = line.split(",").map((part) => part.trim()).filter(Boolean);
         if (parts.length > 1) {
-          rows.push({ group: "", values: parts[0] });
-          rows.push({ group: "", values: parts.slice(1).join(", ") });
+          parts.forEach((value) => rows.push({ group: "", values: value }));
           return;
         }
 
