@@ -636,7 +636,7 @@ export default function KitchenDisplay() {
             </div>
           </section>
         ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 2xl:grid-cols-4">
             {visibleTickets.map((ticket) => {
               const status = String(ticket.status || "pending").toLowerCase();
               const minutes = ticket.created_at ? Math.floor((Date.now() - new Date(ticket.created_at).getTime()) / 60000) : 0;
@@ -703,7 +703,7 @@ export default function KitchenDisplay() {
                                 {item.quantity || 1} x {item.name}
                               </p>
                               {itemOptionRows(item).map((row) => (
-                                <p key={`${row.group}-${row.values}`} className="mt-1 text-[14px] font-semibold">
+                                <p key={`${row.group}-${row.values}`} className="mt-1 text-[19px] font-normal italic">
                                   {row.values}
                                 </p>
                               ))}
@@ -721,7 +721,7 @@ export default function KitchenDisplay() {
                                 ready ? "bg-slate-200 text-slate-700 hover:bg-slate-300" : "bg-emerald-300 text-white hover:bg-emerald-500"
                               }`}
                             >
-                              {ready ? "Undo Ready" : "Ready"}
+                              {ready ? "Undo" : "Ready"}
                             </button>
                             )}
                           </div>
