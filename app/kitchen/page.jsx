@@ -709,7 +709,7 @@ export default function KitchenDisplay() {
                                 {item.quantity || 1} x {item.name}
                               </p>
                               {itemOptionRows(item).map((row) => (
-                                <p key={`${row.group}-${row.values}`} className="mt-1 text-[19px] font-normal italic">
+                                <p key={`${row.group}-${row.values}`} className="text-[19px] font-normal italic">
                                   {row.values}
                                 </p>
                               ))}
@@ -749,7 +749,7 @@ export default function KitchenDisplay() {
                     <button
                       onClick={() => updateTicketStatus(ticket, "completed")}
                       disabled={!allItemsReady || terminalStatus}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-slate-400 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-slate-300 disabled:bg-slate-200 disabled:text-slate-500"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-blue-200 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-slate-300 disabled:bg-slate-200 disabled:text-slate-500"
                     >
                       <CheckCircle2 className="h-4 w-4" /> Done
                     </button>
