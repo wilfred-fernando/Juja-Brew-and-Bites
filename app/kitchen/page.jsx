@@ -528,25 +528,25 @@ export default function KitchenDisplay() {
   }
 
   return (
-    <div className="min-h-screen bg-[url('https://images.jujabrewandbites.com/page%20background.png')] bg-cover bg-center p-3 text-slate-900 sm:p-5">
-      <div className="mx-auto max-w-[1600px] space-y-4">
-        <header className="rounded-3xl border border-slate-200/80 bg-white/90 p-4 shadow-lg backdrop-blur sm:p-5">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+    <div className="min-h-screen bg-[url('https://images.jujabrewandbites.com/page%20background.png')] bg-cover bg-center p-2 text-slate-900 sm:p-4">
+      <div className="mx-auto max-w-[1600px] space-y-3">
+        <header className="rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3 shadow-md backdrop-blur sm:px-5">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-cyan-700">Kitchen Display System</p>
-              <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">KDS Orders</h1>
-              <p className="mt-1 text-sm text-slate-600">
+              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-700">Kitchen Display System</p>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-950">KDS Orders</h1>
+              <p className="text-xs text-slate-600">
                 Live kitchen queue for POS charged orders and accepted web orders.
                 {assignedStoreId ? <span className="ml-2 font-bold text-cyan-800">Store locked</span> : <span className="ml-2 font-bold text-slate-700">All stores</span>}
               </p>
-              <p className="mt-1 text-xs font-semibold text-slate-500">{userEmail} {userRole ? `- ${userRole.toUpperCase()}` : ""}</p>
+              <p className="text-[11px] font-semibold text-slate-500">{userEmail} {userRole ? `- ${userRole.toUpperCase()}` : ""}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {showInstallButton && (
                 <button
                   type="button"
                   onClick={installKdsPwa}
-                  className="inline-flex h-11 items-center gap-2 rounded-2xl bg-blue-300 px-4 text-xs font-bold uppercase tracking-wider text-white shadow-md transition hover:-translate-y-0.5 hover:bg-blue-300"
+                  className="inline-flex h-9 items-center gap-2 rounded-xl bg-blue-300 px-3 text-[11px] font-bold uppercase tracking-wider text-white shadow-md transition hover:-translate-y-0.5 hover:bg-blue-300"
                 >
                   <Download className="h-4 w-4" /> Install KDS
                 </button>
@@ -558,28 +558,28 @@ export default function KitchenDisplay() {
                   setStatusFilter("all");
                   setSelectedHistoryTicket(null);
                 }}
-                className="inline-flex h-11 items-center gap-2 rounded-2xl border border-cyan-200 bg-white px-4 text-xs font-bold uppercase tracking-wider text-cyan-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-cyan-100"
+                className="inline-flex h-9 items-center gap-2 rounded-xl border border-cyan-200 bg-white px-3 text-[11px] font-bold uppercase tracking-wider text-cyan-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-cyan-100"
               >
                 <History className="h-4 w-4" /> {showHistory ? "Live Orders" : "Order History"}
               </button>
               <button
                 type="button"
                 onClick={() => fetchTickets()}
-                className="inline-flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-xs font-bold uppercase tracking-wider text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50"
+                className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-[11px] font-bold uppercase tracking-wider text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50"
               >
                 <RefreshCcw className="h-4 w-4" /> Refresh
               </button>
               <button
                 type="button"
                 onClick={() => document.documentElement.requestFullscreen?.()}
-                className="inline-flex h-11 items-center gap-2 rounded-2xl bg-white px-4 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-600"
+                className="inline-flex h-9 items-center gap-2 rounded-xl bg-slate-700 px-3 text-[11px] font-bold uppercase tracking-wider text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-600"
               >
                 <Maximize2 className="h-4 w-4" /> Full Screen
               </button>
               <button
                 type="button"
                 onClick={signOutKitchen}
-                className="inline-flex h-11 items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 text-xs font-bold uppercase tracking-wider text-red-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-red-100"
+                className="inline-flex h-9 items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 text-[11px] font-bold uppercase tracking-wider text-red-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-red-100"
               >
                 <LogOut className="h-4 w-4" /> Sign Out
               </button>
@@ -656,7 +656,7 @@ export default function KitchenDisplay() {
             </div>
           </section>
         ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 2xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4 2xl:grid-cols-5">
             {visibleTickets.map((ticket) => {
               const status = String(ticket.status || "pending").toLowerCase();
               const minutes = ticket.created_at ? Math.floor((Date.now() - new Date(ticket.created_at).getTime()) / 60000) : 0;
