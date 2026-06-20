@@ -5,17 +5,17 @@ import { Clock3, MonitorUp, Utensils } from "lucide-react";
 
 const SLIDES = [
   {
-    src: "/images/event-cart-milk-tea.jpg",
+    src: "https://images.jujabrewandbites.com/A4_Pesto%20Pasta.jpg",
     title: "JUJA Drink Cart",
     kicker: "Milk Tea • Coffee • Events",
   },
   {
-    src: "/images/event-cart-picapica.jpg",
+    src: "https://images.jujabrewandbites.com/FB_Seasonal%20Drinks.jpg",
     title: "JUJA Picapica",
     kicker: "Parties • Gatherings • Celebrations",
   },
   {
-    src: "https://images.jujabrewandbites.com/juja%201.png",
+    src: "https://images.jujabrewandbites.com/TV_Bento%202.jpg",
     title: "Annyeong!",
     kicker: "Freshly prepared orders",
   },
@@ -79,7 +79,7 @@ export default function CustomerOrderDisplayPage() {
 
   return (
     <main className="min-h-screen overflow-hidden bg-[url('https://images.jujabrewandbites.com/page%20background.png')] bg-cover bg-center p-4 text-slate-950">
-      <div className="grid h-[calc(100vh-2rem)] grid-cols-1 gap-4 lg:grid-cols-[70fr_30fr]">
+      <div className="grid h-[calc(100vh-2rem)] grid-cols-1 gap-4 lg:grid-cols-[75fr_25fr]">
         <section className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-white/70 shadow-2xl backdrop-blur">
           <img
             key={currentSlide.src}
@@ -113,8 +113,8 @@ export default function CustomerOrderDisplayPage() {
           <div className="border-b border-slate-200/80 bg-slate-700 px-5 py-3 text-white">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-[13px] font-bold uppercase text-cyan-100">Customer Order</p>
-                <p className="mt-1 text-4xl font-bold tracking-tight">Kitchen Queue</p>
+                <p className="text-[13px] font-bold uppercase text-cyan-100"></p>
+                <p className="mt-1 text-4xl font-bold tracking-[0.10em] ">Kitchen Order Queue</p>
               </div>
               <div className="text-right">
                 <p className="text-5xl font-black">

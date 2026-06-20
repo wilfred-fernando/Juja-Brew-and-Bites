@@ -8,6 +8,7 @@ import { Barcode as BarcodeIcon, CalendarDays, DollarSign, MapPin, Phone, Shoppi
 
 import { supabase } from "@/lib/supabase";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
+import { webDiningOptionLabel } from "@/lib/kds";
 import BookingTab from "@/components/BookingForm";
 
 const Barcode = dynamic(() => import("react-barcode"), { ssr: false });
@@ -1293,7 +1294,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       subtotal: Number(subtotal),
       total: Number(subtotal),
       status: orderStatus, 
-      dining_option: fulfillmentMetadata.diningOption, 
+      dining_option: webDiningOptionLabel(fulfillmentMetadata.diningOption),
       fulfillment_type: fulfillmentMetadata.diningOption,
       fulfillment_time: `${fulfillmentMetadata.fulfillmentDate} ${fulfillmentMetadata.fulfillmentTime}`,
       scheduled_for: fulfillmentMetadata.scheduledFor,

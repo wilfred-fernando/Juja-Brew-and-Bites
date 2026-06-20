@@ -5,7 +5,7 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { getStableSession } from "@/lib/supabase/session";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { deductInventoryForOrder, restoreInventoryForOrder } from "@/lib/inventory";
-import { markKdsTicketItemVoided, markKdsTicketStatus, upsertKdsTicket } from "@/lib/kds";
+import { markKdsTicketItemVoided, markKdsTicketStatus, upsertKdsTicket, webDiningOptionLabel } from "@/lib/kds";
 import TicketPanel from "@/components/pos/TicketPanel";
 import { Bluetooth, Printer, RotateCcw, Save, Search, Trash2 } from "lucide-react";
 
@@ -967,7 +967,7 @@ function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onD
                       Lines: {(order.items || []).length} • <span className="font-bold text-slate-700">{peso2(total)}</span>
                     </p>
                     <p className="text-[11px] font-medium text-slate-400 mt-1 truncate">
-                      {order.dining_option || "Web order"} {order.fulfillment_time ? `• ${order.fulfillment_time}` : ""}
+                      {webDiningOptionLabel(order.fulfillment_type || order.dining_option)} {order.fulfillment_time ? `• ${order.fulfillment_time}` : ""}
                     </p>
                   </div>
                   <span className={`px-2 py-1 rounded-md border text-[10px] font-black uppercase tracking-wider ${statusClass(order.status)}`}>
@@ -1785,6 +1785,7 @@ export default function POSPage() {
   // New persistent pointer reference state to bind edited web orders back cleanly
   const [activeWebOrderId, setActiveWebOrderId] = useState(null);
   const [activeWebOrderBranchId, setActiveWebOrderBranchId] = useState(null);
+  const [activeWebOrderFulfillmentType, setActiveWebOrderFulfillmentType] = useState("");
 
   const selectedDining = useMemo(
     () => (diningOptions || []).find((d) => String(d.id) === String(diningOption)) || null,
@@ -1817,10 +1818,18 @@ export default function POSPage() {
   const buildWebOrderForKds = (order, overrides = {}) => ({
     ...order,
     ...overrides,
+    dining_option: webDiningOptionLabel(overrides.fulfillment_type || order?.fulfillment_type || order?.dining_option || order?.order_type),
+    fulfillment_type: overrides.fulfillment_type || order?.fulfillment_type || order?.dining_option || null,
     store_id: overrides.store_id || getWebOrderStoreId(order) || activeWebOrderBranchId || storeId || null,
     branch_id: overrides.branch_id || getWebOrderStoreId(order) || activeWebOrderBranchId || storeId || null,
     items: enrichOrderItemsForKds(overrides.items || order?.items || []),
   });
+
+  const clearActiveWebOrderContext = () => {
+    setActiveWebOrderId(null);
+    setActiveWebOrderBranchId(null);
+    setActiveWebOrderFulfillmentType("");
+  };
 
   const showToast = (type, title, message) => {
     setToast({ type, title, message });
@@ -2205,7 +2214,7 @@ export default function POSPage() {
       await autoPrintBarCupLabels({
         orderId: incomingOrder.id,
         labelCart: incomingOrder.items || [],
-        labelDining: incomingOrder.dining_option || incomingOrder.fulfillment_type || "WEB ORDER",
+        labelDining: webDiningOptionLabel(incomingOrder.fulfillment_type || incomingOrder.dining_option),
         printedAt: acceptedAt,
         askBeforePrint: true,
         promptContext: "this accepted web order",
@@ -2236,6 +2245,7 @@ export default function POSPage() {
     setOriginalTicketId(null);
     setActiveWebOrderId(incomingOrder.id); // Secure the unique ID link 
     setActiveWebOrderBranchId(getWebOrderStoreId(incomingOrder) || storeId || null);
+    setActiveWebOrderFulfillmentType(incomingOrder.fulfillment_type || incomingOrder.dining_option || "");
 
     const linkedCustomer = customers.find((c) => c.name === incomingOrder.customer_name);
     if (linkedCustomer) setAttachedCustomer(linkedCustomer);
@@ -2587,23 +2597,20 @@ export default function POSPage() {
     if (data) {
       if (cart.length > 0) {
         setOriginalTicketId(null);
-        setActiveWebOrderId(null);
-        setActiveWebOrderBranchId(null);
+        clearActiveWebOrderContext();
         showToast("info", "Dining Option Changed", `${optionName} has a saved ticket. Your current cart was kept.`);
         return;
       }
 
       setOriginalTicketId(data.id);
       setCart(data.items || []);
-      setActiveWebOrderId(null); // Clear web tracking context when switching to a physical table
-      setActiveWebOrderBranchId(null);
+      clearActiveWebOrderContext(); // Clear web tracking context when switching to a physical table
       const linkedCustomer = customers.find((c) => c.id === data.customer_id);
       setAttachedCustomer(linkedCustomer || null);
       showToast("info", "Table Loaded", optionName);
     } else {
       setOriginalTicketId(null);
-      setActiveWebOrderId(null);
-      setActiveWebOrderBranchId(null);
+      clearActiveWebOrderContext();
       showToast("info", "Dining Option Changed", optionName);
     }
   }
@@ -2615,8 +2622,7 @@ export default function POSPage() {
 
     if (!name) {
       setOriginalTicketId(null);
-      setActiveWebOrderId(null);
-      setActiveWebOrderBranchId(null);
+      clearActiveWebOrderContext();
       return;
     }
 
@@ -2632,8 +2638,8 @@ export default function POSPage() {
           items: enrichOrderItemsForKds(cart),
           subtotal: Number(subtotal),
           total: Number(subtotal),
-          dining_option: diningOptionName || null,
-          fulfillment_type: diningOptionName || null,
+          dining_option: webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName),
+          fulfillment_type: activeWebOrderFulfillmentType || diningOptionName || null,
         })
         .eq("id", activeWebOrderId);
       if (error) throw error;
@@ -2644,8 +2650,8 @@ export default function POSPage() {
           store_id: activeWebOrderBranchId || storeId,
           branch_id: activeWebOrderBranchId || storeId,
           customer_name: attachedCustomer?.name || "Web Customer",
-          dining_option: diningOptionName || "Web Order",
-          fulfillment_type: diningOptionName || "Web Order",
+          dining_option: webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName),
+          fulfillment_type: activeWebOrderFulfillmentType || diningOptionName || "Web Order",
           items: enrichOrderItemsForKds(cart),
           subtotal: Number(subtotal),
           total: Number(subtotal),
@@ -2657,7 +2663,7 @@ export default function POSPage() {
       await autoPrintBarCupLabels({
         orderId: activeWebOrderId,
         labelCart: cart,
-        labelDining: diningOptionName || "WEB ORDER",
+        labelDining: webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName),
         printedAt: new Date(),
         askBeforePrint: true,
         promptContext: "this saved web order",
@@ -2822,8 +2828,9 @@ export default function POSPage() {
     setOriginalTicketId(null);
     setActiveWebOrderId(order.id); // Secure tracking context parameter link
     setActiveWebOrderBranchId(getWebOrderStoreId(order) || storeId || null);
+    setActiveWebOrderFulfillmentType(order.fulfillment_type || order.dining_option || "");
 
-    const optionName = order.dining_option || "";
+    const optionName = order.fulfillment_type || order.dining_option || "";
     const option = (diningOptions || []).find((d) => String(d.name).toLowerCase() === String(optionName).toLowerCase());
     setDiningOption(option?.id || "");
     const customer = customers.find(
@@ -3597,8 +3604,7 @@ export default function POSPage() {
   async function resumeTicket(t) {
     setOriginalTicketId(t.id);
     setCart((t.items || []).filter((line) => !isVoidedLine(line)));
-    setActiveWebOrderId(null); // This layout block references physical tickets, clear web target references
-    setActiveWebOrderBranchId(null);
+    clearActiveWebOrderContext(); // This layout block references physical tickets, clear web target references
     const name = t.order_type || t.ticket_name || "";
     const opt = (diningOptions || []).find((d) => d.name === name);
     setDiningOption(opt?.id || "");
@@ -3735,6 +3741,10 @@ export default function POSPage() {
         return showToast("error", "Receipt Number Failed", "No receipt number was returned by the database.");
       }
 
+      const chargedDiningLabel = activeWebOrderId
+        ? webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName)
+        : diningOptionName;
+
       const { data: orderRow, error: orderErr } = await supabase
         .from("orders")
         .insert([{
@@ -3753,12 +3763,12 @@ export default function POSPage() {
           gross_amount: grossTotal,
           discount_amount: discount,
           net_amount: total,
-          order_type: diningOptionName || "WEB_ORDER",
+          order_type: chargedDiningLabel || "WEB_ORDER",
           cashier_id: currentUserId || null,
           paid_at: new Date().toISOString(),
           status: "paid",
           payment_method: paymentLabel,
-          dining_option: diningOptionName || "WEB_ORDER",
+          dining_option: chargedDiningLabel || "WEB_ORDER",
         }])
         .select("*")
         .single();
@@ -3834,7 +3844,7 @@ export default function POSPage() {
       }
 
       const receipt = buildReceiptText({
-        receiptSettings, order: { ...orderRow, id: generatedReceiptNumber }, cart, diningOptionName: diningOptionName || "WEB ORDER", payment: paymentLabel,
+        receiptSettings, order: { ...orderRow, id: generatedReceiptNumber }, cart, diningOptionName: chargedDiningLabel || "WEB_ORDER", payment: paymentLabel,
         customer: attachedCustomer, subtotal, discount, total, voucher: appliedVoucher, appliedDiscount, store: currentStore, cashierName,
       });
 
@@ -3994,8 +4004,7 @@ export default function POSPage() {
     setSplitMode(false);
     setSplitSelected([]);
     setOriginalTicketId(null);
-    setActiveWebOrderId(null); // Clear tracking target references safely
-    setActiveWebOrderBranchId(null);
+    clearActiveWebOrderContext(); // Clear tracking target references safely
   };
 
   const clearTicket = () => {
