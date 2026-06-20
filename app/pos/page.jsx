@@ -233,12 +233,15 @@ function customerAvailablePoints(customer) {
 function formatReceiptFooterDate(value) {
   const date = value ? new Date(value) : new Date();
   if (isNaN(date.getTime())) return "";
-  const dd = String(date.getDate()).padStart(2, "0");
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const yyyy = date.getFullYear();
-  const hh = String(date.getHours()).padStart(2, "0");
-  const min = String(date.getMinutes()).padStart(2, "0");
-  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Manila",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date).replace(",", "");
 }
 
 function receiptPair(left, right, width = RECEIPT_COLUMNS) {
@@ -253,6 +256,7 @@ function formatReceiptDate(value) {
   const date = value ? new Date(value) : new Date();
   if (isNaN(date.getTime())) return formatDateTime(new Date());
   return date.toLocaleString("en-PH", {
+    timeZone: "Asia/Manila",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -569,13 +573,20 @@ function Toast({ toast, onClose }) {
   );
 }
 
-const TARGET_WEB_STATUSES = ["pending", "accepted", "ready", "completed", "Pending", "Accepted", "Ready", "Completed"];
+const TARGET_WEB_STATUSES = ["pending", "scheduled", "accepted", "ready", "completed", "Pending", "Scheduled", "Accepted", "Ready", "Completed"];
 const calcLoyaltyPoints = (amount) => Number(((Number(amount) || 0) * 0.04).toFixed(2));
 const SHIFT_DENOMINATIONS = [1000, 500, 200, 100, 50, 20, 10, 5, 1];
 const POS_RECEIPT_HISTORY_DAYS = 15;
 
 const getWebOrderStoreId = (order) => order?.store_id || order?.branch_id || null;
 const buildStoreOrderFilter = (storeId) => `store_id.eq.${storeId},branch_id.eq.${storeId}`;
+const isScheduledWebOrder = (order) => {
+  const status = String(order?.status || order?.order_status || "").toLowerCase();
+  if (status === "scheduled") return true;
+  if (!order?.scheduled_for) return false;
+  const scheduledAt = new Date(order.scheduled_for).getTime();
+  return Number.isFinite(scheduledAt) && scheduledAt > Date.now() + 30 * 60 * 1000;
+};
 
 function playPosAlertSound() {
   if (typeof window === "undefined") return;
@@ -1965,7 +1976,7 @@ export default function POSPage() {
       }
 
       const currentStatus = String(order?.status || "pending").toLowerCase();
-      if (currentStatus !== "pending") return;
+      if (!["pending", "scheduled"].includes(currentStatus)) return;
 
       seenIncomingOrderIds.current.add(incomingId);
       setIncomingOrder(order);
@@ -2026,21 +2037,25 @@ export default function POSPage() {
 
     try {
       const acceptedAt = new Date().toISOString();
+      const scheduledOrder = isScheduledWebOrder(incomingOrder);
+      const acceptedStatus = scheduledOrder ? "scheduled" : "accepted";
       const { error: updateErr } = await supabase
         .from("web_orders")
-        .update({ status: "accepted", order_status: "accepted", accepted_at: acceptedAt })
+        .update({ status: acceptedStatus, order_status: acceptedStatus, accepted_at: acceptedAt })
         .eq("id", incomingOrder.id);
       if (updateErr) throw updateErr;
 
       const { error: kdsErr } = await upsertKdsTicket(supabase, {
         sourceType: "web",
-        order: buildWebOrderForKds(incomingOrder, { status: "accepted", order_status: "accepted", accepted_at: acceptedAt }),
-        status: "accepted",
+        order: buildWebOrderForKds(incomingOrder, { status: acceptedStatus, order_status: acceptedStatus, accepted_at: acceptedAt }),
+        status: acceptedStatus,
       });
       if (kdsErr) showToast("warn", "KDS Sync Warning", kdsErr.message);
-      window.setTimeout(() => {
-        markKdsTicketStatus(supabase, { sourceType: "web", sourceId: incomingOrder.id, status: "preparing" });
-      }, 5000);
+      if (!scheduledOrder) {
+        window.setTimeout(() => {
+          markKdsTicketStatus(supabase, { sourceType: "web", sourceId: incomingOrder.id, status: "preparing" });
+        }, 5000);
+      }
 
       await fetchPendingCount(storeId);
       await fetchAcceptedWebOrders();
@@ -2818,21 +2833,29 @@ export default function POSPage() {
       description: order.dining_option || "POS Order",
       status: refunds[order.receipt_number || order.order_number || String(order.id)]?.receipt || "Closed",
     }));
-    const webRows = (webReceiptRes.data || []).map((order) => ({
-      ...order,
-      id: `WEB-${order.id}`,
-      receipt_number: order.receipt_number || `WEB-${String(order.id).slice(0, 8).toUpperCase()}`,
-      date: order.created_at ? formatDateTime(order.created_at) : "",
-      gross_sales: Number(order.total || order.subtotal || 0),
-      discounts: 0,
-      net_sales: Number(order.total || order.subtotal || 0),
-      total_collected: Number(order.total || order.subtotal || 0),
-      payment_type: order.payment_method || "Web Order",
-      description: `${order.dining_option || "Web Order"}${order.delivery_address ? ` - ${order.delivery_address}` : ""}`,
-      status: refunds[`WEB-${order.id}`]?.receipt || "Closed",
-      source: "web_order",
-      web_items: order.items || [],
-    }));
+    const chargedWebOrderIds = new Set(
+      (receiptRes.data || [])
+        .map((order) => order.source_web_order_id)
+        .filter(Boolean)
+        .map((id) => String(id))
+    );
+    const webRows = (webReceiptRes.data || [])
+      .filter((order) => !chargedWebOrderIds.has(String(order.id)))
+      .map((order) => ({
+        ...order,
+        id: `WEB-${order.id}`,
+        receipt_number: order.receipt_number || `WEB-${String(order.id).slice(0, 8).toUpperCase()}`,
+        date: order.created_at ? formatDateTime(order.created_at) : "",
+        gross_sales: Number(order.total || order.subtotal || 0),
+        discounts: 0,
+        net_sales: Number(order.total || order.subtotal || 0),
+        total_collected: Number(order.total || order.subtotal || 0),
+        payment_type: order.payment_method || "Web Order",
+        description: `${order.dining_option || "Web Order"}${order.delivery_address ? ` - ${order.delivery_address}` : ""}`,
+        status: refunds[`WEB-${order.id}`]?.receipt || "Closed",
+        source: "web_order",
+        web_items: order.items || [],
+      }));
     const rows = [...posRows, ...webRows].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
     setReceiptRows(rows);
     const activeReceipt = rows.some((row) => row.receipt_number === selectedReceiptNumber) ? selectedReceiptNumber : rows[0]?.receipt_number || "";

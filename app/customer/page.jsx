@@ -9,7 +9,6 @@ import { Barcode as BarcodeIcon, CalendarDays, DollarSign, MapPin, Phone, Shoppi
 import { supabase } from "@/lib/supabase";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import BookingTab from "@/components/BookingForm";
-import { useIdleLogout } from "@/components/useIdleLogout";
 
 const Barcode = dynamic(() => import("react-barcode"), { ssr: false });
 
@@ -171,13 +170,92 @@ function playGeneratedCustomerTone(status = "ready") {
 function getManilaDateString(offsetDays = 0) {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().split("T")[0];
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
 }
 
 function getManilaTimeString(offsetMinutes = 30) {
   const d = new Date();
   d.setMinutes(d.getMinutes() + offsetMinutes);
-  return d.toTimeString().split(" ")[0].slice(0, 5);
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Manila",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(d);
+}
+
+function manilaDateTime(dateString, timeString) {
+  if (!dateString || !timeString) return null;
+  const parsed = new Date(`${dateString}T${timeString}:00+08:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function roundUpToQuarter(date) {
+  const next = new Date(date);
+  const roundedMinutes = Math.ceil(next.getMinutes() / 15) * 15;
+  next.setMinutes(roundedMinutes, 0, 0);
+  return next;
+}
+
+function parseStoreTime(value, fallback) {
+  const raw = String(value || fallback || "").trim();
+  if (raw === "24:00") return raw;
+  const match = raw.match(/^(\d{1,2})(?::(\d{2}))?/);
+  if (!match) return fallback;
+  return `${String(Math.min(23, Number(match[1]))).padStart(2, "0")}:${String(Math.min(59, Number(match[2] || 0))).padStart(2, "0")}`;
+}
+
+function getStoreOrderHours(store) {
+  const storeName = String(store?.name || "").toLowerCase();
+  const defaultClose = storeName.includes("pasong") ? "24:00" : "22:00";
+  return {
+    open: parseStoreTime(store?.open_time || store?.opening_time || store?.store_open_time, "10:00"),
+    close: parseStoreTime(store?.close_time || store?.closing_time || store?.store_close_time, defaultClose),
+  };
+}
+
+function buildTargetTimeOptions(dateString, store) {
+  if (!dateString) return [];
+  const { open, close } = getStoreOrderHours(store);
+  const openAt = manilaDateTime(dateString, open);
+  const closeAtBase = manilaDateTime(dateString, close === "24:00" ? "00:00" : close);
+  if (!openAt || !closeAtBase) return [];
+
+  let closeAt = closeAtBase;
+  if (close === "24:00" || closeAt <= openAt) closeAt = new Date(closeAt.getTime() + 24 * 60 * 60 * 1000);
+  const lastOrderAt = new Date(closeAt.getTime() - 30 * 60 * 1000);
+  const minImmediateAt = roundUpToQuarter(new Date(Date.now() + 30 * 60 * 1000));
+  let cursor = dateString === getManilaDateString(0) && minImmediateAt > openAt ? minImmediateAt : openAt;
+  cursor = roundUpToQuarter(cursor);
+
+  const options = [];
+  while (cursor <= lastOrderAt) {
+    options.push({
+      value: new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Manila", hour: "2-digit", minute: "2-digit", hour12: false }).format(cursor),
+      label: new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit", hour12: true }).format(cursor),
+    });
+    cursor = new Date(cursor.getTime() + 15 * 60 * 1000);
+  }
+  return options;
+}
+
+function formatOrderScheduleLabel(dateString, timeString) {
+  const date = manilaDateTime(dateString, timeString);
+  if (!date) return `${dateString || ""} ${timeString || ""}`.trim();
+  return new Intl.DateTimeFormat("en-PH", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(date);
 }
 
 function genCustomerId() {
@@ -472,7 +550,7 @@ function HomeTab({ member, user, setTab }) {
                 onClick={() => setBranch(key)}
                 className={`px-4 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all ${
                   branch === key
-                    ? "bg-[#FC687D] text-white shadow-sm"
+                    ? "bg-white text-white shadow-sm"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
@@ -719,17 +797,31 @@ function AddToCartModal({ item, onClose, onAdd }) {
 /* ──────────────────────────────────────────────────────────────
     Interactive Checkout Confirmation Drawer
 ────────────────────────────────────────────────────────────── */
-function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems, isSubmitting, selectedStoreName }) {
+function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems, isSubmitting, selectedStore, selectedStoreName }) {
   const [diningOption, setDiningOption] = useState("TAKEOUT");
   const [fulfillmentDate, setFulfillmentDate] = useState(getManilaDateString(0));
   const [fulfillmentTime, setFulfillmentTime] = useState(getManilaTimeString(30));
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [paymentProof, setPaymentProof] = useState(null);
+  const targetTimeOptions = useMemo(() => buildTargetTimeOptions(fulfillmentDate, selectedStore), [fulfillmentDate, selectedStore]);
+
+  useEffect(() => {
+    if (!targetTimeOptions.length) {
+      setFulfillmentTime("");
+      return;
+    }
+    if (!targetTimeOptions.some((option) => option.value === fulfillmentTime)) {
+      setFulfillmentTime(targetTimeOptions[0].value);
+    }
+  }, [fulfillmentTime, targetTimeOptions]);
 
   if (!open) return null;
 
-  const isValidTime = fulfillmentTime && fulfillmentTime.trim() !== "";
+  const selectedTargetAt = manilaDateTime(fulfillmentDate, fulfillmentTime);
+  const minImmediateAt = roundUpToQuarter(new Date(Date.now() + 30 * 60 * 1000));
+  const isScheduledOrder = Boolean(selectedTargetAt && selectedTargetAt > minImmediateAt);
+  const isValidTime = fulfillmentTime && fulfillmentTime.trim() !== "" && targetTimeOptions.some((option) => option.value === fulfillmentTime);
   const paymentOptions = diningOption === "DELIVERY" ? ["QRPH"] : diningOption === "DINEIN" ? [] : ["Cash", "Card", "QRPH"];
   const requiresPaymentProof = paymentMethod === "QRPH";
   const canSubmit =
@@ -800,14 +892,29 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems,
               <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1.5">
                 Target Time
               </label>
-              <input
-                type="time"
+              <select
                 value={fulfillmentTime}
                 onChange={(e) => setFulfillmentTime(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-[#FC687D]"
-              />
+              >
+                {targetTimeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
             </div>
           </div>
+
+          {!targetTimeOptions.length && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800">
+              No available target times for this store/date. Please choose another date.
+            </div>
+          )}
+          {isValidTime && (
+            <div className="rounded-xl border border-cyan-100 bg-cyan-50/70 px-3 py-2 text-[11px] font-semibold text-cyan-900">
+              {isScheduledOrder ? "Advance order scheduled for " : "Earliest target time: "}
+              {formatOrderScheduleLabel(fulfillmentDate, fulfillmentTime)}
+            </div>
+          )}
 
           {diningOption === "DELIVERY" && (
             <div>
@@ -903,7 +1010,17 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems,
           </button>
           <button
             type="button"
-            onClick={() => onConfirm({ diningOption, fulfillmentDate, fulfillmentTime, deliveryAddress, paymentMethod, paymentProof })}
+            onClick={() => onConfirm({
+              diningOption,
+              fulfillmentDate,
+              fulfillmentTime,
+              deliveryAddress,
+              paymentMethod,
+              paymentProof,
+              scheduledFor: selectedTargetAt?.toISOString() || null,
+              scheduleLabel: formatOrderScheduleLabel(fulfillmentDate, fulfillmentTime),
+              isScheduled: isScheduledOrder,
+            })}
             disabled={isSubmitting || !canSubmit}
             className="w-full py-3 bg-cyan-400/78 hover:bg-cyan-500/78 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-md disabled:opacity-40"
           >
@@ -1119,20 +1236,23 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       paymentProofUrl = publicUrl?.publicUrl || "";
     }
 
+    const orderStatus = fulfillmentMetadata.isScheduled ? "scheduled" : "pending";
     const orderPayload = {
       user_id: user.id,
       customer_name: member?.customer_name || user?.user_metadata?.full_name || "Web Customer",
       branch_id: selectedBranch,
       store_id: selectedBranch,
       order_source: "web",
-      order_status: "pending",
+      order_status: orderStatus,
       items: cart, 
       subtotal: Number(subtotal),
       total: Number(subtotal),
-      status: "pending", 
+      status: orderStatus, 
       dining_option: fulfillmentMetadata.diningOption, 
       fulfillment_type: fulfillmentMetadata.diningOption,
       fulfillment_time: `${fulfillmentMetadata.fulfillmentDate} ${fulfillmentMetadata.fulfillmentTime}`,
+      scheduled_for: fulfillmentMetadata.scheduledFor,
+      schedule_label: fulfillmentMetadata.scheduleLabel,
       delivery_address: fulfillmentMetadata.deliveryAddress || "",
       customer_contact: member?.Phone || member?.phone || "",
       payment_method: fulfillmentMetadata.diningOption === "DINEIN" ? "" : fulfillmentMetadata.paymentMethod,
@@ -1165,6 +1285,8 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
               item_count: itemCount,
               dining_option: freshWebOrderRow.dining_option,
               fulfillment_time: freshWebOrderRow.fulfillment_time,
+              scheduled_for: freshWebOrderRow.scheduled_for,
+              schedule_label: freshWebOrderRow.schedule_label,
               timestamp: new Date().toISOString()
             }
           }).then(() => {
@@ -1464,6 +1586,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
         subtotal={subtotal}
         cartItems={cart}
         isSubmitting={isSubmitting}
+        selectedStore={selectedStore}
         selectedStoreName={selectedStore?.name}
       />
     </div>
@@ -2379,15 +2502,6 @@ export default function Customer() {
     setToast({ type, title, message });
     setTimeout(() => setToast(null), 4500);
   };
-
-  useIdleLogout({
-    timeoutMs: 60 * 60 * 1000,
-    onTimeout: async () => {
-      await supabase.auth.signOut();
-      router.push("/login");
-    },
-    storageKey: "juja:customer:lastActivity",
-  });
 
   const fetchOrderHistory = async (userId) => {
     if (!userId) return;

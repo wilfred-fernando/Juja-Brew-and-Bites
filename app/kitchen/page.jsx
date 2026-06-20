@@ -20,6 +20,8 @@ function statusStyle(status) {
   switch (String(status || "").toLowerCase()) {
     case "pending":
       return "border-amber-300 bg-amber-50 text-amber-800";
+    case "scheduled":
+      return "border-indigo-300 bg-indigo-50 text-indigo-800";
     case "accepted":
       return "border-sky-300 bg-sky-50 text-sky-800";
     case "preparing":
@@ -36,14 +38,31 @@ function statusStyle(status) {
   }
 }
 
-function itemOptionsText(item) {
-  const optionText = Array.isArray(item?.selectedOptions)
-    ? item.selectedOptions
-        .map((option) => option?.name || option?.label || option?.value)
-        .filter(Boolean)
-        .join(", ")
-    : "";
-  return item?.variantDetails || optionText || "";
+function itemOptionRows(item) {
+  const rows = [];
+  const options = Array.isArray(item?.selectedOptions) ? item.selectedOptions : [];
+  const grouped = new Map();
+  options.forEach((option) => {
+    const group = option?.groupName || option?.group_name || option?.optionGroup || option?.option_group || option?.type || "Options";
+    const label = option?.name || option?.label || option?.value;
+    if (!label) return;
+    grouped.set(group, [...(grouped.get(group) || []), label]);
+  });
+  grouped.forEach((values, group) => rows.push({ group, values: values.join(", ") }));
+  if (!rows.length && item?.variantDetails) rows.push({ group: "Options", values: item.variantDetails });
+  return rows;
+}
+
+function scheduleLabel(ticket) {
+  if (ticket?.schedule_label) return ticket.schedule_label;
+  if (ticket?.scheduled_for) return formatDateTime(ticket.scheduled_for);
+  if (ticket?.fulfillment_time) return ticket.fulfillment_time;
+  return "";
+}
+
+function scheduleTitle(ticket) {
+  const type = String(ticket?.fulfillment_type || ticket?.dining_option || "").toLowerCase();
+  return type.includes("dine") ? "SERVING TIME" : "PICKUP TIME";
 }
 
 function isItemReady(item) {
@@ -375,35 +394,47 @@ export default function KitchenDisplay() {
       const webStatus = status === "preparing" ? "accepted" : status;
       const webExtra =
         {
-          ready: { ready_at: timestamp },
-          completed: { completed_at: timestamp, payment_status: "paid" },
+          completed: { completed_at: timestamp },
           rejected: { rejected_at: timestamp },
           voided: { cancelled_at: timestamp },
         }[status] || {};
-      await supabase.from("web_orders").update({ status: webStatus, order_status: webStatus, ...webExtra }).eq("id", ticket.web_order_id);
+      if (["completed", "rejected", "voided"].includes(status)) {
+        await supabase.from("web_orders").update({ status: webStatus, order_status: webStatus, ...webExtra }).eq("id", ticket.web_order_id);
+      }
     }
 
     await fetchTickets({ silent: true });
   };
 
-  const markItemReady = async (ticket, itemIndex) => {
+  const toggleItemReady = async (ticket, itemIndex) => {
     const currentItems = Array.isArray(ticket.items) ? ticket.items : [];
     const timestamp = new Date().toISOString();
-    const nextItems = currentItems.map((item, index) =>
-      index === itemIndex ? { ...item, kitchenReady: true, kitchenReadyAt: timestamp } : item
-    );
+    const nextItems = currentItems.map((item, index) => {
+      if (index !== itemIndex) return item;
+      const nextReady = !isItemReady(item);
+      return {
+        ...item,
+        ready: nextReady,
+        kitchenReady: nextReady,
+        kitchen_ready: nextReady,
+        ready_at: nextReady ? timestamp : null,
+        kitchenReadyAt: nextReady ? timestamp : null,
+        kitchen_ready_at: nextReady ? timestamp : null,
+      };
+    });
     const allReady = nextItems.length > 0 && nextItems.every(isItemReady);
+    const anyReady = nextItems.some(isItemReady);
     const currentStatus = String(ticket.status || "pending").toLowerCase();
-    const nextStatus = allReady ? "ready" : KDS_ACTIVE_STATUSES.includes(currentStatus) ? "preparing" : currentStatus;
+    const nextStatus = allReady ? "ready" : KDS_ACTIVE_STATUSES.includes(currentStatus) ? (anyReady ? "preparing" : currentStatus === "scheduled" ? "scheduled" : "preparing") : currentStatus;
     const extra = {
       ...(ticket.started_at ? {} : { started_at: timestamp }),
-      ...(allReady ? { ready_at: timestamp } : {}),
+      ready_at: allReady ? timestamp : null,
     };
 
     const { error } = await supabase.from("kds_tickets").update({ items: nextItems, status: nextStatus, ...extra }).eq("id", ticket.id);
 
     if (error) {
-      setAlertMessage(`Item ready failed: ${error.message}`);
+      setAlertMessage(`Item ready update failed: ${error.message}`);
       return;
     }
 
@@ -608,7 +639,14 @@ export default function KitchenDisplay() {
                           {ticket.customer_name || "Walk-in"} - {getTimeAgo(ticket.created_at)}
                         </p>
                       </div>
-                      <span className={`rounded-xl border px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${statusStyle(status)}`}>{status}</span>
+                      <div className="text-right">
+                        <span className={`rounded-xl border px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${statusStyle(status)}`}>{status}</span>
+                        {ticket.source_type === "web" && status === "scheduled" && scheduleLabel(ticket) && (
+                          <p className="mt-2 text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                            {scheduleTitle(ticket)}: {scheduleLabel(ticket)}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-600">
                       <span className="rounded-full bg-white px-3 py-1">{String(ticket.source_type || "").toUpperCase()}</span>
@@ -639,7 +677,11 @@ export default function KitchenDisplay() {
                               <p className="text-[20px] font-bold">
                                 {item.quantity || 1} x {item.name}
                               </p>
-                              {itemOptionsText(item) && <p className="mt-1 text-[14px] font-semibold">{itemOptionsText(item)}</p>}
+                              {itemOptionRows(item).map((row) => (
+                                <p key={`${row.group}-${row.values}`} className="mt-1 text-[14px] font-semibold">
+                                  <span className="uppercase tracking-wider text-slate-500">{row.group}:</span> {row.values}
+                                </p>
+                              ))}
                             </div>
                             {voidedItem ? (
                               <span className="h-9 rounded-xl border border-red-300 bg-red-100 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-red-800">
@@ -648,11 +690,13 @@ export default function KitchenDisplay() {
                             ) : (
                             <button
                               type="button"
-                              onClick={() => markItemReady(ticket, item.__kdsIndex ?? idx)}
-                              disabled={ready || terminalStatus || voidedItem}
-                              className="h-9 rounded-xl bg-emerald-300 px-3 text-[11px] font-bold uppercase tracking-wider text-white shadow-sm transition hover:bg-emerald-500 disabled:bg-slate-200 disabled:text-slate-500"
+                              onClick={() => toggleItemReady(ticket, item.__kdsIndex ?? idx)}
+                              disabled={terminalStatus || voidedItem}
+                              className={`h-9 rounded-xl px-3 text-[11px] font-bold uppercase tracking-wider shadow-sm transition disabled:bg-slate-200 disabled:text-slate-500 ${
+                                ready ? "bg-slate-200 text-slate-700 hover:bg-slate-300" : "bg-emerald-300 text-white hover:bg-emerald-500"
+                              }`}
                             >
-                              Ready
+                              {ready ? "Undo Ready" : "Ready"}
                             </button>
                             )}
                           </div>
@@ -737,7 +781,11 @@ export default function KitchenDisplay() {
                           <p className={`text-lg font-bold ${voidedItem ? "text-red-800" : "text-slate-950"}`}>
                             {item.quantity || 1} x {item.name}
                           </p>
-                          {itemOptionsText(item) && <p className={`mt-1 text-[12px] font-semibold ${voidedItem ? "text-red-700" : "text-slate-700"}`}>{itemOptionsText(item)}</p>}
+                          {itemOptionRows(item).map((row) => (
+                            <p key={`${row.group}-${row.values}`} className={`mt-1 text-[12px] font-semibold ${voidedItem ? "text-red-700" : "text-slate-700"}`}>
+                              <span className="uppercase tracking-wider text-slate-500">{row.group}:</span> {row.values}
+                            </p>
+                          ))}
                           {item.instructions && <p className="mt-2 rounded-xl bg-cyan-50 px-3 py-2 text-[12px] font-bold text-cyan-900">Note: {item.instructions}</p>}
                         </div>
                         {voidedItem ? (
