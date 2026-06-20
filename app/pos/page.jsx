@@ -7,7 +7,7 @@ import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { deductInventoryForOrder, restoreInventoryForOrder } from "@/lib/inventory";
 import { markKdsTicketItemVoided, markKdsTicketStatus, upsertKdsTicket } from "@/lib/kds";
 import TicketPanel from "@/components/pos/TicketPanel";
-import { Printer, Save, Search, Trash2 } from "lucide-react";
+import { Bluetooth, Printer, RotateCcw, Save, Search, Trash2 } from "lucide-react";
 
 // Initialize Supabase Client instance cleanly at layout bundle level
 const supabaseGlobalInstance = getSupabaseClient();
@@ -33,6 +33,11 @@ const PRINTER_ROLE_HINTS = {
   receipt: "Receipt printer for bills and final receipts.",
   order_slip: "Kitchen order slip printer.",
   cup_label: "XP-Z58C Bluetooth label printer, 50mm x 40mm thermal sticker. Pairing password: 0000.",
+};
+const PRINTER_ROLE_STATUS = {
+  receipt: "Final receipts",
+  order_slip: "Kitchen tickets",
+  cup_label: "50x40 labels",
 };
 
 function createPrinterProfile(role, source = {}) {
@@ -1511,25 +1516,41 @@ function ReceiptPreviewModal({ open, onClose, receiptText }) {
 function PrinterEditField({ label, children }) {
   return (
     <label className="block">
-      <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</span>
-      <div className="mt-1 border-b border-slate-300 pb-1">{children}</div>
+      <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</span>
+      <div className="mt-1 rounded-xl border border-slate-200 bg-white px-3 shadow-sm transition focus-within:border-cyan-300 focus-within:ring-2 focus-within:ring-cyan-100">{children}</div>
     </label>
   );
 }
 
 function PrinterSwitch({ label, checked, onChange, disabled = false }) {
+  const hasLabel = Boolean(label);
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className="flex w-full items-center justify-between gap-4 py-3 text-left disabled:cursor-not-allowed disabled:opacity-50"
+      className={`flex items-center gap-4 text-left disabled:cursor-not-allowed disabled:opacity-50 ${hasLabel ? "w-full justify-between py-3" : "shrink-0 justify-center"}`}
+      aria-label={hasLabel ? label : "Toggle printer"}
     >
-      <span className="text-sm font-semibold text-slate-800">{label}</span>
-      <span className={`relative h-6 w-11 rounded-full transition ${checked ? "bg-[#6DBE45]" : "bg-slate-300"}`}>
+      {hasLabel ? <span className="text-sm font-semibold text-slate-800">{label}</span> : null}
+      <span className={`relative h-7 w-12 rounded-full border transition ${checked ? "border-cyan-500 bg-cyan-600 shadow-lg shadow-cyan-500/20" : "border-slate-200 bg-slate-200"}`}>
         <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition ${checked ? "left-6" : "left-1"}`} />
       </span>
     </button>
+  );
+}
+
+function PrinterStatusPill({ children, active = false, tone = "slate" }) {
+  const tones = {
+    cyan: active ? "border-cyan-200 bg-cyan-50 text-cyan-800" : "border-slate-200 bg-slate-50 text-slate-500",
+    emerald: active ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-500",
+    amber: active ? "border-amber-200 bg-amber-50 text-amber-700" : "border-slate-200 bg-slate-50 text-slate-500",
+    slate: active ? "border-slate-300 bg-slate-100 text-slate-800" : "border-slate-200 bg-slate-50 text-slate-500",
+  };
+  return (
+    <span className={`inline-flex h-7 items-center rounded-full border px-2.5 text-[10px] font-black uppercase tracking-wider ${tones[tone] || tones.slate}`}>
+      {children}
+    </span>
   );
 }
 
@@ -3258,6 +3279,14 @@ export default function POSPage() {
     }));
   }
 
+  function resetPrinterProfile(role) {
+    setPrinterForm((prev) => ({
+      ...prev,
+      [role]: createPrinterProfile(role),
+    }));
+    showToast("info", "Printer Defaults Restored", `${PRINTER_ROLE_LABELS[role]} settings were reset. Save All to apply.`);
+  }
+
   function buildPrinterConfigFromForm(role) {
     const form = printerForm?.[role] || createPrinterProfile(role);
     const serviceUuid = normalizeBluetoothUuid(form.service_uuid, DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID);
@@ -4478,18 +4507,18 @@ export default function POSPage() {
 
           {managementView === "settings" && (
             <div className="mx-auto overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-              <div className="flex h-14 items-center justify-between bg-[#45B649] px-4 text-white">
+              <div className="flex flex-col gap-3 bg-slate-700 px-4 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-bold">Printer setup</p>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-green-50">Receipt, order slip, and cup label printers</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-200">Receipt, order slip, and cup label printers</p>
                 </div>
-                <button type="button" onClick={savePrinterSettings} className="inline-flex h-9 items-center gap-2 rounded-md px-3 text-xs font-bold uppercase tracking-wider transition hover:bg-white/10">
+                <button type="button" onClick={savePrinterSettings} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-4 text-xs font-bold uppercase tracking-wider text-slate-800 shadow-sm transition hover:bg-cyan-50">
                   <Save size={15} />
                   Save All
                 </button>
               </div>
 
-              <div className="border-b border-slate-200 px-4 py-1">
+              <div className="border-b border-slate-200 bg-slate-50 px-4 py-1">
                 <PrinterSwitch label="Automatically print receipt" checked={!!receiptSettings?.auto_print} onChange={updateAutoPrintSetting} />
               </div>
 
@@ -4497,13 +4526,20 @@ export default function POSPage() {
                 {Object.entries(PRINTER_ROLE_LABELS).map(([role, label]) => {
                   const roleForm = printerForm?.[role] || createPrinterProfile(role);
                   const isCupLabel = role === "cup_label";
+                  const savedPrinter = printerConfig?.[role];
+                  const hasDevice = Boolean(roleForm.device_id || savedPrinter?.ble_device_id);
 
                   return (
-                    <div key={role} className={`rounded-2xl border p-4 shadow-sm transition ${roleForm.enabled ? "border-cyan-200 bg-cyan-50/40" : "border-slate-200 bg-white"}`}>
+                    <div key={role} className={`rounded-2xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${roleForm.enabled ? "border-cyan-200 bg-cyan-50/40" : "border-slate-200 bg-white"}`}>
                       <div className="mb-3 flex items-start justify-between gap-3">
                         <div>
                           <p className="text-sm font-black uppercase tracking-wider text-slate-900">{label}</p>
                           <p className="mt-1 text-[11px] font-semibold leading-4 text-slate-500">{PRINTER_ROLE_HINTS[role]}</p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <PrinterStatusPill active={!!roleForm.enabled} tone="cyan">{roleForm.enabled ? "Enabled" : "Disabled"}</PrinterStatusPill>
+                            <PrinterStatusPill active={!!savedPrinter?.id} tone="emerald">{savedPrinter?.id ? "Saved" : "Unsaved"}</PrinterStatusPill>
+                            <PrinterStatusPill active={hasDevice} tone="amber">{hasDevice ? "Device linked" : "No device"}</PrinterStatusPill>
+                          </div>
                         </div>
                         <PrinterSwitch label="" checked={!!roleForm.enabled} onChange={(v) => updatePrinterRole(role, v)} />
                       </div>
@@ -4518,11 +4554,30 @@ export default function POSPage() {
                           />
                         </PrinterEditField>
 
+                        <div className="rounded-2xl border border-slate-100 bg-white/80 p-3">
+                          <div className="mb-2 flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Purpose</p>
+                              <p className="text-xs font-semibold text-slate-800">{PRINTER_ROLE_STATUS[role]}</p>
+                            </div>
+                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-50 text-cyan-700">
+                              <Bluetooth size={17} />
+                            </div>
+                          </div>
+                          <p className="text-[11px] font-medium leading-4 text-slate-500">
+                            {isCupLabel
+                              ? "Use this for automatic drink cup labels after save, charge, or accepted web orders."
+                              : role === "order_slip"
+                              ? "Use this for prep slips and kitchen order copies."
+                              : "Use this for customer receipts and reprints."}
+                          </p>
+                        </div>
+
                         <PrinterEditField label="Printer model">
                           <select
                             value={roleForm.model}
                             onChange={(e) => updatePrinterProfile(role, { model: e.target.value })}
-                            className="h-8 w-full bg-transparent text-sm font-semibold text-slate-900 outline-none"
+                            className="h-10 w-full bg-transparent text-sm font-semibold text-slate-900 outline-none"
                           >
                             <option>Other model</option>
                             <option>XP-Z58C thermal label printer</option>
@@ -4535,7 +4590,7 @@ export default function POSPage() {
                           <select
                             value={roleForm.interface}
                             onChange={(e) => updatePrinterProfile(role, { interface: e.target.value })}
-                            className="h-8 w-full bg-transparent text-sm font-semibold text-slate-900 outline-none"
+                            className="h-10 w-full bg-transparent text-sm font-semibold text-slate-900 outline-none"
                           >
                             <option>Bluetooth</option>
                           </select>
@@ -4546,7 +4601,7 @@ export default function POSPage() {
                             <input
                               value={roleForm.device_id || roleForm.name}
                               readOnly
-                              className="h-8 w-full bg-transparent text-sm font-semibold text-slate-700 outline-none"
+                              className="h-10 w-full bg-transparent text-sm font-semibold text-slate-700 outline-none"
                               placeholder="Select paired printer"
                             />
                           </PrinterEditField>
@@ -4558,7 +4613,7 @@ export default function POSPage() {
 
                         <PrinterEditField label={isCupLabel ? "Sticker size" : "Paper width"}>
                           {isCupLabel ? (
-                            <div className="flex h-8 items-center justify-between text-sm font-semibold text-slate-900">
+                            <div className="flex min-h-10 items-center justify-between gap-2 text-sm font-semibold text-slate-900">
                               <span>50mm W x 40mm H</span>
                               <span className="rounded-full bg-cyan-100 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-cyan-700">Thermal sticker</span>
                             </div>
@@ -4566,7 +4621,7 @@ export default function POSPage() {
                             <select
                               value={String(roleForm.paper_width_mm)}
                               onChange={(e) => updatePrinterProfile(role, { paper_width_mm: Number(e.target.value) })}
-                              className="h-8 w-full bg-transparent text-sm font-semibold text-slate-900 outline-none"
+                              className="h-10 w-full bg-transparent text-sm font-semibold text-slate-900 outline-none"
                             >
                               <option value="50">50 mm</option>
                               <option value="58">58 mm</option>
@@ -4575,10 +4630,55 @@ export default function POSPage() {
                           )}
                         </PrinterEditField>
 
-                        <div className="grid grid-cols-2 gap-2 pt-2">
+                        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                          <div className="mb-3 flex items-center justify-between gap-2">
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Bluetooth UUID settings</p>
+                              <p className="text-[11px] font-semibold text-slate-400">Default values work for most Xprinter XP-Z58C devices.</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => updatePrinterProfile(role, {
+                                service_uuid: DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID,
+                                characteristic_uuid: DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID,
+                              })}
+                              className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[10px] font-black uppercase tracking-wider text-slate-600 transition hover:bg-slate-100"
+                            >
+                              UUID defaults
+                            </button>
+                          </div>
+                          <div className="grid gap-2">
+                            <PrinterEditField label="Service UUID">
+                              <input
+                                value={roleForm.service_uuid}
+                                onChange={(e) => updatePrinterProfile(role, { service_uuid: e.target.value })}
+                                className="h-9 w-full bg-transparent text-xs font-semibold text-slate-800 outline-none"
+                              />
+                            </PrinterEditField>
+                            <PrinterEditField label="Characteristic UUID">
+                              <input
+                                value={roleForm.characteristic_uuid}
+                                onChange={(e) => updatePrinterProfile(role, { characteristic_uuid: e.target.value })}
+                                className="h-9 w-full bg-transparent text-xs font-semibold text-slate-800 outline-none"
+                              />
+                            </PrinterEditField>
+                          </div>
+                        </div>
+
+                        {isCupLabel ? (
+                          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-[11px] font-semibold leading-4 text-amber-800">
+                            XP-Z58C label setup: pair the printer first in the device Bluetooth settings using password 0000, then use Search here to grant browser permission.
+                          </div>
+                        ) : null}
+
+                        <div className="grid grid-cols-3 gap-2 pt-2">
                           <button type="button" onClick={() => printPrinterTest(role)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-[11px] font-black uppercase tracking-wider text-slate-800 transition hover:bg-slate-50">
                             <Printer size={16} className="text-slate-500" />
                             Test
+                          </button>
+                          <button type="button" onClick={() => resetPrinterProfile(role)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-[11px] font-black uppercase tracking-wider text-slate-700 transition hover:bg-slate-50">
+                            <RotateCcw size={15} />
+                            Default
                           </button>
                           <button type="button" onClick={() => deletePrinterSettings(role)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-red-100 bg-red-50 text-[11px] font-black uppercase tracking-wider text-red-600 transition hover:bg-red-100">
                             <Trash2 size={15} />
