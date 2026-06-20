@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from "react";
 
+function optionGroupMaxSelection(group) {
+  const value = Number(group?.maxSelection ?? group?.max_selection ?? group?.maxSelections ?? group?.max_selections);
+  return Number.isFinite(value) && value >= 1 ? Math.floor(value) : null;
+}
+
 export default function AddToCartModal({ item, onClose, onAddToCart }) {
   const [quantity, setQuantity] = useState(1);
   const [selections, setSelections] = useState({});
@@ -33,6 +38,8 @@ export default function AddToCartModal({ item, onClose, onAddToCart }) {
       setSelections({ ...selections, [group.id]: [opt] });
     } else {
       const exists = current.find((o) => o.id === opt.id);
+      const maxSelection = optionGroupMaxSelection(group);
+      if (!exists && maxSelection && current.length >= maxSelection) return;
       setSelections({
         ...selections,
         [group.id]: exists ? current.filter((o) => o.id !== opt.id) : [...current, opt],
@@ -104,12 +111,16 @@ export default function AddToCartModal({ item, onClose, onAddToCart }) {
                   <p className="text-[11px] font-semibold text-slate-800">
                     {g.name} {g.isRequired ? <span className="text-rose-500">*</span> : null}
                   </p>
-                  <span className="text-[10px] text-slate-400">{g.isMultiSelect ? "Multi" : "Single"}</span>
+                  <span className="text-[10px] text-slate-400">
+                    {g.isMultiSelect ? `Multi${optionGroupMaxSelection(g) ? ` up to ${optionGroupMaxSelection(g)}` : ""}` : "Single"}
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 mt-3">
                   {(g.options || []).map((opt) => {
                     const selected = (selections[g.id] || []).some((o) => o.id === opt.id);
+                    const maxSelection = optionGroupMaxSelection(g);
+                    const blocked = !!(g.isMultiSelect && !selected && maxSelection && (selections[g.id] || []).length >= maxSelection);
                     return (
                       <button
                         key={opt.id}
@@ -119,7 +130,7 @@ export default function AddToCartModal({ item, onClose, onAddToCart }) {
                           selected
                             ? "bg-[#FFF1F4] border-[#FC687D]"
                             : "bg-white border-slate-200 hover:bg-slate-50"
-                        }`}
+                        } ${blocked ? "opacity-45" : ""}`}
                       >
                         <p className="text-[11px] font-semibold text-slate-800">{opt.name}</p>
                         {Number(opt.price || 0) > 0 && (

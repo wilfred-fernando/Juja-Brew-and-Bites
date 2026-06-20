@@ -5,6 +5,11 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 
 const supabase = getSupabaseClient();
 
+function normalizeMaxSelection(value) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue >= 1 ? Math.floor(numberValue) : null;
+}
+
 export default function MenuAdminPage() {
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -119,6 +124,7 @@ export default function MenuAdminPage() {
       setOptionGroups(
         (item.variants || []).map((group) => ({
           ...group,
+          maxSelection: group.maxSelection ?? group.max_selection ?? "",
           posOnly: !!group.posOnly,
           hidePublic: !!group.hidePublic,
         }))
@@ -162,6 +168,7 @@ export default function MenuAdminPage() {
           ...group,
           posOnly: !!group.posOnly,
           hidePublic: !!group.hidePublic,
+          maxSelection: group.isMultiSelect ? normalizeMaxSelection(group.maxSelection ?? group.max_selection) : null,
         })),
       };
 
@@ -249,6 +256,7 @@ export default function MenuAdminPage() {
         name: "Variants",
         isRequired: true,
         isMultiSelect: false,
+        maxSelection: "",
         posOnly: false,
         hidePublic: false,
         options: [{ id: Date.now() + 1, name: "", price: "" }],
@@ -291,6 +299,7 @@ export default function MenuAdminPage() {
         name: group.name,
         is_required: group.isRequired,
         is_multi_select: group.isMultiSelect,
+        max_selection: group.isMultiSelect ? normalizeMaxSelection(group.maxSelection ?? group.max_selection) : null,
         pos_only: !!group.posOnly,
         hide_public: !!group.hidePublic,
         options: group.options,
@@ -315,6 +324,7 @@ export default function MenuAdminPage() {
           name: templateForm.name,
           is_required: templateForm.is_required,
           is_multi_select: templateForm.is_multi_select,
+          max_selection: templateForm.is_multi_select ? normalizeMaxSelection(templateForm.max_selection) : null,
           pos_only: !!templateForm.pos_only,
           hide_public: !!templateForm.hide_public,
           options: templateForm.options,
@@ -876,10 +886,24 @@ export default function MenuAdminPage() {
                 <input
                   type="checkbox"
                   checked={templateForm.is_multi_select}
-                  onChange={(e) => setTemplateForm({ ...templateForm, is_multi_select: e.target.checked })}
+                  onChange={(e) => setTemplateForm({ ...templateForm, is_multi_select: e.target.checked, max_selection: e.target.checked ? templateForm.max_selection : "" })}
                 />
                 Multi Select
               </label>
+
+              {templateForm.is_multi_select && (
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Max selections
+                  <input
+                    type="number"
+                    min="1"
+                    value={templateForm.max_selection || ""}
+                    onChange={(e) => setTemplateForm({ ...templateForm, max_selection: e.target.value })}
+                    placeholder="Blank = unlimited"
+                    className="mt-1 w-full border border-slate-200 rounded-xl px-4 py-3 text-sm normal-case tracking-normal text-slate-800"
+                  />
+                </label>
+              )}
 
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -1170,6 +1194,7 @@ export default function MenuAdminPage() {
                             name: selected.name,
                             isRequired: selected.is_required,
                             isMultiSelect: selected.is_multi_select,
+                            maxSelection: selected.max_selection || "",
                             posOnly: !!selected.pos_only,
                             hidePublic: !!selected.hide_public,
                             options: selected.options.map((opt) => ({
@@ -1213,6 +1238,7 @@ export default function MenuAdminPage() {
                                   name: template.name,
                                   is_required: template.is_required,
                                   is_multi_select: template.is_multi_select,
+                                  max_selection: template.max_selection || "",
                                   pos_only: !!template.pos_only,
                                   hide_public: !!template.hide_public,
                                   options: template.options || [],
@@ -1261,11 +1287,31 @@ export default function MenuAdminPage() {
                             <input
                               type="checkbox"
                               checked={group.isMultiSelect}
-                              onChange={(e) => updateOptionGroup(group.id, "isMultiSelect", e.target.checked)}
+                              onChange={(e) =>
+                                setOptionGroups(optionGroups.map((currentGroup) =>
+                                  currentGroup.id === group.id
+                                    ? { ...currentGroup, isMultiSelect: e.target.checked, maxSelection: e.target.checked ? currentGroup.maxSelection : "" }
+                                    : currentGroup
+                                ))
+                              }
                               className="w-3.5 h-3.5 accent-sky-700 cursor-pointer"
                             />
                             Multi-select
                           </label>
+
+                          {group.isMultiSelect && (
+                            <label className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-600 font-medium">
+                              Max
+                              <input
+                                type="number"
+                                min="1"
+                                value={group.maxSelection ?? group.max_selection ?? ""}
+                                onChange={(e) => updateOptionGroup(group.id, "maxSelection", e.target.value)}
+                                placeholder="Any"
+                                className="h-8 w-20 rounded-lg border border-slate-200 px-2 text-xs font-semibold text-slate-700 outline-none focus:border-sky-500"
+                              />
+                            </label>
+                          )}
 
                           <label className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-600 font-medium cursor-pointer">
                             <input

@@ -998,6 +998,11 @@ function VouchersModal({ open, onClose, vouchers, appliedVoucher, selectedCartIt
 /* ──────────────────────────────────────────────────────────────
     AddToCartModal Configuration Component
 ────────────────────────────────────────────────────────────── */
+function optionGroupMaxSelection(group) {
+  const value = Number(group?.maxSelection ?? group?.max_selection ?? group?.maxSelections ?? group?.max_selections);
+  return Number.isFinite(value) && value >= 1 ? Math.floor(value) : null;
+}
+
 function AddToCartModal({ item, onClose, onAddToCart }) {
   const [quantity, setQuantity] = useState(1);
   const [selections, setSelections] = useState({});
@@ -1038,6 +1043,8 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
       setSelections({ ...selections, [group.id]: [opt] });
     } else {
       const exists = current.find((o) => o.id === opt.id);
+      const maxSelection = optionGroupMaxSelection(group);
+      if (!exists && maxSelection && current.length >= maxSelection) return;
       setSelections({
         ...selections,
         [group.id]: exists ? current.filter((o) => o.id !== opt.id) : [...current, opt],
@@ -1127,7 +1134,10 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-bold text-slate-700">{g.name} {g.isRequired ? <span className="text-rose-500">*</span> : null}</p>
-                    <p className="text-[10px] text-slate-400 font-normal italic">{g.isMultiSelect ? "Multi-select" : "Single-select"}{selectedCount > 0 ? ` • Active: ${selectedCount}` : ""}</p>
+                    <p className="text-[10px] text-slate-400 font-normal italic">
+                      {g.isMultiSelect ? `Multi-select${optionGroupMaxSelection(g) ? ` up to ${optionGroupMaxSelection(g)}` : ""}` : "Single-select"}
+                      {selectedCount > 0 ? ` • Active: ${selectedCount}` : ""}
+                    </p>
                   </div>
                   {!g.isRequired && (
                     <button
@@ -1143,6 +1153,8 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                     {(g.options || []).filter((o) => o.isAvailable !== false && o.is_available !== false).map((o) => {
                       const sel = (selections[g.id] || []).find((x) => x.id === o.id);
+                      const maxSelection = optionGroupMaxSelection(g);
+                      const blocked = !!(g.isMultiSelect && !sel && maxSelection && (selections[g.id] || []).length >= maxSelection);
                       return (
                         <button
                           key={o.id}
@@ -1150,7 +1162,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
                           onClick={() => toggleOption(g, o)}
                           className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold transition-all text-left ${
                             sel ? "border-rose-400 bg-rose-50 text-rose-900" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                          }`}
+                          } ${blocked ? "opacity-45" : ""}`}
                         >
                           <span>{o.name}</span>
                           <span className="text-slate-400 text-[11px]">{Number(o.price) > 0 ? `+₱${Number(o.price).toFixed(0)}` : "FREE"}</span>

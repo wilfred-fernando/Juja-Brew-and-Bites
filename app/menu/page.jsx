@@ -542,6 +542,11 @@ export default function PublicMenuPage() {
 /* ──────────────────────────────────────────────────────────────
    Variant Modal
 ────────────────────────────────────────────────────────────── */
+function optionGroupMaxSelection(group) {
+  const value = Number(group?.maxSelection ?? group?.max_selection ?? group?.maxSelections ?? group?.max_selections);
+  return Number.isFinite(value) && value >= 1 ? Math.floor(value) : null;
+}
+
 function VariantModal({ item, onClose }) {
   const [selections, setSelections] = useState({});
 
@@ -572,6 +577,8 @@ function VariantModal({ item, onClose }) {
       setSelections({ ...selections, [group.id]: [opt] });
     } else {
       const exists = current.find((o) => o.id === opt.id);
+      const maxSelection = optionGroupMaxSelection(group);
+      if (!exists && maxSelection && current.length >= maxSelection) return;
       setSelections({
         ...selections,
         [group.id]: exists ? current.filter((o) => o.id !== opt.id) : [...current, opt],
@@ -632,13 +639,15 @@ function VariantModal({ item, onClose }) {
                     {g.name} {g.isRequired ? <span className="text-rose-500">*</span> : null}
                   </p>
                   <p className="text-[12px] italic text-slate-400">
-                    {g.isMultiSelect ? "Multi-Select" : "Required"}
+                    {g.isMultiSelect ? `Multi-Select${optionGroupMaxSelection(g) ? ` up to ${optionGroupMaxSelection(g)}` : ""}` : "Required"}
                   </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   {(g.options || []).map((o) => {
                     const sel = (selections[g.id] || []).find((x) => x.id === o.id);
+                    const maxSelection = optionGroupMaxSelection(g);
+                    const blocked = !!(g.isMultiSelect && !sel && maxSelection && (selections[g.id] || []).length >= maxSelection);
                     return (
                       <button
                         key={o.id}
@@ -646,7 +655,7 @@ function VariantModal({ item, onClose }) {
                         onClick={() => toggleOption(g, o)}
                         className={`p-1 rounded-[2px] border text-sm text-left transition-all ${
                           sel ? "border-slate-200 bg-slate-100" : "border-slate-200 bg-white/70"
-                        }`}
+                        } ${blocked ? "opacity-45" : ""}`}
                       >
                         <div className="font-medium font-bold text-slate-800 leading-tight">{o.name}</div>
                         <div className="text-[15px] font-semibold text-slate-500 mt-1">

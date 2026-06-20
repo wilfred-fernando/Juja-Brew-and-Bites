@@ -29,6 +29,7 @@ export const MenuItemSchema = {
           name: { type: "string" },
           required: { type: "boolean" },
           multi_select: { type: "boolean" },
+          max_selection: { type: "number" },
           pos_only: { type: "boolean", default: false },
           options: {
             type: "array",

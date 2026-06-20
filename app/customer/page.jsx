@@ -592,6 +592,11 @@ function HomeTab({ member, user, setTab }) {
 /* ──────────────────────────────────────────────────────────────
     Customer Order: Add To Cart Modal View
 ────────────────────────────────────────────────────────────── */
+function optionGroupMaxSelection(group) {
+  const value = Number(group?.maxSelection ?? group?.max_selection ?? group?.maxSelections ?? group?.max_selections);
+  return Number.isFinite(value) && value >= 1 ? Math.floor(value) : null;
+}
+
 function AddToCartModal({ item, onClose, onAdd }) {
   const [quantity, setQuantity] = useState(1);
   const [selections, setSelections] = useState({});
@@ -635,6 +640,8 @@ function AddToCartModal({ item, onClose, onAdd }) {
       setSelections({ ...selections, [group.id]: [opt] });
     } else {
       const exists = current.find((o) => o.id === opt.id);
+      const maxSelection = optionGroupMaxSelection(group);
+      if (!exists && maxSelection && current.length >= maxSelection) return;
       setSelections({
         ...selections,
         [group.id]: exists ? current.filter((o) => o.id !== opt.id) : [...current, opt],
@@ -710,7 +717,7 @@ function AddToCartModal({ item, onClose, onAdd }) {
                       {g.name} {g.isRequired ? <span className="customer-item-modal__required">*</span> : null}
                     </p>
                     <p className="customer-item-modal__group-mode text-[10px] uppercase font-bold tracking-wider">
-                      {g.isMultiSelect ? "Multi-select" : "Single-select"}
+                      {g.isMultiSelect ? `Multi-select${optionGroupMaxSelection(g) ? ` up to ${optionGroupMaxSelection(g)}` : ""}` : "Single-select"}
                       {selectedCount > 0 ? ` • ${selectedCount} selected` : ""}
                     </p>
                   </div>
@@ -729,13 +736,15 @@ function AddToCartModal({ item, onClose, onAdd }) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {(g.options || []).map((o) => {
                     const sel = (selections[g.id] || []).find((x) => x.id === o.id);
+                    const maxSelection = optionGroupMaxSelection(g);
+                    const blocked = !!(g.isMultiSelect && !sel && maxSelection && (selections[g.id] || []).length >= maxSelection);
                     return (
                       <button
                         type="button"
                         key={o.id}
                         onClick={() => toggleOption(g, o)}
                         className={`customer-option-choice ${sel ? "customer-option-choice--selected" : ""}`}
-                        style={{ opacity: 1 }}
+                        style={{ opacity: blocked ? 0.45 : 1 }}
                       >
                         <span className="customer-option-choice__name">{o.name}</span>
                         <span className="customer-option-choice__price">
