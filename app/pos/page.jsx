@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { getStableSession } from "@/lib/supabase/session";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { deductInventoryForOrder, restoreInventoryForOrder } from "@/lib/inventory";
 import { markKdsTicketItemVoided, markKdsTicketStatus, upsertKdsTicket } from "@/lib/kds";
@@ -2166,10 +2167,10 @@ export default function POSPage() {
 
   useEffect(() => {
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { session, error: sessionError } = await getStableSession(supabase);
 
-      if (!session) {
-        window.location.href = "/login";
+      if (sessionError || !session) {
+        window.location.replace("/pos/login");
         return;
       }
 
@@ -2188,7 +2189,7 @@ export default function POSPage() {
       const role = String(profile?.role || "").toLowerCase();
       if (role !== "cashier" && role !== "admin") {
         await supabase.auth.signOut();
-        window.location.href = "/login";
+        window.location.replace("/pos/login");
         return;
       }
 
@@ -3951,7 +3952,7 @@ export default function POSPage() {
     if (typeof window !== "undefined") {
       localStorage.removeItem("pos_store_id");
       localStorage.removeItem("cashier_name");
-      window.location.href = "/login";
+      window.location.href = "/pos/login";
     }
   };
 

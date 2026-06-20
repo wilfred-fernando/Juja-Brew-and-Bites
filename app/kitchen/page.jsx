@@ -5,6 +5,7 @@ import { CheckCircle2, Clock3, Download, History, LogOut, Maximize2, RefreshCcw,
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDateTime } from "@/lib/dateFormat";
 import { KDS_ACTIVE_STATUSES, KDS_VISIBLE_STATUSES } from "@/lib/kds";
+import { getStableSession } from "@/lib/supabase/session";
 
 const supabase = getSupabaseClient();
 const ALERT_SOUND_SRC = "/sound/notification.mp3";
@@ -147,8 +148,8 @@ export default function KitchenDisplay() {
 
   async function bootstrapAuth() {
     setAuthLoading(true);
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    const user = sessionData?.session?.user;
+    const { session, error: sessionError } = await getStableSession(supabase);
+    const user = session?.user;
 
     if (sessionError || !user) {
       window.location.href = getKitchenLoginPath();

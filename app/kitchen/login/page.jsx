@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import AuthTurnstile, { isTurnstileEnabled } from "@/components/AuthTurnstile";
 import PasswordField from "@/components/PasswordField";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { getStableSession } from "@/lib/supabase/session";
 
 const supabase = getSupabaseClient();
 
@@ -24,8 +25,8 @@ export default function KitchenLoginPage() {
     let active = true;
 
     async function checkSession() {
-      const { data } = await supabase.auth.getSession();
-      const user = data?.session?.user;
+      const { session } = await getStableSession(supabase);
+      const user = session?.user;
       if (!active) return;
 
       if (!user) {
