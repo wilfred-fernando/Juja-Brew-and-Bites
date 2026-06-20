@@ -659,6 +659,13 @@ export default function KitchenDisplay() {
               const allItemsReady = ticketItems.length > 0 && ticketItems.every((item) => isItemReady(item) || isItemVoided(item));
               const terminalStatus = ["completed", "voided", "rejected"].includes(status);
               const voidedOrder = ["voided", "rejected"].includes(status);
+              const ageWarning = !["ready", "voided", "rejected", "completed"].includes(status)
+                ? minutes >= 30
+                  ? "red"
+                  : minutes >= 20
+                  ? "yellow"
+                  : ""
+                : "";
 
               return (
                 <article
@@ -666,12 +673,22 @@ export default function KitchenDisplay() {
                   className={`overflow-hidden rounded-3xl border shadow-lg backdrop-blur transition ${
                     voidedOrder
                       ? "animate-pulse border-red-500 bg-red-50/95 shadow-red-200"
-                      : minutes > 15 && !["ready", "voided", "rejected", "completed"].includes(status)
-                      ? "border-amber-300 bg-white/95"
+                      : ageWarning === "red"
+                      ? "border-red-400 bg-red-50/95 shadow-red-200"
+                      : ageWarning === "yellow"
+                      ? "border-amber-300 bg-amber-50/95 shadow-amber-100"
                       : "border-slate-200 bg-white/95"
                   }`}
                 >
-                  <div className={`border-b p-4 ${voidedOrder ? "border-red-200 bg-red-100/80" : "border-slate-200 bg-slate-50/80"}`}>
+                  <div className={`border-b p-4 ${
+                    voidedOrder
+                      ? "border-red-200 bg-red-100/80"
+                      : ageWarning === "red"
+                      ? "border-red-200 bg-red-100/80"
+                      : ageWarning === "yellow"
+                      ? "border-amber-200 bg-amber-100/80"
+                      : "border-slate-200 bg-slate-50/80"
+                  }`}>
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-2xl font-bold tracking-tight text-slate-950">{ticket.dining_option || "Kitchen Order"}</p>
@@ -701,15 +718,19 @@ export default function KitchenDisplay() {
                       const ready = isItemReady(item);
                       const voidedItem = isItemVoided(item) || voidedOrder;
                       const showReadyStrike = ready && !showHistory && status !== "completed" && !voidedItem;
+                      const canToggleReady = !terminalStatus && !voidedItem;
                       return (
-                        <div
+                        <button
+                          type="button"
                           key={item.id || idx}
-                          className={`rounded-2xl border p-3 transition ${
+                          onClick={() => canToggleReady && toggleItemReady(ticket, item.__kdsIndex ?? idx)}
+                          disabled={!canToggleReady}
+                          className={`w-full rounded-2xl border p-3 text-left transition disabled:cursor-not-allowed ${
                             voidedItem
                               ? "animate-pulse border-red-400 bg-red-50 shadow-sm shadow-red-100"
                               : ready
-                              ? "border-emerald-200 bg-emerald-50/70"
-                              : "border-slate-200 bg-white"
+                              ? "border-emerald-200 bg-emerald-50/70 hover:bg-emerald-50"
+                              : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-cyan-200 hover:bg-cyan-50/40 hover:shadow-md"
                           }`}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -728,20 +749,15 @@ export default function KitchenDisplay() {
                                 Voided
                               </span>
                             ) : (
-                            <button
-                              type="button"
-                              onClick={() => toggleItemReady(ticket, item.__kdsIndex ?? idx)}
-                              disabled={terminalStatus || voidedItem}
-                              className={`h-9 rounded-xl px-3 text-[11px] font-bold uppercase tracking-wider shadow-sm transition disabled:bg-slate-200 disabled:text-slate-500 ${
-                                ready ? "bg-slate-200 text-slate-700 hover:bg-slate-300" : "bg-emerald-300 text-white hover:bg-emerald-500"
-                              }`}
-                            >
-                              {ready ? "Undo" : "Ready"}
-                            </button>
+                              <span className={`shrink-0 rounded-xl px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${
+                                ready ? "bg-slate-200 text-slate-700" : "bg-cyan-50 text-cyan-800"
+                              }`}>
+                                {ready ? "Tap undo" : "Tap ready"}
+                              </span>
                             )}
                           </div>
                           {item.instructions && <p className="mt-2 rounded-xl bg-cyan-50 px-3 py-2 text-[14px] font-bold text-cyan-900">Note: {item.instructions}</p>}
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
