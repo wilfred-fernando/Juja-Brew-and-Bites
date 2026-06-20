@@ -679,6 +679,49 @@ function ConfirmModal({ open, title, message, confirmText = "Confirm", cancelTex
   );
 }
 
+function PrinterPermissionModal({ open, roleLabel, onAllow, onCancel }) {
+  return (
+    <ModalShell open={open} onClose={onCancel} title="Printer Permission" subtitle={`Connect ${roleLabel || "Bluetooth Printer"}`} z={180}>
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-cyan-100 bg-cyan-50 p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-cyan-700 shadow-sm">
+              <Printer size={20} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-slate-900">Bluetooth permission is required.</p>
+              <p className="mt-1 text-xs font-medium leading-relaxed text-slate-600">
+                Select the paired thermal printer in the next browser popup, then allow the connection so POS can print to this printer.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs font-semibold leading-relaxed text-slate-600">
+          Use Chrome or Edge on HTTPS or localhost. Keep the printer powered on and near this device before continuing.
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-4">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="h-12 rounded-xl border border-slate-200 bg-white text-xs font-black uppercase tracking-wider text-slate-700 transition hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onAllow}
+            className="h-12 rounded-xl bg-cyan-700 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-cyan-700/20 transition hover:bg-cyan-800 active:scale-[0.98]"
+          >
+            Allow & Select
+          </button>
+        </div>
+      </div>
+    </ModalShell>
+  );
+}
+
 function BarcodeScannerModal({ open, onClose, onResult }) {
   const [step, setStep] = useState("intro");
   const [errMsg, setErrMsg] = useState("");
@@ -1685,6 +1728,7 @@ export default function POSPage() {
 
   const [toast, setToast] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [printerPermissionRole, setPrinterPermissionRole] = useState(null);
   const [charging, setCharging] = useState(false);
   const [savingTicket, setSavingTicket] = useState(false);
   const [moving, setMoving] = useState(false);
@@ -3291,13 +3335,18 @@ export default function POSPage() {
     showToast("success", "Printer Deleted", "Printer was removed from active POS settings.");
   }
 
-  async function selectBluetoothPrinterDevice(role) {
+  function selectBluetoothPrinterDevice(role) {
+    setPrinterPermissionRole(role);
+  }
+
+  async function requestBluetoothPrinterDevice(role) {
     if (typeof navigator === "undefined" || !navigator.bluetooth) {
       showToast(
         "error",
         "Bluetooth Not Supported",
         "Use Chrome or Edge on a Bluetooth-capable device over HTTPS or localhost."
       );
+      setPrinterPermissionRole(null);
       return;
     }
 
@@ -3344,12 +3393,15 @@ export default function POSPage() {
           ? "The printer was found and the Bluetooth settings were filled in."
           : "The device was selected. Save it, then test printing from this browser."
       );
+      setPrinterPermissionRole(null);
     } catch (err) {
       if (err?.name === "NotFoundError") {
         showToast("info", "Bluetooth Selection Cancelled", "No printer was selected.");
+        setPrinterPermissionRole(null);
         return;
       }
       showToast("error", "Bluetooth Selection Failed", err?.message || "Unable to open Bluetooth device picker.");
+      setPrinterPermissionRole(null);
     }
   }
 
@@ -4785,6 +4837,12 @@ export default function POSPage() {
       )}
       
       <ConfirmModal open={confirmOpen} title="Clear live workspace?" message="This will remove un-saved current entries from active memory." onCancel={() => setConfirmOpen(false)} onConfirm={clearTicket} />
+      <PrinterPermissionModal
+        open={!!printerPermissionRole}
+        roleLabel={PRINTER_ROLE_LABELS[printerPermissionRole]}
+        onCancel={() => setPrinterPermissionRole(null)}
+        onAllow={() => requestBluetoothPrinterDevice(printerPermissionRole)}
+      />
       {shiftCashModal}
       <PaymentModal open={paymentOpen} onClose={() => setPaymentOpen(false)} paymentTypes={paymentTypes} selectedPayment={selectedPayment} onSelect={(name) => setSelectedPayment(name)} onConfirm={confirmCharge} total={totalDue} paymentAmount={paymentAmount} setPaymentAmount={setPaymentAmount} />
       <ReceiptPreviewModal open={receiptOpen} onClose={() => setReceiptOpen(false)} receiptText={receiptText} />
