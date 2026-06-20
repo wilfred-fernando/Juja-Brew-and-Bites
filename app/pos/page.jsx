@@ -32,7 +32,7 @@ const PRINTER_ROLE_DEFAULT_WIDTH = {
 const PRINTER_ROLE_HINTS = {
   receipt: "Receipt printer for bills and final receipts.",
   order_slip: "Kitchen order slip printer.",
-  cup_label: "50mm x 40mm thermal sticker printer for bar cup labels.",
+  cup_label: "XP-Z58C Bluetooth label printer, 50mm x 40mm thermal sticker. Pairing password: 0000.",
 };
 
 function createPrinterProfile(role, source = {}) {
@@ -167,8 +167,36 @@ async function bleConnect(cfg) {
   return characteristic;
 }
 
-async function blePrint(characteristic, text) {
-  const bytes = new TextEncoder().encode(text + "\n\n");
+function concatBytes(chunks) {
+  const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  chunks.forEach((chunk) => {
+    bytes.set(chunk, offset);
+    offset += chunk.length;
+  });
+  return bytes;
+}
+
+function buildEscPosPrintBytes(text, role) {
+  const encoder = new TextEncoder();
+  const safeText = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const isCupLabel = role === "cup_label";
+  const init = Uint8Array.from([0x1b, 0x40]);
+  const codePage = Uint8Array.from([0x1b, 0x74, 0x00]);
+  const alignLeft = Uint8Array.from([0x1b, 0x61, 0x00]);
+  const lineSpacing = isCupLabel ? Uint8Array.from([0x1b, 0x33, 0x18]) : Uint8Array.from([0x1b, 0x32]);
+  const normalFont = Uint8Array.from([0x1b, 0x21, 0x00]);
+  const textBytes = encoder.encode(`${safeText}\n`);
+  const finish = isCupLabel
+    ? Uint8Array.from([0x0a, 0x0a, 0x1d, 0x56, 0x42, 0x00])
+    : Uint8Array.from([0x0a, 0x0a, 0x0a, 0x1d, 0x56, 0x42, 0x00]);
+
+  return concatBytes([init, codePage, alignLeft, lineSpacing, normalFont, textBytes, finish]);
+}
+
+async function blePrint(characteristic, text, role = "receipt") {
+  const bytes = buildEscPosPrintBytes(text, role);
 
   for (let i = 0; i < bytes.length; i += 180) {
     await characteristic.writeValueWithoutResponse(bytes.slice(i, i + 180));
@@ -193,7 +221,7 @@ async function printByRole(role, text, printerConfig, opts = {}) {
 
   try {
     const characteristic = await bleConnect(cfg);
-    await blePrint(characteristic, text);
+    await blePrint(characteristic, text, role);
     return true;
   } catch (err) {
     console.warn("Bluetooth printing failed", err);
@@ -3299,16 +3327,27 @@ export default function POSPage() {
 
   async function printPrinterTest(role = "receipt") {
     const form = printerForm?.[role] || createPrinterProfile(role);
-    const sample = [
-      centerReceiptText("JUJA BREW & BITES"),
-      receiptLine(),
-      centerReceiptText(`${PRINTER_ROLE_LABELS[role]} TEST`),
-      role === "cup_label" ? "Sticker: 50mm x 40mm" : `Paper width: ${Number(form.paper_width_mm || PRINTER_ROLE_DEFAULT_WIDTH[role] || THERMAL_PAPER_WIDTH_MM)} mm`,
-      `Interface: ${form.interface || "Bluetooth"}`,
-      `Printer: ${form.name || "Bluetooth Printer"}`,
-      receiptLine(),
-      "Bluetooth print ready.",
-    ].join("\n");
+    const sample = role === "cup_label"
+      ? [
+          "TABLE 1",
+          "Spanish Latte",
+          receiptLine("-", RECEIPT_COLUMNS),
+          "Iced (R)",
+          "Less Ice",
+          "Note: sample label",
+          "",
+          `${formatReceiptDate(new Date())}  #TEST`,
+        ].join("\n")
+      : [
+          centerReceiptText("JUJA BREW & BITES"),
+          receiptLine(),
+          centerReceiptText(`${PRINTER_ROLE_LABELS[role]} TEST`),
+          `Paper width: ${Number(form.paper_width_mm || PRINTER_ROLE_DEFAULT_WIDTH[role] || THERMAL_PAPER_WIDTH_MM)} mm`,
+          `Interface: ${form.interface || "Bluetooth"}`,
+          `Printer: ${form.name || "Bluetooth Printer"}`,
+          receiptLine(),
+          "Bluetooth print ready.",
+        ].join("\n");
 
     try {
       await printByRole(role, sample, { ...printerConfig, [role]: buildPrinterConfigFromForm(role) }, { fallbackToBrowser: false });
@@ -3773,14 +3812,17 @@ export default function POSPage() {
       setReceiptText(receipt);
       setReceiptOpen(true);
 
-      await autoPrintBarCupLabels({
-        orderId: generatedReceiptNumber,
-        labelCart: cart,
-        labelDining: diningOptionName || "WEB ORDER",
-        printedAt: orderRow.paid_at || orderRow.created_at || new Date(),
-        askBeforePrint: true,
-        promptContext: "this charged order",
-      });
+      const shouldAskCupLabelOnCharge = !originalTicketId && !activeWebOrderId;
+      if (shouldAskCupLabelOnCharge) {
+        await autoPrintBarCupLabels({
+          orderId: generatedReceiptNumber,
+          labelCart: cart,
+          labelDining: diningOptionName || "WEB ORDER",
+          printedAt: orderRow.paid_at || orderRow.created_at || new Date(),
+          askBeforePrint: true,
+          promptContext: "this charged order",
+        });
+      }
 
       if (receiptSettings?.auto_print) {
         try {
@@ -4483,6 +4525,7 @@ export default function POSPage() {
                             className="h-8 w-full bg-transparent text-sm font-semibold text-slate-900 outline-none"
                           >
                             <option>Other model</option>
+                            <option>XP-Z58C thermal label printer</option>
                             <option>Xprinter thermal printer</option>
                             <option>ESC/POS compatible</option>
                           </select>
