@@ -532,14 +532,9 @@ export default function KitchenDisplay() {
       <div className="mx-auto max-w-[1600px] space-y-3">
         <header className="rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-3 shadow-md backdrop-blur sm:px-5">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-700">Kitchen Display System</p>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-950">KDS Orders</h1>
-              <p className="text-xs text-slate-600">
-                Live kitchen queue for POS charged orders and accepted web orders.
-                {assignedStoreId ? <span className="ml-2 font-bold text-cyan-800">Store locked</span> : <span className="ml-2 font-bold text-slate-700">All stores</span>}
-              </p>
-              <p className="text-[11px] font-semibold text-slate-500">{userEmail} {userRole ? `- ${userRole.toUpperCase()}` : ""}</p>
+            <div>              
+              <h1 className="text-2xl font-bold tracking-tight text-slate-950">Kitchen Order Display</h1>
+                           
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {showInstallButton && (
@@ -572,7 +567,7 @@ export default function KitchenDisplay() {
               <button
                 type="button"
                 onClick={() => document.documentElement.requestFullscreen?.()}
-                className="inline-flex h-9 items-center gap-2 rounded-xl bg-slate-700 px-3 text-[11px] font-bold uppercase tracking-wider text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-600"
+                className="inline-flex h-9 items-center gap-2 rounded-xl bg-white px-3 text-[11px] font-bold uppercase tracking-wider text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-600"
               >
                 <Maximize2 className="h-4 w-4" /> Full Screen
               </button>
@@ -656,7 +651,7 @@ export default function KitchenDisplay() {
             </div>
           </section>
         ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4 2xl:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 2xl:grid-cols-4">
             {visibleTickets.map((ticket) => {
               const status = String(ticket.status || "pending").toLowerCase();
               const minutes = ticket.created_at ? Math.floor((Date.now() - new Date(ticket.created_at).getTime()) / 60000) : 0;
@@ -719,11 +714,11 @@ export default function KitchenDisplay() {
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className={voidedItem ? "text-red-800 line-through decoration-2" : showReadyStrike ? "text-slate-500 line-through decoration-2" : "text-slate-900"}>
-                              <p className="text-[20px] font-bold">
+                              <p className="text-[18px] font-bold">
                                 {item.quantity || 1} x {item.name}
                               </p>
                               {itemOptionRows(item).map((row) => (
-                                <p key={`${row.group}-${row.values}`} className="text-[19px] font-normal italic">
+                                <p key={`${row.group}-${row.values}`} className="text-[17px] font-normal italic">
                                   {row.values}
                                 </p>
                               ))}
