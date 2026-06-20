@@ -129,6 +129,8 @@ export default function KitchenDisplay() {
   const [assignedStoreId, setAssignedStoreId] = useState("");
   const knownTicketIds = useRef(new Set());
   const audioRef = useRef(null);
+  const kitchenCategoriesRef = useRef({});
+  const menuItemCategoryLookupRef = useRef({});
 
   const allowedStatuses = showHistory ? KDS_HISTORY_STATUSES : KDS_VISIBLE_STATUSES;
 
@@ -210,11 +212,13 @@ export default function KitchenDisplay() {
 
   function getKitchenCategoryRule(storeId) {
     const key = String(storeId || "");
-    return kitchenCategoriesByStore[key] || kitchenCategoriesByStore.__global || { ids: new Set(), names: new Set(), configured: false };
+    const rules = kitchenCategoriesRef.current || kitchenCategoriesByStore;
+    return rules[key] || rules.__global || { ids: new Set(), names: new Set(), configured: false };
   }
 
   function getItemCategoryMeta(item) {
-    const lookup = menuItemCategoryLookup[String(item?.menuItemId || item?.menu_item_id || item?.id || "")] || {};
+    const lookupMap = menuItemCategoryLookupRef.current || menuItemCategoryLookup;
+    const lookup = lookupMap[String(item?.menuItemId || item?.menu_item_id || item?.id || "")] || {};
     return {
       categoryId: item?.categoryId || item?.category_id || item?.menu_category_id || lookup.categoryId || null,
       categoryName: item?.category || item?.categoryName || item?.category_name || lookup.categoryName || null,
@@ -282,11 +286,14 @@ export default function KitchenDisplay() {
       };
     });
 
+    kitchenCategoriesRef.current = nextRules;
+    menuItemCategoryLookupRef.current = itemLookup;
     setKitchenCategoriesByStore(nextRules);
     setMenuItemCategoryLookup(itemLookup);
   }
 
   const showNewTicketAlert = (ticket) => {
+    if (getKitchenItems(ticket).length === 0) return;
     const label = ticket?.dining_option || ticket?.ticket_number || "Kitchen order";
     setAlertMessage(`New kitchen order: ${label}`);
     playAlert();
@@ -322,7 +329,10 @@ export default function KitchenDisplay() {
       const rows = data || [];
       const previous = knownTicketIds.current;
       const next = new Set(rows.map((ticket) => ticket.id));
-      const fresh = rows.find((ticket) => !previous.has(ticket.id) && ["pending", "accepted"].includes(String(ticket.status || "").toLowerCase()));
+      const fresh = rows.find((ticket) => {
+        const status = String(ticket.status || "").toLowerCase();
+        return !previous.has(ticket.id) && ["pending", "accepted"].includes(status) && getKitchenItems(ticket).length > 0;
+      });
       knownTicketIds.current = next;
       setTickets(rows);
       if (silent && fresh) showNewTicketAlert(fresh);
@@ -378,8 +388,11 @@ export default function KitchenDisplay() {
 
   useEffect(() => {
     if (!authorized || authLoading) return undefined;
-    loadKitchenPrinterCategories();
-    fetchTickets();
+    let cancelled = false;
+    (async () => {
+      await loadKitchenPrinterCategories();
+      if (!cancelled) await fetchTickets();
+    })();
 
     const channel = supabase
       .channel("kds-tickets-live")
@@ -394,6 +407,7 @@ export default function KitchenDisplay() {
     const timer = setInterval(() => fetchTickets({ silent: true }), 5000);
 
     return () => {
+      cancelled = true;
       clearInterval(timer);
       supabase.removeChannel(channel);
     };
