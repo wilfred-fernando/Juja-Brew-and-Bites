@@ -49,7 +49,16 @@ function itemOptionRows(item) {
     grouped.set(group, [...(grouped.get(group) || []), label]);
   });
   grouped.forEach((values, group) => rows.push({ group, values: values.join(", ") }));
-  if (!rows.length && item?.variantDetails) rows.push({ group: "Options", values: item.variantDetails });
+  if (!rows.length && item?.variantDetails) {
+    String(item.variantDetails)
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .forEach((line) => {
+        const [maybeGroup, ...rest] = line.split(":");
+        rows.push(rest.length ? { group: maybeGroup.trim(), values: rest.join(":").trim() } : { group: "", values: line });
+      });
+  }
   return rows;
 }
 
@@ -117,11 +126,15 @@ export default function KitchenDisplay() {
   }, [tickets, statusFilter, allowedStatuses, kitchenCategoriesByStore, menuItemCategoryLookup]);
 
   const playAlert = () => {
-    const audio = audioRef.current || new Audio(ALERT_SOUND_SRC);
-    audioRef.current = audio;
-    audio.currentTime = 0;
-    audio.volume = 0.95;
-    audio.play().catch(() => {});
+    [0, 900, 1800].forEach((delay) => {
+      window.setTimeout(() => {
+        const audio = delay === 0 ? audioRef.current || new Audio(ALERT_SOUND_SRC) : new Audio(ALERT_SOUND_SRC);
+        if (delay === 0) audioRef.current = audio;
+        audio.currentTime = 0;
+        audio.volume = 0.95;
+        audio.play().catch(() => {});
+      }, delay);
+    });
   };
 
   function normalizeText(value) {
@@ -390,15 +403,14 @@ export default function KitchenDisplay() {
       return;
     }
 
-    if (ticket.source_type === "web" && ticket.web_order_id) {
+    if (ticket.source_type === "web" && ticket.web_order_id && status !== "completed") {
       const webStatus = status === "preparing" ? "accepted" : status;
       const webExtra =
         {
-          completed: { completed_at: timestamp },
           rejected: { rejected_at: timestamp },
           voided: { cancelled_at: timestamp },
         }[status] || {};
-      if (["completed", "rejected", "voided"].includes(status)) {
+      if (["rejected", "voided"].includes(status)) {
         await supabase.from("web_orders").update({ status: webStatus, order_status: webStatus, ...webExtra }).eq("id", ticket.web_order_id);
       }
     }
@@ -679,7 +691,7 @@ export default function KitchenDisplay() {
                               </p>
                               {itemOptionRows(item).map((row) => (
                                 <p key={`${row.group}-${row.values}`} className="mt-1 text-[14px] font-semibold">
-                                  <span className="uppercase tracking-wider text-slate-500">{row.group}:</span> {row.values}
+                                  {row.group && <span className="uppercase tracking-wider text-slate-500">{row.group}: </span>}{row.values}
                                 </p>
                               ))}
                             </div>
@@ -783,7 +795,7 @@ export default function KitchenDisplay() {
                           </p>
                           {itemOptionRows(item).map((row) => (
                             <p key={`${row.group}-${row.values}`} className={`mt-1 text-[12px] font-semibold ${voidedItem ? "text-red-700" : "text-slate-700"}`}>
-                              <span className="uppercase tracking-wider text-slate-500">{row.group}:</span> {row.values}
+                              {row.group && <span className="uppercase tracking-wider text-slate-500">{row.group}: </span>}{row.values}
                             </p>
                           ))}
                           {item.instructions && <p className="mt-2 rounded-xl bg-cyan-50 px-3 py-2 text-[12px] font-bold text-cyan-900">Note: {item.instructions}</p>}
