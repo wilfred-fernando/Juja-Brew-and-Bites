@@ -57,7 +57,19 @@ function itemOptionRows(item) {
       .filter(Boolean)
       .forEach((line) => {
         const [maybeGroup, ...rest] = line.split(":");
-        rows.push(rest.length ? { group: maybeGroup.trim(), values: rest.join(":").trim() } : { group: "", values: line });
+        if (rest.length) {
+          rows.push({ group: maybeGroup.trim(), values: rest.join(":").trim() });
+          return;
+        }
+
+        const parts = line.split(",").map((part) => part.trim()).filter(Boolean);
+        if (parts.length > 1) {
+          rows.push({ group: "", values: parts[0] });
+          rows.push({ group: "", values: parts.slice(1).join(", ") });
+          return;
+        }
+
+        rows.push({ group: "", values: line });
       });
   }
   return rows;
@@ -692,7 +704,7 @@ export default function KitchenDisplay() {
                               </p>
                               {itemOptionRows(item).map((row) => (
                                 <p key={`${row.group}-${row.values}`} className="mt-1 text-[14px] font-semibold">
-                                  {row.group && <span className="uppercase tracking-wider text-slate-500">{row.group}: </span>}{row.values}
+                                  {row.values}
                                 </p>
                               ))}
                             </div>
@@ -796,7 +808,7 @@ export default function KitchenDisplay() {
                           </p>
                           {itemOptionRows(item).map((row) => (
                             <p key={`${row.group}-${row.values}`} className={`mt-1 text-[12px] font-semibold ${voidedItem ? "text-red-700" : "text-slate-700"}`}>
-                              {row.group && <span className="uppercase tracking-wider text-slate-500">{row.group}: </span>}{row.values}
+                              {row.values}
                             </p>
                           ))}
                           {item.instructions && <p className="mt-2 rounded-xl bg-cyan-50 px-3 py-2 text-[12px] font-bold text-cyan-900">Note: {item.instructions}</p>}

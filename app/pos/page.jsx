@@ -1038,6 +1038,16 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
     .flat()
     .map((o) => o.name)
     .join(", ");
+  const selectedOptions = Object.entries(selections).flatMap(([groupId, options]) => {
+    const group = availableVariantGroups.find((entry) => String(entry.id) === String(groupId)) || {};
+    return (options || []).map((option) => ({
+      id: option.id,
+      name: option.name,
+      price: Number(option.price) || 0,
+      groupId,
+      groupName: group.name || group.label || group.id || "Options",
+    }));
+  });
 
   const totalLine = (unitPrice * quantity).toFixed(0);
   const submitLine = () =>
@@ -1049,6 +1059,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
       unitPrice,
       quantity,
       variantDetails,
+      selectedOptions,
       instructions,
       cartItemId: item.editData?.cartItemId || Date.now(),
     });
