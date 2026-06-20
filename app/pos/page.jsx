@@ -219,6 +219,16 @@ function receiptAmount(value) {
   return peso2(value).replace("₱", "P");
 }
 
+function coerceReceiptTimestamp(value) {
+  if (!value) return new Date();
+  if (value instanceof Date) return value;
+  const text = String(value).trim();
+  const normalizedTimestamp = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/.test(text)
+    ? `${text.replace(" ", "T")}Z`
+    : text;
+  return new Date(normalizedTimestamp);
+}
+
 function customerDisplayName(customer) {
   return customer?.name || customer?.customer_name || customer?.full_name || "";
 }
@@ -232,7 +242,7 @@ function customerAvailablePoints(customer) {
 }
 
 function formatReceiptFooterDate(value) {
-  const date = value ? new Date(value) : new Date();
+  const date = coerceReceiptTimestamp(value);
   if (isNaN(date.getTime())) return "";
   return new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Manila",
@@ -254,7 +264,7 @@ function receiptPair(left, right, width = RECEIPT_COLUMNS) {
 }
 
 function formatReceiptDate(value) {
-  const date = value ? new Date(value) : new Date();
+  const date = coerceReceiptTimestamp(value);
   if (isNaN(date.getTime())) return formatDateTime(new Date());
   return date.toLocaleString("en-PH", {
     timeZone: "Asia/Manila",
@@ -265,6 +275,16 @@ function formatReceiptDate(value) {
     minute: "2-digit",
     hour12: false,
   }).replace(",", "");
+}
+
+function formatReceiptTime(value) {
+  const date = coerceReceiptTimestamp(value);
+  if (isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Manila",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 function shortReceiptNumber(value) {
@@ -1756,7 +1776,7 @@ export default function POSPage() {
     });
     return todaysRows.map((row) => ({
       receipt: row.receipt_number,
-      time: row.created_at ? new Date(row.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : row.date,
+      time: row.created_at ? formatReceiptTime(row.created_at) : row.date,
       payment: row.payment_type || "Other",
       dining: row.description || row.dining_option || "POS Order",
       status: row.status || "Closed",
