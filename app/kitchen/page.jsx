@@ -255,7 +255,7 @@ export default function KitchenDisplay() {
         .eq("is_active", true),
       supabase.from("pos_printer_group_categories").select("printer_group_id, store_id, menu_category_id"),
       supabase.from("menu_categories").select("id, name"),
-      supabase.from("menu_items").select("id, category, category_id"),
+      supabase.from("menu_items").select("id, category"),
     ]);
 
     if (groupsRes.error || mapRes.error || categoriesRes.error) {
@@ -281,7 +281,7 @@ export default function KitchenDisplay() {
     const itemLookup = {};
     (itemsRes.data || []).forEach((item) => {
       itemLookup[String(item.id)] = {
-        categoryId: item.category_id || null,
+        categoryId: null,
         categoryName: item.category || null,
       };
     });
@@ -748,13 +748,7 @@ export default function KitchenDisplay() {
                               <span className="h-9 rounded-xl border border-red-300 bg-red-100 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-red-800">
                                 Voided
                               </span>
-                            ) : (
-                              <span className={`shrink-0 rounded-xl px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${
-                                ready ? "bg-slate-200 text-slate-700" : "bg-cyan-50 text-cyan-800"
-                              }`}>
-                                
-                              </span>
-                            )}
+                            ) : null}
                           </div>
                           {item.instructions && <p className="mt-2 rounded-xl bg-cyan-50 px-3 py-2 text-[14px] font-bold text-cyan-900">Note: {item.instructions}</p>}
                         </button>
