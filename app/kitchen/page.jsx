@@ -651,7 +651,7 @@ export default function KitchenDisplay() {
             </div>
           </section>
         ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 2xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4 2xl:grid-cols-5">
             {visibleTickets.map((ticket) => {
               const status = String(ticket.status || "pending").toLowerCase();
               const minutes = ticket.created_at ? Math.floor((Date.now() - new Date(ticket.created_at).getTime()) / 60000) : 0;
@@ -752,7 +752,7 @@ export default function KitchenDisplay() {
                               <span className={`shrink-0 rounded-xl px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${
                                 ready ? "bg-slate-200 text-slate-700" : "bg-cyan-50 text-cyan-800"
                               }`}>
-                                {ready ? "Tap undo" : "Tap ready"}
+                                
                               </span>
                             )}
                           </div>
