@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Clock3, MonitorUp, Utensils } from "lucide-react";
 
-const VIDEO_SRC = "/videos/customer-order-display.mp4";
-const VIDEO_POSTER = "https://images.jujabrewandbites.com/Cookies%20(1376%20x%20824%20px).jpg";
+const DISPLAY_SLIDES = [
+  "https://images.jujabrewandbites.com/Cookies%20(1376%20x%20824%20px).jpg",
+  "https://images.jujabrewandbites.com/A4_Pesto%20Pasta.jpg",
+  "https://images.jujabrewandbites.com/FB_Seasonal%20Drinks.jpg",
+  "https://images.jujabrewandbites.com/TV_Bento%202.jpg",
+];
 const LOGO_SRC = "/images/juja-logo.png";
-const TARGET_TV_SIZE = "1920 x 1080 px";
-const TARGET_VIDEO_SIZE = "1376 x 924 px";
 
 function itemLabel(count) {
   const value = Number(count || 0);
@@ -51,6 +53,9 @@ export default function CustomerOrderDisplayPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [now, setNow] = useState(new Date());
+  const [slideIndex, setSlideIndex] = useState(0);
+  const [previousSlideIndex, setPreviousSlideIndex] = useState(null);
+  const fadeTimeoutRef = useRef(null);
 
   const preparingOrders = useMemo(() => orders.filter((order) => order.status !== "served"), [orders]);
   const servedOrders = useMemo(() => orders.filter((order) => order.status === "served"), [orders]);
@@ -74,18 +79,28 @@ export default function CustomerOrderDisplayPage() {
 
   useEffect(() => {
     loadOrders();
-    const refresh = setInterval(() => loadOrders({ silent: true }), 5000);
-    const clock = setInterval(() => setNow(new Date()), 1000);
+    const refresh = setInterval(() => loadOrders({ silent: true }), 6000);
+    const clock = setInterval(() => setNow(new Date()), 2000);
+    const slide = setInterval(() => {
+      setSlideIndex((current) => {
+        setPreviousSlideIndex(current);
+        if (fadeTimeoutRef.current) clearTimeout(fadeTimeoutRef.current);
+        fadeTimeoutRef.current = setTimeout(() => setPreviousSlideIndex(null), 3000);
+        return (current + 1) % DISPLAY_SLIDES.length;
+      });
+    }, 5000);
     return () => {
       clearInterval(refresh);
       clearInterval(clock);
+      clearInterval(slide);
+      if (fadeTimeoutRef.current) clearTimeout(fadeTimeoutRef.current);
     };
   }, []);
 
   return (
     <main className="h-screen overflow-hidden bg-[url('https://images.jujabrewandbites.com/page%20background.png')] bg-cover bg-center p-5 text-slate-950">
       <div className="mx-auto grid h-full max-w-[1920px] grid-cols-[minmax(0,1fr)_500px] grid-rows-[96px_minmax(0,1fr)] gap-4">
-        <header className="col-span-1 flex min-w-0 items-center justify-between bg-[#8d8adf] px-4 text-white">
+        <header className="col-span-1 flex min-w-0 items-center justify-between bg-blue-600/60 px-4 text-white">
           <div className="flex min-w-0 items-center gap-4">
             <img src={LOGO_SRC} alt="JUJA Brew & Bites" className="h-20 w-20 shrink-0 object-contain" />
             <div className="border-4 border-[#7b5cff]">
@@ -102,8 +117,8 @@ export default function CustomerOrderDisplayPage() {
           </div>
         </header>
 
-        <aside className="col-start-2 row-span-2 grid min-h-0 grid-rows-[76px_minmax(0,1fr)] bg-sky-50/70">
-          <div className="flex items-center justify-center bg-[#7468cf] px-4 text-white">
+        <aside className="col-start-2 row-span-2 grid min-h-0 grid-rows-[95px_minmax(0,1fr)] bg-blue-300/20">
+          <div className="flex items-center justify-center bg-blue-600/60 px-6 text-white">
             <p className="text-[41px] font-black uppercase tracking-[0.10em]">Now Preparing</p>
           </div>
 
@@ -145,8 +160,8 @@ export default function CustomerOrderDisplayPage() {
                       </div>
                       <div className="shrink-0 text-right">
                         <span
-                          className={`inline-flex px-4 py-2 text-sm font-black uppercase rounded-[15px] tracking-[0.14em] ${
-                            order.status === "served" ? "bg-emerald-600 text-white" : "bg-blue-500 text-white"
+                          className={`inline-flex px-4 py-2 text-sm font-black rounded-full uppercase tracking-[0.14em] ${
+                            order.status === "served" ? "bg-red-600 text-white" : "bg-emerald-500 text-white"
                           }`}
                         >
                           {order.status === "served" ? "Served" : "Preparing"}
@@ -162,18 +177,36 @@ export default function CustomerOrderDisplayPage() {
         </aside>
 
         <section className="relative col-span-1 row-start-2 min-h-0 overflow-hidden bg-black">
-          <video
-            className="h-full w-full object-cover"
-            src={VIDEO_SRC}
-            poster={VIDEO_POSTER}
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-          />         
+          <img
+            key={DISPLAY_SLIDES[slideIndex]}
+            src={DISPLAY_SLIDES[slideIndex]}
+            alt=""
+            className="absolute inset-0 z-10 h-full w-full object-cover"
+          />
+          {previousSlideIndex !== null ? (
+            <img
+              key={`${DISPLAY_SLIDES[previousSlideIndex]}-previous`}
+              src={DISPLAY_SLIDES[previousSlideIndex]}
+              alt=""
+              className="cod-fade-out absolute inset-0 z-20 h-full w-full object-cover"
+            />
+          ) : null}
         </section>
       </div>
+      <style jsx global>{`
+        .cod-fade-out {
+          animation: codFadeOut 2000ms ease-in-out forwards;
+        }
+
+        @keyframes codFadeOut {
+          from {
+            opacity: 1;
+          }
+          to {
+            opacity: 0;
+          }
+        }
+      `}</style>
     </main>
   );
 }
