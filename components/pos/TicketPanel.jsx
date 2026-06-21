@@ -308,23 +308,12 @@ export default function TicketPanel({
                   <p className="text-[14px] font-bold text-slate-700 font-mono whitespace-nowrap">
                     ₱{Number(line.unitPrice * line.quantity).toLocaleString("en-PH", { maximumFractionDigits: 0 })}
                   </p>
-                </div>
+                </div>             
                 
-                {onRemoveCartItem && (
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onRemoveCartItem(idx);
-                    }}
-                    className="self-end rounded-lg border border-red-100 bg-red-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-red-600 transition hover:bg-red-100"
-                  >
-                    Remove
-                  </button>
-                )}
+                
 
                 <div className="flex justify-between items-center text-[11px]">
-                  <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md font-bold font-mono text-[10px]">
+                  <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md font-bold font-mono text-[14px]">
                     x{line.quantity}
                   </span>
                   {line.variantDetails && (
@@ -332,6 +321,19 @@ export default function TicketPanel({
                       {line.variantDetails}
                     </span>
                   )}
+
+                  {onRemoveCartItem && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onRemoveCartItem(idx);
+                    }}
+                    className="self-end rounded-sm border border-red-200 bg-red-400 px-1.5 py-0.5 text-[10px] font-bold font-mono uppercase tracking-wide text-slate-900 transition hover:bg-red-100"
+                  >
+                    remove
+                  </button>
+                )}
                 </div>
               </div>
             );
@@ -343,7 +345,7 @@ export default function TicketPanel({
       <div className="mt-3 pt-1 space-y-3 bg-white">
         <div className="flex justify-between items-baseline">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Balance</span>
-          <span className="font-extrabold text-2xl text-slate-800 tracking-tight font-mono">
+          <span className="font-bold text-2xl text-slate-800">
             ₱{Number(subtotal || 0).toLocaleString("en-PH", { maximumFractionDigits: 0 })}
           </span>
         </div>
@@ -353,14 +355,14 @@ export default function TicketPanel({
           <button
             onClick={onSave}
             disabled={savingTicket || cart.length === 0}
-            className="py-3 text-xs font-bold rounded-xl bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 transition disabled:opacity-40 active:scale-95"
+            className="text-[14px] font-bold rounded-xl bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 transition disabled:opacity-40 active:scale-95"
           >
             {savingTicket ? "Saving..." : "Save Ticket"}
           </button>
           <button
             onClick={onCharge}
             disabled={charging || cart.length === 0}
-            className="py-3 text-xs font-bold tracking-wider rounded-xl bg-[#FC687D] hover:bg-[#fa546c] text-white shadow-md shadow-rose-200 transition disabled:opacity-40 active:scale-95 flex items-center justify-center"
+            className="text-[14px] font-bold tracking-wider rounded-xl bg-[#FC687D] hover:bg-[#fa546c] text-white shadow-md shadow-rose-200 transition disabled:opacity-40 active:scale-95 flex items-center justify-center"
           >
             {charging ? "Charging..." : "Charge"}
           </button>

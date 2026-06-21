@@ -4215,21 +4215,21 @@ export default function POSPage() {
 
       {/* PERSISTENT PWA INSTALLATION TRIGGER BANNER LAYOUT */}
       {showInstallBanner && (
-        <div className="bg-gradient-to-r from-rose-500 to-[#FC687D] text-white py-2 px-4 shadow-sm flex items-center justify-between text-xs font-semibold select-none animate-in slide-in-from-top duration-300">
-          <div className="flex items-center gap-2">
+        <div className="bg-gradient-to-r from-blue-700 to-[#FC687D] text-white py-2 px-4 shadow-sm flex items-center justify-between text-xs font-semibold select-none animate-in slide-in-from-top duration-300">
+          <div className="flex text-[14px] items-center gap-2">
             <span>📱</span>
             <span>Run Juja POS directly as a standalone hardware desktop app window.</span>
           </div>
           <div className="flex items-center gap-2 font-bold uppercase tracking-wider">
             <button 
               onClick={handleExecuteInstall} 
-              className="bg-white text-slate-900 rounded-lg px-3 py-1 text-[11px] active:scale-95 transition"
+              className="bg-white/10 text-slate-900 rounded-lg px-3 py-1 text-[11px] active:scale-95 transition"
             >
-              Add To Screen
+              INSTALL APP
             </button>
             <button 
               onClick={() => setShowInstallBanner(false)} 
-              className="text-white/80 hover:text-white px-2 py-1 text-sm font-normal"
+              className="text-white/80 hover:text-slate-900 px-2 py-1 text-sm font-normal"
             >
               ✕
             </button>
@@ -4745,7 +4745,7 @@ export default function POSPage() {
             {loading ? (
               <div className="py-24 text-center"><div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full mx-auto" /></div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-5 gap-3 max-h-[calc(100vh-190px)] overflow-y-auto pr-1">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 gap-3 max-h-[calc(100vh-190px)] overflow-y-auto pr-1">
                   {visibleMenuItems.length === 0 ? (
                     <div className="col-span-full rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-xs font-semibold text-slate-500">
                       {activeCategory ? "No available items found in this category." : "No featured menu items found."}

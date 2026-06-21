@@ -489,6 +489,12 @@ export default function AdminPayrollPage() {
   const canMarkPayrollPaid = currentRole === "super_admin" || currentRole === "admin";
   const canChangePayrollStatus = canApprovePayroll;
   const canViewPayslip = (entry) => canApprovePayroll || ["approved", "paid"].includes(String(entry?.status || "").toLowerCase());
+  const canMarkEntryPaid = (entry) => {
+    const status = String(entry?.status || "").toLowerCase();
+    if (status === "paid") return false;
+    if (canApprovePayroll) return true;
+    return canMarkPayrollPaid && status === "approved";
+  };
 
   const cutoffDates = useMemo(
     () => datesBetween(selectedPeriod?.period_start, selectedPeriod?.period_end),
@@ -1302,6 +1308,9 @@ export default function AdminPayrollPage() {
   async function updateEntryStatus(entry, status) {
     if (status === "approved" && !canApprovePayroll) return setNotice("Only super admin accounts can approve payroll.");
     if (status === "paid" && !canMarkPayrollPaid) return setNotice("Only admin or super admin accounts can tag payroll as paid.");
+    if (status === "paid" && !canApprovePayroll && String(entry?.status || "").toLowerCase() !== "approved") {
+      return setNotice("Payroll must be approved by a super admin before admin can tag it as paid.");
+    }
     const { data, error } = await supabase.from("payroll_entries").update({ status }).eq("id", entry.id).select().maybeSingle();
     if (error) return setNotice(`Status Failed: ${error.message}`);
     setEntries((prev) => prev.map((row) => (row.id === entry.id ? data : row)));
@@ -1526,7 +1535,7 @@ export default function AdminPayrollPage() {
                       <td className="pr-3 text-right">
                         <div className="flex justify-end gap-2">
                           {canApprovePayroll && entry.status !== "approved" && entry.status !== "paid" ? <button onClick={() => updateEntryStatus(entry, "approved")} className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[10px] font-semibold uppercase text-blue-600 transition hover:-translate-y-0.5">Approve</button> : null}
-                          {canMarkPayrollPaid && entry.status !== "paid" ? <button onClick={() => updateEntryStatus(entry, "paid")} className="rounded-lg border border-cyan-100 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase text-cyan-700 transition hover:-translate-y-0.5">Paid</button> : null}
+                          {canMarkEntryPaid(entry) ? <button onClick={() => updateEntryStatus(entry, "paid")} className="rounded-lg border border-cyan-100 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase text-cyan-700 transition hover:-translate-y-0.5">Paid</button> : null}
                         </div>
                       </td>
                     </tr>
