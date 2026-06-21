@@ -6,6 +6,7 @@ import { getStableSession } from "@/lib/supabase/session";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { deductInventoryForOrder, restoreInventoryForOrder } from "@/lib/inventory";
 import { markKdsTicketItemVoided, markKdsTicketStatus, upsertKdsTicket, webDiningOptionLabel } from "@/lib/kds";
+import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib/loyalty/annualReset";
 import TicketPanel from "@/components/pos/TicketPanel";
 import { Bluetooth, Printer, RotateCcw, Save, Search, Trash2 } from "lucide-react";
 
@@ -2533,7 +2534,16 @@ export default function POSPage() {
       const cats = catRes.data || [];
       setItems(iRes.data || []);
       setCategories(cats);
-      setCustomers((cRes.data || []).map((row) => ({
+      const loyaltyRows = await Promise.all((cRes.data || []).map(async (row) => {
+        try {
+          const result = await resetMemberPointsIfExpired(supabase, row);
+          return result.member || row;
+        } catch (err) {
+          console.warn("Annual loyalty point reset skipped:", err);
+          return applyAnnualPointResetToMember(row);
+        }
+      }));
+      setCustomers(loyaltyRows.map((row) => ({
         ...row,
         name: row.customer_name || row.name || row.full_name || "",
         code: row.customer_code || row.code || "",
@@ -2932,9 +2942,11 @@ export default function POSPage() {
 
       if (findErr || !member) return;
 
-      const currentBalance = Number(member["Points balance"] || 0);
-      const currentAvailable = Number(member["Available points"] || 0);
-      const currentVisits = Number(member["Total visits"] || 0);
+      const resetResult = await resetMemberPointsIfExpired(supabase, member);
+      const activeMember = resetResult.member || member;
+      const currentBalance = Number(activeMember["Points balance"] || 0);
+      const currentAvailable = Number(activeMember["Available points"] || 0);
+      const currentVisits = Number(activeMember["Total visits"] || 0);
       const nextBalance = Number((currentBalance + pointsEarned).toFixed(2));
       const nextAvailable = Number((currentAvailable + pointsEarned).toFixed(2));
 
@@ -2945,9 +2957,9 @@ export default function POSPage() {
           "Available points": nextAvailable,
           "Total visits": currentVisits + 1,
         })
-        .eq("id", member.id);
+        .eq("id", activeMember.id);
 
-      await createPointRewardVouchers(member.id, nextBalance);
+      await createPointRewardVouchers(activeMember.id, nextBalance);
     } catch (err) {
       console.warn("Loyalty point update skipped:", err);
     }

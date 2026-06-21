@@ -9,6 +9,7 @@ import { Barcode as BarcodeIcon, CalendarDays, DollarSign, MapPin, Phone, Shoppi
 import { supabase } from "@/lib/supabase";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { webDiningOptionLabel } from "@/lib/kds";
+import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib/loyalty/annualReset";
 import BookingTab from "@/components/BookingForm";
 
 const Barcode = dynamic(() => import("react-barcode"), { ssr: false });
@@ -44,7 +45,7 @@ const loyaltyPerkSections = [
   {
     label: "Expiration Policy",
     accent: "EXP",
-    items: ["All JUJA Points expire every December 31 at 11:59 PM."],
+    items: ["Available JUJA Points reset to 0 every December 31 at 11:59 PM Asia/Manila. Lifetime points balance and active vouchers are not included in the reset."],
   },
 ];
 
@@ -1883,7 +1884,8 @@ function LoyaltyTab({ member, setMember, user }) {
     async function createPointsVouchersIfNeeded() {
       if (!member?.id) return;
       if (!member?.user_id || String(member.user_id) !== String(user?.id)) return;
-      const lifetimePoints = Number(member?.["Points balance"] || member?.["Available points"] || 0);
+      const activeMember = applyAnnualPointResetToMember(member);
+      const lifetimePoints = Number(activeMember?.["Points balance"] || activeMember?.["Available points"] || 0);
       const earnedVoucherCount = Math.floor(lifetimePoints / 100);
       if (earnedVoucherCount <= 0) return;
 
@@ -2671,7 +2673,15 @@ export default function Customer() {
           .eq("user_id", session.user.id)
           .maybeSingle();
 
-        if (mData) setMember(mData);
+        if (mData) {
+          try {
+            const resetResult = await resetMemberPointsIfExpired(supabase, mData);
+            setMember(resetResult.member || mData);
+          } catch (resetErr) {
+            console.warn("Annual loyalty point reset skipped:", resetErr);
+            setMember(applyAnnualPointResetToMember(mData));
+          }
+        }
       } catch (e) {
         console.warn("No active member profiles registered.", e);
       }
@@ -2692,7 +2702,7 @@ export default function Customer() {
         { event: "UPDATE", schema: "public", table: "loyalty_members" },
         (payload) => {
           if (payload?.new && String(payload.new.user_id) === String(user.id)) {
-            setMember(payload.new);
+            setMember(applyAnnualPointResetToMember(payload.new));
           }
         }
       )

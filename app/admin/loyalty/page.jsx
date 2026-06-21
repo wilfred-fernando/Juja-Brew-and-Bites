@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib/loyalty/annualReset";
 
 const supabase = getSupabaseClient();
 
@@ -377,7 +378,17 @@ export default function LoyaltyAdminPage() {
       return;
     }
 
-    const sorted = (data || []).slice().sort((a, b) => {
+    const resetRows = await Promise.all((data || []).map(async (row) => {
+      try {
+        const result = await resetMemberPointsIfExpired(supabase, row);
+        return result.member || row;
+      } catch (resetErr) {
+        console.warn("Annual loyalty point reset skipped:", resetErr);
+        return applyAnnualPointResetToMember(row);
+      }
+    }));
+
+    const sorted = resetRows.slice().sort((a, b) => {
       const ap = parseFloat(a["Points balance"] || 0) || 0;
       const bp = parseFloat(b["Points balance"] || 0) || 0;
       return bp - ap;
@@ -715,15 +726,16 @@ export default function LoyaltyAdminPage() {
   // =========================
   
   const openModal = (member) => {
-    setEditingMember(member);
+    const activeMember = applyAnnualPointResetToMember(member);
+    setEditingMember(activeMember);
 
     setForm({
-      customer_name: member.customer_name || member["customer_name"] || "",
-      Phone: member["Phone"] || "",
-      "Points balance": Number(member["Points balance"] || 0),
-      "Available points": Number(member["Available points"] || 0),
-      "Total visits": Number(member["Total visits"] || 0),
-      Note: member["Note"] || "",
+      customer_name: activeMember.customer_name || activeMember["customer_name"] || "",
+      Phone: activeMember["Phone"] || "",
+      "Points balance": Number(activeMember["Points balance"] || 0),
+      "Available points": Number(activeMember["Available points"] || 0),
+      "Total visits": Number(activeMember["Total visits"] || 0),
+      Note: activeMember["Note"] || "",
     });
 
     setPointsAdd(0);
