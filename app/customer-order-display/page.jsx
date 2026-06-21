@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Clock3, MonitorUp, Utensils } from "lucide-react";
 
 const VIDEO_SRC = "/videos/customer-order-display.mp4";
-const VIDEO_POSTER = "https://images.jujabrewandbites.com/A4_Pesto%20Pasta.jpg";
+const VIDEO_POSTER = "https://images.jujabrewandbites.com/Cookies%20(1376%20x%20824%20px).jpg";
 const LOGO_SRC = "/images/juja-logo.png";
 const TARGET_TV_SIZE = "1920 x 1080 px";
 const TARGET_VIDEO_SIZE = "1376 x 924 px";
@@ -84,17 +84,17 @@ export default function CustomerOrderDisplayPage() {
 
   return (
     <main className="h-screen overflow-hidden bg-[url('https://images.jujabrewandbites.com/page%20background.png')] bg-cover bg-center p-5 text-slate-950">
-      <div className="mx-auto grid h-full max-w-[1920px] grid-cols-[minmax(0,1fr)_500px] grid-rows-[96px_minmax(0,1fr)] gap-4 rounded-sm bg-white/70 p-3 shadow-2xl backdrop-blur-sm">
+      <div className="mx-auto grid h-full max-w-[1920px] grid-cols-[minmax(0,1fr)_500px] grid-rows-[96px_minmax(0,1fr)] gap-4">
         <header className="col-span-1 flex min-w-0 items-center justify-between bg-[#8d8adf] px-4 text-white">
           <div className="flex min-w-0 items-center gap-4">
-            <img src={LOGO_SRC} alt="JUJA Brew & Bites" className="h-20 w-20 shrink-0 rounded-full object-contain bg-white/85 p-1" />
-            <div className="rounded-sm border-4 border-[#7b5cff] bg-white/10 px-3 py-1">
-              <p className="text-5xl font-black italic tracking-wide drop-shadow">ANNYEONG!</p>
+            <img src={LOGO_SRC} alt="JUJA Brew & Bites" className="h-20 w-20 shrink-0 object-contain" />
+            <div className="border-4 border-[#7b5cff]">
+              <p className="text-6xl font-bold italic tracking-[0.13em] drop-shadow">Annyeong!</p>
             </div>
           </div>
           <div className="hidden min-w-[310px] text-left xl:block">
-            <p className="text-xl font-bold italic">fb / ig / tiktok: jujabrewandbites</p>
-            <p className="mt-1 text-lg font-semibold">www.jujabrewandbites.com</p>
+            <p className="text-xl font-bold text-center tracking-[0.11em] italic">fb / ig / tiktok: jujabrewandbites</p>
+            <p className="mt-1 text-[25px] text-center font-semibold">www.jujabrewandbites.com</p>
           </div>
           <div className="min-w-[300px] text-right">
             <p className="text-6xl font-black leading-none tracking-wide">{time.time}</p>
@@ -104,12 +104,12 @@ export default function CustomerOrderDisplayPage() {
 
         <aside className="col-start-2 row-span-2 grid min-h-0 grid-rows-[76px_minmax(0,1fr)] bg-sky-50/70">
           <div className="flex items-center justify-center bg-[#7468cf] px-4 text-white">
-            <h1 className="text-4xl font-black uppercase tracking-[0.16em]">Now Preparing</h1>
+            <p className="text-[41px] font-black uppercase tracking-[0.10em]">Now Preparing</p>
           </div>
 
-          <section className="min-h-0 overflow-hidden border-x-[18px] border-b-[18px] border-sky-100/90 bg-white/65">
+          <section className="min-h-0 overflow-hidden bg-slate-800/30">
             {loading ? (
-              <div className="flex h-full items-center justify-center bg-slate-50/80">
+              <div className="flex h-full items-center justify-center bg-blue-50/80">
                 <div className="text-center">
                   <MonitorUp className="mx-auto h-12 w-12 text-cyan-700" />
                   <p className="mt-3 text-xl font-bold text-slate-700">Loading kitchen queue...</p>
@@ -131,7 +131,7 @@ export default function CustomerOrderDisplayPage() {
                 {visibleOrders.map((order) => (
                   <div
                     key={order.id}
-                    className={`rounded-3xl border px-5 py-4 shadow-sm transition ${
+                    className={`border px-5 py-4 shadow-sm transition ${
                       order.status === "served" ? "border-emerald-200 bg-emerald-50" : "border-cyan-100 bg-white"
                     }`}
                   >
@@ -145,7 +145,7 @@ export default function CustomerOrderDisplayPage() {
                       </div>
                       <div className="shrink-0 text-right">
                         <span
-                          className={`inline-flex rounded-2xl px-4 py-2 text-sm font-black uppercase tracking-[0.14em] ${
+                          className={`inline-flex px-4 py-2 text-sm font-black uppercase rounded-[15px] tracking-[0.14em] ${
                             order.status === "served" ? "bg-emerald-600 text-white" : "bg-blue-500 text-white"
                           }`}
                         >
@@ -171,12 +171,7 @@ export default function CustomerOrderDisplayPage() {
             loop
             playsInline
             preload="auto"
-          />
-          <div className="pointer-events-none absolute right-5 top-5 rounded-xl bg-black/30 px-4 py-2 text-right text-white backdrop-blur">
-            <p className="text-xs font-black uppercase tracking-[0.24em]">Video Window</p>
-            <p className="text-lg font-black">{TARGET_VIDEO_SIZE}</p>
-            <p className="text-xs font-semibold text-white/80">Full display: {TARGET_TV_SIZE}</p>
-          </div>
+          />         
         </section>
       </div>
     </main>
