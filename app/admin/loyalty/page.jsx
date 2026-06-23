@@ -520,7 +520,12 @@ export default function LoyaltyAdminPage() {
       if (!res.ok) throw new Error(json?.error || "Unable to approve loyalty link request.");
 
       setLinkRequests((prev) => prev.filter((r) => r.id !== requestId));
-      setNotice("Approved and linked successfully.");
+      const pointCreated = Number(json?.pointVouchersCreated || 0);
+      const welcomeCreated = Number(json?.welcomeVoucherCreated || 0);
+      const messages = [];
+      if (welcomeCreated > 0) messages.push("welcome voucher created");
+      if (pointCreated > 0) messages.push(`${pointCreated} point voucher${pointCreated === 1 ? "" : "s"} created`);
+      setNotice(`Approved and linked successfully.${messages.length ? ` ${messages.join(", ")}.` : ""}`);
       await Promise.all([fetchMembers(), fetchLinkRequests()]);
       return;
 
@@ -900,9 +905,22 @@ export default function LoyaltyAdminPage() {
       const { error: linkErr } = await supabase
         .from("loyalty_members")
         .update({ user_id: selectedUser.id })
-        .eq("id", selectedMember.id);
+        .eq("id", selectedMember.id)
+        .is("user_id", null);
 
       if (linkErr) throw linkErr;
+
+      const { data: linkedRow, error: linkedCheckErr } = await supabase
+        .from("loyalty_members")
+        .select("id,user_id")
+        .eq("id", selectedMember.id)
+        .maybeSingle();
+
+      if (linkedCheckErr) throw linkedCheckErr;
+      if (String(linkedRow?.user_id || "") !== String(selectedUser.id)) {
+        setNotice("⚠️ Selected loyalty member was linked by another customer account. Refresh and try again.");
+        return;
+      }
 
       const { error: profErr } = await supabase
         .from("profiles")
@@ -923,8 +941,12 @@ export default function LoyaltyAdminPage() {
         });
         const voucherJson = await voucherRes.json().catch(() => ({}));
         if (!voucherRes.ok) throw new Error(voucherJson?.error || "Unable to allocate point vouchers.");
-        const created = Number(voucherJson?.pointVouchersCreated || 0);
-        if (created > 0) voucherMessage = ` ${created} point voucher${created === 1 ? "" : "s"} created.`;
+        const pointCreated = Number(voucherJson?.pointVouchersCreated || 0);
+        const welcomeCreated = Number(voucherJson?.welcomeVoucherCreated || 0);
+        const messages = [];
+        if (welcomeCreated > 0) messages.push("welcome voucher created");
+        if (pointCreated > 0) messages.push(`${pointCreated} point voucher${pointCreated === 1 ? "" : "s"} created`);
+        if (messages.length) voucherMessage = ` ${messages.join(", ")}.`;
       } catch (voucherErr) {
         voucherMessage = ` Voucher allocation skipped: ${voucherErr?.message || "Unknown error"}.`;
       }

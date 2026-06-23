@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies, headers } from "next/headers";
 import { createMissingPointRewardVouchers } from "@/lib/loyalty/pointVouchers";
+import { createWelcomeVoucherIfNeeded } from "@/lib/loyalty/welcomeVoucher";
 
 function supabaseConfig() {
   return {
@@ -106,6 +107,19 @@ export async function POST(req) {
       return Response.json({ error: "This loyalty member is already linked. Unlink first." }, { status: 409 });
     }
 
+    const { data: existingMemberForUser, error: existingMemberForUserError } = await admin
+      .from("loyalty_members")
+      .select("id,customer_name,customer_code")
+      .eq("user_id", linkRequest.user_id)
+      .maybeSingle();
+
+    if (existingMemberForUserError) throw existingMemberForUserError;
+    if (existingMemberForUser?.id) {
+      return Response.json({
+        error: `This customer account is already linked to ${existingMemberForUser.customer_name || "another loyalty member"} (${existingMemberForUser.customer_code || existingMemberForUser.id}). Unlink first.`,
+      }, { status: 409 });
+    }
+
     const { data: existingProfile, error: profileError } = await admin
       .from("profiles")
       .select("id,loyalty_account_id")
@@ -147,11 +161,24 @@ export async function POST(req) {
     const { error: memberLinkError } = await admin
       .from("loyalty_members")
       .update({ user_id: linkRequest.user_id })
-      .eq("id", chosenMemberId);
+      .eq("id", chosenMemberId)
+      .is("user_id", null);
 
     if (memberLinkError) {
       await admin.from("profiles").update({ loyalty_account_id: null }).eq("id", linkRequest.user_id);
       throw memberLinkError;
+    }
+
+    const { data: linkedMember, error: linkedMemberError } = await admin
+      .from("loyalty_members")
+      .select("id,user_id")
+      .eq("id", chosenMemberId)
+      .maybeSingle();
+
+    if (linkedMemberError) throw linkedMemberError;
+    if (String(linkedMember?.user_id || "") !== String(linkRequest.user_id)) {
+      await admin.from("profiles").update({ loyalty_account_id: null }).eq("id", linkRequest.user_id);
+      return Response.json({ error: "This loyalty member was linked by another account. Refresh and try again." }, { status: 409 });
     }
 
     const { error: updateRequestError } = await admin
@@ -165,9 +192,16 @@ export async function POST(req) {
 
     if (updateRequestError) throw updateRequestError;
 
-    const voucherResult = await createMissingPointRewardVouchers(admin, chosenMemberId);
+    const [voucherResult, welcomeResult] = await Promise.all([
+      createMissingPointRewardVouchers(admin, chosenMemberId),
+      createWelcomeVoucherIfNeeded(admin, chosenMemberId),
+    ]);
 
-    return Response.json({ success: true, pointVouchersCreated: voucherResult.created || 0 });
+    return Response.json({
+      success: true,
+      pointVouchersCreated: voucherResult.created || 0,
+      welcomeVoucherCreated: welcomeResult.created || 0,
+    });
   } catch (error) {
     return Response.json({ error: error?.message || "Unable to approve loyalty link request." }, { status: 500 });
   }

@@ -1070,7 +1070,7 @@ function VouchersModal({ open, onClose, vouchers, appliedVoucher, selectedCartIt
                 <p className="text-sm font-bold text-slate-800">{v.code}</p>
                 <p className="text-xs text-slate-500 mt-0.5 font-medium">{v.reward_text}</p>
                 <p className="text-[10px] text-slate-400 mt-2 font-semibold">
-                  {v.reward_type === "birthday" ? "🎂 Birthday Special" : "🎁 Points Voucher"}
+                  {v.reward_type === "birthday" ? "Birthday Special" : v.reward_type === "welcome" ? "Welcome Voucher" : "Points Voucher"}
                   {v.expires_at ? ` • Exp: ${formatDate(v.expires_at)}` : ""}
                 </p>
               </button>

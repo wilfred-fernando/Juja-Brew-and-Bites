@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies, headers } from "next/headers";
 import { createMissingPointRewardVouchers } from "@/lib/loyalty/pointVouchers";
+import { createWelcomeVoucherIfNeeded } from "@/lib/loyalty/welcomeVoucher";
 
 function supabaseConfig() {
   return {
@@ -85,8 +86,15 @@ export async function POST(req) {
       return Response.json({ error: "Loyalty member is required." }, { status: 400 });
     }
 
-    const result = await createMissingPointRewardVouchers(admin, memberId);
-    return Response.json({ success: true, pointVouchersCreated: result.created || 0 });
+    const [pointResult, welcomeResult] = await Promise.all([
+      createMissingPointRewardVouchers(admin, memberId),
+      createWelcomeVoucherIfNeeded(admin, memberId),
+    ]);
+    return Response.json({
+      success: true,
+      pointVouchersCreated: pointResult.created || 0,
+      welcomeVoucherCreated: welcomeResult.created || 0,
+    });
   } catch (error) {
     return Response.json(
       { error: error?.message || "Unable to allocate point vouchers." },

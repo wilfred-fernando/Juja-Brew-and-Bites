@@ -19,6 +19,7 @@ const RESCHEDULE_MIN_DAYS = 2; // update/reschedule allowed only if >= 2 days be
 const BASE_BOOKING_MINUTES = 2 * 60 + 59; // 179 mins
 
 const DEPOSIT_AMOUNT = 1000;
+const PAYMENT_HOLD_HOURS = 24;
 const QR_IMAGE_PATH = "/images/qrph.jpg";
 const ADMIN_EMAIL = "jujabrewandbites@gmail.com";
 
@@ -39,6 +40,27 @@ function stripCitationsAndLinks(text = "") {
 function normalizeRpcRow(result, fallback = {}) {
   const row = Array.isArray(result) ? result[0] : result;
   return { ...fallback, ...(row || {}) };
+}
+
+function isExpiredPaymentHold(booking, now = new Date()) {
+  const status = String(booking?.status || "").toLowerCase();
+  const paymentStatus = String(booking?.payment_status || "").toLowerCase();
+  const hasProof = Boolean(booking?.payment_proof_url);
+
+  if (status !== "pending" || paymentStatus !== "waiting_for_payment" || hasProof) {
+    return false;
+  }
+
+  const createdAt = new Date(booking?.created_at || 0);
+  if (Number.isNaN(createdAt.getTime())) return false;
+
+  return now.getTime() - createdAt.getTime() >= PAYMENT_HOLD_HOURS * 3600000;
+}
+
+function shouldBlockBookingSlot(booking, now = new Date()) {
+  const status = String(booking?.status || "").toLowerCase();
+  if (!["pending", "confirmed", "cancellation_requested"].includes(status)) return false;
+  return !isExpiredPaymentHold(booking, now);
 }
 
 /* =====================================================
@@ -344,7 +366,7 @@ export function BookingAvailabilityOnly({
 
       const { data, error } = await supabase
         .from("function_room_bookings")
-        .select("id, start_at, end_at, status")
+        .select("id, start_at, end_at, status, created_at, payment_status, payment_proof_url")
         .in("status", ["pending", "confirmed", "cancellation_requested"])
         .lt("start_at", queryEnd)
         .gt("end_at", queryStart)
@@ -455,7 +477,10 @@ export function BookingAvailabilityOnly({
 function classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings }) {
   if (slotEnd > operatingEnd) return { available: false, reason: "closed-hours" };
 
+  const now = new Date();
   for (const b of bookings || []) {
+    if (!shouldBlockBookingSlot(b, now)) continue;
+
     const bStart = new Date(b.start_at);
     let bEnd = new Date(b.end_at);
 
@@ -564,7 +589,7 @@ export default function BookingForm({ user, member }) {
 
       const { data, error } = await supabase
         .from("function_room_bookings")
-        .select("id, start_at, end_at, status")
+        .select("id, start_at, end_at, status, created_at, payment_status, payment_proof_url")
         .in("status", ["pending", "confirmed", "cancellation_requested"])
         .lt("start_at", queryEnd)
         .gt("end_at", queryStart)
@@ -666,7 +691,7 @@ export default function BookingForm({ user, member }) {
 
       const { data, error } = await supabase
         .from("function_room_bookings")
-        .select("id, start_at, end_at, status")
+        .select("id, start_at, end_at, status, created_at, payment_status, payment_proof_url")
         .in("status", ["pending", "confirmed", "cancellation_requested"])
         .lt("start_at", queryEnd)
         .gt("end_at", queryStart)
@@ -1077,17 +1102,17 @@ export default function BookingForm({ user, member }) {
           </div>
 
           <p className="text-[12px] text-slate-500 text-center">
-            ₱1,000 reservation fee is required to confirm your booking. Open Manage Booking for payment options and instructions.
+            PHP 1,000 reservation fee is required to secure your booking. Please settle it within 24 hours and send proof of payment in Manage Booking. If no proof is sent within 24 hours, this date and time will reopen automatically.
           </p>
 
           <button
             onClick={() => {
               setSuccessBooking(null);
-              setTab("availability");
+              setTab("manage");
             }}
             className="w-full py-3 rounded-xl bg-slate-300/78 font-bold text-white text-[11px] uppercase tracking-widest active:scale-95 hover:bg-slate-400/78"
           >
-            Back to Booking
+            Go to Manage Booking
           </button>
         </div>
       </div>
