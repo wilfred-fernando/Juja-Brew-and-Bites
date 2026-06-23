@@ -49,8 +49,7 @@ export async function GET() {
         admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
         admin
           .from("profiles")
-          .select("id, full_name, role, store_id, created_at")
-          .in("role", ["admin", "super_admin", "cashier", "cashier_disabled"]),
+          .select("id, full_name, role, store_id, created_at"),
         admin.from("stores").select("id, name"),
       ]);
 

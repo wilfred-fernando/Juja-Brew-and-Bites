@@ -57,7 +57,7 @@ export default function AdminAccountsPage() {
           <div>
             <h1 className="text-3xl font-semibold">Accounts</h1>
             <p className="mt-2 max-w-2xl text-sm text-slate-600">
-              View all admin and cashier accounts with profile, email, creation date, and last sign-in details.
+              View all admin, cashier, customer, and KDS accounts with profile, email, creation date, and last sign-in details.
             </p>
           </div>
           <button
