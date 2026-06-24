@@ -96,7 +96,7 @@ export default function CustomerOrderDisplayPage() {
   return (
     <main className="h-screen overflow-hidden bg-[url('https://images.jujabrewandbites.com/page%20background.png')] bg-cover bg-center p-5 text-slate-950">
       <div
-        className="mx-auto grid h-full w-full max-w-[8268px] grid-cols-[minmax(0,1fr)_500px] grid-rows-[96px_minmax(0,1fr)] gap-4"
+        className="mx-auto grid h-full w-full max-w-[8268px] grid-cols-[minmax(0,1fr)_400px] grid-rows-[96px_minmax(0,1fr)] gap-4"
         style={{ aspectRatio: `${DISPLAY_WIDTH} / ${DISPLAY_HEIGHT}` }}
       >
         <header className="col-span-1 flex min-w-0 items-center justify-between bg-blue-600/60 px-4 text-white">
@@ -118,7 +118,7 @@ export default function CustomerOrderDisplayPage() {
 
         <aside className="col-start-2 row-span-2 grid min-h-0 grid-rows-[95px_minmax(0,1fr)] bg-blue-300/20">
           <div className="flex items-center justify-center bg-blue-600/60 px-6 text-white">
-            <p className="text-[41px] font-black uppercase tracking-[0.10em]">Now Preparing</p>
+            <p className="text-[35px] font-black uppercase tracking-[0.05em]">Now Preparing</p>
           </div>
 
           <section className="min-h-0 overflow-hidden bg-slate-800/30">
