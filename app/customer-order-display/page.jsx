@@ -103,7 +103,7 @@ export default function CustomerOrderDisplayPage() {
           <div className="flex min-w-0 items-center gap-4">
             <img src={LOGO_SRC} alt="JUJA Brew & Bites" className="h-20 w-20 shrink-0 object-contain" />
             <div className="border-4 border-[#7b5cff]">
-              <p className="text-6xl font-bold italic tracking-[0.13em] drop-shadow">Annyeong!</p>
+              <p className="text-6xl font-bold italic tracking-[0.13em] drop-shadow"></p>
             </div>
           </div>
           <div className="hidden min-w-[310px] text-left xl:block">
@@ -118,7 +118,7 @@ export default function CustomerOrderDisplayPage() {
 
         <aside className="col-start-2 row-span-2 grid min-h-0 grid-rows-[95px_minmax(0,1fr)] bg-blue-300/20">
           <div className="flex items-center justify-center bg-blue-600/60 px-6 text-white">
-            <p className="text-[35px] font-black uppercase tracking-[0.05em]">Now Preparing</p>
+            <p className="text-[30px] font-black uppercase tracking-[0.05em]">Now Preparing</p>
           </div>
 
           <section className="min-h-0 overflow-hidden bg-slate-800/30">
