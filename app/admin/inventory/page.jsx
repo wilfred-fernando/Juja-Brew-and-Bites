@@ -135,6 +135,7 @@ export default function AdminInventoryPage() {
   const [settings, setSettings] = useState(null);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [recipeCategoryFilter, setRecipeCategoryFilter] = useState("all");
   const [txFilter, setTxFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState(null);
@@ -649,17 +650,26 @@ export default function AdminInventoryPage() {
       const categoryCompare = String(a.category || "No category").localeCompare(String(b.category || "No category"));
       return categoryCompare || String(a.name || "").localeCompare(String(b.name || ""));
     });
+    const visibleRecipeCategories = recipeCategoryFilter === "all" ? recipeCategories : recipeCategories.filter((category) => category === recipeCategoryFilter);
     return (
       <div className="space-y-4">
         <div className="flex flex-col gap-3 rounded-2xl border border-white/70 bg-white/78 p-4 shadow-sm backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Recipe Sorting</p>
             <p className="text-sm text-slate-700">Recipes are sorted by menu category, then menu item name. Ingredients use Common Name totals.</p>
           </div>
-          <button onClick={() => openRecipe()} className="inline-flex h-10 items-center gap-2 rounded-xl bg-slate-600 px-4 text-xs font-semibold uppercase tracking-wider text-white transition hover:bg-cyan-600"><Plus size={15} /> Add Ingredient</button>
+          <div className="flex flex-col gap-2 sm:min-w-[360px] sm:flex-row sm:items-end">
+            <Field label="Category">
+              <Select value={recipeCategoryFilter} onChange={(e) => setRecipeCategoryFilter(e.target.value)}>
+                <option value="all">All categories</option>
+                {recipeCategories.map((category) => <option key={category} value={category}>{category}</option>)}
+              </Select>
+            </Field>
+            <button onClick={() => openRecipe()} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-600 px-4 text-xs font-semibold uppercase tracking-wider text-white transition hover:bg-cyan-600"><Plus size={15} /> Add Ingredient</button>
+          </div>
         </div>
         <div className="space-y-5">
-          {recipeCategories.map((category) => (
+          {visibleRecipeCategories.map((category) => (
             <section key={category} className="space-y-3">
               <div className="flex items-center gap-3">
                 <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-700">{category}</h3>
