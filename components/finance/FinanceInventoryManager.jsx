@@ -102,13 +102,15 @@ export default function FinanceInventoryManager() {
     const categoryTerm = normalizeText(categorySearch);
     return items.filter((item) => {
       const ref = itemReference(item);
-      const itemText = normalizeText(`${item.item_name || ""} ${item.common_name || ""} ${ref?.common_name || ""}`);
+      const itemText = isCashier
+        ? normalizeText(`${item.common_name || ""} ${ref?.common_name || ""}`)
+        : normalizeText(`${item.item_name || ""} ${item.common_name || ""} ${ref?.common_name || ""}`);
       const categoryText = normalizeText(`${item.category || ""} ${ref?.item_category || ""}`);
       if (itemTerm && !itemText.includes(itemTerm)) return false;
       if (categoryTerm && !categoryText.includes(categoryTerm)) return false;
       return true;
     });
-  }, [categorySearch, itemSearch, items, referencesByItem]);
+  }, [categorySearch, isCashier, itemSearch, items, referencesByItem]);
 
   const entriesByItem = useMemo(() => Object.fromEntries(dailyEntries.map((row) => [row.inventory_item_id, row])), [dailyEntries]);
   const previousByItem = useMemo(() => Object.fromEntries(previousEntries.map((row) => [row.inventory_item_id, row])), [previousEntries]);
@@ -120,6 +122,11 @@ export default function FinanceInventoryManager() {
 
   function itemReference(item) {
     return referencesByItem[normalizeText(item?.item_name)] || null;
+  }
+
+  function inventoryDisplayName(item) {
+    const ref = itemReference(item);
+    return item?.common_name || ref?.common_name || item?.item_name || "-";
   }
 
   function smallUnit(item) {
@@ -616,7 +623,7 @@ export default function FinanceInventoryManager() {
         <form onSubmit={saveTransfer} className="grid gap-3 lg:grid-cols-6">
           <Select value={transferForm.inventory_item_id} onChange={(e) => setTransferForm((p) => ({ ...p, inventory_item_id: e.target.value }))}>
             <option value="">Select item</option>
-            {items.map((item) => <option key={item.id} value={item.id}>{item.item_name}</option>)}
+            {items.map((item) => <option key={item.id} value={item.id}>{isCashier ? inventoryDisplayName(item) : item.item_name}</option>)}
           </Select>
           <Select value={transferForm.from_store_id} onChange={(e) => setTransferForm((p) => ({ ...p, from_store_id: e.target.value }))}>
             <option value="">From store</option>
@@ -645,16 +652,16 @@ export default function FinanceInventoryManager() {
               <Input value={categorySearch} onChange={(e) => setCategorySearch(e.target.value)} placeholder="Search category" className="mt-1" />
             </label>
             <label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              Item Name
-              <Input value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} placeholder="Search item name" className="mt-1" />
+              {isCashier ? "Common Name" : "Item Name"}
+              <Input value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} placeholder={isCashier ? "Search common name" : "Search item name"} className="mt-1" />
             </label>
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1680px] border-collapse text-sm">
+          <table className={`w-full border-collapse text-sm ${isCashier ? "min-w-[1540px]" : "min-w-[1680px]"}`}>
             <thead className="bg-slate-100 text-slate-800">
               <tr className="border-b border-slate-300 text-center text-[11px] font-semibold uppercase tracking-[0.12em]">
-                <th rowSpan={2} className="border-r border-slate-300 px-3 py-3 text-left">Item Name</th>
+                {!isCashier ? <th rowSpan={2} className="border-r border-slate-300 px-3 py-3 text-left">Item Name</th> : null}
                 <th rowSpan={2} className="border-r border-slate-300 px-3 py-3 text-left">Common Name</th>
                 <th colSpan={2} className="border-r border-slate-300 px-3 py-2">Reference</th>
                 <th colSpan={2} className="border-r border-slate-300 px-3 py-2">Beginning</th>
@@ -689,8 +696,8 @@ export default function FinanceInventoryManager() {
                 const posSmall = splitBulk(row.item, row.posDeduction);
                 return (
                   <tr key={row.item.id} className="transition hover:bg-sky-50/55">
-                    <td className="border-r border-slate-200 px-3 py-3 font-semibold text-slate-950">{row.item.item_name}</td>
-                    <td className="border-r border-slate-200 px-3 py-3 text-slate-700">{row.item.common_name || ref?.common_name || "-"}</td>
+                    {!isCashier ? <td className="border-r border-slate-200 px-3 py-3 font-semibold text-slate-950">{row.item.item_name}</td> : null}
+                    <td className="border-r border-slate-200 px-3 py-3 font-semibold text-slate-950">{inventoryDisplayName(row.item)}</td>
                     <td className="border-r border-slate-200 px-3 py-3 text-right tabular-nums">{ref?.reference_quantity ? qty(ref.reference_quantity) : "1"}</td>
                     <td className="border-r border-slate-200 px-3 py-3 text-slate-600">{normalizeUnit(ref?.reference_unit || row.item.unit)}</td>
                     <td className="border-r border-slate-200 px-3 py-3"><QuantityCell item={row.item} value={row.beginning} part="bulk" muted /></td>

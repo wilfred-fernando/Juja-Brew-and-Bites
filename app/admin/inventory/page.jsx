@@ -140,6 +140,7 @@ export default function AdminInventoryPage() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [recipeCategoryFilter, setRecipeCategoryFilter] = useState("all");
+  const [recipeMenuSearch, setRecipeMenuSearch] = useState("");
   const [txFilter, setTxFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState(null);
@@ -226,13 +227,17 @@ export default function AdminInventoryPage() {
   }, [menuItems]);
 
   const recipeMenuItemsForSelection = useMemo(() => {
+    const menuSearch = normalizeText(recipeMenuSearch);
     return [...menuItems]
-      .filter((menu) => recipeForm.category === "all" || menuCategoryLabel(menu) === recipeForm.category)
+      .filter((menu) => {
+        if (menuSearch) return normalizeText(`${menu.name || ""} ${menuCategoryLabel(menu)}`).includes(menuSearch);
+        return recipeForm.category === "all" || menuCategoryLabel(menu) === recipeForm.category;
+      })
       .sort((a, b) => {
         const categoryCompare = menuCategoryLabel(a).localeCompare(menuCategoryLabel(b));
         return categoryCompare || String(a.name || "").localeCompare(String(b.name || ""));
       });
-  }, [menuItems, recipeForm.category]);
+  }, [menuItems, recipeForm.category, recipeMenuSearch]);
 
   function findFinanceReferenceForItem(item) {
     const itemName = normalizeText(item?.item_name);
@@ -660,6 +665,7 @@ export default function AdminInventoryPage() {
   }
 
   function renderRecipes() {
+    const menuSearch = normalizeText(recipeMenuSearch);
     const recipesByMenu = recipes.reduce((map, row) => {
       map[row.menu_item_id] = map[row.menu_item_id] || [];
       map[row.menu_item_id].push(row);
@@ -669,7 +675,11 @@ export default function AdminInventoryPage() {
       const categoryCompare = menuCategoryLabel(a).localeCompare(menuCategoryLabel(b));
       return categoryCompare || String(a.name || "").localeCompare(String(b.name || ""));
     });
-    const visibleRecipeCategories = recipeCategoryFilter === "all" ? recipeCategories : recipeCategories.filter((category) => category === recipeCategoryFilter);
+    const visibleRecipeItems = sortedMenuItems.filter((menu) => {
+      if (menuSearch) return normalizeText(`${menu.name || ""} ${menuCategoryLabel(menu)}`).includes(menuSearch);
+      return recipeCategoryFilter === "all" || menuCategoryLabel(menu) === recipeCategoryFilter;
+    });
+    const visibleRecipeCategories = [...new Set(visibleRecipeItems.map((menu) => menuCategoryLabel(menu)))];
     return (
       <div className="space-y-4">
         <div className="flex flex-col gap-3 rounded-2xl border border-white/70 bg-white/78 p-4 shadow-sm backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
@@ -677,7 +687,10 @@ export default function AdminInventoryPage() {
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Recipe Sorting</p>
             <p className="text-sm text-slate-700">Recipes are sorted by menu category, then menu item name. Ingredients use Common Name totals.</p>
           </div>
-          <div className="flex flex-col gap-2 sm:min-w-[360px] sm:flex-row sm:items-end">
+          <div className="grid gap-2 sm:min-w-[520px] sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+            <Field label="Search Menu Items">
+              <Input value={recipeMenuSearch} onChange={(e) => setRecipeMenuSearch(e.target.value)} placeholder="Search all categories" />
+            </Field>
             <Field label="Category">
               <Select value={recipeCategoryFilter} onChange={(e) => setRecipeCategoryFilter(e.target.value)}>
                 <option value="all">All categories</option>
@@ -695,7 +708,7 @@ export default function AdminInventoryPage() {
                 <div className="h-px flex-1 bg-slate-200" />
               </div>
               <div className="grid gap-4 lg:grid-cols-2">
-                {sortedMenuItems.filter((menu) => menuCategoryLabel(menu) === category).map((menu) => (
+                {visibleRecipeItems.filter((menu) => menuCategoryLabel(menu) === category).map((menu) => (
                   <Card key={menu.id}>
                     <div className="flex items-start justify-between gap-3">
                       <div>
