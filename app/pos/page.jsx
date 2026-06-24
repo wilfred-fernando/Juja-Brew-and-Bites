@@ -1931,8 +1931,11 @@ export default function POSPage() {
     const search = menuSearch.trim().toLowerCase();
     return (items || [])
       .filter((item) => item.is_available !== false)
-      .filter((item) => (activeCategory ? item.category === activeCategory : item.is_featured === true))
-      .filter((item) => !search || (item.name || "").toLowerCase().includes(search));
+      .filter((item) => {
+        if (search) return true;
+        return activeCategory ? item.category === activeCategory : item.is_featured === true;
+      })
+      .filter((item) => !search || `${item.name || ""} ${item.category || ""}`.toLowerCase().includes(search));
   }, [items, activeCategory, menuSearch]);
 
   const optionSelectionGroups = useMemo(() => {

@@ -1338,6 +1338,24 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
         }
       });
 
+      fetch("/api/web-order-notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          order: { ...freshWebOrderRow, items: cart },
+          storeName: selectedStore?.name || selectedBranch,
+        }),
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            const details = await res.json().catch(() => ({}));
+            console.warn("Web order email notification failed:", details?.error || details?.publicError || res.status);
+          }
+        })
+        .catch((emailError) => {
+          console.warn("Web order email notification failed:", emailError);
+        });
+
       alert(`🎉 Order sent to POS! Method: ${fulfillmentMetadata.diningOption} @ ${fulfillmentMetadata.fulfillmentTime}\nEstimated loyalty points: +${loyaltyPoints(subtotal).toFixed(2)} upon payment collection.`);
       setCart([]);
       setConfirmationOpen(false);

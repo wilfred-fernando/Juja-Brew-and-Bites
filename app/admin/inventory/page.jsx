@@ -36,8 +36,8 @@ const emptyItem = {
   supplier: "",
   is_active: true,
 };
-const emptyRecipe = { menu_item_id: "", inventory_item_id: "", common_name_id: "", quantity_required: "", unit: "pc", deduction_multiplier: 1, is_active: true };
-const emptyRecipeLine = { inventory_item_id: "", common_name_id: "", quantity_required: "", unit: "pc", deduction_multiplier: 1, is_active: true };
+const emptyRecipe = { menu_item_id: "", common_name_id: "", quantity_required: "", unit: "pc", deduction_multiplier: 1, is_active: true };
+const emptyRecipeLine = { common_name_id: "", quantity_required: "", unit: "pc", deduction_multiplier: 1, is_active: true };
 const emptyAdjustment = { inventory_item_id: "", mode: "add", quantity: "", notes: "" };
 
 function peso(value) {
@@ -222,6 +222,37 @@ export default function AdminInventoryPage() {
     return financeItemReferences.find((ref) => normalizeText(ref.name) === itemName) || null;
   }
 
+  function commonNameForId(commonNameId) {
+    return commonNames.find((row) => row.id === commonNameId)?.common_name || "";
+  }
+
+  function itemsForCommonName(commonNameId) {
+    const commonName = normalizeText(commonNameForId(commonNameId));
+    return items.filter((item) => {
+      if (commonNameId && item.common_name_id === commonNameId) return true;
+      return commonName && normalizeText(item.common_name || item.common_inventory_names?.common_name) === commonName;
+    });
+  }
+
+  function aggregateCommonStockDisplay(commonNameId) {
+    const grouped = itemsForCommonName(commonNameId).reduce((map, item) => {
+      const stock = numberValue(item.current_stock);
+      const ref = findFinanceReferenceForItem(item);
+      const referenceQuantity = numberValue(ref?.reference_quantity);
+      const referenceUnit = unitLabel(ref?.reference_unit);
+      const unit = referenceQuantity > 0 && referenceUnit ? referenceUnit : unitLabel(item.unit);
+      const quantity = referenceQuantity > 0 && referenceUnit ? stock * referenceQuantity : stock;
+      map[unit] = (map[unit] || 0) + quantity;
+      return map;
+    }, {});
+
+    const parts = Object.entries(grouped)
+      .filter(([, quantity]) => quantity !== 0)
+      .map(([unit, quantity]) => `${formatQuantity(quantity)} ${unit}`);
+
+    return parts.length ? parts.join(" + ") : "0";
+  }
+
   function formatStockDisplay(item) {
     const stock = numberValue(item.current_stock);
     const bulkUnit = normalizeUnit(item.unit);
@@ -281,7 +312,6 @@ export default function AdminInventoryPage() {
     setEditingRecipeId(row?.id || null);
     setRecipeForm(row ? {
       menu_item_id: row.menu_item_id || "",
-      inventory_item_id: "",
       common_name_id: "",
       quantity_required: "",
       unit: "pc",
@@ -289,8 +319,7 @@ export default function AdminInventoryPage() {
       is_active: true,
     } : emptyRecipe);
     setRecipeLines(row?.id ? [{
-      inventory_item_id: row.inventory_item_id || "",
-      common_name_id: row.common_name_id || "",
+      common_name_id: row.common_name_id || row.inventory_items?.common_name_id || "",
       quantity_required: row.quantity_required || "",
       unit: unitLabel(row.unit) || "pc",
       deduction_multiplier: row.deduction_multiplier || 1,
@@ -349,19 +378,19 @@ export default function AdminInventoryPage() {
     e.preventDefault();
     const validLines = recipeLines
       .map((line) => ({ ...line, quantity_required: numberValue(line.quantity_required) }))
-      .filter((line) => line.inventory_item_id && line.quantity_required > 0);
+      .filter((line) => line.common_name_id && line.quantity_required > 0);
 
     if (!recipeForm.menu_item_id || !validLines.length) {
-      return showNotice("error", "Menu item and at least one ingredient with quantity are required.");
+      return showNotice("error", "Menu item and at least one common-name ingredient with quantity are required.");
     }
     const payloads = validLines.map((line) => {
-      const selectedItem = items.find((item) => item.id === line.inventory_item_id);
+      const selectedCommon = commonNames.find((row) => row.id === line.common_name_id);
       return {
         menu_item_id: recipeForm.menu_item_id,
-        inventory_item_id: line.inventory_item_id,
-        common_name_id: line.common_name_id || selectedItem?.common_name_id || null,
+        inventory_item_id: null,
+        common_name_id: line.common_name_id,
         quantity_required: numberValue(line.quantity_required),
-        unit: unitLabel(line.unit || selectedItem?.unit || "pc"),
+        unit: unitLabel(line.unit || selectedCommon?.default_unit || "pc"),
         deduction_multiplier: numberValue(line.deduction_multiplier || 1),
         is_active: line.is_active !== false,
         updated_at: new Date().toISOString(),
@@ -615,30 +644,55 @@ export default function AdminInventoryPage() {
       map[row.menu_item_id].push(row);
       return map;
     }, {});
+    const recipeCategories = [...new Set(menuItems.map((menu) => menu.category || "No category"))].sort((a, b) => a.localeCompare(b));
+    const sortedMenuItems = [...menuItems].sort((a, b) => {
+      const categoryCompare = String(a.category || "No category").localeCompare(String(b.category || "No category"));
+      return categoryCompare || String(a.name || "").localeCompare(String(b.name || ""));
+    });
     return (
       <div className="space-y-4">
-        <div className="flex justify-end">
+        <div className="flex flex-col gap-3 rounded-2xl border border-white/70 bg-white/78 p-4 shadow-sm backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Recipe Sorting</p>
+            <p className="text-sm text-slate-700">Recipes are sorted by menu category, then menu item name. Ingredients use Common Name totals.</p>
+          </div>
           <button onClick={() => openRecipe()} className="inline-flex h-10 items-center gap-2 rounded-xl bg-slate-600 px-4 text-xs font-semibold uppercase tracking-wider text-white transition hover:bg-cyan-600"><Plus size={15} /> Add Ingredient</button>
         </div>
-        <div className="grid gap-4 lg:grid-cols-2">
-          {menuItems.map((menu) => (
-            <Card key={menu.id}>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-slate-950">{menu.name}</p>
-                  <p className="text-xs text-slate-500">{menu.category || "No category"}</p>
-                </div>
-                <button onClick={() => openRecipe({ ...emptyRecipe, menu_item_id: String(menu.id) })} className="rounded-lg bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase text-cyan-700">Add</button>
+        <div className="space-y-5">
+          {recipeCategories.map((category) => (
+            <section key={category} className="space-y-3">
+              <div className="flex items-center gap-3">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-700">{category}</h3>
+                <div className="h-px flex-1 bg-slate-200" />
               </div>
-              <div className="mt-3 space-y-2">
-                {(recipesByMenu[String(menu.id)] || []).length ? recipesByMenu[String(menu.id)].map((row) => (
-                  <div key={row.id} className="flex items-center justify-between rounded-xl border border-slate-100 bg-white/85 p-3 text-sm">
-                    <span>{row.inventory_items?.item_name || row.inventory_items?.common_name || row.common_inventory_names?.common_name || "Ingredient"}</span>
-                    <button onClick={() => openRecipe(row)} className="text-cyan-700">{row.quantity_required} {unitLabel(row.unit)}</button>
-                  </div>
-                )) : <p className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs text-amber-700">No recipe set. POS will complete sale but log a missing recipe warning.</p>}
+              <div className="grid gap-4 lg:grid-cols-2">
+                {sortedMenuItems.filter((menu) => (menu.category || "No category") === category).map((menu) => (
+                  <Card key={menu.id}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">{menu.name}</p>
+                        <p className="text-xs text-slate-500">{menu.category || "No category"}</p>
+                      </div>
+                      <button onClick={() => openRecipe({ ...emptyRecipe, menu_item_id: String(menu.id) })} className="rounded-lg bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase text-cyan-700">Add</button>
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {(recipesByMenu[String(menu.id)] || []).length ? recipesByMenu[String(menu.id)].map((row) => {
+                        const commonNameId = row.common_name_id || row.inventory_items?.common_name_id || "";
+                        return (
+                          <div key={row.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white/85 p-3 text-sm">
+                            <div>
+                              <p className="font-medium text-slate-800">{row.common_inventory_names?.common_name || row.inventory_items?.common_name || "Common name"}</p>
+                              <p className="text-[11px] text-slate-500">Available: {aggregateCommonStockDisplay(commonNameId)}</p>
+                            </div>
+                            <button onClick={() => openRecipe(row)} className="shrink-0 text-cyan-700">{row.quantity_required} {unitLabel(row.unit)}</button>
+                          </div>
+                        );
+                      }) : <p className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs text-amber-700">No recipe set. POS will complete sale but log a missing recipe warning.</p>}
+                    </div>
+                  </Card>
+                ))}
               </div>
-            </Card>
+            </section>
           ))}
         </div>
       </div>
@@ -887,17 +941,20 @@ export default function AdminInventoryPage() {
                   </button>
                 </div>
                 <div className="grid gap-3 md:grid-cols-5">
-                  <Field label="Item Name">
-                    <Select value={line.inventory_item_id} onChange={(e) => {
-                      const item = items.find((row) => row.id === e.target.value);
+                  <Field label="Common Name">
+                    <Select value={line.common_name_id} onChange={(e) => {
+                      const common = commonNames.find((row) => row.id === e.target.value);
                       updateRecipeLine(index, {
-                        inventory_item_id: e.target.value,
-                        common_name_id: item?.common_name_id || line.common_name_id,
-                        unit: unitLabel(item?.unit || line.unit),
+                        common_name_id: e.target.value,
+                        unit: unitLabel(common?.default_unit || line.unit),
                       });
                     }}>
-                      <option value="">Select expense item name</option>
-                      {items.map((item) => <option key={item.id} value={item.id}>{item.item_name}</option>)}
+                      <option value="">Select common name</option>
+                      {commonNames.map((common) => (
+                        <option key={common.id} value={common.id}>
+                          {common.common_name} ({aggregateCommonStockDisplay(common.id)})
+                        </option>
+                      ))}
                     </Select>
                   </Field>
                   <Field label="Qty"><Input type="number" step="0.001" value={line.quantity_required} onChange={(e) => updateRecipeLine(index, { quantity_required: e.target.value })} /></Field>
