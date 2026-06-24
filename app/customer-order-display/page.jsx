@@ -96,7 +96,7 @@ export default function CustomerOrderDisplayPage() {
   return (
     <main className="h-screen overflow-hidden bg-[url('https://images.jujabrewandbites.com/page%20background.png')] bg-cover bg-center p-5 text-slate-950">
       <div
-        className="mx-auto grid h-full w-full max-w-[8268px] grid-cols-[minmax(0,1fr)_400px] grid-rows-[96px_minmax(0,1fr)] gap-4"
+        className="mx-auto grid h-full w-full max-w-[8268px] grid-cols-[minmax(0,1fr)_300px] grid-rows-[96px_minmax(0,1fr)] gap-4"
         style={{ aspectRatio: `${DISPLAY_WIDTH} / ${DISPLAY_HEIGHT}` }}
       >
         <header className="col-span-1 flex min-w-0 items-center justify-between bg-blue-600/60 px-4 text-white">
