@@ -36,7 +36,7 @@ const emptyItem = {
   supplier: "",
   is_active: true,
 };
-const emptyRecipe = { menu_item_id: "", common_name_id: "", quantity_required: "", unit: "pc", deduction_multiplier: 1, is_active: true };
+const emptyRecipe = { menu_item_id: "", category: "all", common_name_id: "", quantity_required: "", unit: "pc", deduction_multiplier: 1, is_active: true };
 const emptyRecipeLine = { common_name_id: "", quantity_required: "", unit: "pc", deduction_multiplier: 1, is_active: true };
 const emptyAdjustment = { inventory_item_id: "", mode: "add", quantity: "", notes: "" };
 
@@ -59,6 +59,10 @@ function formatQuantity(value) {
 
 function unitLabel(unit) {
   return normalizeUnit(unit || "");
+}
+
+function menuCategoryLabel(menu) {
+  return menu?.category || "No category";
 }
 
 function stockStatus(item) {
@@ -217,6 +221,19 @@ export default function AdminInventoryPage() {
 
   const filteredTransactions = transactions.filter((tx) => txFilter === "all" || tx.transaction_type === txFilter);
 
+  const recipeCategories = useMemo(() => {
+    return [...new Set(menuItems.map((menu) => menuCategoryLabel(menu)))].sort((a, b) => a.localeCompare(b));
+  }, [menuItems]);
+
+  const recipeMenuItemsForSelection = useMemo(() => {
+    return [...menuItems]
+      .filter((menu) => recipeForm.category === "all" || menuCategoryLabel(menu) === recipeForm.category)
+      .sort((a, b) => {
+        const categoryCompare = menuCategoryLabel(a).localeCompare(menuCategoryLabel(b));
+        return categoryCompare || String(a.name || "").localeCompare(String(b.name || ""));
+      });
+  }, [menuItems, recipeForm.category]);
+
   function findFinanceReferenceForItem(item) {
     const itemName = normalizeText(item?.item_name);
     if (!itemName) return null;
@@ -310,15 +327,18 @@ export default function AdminInventoryPage() {
   }
 
   function openRecipe(row = null) {
+    const selectedMenu = row?.menu_item_id ? menuItems.find((menu) => String(menu.id) === String(row.menu_item_id)) : null;
+    const defaultCategory = selectedMenu ? menuCategoryLabel(selectedMenu) : (recipeCategoryFilter === "all" ? "all" : recipeCategoryFilter);
     setEditingRecipeId(row?.id || null);
     setRecipeForm(row ? {
       menu_item_id: row.menu_item_id || "",
+      category: defaultCategory,
       common_name_id: "",
       quantity_required: "",
       unit: "pc",
       deduction_multiplier: 1,
       is_active: true,
-    } : emptyRecipe);
+    } : { ...emptyRecipe, category: defaultCategory });
     setRecipeLines(row?.id ? [{
       common_name_id: row.common_name_id || row.inventory_items?.common_name_id || "",
       quantity_required: row.quantity_required || "",
@@ -645,9 +665,8 @@ export default function AdminInventoryPage() {
       map[row.menu_item_id].push(row);
       return map;
     }, {});
-    const recipeCategories = [...new Set(menuItems.map((menu) => menu.category || "No category"))].sort((a, b) => a.localeCompare(b));
     const sortedMenuItems = [...menuItems].sort((a, b) => {
-      const categoryCompare = String(a.category || "No category").localeCompare(String(b.category || "No category"));
+      const categoryCompare = menuCategoryLabel(a).localeCompare(menuCategoryLabel(b));
       return categoryCompare || String(a.name || "").localeCompare(String(b.name || ""));
     });
     const visibleRecipeCategories = recipeCategoryFilter === "all" ? recipeCategories : recipeCategories.filter((category) => category === recipeCategoryFilter);
@@ -676,12 +695,12 @@ export default function AdminInventoryPage() {
                 <div className="h-px flex-1 bg-slate-200" />
               </div>
               <div className="grid gap-4 lg:grid-cols-2">
-                {sortedMenuItems.filter((menu) => (menu.category || "No category") === category).map((menu) => (
+                {sortedMenuItems.filter((menu) => menuCategoryLabel(menu) === category).map((menu) => (
                   <Card key={menu.id}>
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold text-slate-950">{menu.name}</p>
-                        <p className="text-xs text-slate-500">{menu.category || "No category"}</p>
+                        <p className="text-xs text-slate-500">{menuCategoryLabel(menu)}</p>
                       </div>
                       <button onClick={() => openRecipe({ ...emptyRecipe, menu_item_id: String(menu.id) })} className="rounded-lg bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase text-cyan-700">Add</button>
                     </div>
@@ -704,6 +723,7 @@ export default function AdminInventoryPage() {
               </div>
             </section>
           ))}
+          {!visibleRecipeCategories.length ? <Empty message="No menu categories are available for recipes yet." /> : null}
         </div>
       </div>
     );
@@ -934,12 +954,34 @@ export default function AdminInventoryPage() {
 
       <Modal open={recipeModal} title={editingRecipeId ? "Edit Recipe Ingredient" : "Add Recipe Ingredients"} onClose={() => setRecipeModal(false)}>
         <form onSubmit={saveRecipe} className="space-y-4">
-          <Field label="Menu Item">
-            <Select value={recipeForm.menu_item_id} onChange={(e) => setRecipeForm((p) => ({ ...p, menu_item_id: e.target.value }))}>
-              <option value="">Select menu item</option>
-              {menuItems.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </Select>
-          </Field>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Field label="Category">
+              <Select value={recipeForm.category} onChange={(e) => {
+                const category = e.target.value;
+                setRecipeForm((prev) => {
+                  const selectedMenu = menuItems.find((item) => String(item.id) === String(prev.menu_item_id));
+                  const keepSelectedMenu = !selectedMenu || category === "all" || menuCategoryLabel(selectedMenu) === category;
+                  return { ...prev, category, menu_item_id: keepSelectedMenu ? prev.menu_item_id : "" };
+                });
+              }}>
+                <option value="all">All categories</option>
+                {recipeCategories.map((category) => <option key={category} value={category}>{category}</option>)}
+              </Select>
+            </Field>
+            <Field label="Menu Item">
+              <Select value={recipeForm.menu_item_id} onChange={(e) => {
+                const selectedMenu = menuItems.find((item) => String(item.id) === String(e.target.value));
+                setRecipeForm((prev) => ({
+                  ...prev,
+                  menu_item_id: e.target.value,
+                  category: selectedMenu ? menuCategoryLabel(selectedMenu) : prev.category,
+                }));
+              }}>
+                <option value="">Select menu item</option>
+                {recipeMenuItemsForSelection.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              </Select>
+            </Field>
+          </div>
 
           <div className="space-y-3">
             {recipeLines.map((line, index) => (
