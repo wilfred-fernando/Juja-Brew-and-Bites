@@ -234,24 +234,12 @@ export default function PublicMenuPage() {
     (async () => {
       setLoading(true);
 
-      const [itemRes, catRes] = await Promise.all([
-        supabase
-          .from("menu_items")
-          .select("*")
-          .eq("is_available", true)
-          .or("pos_only.is.null,pos_only.eq.false")
-          .order("name"),
+      const res = await fetch("/api/menu-data?mode=public");
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Unable to load menu.");
 
-        supabase
-          .from("menu_categories")
-          .select("*")
-          .eq("is_active", true)
-          .or("pos_only.is.null,pos_only.eq.false")
-          .order("name", { ascending: true }),
-      ]);
-
-      const itemsData = itemRes?.data || [];
-      const catsData  = catRes?.data || [];
+      const itemsData = json.items || [];
+      const catsData  = json.categories || [];
 
       // Only allow items from visible categories
       const allowedCatNames = new Set(catsData.map(c => c.name));

@@ -1,8 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
+import { cacheHeaders, getCached } from "@/lib/serverCache";
 
 const ACTIVE_STATUSES = ["pending", "scheduled", "accepted", "preparing", "ready"];
 const DISPLAY_STATUSES = [...ACTIVE_STATUSES, "completed"];
 const SERVED_VISIBLE_MS = 60 * 1000;
+const KITCHEN_RULES_TTL_MS = 5 * 60 * 1000;
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -65,7 +67,7 @@ function itemQuantity(item) {
   return Number.isFinite(qty) && qty > 0 ? qty : 1;
 }
 
-async function loadKitchenRules(supabase) {
+async function loadKitchenRulesUncached(supabase) {
   const [groupsRes, mapRes, categoriesRes, itemsRes] = await Promise.all([
     supabase
       .from("pos_printer_groups")
@@ -106,6 +108,10 @@ async function loadKitchenRules(supabase) {
   });
 
   return { rules, itemLookup };
+}
+
+async function loadKitchenRules(supabase) {
+  return getCached("customer-order-display:kitchen-rules", KITCHEN_RULES_TTL_MS, () => loadKitchenRulesUncached(supabase));
 }
 
 export async function GET() {
@@ -149,7 +155,15 @@ export async function GET() {
         return new Date(a.updated_at || 0).getTime() - new Date(b.updated_at || 0).getTime();
       });
 
-    return Response.json({ orders, generated_at: new Date().toISOString() });
+    return Response.json(
+      { orders, generated_at: new Date().toISOString() },
+      {
+        headers: {
+          ...cacheHeaders(3, 9),
+          "X-Juja-Cache": "customer-order-display",
+        },
+      }
+    );
   } catch (error) {
     return Response.json({ error: error?.message || "Unable to load customer order display." }, { status: 500 });
   }

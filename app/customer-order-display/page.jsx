@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Clock3, MonitorUp, Utensils } from "lucide-react";
+
+const DISPLAY_WIDTH = 8268;
+const DISPLAY_HEIGHT = 4606;
+const SLIDE_INTERVAL_MS = 10000;
 
 const DISPLAY_SLIDES = [
   "https://images.jujabrewandbites.com/Cookies%20(1376%20x%20824%20px).jpg",
@@ -54,8 +58,6 @@ export default function CustomerOrderDisplayPage() {
   const [error, setError] = useState("");
   const [now, setNow] = useState(new Date());
   const [slideIndex, setSlideIndex] = useState(0);
-  const [previousSlideIndex, setPreviousSlideIndex] = useState(null);
-  const fadeTimeoutRef = useRef(null);
 
   const preparingOrders = useMemo(() => orders.filter((order) => order.status !== "served"), [orders]);
   const servedOrders = useMemo(() => orders.filter((order) => order.status === "served"), [orders]);
@@ -82,24 +84,21 @@ export default function CustomerOrderDisplayPage() {
     const refresh = setInterval(() => loadOrders({ silent: true }), 6000);
     const clock = setInterval(() => setNow(new Date()), 2000);
     const slide = setInterval(() => {
-      setSlideIndex((current) => {
-        setPreviousSlideIndex(current);
-        if (fadeTimeoutRef.current) clearTimeout(fadeTimeoutRef.current);
-        fadeTimeoutRef.current = setTimeout(() => setPreviousSlideIndex(null), 3000);
-        return (current + 1) % DISPLAY_SLIDES.length;
-      });
-    }, 5000);
+      setSlideIndex((current) => (current + 1) % DISPLAY_SLIDES.length);
+    }, SLIDE_INTERVAL_MS);
     return () => {
       clearInterval(refresh);
       clearInterval(clock);
       clearInterval(slide);
-      if (fadeTimeoutRef.current) clearTimeout(fadeTimeoutRef.current);
     };
   }, []);
 
   return (
     <main className="h-screen overflow-hidden bg-[url('https://images.jujabrewandbites.com/page%20background.png')] bg-cover bg-center p-5 text-slate-950">
-      <div className="mx-auto grid h-full max-w-[1920px] grid-cols-[minmax(0,1fr)_500px] grid-rows-[96px_minmax(0,1fr)] gap-4">
+      <div
+        className="mx-auto grid h-full w-full max-w-[8268px] grid-cols-[minmax(0,1fr)_500px] grid-rows-[96px_minmax(0,1fr)] gap-4"
+        style={{ aspectRatio: `${DISPLAY_WIDTH} / ${DISPLAY_HEIGHT}` }}
+      >
         <header className="col-span-1 flex min-w-0 items-center justify-between bg-blue-600/60 px-4 text-white">
           <div className="flex min-w-0 items-center gap-4">
             <img src={LOGO_SRC} alt="JUJA Brew & Bites" className="h-20 w-20 shrink-0 object-contain" />
@@ -183,30 +182,8 @@ export default function CustomerOrderDisplayPage() {
             alt=""
             className="absolute inset-0 z-10 h-full w-full object-cover"
           />
-          {previousSlideIndex !== null ? (
-            <img
-              key={`${DISPLAY_SLIDES[previousSlideIndex]}-previous`}
-              src={DISPLAY_SLIDES[previousSlideIndex]}
-              alt=""
-              className="cod-fade-out absolute inset-0 z-20 h-full w-full object-cover"
-            />
-          ) : null}
         </section>
       </div>
-      <style jsx global>{`
-        .cod-fade-out {
-          animation: codFadeOut 2000ms ease-in-out forwards;
-        }
-
-        @keyframes codFadeOut {
-          from {
-            opacity: 1;
-          }
-          to {
-            opacity: 0;
-          }
-        }
-      `}</style>
     </main>
   );
 }

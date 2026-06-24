@@ -1138,26 +1138,22 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
   useEffect(() => {
     async function fetchMenu() {
       setLoading(true);
-      const [itemRes, catRes, storeRes, availabilityRes, categoryAvailabilityRes] = await Promise.all([
-        supabase.from("menu_items").select("*").eq("pos_only", false).order("name"),
-        supabase.from("menu_categories").select("*").eq("is_active", true).eq("pos_only", false).order("name", { ascending: true }),
-        supabase.from("stores").select("id, name, is_active").eq("is_active", true).order("name"),
-        supabase.from("menu_item_store_availability").select("item_id, store_id, is_available"),
-        supabase.from("menu_category_store_availability").select("category_id, store_id, is_available"),
-      ]);
-      setItems(itemRes.data || []);
-      setCategories([...(catRes.data || [])].sort((a, b) => (a.name || "").localeCompare(b.name || "")));
-      const activeStores = storeRes.data || [];
+      const res = await fetch("/api/menu-data?mode=customer");
+      const json = await res.json();
+      if (!res.ok) {
+        setAvailabilityNotice(json.error || "Store availability is being synced. Showing all available menu items for now.");
+        setLoading(false);
+        return;
+      }
+
+      setItems(json.items || []);
+      setCategories([...(json.categories || [])].sort((a, b) => (a.name || "").localeCompare(b.name || "")));
+      const activeStores = json.stores || [];
       setStores(activeStores);
       setSelectedBranch((current) => (activeStores.some((store) => String(store.id) === String(current)) ? current : activeStores[0]?.id || current));
-      if (availabilityRes.error) {
-        setAvailabilityNotice("Store availability is being synced. Showing all available menu items for now.");
-        setItemStoreAvailability([]);
-      } else {
-        setAvailabilityNotice("");
-        setItemStoreAvailability(availabilityRes.data || []);
-      }
-      setCategoryStoreAvailability(categoryAvailabilityRes.error ? [] : categoryAvailabilityRes.data || []);
+      setAvailabilityNotice("");
+      setItemStoreAvailability(json.itemStoreAvailability || []);
+      setCategoryStoreAvailability(json.categoryStoreAvailability || []);
       setLoading(false);
     }
     fetchMenu();
