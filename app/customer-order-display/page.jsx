@@ -112,13 +112,13 @@ export default function CustomerOrderDisplayPage() {
           </div>
           <div className="min-w-[300px] text-right">
             <p className="text-6xl font-black leading-none tracking-wide">{time.time}</p>
-            <p className="mt-1 text-xl font-black tracking-wide">{time.date}</p>
+            <p className="mt-1 text-2xl font-black tracking-wide">{time.date}</p>
           </div>
         </header>
 
         <aside className="col-start-2 row-span-2 grid min-h-0 grid-rows-[95px_minmax(0,1fr)] bg-blue-300/20">
           <div className="flex items-center justify-center bg-blue-600/60 px-6 text-white">
-            <p className="text-[30px] font-black uppercase tracking-[0.05em]">Now Preparing</p>
+            <p className="text-[25px] font-black uppercase">Now Preparing</p>
           </div>
 
           <section className="min-h-0 overflow-hidden bg-slate-800/30">
