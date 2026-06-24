@@ -9,9 +9,25 @@ const SLIDE_INTERVAL_MS = 10000;
 
 const DISPLAY_SLIDES = [
   "https://images.jujabrewandbites.com/Cookies%20(1376%20x%20824%20px).jpg",
-  "https://images.jujabrewandbites.com/A4_Pesto%20Pasta.jpg",
-  "https://images.jujabrewandbites.com/FB_Seasonal%20Drinks.jpg",
-  "https://images.jujabrewandbites.com/TV_Bento%202.jpg",
+  "https://images.jujabrewandbites.com/TV_BENTO.png",
+  "https://images.jujabrewandbites.com/TV_DUBAI%20CHEWY.png",
+  "https://images.jujabrewandbites.com/TV_LOYALTY%202.png",
+  "https://images.jujabrewandbites.com/TV_EGG%20BUBBLE.png",
+  "https://images.jujabrewandbites.com/TV_FREE%20WIFI.png",
+  "https://images.jujabrewandbites.com/TV_FRESH%20MANGO.png",
+  "https://images.jujabrewandbites.com/TV_FUNCTION%20ROOM.png",
+  "https://images.jujabrewandbites.com/TV_GREAT%20COFFEE.png",
+  "https://images.jujabrewandbites.com/TV_KATSU.png",
+  "https://images.jujabrewandbites.com/TV_MILK%20TEA.png",
+  "https://images.jujabrewandbites.com/TV_MIN%20DONUT-COFFEE.png",
+  "https://images.jujabrewandbites.com/TV_NO%20SMOKING.png",
+  "https://images.jujabrewandbites.com/TV_LOYALTY.png",
+  "https://images.jujabrewandbites.com/TV_NUTELLA%20MT.png",
+  "https://images.jujabrewandbites.com/TV_PARFAIT.png",
+  "https://images.jujabrewandbites.com/TV_PET%20FRIENDLY.png",
+  "https://images.jujabrewandbites.com/TV_PET%20FRIENDLY.png",
+  "https://images.jujabrewandbites.com/TV_TAIWAN.png",
+  "https://images.jujabrewandbites.com/TV_UNLI%20WINGS.png",
 ];
 const LOGO_SRC = "/images/juja-logo.png";
 
