@@ -438,6 +438,11 @@ export default function AdminPayrollPage() {
   const [loanForm, setLoanForm] = useState({ employee_id: "", loan_date: localDate(), amount: "", reason: "" });
   const [loanRepaymentForm, setLoanRepaymentForm] = useState({ loan_id: "", period_id: "", payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
   const [miscDeductionForm, setMiscDeductionForm] = useState({ employee_id: "", period_id: "", deduction_date: localDate(), amount: "", description: "" });
+  const [editingAdvanceId, setEditingAdvanceId] = useState("");
+  const [editingRepaymentId, setEditingRepaymentId] = useState("");
+  const [editingLoanId, setEditingLoanId] = useState("");
+  const [editingLoanRepaymentId, setEditingLoanRepaymentId] = useState("");
+  const [editingMiscDeductionId, setEditingMiscDeductionId] = useState("");
   const [adjustmentDrafts, setAdjustmentDrafts] = useState({});
   const [cutoffForm, setCutoffForm] = useState(() => {
     const start = previousSaturday();
@@ -494,6 +499,11 @@ export default function AdminPayrollPage() {
     if (status === "paid") return false;
     if (canApprovePayroll) return true;
     return canMarkPayrollPaid && status === "approved";
+  };
+  const requireSuperAdminPayrollEdit = () => {
+    if (canApprovePayroll) return true;
+    setNotice("Only super admin accounts can edit or delete payroll deductions, cash advances, and loans.");
+    return false;
   };
 
   const cutoffDates = useMemo(
@@ -559,6 +569,7 @@ export default function AdminPayrollPage() {
 
   useEffect(() => {
     if (activeTab !== "deductions") return;
+    if (editingRepaymentId || editingLoanRepaymentId) return;
     const currentIsVisible = selectedEmployeeOpenAdvanceRows.some((row) => row.id === repaymentForm.cash_advance_id);
     if (!currentIsVisible) {
       setRepaymentForm((current) => ({
@@ -573,7 +584,7 @@ export default function AdminPayrollPage() {
         loan_id: selectedEmployeeOpenLoanRows[0]?.id || "",
       }));
     }
-  }, [activeTab, loanRepaymentForm.loan_id, repaymentForm.cash_advance_id, selectedEmployeeOpenAdvanceRows, selectedEmployeeOpenLoanRows]);
+  }, [activeTab, editingLoanRepaymentId, editingRepaymentId, loanRepaymentForm.loan_id, repaymentForm.cash_advance_id, selectedEmployeeOpenAdvanceRows, selectedEmployeeOpenLoanRows]);
 
   const employeeAdvanceSummary = useMemo(() => {
     const map = {};
@@ -1085,24 +1096,29 @@ export default function AdminPayrollPage() {
   async function saveAdvance(e) {
     e.preventDefault();
     if (!advanceForm.employee_id || !advanceForm.advance_date || !num(advanceForm.amount)) return setNotice("Cash advance employee, date, and amount are required.");
-    const id = `ca-${advanceForm.employee_id}-${advanceForm.advance_date}-${Date.now()}`;
-    const payload = { id, ...advanceForm, amount: num(advanceForm.amount), reason: advanceForm.reason || null, status: "active" };
-    const { data, error } = await supabase.from("payroll_cash_advances").insert(payload).select().maybeSingle();
+    if (editingAdvanceId && !requireSuperAdminPayrollEdit()) return;
+    const advancePaid = editingAdvanceId ? (repaymentsByAdvance[editingAdvanceId] || []).reduce((sum, row) => sum + num(row.amount), 0) : 0;
+    const payload = { ...advanceForm, amount: num(advanceForm.amount), reason: advanceForm.reason || null, status: advancePaid >= num(advanceForm.amount) && advancePaid > 0 ? "paid" : "active" };
+    const request = editingAdvanceId
+      ? supabase.from("payroll_cash_advances").update(payload).eq("id", editingAdvanceId)
+      : supabase.from("payroll_cash_advances").insert({ id: `ca-${advanceForm.employee_id}-${advanceForm.advance_date}-${Date.now()}`, ...payload });
+    const { data, error } = await request.select().maybeSingle();
     if (error) return setNotice(`Cash Advance Failed: ${error.message}`);
-    setAdvances((prev) => [data, ...prev]);
+    setAdvances((prev) => editingAdvanceId ? prev.map((row) => (row.id === data.id ? data : row)) : [data, ...prev]);
     setRepaymentForm((current) => ({ ...current, cash_advance_id: data.id }));
     setSelectedEmployeeId(data.employee_id);
+    setEditingAdvanceId("");
     setAdvanceForm({ employee_id: advanceForm.employee_id, advance_date: localDate(), amount: "", reason: "" });
-    setNotice("Cash advance recorded.");
+    setNotice(editingAdvanceId ? "Cash advance updated." : "Cash advance recorded.");
   }
 
   async function saveRepayment(e) {
     e.preventDefault();
     const advance = advances.find((row) => row.id === repaymentForm.cash_advance_id);
     if (!advance || !num(repaymentForm.amount)) return setNotice("Select a cash advance and repayment amount.");
-    const id = `repay-${advance.id}-${repaymentForm.payment_date}-${Date.now()}`;
+    if (editingRepaymentId && !requireSuperAdminPayrollEdit()) return;
+    const previous = repayments.find((row) => row.id === editingRepaymentId);
     const payload = {
-      id,
       cash_advance_id: advance.id,
       employee_id: advance.employee_id,
       period_id: repaymentForm.period_id || null,
@@ -1111,42 +1127,51 @@ export default function AdminPayrollPage() {
       method: repaymentForm.method || "payroll deduction",
       notes: repaymentForm.notes || null,
     };
-    const { data, error } = await supabase.from("payroll_cash_advance_repayments").insert(payload).select().maybeSingle();
+    const request = editingRepaymentId
+      ? supabase.from("payroll_cash_advance_repayments").update(payload).eq("id", editingRepaymentId)
+      : supabase.from("payroll_cash_advance_repayments").insert({ id: `repay-${advance.id}-${repaymentForm.payment_date}-${Date.now()}`, ...payload });
+    const { data, error } = await request.select().maybeSingle();
     if (error) return setNotice(`Repayment Failed: ${error.message}`);
-    const paid = (repaymentsByAdvance[advance.id] || []).reduce((sum, row) => sum + num(row.amount), 0) + num(data.amount);
-    const nextRepayments = [data, ...repayments];
+    const nextRepayments = editingRepaymentId ? repayments.map((row) => (row.id === data.id ? data : row)) : [data, ...repayments];
+    const paid = nextRepayments.filter((row) => row.cash_advance_id === advance.id).reduce((sum, row) => sum + num(row.amount), 0);
     setRepayments(nextRepayments);
-    if (paid >= num(advance.amount)) {
-      const { data: updated } = await supabase.from("payroll_cash_advances").update({ status: "paid" }).eq("id", advance.id).select().maybeSingle();
+    const nextStatus = paid >= num(advance.amount) ? "paid" : "active";
+    if (String(advance.status || "").toLowerCase() !== nextStatus) {
+      const { data: updated } = await supabase.from("payroll_cash_advances").update({ status: nextStatus }).eq("id", advance.id).select().maybeSingle();
       if (updated) setAdvances((prev) => prev.map((row) => (row.id === updated.id ? updated : row)));
     }
+    setEditingRepaymentId("");
     setRepaymentForm({ cash_advance_id: advance.id, period_id: repaymentForm.period_id, payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
-    const period = periodById[payload.period_id];
-    const payrollSynced = await syncPayrollEntryForEmployee(advance.employee_id, period, attendance, { repaymentRows: nextRepayments, revertApprovedToDraft: true });
-    setNotice(payrollSynced ? "Repayment recorded and payroll details updated." : "Repayment recorded.");
+    const synced = await syncPayrollForAffectedRows([previous, data], { repaymentRows: nextRepayments });
+    setNotice(synced ? `Repayment ${editingRepaymentId ? "updated" : "recorded"} and payroll details updated.` : `Repayment ${editingRepaymentId ? "updated" : "recorded"}.`);
   }
 
   async function saveLoan(e) {
     e.preventDefault();
     if (!loanForm.employee_id || !loanForm.loan_date || !num(loanForm.amount)) return setNotice("Loan employee, date, and amount are required.");
-    const id = `loan-${loanForm.employee_id}-${loanForm.loan_date}-${Date.now()}`;
-    const payload = { id, ...loanForm, amount: num(loanForm.amount), reason: loanForm.reason || null, status: "active" };
-    const { data, error } = await supabase.from("payroll_loans").insert(payload).select().maybeSingle();
+    if (editingLoanId && !requireSuperAdminPayrollEdit()) return;
+    const loanPaid = editingLoanId ? (repaymentsByLoan[editingLoanId] || []).reduce((sum, row) => sum + num(row.amount), 0) : 0;
+    const payload = { ...loanForm, amount: num(loanForm.amount), reason: loanForm.reason || null, status: loanPaid >= num(loanForm.amount) && loanPaid > 0 ? "paid" : "active" };
+    const request = editingLoanId
+      ? supabase.from("payroll_loans").update(payload).eq("id", editingLoanId)
+      : supabase.from("payroll_loans").insert({ id: `loan-${loanForm.employee_id}-${loanForm.loan_date}-${Date.now()}`, ...payload });
+    const { data, error } = await request.select().maybeSingle();
     if (error) return setNotice(`Loan Failed: ${error.message}. Run supabase/migrations/20260615090000_add_payroll_loans.sql first.`);
-    setLoans((prev) => [data, ...prev]);
+    setLoans((prev) => editingLoanId ? prev.map((row) => (row.id === data.id ? data : row)) : [data, ...prev]);
     setLoanRepaymentForm((current) => ({ ...current, loan_id: data.id }));
     setSelectedEmployeeId(data.employee_id);
+    setEditingLoanId("");
     setLoanForm({ employee_id: loanForm.employee_id, loan_date: localDate(), amount: "", reason: "" });
-    setNotice("Loan recorded.");
+    setNotice(editingLoanId ? "Loan updated." : "Loan recorded.");
   }
 
   async function saveLoanRepayment(e) {
     e.preventDefault();
     const loan = loans.find((row) => row.id === loanRepaymentForm.loan_id);
     if (!loan || !num(loanRepaymentForm.amount)) return setNotice("Select a loan and repayment amount.");
-    const id = `loan-repay-${loan.id}-${loanRepaymentForm.payment_date}-${Date.now()}`;
+    if (editingLoanRepaymentId && !requireSuperAdminPayrollEdit()) return;
+    const previous = loanRepayments.find((row) => row.id === editingLoanRepaymentId);
     const payload = {
-      id,
       loan_id: loan.id,
       employee_id: loan.employee_id,
       period_id: loanRepaymentForm.period_id || null,
@@ -1156,19 +1181,23 @@ export default function AdminPayrollPage() {
       method: loanRepaymentForm.method || "payroll deduction",
       notes: loanRepaymentForm.notes || null,
     };
-    const { data, error } = await supabase.from("payroll_loan_repayments").insert(payload).select().maybeSingle();
+    const request = editingLoanRepaymentId
+      ? supabase.from("payroll_loan_repayments").update(payload).eq("id", editingLoanRepaymentId)
+      : supabase.from("payroll_loan_repayments").insert({ id: `loan-repay-${loan.id}-${loanRepaymentForm.payment_date}-${Date.now()}`, ...payload });
+    const { data, error } = await request.select().maybeSingle();
     if (error) return setNotice(`Loan Repayment Failed: ${error.message}. Run supabase/migrations/20260615090000_add_payroll_loans.sql first.`);
-    const paid = (repaymentsByLoan[loan.id] || []).reduce((sum, row) => sum + num(row.amount), 0) + num(data.amount);
-    const nextLoanRepayments = [data, ...loanRepayments];
+    const nextLoanRepayments = editingLoanRepaymentId ? loanRepayments.map((row) => (row.id === data.id ? data : row)) : [data, ...loanRepayments];
+    const paid = nextLoanRepayments.filter((row) => row.loan_id === loan.id).reduce((sum, row) => sum + num(row.amount), 0);
     setLoanRepayments(nextLoanRepayments);
-    if (paid >= num(loan.amount)) {
-      const { data: updated } = await supabase.from("payroll_loans").update({ status: "paid" }).eq("id", loan.id).select().maybeSingle();
+    const nextStatus = paid >= num(loan.amount) ? "paid" : "active";
+    if (String(loan.status || "").toLowerCase() !== nextStatus) {
+      const { data: updated } = await supabase.from("payroll_loans").update({ status: nextStatus }).eq("id", loan.id).select().maybeSingle();
       if (updated) setLoans((prev) => prev.map((row) => (row.id === updated.id ? updated : row)));
     }
+    setEditingLoanRepaymentId("");
     setLoanRepaymentForm({ loan_id: loan.id, period_id: loanRepaymentForm.period_id, payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
-    const period = periodById[payload.period_id];
-    const payrollSynced = await syncPayrollEntryForEmployee(loan.employee_id, period, attendance, { loanRepaymentRows: nextLoanRepayments, revertApprovedToDraft: true });
-    setNotice(payrollSynced ? "Loan repayment recorded and payroll details updated." : "Loan repayment recorded.");
+    const synced = await syncPayrollForAffectedRows([previous, data], { loanRepaymentRows: nextLoanRepayments });
+    setNotice(synced ? `Loan repayment ${editingLoanRepaymentId ? "updated" : "recorded"} and payroll details updated.` : `Loan repayment ${editingLoanRepaymentId ? "updated" : "recorded"}.`);
   }
 
   async function saveMiscDeduction(e) {
@@ -1176,23 +1205,219 @@ export default function AdminPayrollPage() {
     if (!miscDeductionForm.employee_id || !miscDeductionForm.period_id || !miscDeductionForm.deduction_date || !num(miscDeductionForm.amount)) {
       return setNotice("Misc deduction employee, cutoff, date, and amount are required.");
     }
-    const id = `misc-${miscDeductionForm.employee_id}-${miscDeductionForm.period_id}-${miscDeductionForm.deduction_date}-${Date.now()}`;
+    if (editingMiscDeductionId && !requireSuperAdminPayrollEdit()) return;
+    const previous = miscDeductions.find((row) => row.id === editingMiscDeductionId);
     const payload = {
-      id,
       employee_id: miscDeductionForm.employee_id,
       period_id: miscDeductionForm.period_id,
       deduction_date: miscDeductionForm.deduction_date,
       amount: num(miscDeductionForm.amount),
       description: miscDeductionForm.description.trim() || null,
     };
-    const { data, error } = await supabase.from("payroll_misc_deductions").insert(payload).select().maybeSingle();
+    const request = editingMiscDeductionId
+      ? supabase.from("payroll_misc_deductions").update(payload).eq("id", editingMiscDeductionId)
+      : supabase.from("payroll_misc_deductions").insert({ id: `misc-${miscDeductionForm.employee_id}-${miscDeductionForm.period_id}-${miscDeductionForm.deduction_date}-${Date.now()}`, ...payload });
+    const { data, error } = await request.select().maybeSingle();
     if (error) return setNotice(`Misc Deduction Failed: ${error.message}. Run supabase/payroll_employee_deductions_update.sql first.`);
-    const nextMiscDeductions = [data, ...miscDeductions];
+    const nextMiscDeductions = editingMiscDeductionId ? miscDeductions.map((row) => (row.id === data.id ? data : row)) : [data, ...miscDeductions];
     setMiscDeductions(nextMiscDeductions);
+    setEditingMiscDeductionId("");
     setMiscDeductionForm((current) => ({ ...current, deduction_date: localDate(), amount: "", description: "" }));
-    const period = periodById[payload.period_id];
-    const payrollSynced = await syncPayrollEntryForEmployee(payload.employee_id, period, attendance, { miscDeductionRows: nextMiscDeductions, revertApprovedToDraft: true });
-    setNotice(payrollSynced ? "Misc deduction recorded and payroll details updated." : "Misc deduction recorded.");
+    const synced = await syncPayrollForAffectedRows([previous, data], { miscDeductionRows: nextMiscDeductions });
+    setNotice(synced ? `Misc deduction ${editingMiscDeductionId ? "updated" : "recorded"} and payroll details updated.` : `Misc deduction ${editingMiscDeductionId ? "updated" : "recorded"}.`);
+  }
+
+  async function syncPayrollForAffectedRows(rows, options = {}) {
+    const affected = new Map();
+    rows.forEach((row) => {
+      if (row?.employee_id && row?.period_id) affected.set(`${row.employee_id}:${row.period_id}`, row);
+    });
+    let synced = 0;
+    for (const row of affected.values()) {
+      const period = periodById[row.period_id];
+      if (period && await syncPayrollEntryForEmployee(row.employee_id, period, attendance, { ...options, revertApprovedToDraft: true })) {
+        synced += 1;
+      }
+    }
+    return synced;
+  }
+
+  function cancelAdvanceEdit() {
+    setEditingAdvanceId("");
+    setAdvanceForm({ employee_id: selectedEmployeeId || employees[0]?.id || "", advance_date: localDate(), amount: "", reason: "" });
+  }
+
+  function editAdvance(row) {
+    if (!row?.id || !requireSuperAdminPayrollEdit()) return;
+    setEditingAdvanceId(row.id);
+    setSelectedEmployeeId(row.employee_id || selectedEmployeeId);
+    setAdvanceForm({
+      employee_id: row.employee_id || "",
+      advance_date: row.advance_date || localDate(),
+      amount: row.amount ?? "",
+      reason: row.reason || "",
+    });
+  }
+
+  function cancelRepaymentEdit() {
+    setEditingRepaymentId("");
+    setRepaymentForm({ cash_advance_id: repaymentForm.cash_advance_id, period_id: selectedPeriodId, payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
+  }
+
+  function editRepayment(row) {
+    if (!row?.id || !requireSuperAdminPayrollEdit()) return;
+    setEditingRepaymentId(row.id);
+    setSelectedEmployeeId(row.employee_id || selectedEmployeeId);
+    setRepaymentForm({
+      cash_advance_id: row.cash_advance_id || "",
+      period_id: row.period_id || "",
+      payment_date: row.payment_date || localDate(),
+      amount: row.amount ?? "",
+      method: row.method || "payroll deduction",
+      notes: row.notes || "",
+    });
+    setActiveTab("deductions");
+  }
+
+  function cancelLoanEdit() {
+    setEditingLoanId("");
+    setLoanForm({ employee_id: selectedEmployeeId || employees[0]?.id || "", loan_date: localDate(), amount: "", reason: "" });
+  }
+
+  function editLoan(row) {
+    if (!row?.id || !requireSuperAdminPayrollEdit()) return;
+    setEditingLoanId(row.id);
+    setSelectedEmployeeId(row.employee_id || selectedEmployeeId);
+    setLoanForm({
+      employee_id: row.employee_id || "",
+      loan_date: row.loan_date || localDate(),
+      amount: row.amount ?? "",
+      reason: row.reason || "",
+    });
+  }
+
+  function cancelLoanRepaymentEdit() {
+    setEditingLoanRepaymentId("");
+    setLoanRepaymentForm({ loan_id: loanRepaymentForm.loan_id, period_id: selectedPeriodId, payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
+  }
+
+  function editLoanRepayment(row) {
+    if (!row?.id || !requireSuperAdminPayrollEdit()) return;
+    setEditingLoanRepaymentId(row.id);
+    setSelectedEmployeeId(row.employee_id || selectedEmployeeId);
+    setLoanRepaymentForm({
+      loan_id: row.loan_id || "",
+      period_id: row.period_id || "",
+      payment_date: row.payment_date || row.repayment_date || localDate(),
+      amount: row.amount ?? "",
+      method: row.method || "payroll deduction",
+      notes: row.notes || "",
+    });
+    setActiveTab("deductions");
+  }
+
+  function cancelMiscDeductionEdit() {
+    setEditingMiscDeductionId("");
+    setMiscDeductionForm({ employee_id: selectedEmployeeId || employees[0]?.id || "", period_id: selectedPeriodId, deduction_date: localDate(), amount: "", description: "" });
+  }
+
+  function editMiscDeduction(row) {
+    if (!row?.id || !requireSuperAdminPayrollEdit()) return;
+    setEditingMiscDeductionId(row.id);
+    setSelectedEmployeeId(row.employee_id || selectedEmployeeId);
+    setMiscDeductionForm({
+      employee_id: row.employee_id || "",
+      period_id: row.period_id || "",
+      deduction_date: row.deduction_date || localDate(),
+      amount: row.amount ?? "",
+      description: row.description || "",
+    });
+    setActiveTab("deductions");
+  }
+
+  async function deleteMiscDeduction(row) {
+    if (!requireSuperAdminPayrollEdit()) return;
+    if (!row?.id || !window.confirm("Delete this misc deduction?")) return;
+    const nextMiscDeductions = miscDeductions.filter((item) => item.id !== row.id);
+    const { error } = await supabase.from("payroll_misc_deductions").delete().eq("id", row.id);
+    if (error) return setNotice(`Delete Failed: ${error.message}`);
+    setMiscDeductions(nextMiscDeductions);
+    const synced = await syncPayrollForAffectedRows([row], { miscDeductionRows: nextMiscDeductions });
+    setNotice(synced ? "Misc deduction deleted and payroll details updated." : "Misc deduction deleted.");
+  }
+
+  async function deleteRepayment(row) {
+    if (!requireSuperAdminPayrollEdit()) return;
+    if (!row?.id || !window.confirm("Delete this cash advance repayment?")) return;
+    const nextRepayments = repayments.filter((item) => item.id !== row.id);
+    const { error } = await supabase.from("payroll_cash_advance_repayments").delete().eq("id", row.id);
+    if (error) return setNotice(`Delete Failed: ${error.message}`);
+    setRepayments(nextRepayments);
+    const advance = advances.find((item) => item.id === row.cash_advance_id);
+    if (advance) {
+      const paid = nextRepayments.filter((item) => item.cash_advance_id === advance.id).reduce((sum, item) => sum + num(item.amount), 0);
+      if (paid < num(advance.amount) && String(advance.status || "").toLowerCase() === "paid") {
+        const { data: updated } = await supabase.from("payroll_cash_advances").update({ status: "active" }).eq("id", advance.id).select().maybeSingle();
+        if (updated) setAdvances((prev) => prev.map((item) => item.id === updated.id ? updated : item));
+      }
+    }
+    const synced = await syncPayrollForAffectedRows([row], { repaymentRows: nextRepayments });
+    setNotice(synced ? "Cash advance repayment deleted and payroll details updated." : "Cash advance repayment deleted.");
+  }
+
+  async function deleteLoanRepayment(row) {
+    if (!requireSuperAdminPayrollEdit()) return;
+    if (!row?.id || !window.confirm("Delete this loan repayment?")) return;
+    const nextLoanRepayments = loanRepayments.filter((item) => item.id !== row.id);
+    const { error } = await supabase.from("payroll_loan_repayments").delete().eq("id", row.id);
+    if (error) return setNotice(`Delete Failed: ${error.message}`);
+    setLoanRepayments(nextLoanRepayments);
+    const loan = loans.find((item) => item.id === row.loan_id);
+    if (loan) {
+      const paid = nextLoanRepayments.filter((item) => item.loan_id === loan.id).reduce((sum, item) => sum + num(item.amount), 0);
+      if (paid < num(loan.amount) && String(loan.status || "").toLowerCase() === "paid") {
+        const { data: updated } = await supabase.from("payroll_loans").update({ status: "active" }).eq("id", loan.id).select().maybeSingle();
+        if (updated) setLoans((prev) => prev.map((item) => item.id === updated.id ? updated : item));
+      }
+    }
+    const synced = await syncPayrollForAffectedRows([row], { loanRepaymentRows: nextLoanRepayments });
+    setNotice(synced ? "Loan repayment deleted and payroll details updated." : "Loan repayment deleted.");
+  }
+
+  async function deleteAdvance(row) {
+    if (!requireSuperAdminPayrollEdit()) return;
+    if (!row?.id || !window.confirm("Delete this cash advance and its repayment history?")) return;
+    const relatedRepayments = repayments.filter((item) => item.cash_advance_id === row.id);
+    const relatedIds = relatedRepayments.map((item) => item.id);
+    if (relatedIds.length) {
+      const repaymentDelete = await supabase.from("payroll_cash_advance_repayments").delete().in("id", relatedIds);
+      if (repaymentDelete.error) return setNotice(`Delete Failed: ${repaymentDelete.error.message}`);
+    }
+    const { error } = await supabase.from("payroll_cash_advances").delete().eq("id", row.id);
+    if (error) return setNotice(`Delete Failed: ${error.message}`);
+    const nextRepayments = repayments.filter((item) => item.cash_advance_id !== row.id);
+    setRepayments(nextRepayments);
+    setAdvances((prev) => prev.filter((item) => item.id !== row.id));
+    const synced = await syncPayrollForAffectedRows(relatedRepayments, { repaymentRows: nextRepayments });
+    setNotice(synced ? "Cash advance deleted and payroll details updated." : "Cash advance deleted.");
+  }
+
+  async function deleteLoan(row) {
+    if (!requireSuperAdminPayrollEdit()) return;
+    if (!row?.id || !window.confirm("Delete this loan and its repayment history?")) return;
+    const relatedRepayments = loanRepayments.filter((item) => item.loan_id === row.id);
+    const relatedIds = relatedRepayments.map((item) => item.id);
+    if (relatedIds.length) {
+      const repaymentDelete = await supabase.from("payroll_loan_repayments").delete().in("id", relatedIds);
+      if (repaymentDelete.error) return setNotice(`Delete Failed: ${repaymentDelete.error.message}`);
+    }
+    const { error } = await supabase.from("payroll_loans").delete().eq("id", row.id);
+    if (error) return setNotice(`Delete Failed: ${error.message}`);
+    const nextLoanRepayments = loanRepayments.filter((item) => item.loan_id !== row.id);
+    setLoanRepayments(nextLoanRepayments);
+    setLoans((prev) => prev.filter((item) => item.id !== row.id));
+    const synced = await syncPayrollForAffectedRows(relatedRepayments, { loanRepaymentRows: nextLoanRepayments });
+    setNotice(synced ? "Loan deleted and payroll details updated." : "Loan deleted.");
   }
 
   async function saveEntry(e) {
@@ -1816,7 +2041,7 @@ export default function AdminPayrollPage() {
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-[380px_1fr]">
           <div className="space-y-4">
             <form onSubmit={saveMiscDeduction} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-              <h2 className="text-sm font-semibold text-slate-950">Misc Deduction</h2>
+              <h2 className="text-sm font-semibold text-slate-950">{editingMiscDeductionId ? "Edit Misc Deduction" : "Misc Deduction"}</h2>
               <div className="mt-4 space-y-3">
                 <select value={miscDeductionForm.employee_id} onChange={(e) => setMiscDeductionForm((p) => ({ ...p, employee_id: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
                   {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}
@@ -1825,41 +2050,44 @@ export default function AdminPayrollPage() {
                 <input type="date" value={miscDeductionForm.deduction_date} onChange={(e) => setMiscDeductionForm((p) => ({ ...p, deduction_date: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
                 <input type="number" step="0.01" value={miscDeductionForm.amount} onChange={(e) => setMiscDeductionForm((p) => ({ ...p, amount: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Amount" />
                 <input value={miscDeductionForm.description} onChange={(e) => setMiscDeductionForm((p) => ({ ...p, description: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Description" />
-                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">Save Misc Deduction</button>
+                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">{editingMiscDeductionId ? "Update Misc Deduction" : "Save Misc Deduction"}</button>
+                {editingMiscDeductionId ? <button type="button" onClick={cancelMiscDeductionEdit} className="h-10 w-full rounded-xl border border-slate-200 bg-white text-xs font-semibold uppercase tracking-wider text-slate-700 transition hover:bg-slate-50">Cancel Edit</button> : null}
               </div>
             </form>
 
             <form onSubmit={saveRepayment} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-              <h2 className="text-sm font-semibold text-slate-950">Cash Advance Deduction / Repayment</h2>
+              <h2 className="text-sm font-semibold text-slate-950">{editingRepaymentId ? "Edit Cash Advance Deduction / Repayment" : "Cash Advance Deduction / Repayment"}</h2>
               <div className="mt-4 space-y-3">
                 <select value={repaymentForm.cash_advance_id} onChange={(e) => setRepaymentForm((p) => ({ ...p, cash_advance_id: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
                   <option value="">Select advance</option>
-                  {selectedEmployeeOpenAdvanceRows.map((row) => <option key={row.id} value={row.id}>{dateText(row.advance_date)} / {money(row.balance)}</option>)}
+                  {(editingRepaymentId ? selectedEmployeeAdvanceRows : selectedEmployeeOpenAdvanceRows).map((row) => <option key={row.id} value={row.id}>{dateText(row.advance_date)} / {money(Math.max(0, row.balance))}</option>)}
                 </select>
                 <select value={repaymentForm.period_id} onChange={(e) => setRepaymentForm((p) => ({ ...p, period_id: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">{sortedPeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select>
                 <input type="date" value={repaymentForm.payment_date} onChange={(e) => setRepaymentForm((p) => ({ ...p, payment_date: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
                 <input type="number" step="0.01" value={repaymentForm.amount} onChange={(e) => setRepaymentForm((p) => ({ ...p, amount: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Repayment amount" />
-                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">Save Repayment</button>
+                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">{editingRepaymentId ? "Update Repayment" : "Save Repayment"}</button>
+                {editingRepaymentId ? <button type="button" onClick={cancelRepaymentEdit} className="h-10 w-full rounded-xl border border-slate-200 bg-white text-xs font-semibold uppercase tracking-wider text-slate-700 transition hover:bg-slate-50">Cancel Edit</button> : null}
               </div>
             </form>
 
             <form onSubmit={saveLoanRepayment} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-              <h2 className="text-sm font-semibold text-slate-950">Loan Deduction / Repayment</h2>
+              <h2 className="text-sm font-semibold text-slate-950">{editingLoanRepaymentId ? "Edit Loan Deduction / Repayment" : "Loan Deduction / Repayment"}</h2>
               <div className="mt-4 space-y-3">
                 <select value={loanRepaymentForm.loan_id} onChange={(e) => setLoanRepaymentForm((p) => ({ ...p, loan_id: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
                   <option value="">Select loan</option>
-                  {selectedEmployeeOpenLoanRows.map((row) => <option key={row.id} value={row.id}>{dateText(row.loan_date)} / {money(row.balance)}</option>)}
+                  {(editingLoanRepaymentId ? selectedEmployeeLoanRows : selectedEmployeeOpenLoanRows).map((row) => <option key={row.id} value={row.id}>{dateText(row.loan_date)} / {money(Math.max(0, row.balance))}</option>)}
                 </select>
                 <select value={loanRepaymentForm.period_id} onChange={(e) => setLoanRepaymentForm((p) => ({ ...p, period_id: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">{sortedPeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select>
                 <input type="date" value={loanRepaymentForm.payment_date} onChange={(e) => setLoanRepaymentForm((p) => ({ ...p, payment_date: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
                 <input type="number" step="0.01" value={loanRepaymentForm.amount} onChange={(e) => setLoanRepaymentForm((p) => ({ ...p, amount: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Repayment amount" />
-                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">Save Loan Repayment</button>
+                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">{editingLoanRepaymentId ? "Update Loan Repayment" : "Save Loan Repayment"}</button>
+                {editingLoanRepaymentId ? <button type="button" onClick={cancelLoanRepaymentEdit} className="h-10 w-full rounded-xl border border-slate-200 bg-white text-xs font-semibold uppercase tracking-wider text-slate-700 transition hover:bg-slate-50">Cancel Edit</button> : null}
               </div>
             </form>
           </div>
 
           <div className="space-y-4">
-            <DataTable empty="No misc deductions found for this cutoff." minWidth="860px" headers={["Date", "Employee", "Cutoff", "Description", "Amount"]}>
+            <DataTable empty="No misc deductions found for this cutoff." minWidth="940px" headers={canApprovePayroll ? ["Date", "Employee", "Cutoff", "Description", "Amount", "Action"] : ["Date", "Employee", "Cutoff", "Description", "Amount"]}>
               {miscDeductions
                 .filter((row) => !selectedPeriodId || row.period_id === selectedPeriodId)
                 .map((row) => (
@@ -1869,11 +2097,19 @@ export default function AdminPayrollPage() {
                     <td>{periodById[row.period_id]?.label || row.period_id}</td>
                     <td>{row.description || "Misc deduction"}</td>
                     <td className="px-1 py-3 font-semibold text-cyan-700">{money(row.amount)}</td>
+                    {canApprovePayroll ? (
+                      <td className="px-1 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" onClick={() => editMiscDeduction(row)} className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-cyan-700 transition hover:bg-cyan-100">Edit</button>
+                          <button type="button" onClick={() => deleteMiscDeduction(row)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-red-700 transition hover:bg-red-100">Delete</button>
+                        </div>
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
             </DataTable>
 
-            <DataTable empty="No cash advance repayments found for this cutoff." minWidth="860px" headers={["Date", "Employee", "Cash Advance", "Cutoff", "Amount"]}>
+            <DataTable empty="No cash advance repayments found for this cutoff." minWidth="940px" headers={canApprovePayroll ? ["Date", "Employee", "Cash Advance", "Cutoff", "Amount", "Action"] : ["Date", "Employee", "Cash Advance", "Cutoff", "Amount"]}>
               {repayments
                 .filter((row) => !selectedPeriodId || row.period_id === selectedPeriodId)
                 .map((row) => (
@@ -1883,11 +2119,19 @@ export default function AdminPayrollPage() {
                     <td>{dateText(advances.find((advance) => advance.id === row.cash_advance_id)?.advance_date)}</td>
                     <td>{periodById[row.period_id]?.label || row.period_id || "-"}</td>
                     <td className="px-1 py-3 font-semibold text-cyan-700">{money(row.amount)}</td>
+                    {canApprovePayroll ? (
+                      <td className="px-1 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" onClick={() => editRepayment(row)} className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-cyan-700 transition hover:bg-cyan-100">Edit</button>
+                          <button type="button" onClick={() => deleteRepayment(row)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-red-700 transition hover:bg-red-100">Delete</button>
+                        </div>
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
             </DataTable>
 
-            <DataTable empty="No loan repayments found for this cutoff." minWidth="860px" headers={["Date", "Employee", "Loan", "Cutoff", "Amount"]}>
+            <DataTable empty="No loan repayments found for this cutoff." minWidth="940px" headers={canApprovePayroll ? ["Date", "Employee", "Loan", "Cutoff", "Amount", "Action"] : ["Date", "Employee", "Loan", "Cutoff", "Amount"]}>
               {loanRepayments
                 .filter((row) => !selectedPeriodId || row.period_id === selectedPeriodId)
                 .map((row) => (
@@ -1897,6 +2141,14 @@ export default function AdminPayrollPage() {
                     <td>{dateText(loans.find((loan) => loan.id === row.loan_id)?.loan_date)}</td>
                     <td>{periodById[row.period_id]?.label || row.period_id || "-"}</td>
                     <td className="px-1 py-3 font-semibold text-cyan-700">{money(row.amount)}</td>
+                    {canApprovePayroll ? (
+                      <td className="px-1 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" onClick={() => editLoanRepayment(row)} className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-cyan-700 transition hover:bg-cyan-100">Edit</button>
+                          <button type="button" onClick={() => deleteLoanRepayment(row)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-red-700 transition hover:bg-red-100">Delete</button>
+                        </div>
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
             </DataTable>
@@ -1906,7 +2158,7 @@ export default function AdminPayrollPage() {
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-[380px_1fr]">
           <div className="space-y-4">
             <form onSubmit={saveAdvance} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-              <h2 className="text-sm font-semibold text-slate-950">Cash Advance</h2>
+              <h2 className="text-sm font-semibold text-slate-950">{editingAdvanceId ? "Edit Cash Advance" : "Cash Advance"}</h2>
               <div className="mt-4 space-y-3">
                 <select value={advanceForm.employee_id} onChange={(e) => {
                   setAdvanceForm((p) => ({ ...p, employee_id: e.target.value }));
@@ -1915,7 +2167,8 @@ export default function AdminPayrollPage() {
                 <input type="date" value={advanceForm.advance_date} onChange={(e) => setAdvanceForm((p) => ({ ...p, advance_date: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
                 <input type="number" step="0.01" value={advanceForm.amount} onChange={(e) => setAdvanceForm((p) => ({ ...p, amount: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Amount" />
                 <input value={advanceForm.reason} onChange={(e) => setAdvanceForm((p) => ({ ...p, reason: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Reason" />
-                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">Save Advance</button>
+                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">{editingAdvanceId ? "Update Advance" : "Save Advance"}</button>
+                {editingAdvanceId ? <button type="button" onClick={cancelAdvanceEdit} className="h-10 w-full rounded-xl border border-slate-200 bg-white text-xs font-semibold uppercase tracking-wider text-slate-700 transition hover:bg-slate-50">Cancel Edit</button> : null}
               </div>
             </form>
           </div>
@@ -1957,7 +2210,7 @@ export default function AdminPayrollPage() {
               ))}
             </DataTable>            
 
-            <DataTable empty="No cash advance records found for this employee." minWidth="1100px" headers={["Cash Advance", "Amount", "Repayment History", "Repaid", "Balance", "Status"]}>
+            <DataTable empty="No cash advance records found for this employee." minWidth="1180px" headers={canApprovePayroll ? ["Cash Advance", "Amount", "Repayment History", "Repaid", "Balance", "Status", "Action"] : ["Cash Advance", "Amount", "Repayment History", "Repaid", "Balance", "Status"]}>
               {selectedEmployeeAdvanceRows.map((row) => {
                 const repaymentHistory = [...(repaymentsByAdvance[row.id] || [])]
                   .sort((a, b) => new Date(b.payment_date || 0) - new Date(a.payment_date || 0));
@@ -1981,6 +2234,12 @@ export default function AdminPayrollPage() {
                               </div>
                               <p className="mt-1">{repayment.method || "payroll deduction"}{repayment.period_id ? ` / ${periodById[repayment.period_id]?.label || repayment.period_id}` : ""}</p>
                               {repayment.notes ? <p className="mt-1 text-slate-500">{repayment.notes}</p> : null}
+                              {canApprovePayroll ? (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  <button type="button" onClick={() => editRepayment(repayment)} className="rounded-lg border border-cyan-200 bg-cyan-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-cyan-700 transition hover:bg-cyan-100">Edit</button>
+                                  <button type="button" onClick={() => deleteRepayment(repayment)} className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-red-700 transition hover:bg-red-100">Delete</button>
+                                </div>
+                              ) : null}
                             </div>
                           ))}
                         </div>
@@ -1989,6 +2248,14 @@ export default function AdminPayrollPage() {
                     <td className="pt-3">{money(row.repaid)}</td>
                     <td className="pt-3 font-semibold text-cyan-700">{money(row.balance)}</td>
                     <td className="pt-3">{row.status || "active"}</td>
+                    {canApprovePayroll ? (
+                      <td className="pt-3">
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" onClick={() => editAdvance(row)} className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-cyan-700 transition hover:bg-cyan-100">Edit</button>
+                          <button type="button" onClick={() => deleteAdvance(row)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-red-700 transition hover:bg-red-100">Delete</button>
+                        </div>
+                      </td>
+                    ) : null}
                   </tr>
                 );
               })}
@@ -2000,7 +2267,7 @@ export default function AdminPayrollPage() {
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-[380px_1fr]">
           <div className="space-y-4">
             <form onSubmit={saveLoan} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-              <h2 className="text-sm font-semibold text-slate-950">Loan</h2>
+              <h2 className="text-sm font-semibold text-slate-950">{editingLoanId ? "Edit Loan" : "Loan"}</h2>
               <div className="mt-4 space-y-3">
                 <select value={loanForm.employee_id} onChange={(e) => {
                   setLoanForm((p) => ({ ...p, employee_id: e.target.value }));
@@ -2009,7 +2276,8 @@ export default function AdminPayrollPage() {
                 <input type="date" value={loanForm.loan_date} onChange={(e) => setLoanForm((p) => ({ ...p, loan_date: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
                 <input type="number" step="0.01" value={loanForm.amount} onChange={(e) => setLoanForm((p) => ({ ...p, amount: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Amount" />
                 <input value={loanForm.reason} onChange={(e) => setLoanForm((p) => ({ ...p, reason: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Reason" />
-                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">Save Loan</button>
+                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">{editingLoanId ? "Update Loan" : "Save Loan"}</button>
+                {editingLoanId ? <button type="button" onClick={cancelLoanEdit} className="h-10 w-full rounded-xl border border-slate-200 bg-white text-xs font-semibold uppercase tracking-wider text-slate-700 transition hover:bg-slate-50">Cancel Edit</button> : null}
               </div>
             </form>
           </div>
@@ -2051,7 +2319,7 @@ export default function AdminPayrollPage() {
               ))}
             </DataTable>
 
-            <DataTable empty="No loan records found for this employee." minWidth="1100px" headers={["Loan", "Amount", "Repayment History", "Repaid", "Balance", "Status"]}>
+            <DataTable empty="No loan records found for this employee." minWidth="1180px" headers={canApprovePayroll ? ["Loan", "Amount", "Repayment History", "Repaid", "Balance", "Status", "Action"] : ["Loan", "Amount", "Repayment History", "Repaid", "Balance", "Status"]}>
               {selectedEmployeeLoanRows.map((row) => {
                 const repaymentHistory = [...(repaymentsByLoan[row.id] || [])]
                   .sort((a, b) => new Date((b.payment_date || b.repayment_date) || 0) - new Date((a.payment_date || a.repayment_date) || 0));
@@ -2075,6 +2343,12 @@ export default function AdminPayrollPage() {
                               </div>
                               <p className="mt-1">{repayment.method || "payroll deduction"}{repayment.period_id ? ` / ${periodById[repayment.period_id]?.label || repayment.period_id}` : ""}</p>
                               {repayment.notes ? <p className="mt-1 text-slate-500">{repayment.notes}</p> : null}
+                              {canApprovePayroll ? (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  <button type="button" onClick={() => editLoanRepayment(repayment)} className="rounded-lg border border-cyan-200 bg-cyan-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-cyan-700 transition hover:bg-cyan-100">Edit</button>
+                                  <button type="button" onClick={() => deleteLoanRepayment(repayment)} className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-red-700 transition hover:bg-red-100">Delete</button>
+                                </div>
+                              ) : null}
                             </div>
                           ))}
                         </div>
@@ -2083,6 +2357,14 @@ export default function AdminPayrollPage() {
                     <td className="pt-3">{money(row.repaid)}</td>
                     <td className="pt-3 font-semibold text-cyan-700">{money(row.balance)}</td>
                     <td className="pt-3">{row.status || "active"}</td>
+                    {canApprovePayroll ? (
+                      <td className="pt-3">
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" onClick={() => editLoan(row)} className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-cyan-700 transition hover:bg-cyan-100">Edit</button>
+                          <button type="button" onClick={() => deleteLoan(row)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-red-700 transition hover:bg-red-100">Delete</button>
+                        </div>
+                      </td>
+                    ) : null}
                   </tr>
                 );
               })}
