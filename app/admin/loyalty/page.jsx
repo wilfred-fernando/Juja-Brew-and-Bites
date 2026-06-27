@@ -65,6 +65,14 @@ export default function LoyaltyAdminPage() {
     rows: [],
     error: "",
   });
+  const [voucherView, setVoucherView] = useState({
+    open: false,
+    loading: false,
+    member: null,
+    status: "available",
+    rows: [],
+    error: "",
+  });
 
   // Select user by email (searchable)
   const [userQuery, setUserQuery] = useState("");
@@ -146,6 +154,18 @@ export default function LoyaltyAdminPage() {
     return fallback;
   }
 
+  function displayDate(value) {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Manila",
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+    }).format(date);
+  }
+
   async function safeHistoryQuery(label, query, mapper) {
     const { data, error } = await query;
     if (error) {
@@ -172,6 +192,49 @@ export default function LoyaltyAdminPage() {
       seen.set(row.id, row);
     });
     return Array.from(seen.values());
+  }
+
+  function getVoucherStatus(voucher) {
+    const status = String(voucher?.status || "").toLowerCase();
+    const redeemedAt = voucher?.redeemed_at;
+    const expiresAt = voucher?.expires_at;
+    const expiryMs = expiresAt ? new Date(expiresAt).getTime() : 0;
+
+    if (status === "redeemed" || redeemedAt) return "redeemed";
+    if (status === "expired" || (expiryMs && expiryMs < Date.now())) return "expired";
+    return "available";
+  }
+
+  function voucherStatusLabel(status) {
+    if (status === "redeemed") return "Redeemed";
+    if (status === "expired") return "Expired";
+    return "Available";
+  }
+
+  async function openVoucherList(member, status = "available") {
+    setVoucherView({ open: true, loading: true, member, status, rows: [], error: "" });
+
+    try {
+      const { data, error } = await supabase
+        .from("vouchers")
+        .select("id, member_id, code, reward_text, reward_type, status, issued_at, expires_at, redeemed_at")
+        .eq("member_id", member.id)
+        .order("issued_at", { ascending: false });
+
+      if (error) throw error;
+
+      const rows = (data || []).filter((voucher) => getVoucherStatus(voucher) === status);
+      setVoucherView({ open: true, loading: false, member, status, rows, error: "" });
+    } catch (err) {
+      setVoucherView({
+        open: true,
+        loading: false,
+        member,
+        status,
+        rows: [],
+        error: err?.message || "Unable to load vouchers.",
+      });
+    }
   }
 
   async function openPurchaseHistory(member) {
@@ -1124,6 +1187,27 @@ export default function LoyaltyAdminPage() {
           </button>
 
           <button
+            onClick={() => openVoucherList(member, "available")}
+            className="px-3 py-2 bg-emerald-50 border border-emerald-100 text-xs text-emerald-700 rounded-xl hover:bg-emerald-100 active:scale-95"
+          >
+            Available Vouchers
+          </button>
+
+          <button
+            onClick={() => openVoucherList(member, "expired")}
+            className="px-3 py-2 bg-amber-50 border border-amber-100 text-xs text-amber-700 rounded-xl hover:bg-amber-100 active:scale-95"
+          >
+            Expired Vouchers
+          </button>
+
+          <button
+            onClick={() => openVoucherList(member, "redeemed")}
+            className="px-3 py-2 bg-sky-50 border border-sky-100 text-xs text-sky-700 rounded-xl hover:bg-sky-100 active:scale-95"
+          >
+            Redeemed Vouchers
+          </button>
+
+          <button
             onClick={() => openModal(member)}
             className="px-3 py-2 bg-slate-50 border border-slate-100 text-xs text-slate-600 rounded-xl hover:bg-sky-50 hover:text-slate-700 active:scale-95"
           >
@@ -1652,6 +1736,112 @@ export default function LoyaltyAdminPage() {
                           <td className="px-4 py-3">{row.payment || "—"}</td>
                           <td className="px-4 py-3 text-right tabular-nums font-semibold text-slate-800">{peso(row.total)}</td>
                           <td className="px-4 py-3">{row.status || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VOUCHERS MODAL */}
+      {voucherView.open && voucherView.member && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
+          onClick={() => setVoucherView((prev) => ({ ...prev, open: false }))}
+        >
+          <div
+            className="bg-white w-full max-w-4xl rounded-t-[24px] md:rounded-[28px] p-5 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start gap-4 mb-5">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-slate-500">
+                  {voucherStatusLabel(voucherView.status)} Vouchers
+                </p>
+                <h3 className="text-xl md:text-2xl font-semibold text-slate-800">
+                  {voucherView.member.customer_name || voucherView.member["customer_name"] || "Customer"}
+                </h3>
+                <p className="font-mono text-[10px] text-slate-500 mt-1">
+                  {voucherView.member.customer_code || voucherView.member["customer_code"] || voucherView.member.id}
+                </p>
+              </div>
+              <button
+                onClick={() => setVoucherView((prev) => ({ ...prev, open: false }))}
+                className="w-9 h-9 flex items-center justify-center rounded-full bg-slate-50 text-slate-500 hover:text-slate-800 hover:bg-slate-100 active:scale-90"
+                aria-label="Close"
+              >
+                x
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {["available", "expired", "redeemed"].map((status) => (
+                <button
+                  key={status}
+                  onClick={() => openVoucherList(voucherView.member, status)}
+                  className={`px-3 py-2 rounded-xl border text-xs active:scale-95 ${
+                    voucherView.status === status
+                      ? "bg-[#5b7288] border-[#5b7288] text-white"
+                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {voucherStatusLabel(status)}
+                </button>
+              ))}
+            </div>
+
+            {voucherView.error ? (
+              <div className="mt-4 rounded-2xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">
+                {voucherView.error}
+              </div>
+            ) : null}
+
+            <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
+              <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-slate-600">
+                  Voucher Ledger
+                </p>
+                <p className="text-xs text-slate-500">{voucherView.rows.length} record(s)</p>
+              </div>
+
+              {voucherView.loading ? (
+                <div className="p-8 text-center text-sm text-slate-500">Loading vouchers...</div>
+              ) : voucherView.rows.length === 0 ? (
+                <div className="p-8 text-center text-sm text-slate-500">
+                  No {voucherStatusLabel(voucherView.status).toLowerCase()} vouchers found.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="bg-white text-[10px] uppercase tracking-widest text-slate-500">
+                      <tr>
+                        <th className="border-b border-slate-200 px-4 py-3">Code</th>
+                        <th className="border-b border-slate-200 px-4 py-3">Reward</th>
+                        <th className="border-b border-slate-200 px-4 py-3">Type</th>
+                        <th className="border-b border-slate-200 px-4 py-3">Issued</th>
+                        <th className="border-b border-slate-200 px-4 py-3">Expires</th>
+                        <th className="border-b border-slate-200 px-4 py-3">Redeemed</th>
+                        <th className="border-b border-slate-200 px-4 py-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {voucherView.rows.map((voucher) => (
+                        <tr key={voucher.id} className="text-slate-700">
+                          <td className="px-4 py-3 font-mono text-xs">{voucher.code || voucher.id}</td>
+                          <td className="px-4 py-3 min-w-[260px]">{voucher.reward_text || "Voucher"}</td>
+                          <td className="px-4 py-3 capitalize">{voucher.reward_type || "standard"}</td>
+                          <td className="px-4 py-3">{displayDate(voucher.issued_at)}</td>
+                          <td className="px-4 py-3">{displayDate(voucher.expires_at)}</td>
+                          <td className="px-4 py-3">{displayDateTime(voucher.redeemed_at)}</td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] uppercase tracking-widest text-slate-600">
+                              {voucherStatusLabel(getVoucherStatus(voucher))}
+                            </span>
+                          </td>
                         </tr>
                       ))}
                     </tbody>

@@ -24,8 +24,7 @@ const DISPLAY_SLIDES = [
   "https://images.jujabrewandbites.com/TV_LOYALTY.png",
   "https://images.jujabrewandbites.com/TV_NUTELLA%20MT.png",
   "https://images.jujabrewandbites.com/TV_PARFAIT.png",
-  "https://images.jujabrewandbites.com/TV_PET%20FRIENDLY.png",
-  "https://images.jujabrewandbites.com/TV_PET%20FRIENDLY.png",
+  "https://images.jujabrewandbites.com/TV_PET%20FRIENDLY.png",  
   "https://images.jujabrewandbites.com/TV_TAIWAN.png",
   "https://images.jujabrewandbites.com/TV_UNLI%20WINGS.png",
 ];
