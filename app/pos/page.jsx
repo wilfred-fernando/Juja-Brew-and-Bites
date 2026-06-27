@@ -2897,21 +2897,24 @@ export default function POSPage() {
     showToast("info", "Charge Web Order", "Select payment details to complete this web order.");
   }
 
-  async function createPointRewardVouchers(memberId, lifetimePoints) {
+  async function createPointRewardVouchers(memberId, availablePoints) {
     if (!memberId) return;
-    const earnedVoucherCount = Math.floor(Number(lifetimePoints || 0) / 100);
+    const earnedVoucherCount = Math.floor(Number(availablePoints || 0) / 100);
     if (earnedVoucherCount <= 0) return;
 
     const { data: existing, error } = await supabase
       .from("vouchers")
-      .select("id, code, reward_text, reward_type")
+      .select("id, code, reward_text, reward_type, status, expires_at, redeemed_at")
       .eq("member_id", memberId);
     if (error) return;
 
     const existingPointsVouchers = (existing || []).filter((v) => {
       const code = String(v.code || "").toUpperCase();
       const rewardText = String(v.reward_text || "").toLowerCase();
-      return v.reward_type === "points" || code.startsWith("PTS") || rewardText.includes("100 points");
+      const isPoints = v.reward_type === "points" || code.startsWith("PTS") || rewardText.includes("100 points");
+      const status = String(v.status || "").toLowerCase();
+      const expMs = v.expires_at ? new Date(v.expires_at).getTime() : 0;
+      return isPoints && status !== "redeemed" && status !== "expired" && !v.redeemed_at && (!expMs || expMs > Date.now());
     }).length;
     const missingCount = earnedVoucherCount - existingPointsVouchers;
     if (missingCount <= 0) return;
@@ -2962,7 +2965,7 @@ export default function POSPage() {
         })
         .eq("id", activeMember.id);
 
-      await createPointRewardVouchers(activeMember.id, nextBalance);
+      await createPointRewardVouchers(activeMember.id, nextAvailable);
     } catch (err) {
       console.warn("Loyalty point update skipped:", err);
     }

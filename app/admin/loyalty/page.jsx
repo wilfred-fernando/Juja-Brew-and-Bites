@@ -215,6 +215,23 @@ export default function LoyaltyAdminPage() {
     setVoucherView({ open: true, loading: true, member, status, rows: [], error: "" });
 
     try {
+      if (status === "available" && member?.id) {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const accessToken = sessionData?.session?.access_token;
+          await fetch("/api/admin/loyalty-point-vouchers", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+            },
+            body: JSON.stringify({ memberId: member.id }),
+          });
+        } catch (voucherErr) {
+          console.warn("Voucher allocation refresh skipped:", voucherErr?.message || voucherErr);
+        }
+      }
+
       const { data, error } = await supabase
         .from("vouchers")
         .select("id, member_id, code, reward_text, reward_type, status, issued_at, expires_at, redeemed_at")

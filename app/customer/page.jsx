@@ -1863,6 +1863,16 @@ function LoyaltyTab({ member, setMember, user }) {
     return v?.reward_type === "points" || code.startsWith("PTS") || rt.includes("100 points");
   };
 
+  const isUsablePointsVoucher = (v) => {
+    if (!isPointsVoucher(v)) return false;
+    const status = String(v?.status || "").toLowerCase();
+    const expMs = v?.expires_at ? new Date(v.expires_at).getTime() : 0;
+    if (status === "redeemed" || v?.redeemed_at) return false;
+    if (status === "expired") return false;
+    if (expMs && expMs <= Date.now()) return false;
+    return true;
+  };
+
   useEffect(() => {
     async function createBirthdayVoucherIfNeeded() {
       if (!member?.id || !member?.Note) return;
@@ -1899,17 +1909,17 @@ function LoyaltyTab({ member, setMember, user }) {
       if (!member?.id) return;
       if (!member?.user_id || String(member.user_id) !== String(user?.id)) return;
       const activeMember = applyAnnualPointResetToMember(member);
-      const lifetimePoints = Number(activeMember?.["Points balance"] || activeMember?.["Available points"] || 0);
-      const earnedVoucherCount = Math.floor(lifetimePoints / 100);
+      const availablePoints = Number(activeMember?.["Available points"] || 0);
+      const earnedVoucherCount = Math.floor(availablePoints / 100);
       if (earnedVoucherCount <= 0) return;
 
       const { data: existing, error } = await supabase
         .from("vouchers")
-        .select("id, code, reward_text, reward_type")
+        .select("id, code, reward_text, reward_type, status, expires_at, redeemed_at")
         .eq("member_id", member.id);
       if (error) return;
 
-      const existingPointsVouchers = (existing || []).filter(isPointsVoucher).length;
+      const existingPointsVouchers = (existing || []).filter(isUsablePointsVoucher).length;
       const missingCount = earnedVoucherCount - existingPointsVouchers;
       if (missingCount <= 0) return;
 
