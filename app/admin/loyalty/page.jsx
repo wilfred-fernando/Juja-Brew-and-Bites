@@ -1190,21 +1190,7 @@ export default function LoyaltyAdminPage() {
             onClick={() => openVoucherList(member, "available")}
             className="px-3 py-2 bg-emerald-50 border border-emerald-100 text-xs text-emerald-700 rounded-xl hover:bg-emerald-100 active:scale-95"
           >
-            Available Vouchers
-          </button>
-
-          <button
-            onClick={() => openVoucherList(member, "expired")}
-            className="px-3 py-2 bg-amber-50 border border-amber-100 text-xs text-amber-700 rounded-xl hover:bg-amber-100 active:scale-95"
-          >
-            Expired Vouchers
-          </button>
-
-          <button
-            onClick={() => openVoucherList(member, "redeemed")}
-            className="px-3 py-2 bg-sky-50 border border-sky-100 text-xs text-sky-700 rounded-xl hover:bg-sky-100 active:scale-95"
-          >
-            Redeemed Vouchers
+            Vouchers
           </button>
 
           <button
