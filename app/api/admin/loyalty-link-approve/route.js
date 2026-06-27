@@ -61,6 +61,31 @@ async function requireAdmin(adminClient) {
   return { allowed: true, requester };
 }
 
+async function approveExistingRequest(admin, requestId, chosenMemberId) {
+  const { error } = await admin
+    .from("loyalty_link_requests")
+    .update({
+      status: "approved",
+      matched_member_id: chosenMemberId,
+      approved_at: new Date().toISOString(),
+    })
+    .eq("id", requestId);
+
+  if (error) throw error;
+
+  const [voucherResult, welcomeResult] = await Promise.all([
+    createMissingPointRewardVouchers(admin, chosenMemberId),
+    createWelcomeVoucherIfNeeded(admin, chosenMemberId),
+  ]);
+
+  return {
+    success: true,
+    alreadyLinked: true,
+    pointVouchersCreated: voucherResult.created || 0,
+    welcomeVoucherCreated: welcomeResult.created || 0,
+  };
+}
+
 export async function POST(req) {
   try {
     const { url, serviceRoleKey } = supabaseConfig();
@@ -103,6 +128,9 @@ export async function POST(req) {
     if (!memberRow?.id) {
       return Response.json({ error: "Selected loyalty member was not found." }, { status: 404 });
     }
+    if (String(memberRow.user_id || "") === String(linkRequest.user_id)) {
+      return Response.json(await approveExistingRequest(admin, requestId, chosenMemberId));
+    }
     if (memberRow.user_id) {
       return Response.json({ error: "This loyalty member is already linked. Unlink first." }, { status: 409 });
     }
@@ -114,6 +142,9 @@ export async function POST(req) {
       .maybeSingle();
 
     if (existingMemberForUserError) throw existingMemberForUserError;
+    if (String(existingMemberForUser?.id || "") === String(chosenMemberId)) {
+      return Response.json(await approveExistingRequest(admin, requestId, chosenMemberId));
+    }
     if (existingMemberForUser?.id) {
       return Response.json({
         error: `This customer account is already linked to ${existingMemberForUser.customer_name || "another loyalty member"} (${existingMemberForUser.customer_code || existingMemberForUser.id}). Unlink first.`,
@@ -127,6 +158,9 @@ export async function POST(req) {
       .maybeSingle();
 
     if (profileError) throw profileError;
+    if (String(existingProfile?.loyalty_account_id || "") === String(chosenMemberId)) {
+      return Response.json(await approveExistingRequest(admin, requestId, chosenMemberId));
+    }
     if (existingProfile?.loyalty_account_id) {
       return Response.json({
         error: `This user already has loyalty_account_id = ${existingProfile.loyalty_account_id}. Unlink first.`,

@@ -418,23 +418,50 @@ export default function LoyaltyAdminPage() {
     }
 
     const reqs = data || [];
-    setLinkRequests(reqs);
-
     const userIds = Array.from(new Set(reqs.map((r) => r.user_id).filter(Boolean)));
+    const matchedMemberIds = Array.from(new Set(reqs.map((r) => r.matched_member_id).filter(Boolean)));
+    let profileMap = {};
+    let linkedMemberMap = {};
+
     if (userIds.length > 0) {
       const { data: pData, error: pErr } = await supabase
         .from("profiles")
-        .select("id,email,full_name")
+        .select("id,email,full_name,loyalty_account_id")
         .in("id", userIds);
 
       if (!pErr) {
-        const map = {};
         (pData || []).forEach((p) => {
-          map[p.id] = { full_name: p.full_name || "", email: p.email || "" };
+          profileMap[p.id] = {
+            full_name: p.full_name || "",
+            email: p.email || "",
+            loyalty_account_id: p.loyalty_account_id || "",
+          };
         });
-        setProfilesById(map);
+        setProfilesById(profileMap);
       }
     }
+
+    if (matchedMemberIds.length > 0) {
+      const { data: memberData } = await supabase
+        .from("loyalty_members")
+        .select("id,user_id")
+        .in("id", matchedMemberIds);
+
+      (memberData || []).forEach((member) => {
+        linkedMemberMap[member.id] = member.user_id || "";
+      });
+    }
+
+    const unresolvedReqs = reqs.filter((req) => {
+      const profile = profileMap[req.user_id];
+      const profileAlreadyLinked = profile?.loyalty_account_id && (
+        !req.matched_member_id || String(profile.loyalty_account_id) === String(req.matched_member_id)
+      );
+      const memberAlreadyLinked = req.matched_member_id && String(linkedMemberMap[req.matched_member_id] || "") === String(req.user_id || "");
+      return !(profileAlreadyLinked || memberAlreadyLinked);
+    });
+
+    setLinkRequests(unresolvedReqs);
 
     setLoadingRequests(false);
   }
