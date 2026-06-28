@@ -1868,7 +1868,9 @@ export default function POSPage() {
 
   const diningOptionName = selectedDining?.name || "";
   const isGrabDiningOption = /grab/i.test(diningOptionName || "");
-  const trimmedGrabOrderNumber = String(grabOrderNumber || "").trim();
+  const trimmedGrabOrderNumber = String(grabOrderNumber || "")
+    .trim()
+    .replace(/^grab[\s-]*/i, "");
   const ticketDiningLabel = isGrabDiningOption && trimmedGrabOrderNumber ? `${diningOptionName} ${trimmedGrabOrderNumber}` : diningOptionName;
   const getResolvedBranchId = () => {
     if (activeWebOrderBranchId) return activeWebOrderBranchId;
@@ -5000,12 +5002,12 @@ export default function POSPage() {
             
             {/* Catalog Controller Sorting filters bars */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-50 pb-3">
-              <label className="relative w-full sm:w-64">
+              <label className="relative w-full sm:w-80">
                 <span className="sr-only">Category</span>
                 <select
                   value={activeCategory}
                   onChange={(e) => setActiveCategory(e.target.value)}
-                  className="h-10 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 pr-9 text-xs font-bold text-slate-700 outline-none transition focus:border-rose-200 focus:bg-white"
+                  className="h-12 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 pr-9 text-[14px] font-bold text-slate-700 outline-none transition focus:border-rose-200 focus:bg-white"
                 >
                   <option value="">Featured Menu Items</option>
                   {categories.map((cat) => (
@@ -5017,13 +5019,13 @@ export default function POSPage() {
                 <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500">▼</span>
               </label>
               
-              <div className="relative w-full sm:w-64">
+              <div className="relative w-full sm:w-100">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
                 <input
                   value={menuSearch}
                   onChange={(e) => setMenuSearch(e.target.value)}
                   placeholder="Search catalogue items..."
-                  className="w-full pl-9 pr-4 py-2.5 bg-slate-50 rounded-xl text-xs font-semibold text-slate-700 outline-none border border-slate-200 focus:bg-white focus:border-rose-200 transition"
+                  className="w-full pl-9 pr-4 py-4 bg-slate-50 rounded-xl text-[12px] font-semibold text-slate-700 outline-none border border-slate-200 focus:bg-white focus:border-rose-200 transition"
                 />
               </div>
             </div>

@@ -41,6 +41,7 @@ export default function TicketPanel({
   onCloseMobile,
   onOpenPosMenu,
   pendingCount = 0,
+  ticketTitle,
 }) {
   const [showManageDropdown, setShowManageDropdown] = useState(false);
 
@@ -74,7 +75,7 @@ export default function TicketPanel({
 
           {/* ✅ FIX: show name instead of ID */}
           <h2 className="text-xl font-bold tracking-tight text-slate-800 mt-0.5">
-            {selectedDining?.name || "Select Table"}
+            {ticketTitle || selectedDining?.name || "Select Table"}
           </h2>
 
           <p
