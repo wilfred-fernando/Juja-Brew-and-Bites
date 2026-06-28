@@ -1947,8 +1947,11 @@ export default function POSPage() {
     [receiptItemRows, selectedReceipt]
   );
   const shiftSummary = useMemo(() => {
-    const rows = receiptRows || [];
+    const todayKey = formatDate(new Date());
+    const rows = (receiptRows || []).filter((row) => !row.created_at || formatDate(row.created_at) === todayKey);
     const isRefunded = (r) => String(r.status || "").toLowerCase().includes("refund");
+    const saleRows = rows.filter((r) => !isRefunded(r));
+    const refundRows = rows.filter(isRefunded);
     const paymentTotal = (needle) =>
       rows
         .filter((r) => String(r.payment_type || "").toLowerCase().includes(needle.toLowerCase()))
@@ -1959,7 +1962,15 @@ export default function POSPage() {
       .filter((r) => String(r.payment_type || "").toLowerCase().includes("cash"))
       .filter(isRefunded)
       .reduce((sum, r) => sum + Number(r.total_collected || 0), 0);
+    const grossSales = saleRows.reduce((sum, r) => sum + Number(r.gross_sales || r.total_collected || r.net_sales || 0), 0);
+    const discounts = saleRows.reduce((sum, r) => sum + Number(r.discounts || r.discount || 0), 0);
+    const refunds = refundRows.reduce((sum, r) => sum + Math.abs(Number(r.refund_amount || r.net_sales || r.total_collected || 0)), 0);
+    const netSales = saleRows.reduce((sum, r) => sum + Number(r.net_sales || r.total_collected || 0), 0) - refunds;
     return {
+      grossSales,
+      refunds,
+      discounts,
+      netSales,
       cashPayments,
       cashRefunds,
       expectedCash: Number(startingCash || 0) + cashPayments - cashRefunds,
@@ -3127,10 +3138,17 @@ export default function POSPage() {
     return normalizedMember;
   }
 
-  async function awardWebOrderLoyaltyPoints(order, pointsEarned) {
-    if (!order?.user_id || !pointsEarned) return;
+  async function awardWebOrderLoyaltyPoints(order, pointsEarned, fallbackMemberId = null) {
+    if (!pointsEarned) return;
 
     try {
+      const directMemberId = fallbackMemberId || order?.loyalty_member_id || order?.customer_id || null;
+      if (directMemberId) {
+        await awardMemberLoyaltyPoints(directMemberId, pointsEarned);
+        return;
+      }
+
+      if (!order?.user_id) return;
       const { data: member, error: findErr } = await supabase
         .from("loyalty_members")
         .select("*")
@@ -3215,8 +3233,9 @@ export default function POSPage() {
       }));
     const rows = [...posRows, ...webRows].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
     setReceiptRows(rows);
-    const activeReceipt = rows.some((row) => row.receipt_number === selectedReceiptNumber) ? selectedReceiptNumber : rows[0]?.receipt_number || "";
-    setSelectedReceiptNumber(activeReceipt);
+    setSelectedReceiptNumber((current) =>
+      rows.some((row) => row.receipt_number === current) ? current : rows[0]?.receipt_number || ""
+    );
 
     const posOrderIds = posRows.map((r) => r.order_id).filter(Boolean);
     const receiptNumberByOrderId = new Map(posRows.map((row) => [String(row.order_id), row.receipt_number]));
@@ -4062,6 +4081,8 @@ export default function POSPage() {
             receipt_date: receiptRow.receipt_date || null,
             payment_method: paymentLabel,
             payment_status: "paid",
+            customer_id: attachedCustomer?.id || activeWebOrder?.customer_id || null,
+            customer_name: attachedCustomer?.name || activeWebOrder?.customer_name || null,
             items: enrichOrderItemsForKds(cart),
             subtotal: Number(subtotal),
             total: total
@@ -4070,7 +4091,7 @@ export default function POSPage() {
 
         await markKdsTicketStatus(supabase, { sourceType: "web", sourceId: activeWebOrderId, status: "completed" });
 
-        await awardWebOrderLoyaltyPoints(activeWebOrder, calcLoyaltyPoints(total));
+        await awardWebOrderLoyaltyPoints(activeWebOrder, calcLoyaltyPoints(total), attachedCustomer?.id);
       } else {
         if (attachedCustomer?.id) {
           try {
@@ -4654,6 +4675,20 @@ export default function POSPage() {
 
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-3">
                 <h3 className="text-sm font-black text-slate-800">Sales Summary</h3>
+                {[
+                  ["Gross sales", shiftSummary.grossSales],
+                  ["Refunds", shiftSummary.refunds],
+                  ["Discounts", shiftSummary.discounts],
+                  ["Net sales", shiftSummary.netSales],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex justify-between rounded-lg bg-white border border-slate-100 p-2 text-xs font-bold">
+                    <span className="text-slate-500">{label}</span>
+                    <span className={label === "Refunds" || label === "Discounts" ? "text-rose-600" : label === "Net sales" ? "text-cyan-700" : "text-slate-900"}>
+                      {peso2(value)}
+                    </span>
+                  </div>
+                ))}
+                <div className="border-t border-slate-200" />
                 {Object.entries(shiftSummary.payments).map(([label, value]) => (
                   <div key={label} className="flex justify-between rounded-lg bg-white border border-slate-100 p-2 text-xs font-bold">
                     <span className="text-slate-500">{label}</span><span>{peso2(value)}</span>
