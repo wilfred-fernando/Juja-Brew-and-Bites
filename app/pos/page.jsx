@@ -3090,7 +3090,7 @@ export default function POSPage() {
     await supabase.from("vouchers").insert(rows);
   }
 
-  async function awardMemberLoyaltyPoints(memberOrId, pointsEarned) {
+  async function awardMemberLoyaltyPoints(memberOrId, pointsEarned, saleTotal = 0) {
     const memberId = typeof memberOrId === "string" ? memberOrId : memberOrId?.id;
     if (!memberId || !pointsEarned) return null;
 
@@ -3109,8 +3109,11 @@ export default function POSPage() {
     const currentBalance = Number(activeMember["Points balance"] || 0);
     const currentAvailable = Number(activeMember["Available points"] || 0);
     const currentVisits = Number(activeMember["Total visits"] || 0);
+    const currentSpent = Number(activeMember["Total spent"] || 0);
     const nextBalance = Number((currentBalance + pointsEarned).toFixed(2));
     const nextAvailable = Number((currentAvailable + pointsEarned).toFixed(2));
+    const nextSpent = Number((currentSpent + Number(saleTotal || 0)).toFixed(2));
+    const visitStamp = new Date().toISOString();
 
     const { data: updatedMember, error: updateErr } = await supabase
       .from("loyalty_members")
@@ -3118,19 +3121,23 @@ export default function POSPage() {
         "Points balance": nextBalance,
         "Available points": nextAvailable,
         "Total visits": currentVisits + 1,
+        "Total spent": nextSpent,
+        "First visit": activeMember["First visit"] || visitStamp,
+        "Last visit": visitStamp,
       })
       .eq("id", activeMember.id)
       .select("*")
       .maybeSingle();
 
     if (updateErr) throw updateErr;
+    if (!updatedMember?.id) throw new Error("Loyalty member was not updated. Please reselect the customer and try again.");
 
     const normalizedMember = {
-      ...(updatedMember || activeMember),
-      name: (updatedMember || activeMember).customer_name || (updatedMember || activeMember).name || "",
-      code: (updatedMember || activeMember).customer_code || (updatedMember || activeMember).code || "",
-      availablePoints: (updatedMember || activeMember)["Available points"] ?? 0,
-      pointsBalance: (updatedMember || activeMember)["Points balance"] ?? 0,
+      ...updatedMember,
+      name: updatedMember.customer_name || updatedMember.name || "",
+      code: updatedMember.customer_code || updatedMember.code || "",
+      availablePoints: updatedMember["Available points"] ?? 0,
+      pointsBalance: updatedMember["Points balance"] ?? 0,
     };
 
     setCustomers((prev) => prev.map((row) => (row.id === activeMember.id ? { ...row, ...normalizedMember } : row)));
@@ -3146,7 +3153,7 @@ export default function POSPage() {
     try {
       const directMemberId = fallbackMemberId || order?.loyalty_member_id || order?.customer_id || null;
       if (directMemberId) {
-        await awardMemberLoyaltyPoints(directMemberId, pointsEarned);
+        await awardMemberLoyaltyPoints(directMemberId, pointsEarned, order?.total || order?.subtotal || 0);
         return;
       }
 
@@ -3158,7 +3165,7 @@ export default function POSPage() {
         .maybeSingle();
 
       if (findErr || !member) return;
-      await awardMemberLoyaltyPoints(member.id, pointsEarned);
+      await awardMemberLoyaltyPoints(member.id, pointsEarned, order?.total || order?.subtotal || 0);
     } catch (err) {
       console.warn("Loyalty point update skipped:", err);
     }
@@ -4028,6 +4035,7 @@ export default function POSPage() {
           branch_id: resolvedBranchId,
           customer_id: attachedCustomer?.id || null,
           loyalty_member_id: attachedCustomer?.id || null,
+          customer_name: attachedCustomer?.name || null,
           items: enrichOrderItemsForKds(cart),
           subtotal: grossTotal,
           total,
@@ -4113,7 +4121,7 @@ export default function POSPage() {
       } else {
         if (attachedCustomer?.id) {
           try {
-            await awardMemberLoyaltyPoints(attachedCustomer.id, calcLoyaltyPoints(total));
+            await awardMemberLoyaltyPoints(attachedCustomer.id, calcLoyaltyPoints(total), total);
           } catch (loyaltyError) {
             showToast("warn", "Loyalty Points Not Added", loyaltyError?.message || "Sale completed, but loyalty points need review.");
           }

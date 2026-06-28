@@ -763,15 +763,16 @@ export default function AdminSalesPage() {
     const start = `${comparisonRange.startDate}T00:00:00+08:00`;
     const fetchEnd = `${addDays(nextFilters.endDate, 1)}T12:00:00+08:00`;
     try {
-      const [orders, webOrders, menuRes, storesRes, profilesRes, shiftRecords] = await Promise.all([
+      const [orders, webOrders, menuRes, storesRes, profilesRes, loyaltyRes, shiftRecords] = await Promise.all([
         fetchAllRows(() => supabase.from("orders").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: false })),
         fetchAllRows(() => supabase.from("web_orders").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: false })),
         supabase.from("menu_items").select("id,name,category,price"),
         supabase.from("stores").select("id,name").order("name"),
         supabase.from("profiles").select("id,full_name,email,role"),
+        supabase.from("loyalty_members").select("id,customer_name,customer_code,\"Customer ID\""),
         fetchAllRows(() => supabase.from("cashier_pos").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: true })),
       ]);
-      const errors = [menuRes.error, storesRes.error, profilesRes.error].filter(Boolean);
+      const errors = [menuRes.error, storesRes.error, profilesRes.error, loyaltyRes.error].filter(Boolean);
       if (errors.length) throw errors[0];
 
       const orderItems = ["items", "categories", "modifiers", "receipts", "exports"].includes(reportTab)
@@ -785,6 +786,7 @@ export default function AdminSalesPage() {
         menuItems: menuRes.data || [],
         profiles: profilesRes.data || [],
         stores: storesRes.data || [],
+        loyaltyMembers: loyaltyRes.data || [],
         shiftRecords,
       });
       setRawData({

@@ -58,7 +58,26 @@ async function main() {
       where tgrelid = 'public.loyalty_members'::regclass
         and tgname = 'trg_generate_loyalty_customer_code'
     `);
-    console.log(JSON.stringify({ columns: columns.rows, constraints: constraints.rows, samples: samples.rows, sequence: sequence.rows[0], trigger: trigger.rows[0] }, null, 2));
+    const rls = await client.query(`
+      select relrowsecurity, relforcerowsecurity
+      from pg_class
+      where oid = 'public.loyalty_members'::regclass
+    `);
+    const policies = await client.query(`
+      select polname, polcmd, polroles::regrole[]::text as roles, pg_get_expr(polqual, polrelid) as using, pg_get_expr(polwithcheck, polrelid) as with_check
+      from pg_policy
+      where polrelid = 'public.loyalty_members'::regclass
+      order by polname
+    `);
+    const orderCustomerColumns = await client.query(`
+      select column_name, data_type
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'orders'
+        and column_name in ('customer_id', 'loyalty_member_id', 'customer_name', 'customer_code')
+      order by ordinal_position
+    `);
+    console.log(JSON.stringify({ columns: columns.rows, constraints: constraints.rows, samples: samples.rows, sequence: sequence.rows[0], trigger: trigger.rows[0], rls: rls.rows[0], policies: policies.rows, orderCustomerColumns: orderCustomerColumns.rows }, null, 2));
   } finally {
     await client.end();
   }
