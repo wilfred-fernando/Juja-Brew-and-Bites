@@ -166,21 +166,21 @@ export default function CustomerOrderDisplayPage() {
                   >
                     <div className="flex items-center justify-between gap-4">
                       <div className="min-w-0">
-                        <p className="truncate text-3xl font-black uppercase tracking-tight text-slate-950">{order.dining_option}</p>
-                        <div className="mt-2 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-500">
-                          <Clock3 className="h-4 w-4" />
+                        <p className="truncate text-[20px] font-bold uppercase tracking-tight text-slate-950">{order.dining_option}</p>
+                        <div className="mt-.5 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-600">
+                          <Clock3 className="h-2 w-2" />
                           {displayTime(order.updated_at)}
                         </div>
                       </div>
                       <div className="shrink-0 text-right">
                         <span
-                          className={`inline-flex px-4 py-2 text-sm font-black rounded-full uppercase tracking-[0.14em] ${
+                          className={`inline-flex px-2 py-1 text-[12px] font-bold rounded-full uppercase tracking-[0.05em] ${
                             order.status === "served" ? "bg-red-600 text-white" : "bg-emerald-500 text-white"
                           }`}
                         >
                           {order.status === "served" ? "Served" : "Preparing"}
                         </span>
-                        <p className="mt-2 text-center text-2xl font-black text-slate-950">{itemLabel(order.item_count)}</p>
+                        <p className="mt-1 text-center text-[14px] font-bold text-slate-950">{itemLabel(order.item_count)}</p>
                       </div>
                     </div>
                   </div>
