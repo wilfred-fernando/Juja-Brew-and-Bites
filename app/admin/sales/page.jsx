@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Area,
@@ -64,147 +64,7 @@ const supabase = getSupabaseClient();
 const DEFAULT_ROWS_PER_PAGE = 10;
 const ROWS_PER_PAGE_OPTIONS = [10, 25, 50, 100];
 const SUPABASE_PAGE_SIZE = 1000;
-const IMPORTED_RECEIPT_SELECT = [
-  "id",
-  "receipt_date",
-  "receipt_day",
-  "receipt_number",
-  "receipt_type",
-  "gross_sales",
-  "discounts",
-  "net_sales",
-  "refund_amount",
-  "total_collected",
-  "payment_type",
-  "dining_option",
-  "pos",
-  "store_name",
-  "cashier_name",
-  "customer_name",
-  "status",
-  "order_count",
-].join(",");
-const IMPORTED_SALES_SUMMARY_SELECT = [
-  "id",
-  "receipt_date",
-  "receipt_day",
-  "receipt_type",
-  "gross_sales",
-  "discounts",
-  "net_sales",
-  "refund_amount",
-  "payment_type",
-  "dining_option",
-  "store_name",
-  "cashier_name",
-  "customer_name",
-  "status",
-  "order_count",
-].join(",");
-const IMPORTED_RECEIPT_ITEM_SELECT = [
-  "id",
-  "row_hash",
-  "receipt_date",
-  "receipt_day",
-  "receipt_number",
-  "receipt_type",
-  "category",
-  "sku",
-  "item",
-  "variant",
-  "quantity",
-  "gross_sales",
-  "discounts",
-  "net_sales",
-  "dining_option",
-  "store_name",
-  "status",
-].join(",");
-const IMPORTED_SHIFT_SELECT = [
-  "id",
-  "store_name",
-  "pos",
-  "shift_number",
-  "shift_opening_time",
-  "shift_opened",
-  "shift_closing_time",
-  "shift_closed",
-  "starting_cash",
-  "cash_payments",
-  "cash_refunds",
-  "paid_in",
-  "paid_out",
-  "expected_cash_amount",
-  "actual_cash_amount",
-  "difference",
-].join(",");
 const SHIFT_DIFF_TOLERANCE = 1;
-
-function needsImportedLineItems(tab) {
-  return ["items", "categories", "modifiers"].includes(tab);
-}
-
-function needsRawImportedReceipts(tab) {
-  return ["receipts", "exports"].includes(tab);
-}
-
-function normalizeStoreLookup(value) {
-  return String(value || "").trim().toLowerCase();
-}
-
-function storeIdForImportedRow(row, stores = []) {
-  const storeName = row.store_name || row.storeName || "Imported store";
-  const store = stores.find((item) => normalizeStoreLookup(item.name) === normalizeStoreLookup(storeName));
-  return store?.id ? String(store.id) : `import:${storeName}`;
-}
-
-function matchesReportFilter(value, selected) {
-  return selected === "All" || !selected || String(value) === String(selected);
-}
-
-function mergeProductReportRows(rows, totalNet = 0) {
-  const map = new Map();
-  rows.forEach((row) => {
-    const key = row.productId || row.productName;
-    const current = map.get(key) || {
-      productId: key,
-      productName: row.productName,
-      category: row.category,
-      quantity: 0,
-      gross: 0,
-      discount: 0,
-      net: 0,
-    };
-    current.quantity += Number(row.quantity || 0);
-    current.gross += Number(row.gross || 0);
-    current.discount += Number(row.discount || 0);
-    current.net += Number(row.net || 0);
-    map.set(key, current);
-  });
-  return Array.from(map.values())
-    .map((row) => ({
-      ...row,
-      averageSellingPrice: row.quantity ? row.net / row.quantity : 0,
-      share: totalNet ? (row.net / totalNet) * 100 : 0,
-    }))
-    .sort((a, b) => b.net - a.net);
-}
-
-function mergeCategoryReportRows(rows, totalNet = 0) {
-  const map = new Map();
-  rows.forEach((row) => {
-    const key = row.category || "Uncategorized";
-    const current = map.get(key) || { category: key, quantity: 0, gross: 0, net: 0, orderCount: 0 };
-    current.quantity += Number(row.quantity || 0);
-    current.gross += Number(row.gross || 0);
-    current.net += Number(row.net || 0);
-    current.orderCount += Number(row.orderCount || 0);
-    map.set(key, current);
-  });
-  return Array.from(map.values())
-    .map((row) => ({ ...row, share: totalNet ? (row.net / totalNet) * 100 : 0 }))
-    .sort((a, b) => b.net - a.net);
-}
 
 async function fetchAllRows(buildQuery, pageSize = SUPABASE_PAGE_SIZE) {
   const rows = [];
@@ -215,64 +75,6 @@ async function fetchAllRows(buildQuery, pageSize = SUPABASE_PAGE_SIZE) {
     rows.push(...(data || []));
     if (!data || data.length < pageSize) break;
   }
-  return rows;
-}
-
-function yearsForRange(startDate, endDate) {
-  const startYear = Number(String(startDate || "").slice(0, 4));
-  const endYear = Number(String(endDate || startDate || "").slice(0, 4));
-  if (!startYear || !endYear) return [];
-  return Array.from({ length: endYear - startYear + 1 }, (_, index) => startYear + index);
-}
-
-function clampDate(value, min, max) {
-  if (value < min) return min;
-  if (value > max) return max;
-  return value;
-}
-
-function isMissingReportTableError(error) {
-  const message = String(error?.message || "").toLowerCase();
-  return error?.code === "42P01" || error?.code === "PGRST205" || message.includes("could not find the table") || message.includes("does not exist");
-}
-
-async function fetchImportedRowsByYear({ baseTable, select, startDate, endDate, orderColumn = "receipt_date", ascending = false }) {
-  const years = yearsForRange(startDate, endDate);
-  const rows = [];
-
-  for (const year of years) {
-    const yearStart = clampDate(`${year}-01-01`, startDate, endDate);
-    const yearEnd = clampDate(`${year}-12-31`, startDate, endDate);
-    const rangeStart = `${yearStart}T00:00:00+08:00`;
-    const rangeEnd = `${addDays(yearEnd, 1)}T12:00:00+08:00`;
-    const yearlyTable = `${baseTable}_${year}`;
-
-    try {
-      rows.push(
-        ...(await fetchAllRows(() =>
-          supabase
-            .from(yearlyTable)
-            .select(select)
-            .gte("receipt_date", rangeStart)
-            .lte("receipt_date", rangeEnd)
-            .order(orderColumn, { ascending })
-        ))
-      );
-    } catch (error) {
-      if (!isMissingReportTableError(error)) throw error;
-      rows.push(
-        ...(await fetchAllRows(() =>
-          supabase
-            .from(baseTable)
-            .select(select)
-            .gte("receipt_date", rangeStart)
-            .lte("receipt_date", rangeEnd)
-            .order(orderColumn, { ascending })
-        ))
-      );
-    }
-  }
-
   return rows;
 }
 
@@ -496,56 +298,6 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
     .filter((row) => row.rowDate >= filters.startDate && row.rowDate <= filters.endDate)
     .filter((row) => filters.branchId === "All" || String(row.storeId) === String(filters.branchId) || row.storeName === filters.branchId)
     .sort((a, b) => new Date(b.closedAt || 0) - new Date(a.closedAt || 0));
-}
-
-function buildImportedShiftRows(importedShifts = [], filters = defaultFilters()) {
-  return importedShifts
-    .map((record) => {
-      const openedAt = record.shift_opening_time;
-      const closedAt = record.shift_closing_time;
-      const rowDate = (openedAt || closedAt || "").slice(0, 10);
-      const cashPayments = num(record.cash_payments);
-      const cashRefunds = num(record.cash_refunds);
-      const paidIn = num(record.paid_in);
-      const paidOut = num(record.paid_out);
-      const expectedCash = num(record.expected_cash_amount, num(record.starting_cash) + cashPayments - cashRefunds + paidIn - paidOut);
-      const actualCash = num(record.actual_cash_amount);
-      const difference = num(record.difference, actualCash - expectedCash);
-      const grossSales = cashPayments;
-      const refunds = cashRefunds;
-      const discounts = 0;
-      return {
-        id: `imported-shift:${record.id}`,
-        source: "Imported",
-        shiftNumber: record.shift_number || "-",
-        storeId: record.store_name || "Imported",
-        storeName: record.store_name || "Imported store",
-        pos: record.pos || (record.store_name ? `Cashier - ${record.store_name}` : "Cashier"),
-        cashierName: record.shift_closed || record.shift_opened || "Imported cashier",
-        openedBy: record.shift_opened || "-",
-        closedBy: record.shift_closed || "-",
-        openedAt,
-        closedAt,
-        startingCash: num(record.starting_cash),
-        cashPayments,
-        cashRefunds,
-        paidIn,
-        paidOut,
-        expectedCash,
-        actualCash,
-        difference,
-        grossSales,
-        refunds,
-        discounts,
-        netSales: Math.max(0, grossSales - refunds - discounts),
-        payments: { Cash: cashPayments },
-        taxes: 0,
-        rowDate,
-      };
-    })
-    .filter((row) => row.rowDate >= filters.startDate && row.rowDate <= filters.endDate)
-    .filter((row) => filters.branchId === "All" || row.storeName === filters.branchId || row.storeId === filters.branchId)
-    .sort((a, b) => new Date(b.openedAt || b.closedAt || 0) - new Date(a.openedAt || a.closedAt || 0));
 }
 
 function ShiftsTable({ rows, page, rowsPerPage, onPageChange, onRowsPerPageChange, onSelect, onExport }) {
@@ -991,7 +743,7 @@ function ReceiptDrawer({ order, items = [], onClose }) {
 export default function AdminSalesPage() {
   const [activeTab, setActiveTab] = useState("summary");
   const [filters, setFilters] = useState(defaultFilters);
-  const [rawData, setRawData] = useState({ sales: [], lineItems: [], shiftRecords: [], importedShifts: [], stores: [], importedItemRows: [], importedCategoryRows: [], importedModifierRows: [] });
+  const [rawData, setRawData] = useState({ sales: [], lineItems: [], shiftRecords: [], stores: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -1000,13 +752,10 @@ export default function AdminSalesPage() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedShift, setSelectedShift] = useState(null);
   const [receiptDetailItems, setReceiptDetailItems] = useState([]);
-  const [importedLineItemsLoaded, setImportedLineItemsLoaded] = useState("");
-  const [importedReceiptMode, setImportedReceiptMode] = useState("summary");
+  const skippedInitialTabLoad = useRef(false);
   const searchParams = useSearchParams();
 
   async function loadData(nextFilters = filters, options = {}) {
-    const includeImportedItems = Boolean(options.includeImportedItems);
-    const includeRawImportedReceipts = Boolean(options.includeRawImportedReceipts);
     const reportTab = options.reportTab || activeTab;
     setLoading(true);
     setError("");
@@ -1014,50 +763,18 @@ export default function AdminSalesPage() {
     const start = `${comparisonRange.startDate}T00:00:00+08:00`;
     const fetchEnd = `${addDays(nextFilters.endDate, 1)}T12:00:00+08:00`;
     try {
-      const rpcRange = { p_start_date: nextFilters.startDate, p_end_date: nextFilters.endDate };
-      const importedItemsPromise = Promise.resolve([]);
-      const importedItemReportPromise = includeImportedItems && reportTab === "items"
-        ? supabase.rpc("get_imported_item_sales_report", rpcRange)
-        : Promise.resolve({ data: [], error: null });
-      const importedCategoryReportPromise = includeImportedItems && reportTab === "categories"
-        ? supabase.rpc("get_imported_category_sales_report", rpcRange)
-        : Promise.resolve({ data: [], error: null });
-      const importedModifierReportPromise = includeImportedItems && reportTab === "modifiers"
-        ? supabase.rpc("get_imported_modifier_sales_report", rpcRange)
-        : Promise.resolve({ data: [], error: null });
-      const importedReceiptsPromise = includeRawImportedReceipts
-        ? fetchImportedRowsByYear({
-            baseTable: "imported_sales_receipts",
-            select: IMPORTED_RECEIPT_SELECT,
-            startDate: nextFilters.startDate,
-            endDate: nextFilters.endDate,
-            ascending: false,
-          })
-        : fetchImportedRowsByYear({
-            baseTable: "imported_sales_summary",
-            select: IMPORTED_SALES_SUMMARY_SELECT,
-            startDate: nextFilters.startDate,
-            endDate: nextFilters.endDate,
-            ascending: false,
-          });
-      const [orders, webOrders, menuRes, storesRes, profilesRes, shiftRecords, importedShifts, importedReceipts, importedReceiptItems, importedItemReportRes, importedCategoryReportRes, importedModifierReportRes] = await Promise.all([
+      const [orders, webOrders, menuRes, storesRes, profilesRes, shiftRecords] = await Promise.all([
         fetchAllRows(() => supabase.from("orders").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: false })),
         fetchAllRows(() => supabase.from("web_orders").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: false })),
         supabase.from("menu_items").select("id,name,category,price"),
         supabase.from("stores").select("id,name").order("name"),
         supabase.from("profiles").select("id,full_name,email,role"),
         fetchAllRows(() => supabase.from("cashier_pos").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: true })),
-        fetchAllRows(() => supabase.from("imported_loyverse_shifts").select(IMPORTED_SHIFT_SELECT).gte("shift_opening_time", start).lte("shift_opening_time", fetchEnd).order("shift_opening_time", { ascending: false })),
-        importedReceiptsPromise,
-        importedItemsPromise,
-        importedItemReportPromise,
-        importedCategoryReportPromise,
-        importedModifierReportPromise,
       ]);
-      const errors = [menuRes.error, storesRes.error, profilesRes.error, importedItemReportRes.error, importedCategoryReportRes.error, importedModifierReportRes.error].filter(Boolean);
+      const errors = [menuRes.error, storesRes.error, profilesRes.error].filter(Boolean);
       if (errors.length) throw errors[0];
 
-      const orderItems = includeImportedItems && reportTab !== "modifiers"
+      const orderItems = ["items", "categories", "modifiers", "receipts", "exports"].includes(reportTab)
         ? await fetchOrderItems(orders.map((row) => row.id))
         : [];
 
@@ -1069,20 +786,12 @@ export default function AdminSalesPage() {
         profiles: profilesRes.data || [],
         stores: storesRes.data || [],
         shiftRecords,
-        importedReceipts,
-        importedReceiptItems,
       });
       setRawData({
         ...normalized,
         stores: storesRes.data || [],
         shiftRecords,
-        importedShifts,
-        importedItemRows: importedItemReportRes.data || [],
-        importedCategoryRows: importedCategoryReportRes.data || [],
-        importedModifierRows: importedModifierReportRes.data || [],
       });
-      setImportedLineItemsLoaded(includeImportedItems ? reportTab : "");
-      setImportedReceiptMode(includeRawImportedReceipts ? "raw" : "summary");
     } catch (err) {
       setError(err.message || "Unable to load sales report. Please try again.");
     } finally {
@@ -1105,23 +814,18 @@ export default function AdminSalesPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    loadData(filters, { includeImportedItems: needsImportedLineItems(activeTab), includeRawImportedReceipts: needsRawImportedReceipts(activeTab) });
+    loadData(filters);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (needsImportedLineItems(activeTab) && importedLineItemsLoaded !== activeTab && !loading) {
-      loadData(filters, { includeImportedItems: true, includeRawImportedReceipts: needsRawImportedReceipts(activeTab) });
+    if (!skippedInitialTabLoad.current) {
+      skippedInitialTabLoad.current = true;
+      return;
     }
+    loadData(filters, { reportTab: activeTab });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, importedLineItemsLoaded, loading]);
-
-  useEffect(() => {
-    if (needsRawImportedReceipts(activeTab) && importedReceiptMode !== "raw" && !loading) {
-      loadData(filters, { includeImportedItems: needsImportedLineItems(activeTab), includeRawImportedReceipts: true });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, importedReceiptMode, loading]);
+  }, [activeTab]);
 
   const filtered = useMemo(() => applyFilters(rawData, filters), [rawData, filters]);
   const searchedSales = useMemo(() => {
@@ -1131,43 +835,8 @@ export default function AdminSalesPage() {
   }, [filtered.sales, search]);
 
   const summary = useMemo(() => getSalesSummary(filtered.sales), [filtered.sales]);
-  const importedProductRows = useMemo(() => {
-    return (rawData.importedItemRows || [])
-      .map((row) => ({
-        productId: row.product_id || row.product_name,
-        productName: row.product_name || "Item",
-        category: row.category || "Uncategorized",
-        storeId: storeIdForImportedRow(row, rawData.stores),
-        quantity: Number(row.quantity || 0),
-        gross: Number(row.gross || 0),
-        discount: Number(row.discount || 0),
-        net: Number(row.net || 0),
-      }))
-      .filter((row) => matchesReportFilter(row.storeId, filters.branchId))
-      .filter((row) => matchesReportFilter(row.category, filters.categoryId))
-      .filter((row) => matchesReportFilter(row.productId, filters.productId));
-  }, [rawData.importedItemRows, rawData.stores, filters.branchId, filters.categoryId, filters.productId]);
-  const importedCategoryRows = useMemo(() => {
-    return (rawData.importedCategoryRows || [])
-      .map((row) => ({
-        category: row.category || "Uncategorized",
-        storeId: storeIdForImportedRow(row, rawData.stores),
-        quantity: Number(row.quantity || 0),
-        gross: Number(row.gross || 0),
-        net: Number(row.net || 0),
-        orderCount: Number(row.order_count || row.orderCount || 0),
-      }))
-      .filter((row) => matchesReportFilter(row.storeId, filters.branchId))
-      .filter((row) => matchesReportFilter(row.category, filters.categoryId));
-  }, [rawData.importedCategoryRows, rawData.stores, filters.branchId, filters.categoryId]);
-  const productRows = useMemo(() => {
-    const liveRows = getProductSalesReport(filtered.lineItems.filter((item) => item.source !== "Imported"), 0);
-    return mergeProductReportRows([...liveRows, ...importedProductRows], summary.net);
-  }, [filtered.lineItems, importedProductRows, summary.net]);
-  const categoryRows = useMemo(() => {
-    const liveRows = getCategorySalesReport(filtered.lineItems.filter((item) => item.source !== "Imported"), 0);
-    return mergeCategoryReportRows([...liveRows, ...importedCategoryRows], summary.net);
-  }, [filtered.lineItems, importedCategoryRows, summary.net]);
+  const productRows = useMemo(() => getProductSalesReport(filtered.lineItems, summary.net), [filtered.lineItems, summary.net]);
+  const categoryRows = useMemo(() => getCategorySalesReport(filtered.lineItems, summary.net), [filtered.lineItems, summary.net]);
   const paymentRows = useMemo(() => getPaymentReport(filtered.sales, summary.net), [filtered.sales, summary.net]);
   const discountRows = useMemo(() => getDiscountReport(filtered.sales), [filtered.sales]);
   const cashierRows = useMemo(() => getCashierReport(filtered.sales), [filtered.sales]);
@@ -1175,9 +844,8 @@ export default function AdminSalesPage() {
   const trendRows = useMemo(() => getSalesTrend(filtered.sales, filters.startDate, filters.endDate), [filtered.sales, filters.startDate, filters.endDate]);
   const shiftRows = useMemo(() => {
     const liveRows = buildShiftRows(rawData.shiftRecords || [], rawData.stores || [], filters);
-    const importedRows = buildImportedShiftRows(rawData.importedShifts || [], filters);
-    return [...liveRows, ...importedRows].sort((a, b) => new Date(b.openedAt || b.closedAt || 0) - new Date(a.openedAt || a.closedAt || 0));
-  }, [rawData.shiftRecords, rawData.stores, rawData.importedShifts, filters]);
+    return liveRows.sort((a, b) => new Date(b.openedAt || b.closedAt || 0) - new Date(a.openedAt || a.closedAt || 0));
+  }, [rawData.shiftRecords, rawData.stores, filters]);
   const pageRows = useMemo(() => searchedSales.slice((page - 1) * rowsPerPage, page * rowsPerPage), [searchedSales, page, rowsPerPage]);
   const selectedReceiptItems = receiptDetailItems;
 
@@ -1192,41 +860,15 @@ export default function AdminSalesPage() {
         setReceiptDetailItems(existing);
         return;
       }
-      if (selectedOrder.source !== "Imported") {
-        if (selectedOrder.source !== "POS") {
-          setReceiptDetailItems([]);
-          return;
-        }
-        const { data, error } = await supabase
-          .from("order_items")
-          .select("*")
-          .eq("order_id", selectedOrder.id)
-          .order("created_at", { ascending: true });
-        if (cancelled) return;
-        if (error) {
-          console.error(error);
-          setReceiptDetailItems([]);
-          return;
-        }
-        setReceiptDetailItems((data || []).map((item) => {
-          const quantity = Number(item.quantity || 0);
-          const net = Number(item.net_amount || item.line_total || 0);
-          return {
-            id: item.id,
-            itemName: item.item_name || item.name || "Item",
-            quantity,
-            unitPrice: Number(item.unit_price || (quantity ? net / quantity : net)),
-            net,
-          };
-        }));
+      if (selectedOrder.source !== "POS") {
+        setReceiptDetailItems([]);
         return;
       }
       const { data, error } = await supabase
-        .from("imported_sales")
-        .select(IMPORTED_RECEIPT_ITEM_SELECT)
-        .eq("receipt_number", selectedOrder.orderNumber)
-        .eq("store_name", selectedOrder.storeName)
-        .order("receipt_date", { ascending: true });
+        .from("order_items")
+        .select("*")
+        .eq("order_id", selectedOrder.id)
+        .order("created_at", { ascending: true });
       if (cancelled) return;
       if (error) {
         console.error(error);
@@ -1235,12 +877,12 @@ export default function AdminSalesPage() {
       }
       setReceiptDetailItems((data || []).map((item) => {
         const quantity = Number(item.quantity || 0);
-        const net = Number(item.net_sales || 0);
+        const net = Number(item.net_amount || item.line_total || 0);
         return {
-          id: item.id || item.row_hash,
-          itemName: item.variant ? `${item.item} (${item.variant})` : item.item || "Item",
+          id: item.id,
+          itemName: item.item_name || item.name || "Item",
           quantity,
-          unitPrice: quantity ? net / quantity : net,
+          unitPrice: Number(item.unit_price || (quantity ? net / quantity : net)),
           net,
         };
       }));
@@ -1253,19 +895,8 @@ export default function AdminSalesPage() {
 
   const paymentOptions = useMemo(() => [{ value: "All", label: "All payment methods" }, ...uniqueOptions(rawData.sales, "paymentMethod")], [rawData.sales]);
   const cashierOptions = useMemo(() => [{ value: "All", label: "All employees" }, ...uniqueOptions(rawData.sales, "cashierId", "cashierName")], [rawData.sales]);
-  const categoryOptions = useMemo(() => {
-    const importedCategories = [...(rawData.importedItemRows || []), ...(rawData.importedCategoryRows || [])].map((row) => ({
-      category: row.category || "Uncategorized",
-    }));
-    return [{ value: "All", label: "All categories" }, ...uniqueOptions([...rawData.lineItems, ...importedCategories], "category")];
-  }, [rawData.lineItems, rawData.importedItemRows, rawData.importedCategoryRows]);
-  const productOptions = useMemo(() => {
-    const importedProducts = (rawData.importedItemRows || []).map((row) => ({
-      itemId: row.product_id || row.product_name,
-      itemName: row.product_name || "Item",
-    }));
-    return [{ value: "All", label: "All products" }, ...uniqueOptions([...rawData.lineItems, ...importedProducts], "itemId", "itemName")];
-  }, [rawData.lineItems, rawData.importedItemRows]);
+  const categoryOptions = useMemo(() => [{ value: "All", label: "All categories" }, ...uniqueOptions(rawData.lineItems, "category")], [rawData.lineItems]);
+  const productOptions = useMemo(() => [{ value: "All", label: "All products" }, ...uniqueOptions(rawData.lineItems, "itemId", "itemName")], [rawData.lineItems]);
   const branchOptions = useMemo(() => [{ value: "All", label: "All stores" }, ...uniqueOptions(rawData.sales, "storeId", "storeName")], [rawData.sales]);
 
   function updatePreset(preset) {
@@ -1273,8 +904,7 @@ export default function AdminSalesPage() {
     const next = { ...filters, preset, ...range };
     setFilters(next);
     setPage(1);
-    setImportedLineItemsLoaded(false);
-    loadData(next, { includeImportedItems: needsImportedLineItems(activeTab), includeRawImportedReceipts: needsRawImportedReceipts(activeTab) });
+    loadData(next);
   }
 
   function updateFilter(key, value) {
@@ -1291,8 +921,7 @@ export default function AdminSalesPage() {
     };
     setFilters(next);
     setPage(1);
-    setImportedLineItemsLoaded(false);
-    loadData(next, { includeImportedItems: needsImportedLineItems(activeTab), includeRawImportedReceipts: needsRawImportedReceipts(activeTab) });
+    loadData(next);
   }
 
   function shiftSummaryRange(direction) {
@@ -1348,7 +977,7 @@ export default function AdminSalesPage() {
                 <h1 className="mt-2 text-3xl font-semibold">Sales Report System</h1>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-100">Daily, weekly, monthly, yearly, and custom analytics for POS and completed web orders.</p>
               </div>
-              <button onClick={() => loadData(filters, { includeImportedItems: needsImportedLineItems(activeTab), includeRawImportedReceipts: needsRawImportedReceipts(activeTab) })} className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/12 px-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/20">
+              <button onClick={() => loadData(filters)} className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/12 px-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/20">
                 <RefreshCw className="h-4 w-4" /> Refresh
               </button>
             </div>
@@ -1377,7 +1006,7 @@ export default function AdminSalesPage() {
             </div>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2 text-xs text-slate-500"><Filter className="h-4 w-4" /> Filters apply to every report tab.</div>
-              <button onClick={() => loadData(filters, { includeImportedItems: needsImportedLineItems(activeTab), includeRawImportedReceipts: needsRawImportedReceipts(activeTab) })} className="rounded-2xl bg-cyan-700 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-900/10 transition hover:-translate-y-0.5 hover:bg-cyan-600">Apply Filters</button>
+              <button onClick={() => loadData(filters)} className="rounded-2xl bg-cyan-700 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-900/10 transition hover:-translate-y-0.5 hover:bg-cyan-600">Apply Filters</button>
             </div>
           </Card>
         </>
@@ -1409,7 +1038,7 @@ export default function AdminSalesPage() {
             <SummarySelectControl icon={Clock} value={filters.paymentMethod} onChange={(value) => updateSummaryFilters({ paymentMethod: value })} options={paymentOptions} allLabel="All day" />
             <SummarySelectControl icon={Store} value={filters.branchId} onChange={(value) => updateSummaryFilters({ branchId: value })} options={branchOptions} wide />
             <SummarySelectControl icon={UserRound} value={filters.cashierId} onChange={(value) => updateSummaryFilters({ cashierId: value })} options={cashierOptions} wide />
-            <button onClick={() => loadData(filters, { includeImportedItems: needsImportedLineItems(activeTab), includeRawImportedReceipts: needsRawImportedReceipts(activeTab) })} className="ml-auto inline-flex h-10 items-center justify-center gap-2 rounded-md bg-slate-700 px-4 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-600">
+            <button onClick={() => loadData(filters)} className="ml-auto inline-flex h-10 items-center justify-center gap-2 rounded-md bg-slate-700 px-4 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-600">
               <RefreshCw className="h-4 w-4" /> Refresh
             </button>
           </div>

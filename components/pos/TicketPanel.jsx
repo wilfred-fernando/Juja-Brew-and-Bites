@@ -13,6 +13,9 @@ export default function TicketPanel({
   diningOption,
   diningOptions,
   setDiningOption,
+  grabOrderNumber = "",
+  setGrabOrderNumber,
+  showGrabOrderNumber = false,
   subtotal = 0,
   attachedCustomer,
   onRemoveCustomer,
@@ -195,6 +198,22 @@ export default function TicketPanel({
             </option>
           )}
         </select>
+        {showGrabOrderNumber && (
+          <label className="mt-2 block">
+            <span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              GRAB Order Number
+            </span>
+            <div className="flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-100">
+              <span className="mr-2 shrink-0 text-xs font-black uppercase tracking-wide text-slate-500">GRAB</span>
+              <input
+                value={grabOrderNumber}
+                onChange={(event) => setGrabOrderNumber?.(event.target.value.replace(/[^\w-]/g, ""))}
+                placeholder="335"
+                className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-300"
+              />
+            </div>
+          </label>
+        )}
       </div>
 
       {/* Controls */}
@@ -229,6 +248,14 @@ export default function TicketPanel({
                 className="w-full text-left px-4 py-2.5 text-xs font-bold text-rose-600 bg-rose-50/40 hover:bg-rose-50 transition flex items-center gap-2"
               >
                 🌐 View Accepted Web Orders
+              </button>
+              
+              <button
+                onClick={() => { setShowManageDropdown(false); onPrintBill?.(); }}
+                disabled={cart.length === 0}
+                className="w-full text-left px-4 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 transition flex items-center gap-2"
+              >
+                Print Bill
               </button>
               
               <div className="border-t border-slate-100 my-1" />
@@ -352,14 +379,7 @@ export default function TicketPanel({
         </div>
 
         {/* Master Execution Action Targets */}
-        <div className="grid grid-cols-3 gap-2 pt-1">
-          <button
-            onClick={onPrintBill}
-            disabled={cart.length === 0}
-            className="text-[13px] font-bold rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition disabled:opacity-40 active:scale-95"
-          >
-            Print Bill
-          </button>
+        <div className="grid grid-cols-2 gap-2 pt-1">
           <button
             onClick={onSave}
             disabled={savingTicket || cart.length === 0}

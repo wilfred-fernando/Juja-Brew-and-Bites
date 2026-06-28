@@ -271,17 +271,6 @@ export default function LoyaltyAdminPage() {
     setPurchaseHistory({ open: true, loading: true, member, rows: [], error: "" });
 
     try {
-      const importedMapper = (row) => ({
-        id: `imported-${row.id}`,
-        source: "Imported receipt",
-        date: row.receipt_date,
-        receipt: row.receipt_number,
-        store: row.store_name,
-        payment: row.payment_type,
-        total: Number(row.net_sales || row.total_collected || 0),
-        status: row.status || "Paid",
-      });
-
       const webMapper = (row) => ({
         id: `web-${row.id}`,
         source: "Web order",
@@ -304,33 +293,9 @@ export default function LoyaltyAdminPage() {
         status: row.status,
       });
 
-      const importedSearches = uniqueHistoryValues([name, phone, email]);
       const webContactSearches = uniqueHistoryValues([phone, email]);
       const webNameSearches = uniqueHistoryValues([name]);
       const posNameSearches = uniqueHistoryValues([name]);
-
-      const importedQueries = importedSearches.flatMap((value) => [
-        safeHistoryQuery(
-          "Imported receipts by customer name",
-          supabase
-            .from("imported_sales_receipts")
-            .select("id,receipt_date,receipt_number,store_name,cashier_name,customer_name,customer_contacts,payment_type,net_sales,total_collected,status")
-            .ilike("customer_name", `%${value}%`)
-            .order("receipt_date", { ascending: false })
-            .limit(100),
-          importedMapper
-        ),
-        safeHistoryQuery(
-          "Imported receipts by customer contact",
-          supabase
-            .from("imported_sales_receipts")
-            .select("id,receipt_date,receipt_number,store_name,cashier_name,customer_name,customer_contacts,payment_type,net_sales,total_collected,status")
-            .ilike("customer_contacts", `%${value}%`)
-            .order("receipt_date", { ascending: false })
-            .limit(100),
-          importedMapper
-        ),
-      ]);
 
       const webQueries = [
         ...webNameSearches.map((value) =>
@@ -422,13 +387,12 @@ export default function LoyaltyAdminPage() {
           : Promise.resolve([]),
       ];
 
-      const [importedRows, webRows, posRows] = await Promise.all([
-        Promise.all(importedQueries).then(dedupeHistoryRows),
+      const [webRows, posRows] = await Promise.all([
         Promise.all(webQueries).then(dedupeHistoryRows),
         Promise.all(posQueries).then(dedupeHistoryRows),
       ]);
 
-      const rows = [...importedRows, ...webRows, ...posRows].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      const rows = [...webRows, ...posRows].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
       setPurchaseHistory({ open: true, loading: false, member, rows, error: "" });
     } catch (err) {
       setPurchaseHistory({ open: true, loading: false, member, rows: [], error: err?.message || "Unable to load purchase history." });

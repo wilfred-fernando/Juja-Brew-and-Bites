@@ -1807,6 +1807,7 @@ export default function POSPage() {
   const [attachedCustomer, setAttachedCustomer] = useState(null);
   const [selectedItemForModal, setSelectedItemForModal] = useState(null);
   const [diningOption, setDiningOption] = useState("");
+  const [grabOrderNumber, setGrabOrderNumber] = useState("");
   const hasInitializedDining = useRef(false);
 
   const [voucherModalOpen, setVoucherModalOpen] = useState(false);
@@ -1866,6 +1867,9 @@ export default function POSPage() {
   );
 
   const diningOptionName = selectedDining?.name || "";
+  const isGrabDiningOption = /grab/i.test(diningOptionName || "");
+  const trimmedGrabOrderNumber = String(grabOrderNumber || "").trim();
+  const ticketDiningLabel = isGrabDiningOption && trimmedGrabOrderNumber ? `${diningOptionName} ${trimmedGrabOrderNumber}` : diningOptionName;
   const getResolvedBranchId = () => {
     if (activeWebOrderBranchId) return activeWebOrderBranchId;
     if (storeId) return storeId;
@@ -1932,7 +1936,7 @@ export default function POSPage() {
   const itemCount = useMemo(() => cart.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0), [cart]);
 
   const selectedCartItem = useMemo(() => cart.find((x) => x.cartItemId === voucherTargetCartItemId) || null, [cart, voucherTargetCartItemId]);
-  const ticketTitle = activeWebOrderId ? `Web Order: #${activeWebOrderId.slice(0,8).toUpperCase()}` : (diningOptionName || "Select Dining Option");
+  const ticketTitle = activeWebOrderId ? `Web Order: #${activeWebOrderId.slice(0,8).toUpperCase()}` : (ticketDiningLabel || "Select Dining Option");
   const ticketSubtitle = attachedCustomer?.name ? `Loyalty Member: ${attachedCustomer.name}` : "Walk-in Customer";
   const selectedReceipt = useMemo(
     () => receiptRows.find((row) => row.receipt_number === selectedReceiptNumber) || receiptRows[0] || null,
@@ -2743,6 +2747,7 @@ export default function POSPage() {
     setDiningOption(optionId);
     const opt = (diningOptions || []).find((d) => String(d.id) === String(optionId));
     const name = opt?.name || "";
+    if (!/grab/i.test(name)) setGrabOrderNumber("");
 
     if (!name) {
       setOriginalTicketId(null);
@@ -2805,7 +2810,7 @@ export default function POSPage() {
     }
 
     if (!diningOption) return;
-    const name = diningOptionName;
+    const name = ticketDiningLabel;
     if (!name) return;
 
     const payload = {
@@ -3792,8 +3797,13 @@ export default function POSPage() {
     setCart((t.items || []).filter((line) => !isVoidedLine(line)));
     clearActiveWebOrderContext(); // This layout block references physical tickets, clear web target references
     const name = t.order_type || t.ticket_name || "";
-    const opt = (diningOptions || []).find((d) => d.name === name);
+    const opt = (diningOptions || []).find((d) => d.name === name || (name.toLowerCase().startsWith(`${String(d.name || "").toLowerCase()} `)));
     setDiningOption(opt?.id || "");
+    if (opt?.name && /grab/i.test(opt.name)) {
+      setGrabOrderNumber(name.slice(String(opt.name).length).trim());
+    } else {
+      setGrabOrderNumber("");
+    }
     const c = customers.find((x) => x.id === t.customer_id);
     setAttachedCustomer(c || null);
 
@@ -3820,10 +3830,13 @@ export default function POSPage() {
     if (savingTicket) return;
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before saving.");
     if (!activeWebOrderId && !diningOption) return showToast("error", "Dining Option Required", "Please select a dining option.");
+    if (!activeWebOrderId && isGrabDiningOption && !trimmedGrabOrderNumber) {
+      return showToast("error", "GRAB Order Number Required", "Enter the GRAB order number before saving.");
+    }
 
     const promptMessage = activeWebOrderId 
       ? "Save adjustments directly back to this active web order?" 
-      : `Are you sure you want to park this current ticket to "${diningOptionName || "Dining Option"}"?`;
+      : `Are you sure you want to park this current ticket to "${ticketDiningLabel || "Dining Option"}"?`;
 
     const confirmSave = confirm(promptMessage);
     if (!confirmSave) return;
@@ -3844,11 +3857,14 @@ export default function POSPage() {
   async function handlePrintBill() {
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before printing a bill.");
     if (!activeWebOrderId && !diningOptionName) return showToast("error", "Dining Option Required", "Please select a dining option.");
+    if (!activeWebOrderId && isGrabDiningOption && !trimmedGrabOrderNumber) {
+      return showToast("error", "GRAB Order Number Required", "Enter the GRAB order number before printing the bill.");
+    }
 
     const bill = buildBillText({
-      orderId: activeWebOrderId || originalTicketId || diningOptionName || "Current Ticket",
+      orderId: activeWebOrderId || originalTicketId || ticketDiningLabel || "Current Ticket",
       cart,
-      diningOptionName: activeWebOrderId ? webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName) : diningOptionName,
+      diningOptionName: activeWebOrderId ? webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName) : ticketDiningLabel,
       customerName: attachedCustomer?.name || "",
       subtotal,
       discount: discountAmount,
@@ -3889,7 +3905,7 @@ export default function POSPage() {
 
     if (!diningOption) return showToast("error", "Dining Option Required", "No explicit table option linked.");
 
-    const confirmVoid = confirm(`Void entire current live ticket for "${diningOptionName}"? This clears all items permanently.`);
+    const confirmVoid = confirm(`Void entire current live ticket for "${ticketDiningLabel || diningOptionName}"? This clears all items permanently.`);
     if (!confirmVoid) return;
 
     setSavingTicket(true);
@@ -3897,8 +3913,11 @@ export default function POSPage() {
       if (originalTicketId) {
         await markKdsTicketStatus(supabase, { sourceType: "pos", sourceId: originalTicketId, status: "voided" });
       }
-      await supabase.from("open_tickets").delete().eq("order_type", diningOption);
-      await supabase.from("open_tickets").delete().eq("order_type", diningOptionName);
+      if (originalTicketId) {
+        await supabase.from("open_tickets").delete().eq("id", originalTicketId);
+      } else {
+        await supabase.from("open_tickets").delete().eq("order_type", ticketDiningLabel || diningOptionName);
+      }
       clearTicketSoft();
       showToast("success", "Live Ticket Voided", "Order scrubbed successfully.");
     } catch (err) {
@@ -3913,6 +3932,9 @@ export default function POSPage() {
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before charging.");
     if (!activeWebOrderId && (!diningOption || !diningOptionName)) {
       return showToast("error", "Dining Option Required", "Please select a dining option.");
+    }
+    if (!activeWebOrderId && isGrabDiningOption && !trimmedGrabOrderNumber) {
+      return showToast("error", "GRAB Order Number Required", "Enter the GRAB order number before charging.");
     }
     setPaymentOpen(true);
   }
@@ -3955,7 +3977,7 @@ export default function POSPage() {
 
       const chargedDiningLabel = activeWebOrderId
         ? webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName)
-        : diningOptionName;
+        : ticketDiningLabel;
 
       const { data: orderRow, error: orderErr } = await supabase
         .from("orders")
@@ -3987,7 +4009,7 @@ export default function POSPage() {
         .single();
       if (orderErr) return showToast("error", "Charge Failed", orderErr.message);
 
-      if (!activeWebOrderId) {
+      if (!activeWebOrderId && !originalTicketId) {
         const { error: kdsErr } = await upsertKdsTicket(supabase, {
           sourceType: "pos",
           order: { ...orderRow, items: enrichOrderItemsForKds(cart) },
@@ -4059,8 +4081,10 @@ export default function POSPage() {
         }
         if (originalTicketId) {
           await markKdsTicketStatus(supabase, { sourceType: "pos", sourceId: originalTicketId, status: "completed" });
+          await supabase.from("open_tickets").delete().eq("id", originalTicketId);
+        } else {
+          await supabase.from("open_tickets").delete().eq("order_type", chargedDiningLabel);
         }
-        await supabase.from("open_tickets").delete().eq("order_type", diningOptionName);
       }
 
       const receipt = buildReceiptText({
@@ -4087,7 +4111,7 @@ export default function POSPage() {
         await autoPrintBarCupLabels({
           orderId: generatedReceiptNumber,
           labelCart: cart,
-          labelDining: diningOptionName || "WEB ORDER",
+          labelDining: chargedDiningLabel || "WEB ORDER",
           printedAt: orderRow.paid_at || orderRow.created_at || new Date(),
           askBeforePrint: true,
           promptContext: "this charged order",
@@ -4228,6 +4252,7 @@ export default function POSPage() {
     setVoucherTargetCartItemId(null);
     setAppliedDiscount(null);
     setSelectedPayment("");
+    setGrabOrderNumber("");
     setSplitMode(false);
     setSplitSelected([]);
     setOriginalTicketId(null);
@@ -5019,6 +5044,9 @@ export default function POSPage() {
               diningOptions={diningOptions}
               diningOption={diningOption}
               setDiningOption={handleDiningChange}
+              grabOrderNumber={grabOrderNumber}
+              setGrabOrderNumber={setGrabOrderNumber}
+              showGrabOrderNumber={isGrabDiningOption && !activeWebOrderId}
               subtotal={totalDue}
               ticketTitle={ticketTitle}
               ticketSubtitle={ticketSubtitle}
@@ -5116,6 +5144,9 @@ export default function POSPage() {
                 diningOptions={diningOptions}
                 diningOption={diningOption}
                 setDiningOption={handleDiningChange}
+                grabOrderNumber={grabOrderNumber}
+                setGrabOrderNumber={setGrabOrderNumber}
+                showGrabOrderNumber={isGrabDiningOption && !activeWebOrderId}
                 subtotal={totalDue}
                 ticketTitle={ticketTitle}
                 ticketSubtitle={ticketSubtitle}
