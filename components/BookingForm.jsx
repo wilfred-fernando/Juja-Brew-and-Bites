@@ -1378,6 +1378,7 @@ export default function BookingForm({ user, member }) {
                   <option value={0}>0 hr</option>
                   <option value={1}>1 hr</option>
                   <option value={2}>2 hr</option>
+                  <option value={3}>3 hr</option>
                 </select>
               </div>
             </div>

@@ -769,7 +769,7 @@ export default function AdminSalesPage() {
         supabase.from("menu_items").select("id,name,category,price"),
         supabase.from("stores").select("id,name").order("name"),
         supabase.from("profiles").select("id,full_name,email,role"),
-        supabase.from("loyalty_members").select("id,customer_name,customer_code,\"Customer ID\""),
+        supabase.from("loyalty_members").select("id,customer_name,customer_code"),
         fetchAllRows(() => supabase.from("cashier_pos").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: true })),
       ]);
       const errors = [menuRes.error, storesRes.error, profilesRes.error, loyaltyRes.error].filter(Boolean);
