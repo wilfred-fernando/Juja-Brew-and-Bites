@@ -3168,6 +3168,15 @@ export default function POSPage() {
     const receiptCutoff = new Date();
     receiptCutoff.setDate(receiptCutoff.getDate() - POS_RECEIPT_HISTORY_DAYS);
     const receiptCutoffIso = receiptCutoff.toISOString();
+    const resolveOrderCustomer = (order) => {
+      const linked = customers.find((customer) =>
+        String(customer.id) === String(order?.customer_id || "") ||
+        String(customer.id) === String(order?.loyalty_member_id || "")
+      );
+      const name = customerDisplayName(linked) || order?.customer_name || "";
+      const code = customerDisplayCode(linked) || order?.customer_code || "";
+      return name || code ? { ...(linked || {}), name, customer_name: name, code, customer_code: code } : null;
+    };
 
     const [receiptRes, webReceiptRes] = await Promise.all([
       supabase
@@ -3197,19 +3206,25 @@ export default function POSPage() {
         refunds = {};
       }
     }
-    const posRows = (receiptRes.data || []).map((order) => ({
-      ...order,
-      receipt_number: order.receipt_number || order.order_number || String(order.id),
-      order_id: order.id,
-      date: order.created_at ? formatDateTime(order.created_at) : "",
-      gross_sales: Number(order.total || 0) + Number(order.discount || 0),
-      discounts: Number(order.discount || 0),
-      net_sales: Number(order.total || 0),
-      total_collected: Number(order.total || 0),
-      payment_type: order.payment_method || "Other",
-      description: order.dining_option || "POS Order",
-      status: refunds[order.receipt_number || order.order_number || String(order.id)]?.receipt || "Closed",
-    }));
+    const posRows = (receiptRes.data || []).map((order) => {
+      const customer = resolveOrderCustomer(order);
+      return {
+        ...order,
+        receipt_number: order.receipt_number || order.order_number || String(order.id),
+        order_id: order.id,
+        date: order.created_at ? formatDateTime(order.created_at) : "",
+        gross_sales: Number(order.total || 0) + Number(order.discount || 0),
+        discounts: Number(order.discount || 0),
+        net_sales: Number(order.total || 0),
+        total_collected: Number(order.total || 0),
+        payment_type: order.payment_method || "Other",
+        description: order.dining_option || "POS Order",
+        status: refunds[order.receipt_number || order.order_number || String(order.id)]?.receipt || "Closed",
+        customer,
+        customer_name: customerDisplayName(customer),
+        customer_code: customerDisplayCode(customer),
+      };
+    });
     const chargedWebOrderIds = new Set(
       (receiptRes.data || [])
         .map((order) => order.source_web_order_id)
@@ -3366,6 +3381,7 @@ export default function POSPage() {
       copyLabel: "*** REPRINT ***",
       store: currentStore,
       cashierName,
+      customer: receipt.customer || (receipt.customer_name ? { name: receipt.customer_name, code: receipt.customer_code } : null),
     });
 
     setReprintingReceipt(true);
@@ -4628,7 +4644,12 @@ export default function POSPage() {
                         </button>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+                      <div className="rounded-lg bg-white border border-slate-100 p-2">
+                        <span className="block text-[9px] font-bold uppercase text-slate-400">Customer</span>
+                        <b className="block truncate">{selectedReceipt.customer_name || "Walk-in"}</b>
+                        {selectedReceipt.customer_code && <span className="block text-[10px] font-semibold text-slate-500 truncate">{selectedReceipt.customer_code}</span>}
+                      </div>
                       <div className="rounded-lg bg-white border border-slate-100 p-2"><span className="block text-[9px] font-bold uppercase text-slate-400">Gross</span><b>{peso2(selectedReceipt.gross_sales || 0)}</b></div>
                       <div className="rounded-lg bg-white border border-slate-100 p-2"><span className="block text-[9px] font-bold uppercase text-slate-400">Discount</span><b>{peso2(selectedReceipt.discounts || 0)}</b></div>
                       <div className="rounded-lg bg-white border border-slate-100 p-2"><span className="block text-[9px] font-bold uppercase text-slate-400">Net</span><b>{peso2(selectedReceipt.net_sales || 0)}</b></div>
