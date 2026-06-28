@@ -452,17 +452,89 @@ function buildReceiptText({
   return lines.join("\n");
 }
 
-function buildOrderSlipText({ orderId, cart }) {
-  return [
-    "ORDER SLIP",
-    `Order: ${orderId}`,
-    "-----",
-    ...cart.map((x) => `${x.quantity}x ${x.name}`),
-  ].join("\n");
+function buildOrderSlipText({ orderId, cart, diningOptionName, customerName, total, printedAt }) {
+  const lines = [
+    centerReceiptText("ORDER SLIP"),
+    centerReceiptText(normalizeLabelLine(diningOptionName || "POS ORDER").toUpperCase()),
+    receiptLine(),
+    `Order: ${orderId || "-"}`,
+  ];
+  const customer = normalizeLabelLine(customerName);
+  if (customer) lines.push(`Customer: ${customer}`);
+  lines.push(receiptLine());
+
+  (cart || []).forEach((x) => {
+    const quantity = Number(x.quantity || x.qty || 1);
+    const name = normalizeLabelLine(x.name || "Item");
+    splitReceiptText(`${quantity}x ${name}`, RECEIPT_COLUMNS).forEach((line) => lines.push(line));
+
+    const variants = normalizeLabelLine(x.variantDetails || "");
+    const instructions = normalizeLabelLine(x.instructions || x.specialInstructions || x.special_instructions || "");
+    if (variants) splitReceiptText(variants, RECEIPT_COLUMNS).forEach((line) => lines.push(`  ${line}`));
+    if (instructions) splitReceiptText(`Note: ${instructions}`, RECEIPT_COLUMNS).forEach((line) => lines.push(`  ${line}`));
+  });
+
+  lines.push(receiptLine());
+  if (Number.isFinite(Number(total))) lines.push(receiptPair("Total", receiptAmount(total)));
+  lines.push(receiptPair("Printed", formatReceiptFooterDate(printedAt || new Date())));
+  return lines.join("\n");
+}
+
+function buildBillText({ orderId, cart, diningOptionName, customerName, subtotal, discount, total, printedAt }) {
+  const subtotalValue = Number(subtotal || 0);
+  const discountValue = Number(discount || 0);
+  const totalValue = Number(total ?? Math.max(0, subtotalValue - discountValue));
+  const lines = [
+    centerReceiptText("BILL"),
+    centerReceiptText("NOT YET PAID"),
+    receiptLine(),
+    `Order: ${orderId || "-"}`,
+    `Dining: ${normalizeLabelLine(diningOptionName || "POS ORDER")}`,
+  ];
+  const customer = normalizeLabelLine(customerName);
+  if (customer) lines.push(`Customer: ${customer}`);
+  lines.push(receiptLine());
+
+  (cart || []).forEach((x) => {
+    const quantity = Number(x.quantity || x.qty || 1);
+    const unitPrice = Number(x.price ?? x.unitPrice ?? x.unit_price ?? 0);
+    const lineTotal = unitPrice * quantity;
+    const nameLines = splitReceiptText(normalizeLabelLine(x.name || "Item"), RECEIPT_COLUMNS - 12);
+    lines.push(receiptPair(nameLines[0], receiptAmount(lineTotal)));
+    nameLines.slice(1).forEach((line) => lines.push(line));
+    lines.push(`${quantity} x ${receiptAmount(unitPrice)}`);
+
+    const variants = normalizeLabelLine(x.variantDetails || "");
+    const instructions = normalizeLabelLine(x.instructions || x.specialInstructions || x.special_instructions || "");
+    if (variants) splitReceiptText(variants, RECEIPT_COLUMNS).forEach((line) => lines.push(`  ${line}`));
+    if (instructions) splitReceiptText(`Note: ${instructions}`, RECEIPT_COLUMNS).forEach((line) => lines.push(`  ${line}`));
+  });
+
+  lines.push(receiptLine());
+  if (discountValue > 0) {
+    lines.push(receiptPair("Subtotal", receiptAmount(subtotalValue)));
+    lines.push(receiptPair("Discount", `-${receiptAmount(discountValue)}`));
+  }
+  lines.push(receiptPair("Total Due", receiptAmount(totalValue)));
+  lines.push(receiptLine());
+  lines.push(receiptPair("Printed", formatReceiptFooterDate(printedAt || new Date())));
+  return lines.join("\n");
 }
 
 function getLineCategoryId(line) {
   return line?.categoryId || line?.category_id || line?.menu_category_id || line?.category?.id || null;
+}
+
+function filterItemsByBarPrinterGroup(cart, barCategoryIds = [], barCategoryNames = []) {
+  const barIds = new Set((barCategoryIds || []).map((id) => String(id)));
+  const barNames = new Set((barCategoryNames || []).map((name) => String(name || "").trim().toLowerCase()).filter(Boolean));
+  if (barIds.size === 0 && barNames.size === 0) return [];
+
+  return (cart || []).filter((line) => {
+    const categoryId = getLineCategoryId(line);
+    const categoryName = String(line.category || line.categoryName || line.category_name || "").trim().toLowerCase();
+    return (categoryId && barIds.has(String(categoryId))) || (categoryName && barNames.has(categoryName));
+  });
 }
 
 function normalizeLabelLine(value) {
@@ -2215,6 +2287,15 @@ export default function POSPage() {
         status: acceptedStatus,
       });
       if (kdsErr) showToast("warn", "KDS Sync Warning", kdsErr.message);
+      await autoPrintOrderSlip({
+        orderId: incomingOrder.id,
+        slipCart: incomingOrder.items || [],
+        slipDining: webDiningOptionLabel(incomingOrder.fulfillment_type || incomingOrder.dining_option),
+        slipCustomer: incomingOrder.customer_name || "Web Customer",
+        slipTotal: Number(incomingOrder.total || incomingOrder.subtotal || 0),
+        printedAt: acceptedAt,
+        onlineBarOnly: true,
+      });
       await autoPrintBarCupLabels({
         orderId: incomingOrder.id,
         labelCart: incomingOrder.items || [],
@@ -2598,6 +2679,36 @@ export default function POSPage() {
     }
   }
 
+  async function autoPrintOrderSlip({
+    orderId,
+    slipCart = cart,
+    slipDining = diningOptionName || "POS ORDER",
+    slipCustomer = attachedCustomer?.name || "",
+    slipTotal = totalDue,
+    printedAt = new Date(),
+    onlineBarOnly = false,
+  } = {}) {
+    const printableCart = onlineBarOnly
+      ? filterItemsByBarPrinterGroup(slipCart, barPrinterCategoryIds, barPrinterCategoryNames)
+      : (slipCart || []);
+    if (printableCart.length === 0) return;
+
+    const slipText = buildOrderSlipText({
+      orderId,
+      cart: printableCart,
+      diningOptionName: slipDining,
+      customerName: slipCustomer,
+      total: slipTotal,
+      printedAt,
+    });
+
+    try {
+      await printByRole("receipt", slipText, printerConfig, { fallbackToBrowser: false });
+    } catch (printError) {
+      showToast("warn", "Order Slip Not Printed", printError?.message || "Select and save the receipt printer in POS Settings.");
+    }
+  }
+
   const [originalTicketId, setOriginalTicketId] = useState(null);
 
   async function loadDiningOptionOrder(optionName) {
@@ -2673,6 +2784,15 @@ export default function POSPage() {
         status: "preparing",
       });
       if (kdsErr) throw kdsErr;
+      await autoPrintOrderSlip({
+        orderId: activeWebOrderId,
+        slipCart: cart,
+        slipDining: webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName),
+        slipCustomer: attachedCustomer?.name || "Web Customer",
+        slipTotal: Number(subtotal || 0),
+        printedAt: new Date(),
+        onlineBarOnly: true,
+      });
       await autoPrintBarCupLabels({
         orderId: activeWebOrderId,
         labelCart: cart,
@@ -2715,6 +2835,14 @@ export default function POSPage() {
         status: "preparing",
       });
       if (kdsErr) throw kdsErr;
+      await autoPrintOrderSlip({
+        orderId: ticketRow.id,
+        slipCart: cart,
+        slipDining: name,
+        slipCustomer: attachedCustomer?.name || "Walk-in",
+        slipTotal: Number(subtotal || 0),
+        printedAt: ticketRow.updated_at || ticketRow.created_at || new Date(),
+      });
       await autoPrintBarCupLabels({
         orderId: ticketRow.id,
         labelCart: cart,
@@ -2743,6 +2871,14 @@ export default function POSPage() {
         status: "preparing",
       });
       if (kdsErr) throw kdsErr;
+      await autoPrintOrderSlip({
+        orderId: ticketRow.id,
+        slipCart: cart,
+        slipDining: name,
+        slipCustomer: attachedCustomer?.name || "Walk-in",
+        slipTotal: Number(subtotal || 0),
+        printedAt: ticketRow.created_at || new Date(),
+      });
       await autoPrintBarCupLabels({
         orderId: ticketRow.id,
         labelCart: cart,
@@ -2936,6 +3072,56 @@ export default function POSPage() {
     await supabase.from("vouchers").insert(rows);
   }
 
+  async function awardMemberLoyaltyPoints(memberOrId, pointsEarned) {
+    const memberId = typeof memberOrId === "string" ? memberOrId : memberOrId?.id;
+    if (!memberId || !pointsEarned) return null;
+
+    const { data: member, error: findErr } = await supabase
+      .from("loyalty_members")
+      .select("*")
+      .eq("id", memberId)
+      .maybeSingle();
+
+    if (findErr || !member) {
+      throw new Error(findErr?.message || "Linked loyalty member was not found.");
+    }
+
+    const resetResult = await resetMemberPointsIfExpired(supabase, member);
+    const activeMember = resetResult.member || member;
+    const currentBalance = Number(activeMember["Points balance"] || 0);
+    const currentAvailable = Number(activeMember["Available points"] || 0);
+    const currentVisits = Number(activeMember["Total visits"] || 0);
+    const nextBalance = Number((currentBalance + pointsEarned).toFixed(2));
+    const nextAvailable = Number((currentAvailable + pointsEarned).toFixed(2));
+
+    const { data: updatedMember, error: updateErr } = await supabase
+      .from("loyalty_members")
+      .update({
+        "Points balance": nextBalance,
+        "Available points": nextAvailable,
+        "Total visits": currentVisits + 1,
+      })
+      .eq("id", activeMember.id)
+      .select("*")
+      .maybeSingle();
+
+    if (updateErr) throw updateErr;
+
+    const normalizedMember = {
+      ...(updatedMember || activeMember),
+      name: (updatedMember || activeMember).customer_name || (updatedMember || activeMember).name || "",
+      code: (updatedMember || activeMember).customer_code || (updatedMember || activeMember).code || "",
+      availablePoints: (updatedMember || activeMember)["Available points"] ?? 0,
+      pointsBalance: (updatedMember || activeMember)["Points balance"] ?? 0,
+    };
+
+    setCustomers((prev) => prev.map((row) => (row.id === activeMember.id ? { ...row, ...normalizedMember } : row)));
+    setAttachedCustomer((prev) => (prev?.id === activeMember.id ? { ...prev, ...normalizedMember } : prev));
+
+    await createPointRewardVouchers(activeMember.id, nextAvailable);
+    return normalizedMember;
+  }
+
   async function awardWebOrderLoyaltyPoints(order, pointsEarned) {
     if (!order?.user_id || !pointsEarned) return;
 
@@ -2947,25 +3133,7 @@ export default function POSPage() {
         .maybeSingle();
 
       if (findErr || !member) return;
-
-      const resetResult = await resetMemberPointsIfExpired(supabase, member);
-      const activeMember = resetResult.member || member;
-      const currentBalance = Number(activeMember["Points balance"] || 0);
-      const currentAvailable = Number(activeMember["Available points"] || 0);
-      const currentVisits = Number(activeMember["Total visits"] || 0);
-      const nextBalance = Number((currentBalance + pointsEarned).toFixed(2));
-      const nextAvailable = Number((currentAvailable + pointsEarned).toFixed(2));
-
-      await supabase
-        .from("loyalty_members")
-        .update({
-          "Points balance": nextBalance,
-          "Available points": nextAvailable,
-          "Total visits": currentVisits + 1,
-        })
-        .eq("id", activeMember.id);
-
-      await createPointRewardVouchers(activeMember.id, nextAvailable);
+      await awardMemberLoyaltyPoints(member.id, pointsEarned);
     } catch (err) {
       console.warn("Loyalty point update skipped:", err);
     }
@@ -3673,6 +3841,32 @@ export default function POSPage() {
     }
   }
 
+  async function handlePrintBill() {
+    if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before printing a bill.");
+    if (!activeWebOrderId && !diningOptionName) return showToast("error", "Dining Option Required", "Please select a dining option.");
+
+    const bill = buildBillText({
+      orderId: activeWebOrderId || originalTicketId || diningOptionName || "Current Ticket",
+      cart,
+      diningOptionName: activeWebOrderId ? webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName) : diningOptionName,
+      customerName: attachedCustomer?.name || "",
+      subtotal,
+      discount: discountAmount,
+      total: totalDue,
+      printedAt: new Date(),
+    });
+
+    setReceiptText(bill);
+    setReceiptOpen(true);
+
+    try {
+      await printByRole("receipt", bill, printerConfig, { fallbackToBrowser: false });
+      showToast("success", "Bill Printed", "Bill sent to the receipt printer.");
+    } catch (printError) {
+      showToast("warn", "Bill Not Printed", printError?.message || "Select and save the receipt printer in POS Settings.");
+    }
+  }
+
   async function handleVoidCurrentTicket() {
     if (cart.length === 0) return showToast("error", "Empty Ticket", "No items to void.");
     
@@ -3774,6 +3968,7 @@ export default function POSPage() {
           store_id: resolvedBranchId,
           branch_id: resolvedBranchId,
           customer_id: attachedCustomer?.id || null,
+          loyalty_member_id: attachedCustomer?.id || null,
           items: enrichOrderItemsForKds(cart),
           subtotal: grossTotal,
           total,
@@ -3855,6 +4050,13 @@ export default function POSPage() {
 
         await awardWebOrderLoyaltyPoints(activeWebOrder, calcLoyaltyPoints(total));
       } else {
+        if (attachedCustomer?.id) {
+          try {
+            await awardMemberLoyaltyPoints(attachedCustomer.id, calcLoyaltyPoints(total));
+          } catch (loyaltyError) {
+            showToast("warn", "Loyalty Points Not Added", loyaltyError?.message || "Sale completed, but loyalty points need review.");
+          }
+        }
         if (originalTicketId) {
           await markKdsTicketStatus(supabase, { sourceType: "pos", sourceId: originalTicketId, status: "completed" });
         }
@@ -3868,6 +4070,17 @@ export default function POSPage() {
 
       setReceiptText(receipt);
       setReceiptOpen(true);
+
+      if (!originalTicketId && !activeWebOrderId) {
+        await autoPrintOrderSlip({
+          orderId: generatedReceiptNumber,
+          slipCart: cart,
+          slipDining: chargedDiningLabel || "POS ORDER",
+          slipCustomer: attachedCustomer?.name || "Walk-in",
+          slipTotal: total,
+          printedAt: orderRow.paid_at || orderRow.created_at || new Date(),
+        });
+      }
 
       const shouldAskCupLabelOnCharge = !originalTicketId && !activeWebOrderId;
       if (shouldAskCupLabelOnCharge) {
@@ -3884,10 +4097,6 @@ export default function POSPage() {
       if (receiptSettings?.auto_print) {
         try {
           await printByRole("receipt", receipt, printerConfig, { fallbackToBrowser: false });
-          if (selectedDining?.print_kitchen || activeWebOrderId) {
-            const slip = buildOrderSlipText({ orderId: generatedReceiptNumber, cart });
-            await printByRole("order_slip", slip, printerConfig, { fallbackToBrowser: false });
-          }
         } catch (printError) {
           showToast("warn", "Sale Saved, Printer Needs Permission", printError?.message || "Select the Xprinter in POS Settings, then reprint the receipt.");
         }
@@ -4827,6 +5036,7 @@ export default function POSPage() {
               onClear={() => setConfirmOpen(true)}
               onCharge={handleChargeOrder}
               onSave={handleSaveTicket}
+              onPrintBill={handlePrintBill}
               onVoidLiveTicket={handleVoidCurrentTicket}
               onOpenWebOrdersModal={openAcceptedWebOrders}
               onOpenSavedTicketsModal={async () => {
@@ -4923,6 +5133,7 @@ export default function POSPage() {
                 onClear={() => setConfirmOpen(true)}
                 onCharge={handleChargeOrder}
                 onSave={handleSaveTicket}
+                onPrintBill={handlePrintBill}
                 onVoidLiveTicket={handleVoidCurrentTicket}
                 onOpenWebOrdersModal={openAcceptedWebOrders}
                 onOpenSavedTicketsModal={async () => {

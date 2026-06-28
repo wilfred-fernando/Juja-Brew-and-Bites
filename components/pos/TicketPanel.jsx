@@ -22,6 +22,7 @@ export default function TicketPanel({
   onRemoveVoucher,
   onCharge,
   onSave,
+  onPrintBill,
   onVoidLiveTicket,
   charging,
   savingTicket,
@@ -351,18 +352,25 @@ export default function TicketPanel({
         </div>
 
         {/* Master Execution Action Targets */}
-        <div className="grid grid-cols-2 gap-2 pt-1">
+        <div className="grid grid-cols-3 gap-2 pt-1">
+          <button
+            onClick={onPrintBill}
+            disabled={cart.length === 0}
+            className="text-[13px] font-bold rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition disabled:opacity-40 active:scale-95"
+          >
+            Print Bill
+          </button>
           <button
             onClick={onSave}
             disabled={savingTicket || cart.length === 0}
-            className="text-[14px] font-bold rounded-xl bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 transition disabled:opacity-40 active:scale-95"
+            className="text-[13px] font-bold rounded-xl bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 transition disabled:opacity-40 active:scale-95"
           >
             {savingTicket ? "Saving..." : "Save Ticket"}
           </button>
           <button
             onClick={onCharge}
             disabled={charging || cart.length === 0}
-            className="text-[14px] font-bold tracking-wider rounded-xl bg-[#FC687D] hover:bg-[#fa546c] text-white shadow-md shadow-rose-200 transition disabled:opacity-40 active:scale-95 flex items-center justify-center"
+            className="text-[13px] font-bold tracking-wider rounded-xl bg-[#FC687D] hover:bg-[#fa546c] text-white shadow-md shadow-rose-200 transition disabled:opacity-40 active:scale-95 flex items-center justify-center"
           >
             {charging ? "Charging..." : "Charge"}
           </button>
