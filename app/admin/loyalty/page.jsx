@@ -1147,9 +1147,9 @@ export default function LoyaltyAdminPage() {
           <p className="mt-1 text-xs text-slate-500">
             Spent: <span className="font-mono">{peso(memberValue(member, ["Total spent", "total_spent"], 0))}</span>
             {" | "}
-            First: <span className="font-mono">{memberValue(member, ["First visit", "first_visit"])}</span>
+            First: <span className="font-mono">{displayDateTime(memberValue(member, ["First visit", "first_visit"]))}</span>
             {" | "}
-            Last: <span className="font-mono">{memberValue(member, ["Last visit", "last_visit"])}</span>
+            Last: <span className="font-mono">{displayDateTime(memberValue(member, ["Last visit", "last_visit"]))}</span>
           </p>
 
           {member.user_id && (
@@ -1652,13 +1652,13 @@ export default function LoyaltyAdminPage() {
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-[10px] uppercase tracking-widest text-slate-500">First Visit</p>
                 <p className="mt-2 text-lg font-semibold text-slate-800">
-                  {memberValue(purchaseHistory.member, ["First visit", "first_visit"])}
+                  {displayDateTime(memberValue(purchaseHistory.member, ["First visit", "first_visit"]))}
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-[10px] uppercase tracking-widest text-slate-500">Last Visit</p>
                 <p className="mt-2 text-lg font-semibold text-slate-800">
-                  {memberValue(purchaseHistory.member, ["Last visit", "last_visit"])}
+                  {displayDateTime(memberValue(purchaseHistory.member, ["Last visit", "last_visit"]))}
                 </p>
               </div>
             </div>

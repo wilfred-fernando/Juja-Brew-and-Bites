@@ -675,6 +675,9 @@ function ReceiptDrawer({ order, items = [], onClose }) {
   const change = Math.max(0, totalCollected - Number(order.net || 0));
   const tableLabel = order.raw?.table_name || order.raw?.table || (String(order.orderType || "").toLowerCase().includes("dine") ? "TABLE 1" : "");
   const paymentAmount = totalCollected || order.net;
+  const hasCustomer = Boolean(order.customerName && !["walk-in", "web customer"].includes(String(order.customerName).toLowerCase()));
+  const pointsEarned = hasCustomer ? Number(order.net || 0) * 0.04 : 0;
+  const pointsBalance = Number(order.customerAvailablePoints ?? order.customerPointsBalance ?? NaN);
   return (
     <div className="fixed inset-0 z-[80] flex justify-end bg-slate-900/35 backdrop-blur-sm" onClick={onClose}>
       <div className="h-full w-full max-w-[320px] overflow-y-auto bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
@@ -695,6 +698,13 @@ function ReceiptDrawer({ order, items = [], onClose }) {
             <p>POS: {order.raw?.pos || order.raw?.POS || order.storeName || "-"}</p>
           </div>
 
+          {hasCustomer ? (
+            <div className="border-t border-slate-200 py-2 leading-4">
+              <p>Customer: {order.customerName}</p>
+              {order.customerPhone ? <p>{order.customerPhone}</p> : null}
+            </div>
+          ) : null}
+
           {tableLabel ? (
             <div className="border-t border-slate-200 py-2 text-xs font-semibold uppercase text-slate-900">
               {tableLabel}
@@ -714,6 +724,20 @@ function ReceiptDrawer({ order, items = [], onClose }) {
           </div>
 
           <div className="border-b border-slate-200 py-2">
+            {hasCustomer ? (
+              <div className="mb-2 border-b border-slate-200 pb-2 text-green-600">
+                <div className="flex justify-between gap-3">
+                  <span>Points earned</span>
+                  <span>{number(pointsEarned)}</span>
+                </div>
+                {Number.isFinite(pointsBalance) ? (
+                  <div className="flex justify-between gap-3">
+                    <span>Points balance</span>
+                    <span>{number(pointsBalance)}</span>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <div className="flex justify-between gap-3 font-semibold">
               <span>Total</span>
               <span>{receiptPeso(order.net)}</span>
@@ -769,7 +793,7 @@ export default function AdminSalesPage() {
         supabase.from("menu_items").select("id,name,category,price"),
         supabase.from("stores").select("id,name").order("name"),
         supabase.from("profiles").select("id,full_name,email,role"),
-        supabase.from("loyalty_members").select("id,customer_name,customer_code"),
+        supabase.from("loyalty_members").select('id,customer_name,customer_code,"Phone","Available points","Points balance"'),
         fetchAllRows(() => supabase.from("cashier_pos").select("*").gte("created_at", start).lte("created_at", fetchEnd).order("created_at", { ascending: true })),
       ]);
       const errors = [menuRes.error, storesRes.error, profilesRes.error, loyaltyRes.error].filter(Boolean);

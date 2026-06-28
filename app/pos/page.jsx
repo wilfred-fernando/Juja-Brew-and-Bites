@@ -287,6 +287,10 @@ function customerDisplayCode(customer) {
   return customer?.code || customer?.customer_code || "";
 }
 
+function customerDisplayPhone(customer) {
+  return customer?.phone || customer?.Phone || customer?.contact_number || customer?.customer_contact || "";
+}
+
 function customerAvailablePoints(customer) {
   return Number(customer?.availablePoints ?? customer?.available_points ?? customer?.["Available points"] ?? 0);
 }
@@ -379,7 +383,7 @@ function buildReceiptText({
   const discountValue = Number(discount || 0);
   const totalValue = Number(total || subtotalValue - discountValue || 0);
   const customerName = customerDisplayName(customer);
-  const customerCode = customerDisplayCode(customer);
+  const customerPhone = customerDisplayPhone(customer);
   const pointsEarned = customerName ? calcLoyaltyPoints(totalValue) : 0;
   const availablePoints = customerName ? Number((customerAvailablePoints(customer) + pointsEarned).toFixed(2)) : 0;
 
@@ -399,7 +403,7 @@ function buildReceiptText({
 
   if (customerName) {
     lines.push(`Customer: ${customerName}`);
-    if (customerCode) lines.push(`Code: ${customerCode}`);
+    if (customerPhone) lines.push(customerPhone);
     lines.push(receiptLine());
   }
 
@@ -414,10 +418,13 @@ function buildReceiptText({
     const quantity = Number(x.quantity || 1);
     const unitPrice = Number(x.unitPrice || 0);
     const lineTotal = unitPrice * quantity;
+    const itemDiscount = lineDiscountAmount(x);
+    const netLineTotal = Math.max(0, lineTotal - itemDiscount);
     const nameLines = splitReceiptText(x.name || "Item", RECEIPT_COLUMNS - 12);
-    lines.push(receiptPair(nameLines[0], receiptAmount(lineTotal)));
+    lines.push(receiptPair(nameLines[0], receiptAmount(netLineTotal)));
     nameLines.slice(1).forEach((line) => lines.push(line));
     lines.push(`${quantity} x ${receiptAmount(unitPrice)}`);
+    if (itemDiscount > 0) lines.push(receiptPair("  Item discount", `-${receiptAmount(itemDiscount)}`));
     const variants = normalizeLabelLine(x.variantDetails || "");
     const instructions = normalizeLabelLine(x.instructions || x.specialInstructions || x.special_instructions || "");
     if (variants) splitReceiptText(variants, RECEIPT_COLUMNS).forEach((line) => lines.push(`  ${line}`));
@@ -426,7 +433,7 @@ function buildReceiptText({
   lines.push(receiptLine());
   if (customerName) {
     lines.push(receiptPair("Points earned", receiptAmount(pointsEarned)));
-    lines.push(receiptPair("Available points", receiptAmount(availablePoints)));
+    lines.push(receiptPair("Points balance", receiptAmount(availablePoints)));
     lines.push(receiptLine());
   }
   if (discountValue > 0) {
@@ -498,11 +505,13 @@ function buildBillText({ orderId, cart, diningOptionName, customerName, subtotal
   (cart || []).forEach((x) => {
     const quantity = Number(x.quantity || x.qty || 1);
     const unitPrice = Number(x.price ?? x.unitPrice ?? x.unit_price ?? 0);
-    const lineTotal = unitPrice * quantity;
+    const lineTotal = lineNetAmount({ ...x, unitPrice, quantity });
+    const itemDiscount = lineDiscountAmount({ ...x, unitPrice, quantity });
     const nameLines = splitReceiptText(normalizeLabelLine(x.name || "Item"), RECEIPT_COLUMNS - 12);
     lines.push(receiptPair(nameLines[0], receiptAmount(lineTotal)));
     nameLines.slice(1).forEach((line) => lines.push(line));
     lines.push(`${quantity} x ${receiptAmount(unitPrice)}`);
+    if (itemDiscount > 0) lines.push(receiptPair("  Item discount", `-${receiptAmount(itemDiscount)}`));
 
     const variants = normalizeLabelLine(x.variantDetails || "");
     const instructions = normalizeLabelLine(x.instructions || x.specialInstructions || x.special_instructions || "");
@@ -1172,6 +1181,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
   const [quantity, setQuantity] = useState(1);
   const [selections, setSelections] = useState({});
   const [instructions, setInstructions] = useState("");
+  const [itemDiscount, setItemDiscount] = useState("");
   const [collapsed, setCollapsed] = useState({});
 
   useEffect(() => {
@@ -1180,6 +1190,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
 
     setQuantity(source.quantity || 1);
     setInstructions(source.instructions || "");
+    setItemDiscount(source.discountAmount || source.discount_amount || "");
 
     const selected = {};
     if (source.variantDetails && item.variants) {
@@ -1223,6 +1234,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
 
   const basePrice = Number(item.price) || 0;
   const unitPrice = basePrice + variantPrice;
+  const discountValue = Math.max(0, Math.min(unitPrice * Number(quantity || 1), Number(itemDiscount || 0)));
   const availableVariantGroups = (item.variants || []).filter((g) => g.isAvailable !== false && g.is_available !== false);
   const canAdd = availableVariantGroups.every((g) => !g.isRequired || (selections[g.id] || []).length > 0);
 
@@ -1241,7 +1253,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
     }));
   });
 
-  const totalLine = (unitPrice * quantity).toFixed(0);
+  const totalLine = Math.max(0, unitPrice * quantity - discountValue).toFixed(0);
   const submitLine = () =>
     onAddToCart({
       id: item.id,
@@ -1250,6 +1262,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
       categoryId: item.category_id || item.menu_category_id || null,
       unitPrice,
       quantity,
+      discountAmount: discountValue,
       variantDetails,
       selectedOptions,
       instructions,
@@ -1286,6 +1299,20 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
           onBlur={() => { if (!quantity || quantity < 1) setQuantity(1); }}
           className="w-full h-11 bg-white border border-slate-200 rounded-xl text-center text-base font-bold text-slate-800 outline-none focus:border-[#FC687D]"
         />
+      </div>
+
+      <div className="mt-4">
+        <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1">Item Discount</label>
+        <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3">
+          <span className="text-xs font-bold text-slate-400">₱</span>
+          <input
+            inputMode="decimal"
+            value={itemDiscount}
+            onChange={(e) => setItemDiscount(e.target.value.replace(/[^\d.]/g, ""))}
+            placeholder="0.00"
+            className="w-full bg-transparent text-sm font-semibold text-slate-800 outline-none"
+          />
+        </div>
       </div>
 
       {availableVariantGroups.length > 0 && (
@@ -1748,6 +1775,18 @@ function discountAmountFromRule(rule, subtotal) {
   return 0;
 }
 
+function lineGrossAmount(line) {
+  return Number(line?.unitPrice || line?.price || 0) * Number(line?.quantity || line?.qty || 0);
+}
+
+function lineDiscountAmount(line) {
+  return Math.max(0, Math.min(lineGrossAmount(line), Number(line?.discountAmount || line?.discount_amount || 0)));
+}
+
+function lineNetAmount(line) {
+  return Math.max(0, lineGrossAmount(line) - lineDiscountAmount(line));
+}
+
 function getLatestShiftRecord(records, storeId) {
   const rows = Array.isArray(records) ? records : [];
   const scoped = storeId ? rows.filter((row) => String(row.store_id || "") === String(storeId)) : rows;
@@ -1794,7 +1833,7 @@ export default function POSPage() {
 
   const [paymentTypes, setPaymentTypes] = useState([]);
   const [, setTicketTemplates] = useState([]);
-  const [, setDiscountRules] = useState([]);
+  const [discountRules, setDiscountRules] = useState([]);
   const [receiptSettings, setReceiptSettings] = useState(null);
 
   const [cart, setCart] = useState([]);
@@ -1918,7 +1957,7 @@ export default function POSPage() {
   const calcTotal = (lines) =>
     (lines || []).reduce((sum, i) => {
       if (isVoidedLine(i)) return sum;
-      return sum + (Number(i.unitPrice || i.price || 0) * Number(i.quantity || 0));
+      return sum + lineNetAmount(i);
     }, 0);
 
   const subtotal = useMemo(() => calcTotal(cart), [cart]);
@@ -3090,7 +3129,7 @@ export default function POSPage() {
     await supabase.from("vouchers").insert(rows);
   }
 
-  async function awardMemberLoyaltyPoints(memberOrId, pointsEarned, saleTotal = 0) {
+  async function awardMemberLoyaltyPoints(memberOrId, pointsEarned, saleTotal = 0, orderId = null) {
     const memberId = typeof memberOrId === "string" ? memberOrId : memberOrId?.id;
     if (!memberId || !pointsEarned) return null;
 
@@ -3144,6 +3183,20 @@ export default function POSPage() {
     setAttachedCustomer((prev) => (prev?.id === activeMember.id ? { ...prev, ...normalizedMember } : prev));
 
     await createPointRewardVouchers(activeMember.id, nextAvailable);
+
+    if (orderId) {
+      await supabase
+        .from("orders")
+        .update({
+          loyalty_points_awarded: Number(pointsEarned.toFixed(2)),
+          loyalty_points_awarded_at: visitStamp,
+          customer_id: activeMember.id,
+          loyalty_member_id: activeMember.id,
+          customer_name: updatedMember.customer_name || updatedMember.name || null,
+        })
+        .eq("id", orderId);
+    }
+
     return normalizedMember;
   }
 
@@ -3153,7 +3206,7 @@ export default function POSPage() {
     try {
       const directMemberId = fallbackMemberId || order?.loyalty_member_id || order?.customer_id || null;
       if (directMemberId) {
-        await awardMemberLoyaltyPoints(directMemberId, pointsEarned, order?.total || order?.subtotal || 0);
+        await awardMemberLoyaltyPoints(directMemberId, pointsEarned, order?.total || order?.subtotal || 0, order?.pos_order_id || order?.order_id || null);
         return;
       }
 
@@ -3165,7 +3218,7 @@ export default function POSPage() {
         .maybeSingle();
 
       if (findErr || !member) return;
-      await awardMemberLoyaltyPoints(member.id, pointsEarned, order?.total || order?.subtotal || 0);
+      await awardMemberLoyaltyPoints(member.id, pointsEarned, order?.total || order?.subtotal || 0, order?.pos_order_id || order?.order_id || null);
     } catch (err) {
       console.warn("Loyalty point update skipped:", err);
     }
@@ -3905,13 +3958,15 @@ export default function POSPage() {
       return showToast("error", "GRAB Order Number Required", "Enter the GRAB order number before printing the bill.");
     }
 
+    const grossTotal = cart.reduce((sum, line) => sum + lineGrossAmount(line), 0);
+    const itemDiscountTotal = cart.reduce((sum, line) => sum + lineDiscountAmount(line), 0);
     const bill = buildBillText({
       orderId: activeWebOrderId || originalTicketId || ticketDiningLabel || "Current Ticket",
       cart,
       diningOptionName: activeWebOrderId ? webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName) : ticketDiningLabel,
       customerName: attachedCustomer?.name || "",
-      subtotal,
-      discount: discountAmount,
+      subtotal: grossTotal,
+      discount: itemDiscountTotal + discountAmount,
       total: totalDue,
       printedAt: new Date(),
     });
@@ -4005,9 +4060,11 @@ export default function POSPage() {
         if (error) return showToast("error", "Voucher Redeem Failed", error.message);
       }
 
-      const discount = Number(discountAmount || 0);
+      const itemDiscountTotal = cart.reduce((sum, line) => sum + lineDiscountAmount(line), 0);
+      const orderDiscount = Number(discountAmount || 0);
+      const discount = Number(itemDiscountTotal + orderDiscount);
       const total = Number(totalDue || 0);
-      const grossTotal = Number(subtotal || 0);
+      const grossTotal = Number(cart.reduce((sum, line) => sum + lineGrossAmount(line), 0));
       const { data: receiptData, error: receiptErr } = await supabase.rpc("generate_receipt_number", {
         p_store_id: resolvedBranchId,
       });
@@ -4070,10 +4127,10 @@ export default function POSPage() {
         category_name: line.category || line.categoryName || null,
         quantity: line.quantity,
         unit_price: line.unitPrice,
-        line_total: Number(line.unitPrice || 0) * Number(line.quantity || 0),
-        gross_amount: Number(line.unitPrice || 0) * Number(line.quantity || 0),
-        discount_amount: 0,
-        net_amount: Number(line.unitPrice || 0) * Number(line.quantity || 0),
+        line_total: lineNetAmount(line),
+        gross_amount: lineGrossAmount(line),
+        discount_amount: lineDiscountAmount(line),
+        net_amount: lineNetAmount(line),
       }));
       const { error: itemsErr } = await supabase.from("order_items").insert(itemRows);
       if (itemsErr) return showToast("error", "Charge Failed", itemsErr.message);
@@ -4117,11 +4174,11 @@ export default function POSPage() {
 
         await markKdsTicketStatus(supabase, { sourceType: "web", sourceId: activeWebOrderId, status: "completed" });
 
-        await awardWebOrderLoyaltyPoints(activeWebOrder, calcLoyaltyPoints(total), attachedCustomer?.id);
+        await awardWebOrderLoyaltyPoints({ ...activeWebOrder, pos_order_id: orderRow.id }, calcLoyaltyPoints(total), attachedCustomer?.id);
       } else {
         if (attachedCustomer?.id) {
           try {
-            await awardMemberLoyaltyPoints(attachedCustomer.id, calcLoyaltyPoints(total), total);
+            await awardMemberLoyaltyPoints(attachedCustomer.id, calcLoyaltyPoints(total), total, orderRow.id);
           } catch (loyaltyError) {
             showToast("warn", "Loyalty Points Not Added", loyaltyError?.message || "Sale completed, but loyalty points need review.");
           }
@@ -4136,7 +4193,7 @@ export default function POSPage() {
 
       const receipt = buildReceiptText({
         receiptSettings, order: { ...orderRow, id: generatedReceiptNumber }, cart, diningOptionName: chargedDiningLabel || "WEB_ORDER", payment: paymentLabel,
-        customer: attachedCustomer, subtotal, discount, total, voucher: appliedVoucher, appliedDiscount, store: currentStore, cashierName,
+        customer: attachedCustomer, subtotal: grossTotal, discount, total, voucher: appliedVoucher, appliedDiscount, store: currentStore, cashierName,
       });
 
       setReceiptText(receipt);
@@ -4584,7 +4641,7 @@ export default function POSPage() {
 
         {managementOpen && (
           <div className="fixed inset-0 z-[140] bg-slate-950/45 backdrop-blur-sm p-3 sm:p-6 flex items-center justify-center" onClick={() => setManagementOpen(false)}>
-            <div className="w-full max-w-5xl max-h-[100vh] overflow-y-auto rounded-2xl border border-rose-100 bg-white p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="w-full max-w-5xl max-h-full rounded-2xl border border-rose-100 bg-white p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-rose-50 pb-3 mb-3">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-[#FC687D]">POS Control</p>
@@ -5120,6 +5177,10 @@ export default function POSPage() {
               onRemoveCustomer={removeAttachedCustomer}
               onChangeCustomer={prepareCustomerChange}
               appliedVoucher={appliedVoucher}
+              discountRules={discountRules}
+              appliedDiscount={appliedDiscount}
+              onApplyDiscount={setAppliedDiscount}
+              onRemoveDiscount={() => setAppliedDiscount(null)}
               onOpenVouchers={async () => {
                 if (!attachedCustomer?.id) return showToast("error", "Attach Customer", "Scan/select a customer first.");
                 const v = await fetchActiveVouchers(attachedCustomer.id);
@@ -5220,6 +5281,10 @@ export default function POSPage() {
                 onRemoveCustomer={removeAttachedCustomer}
                 onChangeCustomer={prepareCustomerChange}
                 appliedVoucher={appliedVoucher}
+                discountRules={discountRules}
+                appliedDiscount={appliedDiscount}
+                onApplyDiscount={setAppliedDiscount}
+                onRemoveDiscount={() => setAppliedDiscount(null)}
                 onOpenVouchers={async () => {
                   if (!attachedCustomer?.id) return showToast("error", "Attach Customer", "Scan/select a customer first.");
                   const v = await fetchActiveVouchers(attachedCustomer.id);

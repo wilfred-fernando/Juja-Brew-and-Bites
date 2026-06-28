@@ -10,9 +10,13 @@ const supabase = getSupabaseClient();
 ======================= */
 const OPERATING_START_HOUR = 10; // 10AM
 const BASE_BOOKING_MINUTES = 2 * 60 + 59; // 2h59m
-const MAX_EXTENSION_HOURS = 3;
+const MAX_EXTENSION_HOURS = 2;
 const BOOKING_TIME_ZONE = "Asia/Manila";
 const BOOKING_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function clampExtensionHours(value) {
+  return Math.max(0, Math.min(MAX_EXTENSION_HOURS, Number(value || 0)));
+}
 
 /* =======================
  Helpers
@@ -658,7 +662,7 @@ export default function AdminBookingsDashboard() {
       contact_number: b.contact_number || "",
       email: b.email || "",
       package_id: Number(b.package_id || ""),
-      extension_hours: Number(b.extension_hours || 0),
+      extension_hours: clampExtensionHours(b.extension_hours),
       dateISO,
       hour: isNaN(hour) ? start.getHours() : hour,
     });
@@ -676,8 +680,9 @@ export default function AdminBookingsDashboard() {
     setEditLoading(true);
     try {
       const b = editModal.booking;
+      const extensionHours = clampExtensionHours(editModal.extension_hours);
       const startAt = computeDateTime(editModal.dateISO, Number(editModal.hour));
-      const endAt = computeEndAt(startAt, Number(editModal.extension_hours || 0));
+      const endAt = computeEndAt(startAt, extensionHours);
 
       const payload = {
         customer_name: String(editModal.customer_name || "").trim(),
@@ -686,7 +691,7 @@ export default function AdminBookingsDashboard() {
         contact_number: String(editModal.contact_number || "").trim(),
         email: String(editModal.email || "").trim(),
         package_id: Number(editModal.package_id),
-        extension_hours: Number(editModal.extension_hours || 0),
+        extension_hours: extensionHours,
         start_at: toManilaOffsetISOString(startAt),
         end_at: toManilaOffsetISOString(endAt),
         status: "pending",
@@ -748,8 +753,9 @@ export default function AdminBookingsDashboard() {
 
     setManualLoading(true);
     try {
+      const extensionHours = clampExtensionHours(manualModal.extension_hours);
       const startAt = computeDateTime(manualModal.dateISO, Number(manualModal.hour));
-      const endAt = computeEndAt(startAt, Number(manualModal.extension_hours || 0));
+      const endAt = computeEndAt(startAt, extensionHours);
       const payload = {
         user_id: null,
         member_id: null,
@@ -760,7 +766,7 @@ export default function AdminBookingsDashboard() {
         start_at: toManilaOffsetISOString(startAt),
         end_at: toManilaOffsetISOString(endAt),
         duration_hours: 3,
-        extension_hours: Number(manualModal.extension_hours || 0),
+        extension_hours: extensionHours,
         guest_count: Number(manualModal.guest_count || 1),
         contact_number: String(manualModal.contact_number || "").trim(),
         email: String(manualModal.email || "").trim(),
@@ -1623,7 +1629,6 @@ export default function AdminBookingsDashboard() {
                   <option value={0}>0</option>
                   <option value={1}>1</option>
                   <option value={2}>2</option>
-                  <option value={3}>3</option>
                 </select>
               </div>
 
@@ -1737,7 +1742,6 @@ export default function AdminBookingsDashboard() {
                   <option value={0}>0</option>
                   <option value={1}>1</option>
                   <option value={2}>2</option>
-                  <option value={3}>3</option>
                 </select>
               </div>
 

@@ -23,6 +23,10 @@ export default function TicketPanel({
   appliedVoucher,
   onOpenVouchers,
   onRemoveVoucher,
+  discountRules = [],
+  appliedDiscount = null,
+  onApplyDiscount,
+  onRemoveDiscount,
   onCharge,
   onSave,
   onPrintBill,
@@ -44,6 +48,12 @@ export default function TicketPanel({
   ticketTitle,
 }) {
   const [showManageDropdown, setShowManageDropdown] = useState(false);
+
+  const lineGrossAmount = (line) =>
+    Number(line?.unitPrice || line?.price || 0) * Number(line?.quantity || line?.qty || 0);
+  const lineDiscountAmount = (line) =>
+    Math.max(0, Math.min(lineGrossAmount(line), Number(line?.discountAmount || line?.discount_amount || 0)));
+  const lineNetAmount = (line) => Math.max(0, lineGrossAmount(line) - lineDiscountAmount(line));
 
   /* ✅ FIX: find selected dining option (ID → name mapping) */
   const selectedDining = useMemo(() => {
@@ -304,6 +314,41 @@ export default function TicketPanel({
         </div>
       </div>
 
+      {discountRules.length > 0 && (
+        <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50/70 p-2">
+          <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            Order Discount
+          </label>
+          <div className="flex gap-2">
+            <select
+              value={appliedDiscount?.id || ""}
+              onChange={(event) => {
+                const selected = discountRules.find((rule) => String(rule.id) === String(event.target.value));
+                if (selected) onApplyDiscount?.(selected);
+                else onRemoveDiscount?.();
+              }}
+              className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none transition focus:border-slate-400"
+            >
+              <option value="">No order discount</option>
+              {discountRules.map((rule) => (
+                <option key={rule.id} value={rule.id}>
+                  {rule.name || rule.discount_name || "Discount"}
+                </option>
+              ))}
+            </select>
+            {appliedDiscount && (
+              <button
+                type="button"
+                onClick={onRemoveDiscount}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-600 transition hover:bg-slate-100"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Split Selection State Alert Strip */}
       {splitMode && (
         <div className="mb-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl px-3 py-2 text-[11px] text-center font-semibold tracking-wide animate-pulse">
@@ -322,6 +367,7 @@ export default function TicketPanel({
         ) : (
           cart.map((line, idx) => {
             const isSelectedForSplit = splitSelected.includes(line.cartItemId);
+            const itemDiscount = lineDiscountAmount(line);
             return (
               <div
                 key={line.cartItemId || idx}
@@ -335,7 +381,7 @@ export default function TicketPanel({
                 <div className="flex justify-between items-baseline gap-2">
                   <p className="text-[14px] font-semibold text-slate-800 truncate">{line.name}</p>
                   <p className="text-[14px] font-bold text-slate-700 font-mono whitespace-nowrap">
-                    ₱{Number(line.unitPrice * line.quantity).toLocaleString("en-PH", { maximumFractionDigits: 0 })}
+                    ₱{Number(lineNetAmount(line)).toLocaleString("en-PH", { maximumFractionDigits: 0 })}
                   </p>
                 </div>             
                 
@@ -364,6 +410,12 @@ export default function TicketPanel({
                   </button>
                 )}
                 </div>
+                {itemDiscount > 0 && (
+                  <div className="flex justify-between rounded-lg bg-cyan-50 px-2 py-1 text-[11px] font-semibold text-cyan-800">
+                    <span>Item discount</span>
+                    <span>-₱{Number(itemDiscount).toLocaleString("en-PH", { maximumFractionDigits: 0 })}</span>
+                  </div>
+                )}
               </div>
             );
           })

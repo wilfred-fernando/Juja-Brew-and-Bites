@@ -11,7 +11,7 @@ const supabase = getSupabaseClient();
 ======================= */
 const OPERATING_START_HOUR = 10; // 10AM
 const BUFFER_HOURS = 1; // 1 hour buffer before & after
-const MAX_EXTENSION_HOURS = 3; // extension max 3 hours
+const MAX_EXTENSION_HOURS = 2; // extension max 2 hours
 const MIN_ADVANCE_HOURS = 3; // must be at least 3 hours in advance
 const RESCHEDULE_MIN_DAYS = 2; // update/reschedule allowed only if >= 2 days before start
 
@@ -1378,7 +1378,6 @@ export default function BookingForm({ user, member }) {
                   <option value={0}>0 hr</option>
                   <option value={1}>1 hr</option>
                   <option value={2}>2 hr</option>
-                  <option value={3}>3 hr</option>
                 </select>
               </div>
             </div>
