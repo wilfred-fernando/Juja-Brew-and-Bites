@@ -545,6 +545,49 @@ function buildBillText({ orderId, cart, diningOptionName, customerName, subtotal
   return lines.join("\n");
 }
 
+function buildEndDayReportText({ store, cashierName, startingCash, actualCash, denominations, summary, printedAt }) {
+  const branchName = store?.store_name || store?.name || store?.branch_name || "Store";
+  const expectedCash = Number(summary?.expectedCash || 0);
+  const actualCashValue = Number(actualCash || 0);
+  const difference = actualCashValue - expectedCash;
+  const lines = [
+    centerReceiptText("END DAY SALES REPORT"),
+    centerReceiptText(branchName),
+    receiptLine(),
+    receiptPair("Printed", formatReceiptFooterDate(printedAt || new Date())),
+    receiptPair("Cashier", normalizeLabelLine(cashierName || "Operator")),
+    receiptLine(),
+    "CASH DRAWER",
+    receiptPair("Starting cash", receiptAmount(startingCash || 0)),
+    receiptPair("Cash payments", receiptAmount(summary?.cashPayments || 0)),
+    receiptPair("Cash refunds", receiptAmount(summary?.cashRefunds || 0)),
+    receiptPair("Expected cash", receiptAmount(expectedCash)),
+    receiptPair("Actual cash", receiptAmount(actualCashValue)),
+    receiptPair("Difference", `${difference < 0 ? "-" : ""}${receiptAmount(Math.abs(difference))}`),
+    receiptLine(),
+    "CASH BREAKDOWN",
+  ];
+
+  SHIFT_DENOMINATIONS.forEach((denom) => {
+    const count = Number(denominations?.[denom] || 0);
+    if (count > 0) lines.push(receiptPair(`${receiptAmount(denom)} x ${count}`, receiptAmount(denom * count)));
+  });
+
+  lines.push(receiptLine());
+  lines.push("SALES SUMMARY");
+  lines.push(receiptPair("Gross sales", receiptAmount(summary?.grossSales || 0)));
+  lines.push(receiptPair("Refunds", receiptAmount(summary?.refunds || 0)));
+  lines.push(receiptPair("Discounts", receiptAmount(summary?.discounts || 0)));
+  lines.push(receiptPair("Net sales", receiptAmount(summary?.netSales || 0)));
+  lines.push(receiptLine());
+  Object.entries(summary?.payments || {}).forEach(([label, value]) => {
+    lines.push(receiptPair(label, receiptAmount(value || 0)));
+  });
+  lines.push("");
+  lines.push(centerReceiptText("END OF DAY"));
+  return lines.join("\n");
+}
+
 function getLineCategoryId(line) {
   return line?.categoryId || line?.category_id || line?.menu_category_id || line?.category?.id || null;
 }
@@ -1683,7 +1726,7 @@ function PrinterStatusPill({ children, active = false, tone = "slate" }) {
 
 function ShiftCashModal({ open, mode, counts, onChange, onClose, onSave }) {
   if (!open) return null;
-  const title = mode === "open" ? "Open Shift" : "Close Shift";
+  const title = mode === "open" ? "Open Shift" : mode === "end_day" ? "End Day" : "Close Shift";
   const total = SHIFT_DENOMINATIONS.reduce((sum, denom) => sum + denom * Number(counts[denom] || 0), 0);
 
   return (
@@ -1822,7 +1865,9 @@ function getLatestShiftRecord(records, storeId, cashierId) {
   const rows = Array.isArray(records) ? records : [];
   const scoped = rows.filter((row) => {
     if (storeId && String(row.store_id || "") !== String(storeId)) return false;
-    if (cashierId && String(row.cashier_id || "") !== String(cashierId)) return false;
+    const mode = getShiftRecordMode(row);
+    const isStoreEndDay = mode.includes("end_day") || mode.includes("end day");
+    if (cashierId && String(row.cashier_id || "") !== String(cashierId) && !isStoreEndDay) return false;
     return true;
   });
   return [...scoped].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())[0] || null;
@@ -1834,6 +1879,8 @@ function getShiftRecordMode(record) {
 
 function getShiftStatusFromRecords(records, storeId, cashierId) {
   const latest = getLatestShiftRecord(records, storeId, cashierId);
+  const mode = getShiftRecordMode(latest);
+  if (mode.includes("end_day") || mode.includes("end day")) return "closed";
   return getShiftRecordMode(latest).includes("open") ? "open" : "closed";
 }
 
@@ -2233,9 +2280,8 @@ export default function POSPage() {
       .from("cashier_pos")
       .select("*")
       .eq("store_id", sid)
-      .eq("cashier_id", cashierId)
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(50);
 
     if (error) {
       applyShiftState(localRows, sid, cashierId);
@@ -3839,10 +3885,11 @@ export default function POSPage() {
       return;
     }
 
+    const isEndDay = shiftCashMode === "end_day";
     const record = {
       id: `${shiftCashMode}-${Date.now()}`,
       store_id: storeId,
-      cashier_id: currentUserId,
+      cashier_id: isEndDay ? null : currentUserId,
       mode: shiftCashMode,
       cashier_name: cashierName || "Operator",
       cash_total: Number(totalCash || 0),
@@ -3874,9 +3921,26 @@ export default function POSPage() {
 
     const { error } = await supabase.from("cashier_pos").insert([record]);
     if (error) {
-      showToast("info", shiftCashMode === "open" ? "Shift Opened Locally" : "Shift Closed Locally", "Create or alter cashier_pos in Supabase to store shift records online.");
+      showToast("info", shiftCashMode === "open" ? "Shift Opened Locally" : isEndDay ? "End Day Saved Locally" : "Shift Closed Locally", "Create or alter cashier_pos in Supabase to store shift records online.");
     } else {
-      showToast("success", shiftCashMode === "open" ? "Shift Opened" : "Shift Closed", "Shift record saved.");
+      showToast("success", shiftCashMode === "open" ? "Shift Opened" : isEndDay ? "End Day Closed" : "Shift Closed", isEndDay ? "All POS accounts for this store will show closed after refresh." : "Shift record saved.");
+    }
+
+    if (isEndDay) {
+      const reportText = buildEndDayReportText({
+        store: currentStore,
+        cashierName,
+        startingCash,
+        actualCash: totalCash,
+        denominations: shiftDenominations,
+        summary: shiftSummary,
+        printedAt: record.created_at,
+      });
+      try {
+        await printByRole("receipt", reportText, printerConfig, { fallbackToBrowser: true });
+      } catch (printError) {
+        showToast("warn", "End Day Report Not Printed", printError?.message || "Select and save the receipt printer in POS Settings.");
+      }
     }
 
     setShiftCashOpen(false);
@@ -4807,8 +4871,9 @@ export default function POSPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-3">
                 <h3 className="text-sm font-black text-slate-800">Cash Drawer</h3>
-                <div className="grid grid-cols-1 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button type="button" onClick={() => openShiftCashModal("close")} className="h-10 rounded-xl bg-[#FC687D] text-white text-[10px] font-black uppercase tracking-wider">Close Shift</button>
+                  <button type="button" onClick={() => openShiftCashModal("end_day")} className="h-10 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider">End Day</button>
                 </div>
                 <div className="flex justify-between rounded-lg bg-white border border-slate-100 p-2 text-xs font-bold">
                   <span className="text-slate-500">Starting Cash</span><span>{peso2(startingCash || 0)}</span>
