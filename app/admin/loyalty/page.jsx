@@ -73,6 +73,7 @@ export default function LoyaltyAdminPage() {
     rows: [],
     error: "",
   });
+  const [voucherStatusBusyId, setVoucherStatusBusyId] = useState("");
 
   // Select user by email (searchable)
   const [userQuery, setUserQuery] = useState("");
@@ -223,6 +224,46 @@ export default function LoyaltyAdminPage() {
         rows: [],
         error: err?.message || "Unable to load vouchers.",
       });
+    }
+  }
+
+  async function updateVoucherStatus(voucher, nextStatus) {
+    if (!voucher?.id || !nextStatus) return;
+    const normalized = String(nextStatus).toLowerCase();
+    const dbStatus = normalized === "available" ? "active" : normalized;
+    const nowIso = new Date().toISOString();
+    const nextExpiry = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+
+    setVoucherStatusBusyId(voucher.id);
+    setVoucherView((prev) => ({ ...prev, error: "" }));
+
+    try {
+      const updatePayload = {
+        status: dbStatus,
+        redeemed_at: dbStatus === "redeemed" ? nowIso : null,
+      };
+
+      if (dbStatus === "active") {
+        const expiryMs = voucher.expires_at ? new Date(voucher.expires_at).getTime() : 0;
+        if (!expiryMs || expiryMs < Date.now()) updatePayload.expires_at = nextExpiry;
+      }
+
+      const { error } = await supabase
+        .from("vouchers")
+        .update(updatePayload)
+        .eq("id", voucher.id);
+
+      if (error) throw error;
+
+      setNotice(`✅ Voucher changed to ${voucherStatusLabel(normalized)}.`);
+      await openVoucherList(voucherView.member, normalized);
+    } catch (err) {
+      setVoucherView((prev) => ({
+        ...prev,
+        error: err?.message || "Unable to update voucher status.",
+      }));
+    } finally {
+      setVoucherStatusBusyId("");
     }
   }
 
@@ -1643,6 +1684,7 @@ export default function LoyaltyAdminPage() {
                         <th className="border-b border-slate-200 px-4 py-3">Expires</th>
                         <th className="border-b border-slate-200 px-4 py-3">Redeemed</th>
                         <th className="border-b border-slate-200 px-4 py-3">Status</th>
+                        <th className="border-b border-slate-200 px-4 py-3">Change Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
@@ -1658,6 +1700,18 @@ export default function LoyaltyAdminPage() {
                             <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] uppercase tracking-widest text-slate-600">
                               {voucherStatusLabel(getVoucherStatus(voucher))}
                             </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              value={getVoucherStatus(voucher)}
+                              disabled={voucherStatusBusyId === voucher.id}
+                              onChange={(event) => updateVoucherStatus(voucher, event.target.value)}
+                              className="h-10 min-w-[140px] rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <option value="available">Available</option>
+                              <option value="redeemed">Redeemed</option>
+                              <option value="expired">Expired</option>
+                            </select>
                           </td>
                         </tr>
                       ))}
