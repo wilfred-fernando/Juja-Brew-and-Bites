@@ -875,7 +875,7 @@ function buildCupLabels({ orderId, cart, diningOptionName, printedAt, barCategor
       .map((value) => normalizeLabelLine(value))
       .filter(Boolean);
     const instructions = normalizeLabelLine(x.instructions || x.specialInstructions || x.special_instructions || "");
-    const footer = normalizeLabelLine(`${shortReceiptNumber(orderId)}|${formatCupLabelDateTime(printedAt || new Date())}`);
+    const footer = normalizeLabelLine(`${formatCupLabelDateTime(printedAt || new Date())}|${shortReceiptNumber(orderId)}`);
 
     for (let i = 0; i < x.quantity; i++) {
       const lines = [
