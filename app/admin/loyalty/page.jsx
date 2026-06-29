@@ -166,34 +166,6 @@ export default function LoyaltyAdminPage() {
     }).format(date);
   }
 
-  async function safeHistoryQuery(label, query, mapper) {
-    const { data, error } = await query;
-    if (error) {
-      console.warn(`${label} purchase history skipped:`, error.message);
-      return [];
-    }
-    return (data || []).map(mapper);
-  }
-
-  function cleanHistorySearchValue(value) {
-    return String(value || "")
-      .replace(/[%(),]/g, "")
-      .trim();
-  }
-
-  function uniqueHistoryValues(values) {
-    return Array.from(new Set(values.map(cleanHistorySearchValue).filter(Boolean)));
-  }
-
-  function dedupeHistoryRows(rows) {
-    const seen = new Map();
-    rows.flat().forEach((row) => {
-      if (!row?.id) return;
-      seen.set(row.id, row);
-    });
-    return Array.from(seen.values());
-  }
-
   function getVoucherStatus(voucher) {
     const status = String(voucher?.status || "").toLowerCase();
     const redeemedAt = voucher?.redeemed_at;
@@ -255,144 +227,22 @@ export default function LoyaltyAdminPage() {
   }
 
   async function openPurchaseHistory(member) {
-    const name = String(member?.customer_name || member?.["customer_name"] || "").trim();
-    const email = String(member?.Email || member?.email || "").trim();
-    const phone = String(member?.Phone || member?.phone || "").trim();
-    const memberId = String(member?.id || "").trim();
-    const userId = String(member?.user_id || member?.profile_id || "").trim();
-    const customerCodes = uniqueHistoryValues([
-      member?.customer_code,
-      member?.["customer_code"],
-      member?.["Customer ID"],
-      member?.customer_id,
-      memberId,
-    ]);
-
     setPurchaseHistory({ open: true, loading: true, member, rows: [], error: "" });
 
     try {
-      const webMapper = (row) => ({
-        id: `web-${row.id}`,
-        source: "Web order",
-        date: row.created_at,
-        receipt: row.receipt_number || `WEB-${String(row.id).slice(0, 8).toUpperCase()}`,
-        store: row.dining_option || row.fulfillment_type || "Web",
-        payment: row.payment_method,
-        total: Number(row.total || 0),
-        status: row.status,
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      const response = await fetch("/api/admin/customer-purchase-history", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ memberId: member?.id }),
       });
-
-      const posMapper = (row) => ({
-        id: `pos-${row.id}`,
-        source: "POS order",
-        date: row.created_at,
-        receipt: row.receipt_number || row.order_number || String(row.id).slice(0, 12),
-        store: row.source_store_name || row.order_type || row.dining_option || "POS",
-        payment: row.payment_method,
-        total: Number(row.net_amount || row.total || row.total_amount || 0),
-        status: row.status,
-      });
-
-      const webContactSearches = uniqueHistoryValues([phone, email]);
-      const webNameSearches = uniqueHistoryValues([name]);
-      const posNameSearches = uniqueHistoryValues([name]);
-
-      const webQueries = [
-        ...webNameSearches.map((value) =>
-          safeHistoryQuery(
-            "Web orders by customer name",
-            supabase
-              .from("web_orders")
-              .select("id,created_at,receipt_number,customer_name,customer_contact,total,payment_method,status,dining_option,fulfillment_type,user_id")
-              .ilike("customer_name", `%${value}%`)
-              .order("created_at", { ascending: false })
-              .limit(100),
-            webMapper
-          )
-        ),
-        ...webContactSearches.map((value) =>
-          safeHistoryQuery(
-            "Web orders by customer contact",
-            supabase
-              .from("web_orders")
-              .select("id,created_at,receipt_number,customer_name,customer_contact,total,payment_method,status,dining_option,fulfillment_type,user_id")
-              .ilike("customer_contact", `%${value}%`)
-              .order("created_at", { ascending: false })
-              .limit(100),
-            webMapper
-          )
-        ),
-        userId
-          ? safeHistoryQuery(
-              "Web orders by user",
-              supabase
-                .from("web_orders")
-                .select("id,created_at,receipt_number,customer_name,customer_contact,total,payment_method,status,dining_option,fulfillment_type,user_id")
-                .eq("user_id", userId)
-                .order("created_at", { ascending: false })
-                .limit(100),
-              webMapper
-            )
-          : Promise.resolve([]),
-      ];
-
-      const posQueries = [
-        ...posNameSearches.map((value) =>
-          safeHistoryQuery(
-            "POS orders by customer name",
-            supabase
-              .from("orders")
-              .select("id,created_at,receipt_number,order_number,customer_name,customer_id,loyalty_member_id,user_id,total,total_amount,net_amount,payment_method,status,order_type,dining_option,source_store_name")
-              .ilike("customer_name", `%${value}%`)
-              .order("created_at", { ascending: false })
-              .limit(100),
-            posMapper
-          )
-        ),
-        ...customerCodes.map((value) =>
-          safeHistoryQuery(
-            "POS orders by customer id",
-            supabase
-              .from("orders")
-              .select("id,created_at,receipt_number,order_number,customer_name,customer_id,loyalty_member_id,user_id,total,total_amount,net_amount,payment_method,status,order_type,dining_option,source_store_name")
-              .eq("customer_id", value)
-              .order("created_at", { ascending: false })
-              .limit(100),
-            posMapper
-          )
-        ),
-        memberId
-          ? safeHistoryQuery(
-              "POS orders by loyalty member",
-              supabase
-                .from("orders")
-                .select("id,created_at,receipt_number,order_number,customer_name,customer_id,loyalty_member_id,user_id,total,total_amount,net_amount,payment_method,status,order_type,dining_option,source_store_name")
-                .eq("loyalty_member_id", memberId)
-                .order("created_at", { ascending: false })
-                .limit(100),
-              posMapper
-            )
-          : Promise.resolve([]),
-        userId
-          ? safeHistoryQuery(
-              "POS orders by user",
-              supabase
-                .from("orders")
-                .select("id,created_at,receipt_number,order_number,customer_name,customer_id,loyalty_member_id,user_id,total,total_amount,net_amount,payment_method,status,order_type,dining_option,source_store_name")
-                .eq("user_id", userId)
-                .order("created_at", { ascending: false })
-                .limit(100),
-              posMapper
-            )
-          : Promise.resolve([]),
-      ];
-
-      const [webRows, posRows] = await Promise.all([
-        Promise.all(webQueries).then(dedupeHistoryRows),
-        Promise.all(posQueries).then(dedupeHistoryRows),
-      ]);
-
-      const rows = [...webRows, ...posRows].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error || "Unable to load purchase history.");
+      const rows = payload.rows || [];
       setPurchaseHistory({ open: true, loading: false, member, rows, error: "" });
     } catch (err) {
       setPurchaseHistory({ open: true, loading: false, member, rows: [], error: err?.message || "Unable to load purchase history." });

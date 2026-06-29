@@ -3828,17 +3828,23 @@ export default function POSPage() {
       .select("*")
       .eq("id", memberId)
       .maybeSingle();
-    if (!member?.id || !member?.user_id) return member || null;
+    if (!member?.id) return member || null;
 
     const voucherCount = Math.floor(Number(availablePoints || member["Available points"] || 0) / 100);
     if (voucherCount <= 0) return member;
 
     const now = Date.now();
+    const voucherSuffix = () => {
+      if (globalThis.crypto?.randomUUID) {
+        return globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
+      }
+      return `${Date.now().toString(36)}${Math.floor(Math.random() * 1000000).toString(36)}`.slice(-8).toUpperCase();
+    };
     const rows = Array.from({ length: voucherCount }, (_, idx) => {
       const voucherNumber = idx + 1;
       return {
         member_id: memberId,
-        code: `PTS100-${voucherNumber}-${Math.floor(1000 + Math.random() * 9000)}`,
+        code: `PTS100-${voucherNumber}-${voucherSuffix()}`,
         reward_text: "FREE 16oz Drink or Waffle (100 Points Reward)",
         issued_at: new Date(now).toISOString(),
         expires_at: new Date(now + 90 * 86400000).toISOString(),
