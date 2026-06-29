@@ -449,7 +449,7 @@ function coerceReceiptTimestamp(value) {
   if (value instanceof Date) return value;
   const text = String(value).trim();
   const normalizedTimestamp = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/.test(text)
-    ? `${text.replace(" ", "T")}+08:00`
+    ? `${text.replace(" ", "T")}Z`
     : text;
   return new Date(normalizedTimestamp);
 }
@@ -1145,7 +1145,7 @@ function Toast({ toast, onClose }) {
   );
 }
 
-const TARGET_WEB_STATUSES = ["pending", "scheduled", "accepted", "ready", "completed", "Pending", "Scheduled", "Accepted", "Ready", "Completed"];
+const TARGET_WEB_STATUSES = ["scheduled", "accepted", "preparing", "ready", "Scheduled", "Accepted", "Preparing", "Ready"];
 const calcLoyaltyPoints = (amount) => Number(((Number(amount) || 0) * 0.04).toFixed(2));
 const SHIFT_DENOMINATIONS = [1000, 500, 200, 100, 50, 20, 10, 5, 1];
 const POS_RECEIPT_HISTORY_DAYS = 15;
@@ -2578,6 +2578,17 @@ export default function POSPage() {
   const selectedCartItem = useMemo(() => cart.find((x) => x.cartItemId === voucherTargetCartItemId) || null, [cart, voucherTargetCartItemId]);
   const ticketTitle = activeWebOrderId ? `Web Order: #${activeWebOrderId.slice(0,8).toUpperCase()}` : (ticketDiningLabel || "Select Dining Option");
   const ticketSubtitle = attachedCustomer?.name ? `Loyalty Member: ${attachedCustomer.name}` : "Walk-in Customer";
+  const activeShiftRecord = useMemo(() => {
+    if (shiftStatus !== "open") return null;
+    const latest = getLatestShiftRecord(shiftRecords, storeId, currentUserId);
+    return getShiftRecordMode(latest).includes("open") ? latest : null;
+  }, [shiftRecords, storeId, currentUserId, shiftStatus]);
+  const activeShiftStartMs = useMemo(() => {
+    const stamp = activeShiftRecord?.created_at;
+    if (!stamp) return null;
+    const parsed = coerceReceiptTimestamp(stamp);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
+  }, [activeShiftRecord]);
   const selectedReceipt = useMemo(
     () => receiptRows.find((row) => row.receipt_number === selectedReceiptNumber) || receiptRows[0] || null,
     [receiptRows, selectedReceiptNumber]
@@ -2588,7 +2599,15 @@ export default function POSPage() {
   );
   const shiftSummary = useMemo(() => {
     const todayKey = formatDate(new Date());
-    const rows = (receiptRows || []).filter((row) => !row.created_at || formatDate(row.created_at) === todayKey);
+    const rows = (receiptRows || []).filter((row) => {
+      const stamp = receiptDisplayTimestamp(row);
+      if (!stamp) return true;
+      if (activeShiftStartMs) {
+        const parsed = coerceReceiptTimestamp(stamp);
+        if (!Number.isNaN(parsed.getTime())) return parsed.getTime() >= activeShiftStartMs;
+      }
+      return formatDate(stamp) === todayKey;
+    });
     const isRefunded = (r) => String(r.status || "").toLowerCase().includes("refund");
     const saleRows = rows.filter((r) => !isRefunded(r));
     const refundRows = rows.filter(isRefunded);
@@ -2623,22 +2642,27 @@ export default function POSPage() {
         Panda: paymentTotal("panda"),
       },
     };
-  }, [receiptRows, startingCash]);
+  }, [receiptRows, startingCash, activeShiftStartMs]);
   const shiftSalesRows = useMemo(() => {
     const todayKey = formatDate(new Date());
     const todaysRows = (receiptRows || []).filter((row) => {
-      if (!row.created_at) return true;
-      return formatDate(row.created_at) === todayKey;
+      const stamp = receiptDisplayTimestamp(row);
+      if (!stamp) return true;
+      if (activeShiftStartMs) {
+        const parsed = coerceReceiptTimestamp(stamp);
+        if (!Number.isNaN(parsed.getTime())) return parsed.getTime() >= activeShiftStartMs;
+      }
+      return formatDate(stamp) === todayKey;
     });
     return todaysRows.map((row) => ({
       receipt: row.receipt_number,
-      time: row.created_at ? formatReceiptTime(row.created_at) : row.date,
+      time: receiptDisplayTimestamp(row) ? formatReceiptTime(receiptDisplayTimestamp(row)) : row.date,
       payment: row.payment_type || "Other",
       dining: row.description || row.dining_option || "POS Order",
       status: row.status || "Closed",
       total: Number(row.total_collected || row.net_sales || 0),
     }));
-  }, [receiptRows]);
+  }, [receiptRows, activeShiftStartMs]);
   const itemsByManagementCategory = useMemo(() => {
     const map = new Map();
     const categoryNames = (categories || []).map((cat) => cat?.name || cat?.label || cat).filter(Boolean);
@@ -4921,9 +4945,28 @@ export default function POSPage() {
     let createdOrderRow = null;
     let receiptCustomer = attachedCustomer;
     let loyaltyAlreadyAwarded = false;
+    let activeWebOrderForCharge = null;
 
     setCharging(true);
     try {
+      if (activeWebOrderId) {
+        const { data: webOrderForCharge, error: webOrderForChargeErr } = await supabase
+          .from("web_orders")
+          .select("*")
+          .eq("id", activeWebOrderId)
+          .maybeSingle();
+        if (webOrderForChargeErr) return showToast("error", "Web Order Check Failed", webOrderForChargeErr.message);
+        if (!webOrderForCharge?.id) return showToast("error", "Web Order Missing", "Refresh POS and try again.");
+
+        const webChargeStatus = String(webOrderForCharge.status || webOrderForCharge.order_status || "").toLowerCase();
+        const alreadyClosed = ["completed", "delivered", "paid", "cancelled", "canceled", "rejected", "refunded", "voided"].includes(webChargeStatus);
+        if (alreadyClosed || webOrderForCharge.receipt_number) {
+          await fetchAcceptedWebOrders();
+          return showToast("error", "Web Order Already Charged", "This web order already has a receipt or is no longer active.");
+        }
+        activeWebOrderForCharge = webOrderForCharge;
+      }
+
       if (appliedVoucher?.id) {
         const { data: redeemedVoucher, error } = await supabase
           .from("vouchers")
@@ -5016,13 +5059,7 @@ export default function POSPage() {
 
       // If updating an active web order, close out its row state inside web_orders table
       if (activeWebOrderId) {
-        const { data: activeWebOrder } = await supabase
-          .from("web_orders")
-          .select("*")
-          .eq("id", activeWebOrderId)
-          .maybeSingle();
-
-        await supabase
+        const { error: webCompleteErr } = await supabase
           .from("web_orders")
           .update({ 
             status: "completed",
@@ -5033,17 +5070,17 @@ export default function POSPage() {
             receipt_date: receiptRow.receipt_date || null,
             payment_method: paymentLabel,
             payment_status: "paid",
-            customer_id: attachedCustomer?.id || activeWebOrder?.customer_id || null,
-            customer_name: attachedCustomer?.name || activeWebOrder?.customer_name || null,
+            customer_name: attachedCustomer?.name || activeWebOrderForCharge?.customer_name || null,
             items: enrichOrderItemsForKds(cart),
             subtotal: Number(subtotal),
             total: total
           })
           .eq("id", activeWebOrderId);
+        if (webCompleteErr) return showToast("error", "Web Order Update Failed", webCompleteErr.message);
 
         await markKdsTicketStatus(supabase, { sourceType: "web", sourceId: activeWebOrderId, status: "completed" });
 
-        await awardWebOrderLoyaltyPoints({ ...activeWebOrder, pos_order_id: orderRow.id }, calcLoyaltyPoints(total), attachedCustomer?.id);
+        await awardWebOrderLoyaltyPoints({ ...activeWebOrderForCharge, pos_order_id: orderRow.id }, calcLoyaltyPoints(total), attachedCustomer?.id);
       } else {
         if (attachedCustomer?.id) {
           try {
@@ -5106,6 +5143,11 @@ export default function POSPage() {
       showToast("success", "Charged Successfully", "Transaction saved and synced to logs.");
       clearTicketSoft();
       setPaymentOpen(false);
+      await Promise.all([
+        fetchAcceptedWebOrders(),
+        fetchPendingCount(storeId),
+        managementOpen ? fetchReceiptLogs() : Promise.resolve(),
+      ]);
     } catch (err) {
       console.error("Execution failed:", err);
       if (!createdOrderRow && !activeWebOrderId && !appliedVoucher?.id && isProbablyOfflineError(err)) {
