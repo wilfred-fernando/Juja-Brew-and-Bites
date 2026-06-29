@@ -166,7 +166,7 @@ export default function CustomerOrderDisplayPage() {
                   >
                     <div className="flex items-center justify-between gap-4">
                       <div className="min-w-0">
-                        <p className="truncate text-[16px] font-bold uppercase tracking-tight text-slate-950">{order.dining_option}</p>
+                        <p className="truncate text-[18px] font-bold uppercase tracking-tight text-slate-950">{order.dining_option}</p>
                         <div className="mt-.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-600">
                           <Clock3 className="h-2 w-2" />
                           {displayTime(order.updated_at)}

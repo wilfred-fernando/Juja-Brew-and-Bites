@@ -15,6 +15,29 @@ const supabaseGlobalInstance = getSupabaseClient();
 
 const DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID = "000018f0-0000-1000-8000-00805f9b34fb";
 const DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID = "00002af1-0000-1000-8000-00805f9b34fb";
+const NIIMBOT_BLE_SERVICE_UUID = "e7810a71-73ae-499d-8c15-faa9aef0c3f2";
+const NIIMBOT_BLE_CHARACTERISTIC_UUID = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f";
+const NIIMBOT_B1_PRO_MODEL = {
+  label: "Niimbot B1 Pro",
+  id: 4097,
+  dpi: 300,
+  protocol: "v4",
+  task: "v4",
+  density: 3,
+  label_type: 1,
+  speed: 1,
+  name_prefixes: ["B1"],
+};
+const NIIMBOT_50X40_LABEL_SIZE = {
+  label: "50 x 40 mm",
+  code: "T50*40",
+  w_mm: 50,
+  h_mm: 40,
+  w_px: 584,
+  h_px: 472,
+  margin: 10,
+  dpi: 300,
+};
 const THERMAL_PAPER_WIDTH_MM = 50;
 const RECEIPT_COLUMNS = 32;
 const RECEIPT_LOGO_URL = "https://images.jujabrewandbites.com/SIGNAGE%20light%20with%20korean%20letters%203.png";
@@ -33,7 +56,7 @@ const PRINTER_ROLE_DEFAULT_WIDTH = {
 const PRINTER_ROLE_HINTS = {
   receipt: "Receipt printer for bills and final receipts.",
   order_slip: "Kitchen order slip printer.",
-  cup_label: "XP-Z58C Bluetooth label printer, 50mm x 40mm thermal sticker. Pairing password: 0000.",
+  cup_label: "Niimbot B1 Pro cup label printer, 50mm x 40mm thermal sticker. Reconnect uses saved browser Bluetooth permission.",
 };
 const PRINTER_ROLE_STATUS = {
   receipt: "Final receipts",
@@ -42,15 +65,16 @@ const PRINTER_ROLE_STATUS = {
 };
 
 function createPrinterProfile(role, source = {}) {
+  const isCupLabel = role === "cup_label";
   return {
     id: source?.id || null,
     enabled: Boolean(source?.id || source?.is_active),
-    name: source?.ble_device_name || source?.name || `${PRINTER_ROLE_LABELS[role] || "POS"} Printer`,
-    model: source?.model || "Other model",
+    name: source?.ble_device_name || source?.name || (isCupLabel ? "NIIMBOT B1 Pro" : `${PRINTER_ROLE_LABELS[role] || "POS"} Printer`),
+    model: source?.model || (isCupLabel ? "Niimbot B1 Pro label printer" : "Other model"),
     interface: source?.interface || "Bluetooth",
-    paper_width_mm: role === "cup_label" ? 50 : Number(source?.paper_width_mm || PRINTER_ROLE_DEFAULT_WIDTH[role] || THERMAL_PAPER_WIDTH_MM),
-    service_uuid: source?.ble_service_uuid || DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID,
-    characteristic_uuid: source?.ble_characteristic_uuid || DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID,
+    paper_width_mm: isCupLabel ? 50 : Number(source?.paper_width_mm || PRINTER_ROLE_DEFAULT_WIDTH[role] || THERMAL_PAPER_WIDTH_MM),
+    service_uuid: source?.ble_service_uuid || (isCupLabel ? NIIMBOT_BLE_SERVICE_UUID : DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID),
+    characteristic_uuid: source?.ble_characteristic_uuid || (isCupLabel ? NIIMBOT_BLE_CHARACTERISTIC_UUID : DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID),
     device_id: source?.ble_device_id || "",
   };
 }
@@ -80,6 +104,26 @@ function bluetoothDeviceCacheKeys(device, cfg = {}) {
 function cacheBluetoothPrinterDevice(device, cfg = {}) {
   bluetoothDeviceCacheKeys(device, cfg).forEach((key) => {
     bluetoothPrinterDeviceCache.set(key, device);
+  });
+}
+
+function bluetoothDeviceMatchesConfig(device, cfg = {}) {
+  if (!device) return false;
+  if (cfg?.ble_device_id && device.id === cfg.ble_device_id) return true;
+  if (cfg?.ble_device_name && device.name === cfg.ble_device_name) return true;
+  if (cfg?.name && device.name === cfg.name) return true;
+  const configuredName = String(cfg?.ble_device_name || cfg?.name || "").trim().toLowerCase();
+  const deviceName = String(device.name || "").trim().toLowerCase();
+  return Boolean(configuredName && deviceName && (configuredName.includes(deviceName) || deviceName.includes(configuredName)));
+}
+
+async function warmBluetoothPrinterDeviceCache(configByRole = {}) {
+  if (typeof navigator === "undefined" || !navigator.bluetooth?.getDevices) return;
+  const devices = await navigator.bluetooth.getDevices();
+  Object.values(configByRole || {}).forEach((cfg) => {
+    if (!cfg) return;
+    const match = devices.find((device) => bluetoothDeviceMatchesConfig(device, cfg));
+    if (match) cacheBluetoothPrinterDevice(match, cfg);
   });
 }
 
@@ -140,22 +184,14 @@ async function findSavedBluetoothDevice(cfg, serviceUuid) {
 
   if (navigator.bluetooth?.getDevices) {
     const devices = await navigator.bluetooth.getDevices();
-    const match = devices.find((device) => {
-      if (cfg?.ble_device_id && device.id === cfg.ble_device_id) return true;
-      if (cfg?.ble_device_name && device.name === cfg.ble_device_name) return true;
-      if (cfg?.name && device.name === cfg.name) return true;
-      const configuredName = String(cfg?.ble_device_name || cfg?.name || "").trim().toLowerCase();
-      const deviceName = String(device.name || "").trim().toLowerCase();
-      if (configuredName && deviceName && (configuredName.includes(deviceName) || deviceName.includes(configuredName))) return true;
-      return false;
-    });
+    const match = devices.find((device) => bluetoothDeviceMatchesConfig(device, cfg));
     if (match) {
       cacheBluetoothPrinterDevice(match, cfg);
       return match;
     }
   }
 
-  throw new Error("Bluetooth printer permission is not available in this browser. Open POS Settings, choose Select Xprinter Bluetooth Device, select the paired Xprinter once, then save it.");
+  throw new Error("Bluetooth printer permission is not available in this browser. Open POS Settings, choose the printer once, then save it. Browsers cannot keep a live Bluetooth connection after refresh or app close.");
 }
 
 async function bleConnect(cfg) {
@@ -209,6 +245,120 @@ async function blePrint(characteristic, text, role = "receipt") {
   }
 }
 
+function isNiimbotCupLabelConfig(role, cfg = {}) {
+  if (role !== "cup_label") return false;
+  const marker = `${cfg?.model || ""} ${cfg?.ble_device_name || ""} ${cfg?.name || ""}`.toLowerCase();
+  return marker.includes("niimbot") || marker.includes("b1 pro") || marker.includes("b1");
+}
+
+function wrapLabelCanvasText(ctx, text, maxWidth) {
+  const words = String(text || "").split(/\s+/).filter(Boolean);
+  const lines = [];
+  let current = "";
+  words.forEach((word) => {
+    const next = current ? `${current} ${word}` : word;
+    if (ctx.measureText(next).width > maxWidth && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = next;
+    }
+  });
+  if (current) lines.push(current);
+  return lines;
+}
+
+function renderNiimbotCupLabelImage(text) {
+  if (typeof document === "undefined") throw new Error("Label rendering is only available in the browser.");
+  const canvas = document.createElement("canvas");
+  canvas.width = NIIMBOT_50X40_LABEL_SIZE.w_px;
+  canvas.height = NIIMBOT_50X40_LABEL_SIZE.h_px;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Unable to create cup label canvas.");
+
+  const margin = 28;
+  const width = canvas.width - margin * 2;
+  const lines = String(text || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#000000";
+  ctx.textBaseline = "top";
+
+  let y = 20;
+  const drawWrapped = (value, font, lineHeight, maxLines = 4) => {
+    ctx.font = font;
+    const wrapped = wrapLabelCanvasText(ctx, value, width).slice(0, maxLines);
+    wrapped.forEach((line) => {
+      ctx.fillText(line, margin, y);
+      y += lineHeight;
+    });
+  };
+
+  drawWrapped(lines[0] || "ORDER", "700 42px Arial, sans-serif", 48, 2);
+  if (lines[1]) drawWrapped(lines[1], "700 36px Arial, sans-serif", 42, 2);
+  y += 8;
+
+  ctx.strokeStyle = "#000000";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(margin, y);
+  ctx.lineTo(canvas.width - margin, y);
+  ctx.stroke();
+  y += 18;
+
+  lines.slice(2, -1).forEach((line) => {
+    const isNote = /^note:/i.test(line);
+    drawWrapped(line, `${isNote ? "700" : "500"} ${isNote ? 28 : 27}px Arial, sans-serif`, isNote ? 34 : 32, isNote ? 2 : 3);
+    y += isNote ? 4 : 0;
+  });
+
+  const footer = lines[lines.length - 1] || formatReceiptDate(new Date());
+  ctx.font = "600 22px Arial, sans-serif";
+  ctx.fillText(footer, margin, canvas.height - 34);
+  return canvas.toDataURL("image/png");
+}
+
+async function getNiimbotDriver() {
+  if (typeof window === "undefined") throw new Error("Niimbot printing is only available in the browser.");
+  if (!window.Niimbot) await import("niimbot-web-bluetooth");
+  if (!window.Niimbot?.isSupported?.()) throw new Error("Niimbot Web Bluetooth needs Chrome or Edge over HTTPS, or localhost.");
+  return window.Niimbot;
+}
+
+async function withRememberedNiimbotDevice(cfg, callback) {
+  if (typeof navigator === "undefined" || !navigator.bluetooth?.requestDevice) return callback();
+  const originalRequestDevice = navigator.bluetooth.requestDevice.bind(navigator.bluetooth);
+  let patched = false;
+  try {
+    navigator.bluetooth.requestDevice = async (options) => {
+      try {
+        return await findSavedBluetoothDevice(cfg, NIIMBOT_BLE_SERVICE_UUID);
+      } catch {
+        return originalRequestDevice(options);
+      }
+    };
+    patched = true;
+  } catch {}
+  try {
+    return await callback();
+  } finally {
+    if (patched) navigator.bluetooth.requestDevice = originalRequestDevice;
+  }
+}
+
+async function printNiimbotCupLabel(text, cfg) {
+  const Niimbot = await getNiimbotDriver();
+  const imageUrl = renderNiimbotCupLabelImage(text);
+  await withRememberedNiimbotDevice(cfg, () =>
+    Niimbot.printImage(imageUrl, {
+      model: NIIMBOT_B1_PRO_MODEL,
+      size: NIIMBOT_50X40_LABEL_SIZE,
+      copies: 1,
+    })
+  );
+  return true;
+}
+
 // ================= PRINT ROUTER =================
 
 async function printByRole(role, text, printerConfig, opts = {}) {
@@ -226,6 +376,9 @@ async function printByRole(role, text, printerConfig, opts = {}) {
   }
 
   try {
+    if (isNiimbotCupLabelConfig(role, cfg)) {
+      return await printNiimbotCupLabel(text, cfg);
+    }
     const characteristic = await bleConnect(cfg);
     await blePrint(characteristic, text, role);
     return true;
@@ -2626,6 +2779,7 @@ export default function POSPage() {
 
     const map = { receipt: null, order_slip: null, cup_label: null };
     (data || []).forEach((p) => { map[p.role] = p; });
+    await warmBluetoothPrinterDeviceCache(map).catch((err) => console.warn("Bluetooth remembered-device cache skipped", err));
     setPrinterConfig(map);
     setPrinterForm(createPrinterProfiles(map));
   }
@@ -3775,9 +3929,32 @@ export default function POSPage() {
 
     try {
       await printByRole(role, sample, { ...printerConfig, [role]: buildPrinterConfigFromForm(role) }, { fallbackToBrowser: false });
-      showToast("success", "Print Test Sent", "Check the Xprinter output.");
+      showToast("success", "Print Test Sent", `Check the ${role === "cup_label" ? "Niimbot B1 Pro" : "printer"} output.`);
     } catch (error) {
       showToast("error", "Print Test Failed", error?.message || "Unable to print the test receipt.");
+    }
+  }
+
+  async function reconnectPrinter(role = "receipt") {
+    const cfg = buildPrinterConfigFromForm(role);
+    try {
+      const characteristic = await bleConnect(cfg);
+      const device = characteristic?.service?.device;
+      if (device) {
+        cacheBluetoothPrinterDevice(device, cfg);
+        updatePrinterProfile(role, {
+          enabled: true,
+          device_id: device.id || cfg.ble_device_id || "",
+          name: device.name || cfg.ble_device_name || cfg.name || `${PRINTER_ROLE_LABELS[role]} Printer`,
+        });
+      }
+      try {
+        characteristic?.service?.device?.gatt?.disconnect?.();
+      } catch {}
+      showToast("success", "Printer Reconnected", `${PRINTER_ROLE_LABELS[role]} permission is still available for this browser.`);
+    } catch (error) {
+      showToast("warn", "Reconnect Needs Permission", error?.message || "Use Search to grant printer permission again.");
+      setPrinterPermissionRole(role);
     }
   }
 
@@ -3839,7 +4016,7 @@ export default function POSPage() {
 
       updatePrinterProfile(role, {
         enabled: true,
-        name: form.name?.trim() || device.name || `${PRINTER_ROLE_LABELS[role]} Printer`,
+        name: device.name || form.name?.trim() || `${PRINTER_ROLE_LABELS[role]} Printer`,
         service_uuid: serviceUuid,
         characteristic_uuid: characteristicUuid,
         device_id: device.id || "",
@@ -4350,7 +4527,7 @@ export default function POSPage() {
         try {
           await printByRole("receipt", receipt, printerConfig, { fallbackToBrowser: false });
         } catch (printError) {
-          showToast("warn", "Sale Saved, Printer Needs Permission", printError?.message || "Select the Xprinter in POS Settings, then reprint the receipt.");
+          showToast("warn", "Sale Saved, Printer Needs Permission", printError?.message || "Open POS Settings, select the saved printer, then reprint the receipt.");
         }
       }
 
@@ -5092,6 +5269,7 @@ export default function POSPage() {
                             className="h-10 w-full bg-transparent text-sm font-semibold text-slate-900 outline-none"
                           >
                             <option>Other model</option>
+                            <option>Niimbot B1 Pro label printer</option>
                             <option>XP-Z58C thermal label printer</option>
                             <option>Xprinter thermal printer</option>
                             <option>ESC/POS compatible</option>
@@ -5123,6 +5301,17 @@ export default function POSPage() {
                           </button>
                         </div>
 
+                        <div className="grid grid-cols-2 gap-2">
+                          <button type="button" onClick={() => reconnectPrinter(role)} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-cyan-100 bg-cyan-50 text-[11px] font-black uppercase tracking-wider text-cyan-800 transition hover:bg-cyan-100">
+                            <Bluetooth size={14} />
+                            Reconnect
+                          </button>
+                          <button type="button" onClick={() => printPrinterTest(role)} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-[11px] font-black uppercase tracking-wider text-slate-800 transition hover:bg-slate-50">
+                            <Printer size={15} className="text-slate-500" />
+                            Test
+                          </button>
+                        </div>
+
                         <PrinterEditField label={isCupLabel ? "Sticker size" : "Paper width"}>
                           {isCupLabel ? (
                             <div className="flex min-h-10 items-center justify-between gap-2 text-sm font-semibold text-slate-900">
@@ -5146,13 +5335,15 @@ export default function POSPage() {
                           <div className="mb-3 flex items-center justify-between gap-2">
                             <div>
                               <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Bluetooth UUID settings</p>
-                              <p className="text-[11px] font-semibold text-slate-400">Default values work for most Xprinter XP-Z58C devices.</p>
+                              <p className="text-[11px] font-semibold text-slate-400">
+                                Use the printer service and write characteristic exposed by the selected Bluetooth printer.
+                              </p>
                             </div>
                             <button
                               type="button"
                               onClick={() => updatePrinterProfile(role, {
-                                service_uuid: DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID,
-                                characteristic_uuid: DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID,
+                                service_uuid: isCupLabel ? NIIMBOT_BLE_SERVICE_UUID : DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID,
+                                characteristic_uuid: isCupLabel ? NIIMBOT_BLE_CHARACTERISTIC_UUID : DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID,
                               })}
                               className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[10px] font-black uppercase tracking-wider text-slate-600 transition hover:bg-slate-100"
                             >
@@ -5178,16 +5369,18 @@ export default function POSPage() {
                         </div>
 
                         {isCupLabel ? (
-                          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-[11px] font-semibold leading-4 text-amber-800">
-                            XP-Z58C label setup: pair the printer first in the device Bluetooth settings using password 0000, then use Search here to grant browser permission.
+                          <div className="space-y-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-[11px] font-semibold leading-4 text-amber-900">
+                            <p className="font-black uppercase tracking-wider">Niimbot B1 Pro setup</p>
+                            <p>Pair the printer first in the device Bluetooth settings, then tap Search once in POS to grant browser permission. POS can remember the allowed device and reconnect after refresh when the browser supports remembered Bluetooth devices.</p>
+                            <p>Browser Bluetooth cannot stay physically connected after logout, refresh, or closing the installed app. If the Niimbot rejects ESC/POS text, it needs a Niimbot-specific label protocol encoder.</p>
                           </div>
-                        ) : null}
+                        ) : (
+                          <div className="rounded-2xl border border-cyan-100 bg-cyan-50 p-3 text-[11px] font-semibold leading-4 text-cyan-900">
+                            Saved Bluetooth permission is reused after refresh when supported by Chrome or Edge. If reconnect fails, use Search once again.
+                          </div>
+                        )}
 
-                        <div className="grid grid-cols-3 gap-2 pt-2">
-                          <button type="button" onClick={() => printPrinterTest(role)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-[11px] font-black uppercase tracking-wider text-slate-800 transition hover:bg-slate-50">
-                            <Printer size={16} className="text-slate-500" />
-                            Test
-                          </button>
+                        <div className="grid grid-cols-2 gap-2 pt-2">
                           <button type="button" onClick={() => resetPrinterProfile(role)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-[11px] font-black uppercase tracking-wider text-slate-700 transition hover:bg-slate-50">
                             <RotateCcw size={15} />
                             Default
