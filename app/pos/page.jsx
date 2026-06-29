@@ -4701,8 +4701,8 @@ export default function POSPage() {
 
         {managementOpen && (
           <div className="fixed inset-0 z-[140] bg-slate-950/45 backdrop-blur-sm p-3 sm:p-6 flex items-center justify-center" onClick={() => setManagementOpen(false)}>
-            <div className="w-full max-w-5xl max-h-full rounded-2xl border border-rose-100 bg-white p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-rose-50 pb-3 mb-3">
+            <div className="flex w-full max-w-5xl max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-3rem)] flex-col rounded-2xl border border-rose-100 bg-white p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="shrink-0 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-rose-50 pb-3 mb-3">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-[#FC687D]">POS Control</p>
               <h2 className="text-md font-black text-slate-800">
@@ -4721,6 +4721,7 @@ export default function POSPage() {
             </div>
           </div>
 
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
           {managementView === "receipts" && (
             <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
               <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
@@ -5138,6 +5139,7 @@ export default function POSPage() {
               </div>
             </div>
           )}
+          </div>
             </div>
           </div>
         )}
