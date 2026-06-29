@@ -5,6 +5,7 @@ const ACTIVE_STATUSES = ["pending", "scheduled", "accepted", "preparing", "ready
 const DISPLAY_STATUSES = [...ACTIVE_STATUSES, "completed"];
 const SERVED_VISIBLE_MS = 60 * 1000;
 const KITCHEN_RULES_TTL_MS = 5 * 60 * 1000;
+const PASONG_TAMO_STORE_TTL_MS = 10 * 60 * 1000;
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -114,18 +115,52 @@ async function loadKitchenRules(supabase) {
   return getCached("customer-order-display:kitchen-rules", KITCHEN_RULES_TTL_MS, () => loadKitchenRulesUncached(supabase));
 }
 
+async function loadPasongTamoStoreIdsUncached(supabase) {
+  const { data, error } = await supabase
+    .from("stores")
+    .select("id, name")
+    .ilike("name", "%Pasong%");
+  if (error) throw error;
+  return (data || [])
+    .filter((store) => normalizeText(store.name).includes("pasong"))
+    .map((store) => String(store.id));
+}
+
+async function loadPasongTamoStoreIds(supabase) {
+  return getCached(
+    "customer-order-display:pasong-tamo-store-ids",
+    PASONG_TAMO_STORE_TTL_MS,
+    () => loadPasongTamoStoreIdsUncached(supabase)
+  );
+}
+
 export async function GET() {
   try {
     const supabase = getAdminClient();
-    const [{ data: tickets, error: ticketError }, kitchen] = await Promise.all([
-      supabase
-        .from("kds_tickets")
-        .select("id, status, store_id, dining_option, ticket_number, customer_name, items, created_at, started_at, ready_at, completed_at, source_created_at")
-        .in("status", DISPLAY_STATUSES)
-        .order("created_at", { ascending: false })
-        .limit(120),
+    const [pasongTamoStoreIds, kitchen] = await Promise.all([
+      loadPasongTamoStoreIds(supabase),
       loadKitchenRules(supabase),
     ]);
+
+    if (pasongTamoStoreIds.length === 0) {
+      return Response.json(
+        { orders: [], generated_at: new Date().toISOString(), branch: "Pasong Tamo" },
+        {
+          headers: {
+            ...cacheHeaders(3, 9),
+            "X-Juja-Cache": "customer-order-display",
+          },
+        }
+      );
+    }
+
+    const { data: tickets, error: ticketError } = await supabase
+      .from("kds_tickets")
+      .select("id, status, store_id, dining_option, ticket_number, customer_name, items, created_at, started_at, ready_at, completed_at, source_created_at")
+      .in("status", DISPLAY_STATUSES)
+      .in("store_id", pasongTamoStoreIds)
+      .order("created_at", { ascending: false })
+      .limit(120);
 
     if (ticketError) throw ticketError;
 
@@ -156,7 +191,7 @@ export async function GET() {
       });
 
     return Response.json(
-      { orders, generated_at: new Date().toISOString() },
+      { orders, generated_at: new Date().toISOString(), branch: "Pasong Tamo" },
       {
         headers: {
           ...cacheHeaders(3, 9),

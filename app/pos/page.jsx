@@ -63,6 +63,8 @@ const PRINTER_ROLE_STATUS = {
   order_slip: "Kitchen tickets",
   cup_label: "50x40 labels",
 };
+const POS_OFFLINE_CACHE_KEY = "juja_pos_cached_payload_v1";
+const POS_OFFLINE_CHARGE_QUEUE_KEY = "juja_pos_offline_charge_queue_v1";
 
 function createPrinterProfile(role, source = {}) {
   const isCupLabel = role === "cup_label";
@@ -276,15 +278,22 @@ function renderNiimbotCupLabelImage(text) {
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Unable to create cup label canvas.");
 
-  const margin = 28;
+  const margin = 24;
   const width = canvas.width - margin * 2;
   const lines = String(text || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const dining = lines[0] || "ORDER";
+  const itemName = lines[1] || "Item";
+  const footerRaw = lines[lines.length - 1] || `#ORDER|${formatCupLabelDateTime(new Date())}`;
+  const [footerLeftRaw, footerRightRaw] = footerRaw.split("|");
+  const footerLeft = normalizeLabelLine(footerLeftRaw || "");
+  const footerRight = normalizeLabelLine(footerRightRaw || "");
+  const detailLines = lines.slice(2, -1).filter((line) => line !== "---");
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#000000";
   ctx.textBaseline = "top";
 
-  let y = 20;
+  let y = 18;
   const drawWrapped = (value, font, lineHeight, maxLines = 4) => {
     ctx.font = font;
     const wrapped = wrapLabelCanvasText(ctx, value, width).slice(0, maxLines);
@@ -294,27 +303,38 @@ function renderNiimbotCupLabelImage(text) {
     });
   };
 
-  drawWrapped(lines[0] || "ORDER", "700 42px Arial, sans-serif", 48, 2);
-  if (lines[1]) drawWrapped(lines[1], "700 36px Arial, sans-serif", 42, 2);
+  drawWrapped(dining, "800 54px Arial, sans-serif", 60, 1);
   y += 8;
 
   ctx.strokeStyle = "#000000";
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(margin, y);
   ctx.lineTo(canvas.width - margin, y);
   ctx.stroke();
-  y += 18;
+  y += 20;
 
-  lines.slice(2, -1).forEach((line) => {
+  drawWrapped(itemName, "800 42px Arial, sans-serif", 48, 2);
+  y += 4;
+
+  detailLines.forEach((line) => {
     const isNote = /^note:/i.test(line);
-    drawWrapped(line, `${isNote ? "700" : "500"} ${isNote ? 28 : 27}px Arial, sans-serif`, isNote ? 34 : 32, isNote ? 2 : 3);
+    drawWrapped(line, `${isNote ? "700" : "500"} ${isNote ? 31 : 34}px Arial, sans-serif`, isNote ? 37 : 38, isNote ? 2 : 1);
     y += isNote ? 4 : 0;
   });
 
-  const footer = lines[lines.length - 1] || formatReceiptDate(new Date());
-  ctx.font = "600 22px Arial, sans-serif";
-  ctx.fillText(footer, margin, canvas.height - 34);
+  const footerY = canvas.height - 48;
+  ctx.strokeStyle = "#000000";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(margin, footerY - 16);
+  ctx.lineTo(canvas.width - margin, footerY - 16);
+  ctx.stroke();
+
+  ctx.font = "500 28px Arial, sans-serif";
+  ctx.fillText(footerLeft, margin, footerY);
+  const rightWidth = ctx.measureText(footerRight).width;
+  ctx.fillText(footerRight, canvas.width - margin - rightWidth, footerY);
   return canvas.toDataURL("image/png");
 }
 
@@ -386,6 +406,22 @@ async function printByRole(role, text, printerConfig, opts = {}) {
     console.warn("Bluetooth printing failed", err);
     throw err;
   }
+}
+
+async function findFirstPrinterNeedingPermission(configByRole = {}) {
+  for (const [role, cfg] of Object.entries(configByRole || {})) {
+    if (!cfg || cfg.is_active === false) continue;
+    if (cfg.transport === "browser") continue;
+    try {
+      const characteristic = await bleConnect(cfg);
+      try {
+        characteristic?.service?.device?.gatt?.disconnect?.();
+      } catch {}
+    } catch {
+      return role;
+    }
+  }
+  return null;
 }
 
 // ================= TEXT BUILDERS =================
@@ -494,6 +530,20 @@ function formatReceiptTime(value) {
   }).format(date);
 }
 
+function formatCupLabelDateTime(value) {
+  const date = coerceReceiptTimestamp(value);
+  if (isNaN(date.getTime())) return "";
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Manila",
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  }).formatToParts(date).map((part) => [part.type, part.value]));
+  return `${parts.day}-${String(parts.month || "").toUpperCase()} | ${parts.hour}:${parts.minute} ${parts.dayPeriod}`;
+}
+
 function formatReceiptDateTime(value) {
   const date = coerceReceiptTimestamp(value);
   if (isNaN(date.getTime())) return "";
@@ -507,6 +557,39 @@ function formatReceiptDateTime(value) {
     hour12: true,
   }).formatToParts(date).map((part) => [part.type, part.value]));
   return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute} ${parts.dayPeriod}`;
+}
+
+function receiptDisplayTimestamp(row) {
+  return row?.paid_at || row?.completed_at || row?.closed_at || row?.receipt_date || row?.created_at || null;
+}
+
+function readJsonStorage(key, fallback) {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeJsonStorage(key, value) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(key, JSON.stringify(value));
+}
+
+function isProbablyOfflineError(error) {
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return true;
+  const message = String(error?.message || error || "").toLowerCase();
+  return [
+    "failed to fetch",
+    "networkerror",
+    "network request failed",
+    "load failed",
+    "timeout",
+    "err_internet_disconnected",
+    "fetch failed",
+  ].some((needle) => message.includes(needle));
 }
 
 function shortReceiptNumber(value) {
@@ -780,13 +863,12 @@ function buildCupLabels({ orderId, cart, diningOptionName, printedAt, barCategor
       .map((value) => normalizeLabelLine(value))
       .filter(Boolean);
     const instructions = normalizeLabelLine(x.instructions || x.specialInstructions || x.special_instructions || "");
-    const footer = normalizeLabelLine(`${formatReceiptDate(printedAt || new Date())}  #${shortReceiptNumber(orderId)}`);
+    const footer = normalizeLabelLine(`${shortReceiptNumber(orderId)}|${formatCupLabelDateTime(printedAt || new Date())}`);
 
     for (let i = 0; i < x.quantity; i++) {
       const lines = [
         dining,
         itemName,
-        receiptLine("-", RECEIPT_COLUMNS),
         ...variants,
       ];
       if (instructions) lines.push(`Note: ${instructions}`);
@@ -2129,6 +2211,8 @@ export default function POSPage() {
   const [charging, setCharging] = useState(false);
   const [savingTicket, setSavingTicket] = useState(false);
   const [moving, setMoving] = useState(false);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
+  const [offlineQueueCount, setOfflineQueueCount] = useState(0);
 
   // New persistent pointer reference state to bind edited web orders back cleanly
   const [activeWebOrderId, setActiveWebOrderId] = useState(null);
@@ -2188,6 +2272,133 @@ export default function POSPage() {
     setToast({ type, title, message });
     setTimeout(() => setToast(null), 3500);
   };
+
+  const readOfflineChargeQueue = () => readJsonStorage(POS_OFFLINE_CHARGE_QUEUE_KEY, []);
+
+  const writeOfflineChargeQueue = (queue) => {
+    const safeQueue = Array.isArray(queue) ? queue : [];
+    writeJsonStorage(POS_OFFLINE_CHARGE_QUEUE_KEY, safeQueue);
+    setOfflineQueueCount(safeQueue.length);
+  };
+
+  const queueOfflineCharge = (draft) => {
+    const queue = readOfflineChargeQueue();
+    writeOfflineChargeQueue([...queue, draft]);
+  };
+
+  async function replayOfflineCharge(draft) {
+    const resolvedBranchId = draft?.store_id || draft?.branch_id || getResolvedBranchId();
+    const draftCart = Array.isArray(draft?.cart) ? draft.cart : [];
+    if (!resolvedBranchId || draftCart.length === 0) {
+      throw new Error("Offline sale is missing branch or item details.");
+    }
+
+    const { data: receiptData, error: receiptErr } = await supabase.rpc("generate_receipt_number", {
+      p_store_id: resolvedBranchId,
+    });
+    if (receiptErr) throw receiptErr;
+    const receiptRow = Array.isArray(receiptData) ? receiptData[0] : receiptData;
+    const generatedReceiptNumber = receiptRow?.receipt_number;
+    if (!generatedReceiptNumber) throw new Error("No receipt number was returned by the database.");
+
+    const { data: orderRow, error: orderErr } = await supabase
+      .from("orders")
+      .insert([{
+        order_number: generatedReceiptNumber,
+        receipt_number: generatedReceiptNumber,
+        receipt_sequence: receiptRow.receipt_sequence || null,
+        receipt_date: receiptRow.receipt_date || null,
+        store_id: resolvedBranchId,
+        branch_id: resolvedBranchId,
+        customer_id: draft.customer?.id || null,
+        loyalty_member_id: draft.customer?.id || null,
+        customer_name: draft.customer?.name || null,
+        items: enrichOrderItemsForKds(draftCart),
+        subtotal: Number(draft.grossTotal || 0),
+        total: Number(draft.total || 0),
+        discount: Number(draft.discount || 0),
+        gross_amount: Number(draft.grossTotal || 0),
+        discount_amount: Number(draft.discount || 0),
+        net_amount: Number(draft.total || 0),
+        order_type: draft.diningOption || "POS ORDER",
+        cashier_id: draft.cashier_id || currentUserId || null,
+        paid_at: draft.created_at || new Date().toISOString(),
+        status: "paid",
+        payment_method: draft.payment || "Offline Sync",
+        dining_option: draft.diningOption || "POS ORDER",
+      }])
+      .select("*")
+      .single();
+    if (orderErr) throw orderErr;
+
+    const itemRows = draftCart.map((line) => ({
+      order_id: orderRow.id,
+      menu_item_id: line.id,
+      name: line.name,
+      category_name: line.category || line.categoryName || null,
+      quantity: line.quantity,
+      unit_price: line.unitPrice,
+      line_total: lineNetAmount(line),
+      gross_amount: lineGrossAmount(line),
+      discount_amount: lineDiscountAmount(line),
+      net_amount: lineNetAmount(line),
+    }));
+    const { error: itemsErr } = await supabase.from("order_items").insert(itemRows);
+    if (itemsErr) throw itemsErr;
+
+    try {
+      await deductInventoryForOrder(supabase, orderRow.id, draftCart, draft.cashier_id || currentUserId);
+    } catch (inventoryError) {
+      console.warn("Offline synced sale inventory deduction skipped:", inventoryError);
+    }
+
+    if (draft.customer?.id) {
+      try {
+        await awardMemberLoyaltyPoints(draft.customer.id, calcLoyaltyPoints(draft.total), draft.total, orderRow.id);
+      } catch (loyaltyError) {
+        console.warn("Offline synced sale loyalty update skipped:", loyaltyError);
+      }
+    }
+
+    if (draft.sendToKds !== false) {
+      const { error: kdsErr } = await upsertKdsTicket(supabase, {
+        sourceType: "pos",
+        order: { ...orderRow, items: enrichOrderItemsForKds(draftCart) },
+        status: "preparing",
+      });
+      if (kdsErr) console.warn("Offline synced sale KDS update skipped:", kdsErr);
+    }
+
+    return { orderRow, generatedReceiptNumber };
+  }
+
+  async function syncOfflineCharges({ silent = false } = {}) {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+    const queue = readOfflineChargeQueue();
+    if (queue.length === 0) {
+      setOfflineQueueCount(0);
+      return;
+    }
+
+    const remaining = [];
+    let synced = 0;
+    for (const draft of queue) {
+      try {
+        await replayOfflineCharge(draft);
+        synced += 1;
+      } catch (error) {
+        remaining.push(draft);
+        console.warn("Offline sale sync failed:", error);
+        if (isProbablyOfflineError(error)) break;
+      }
+    }
+
+    writeOfflineChargeQueue(remaining);
+    if (synced > 0) {
+      fetchReceiptLogs().catch((error) => console.warn("Receipt refresh after offline sync failed:", error));
+      if (!silent) showToast("success", "Offline Sales Synced", `${synced} queued sale${synced === 1 ? "" : "s"} uploaded.`);
+    }
+  }
 
   const calcTotal = (lines) =>
     (lines || []).reduce((sum, i) => {
@@ -2371,6 +2582,30 @@ export default function POSPage() {
 
   useEffect(() => {
     setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    setOfflineQueueCount(readOfflineChargeQueue().length);
+    setIsOfflineMode(navigator.onLine === false);
+
+    const handleOnline = () => {
+      setIsOfflineMode(false);
+      syncOfflineCharges().catch((error) => console.warn("Offline charge sync failed:", error));
+    };
+    const handleOffline = () => setIsOfflineMode(true);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    if (navigator.onLine !== false) {
+      syncOfflineCharges({ silent: true }).catch((error) => console.warn("Offline charge sync failed:", error));
+    }
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
   }, []);
 
   useEffect(() => {
@@ -2782,6 +3017,14 @@ export default function POSPage() {
     await warmBluetoothPrinterDeviceCache(map).catch((err) => console.warn("Bluetooth remembered-device cache skipped", err));
     setPrinterConfig(map);
     setPrinterForm(createPrinterProfiles(map));
+    const roleNeedingPermission = await findFirstPrinterNeedingPermission(map).catch((err) => {
+      console.warn("Printer reconnect check skipped", err);
+      return null;
+    });
+    if (roleNeedingPermission) {
+      setPrinterPermissionRole(roleNeedingPermission);
+      showToast("warn", "Printer Reconnect Needed", `${PRINTER_ROLE_LABELS[roleNeedingPermission] || "Printer"} needs Bluetooth permission again.`);
+    }
   }
 
   async function loadBarPrinterCategories(sid, categoryRows = categories) {
@@ -2919,14 +3162,29 @@ export default function POSPage() {
     const showLoadingState = opts.showLoading !== false;
     if (showLoadingState) setLoading(true);
     try {
-      const [iRes, catRes, cRes] = await Promise.all([
+      const [iRes, catRes, cRes, itemStoreAvailabilityRes] = await Promise.all([
         supabase.from("menu_items").select("*").order("name"),
         supabase.from("menu_categories").select("*").order("name", { ascending: true }),
         supabase.from("loyalty_members").select("*"),
+        supabase.from("menu_item_store_availability").select("item_id, store_id, is_available").eq("store_id", sid),
       ]);
 
       const cats = catRes.data || [];
-      setItems(iRes.data || []);
+      if (itemStoreAvailabilityRes.error) throw itemStoreAvailabilityRes.error;
+      const storeAvailabilityByItem = new Map(
+        (itemStoreAvailabilityRes.data || []).map((row) => [String(row.item_id), row.is_available !== false])
+      );
+      const itemRows = (iRes.data || []).map((item) => {
+        const hasStoreOverride = storeAvailabilityByItem.has(String(item.id));
+        const storeAvailable = hasStoreOverride ? storeAvailabilityByItem.get(String(item.id)) : item.is_available !== false;
+        return {
+          ...item,
+          global_is_available: item.is_available !== false,
+          is_available: storeAvailable,
+          store_is_available: storeAvailable,
+        };
+      });
+      setItems(itemRows);
       setCategories(cats);
       const loyaltyRows = await Promise.all((cRes.data || []).map(async (row) => {
         try {
@@ -2937,19 +3195,36 @@ export default function POSPage() {
           return applyAnnualPointResetToMember(row);
         }
       }));
-      setCustomers(loyaltyRows.map((row) => ({
+      const customerRows = loyaltyRows.map((row) => ({
         ...row,
         name: row.customer_name || row.name || row.full_name || "",
         code: row.customer_code || row.code || "",
         availablePoints: row["Available points"] ?? row.available_points ?? 0,
         pointsBalance: row["Points balance"] ?? row.points_balance ?? 0,
-      })));
+      }));
+      setCustomers(customerRows);
+      writeJsonStorage(POS_OFFLINE_CACHE_KEY, {
+        cached_at: new Date().toISOString(),
+        items: itemRows,
+        categories: cats,
+        customers: customerRows,
+      });
+      setIsOfflineMode(false);
 
       await loadPosSettings(sid);
       await loadPrinters(sid);
       await loadBarPrinterCategories(sid, cats);
     } catch (e) {
-      showToast("error", "Loading Error", e.message);
+      const cached = readJsonStorage(POS_OFFLINE_CACHE_KEY, null);
+      if (cached?.items?.length) {
+        setItems(cached.items || []);
+        setCategories(cached.categories || []);
+        setCustomers(cached.customers || []);
+        setIsOfflineMode(true);
+        showToast("warn", "Offline Cache Loaded", `Using saved POS data from ${formatReceiptDateTime(cached.cached_at)}.`);
+      } else {
+        showToast("error", "Loading Error", e.message);
+      }
     } finally {
       if (showLoadingState) setLoading(false);
     }
@@ -3522,11 +3797,12 @@ export default function POSPage() {
     }
     const posRows = (receiptRes.data || []).map((order) => {
       const customer = resolveOrderCustomer(order);
+      const displayTimestamp = receiptDisplayTimestamp(order);
       return {
         ...order,
         receipt_number: order.receipt_number || order.order_number || String(order.id),
         order_id: order.id,
-        date: order.created_at ? formatReceiptDateTime(order.created_at) : "",
+        date: displayTimestamp ? formatReceiptDateTime(displayTimestamp) : "",
         gross_sales: Number(order.total || 0) + Number(order.discount || 0),
         discounts: Number(order.discount || 0),
         net_sales: Number(order.total || 0),
@@ -3547,22 +3823,25 @@ export default function POSPage() {
     );
     const webRows = (webReceiptRes.data || [])
       .filter((order) => !chargedWebOrderIds.has(String(order.id)))
-      .map((order) => ({
-        ...order,
-        id: `WEB-${order.id}`,
-        receipt_number: order.receipt_number || `WEB-${String(order.id).slice(0, 8).toUpperCase()}`,
-        date: order.created_at ? formatReceiptDateTime(order.created_at) : "",
-        gross_sales: Number(order.total || order.subtotal || 0),
-        discounts: 0,
-        net_sales: Number(order.total || order.subtotal || 0),
-        total_collected: Number(order.total || order.subtotal || 0),
-        payment_type: order.payment_method || "Web Order",
-        description: `${order.dining_option || "Web Order"}${order.delivery_address ? ` - ${order.delivery_address}` : ""}`,
-        status: refunds[`WEB-${order.id}`]?.receipt || "Closed",
-        source: "web_order",
-        web_items: order.items || [],
-      }));
-    const rows = [...posRows, ...webRows].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      .map((order) => {
+        const displayTimestamp = receiptDisplayTimestamp(order);
+        return {
+          ...order,
+          id: `WEB-${order.id}`,
+          receipt_number: order.receipt_number || `WEB-${String(order.id).slice(0, 8).toUpperCase()}`,
+          date: displayTimestamp ? formatReceiptDateTime(displayTimestamp) : "",
+          gross_sales: Number(order.total || order.subtotal || 0),
+          discounts: 0,
+          net_sales: Number(order.total || order.subtotal || 0),
+          total_collected: Number(order.total || order.subtotal || 0),
+          payment_type: order.payment_method || "Web Order",
+          description: `${order.dining_option || "Web Order"}${order.delivery_address ? ` - ${order.delivery_address}` : ""}`,
+          status: refunds[`WEB-${order.id}`]?.receipt || "Closed",
+          source: "web_order",
+          web_items: order.items || [],
+        };
+      });
+    const rows = [...posRows, ...webRows].sort((a, b) => new Date(receiptDisplayTimestamp(b) || 0) - new Date(receiptDisplayTimestamp(a) || 0));
     setReceiptRows(rows);
     setSelectedReceiptNumber((current) =>
       rows.some((row) => row.receipt_number === current) ? current : rows[0]?.receipt_number || ""
@@ -3691,7 +3970,7 @@ export default function POSPage() {
       subtotal: gross || cartForReceipt.reduce((sum, item) => sum + Number(item.unitPrice || 0) * Number(item.quantity || 0), 0),
       discount,
       total,
-      printedAt: receipt.created_at || receipt.receipt_date || new Date(),
+      printedAt: receiptDisplayTimestamp(receipt) || new Date(),
       copyLabel: "*** REPRINT ***",
       store: currentStore,
       cashierName,
@@ -3759,13 +4038,24 @@ export default function POSPage() {
 
   async function toggleMenuItemAvailability(item) {
     if (!item?.id) return;
+    const sid = getResolvedBranchId();
+    if (!sid) return showToast("error", "Store Required", "POS store is not loaded yet.");
     const nextAvailable = item.is_available === false;
     const { error } = await supabase
-      .from("menu_items")
-      .update({ is_available: nextAvailable })
-      .eq("id", item.id);
+      .from("menu_item_store_availability")
+      .upsert({
+        item_id: String(item.id),
+        store_id: String(sid),
+        is_available: nextAvailable,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "item_id,store_id" });
     if (error) return showToast("error", "Item Update Failed", error.message);
-    setItems((prev) => prev.map((row) => (row.id === item.id ? { ...row, is_available: nextAvailable } : row)));
+    setItems((prev) => prev.map((row) => (
+      String(row.id) === String(item.id)
+        ? { ...row, is_available: nextAvailable, store_is_available: nextAvailable }
+        : row
+    )));
+    showToast("success", "Store Availability Updated", `${item.name || "Item"} is now ${nextAvailable ? "available" : "unavailable"} for this store only.`);
   }
 
   async function toggleOptionSelectionAvailability(groupName, optionName) {
@@ -3908,13 +4198,11 @@ export default function POSPage() {
     const sample = role === "cup_label"
       ? [
           "TABLE 1",
-          "Spanish Latte",
-          receiptLine("-", RECEIPT_COLUMNS),
+          "Cheesecake Nutella MT",
           "Iced (R)",
-          "Less Ice",
-          "Note: sample label",
-          "",
-          `${formatReceiptDate(new Date())}  #TEST`,
+          "75%",
+          "Coffee Jelly",
+          "PTM-2349128|29-JUN | 12:30 PM",
         ].join("\n")
       : [
           centerReceiptText("JUJA BREW & BITES"),
@@ -4350,6 +4638,39 @@ export default function POSPage() {
     if (!resolvedBranchId) return showToast("error", "Branch not set", "Please sign out and sign in again so POS can load your branch.");
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before charging.");
 
+    const chargedAt = new Date().toISOString();
+    const itemDiscountTotal = cart.reduce((sum, line) => sum + lineDiscountAmount(line), 0);
+    const orderDiscount = Number(discountAmount || 0);
+    const discount = Number(itemDiscountTotal + orderDiscount);
+    const total = Number(totalDue || 0);
+    const grossTotal = Number(cart.reduce((sum, line) => sum + lineGrossAmount(line), 0));
+    const chargedDiningLabel = activeWebOrderId
+      ? webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName)
+      : ticketDiningLabel;
+    const offlineReceiptNumber = `OFF-${Date.now().toString(36).toUpperCase()}`;
+    const offlineDraft = {
+      id: `${offlineReceiptNumber}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+      receipt_number: offlineReceiptNumber,
+      created_at: chargedAt,
+      store_id: resolvedBranchId,
+      branch_id: resolvedBranchId,
+      cashier_id: currentUserId || null,
+      cashier_name: cashierName,
+      cart: cart.map((line) => ({ ...line })),
+      customer: attachedCustomer ? {
+        id: attachedCustomer.id,
+        name: customerDisplayName(attachedCustomer) || attachedCustomer.name || null,
+        code: customerDisplayCode(attachedCustomer) || attachedCustomer.code || null,
+      } : null,
+      payment: paymentLabel,
+      diningOption: chargedDiningLabel || "POS ORDER",
+      grossTotal,
+      discount,
+      total,
+      sendToKds: !originalTicketId && !activeWebOrderId,
+    };
+    let createdOrderRow = null;
+
     setCharging(true);
     try {
       if (appliedVoucher?.id) {
@@ -4361,11 +4682,6 @@ export default function POSPage() {
         if (error) return showToast("error", "Voucher Redeem Failed", error.message);
       }
 
-      const itemDiscountTotal = cart.reduce((sum, line) => sum + lineDiscountAmount(line), 0);
-      const orderDiscount = Number(discountAmount || 0);
-      const discount = Number(itemDiscountTotal + orderDiscount);
-      const total = Number(totalDue || 0);
-      const grossTotal = Number(cart.reduce((sum, line) => sum + lineGrossAmount(line), 0));
       const { data: receiptData, error: receiptErr } = await supabase.rpc("generate_receipt_number", {
         p_store_id: resolvedBranchId,
       });
@@ -4376,10 +4692,6 @@ export default function POSPage() {
       if (!generatedReceiptNumber) {
         return showToast("error", "Receipt Number Failed", "No receipt number was returned by the database.");
       }
-
-      const chargedDiningLabel = activeWebOrderId
-        ? webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName)
-        : ticketDiningLabel;
 
       const { data: orderRow, error: orderErr } = await supabase
         .from("orders")
@@ -4403,7 +4715,7 @@ export default function POSPage() {
           net_amount: total,
           order_type: chargedDiningLabel || "WEB_ORDER",
           cashier_id: currentUserId || null,
-          paid_at: new Date().toISOString(),
+          paid_at: chargedAt,
           status: "paid",
           payment_method: paymentLabel,
           dining_option: chargedDiningLabel || "WEB_ORDER",
@@ -4411,6 +4723,7 @@ export default function POSPage() {
         .select("*")
         .single();
       if (orderErr) return showToast("error", "Charge Failed", orderErr.message);
+      createdOrderRow = orderRow;
 
       if (!activeWebOrderId && !originalTicketId) {
         const { error: kdsErr } = await upsertKdsTicket(supabase, {
@@ -4536,6 +4849,52 @@ export default function POSPage() {
       setPaymentOpen(false);
     } catch (err) {
       console.error("Execution failed:", err);
+      if (!createdOrderRow && !activeWebOrderId && !appliedVoucher?.id && isProbablyOfflineError(err)) {
+        queueOfflineCharge(offlineDraft);
+        setIsOfflineMode(true);
+
+        const offlineReceipt = buildReceiptText({
+          receiptSettings,
+          order: {
+            id: offlineReceiptNumber,
+            order_number: offlineReceiptNumber,
+            receipt_number: offlineReceiptNumber,
+            store_id: resolvedBranchId,
+            branch_id: resolvedBranchId,
+            paid_at: chargedAt,
+            created_at: chargedAt,
+            dining_option: chargedDiningLabel || "POS ORDER",
+            payment_method: paymentLabel,
+          },
+          cart,
+          diningOptionName: chargedDiningLabel || "POS ORDER",
+          payment: paymentLabel,
+          customer: attachedCustomer,
+          subtotal: grossTotal,
+          discount,
+          total,
+          voucher: appliedVoucher,
+          appliedDiscount,
+          store: currentStore,
+          cashierName,
+          copyLabel: "*** OFFLINE COPY - PENDING SYNC ***",
+        });
+
+        setReceiptText(offlineReceipt);
+        setReceiptOpen(true);
+        if (receiptSettings?.auto_print) {
+          try {
+            await printByRole("receipt", offlineReceipt, printerConfig, { fallbackToBrowser: false });
+          } catch (printError) {
+            showToast("warn", "Offline Sale Queued", "Sale saved locally. Printer needs permission before reprint.");
+          }
+        }
+
+        showToast("warn", "Offline Sale Queued", "Sale saved locally and will sync when internet returns.");
+        clearTicketSoft();
+        setPaymentOpen(false);
+        return;
+      }
       showToast("error", "Execution Failed", err.message || "An error occurred.");
     } finally {
       setCharging(false);
@@ -5476,6 +5835,12 @@ export default function POSPage() {
 
           {/* SIDEBAR TICKET INTERACTION LAYER PANEL */}
           <div className="hidden lg:block bg-white border border-rose-100 rounded-2xl p-3 shadow-sm sticky top-4 h-[calc(100vh-2rem)] max-h-[calc(100vh-2rem)] overflow-hidden">
+            {(isOfflineMode || offlineQueueCount > 0) && (
+              <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-900">
+                {isOfflineMode ? "Offline mode: using cached POS data." : "Online: syncing offline sales."}
+                {offlineQueueCount > 0 ? ` ${offlineQueueCount} sale${offlineQueueCount === 1 ? "" : "s"} pending upload.` : ""}
+              </div>
+            )}
             <TicketPanel
               cart={cart}
               customers={customers}
@@ -5580,6 +5945,12 @@ export default function POSPage() {
             </div>
             
             <div className="flex-1 overflow-y-auto">
+              {(isOfflineMode || offlineQueueCount > 0) && (
+                <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-900">
+                  {isOfflineMode ? "Offline mode: using cached POS data." : "Online: syncing offline sales."}
+                  {offlineQueueCount > 0 ? ` ${offlineQueueCount} sale${offlineQueueCount === 1 ? "" : "s"} pending upload.` : ""}
+                </div>
+              )}
               <TicketPanel
                 cart={cart}
                 customers={customers}
