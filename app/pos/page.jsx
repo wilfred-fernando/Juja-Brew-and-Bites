@@ -640,6 +640,7 @@ function buildReceiptText({
   copyLabel,
   store,
   cashierName,
+  loyaltyAlreadyAwarded = false,
 }) {
   const rs = receiptSettings || {};
   const lines = [];
@@ -661,7 +662,9 @@ function buildReceiptText({
   const customerName = customerDisplayName(customer);
   const customerPhone = customerDisplayPhone(customer);
   const pointsEarned = customerName ? calcLoyaltyPoints(totalValue) : 0;
-  const availablePoints = customerName ? Number((customerAvailablePoints(customer) + pointsEarned).toFixed(2)) : 0;
+  const availablePoints = customerName
+    ? Number((customerAvailablePoints(customer) + (loyaltyAlreadyAwarded ? 0 : pointsEarned)).toFixed(2))
+    : 0;
 
   lines.push(centerReceiptText(businessName));
   lines.push(centerReceiptText(header || receiptTitle));
@@ -686,7 +689,12 @@ function buildReceiptText({
   lines.push(String(dining).toUpperCase());
   lines.push(receiptLine());
 
-  if (voucher?.code) lines.push(`Voucher: ${voucher.code}`);
+  if (voucher?.code) {
+    lines.push(`Voucher: ${voucher.code}`);
+    if (voucher.reward_text) {
+      splitReceiptText(voucher.reward_text, RECEIPT_COLUMNS).forEach((line) => lines.push(`  ${line}`));
+    }
+  }
   if (appliedDiscount?.name) lines.push(`Discount: ${appliedDiscount.name}`);
   if (voucher?.code || appliedDiscount?.name) lines.push(receiptLine());
 
@@ -790,6 +798,12 @@ function buildBillText({ orderId, cart, diningOptionName, customerName, subtotal
     nameLines.slice(1).forEach((line) => lines.push(line));
     lines.push(`${quantity} x ${receiptAmount(unitPrice)}`);
     if (itemDiscount > 0) lines.push(receiptPair("  Item discount", `-${receiptAmount(itemDiscount)}`));
+    if (x.appliedVoucher?.code) {
+      lines.push(`  Voucher: ${x.appliedVoucher.code}`);
+      if (x.appliedVoucher.reward_text) {
+        splitReceiptText(x.appliedVoucher.reward_text, RECEIPT_COLUMNS - 2).forEach((line) => lines.push(`  ${line}`));
+      }
+    }
 
     const variants = normalizeLabelLine(x.variantDetails || "");
     const instructions = normalizeLabelLine(x.instructions || x.specialInstructions || x.special_instructions || "");
@@ -3797,30 +3811,31 @@ export default function POSPage() {
   }
 
   async function createPointRewardVouchers(memberId, availablePoints) {
-    if (!memberId) return;
-    const earnedVoucherCount = Math.floor(Number(availablePoints || 0) / 100);
-    if (earnedVoucherCount <= 0) return;
+    if (!memberId) return null;
 
-    const { data: existing, error } = await supabase
-      .from("vouchers")
-      .select("id, code, reward_text, reward_type, status, expires_at, redeemed_at")
-      .eq("member_id", memberId);
-    if (error) return;
+    const { error: rpcError } = await supabase.rpc("ensure_vouchers_for_member", { p_member_id: memberId });
+    if (!rpcError) {
+      const { data: refreshedMember } = await supabase
+        .from("loyalty_members")
+        .select("*")
+        .eq("id", memberId)
+        .maybeSingle();
+      return refreshedMember || null;
+    }
 
-    const existingPointsVouchers = (existing || []).filter((v) => {
-      const code = String(v.code || "").toUpperCase();
-      const rewardText = String(v.reward_text || "").toLowerCase();
-      const isPoints = v.reward_type === "points" || code.startsWith("PTS") || rewardText.includes("100 points");
-      const status = String(v.status || "").toLowerCase();
-      const expMs = v.expires_at ? new Date(v.expires_at).getTime() : 0;
-      return isPoints && status !== "redeemed" && status !== "expired" && !v.redeemed_at && (!expMs || expMs > Date.now());
-    }).length;
-    const missingCount = earnedVoucherCount - existingPointsVouchers;
-    if (missingCount <= 0) return;
+    const { data: member } = await supabase
+      .from("loyalty_members")
+      .select("*")
+      .eq("id", memberId)
+      .maybeSingle();
+    if (!member?.id || !member?.user_id) return member || null;
+
+    const voucherCount = Math.floor(Number(availablePoints || member["Available points"] || 0) / 100);
+    if (voucherCount <= 0) return member;
 
     const now = Date.now();
-    const rows = Array.from({ length: missingCount }, (_, idx) => {
-      const voucherNumber = existingPointsVouchers + idx + 1;
+    const rows = Array.from({ length: voucherCount }, (_, idx) => {
+      const voucherNumber = idx + 1;
       return {
         member_id: memberId,
         code: `PTS100-${voucherNumber}-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -3829,10 +3844,22 @@ export default function POSPage() {
         expires_at: new Date(now + 90 * 86400000).toISOString(),
         status: "active",
         reward_type: "points",
+        points_consumed: 100,
+        points_consumed_at: new Date(now).toISOString(),
       };
     });
 
-    await supabase.from("vouchers").insert(rows);
+    const { error: insertError } = await supabase.from("vouchers").insert(rows);
+    if (insertError) return member;
+
+    const nextAvailable = Math.max(0, Number((Number(availablePoints || member["Available points"] || 0) - rows.length * 100).toFixed(2)));
+    const { data: updatedMember } = await supabase
+      .from("loyalty_members")
+      .update({ "Available points": nextAvailable })
+      .eq("id", memberId)
+      .select("*")
+      .maybeSingle();
+    return updatedMember || member;
   }
 
   async function awardMemberLoyaltyPoints(memberOrId, pointsEarned, saleTotal = 0, orderId = null) {
@@ -3877,18 +3904,19 @@ export default function POSPage() {
     if (updateErr) throw updateErr;
     if (!updatedMember?.id) throw new Error("Loyalty member was not updated. Please reselect the customer and try again.");
 
+    const voucherMember = await createPointRewardVouchers(activeMember.id, nextAvailable);
+    const finalMember = voucherMember || updatedMember;
+
     const normalizedMember = {
-      ...updatedMember,
-      name: updatedMember.customer_name || updatedMember.name || "",
-      code: updatedMember.customer_code || updatedMember.code || "",
-      availablePoints: updatedMember["Available points"] ?? 0,
-      pointsBalance: updatedMember["Points balance"] ?? 0,
+      ...finalMember,
+      name: finalMember.customer_name || finalMember.name || "",
+      code: finalMember.customer_code || finalMember.code || "",
+      availablePoints: finalMember["Available points"] ?? 0,
+      pointsBalance: finalMember["Points balance"] ?? 0,
     };
 
     setCustomers((prev) => prev.map((row) => (row.id === activeMember.id ? { ...row, ...normalizedMember } : row)));
     setAttachedCustomer((prev) => (prev?.id === activeMember.id ? { ...prev, ...normalizedMember } : prev));
-
-    await createPointRewardVouchers(activeMember.id, nextAvailable);
 
     if (orderId) {
       await supabase
@@ -3898,7 +3926,7 @@ export default function POSPage() {
           loyalty_points_awarded_at: visitStamp,
           customer_id: activeMember.id,
           loyalty_member_id: activeMember.id,
-          customer_name: updatedMember.customer_name || updatedMember.name || null,
+          customer_name: finalMember.customer_name || finalMember.name || null,
         })
         .eq("id", orderId);
     }
@@ -4885,16 +4913,22 @@ export default function POSPage() {
       sendToKds: !originalTicketId && !activeWebOrderId,
     };
     let createdOrderRow = null;
+    let receiptCustomer = attachedCustomer;
+    let loyaltyAlreadyAwarded = false;
 
     setCharging(true);
     try {
       if (appliedVoucher?.id) {
-        const { error } = await supabase
+        const { data: redeemedVoucher, error } = await supabase
           .from("vouchers")
           .update({ status: "redeemed", redeemed_at: new Date().toISOString() })
           .eq("id", appliedVoucher.id)
-          .eq("status", "active");
+          .eq("status", "active")
+          .select("id")
+          .maybeSingle();
         if (error) return showToast("error", "Voucher Redeem Failed", error.message);
+        if (!redeemedVoucher?.id) return showToast("error", "Voucher Redeem Failed", "Voucher is no longer active or was already used.");
+        setAvailableVouchers((prev) => prev.filter((voucher) => String(voucher.id) !== String(appliedVoucher.id)));
       }
 
       const { data: receiptData, error: receiptErr } = await supabase.rpc("generate_receipt_number", {
@@ -5007,7 +5041,11 @@ export default function POSPage() {
       } else {
         if (attachedCustomer?.id) {
           try {
-            await awardMemberLoyaltyPoints(attachedCustomer.id, calcLoyaltyPoints(total), total, orderRow.id);
+            const updatedCustomer = await awardMemberLoyaltyPoints(attachedCustomer.id, calcLoyaltyPoints(total), total, orderRow.id);
+            if (updatedCustomer?.id) {
+              receiptCustomer = updatedCustomer;
+              loyaltyAlreadyAwarded = true;
+            }
           } catch (loyaltyError) {
             showToast("warn", "Loyalty Points Not Added", loyaltyError?.message || "Sale completed, but loyalty points need review.");
           }
@@ -5022,7 +5060,7 @@ export default function POSPage() {
 
       const receipt = buildReceiptText({
         receiptSettings, order: { ...orderRow, id: generatedReceiptNumber }, cart, diningOptionName: chargedDiningLabel || "WEB_ORDER", payment: paymentLabel,
-        customer: attachedCustomer, subtotal: grossTotal, discount, total, voucher: appliedVoucher, appliedDiscount, store: currentStore, cashierName,
+        customer: receiptCustomer, subtotal: grossTotal, discount, total, voucher: appliedVoucher, appliedDiscount, store: currentStore, cashierName, loyaltyAlreadyAwarded,
       });
 
       setReceiptText(receipt);
@@ -5178,6 +5216,15 @@ export default function POSPage() {
     showToast("info", "Change Customer", "Search or scan the replacement customer.");
   };
 
+  const openVoucherPickerForLine = async (line) => {
+    if (!attachedCustomer?.id) return showToast("error", "Attach Customer", "Scan/select a customer first.");
+    if (!line?.cartItemId) return showToast("info", "Select Item", "Tap a ticket item first to set voucher target.");
+    setVoucherTargetCartItemId(line.cartItemId);
+    const v = await fetchActiveVouchers(attachedCustomer.id);
+    setVoucherModalOpen(true);
+    if (v.length === 0) showToast("info", "No Vouchers", "No active vouchers for this customer.");
+  };
+
   const applyVoucherToTicket = (voucher) => {
     if (!voucherTargetCartItemId) {
       showToast("info", "Select Item", "Tap a ticket item first to set voucher target.");
@@ -5198,7 +5245,13 @@ export default function POSPage() {
           const orig = typeof line.unitPrice === "number" ? line.unitPrice : 0;
           cleared._origUnitPrice = orig;
           cleared.unitPrice = 0;
-          cleared.appliedVoucher = { id: voucher.id, code: voucher.code, reward_text: voucher.reward_text };
+          cleared.appliedVoucher = {
+            id: voucher.id,
+            code: voucher.code,
+            reward_text: voucher.reward_text,
+            reward_type: voucher.reward_type,
+            expires_at: voucher.expires_at,
+          };
         }
         return cleared;
       })
@@ -5625,7 +5678,7 @@ export default function POSPage() {
                 <h3 className="text-sm font-black text-slate-800">Cash Drawer</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button type="button" onClick={() => openShiftCashModal("close")} className="h-10 rounded-xl bg-[#FC687D] text-white text-[10px] font-black uppercase tracking-wider">Close Shift</button>
-                  <button type="button" onClick={() => openShiftCashModal("end_day")} className="h-10 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider">End Day</button>
+                  <button type="button" onClick={() => openShiftCashModal("end_day")} className="h-10 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider"></button>
                 </div>
                 <div className="flex justify-between rounded-lg bg-white border border-slate-100 p-2 text-xs font-bold">
                   <span className="text-slate-500">Starting Cash</span><span>{peso2(startingCash || 0)}</span>
@@ -6102,6 +6155,7 @@ export default function POSPage() {
                 if (v.length === 0) showToast("info", "No Vouchers", "No active vouchers for this customer.");
               }}
               onRemoveVoucher={removeAppliedVoucher}
+              onApplyVoucherToLine={openVoucherPickerForLine}
               onClear={() => setConfirmOpen(true)}
               onCharge={handleChargeOrder}
               onSave={handleSaveTicket}
@@ -6213,6 +6267,7 @@ export default function POSPage() {
                   if (v.length === 0) showToast("info", "No Vouchers", "No active vouchers for this customer.");
                 }}
                 onRemoveVoucher={removeAppliedVoucher}
+                onApplyVoucherToLine={openVoucherPickerForLine}
                 onClear={() => setConfirmOpen(true)}
                 onCharge={handleChargeOrder}
                 onSave={handleSaveTicket}

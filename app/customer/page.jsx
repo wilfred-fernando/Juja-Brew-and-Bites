@@ -1910,34 +1910,16 @@ function LoyaltyTab({ member, setMember, user }) {
       if (!member?.user_id || String(member.user_id) !== String(user?.id)) return;
       const activeMember = applyAnnualPointResetToMember(member);
       const availablePoints = Number(activeMember?.["Available points"] || 0);
-      const earnedVoucherCount = Math.floor(availablePoints / 100);
-      if (earnedVoucherCount <= 0) return;
+      if (availablePoints < 100) return;
 
-      const { data: existing, error } = await supabase
-        .from("vouchers")
-        .select("id, code, reward_text, reward_type, status, expires_at, redeemed_at")
-        .eq("member_id", member.id);
+      const { error } = await supabase.rpc("ensure_vouchers_for_member", { p_member_id: member.id });
       if (error) return;
-
-      const existingPointsVouchers = (existing || []).filter(isUsablePointsVoucher).length;
-      const missingCount = earnedVoucherCount - existingPointsVouchers;
-      if (missingCount <= 0) return;
-
-      const now = Date.now();
-      const rows = Array.from({ length: missingCount }, (_, idx) => {
-        const voucherNumber = existingPointsVouchers + idx + 1;
-        return {
-          member_id: member.id,
-          code: `PTS100-${voucherNumber}-${Math.floor(1000 + Math.random() * 9000)}`,
-          reward_text: "FREE 16oz Drink, Waffle, or Mini Donuts (100 Points Reward)",
-          issued_at: new Date(now).toISOString(),
-          expires_at: new Date(now + 90 * 86400000).toISOString(),
-          status: "active",
-          reward_type: "points",
-        };
-      });
-
-      await supabase.from("vouchers").insert(rows);
+      const { data: refreshedMember } = await supabase
+        .from("loyalty_members")
+        .select("*")
+        .eq("id", member.id)
+        .maybeSingle();
+      if (refreshedMember?.id) setMember(applyAnnualPointResetToMember(refreshedMember));
       setNowTick(Date.now());
     }
 

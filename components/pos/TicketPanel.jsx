@@ -24,6 +24,7 @@ export default function TicketPanel({
   appliedVoucher,
   onOpenVouchers,
   onRemoveVoucher,
+  onApplyVoucherToLine,
   discountRules = [],
   appliedDiscount = null,
   onApplyDiscount,
@@ -416,6 +417,31 @@ export default function TicketPanel({
                     <span>Item discount</span>
                     <span>-₱{Number(itemDiscount).toLocaleString("en-PH", { maximumFractionDigits: 0 })}</span>
                   </div>
+                )}
+                {line.appliedVoucher && (
+                  <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-800">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate">Voucher: {line.appliedVoucher.code}</span>
+                      <span className="whitespace-nowrap">100% OFF</span>
+                    </div>
+                    {line.appliedVoucher.reward_text && (
+                      <p className="mt-0.5 line-clamp-2 text-[10px] font-medium text-emerald-700">
+                        {line.appliedVoucher.reward_text}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {attachedCustomer && onApplyVoucherToLine && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onApplyVoucherToLine(line);
+                    }}
+                    className="mt-1 rounded-lg border border-cyan-100 bg-cyan-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-cyan-800 transition hover:bg-cyan-100"
+                  >
+                    {line.appliedVoucher ? "Change Voucher" : "Apply Voucher"}
+                  </button>
                 )}
               </div>
             );
