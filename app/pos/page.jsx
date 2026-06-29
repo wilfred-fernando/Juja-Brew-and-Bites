@@ -408,22 +408,6 @@ async function printByRole(role, text, printerConfig, opts = {}) {
   }
 }
 
-async function findFirstPrinterNeedingPermission(configByRole = {}) {
-  for (const [role, cfg] of Object.entries(configByRole || {})) {
-    if (!cfg || cfg.is_active === false) continue;
-    if (cfg.transport === "browser") continue;
-    try {
-      const characteristic = await bleConnect(cfg);
-      try {
-        characteristic?.service?.device?.gatt?.disconnect?.();
-      } catch {}
-    } catch {
-      return role;
-    }
-  }
-  return null;
-}
-
 // ================= TEXT BUILDERS =================
 
 function receiptLine(char = "-", width = RECEIPT_COLUMNS) {
@@ -2120,6 +2104,14 @@ function lineNetAmount(line) {
   return Math.max(0, lineGrossAmount(line) - lineDiscountAmount(line));
 }
 
+function jsonSafeValue(value) {
+  return JSON.parse(JSON.stringify(value, (_key, current) => {
+    if (typeof current === "number" && !Number.isFinite(current)) return 0;
+    if (typeof current === "undefined" || typeof current === "function" || typeof current === "symbol") return null;
+    return current;
+  }));
+}
+
 function shiftStorageKey(storeId, cashierId, key) {
   return `pos_shift_${key}_${storeId || "no-store"}_${cashierId || "no-cashier"}`;
 }
@@ -3060,14 +3052,6 @@ export default function POSPage() {
     await warmBluetoothPrinterDeviceCache(map).catch((err) => console.warn("Bluetooth remembered-device cache skipped", err));
     setPrinterConfig(map);
     setPrinterForm(createPrinterProfiles(map));
-    const roleNeedingPermission = await findFirstPrinterNeedingPermission(map).catch((err) => {
-      console.warn("Printer reconnect check skipped", err);
-      return null;
-    });
-    if (roleNeedingPermission) {
-      setPrinterPermissionRole(roleNeedingPermission);
-      showToast("warn", "Printer Reconnect Needed", `${PRINTER_ROLE_LABELS[roleNeedingPermission] || "Printer"} needs Bluetooth permission again.`);
-    }
   }
 
   async function loadBarPrinterCategories(sid, categoryRows = categories) {
@@ -4546,15 +4530,18 @@ export default function POSPage() {
         voided_at: item.voided_at || timestamp,
       };
     });
-    const nextTotal = calcTotal(nextItems);
+    const safeNextItems = jsonSafeValue(enrichOrderItemsForKds(nextItems));
+    const nextTotalRaw = calcTotal(safeNextItems);
+    const nextTotal = Number.isFinite(nextTotalRaw) ? Number(nextTotalRaw.toFixed(2)) : 0;
 
     const { error } = await supabase
       .from("open_tickets")
-      .update({ items: nextItems, total_amount: nextTotal })
+      .update({ items: safeNextItems, total_amount: nextTotal })
       .eq("id", ticket.id);
 
     if (error) {
-      showToast("error", "Void Item Failed", error.message);
+      console.error("Saved ticket item void failed:", error);
+      showToast("error", "Void Item Failed", error.message || error.details || "Open ticket update was rejected.");
       return;
     }
 
@@ -4567,11 +4554,11 @@ export default function POSPage() {
     if (kdsError) showToast("warn", "KDS Void Warning", kdsError.message);
 
     setSavedTickets((prev) =>
-      prev.map((row) => (row.id === ticket.id ? { ...row, items: nextItems, total_amount: nextTotal } : row))
+      prev.map((row) => (row.id === ticket.id ? { ...row, items: safeNextItems, total_amount: nextTotal } : row))
     );
 
     if (String(originalTicketId || "") === String(ticket.id)) {
-      setCart(nextItems.filter((item) => !isVoidedLine(item)));
+      setCart(safeNextItems.filter((item) => !isVoidedLine(item)));
     }
 
     showToast("success", "Item Voided", `${line.name} marked voided.`);
