@@ -8,7 +8,7 @@ import { deductInventoryForOrder, restoreInventoryForOrder } from "@/lib/invento
 import { markKdsTicketItemVoided, markKdsTicketStatus, upsertKdsTicket, webDiningOptionLabel } from "@/lib/kds";
 import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib/loyalty/annualReset";
 import TicketPanel from "@/components/pos/TicketPanel";
-import { Bluetooth, Printer, RefreshCw, RotateCcw, Save, Search, Trash2 } from "lucide-react";
+import { Barcode, Bluetooth, CalendarDays, DollarSign, MapPin, MessageSquare, Phone, Printer, RefreshCw, RotateCcw, Save, ShoppingBasket, Star, Trash2 } from "lucide-react";
 
 // Initialize Supabase Client instance cleanly at layout bundle level
 const supabaseGlobalInstance = getSupabaseClient();
@@ -33,7 +33,7 @@ const NIIMBOT_50X40_LABEL_SIZE = {
   code: "T50*40",
   w_mm: 50,
   h_mm: 40,
-  w_px: 584,
+  w_px: 591,
   h_px: 472,
   margin: 10,
   dpi: 300,
@@ -275,6 +275,8 @@ function renderNiimbotCupLabelImage(text) {
   const canvas = document.createElement("canvas");
   canvas.width = NIIMBOT_50X40_LABEL_SIZE.w_px;
   canvas.height = NIIMBOT_50X40_LABEL_SIZE.h_px;
+  canvas.style.width = `${NIIMBOT_50X40_LABEL_SIZE.w_mm}mm`;
+  canvas.style.height = `${NIIMBOT_50X40_LABEL_SIZE.h_mm}mm`;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Unable to create cup label canvas.");
 
@@ -466,6 +468,45 @@ function customerDisplayPhone(customer) {
 
 function customerAvailablePoints(customer) {
   return Number(customer?.availablePoints ?? customer?.available_points ?? customer?.["Available points"] ?? 0);
+}
+
+function customerPointsBalance(customer) {
+  return Number(customer?.pointsBalance ?? customer?.points_balance ?? customer?.["Points balance"] ?? customer?.["Points Balance"] ?? 0);
+}
+
+function customerField(customer, keys, fallback = "") {
+  for (const key of keys) {
+    const value = customer?.[key];
+    if (value !== undefined && value !== null && String(value).trim() !== "") return value;
+  }
+  return fallback;
+}
+
+function formatCustomerDate(value) {
+  if (!value) return "-";
+  const date = coerceReceiptTimestamp(value);
+  if (isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Manila",
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
+function formatCustomerDateTime(value) {
+  if (!value) return "-";
+  const date = coerceReceiptTimestamp(value);
+  if (isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Manila",
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  }).format(date).replace(",", " at");
 }
 
 function formatReceiptFooterDate(value) {
@@ -696,9 +737,9 @@ function buildReceiptText({
   return lines.join("\n");
 }
 
-function buildOrderSlipText({ orderId, cart, diningOptionName, customerName, total, printedAt }) {
+function buildOrderSlipText({ orderId, cart, diningOptionName, customerName, total, printedAt, slipTitle = "ORDER SLIP" }) {
   const lines = [
-    centerReceiptText("ORDER SLIP"),
+    centerReceiptText(slipTitle),
     centerReceiptText(normalizeLabelLine(diningOptionName || "POS ORDER").toUpperCase()),
     receiptLine(),
     `Order: ${orderId || "-"}`,
@@ -814,16 +855,20 @@ function getLineCategoryId(line) {
   return line?.categoryId || line?.category_id || line?.menu_category_id || line?.category?.id || null;
 }
 
-function filterItemsByBarPrinterGroup(cart, barCategoryIds = [], barCategoryNames = []) {
-  const barIds = new Set((barCategoryIds || []).map((id) => String(id)));
-  const barNames = new Set((barCategoryNames || []).map((name) => String(name || "").trim().toLowerCase()).filter(Boolean));
-  if (barIds.size === 0 && barNames.size === 0) return [];
+function filterItemsByPrinterGroup(cart, categoryIds = [], categoryNames = []) {
+  const groupIds = new Set((categoryIds || []).map((id) => String(id)));
+  const groupNames = new Set((categoryNames || []).map((name) => String(name || "").trim().toLowerCase()).filter(Boolean));
+  if (groupIds.size === 0 && groupNames.size === 0) return [];
 
   return (cart || []).filter((line) => {
     const categoryId = getLineCategoryId(line);
     const categoryName = String(line.category || line.categoryName || line.category_name || "").trim().toLowerCase();
-    return (categoryId && barIds.has(String(categoryId))) || (categoryName && barNames.has(categoryName));
+    return (categoryId && groupIds.has(String(categoryId))) || (categoryName && groupNames.has(categoryName));
   });
+}
+
+function filterItemsByBarPrinterGroup(cart, barCategoryIds = [], barCategoryNames = []) {
+  return filterItemsByPrinterGroup(cart, barCategoryIds, barCategoryNames);
 }
 
 function normalizeLabelLine(value) {
@@ -997,6 +1042,62 @@ function ModalShell({ open, onClose, title, subtitle, children, z = 120 }) {
         <div className="mt-4">{children}</div>
       </div>
     </div>
+  );
+}
+
+function CustomerAccountDetailsModal({ open, onClose, customer }) {
+  const name = customerDisplayName(customer) || "Customer Account";
+  const phone = customerDisplayPhone(customer) || "-";
+  const code = customerDisplayCode(customer) || "-";
+  const address = customerField(customer, ["city", "City", "address", "Address", "city_address", "City Address"], "-");
+  const birthday = customerField(customer, ["birthday", "Birthday", "birthdate", "Birthdate", "Note", "note"], "-");
+  const firstVisit = customerField(customer, ["First visit", "first_visit", "firstVisit"], "");
+  const lastVisit = customerField(customer, ["Last visit", "last_visit", "lastVisit"], "");
+  const visits = Number(customerField(customer, ["Total visits", "total_visits", "visits"], 0));
+  const totalSpent = Number(customerField(customer, ["Total spent", "total_spent", "spent"], 0));
+  const pointsBalance = customerPointsBalance(customer);
+  const availablePoints = customerAvailablePoints(customer);
+
+  return (
+    <ModalShell open={open} onClose={onClose} title="Customer Account" subtitle={name} z={145}>
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="px-5 py-5 text-slate-900">
+          <h3 className="text-center text-xl font-semibold tracking-tight">{name}</h3>
+          <div className="mt-5 space-y-4 text-[12px] text-slate-800">
+            {[
+              { icon: Phone, value: phone },
+              { icon: MapPin, value: address },
+              { icon: Barcode, value: code },
+              { icon: MessageSquare, value: birthday },
+            ].map(({ icon: Icon, value }, index) => (
+              <div key={`${value}-${index}`} className="grid grid-cols-[20px_1fr] items-center gap-4">
+                <Icon className="h-4 w-4 text-slate-500" />
+                <span className="leading-snug">{value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-x-6 gap-y-5 border-t border-slate-200 bg-slate-50 px-5 py-5 text-[12px] text-slate-900">
+          {[
+            { icon: CalendarDays, value: formatCustomerDate(firstVisit), label: "First visit" },
+            { icon: CalendarDays, value: formatCustomerDateTime(lastVisit), label: "Last visit" },
+            { icon: ShoppingBasket, value: visits.toLocaleString("en-PH"), label: "Visits" },
+            { icon: DollarSign, value: peso2(totalSpent), label: "Total spent" },
+            { icon: Star, value: pointsBalance.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), label: "Points balance" },
+            { icon: Star, value: availablePoints.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), label: "Available points" },
+          ].map(({ icon: Icon, value, label }) => (
+            <div key={label} className="grid grid-cols-[22px_1fr] gap-3">
+              <Icon className="mt-0.5 h-4 w-4 text-slate-500" />
+              <div>
+                <p className="font-semibold leading-tight text-slate-950">{value}</p>
+                <p className="mt-0.5 text-[11px] leading-tight text-slate-500">{label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </ModalShell>
   );
 }
 
@@ -2163,6 +2264,7 @@ export default function POSPage() {
   const [printerConfig, setPrinterConfig] = useState({ receipt: null, order_slip: null, cup_label: null });
   const [barPrinterCategoryIds, setBarPrinterCategoryIds] = useState([]);
   const [barPrinterCategoryNames, setBarPrinterCategoryNames] = useState([]);
+  const [orderSlipPrinterGroups, setOrderSlipPrinterGroups] = useState([]);
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -2182,6 +2284,7 @@ export default function POSPage() {
   const [customerSearch, setCustomerSearch] = useState("");
   const [isCustListOpen, setIsCustListOpen] = useState(false);
   const [attachedCustomer, setAttachedCustomer] = useState(null);
+  const [customerDetailsOpen, setCustomerDetailsOpen] = useState(false);
   const [selectedItemForModal, setSelectedItemForModal] = useState(null);
   const [diningOption, setDiningOption] = useState("");
   const [grabOrderNumber, setGrabOrderNumber] = useState("");
@@ -3065,42 +3168,58 @@ export default function POSPage() {
       console.warn("Unable to load printer groups", groupError);
       setBarPrinterCategoryIds([]);
       setBarPrinterCategoryNames([]);
+      setOrderSlipPrinterGroups([]);
       return;
     }
 
-    const barGroupIds = (groups || [])
-      .filter((group) => String(group.name || "").trim().toLowerCase() === "bar")
+    const activeSlipGroups = (groups || [])
       .filter((group) => group.is_active !== false)
-      .map((group) => group.id);
+      .filter((group) => ["kitchen", "bar"].includes(String(group.name || "").trim().toLowerCase()));
 
-    if (barGroupIds.length === 0) {
+    if (activeSlipGroups.length === 0) {
       setBarPrinterCategoryIds([]);
       setBarPrinterCategoryNames([]);
+      setOrderSlipPrinterGroups([]);
       return;
     }
 
     const { data: mapping, error: mappingError } = await supabase
       .from("pos_printer_group_categories")
-      .select("menu_category_id")
+      .select("printer_group_id, menu_category_id")
       .eq("store_id", sid)
-      .in("printer_group_id", barGroupIds);
+      .in("printer_group_id", activeSlipGroups.map((group) => group.id));
 
     if (mappingError) {
-      console.warn("Unable to load Bar printer categories", mappingError);
+      console.warn("Unable to load printer group categories", mappingError);
       setBarPrinterCategoryIds([]);
       setBarPrinterCategoryNames([]);
+      setOrderSlipPrinterGroups([]);
       return;
     }
 
-    const mappedIds = Array.from(new Set((mapping || []).map((row) => row.menu_category_id).filter(Boolean)));
-    const mappedIdSet = new Set(mappedIds.map((id) => String(id)));
-    const mappedNames = (categoryRows || [])
-      .filter((category) => mappedIdSet.has(String(category.id)))
-      .map((category) => category.name)
-      .filter(Boolean);
+    const categoryNameById = new Map((categoryRows || []).map((category) => [String(category.id), category.name]).filter(([id]) => Boolean(id)));
+    const printerGroups = activeSlipGroups.map((group) => {
+      const categoryIds = Array.from(new Set(
+        (mapping || [])
+          .filter((row) => String(row.printer_group_id) === String(group.id))
+          .map((row) => row.menu_category_id)
+          .filter(Boolean)
+      ));
+      const categoryNames = Array.from(new Set(categoryIds.map((id) => categoryNameById.get(String(id))).filter(Boolean)));
+      return {
+        id: group.id,
+        name: group.name,
+        key: String(group.name || "").trim().toLowerCase(),
+        categoryIds,
+        categoryNames,
+      };
+    });
 
-    setBarPrinterCategoryIds(mappedIds);
-    setBarPrinterCategoryNames(Array.from(new Set(mappedNames)));
+    const barGroup = printerGroups.find((group) => group.key === "bar");
+
+    setBarPrinterCategoryIds(barGroup?.categoryIds || []);
+    setBarPrinterCategoryNames(barGroup?.categoryNames || []);
+    setOrderSlipPrinterGroups(printerGroups);
   }
 
   async function fetchActiveVouchers(memberId) {
@@ -3298,24 +3417,34 @@ export default function POSPage() {
     slipCustomer = attachedCustomer?.name || "",
     slipTotal = totalDue,
     printedAt = new Date(),
-    onlineBarOnly = false,
   } = {}) {
-    const printableCart = onlineBarOnly
-      ? filterItemsByBarPrinterGroup(slipCart, barPrinterCategoryIds, barPrinterCategoryNames)
-      : (slipCart || []);
-    if (printableCart.length === 0) return;
+    const cartRows = slipCart || [];
+    if (cartRows.length === 0) return;
 
-    const slipText = buildOrderSlipText({
-      orderId,
-      cart: printableCart,
-      diningOptionName: slipDining,
-      customerName: slipCustomer,
-      total: slipTotal,
-      printedAt,
-    });
+    const configuredJobs = (orderSlipPrinterGroups || [])
+      .map((group) => ({
+        groupName: normalizeLabelLine(group.name || "Order Slip"),
+        items: filterItemsByPrinterGroup(cartRows, group.categoryIds, group.categoryNames),
+      }))
+      .filter((job) => job.items.length > 0);
+
+    const printJobs = configuredJobs.length > 0
+      ? configuredJobs
+      : [{ groupName: "Order Slip", items: cartRows, useFullTotal: true }];
 
     try {
-      await printByRole("receipt", slipText, printerConfig, { fallbackToBrowser: false });
+      for (const job of printJobs) {
+        const slipText = buildOrderSlipText({
+          orderId,
+          cart: job.items,
+          diningOptionName: slipDining,
+          customerName: slipCustomer,
+          total: job.useFullTotal ? slipTotal : calcTotal(job.items),
+          printedAt,
+          slipTitle: `${job.groupName.toUpperCase()} ORDER SLIP`,
+        });
+        await printByRole("receipt", slipText, printerConfig, { fallbackToBrowser: false });
+      }
     } catch (printError) {
       showToast("warn", "Order Slip Not Printed", printError?.message || "Select and save the receipt printer in POS Settings.");
     }
@@ -5023,6 +5152,7 @@ export default function POSPage() {
 
   const removeAttachedCustomer = () => {
     setAttachedCustomer(null);
+    setCustomerDetailsOpen(false);
     setCustomerSearch("");
     setAppliedVoucher(null);
     setAvailableVouchers([]);
@@ -5959,6 +6089,7 @@ export default function POSPage() {
               attachedCustomer={attachedCustomer}
               onRemoveCustomer={removeAttachedCustomer}
               onChangeCustomer={prepareCustomerChange}
+              onViewCustomer={() => setCustomerDetailsOpen(true)}
               appliedVoucher={appliedVoucher}
               discountRules={orderDiscountRules}
               appliedDiscount={appliedDiscount}
@@ -6069,6 +6200,7 @@ export default function POSPage() {
                 attachedCustomer={attachedCustomer}
                 onRemoveCustomer={removeAttachedCustomer}
                 onChangeCustomer={prepareCustomerChange}
+                onViewCustomer={() => setCustomerDetailsOpen(true)}
                 appliedVoucher={appliedVoucher}
                 discountRules={orderDiscountRules}
                 appliedDiscount={appliedDiscount}
@@ -6127,6 +6259,11 @@ export default function POSPage() {
         onReject={rejectIncomingWebOrder} 
       />
       <BarcodeScannerModal open={scannerOpen} onClose={() => setScannerOpen(false)} onResult={(txt) => handleCodeInput(txt)} />
+      <CustomerAccountDetailsModal
+        open={customerDetailsOpen && !!attachedCustomer}
+        onClose={() => setCustomerDetailsOpen(false)}
+        customer={attachedCustomer}
+      />
       <SavedTicketsModal
         open={savedOpen}
         onClose={() => setSavedOpen(false)}

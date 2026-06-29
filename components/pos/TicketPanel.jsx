@@ -20,6 +20,7 @@ export default function TicketPanel({
   attachedCustomer,
   onRemoveCustomer,
   onChangeCustomer,
+  onViewCustomer,
   appliedVoucher,
   onOpenVouchers,
   onRemoveVoucher,
@@ -101,10 +102,10 @@ export default function TicketPanel({
             <div className="mt-2 flex flex-wrap gap-1.5">
               <button
                 type="button"
-                onClick={onChangeCustomer}
+                onClick={onViewCustomer || onChangeCustomer}
                 className="px-2.5 py-1 rounded-full border border-slate-200 bg-white text-[10px] font-semibold uppercase tracking-wide text-slate-700 hover:bg-slate-50 transition"
               >
-                Change
+                View Account
               </button>
               <button
                 type="button"
