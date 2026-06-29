@@ -8,7 +8,7 @@ import { deductInventoryForOrder, restoreInventoryForOrder } from "@/lib/invento
 import { markKdsTicketItemVoided, markKdsTicketStatus, upsertKdsTicket, webDiningOptionLabel } from "@/lib/kds";
 import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib/loyalty/annualReset";
 import TicketPanel from "@/components/pos/TicketPanel";
-import { Bluetooth, Printer, RotateCcw, Save, Search, Trash2 } from "lucide-react";
+import { Bluetooth, Printer, RefreshCw, RotateCcw, Save, Search, Trash2 } from "lucide-react";
 
 // Initialize Supabase Client instance cleanly at layout bundle level
 const supabaseGlobalInstance = getSupabaseClient();
@@ -676,9 +676,11 @@ function buildReceiptText({
     nameLines.slice(1).forEach((line) => lines.push(line));
     lines.push(`${quantity} x ${receiptAmount(unitPrice)}`);
     if (itemDiscount > 0) lines.push(receiptPair("  Item discount", `-${receiptAmount(itemDiscount)}`));
-    const variants = normalizeLabelLine(x.variantDetails || "");
+    const optionLines = selectedOptionReceiptLines(x);
     const instructions = normalizeLabelLine(x.instructions || x.specialInstructions || x.special_instructions || "");
-    if (variants) splitReceiptText(variants, RECEIPT_COLUMNS).forEach((line) => lines.push(`  ${line}`));
+    optionLines.forEach((optionLine) => {
+      splitReceiptText(optionLine, RECEIPT_COLUMNS).forEach((line) => lines.push(`  ${line}`));
+    });
     if (instructions) splitReceiptText(`Note: ${instructions}`, RECEIPT_COLUMNS).forEach((line) => lines.push(`  ${line}`));
   });
   lines.push(receiptLine());
@@ -842,6 +844,32 @@ function filterItemsByBarPrinterGroup(cart, barCategoryIds = [], barCategoryName
 
 function normalizeLabelLine(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function selectedOptionReceiptLines(item) {
+  const selectedOptions = Array.isArray(item?.selectedOptions)
+    ? item.selectedOptions
+    : Array.isArray(item?.selected_options)
+      ? item.selected_options
+      : [];
+
+  if (selectedOptions.length > 0) {
+    const grouped = new Map();
+    selectedOptions.forEach((option) => {
+      const groupName = normalizeLabelLine(option?.groupName || option?.group_name || option?.group || "Options");
+      const optionName = normalizeLabelLine(option?.name || option?.label || option?.option_name || option?.value);
+      if (!optionName) return;
+      if (!grouped.has(groupName)) grouped.set(groupName, []);
+      grouped.get(groupName).push(optionName);
+    });
+
+    return Array.from(grouped.entries())
+      .map(([groupName, optionNames]) => `${groupName}: ${optionNames.join(", ")}`)
+      .filter(Boolean);
+  }
+
+  const variantDetails = normalizeLabelLine(item?.variantDetails || item?.variant_details || item?.variant || "");
+  return variantDetails ? [variantDetails] : [];
 }
 
 function buildCupLabels({ orderId, cart, diningOptionName, printedAt, barCategoryIds = [], barCategoryNames = [] }) {
@@ -2155,6 +2183,7 @@ export default function POSPage() {
 
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [manualRefreshing, setManualRefreshing] = useState(false);
   const [activeCategory, setActiveCategory] = useState("");
   const [menuSearch, setMenuSearch] = useState("");
 
@@ -2582,6 +2611,20 @@ export default function POSPage() {
 
   useEffect(() => {
     setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const previousBodyOverscroll = document.body.style.overscrollBehaviorY;
+    const previousHtmlOverscroll = document.documentElement.style.overscrollBehaviorY;
+
+    document.body.style.overscrollBehaviorY = "none";
+    document.documentElement.style.overscrollBehaviorY = "none";
+
+    return () => {
+      document.body.style.overscrollBehaviorY = previousBodyOverscroll;
+      document.documentElement.style.overscrollBehaviorY = previousHtmlOverscroll;
+    };
   }, []);
 
   useEffect(() => {
@@ -3522,6 +3565,27 @@ export default function POSPage() {
     setWebOrders(data || []);
   }
 
+  async function refreshPosNow() {
+    if (!storeId || manualRefreshing) return;
+
+    setManualRefreshing(true);
+    try {
+      await Promise.all([
+        fetchPendingCount(storeId),
+        currentUserId ? loadShiftState(storeId, currentUserId) : Promise.resolve(),
+        fetchData(storeId, { showLoading: false }),
+        fetchSavedTickets(),
+        fetchAcceptedWebOrders(),
+        managementOpen ? fetchReceiptLogs() : Promise.resolve(),
+      ]);
+      showToast("success", "POS Refreshed", "Latest menu, tickets, web orders, and receipts loaded.");
+    } catch (err) {
+      showToast("error", "Refresh Failed", err?.message || "Unable to refresh POS.");
+    } finally {
+      setManualRefreshing(false);
+    }
+  }
+
   useEffect(() => {
     if (!storeId || !currentUserId || shiftStatus === "loading") return;
 
@@ -3858,6 +3922,9 @@ export default function POSPage() {
           quantity: item.quantity || item.qty || 1,
           net_sales: Number(item.unitPrice || item.price || 0) * Number(item.quantity || item.qty || 1),
           gross_sales: Number(item.unitPrice || item.price || 0) * Number(item.quantity || item.qty || 1),
+          variantDetails: item.variantDetails || item.variant_details || "",
+          selectedOptions: item.selectedOptions || item.selected_options || [],
+          instructions: item.instructions || item.note || item.specialInstructions || item.special_instructions || "",
           status: "Closed",
         }))
       ));
@@ -3885,6 +3952,9 @@ export default function POSPage() {
           quantity: item.quantity || item.qty || 1,
           net_sales: Number(item.unitPrice || item.price || 0) * Number(item.quantity || item.qty || 1),
           gross_sales: Number(item.unitPrice || item.price || 0) * Number(item.quantity || item.qty || 1),
+          variantDetails: item.variantDetails || item.variant_details || "",
+          selectedOptions: item.selectedOptions || item.selected_options || [],
+          instructions: item.instructions || item.note || item.specialInstructions || item.special_instructions || "",
           status: refunds[order.receipt_number]?.items?.[`${order.receipt_number}-${idx}`] || "Closed",
         }))
       );
@@ -3944,13 +4014,42 @@ export default function POSPage() {
       return;
     }
 
-    const cartForReceipt = items.map((row) => {
+    const sourceItems = Array.isArray(receipt.items)
+      ? receipt.items
+      : Array.isArray(receipt.web_items)
+        ? receipt.web_items
+        : [];
+    const findSourceLine = (row, index) => {
+      const indexed = sourceItems[index];
+      const rowMenuId = row.menu_item_id || row.menuItemId || row.menu_item || null;
+      const rowName = normalizeLabelLine(row.item || row.name || "").toLowerCase();
+
+      if (indexed) {
+        const indexedMenuId = indexed.menu_item_id || indexed.menuItemId || indexed.id || null;
+        const indexedName = normalizeLabelLine(indexed.name || indexed.item || "").toLowerCase();
+        if ((rowMenuId && indexedMenuId && String(rowMenuId) === String(indexedMenuId)) || (rowName && indexedName === rowName)) {
+          return indexed;
+        }
+      }
+
+      return sourceItems.find((line) => {
+        const lineMenuId = line.menu_item_id || line.menuItemId || line.id || null;
+        const lineName = normalizeLabelLine(line.name || line.item || "").toLowerCase();
+        return (rowMenuId && lineMenuId && String(rowMenuId) === String(lineMenuId)) || (rowName && lineName === rowName);
+      }) || null;
+    };
+
+    const cartForReceipt = items.map((row, index) => {
+      const sourceLine = findSourceLine(row, index);
       const quantity = Number(row.quantity || 1);
       const lineTotal = Number(row.net_sales ?? row.gross_sales ?? 0);
       return {
         name: row.item || row.name || "Item",
         quantity,
         unitPrice: quantity > 0 ? lineTotal / quantity : lineTotal,
+        variantDetails: row.variantDetails || row.variant_details || sourceLine?.variantDetails || sourceLine?.variant_details || "",
+        selectedOptions: row.selectedOptions || row.selected_options || sourceLine?.selectedOptions || sourceLine?.selected_options || [],
+        instructions: row.instructions || row.note || row.specialInstructions || row.special_instructions || sourceLine?.instructions || sourceLine?.note || sourceLine?.specialInstructions || sourceLine?.special_instructions || "",
       };
     });
     const gross = Number(receipt.gross_sales || 0);
@@ -5197,7 +5296,7 @@ export default function POSPage() {
 
   if (shiftStatus === "loading") {
     return (
-      <div className="min-h-screen bg-[#FFF5F7] font-sans antialiased text-slate-800">
+      <div className="min-h-screen overscroll-none bg-[#FFF5F7] font-sans antialiased text-slate-800" style={{ overscrollBehaviorY: "none" }}>
         <Toast toast={toast} onClose={() => setToast(null)} />
         <div className="min-h-screen flex items-center justify-center p-6">
           <div className="h-10 w-10 rounded-full border-4 border-rose-100 border-t-[#FC687D] animate-spin" />
@@ -5208,7 +5307,7 @@ export default function POSPage() {
 
   if (shiftStatus === "closed") {
     return (
-      <div className="min-h-screen bg-[#FFF5F7] font-sans antialiased text-slate-800">
+      <div className="min-h-screen overscroll-none bg-[#FFF5F7] font-sans antialiased text-slate-800" style={{ overscrollBehaviorY: "none" }}>
         <Toast toast={toast} onClose={() => setToast(null)} />
         <div className="min-h-screen flex items-center justify-center p-6">
           <button
@@ -5226,7 +5325,7 @@ export default function POSPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF5F7] pb-24 lg:pb-0 font-sans antialiased text-slate-800">
+    <div className="min-h-screen overscroll-none bg-[#FFF5F7] pb-24 lg:pb-0 font-sans antialiased text-slate-800" style={{ overscrollBehaviorY: "none" }}>
       <Toast toast={toast} onClose={() => setToast(null)} />
 
       {/* PERSISTENT PWA INSTALLATION TRIGGER BANNER LAYOUT */}
@@ -5795,6 +5894,16 @@ export default function POSPage() {
                   className="w-full pl-9 pr-4 py-4 bg-slate-50 rounded-xl text-[12px] font-semibold text-slate-700 outline-none border border-slate-200 focus:bg-white focus:border-rose-200 transition"
                 />
               </div>
+              <button
+                type="button"
+                onClick={refreshPosNow}
+                disabled={!storeId || manualRefreshing}
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-cyan-100 bg-cyan-50 px-4 text-[11px] font-black uppercase tracking-wider text-cyan-800 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-200 hover:bg-white hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                title="Refresh POS data"
+              >
+                <RefreshCw size={15} className={manualRefreshing ? "animate-spin" : ""} />
+                Refresh
+              </button>
             </div>
 
             {/* Product tile grid with category dropdown selection */}
