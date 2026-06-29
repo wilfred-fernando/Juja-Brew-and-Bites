@@ -274,7 +274,7 @@ function coerceReceiptTimestamp(value) {
   if (value instanceof Date) return value;
   const text = String(value).trim();
   const normalizedTimestamp = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/.test(text)
-    ? `${text.replace(" ", "T")}Z`
+    ? `${text.replace(" ", "T")}+08:00`
     : text;
   return new Date(normalizedTimestamp);
 }
@@ -339,6 +339,21 @@ function formatReceiptTime(value) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+}
+
+function formatReceiptDateTime(value) {
+  const date = coerceReceiptTimestamp(value);
+  if (isNaN(date.getTime())) return "";
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  }).formatToParts(date).map((part) => [part.type, part.value]));
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute} ${parts.dayPeriod}`;
 }
 
 function shortReceiptNumber(value) {
@@ -1177,11 +1192,11 @@ function optionGroupMaxSelection(group) {
   return Number.isFinite(value) && value >= 1 ? Math.floor(value) : null;
 }
 
-function AddToCartModal({ item, onClose, onAddToCart }) {
+function AddToCartModal({ item, onClose, onAddToCart, discountRules = [] }) {
   const [quantity, setQuantity] = useState(1);
   const [selections, setSelections] = useState({});
   const [instructions, setInstructions] = useState("");
-  const [itemDiscount, setItemDiscount] = useState("");
+  const [itemDiscountRuleId, setItemDiscountRuleId] = useState("");
   const [collapsed, setCollapsed] = useState({});
 
   useEffect(() => {
@@ -1190,7 +1205,7 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
 
     setQuantity(source.quantity || 1);
     setInstructions(source.instructions || "");
-    setItemDiscount(source.discountAmount || source.discount_amount || "");
+    setItemDiscountRuleId(source.discountRuleId || source.discount_rule_id || "");
 
     const selected = {};
     if (source.variantDetails && item.variants) {
@@ -1234,7 +1249,8 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
 
   const basePrice = Number(item.price) || 0;
   const unitPrice = basePrice + variantPrice;
-  const discountValue = Math.max(0, Math.min(unitPrice * Number(quantity || 1), Number(itemDiscount || 0)));
+  const itemDiscountRule = discountRules.find((rule) => String(rule.id) === String(itemDiscountRuleId));
+  const discountValue = Math.max(0, Math.min(unitPrice * Number(quantity || 1), discountAmountFromRule(itemDiscountRule, unitPrice * Number(quantity || 1))));
   const availableVariantGroups = (item.variants || []).filter((g) => g.isAvailable !== false && g.is_available !== false);
   const canAdd = availableVariantGroups.every((g) => !g.isRequired || (selections[g.id] || []).length > 0);
 
@@ -1263,6 +1279,8 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
       unitPrice,
       quantity,
       discountAmount: discountValue,
+      discountRuleId: itemDiscountRule?.id || null,
+      discountName: itemDiscountRule?.name || itemDiscountRule?.discount_name || null,
       variantDetails,
       selectedOptions,
       instructions,
@@ -1301,19 +1319,28 @@ function AddToCartModal({ item, onClose, onAddToCart }) {
         />
       </div>
 
-      <div className="mt-4">
-        <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1">Item Discount</label>
-        <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3">
-          <span className="text-xs font-bold text-slate-400">₱</span>
-          <input
-            inputMode="decimal"
-            value={itemDiscount}
-            onChange={(e) => setItemDiscount(e.target.value.replace(/[^\d.]/g, ""))}
-            placeholder="0.00"
-            className="w-full bg-transparent text-sm font-semibold text-slate-800 outline-none"
-          />
+      {discountRules.length > 0 && (
+        <div className="mt-4">
+          <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1">Item Discount</label>
+          <select
+            value={itemDiscountRuleId}
+            onChange={(e) => setItemDiscountRuleId(e.target.value)}
+            className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 outline-none focus:border-[#FC687D]"
+          >
+            <option value="">No item discount</option>
+            {discountRules.map((rule) => (
+              <option key={rule.id} value={rule.id}>
+                {rule.name || rule.discount_name || "Discount"}
+              </option>
+            ))}
+          </select>
+          {discountValue > 0 && (
+            <p className="mt-1 text-[10px] font-semibold text-slate-500">
+              Discount: -{peso2(discountValue)}
+            </p>
+          )}
         </div>
-      </div>
+      )}
 
       {availableVariantGroups.length > 0 && (
         <div className="mt-4 space-y-4 max-h-[30vh] overflow-y-auto pr-1">
@@ -1787,9 +1814,17 @@ function lineNetAmount(line) {
   return Math.max(0, lineGrossAmount(line) - lineDiscountAmount(line));
 }
 
-function getLatestShiftRecord(records, storeId) {
+function shiftStorageKey(storeId, cashierId, key) {
+  return `pos_shift_${key}_${storeId || "no-store"}_${cashierId || "no-cashier"}`;
+}
+
+function getLatestShiftRecord(records, storeId, cashierId) {
   const rows = Array.isArray(records) ? records : [];
-  const scoped = storeId ? rows.filter((row) => String(row.store_id || "") === String(storeId)) : rows;
+  const scoped = rows.filter((row) => {
+    if (storeId && String(row.store_id || "") !== String(storeId)) return false;
+    if (cashierId && String(row.cashier_id || "") !== String(cashierId)) return false;
+    return true;
+  });
   return [...scoped].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())[0] || null;
 }
 
@@ -1797,8 +1832,8 @@ function getShiftRecordMode(record) {
   return String(record?.mode || record?.shift_type || record?.type || record?.action || "").toLowerCase();
 }
 
-function getShiftStatusFromRecords(records, storeId) {
-  const latest = getLatestShiftRecord(records, storeId);
+function getShiftStatusFromRecords(records, storeId, cashierId) {
+  const latest = getLatestShiftRecord(records, storeId, cashierId);
   return getShiftRecordMode(latest).includes("open") ? "open" : "closed";
 }
 
@@ -1961,6 +1996,21 @@ export default function POSPage() {
     }, 0);
 
   const subtotal = useMemo(() => calcTotal(cart), [cart]);
+  const activeDiscountRules = useMemo(
+    () => (discountRules || []).filter((rule) => rule.is_active !== false),
+    [discountRules]
+  );
+  const itemDiscountRules = useMemo(
+    () => activeDiscountRules.filter((rule) => String(rule.scope || "").toLowerCase() === "item"),
+    [activeDiscountRules]
+  );
+  const orderDiscountRules = useMemo(
+    () => activeDiscountRules.filter((rule) => {
+      const scope = String(rule.scope || "receipt").toLowerCase();
+      return scope === "receipt" || scope === "order";
+    }),
+    [activeDiscountRules]
+  );
 
   const removeCartItemAt = (index) => {
     setCart((prev) => prev.filter((_, idx) => idx !== index));
@@ -2105,9 +2155,8 @@ export default function POSPage() {
       setReceiptRefunds({});
     }
     try {
-      const localShiftRows = JSON.parse(localStorage.getItem("pos_shift_records") || "[]");
-      setShiftRecords(Array.isArray(localShiftRows) ? localShiftRows : []);
-      setStartingCash(localStorage.getItem("pos_shift_starting_cash") || "");
+      setShiftRecords([]);
+      setStartingCash("");
     } catch {
       setShiftRecords([]);
     }
@@ -2143,29 +2192,29 @@ export default function POSPage() {
     }
   }
 
-  function applyShiftState(records, sid) {
+  function applyShiftState(records, sid, cashierId) {
     const rows = Array.isArray(records) ? records : [];
-    const nextStatus = getShiftStatusFromRecords(rows, sid);
-    const latest = getLatestShiftRecord(rows, sid);
+    const nextStatus = getShiftStatusFromRecords(rows, sid, cashierId);
+    const latest = getLatestShiftRecord(rows, sid, cashierId);
     const latestStartingCash = latest?.cash_total ?? latest?.starting_cash ?? 0;
 
     setShiftRecords(rows);
     setShiftStatus(nextStatus);
 
     if (typeof window !== "undefined") {
-      localStorage.setItem("pos_shift_records", JSON.stringify(rows.slice(0, 20)));
+      localStorage.setItem(shiftStorageKey(sid, cashierId, "records"), JSON.stringify(rows.slice(0, 20)));
       if (nextStatus === "open") {
-        localStorage.setItem("pos_shift_starting_cash", String(latestStartingCash || 0));
+        localStorage.setItem(shiftStorageKey(sid, cashierId, "starting_cash"), String(latestStartingCash || 0));
       } else {
-        localStorage.removeItem("pos_shift_starting_cash");
+        localStorage.removeItem(shiftStorageKey(sid, cashierId, "starting_cash"));
       }
     }
 
     setStartingCash(nextStatus === "open" ? String(latestStartingCash || 0) : "");
   }
 
-  async function loadShiftState(sid) {
-    if (!sid) {
+  async function loadShiftState(sid, cashierId = currentUserId) {
+    if (!sid || !cashierId) {
       setShiftStatus("closed");
       return;
     }
@@ -2173,7 +2222,7 @@ export default function POSPage() {
     let localRows = [];
     if (typeof window !== "undefined") {
       try {
-        const parsed = JSON.parse(localStorage.getItem("pos_shift_records") || "[]");
+        const parsed = JSON.parse(localStorage.getItem(shiftStorageKey(sid, cashierId, "records")) || "[]");
         localRows = Array.isArray(parsed) ? parsed : [];
       } catch {
         localRows = [];
@@ -2184,15 +2233,16 @@ export default function POSPage() {
       .from("cashier_pos")
       .select("*")
       .eq("store_id", sid)
+      .eq("cashier_id", cashierId)
       .order("created_at", { ascending: false })
       .limit(20);
 
     if (error) {
-      applyShiftState(localRows, sid);
+      applyShiftState(localRows, sid, cashierId);
       return;
     }
 
-    applyShiftState(data || [], sid);
+    applyShiftState(data || [], sid, cashierId);
   }
 
   // ================= PWA INSTALLATION EVENT HANDLER =================
@@ -2508,7 +2558,7 @@ export default function POSPage() {
       setStoreId(activeStoreId);
 
       await fetchPendingCount(activeStoreId); 
-      await loadShiftState(activeStoreId);
+      await loadShiftState(activeStoreId, session.user.id);
       await fetchData(activeStoreId);
     };
 
@@ -2641,7 +2691,11 @@ export default function POSPage() {
       supabase.from("pos_payment_types").select("*").or(`store_id.eq.${sid},store_id.is.null`).eq("is_active", true),
       supabase.from("pos_dining_options").select("*").eq("store_id", sid).eq("is_active", true).order("sort_order", { ascending: true }),
       supabase.from("pos_open_ticket_templates").select("*").eq("store_id", sid),
-      supabase.from("pos_discounts").select("*").eq("store_id", sid),
+      supabase
+        .from("pos_discounts")
+        .select("*")
+        .or(`store_id.eq.${sid},store_id.is.null`)
+        .order("sort_order", { ascending: true }),
       supabase.from("pos_receipt_settings").select("*").eq("store_id", sid).maybeSingle(),
       supabase.from("stores").select("*").eq("id", sid).maybeSingle(),
     ]);
@@ -2994,7 +3048,7 @@ export default function POSPage() {
   }
 
   useEffect(() => {
-    if (!storeId || shiftStatus === "loading") return;
+    if (!storeId || !currentUserId || shiftStatus === "loading") return;
 
     let cancelled = false;
     const refreshPos = async () => {
@@ -3004,7 +3058,7 @@ export default function POSPage() {
       try {
         await Promise.all([
           fetchPendingCount(storeId),
-          loadShiftState(storeId),
+          loadShiftState(storeId, currentUserId),
           fetchData(storeId, { showLoading: false }),
           fetchSavedTickets(),
           fetchAcceptedWebOrders(),
@@ -3022,7 +3076,7 @@ export default function POSPage() {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [storeId, shiftStatus, managementOpen]);
+  }, [storeId, shiftStatus, managementOpen, currentUserId]);
 
   async function openAcceptedWebOrders() {
     await fetchAcceptedWebOrders();
@@ -3272,7 +3326,7 @@ export default function POSPage() {
         ...order,
         receipt_number: order.receipt_number || order.order_number || String(order.id),
         order_id: order.id,
-        date: order.created_at ? formatDateTime(order.created_at) : "",
+        date: order.created_at ? formatReceiptDateTime(order.created_at) : "",
         gross_sales: Number(order.total || 0) + Number(order.discount || 0),
         discounts: Number(order.discount || 0),
         net_sales: Number(order.total || 0),
@@ -3297,7 +3351,7 @@ export default function POSPage() {
         ...order,
         id: `WEB-${order.id}`,
         receipt_number: order.receipt_number || `WEB-${String(order.id).slice(0, 8).toUpperCase()}`,
-        date: order.created_at ? formatDateTime(order.created_at) : "",
+        date: order.created_at ? formatReceiptDateTime(order.created_at) : "",
         gross_sales: Number(order.total || order.subtotal || 0),
         discounts: 0,
         net_sales: Number(order.total || order.subtotal || 0),
@@ -3780,9 +3834,15 @@ export default function POSPage() {
   }
 
   async function saveShiftCash(totalCash) {
+    if (!currentUserId) {
+      showToast("error", "Shift Failed", "Cashier account is still loading. Please try again.");
+      return;
+    }
+
     const record = {
       id: `${shiftCashMode}-${Date.now()}`,
       store_id: storeId,
+      cashier_id: currentUserId,
       mode: shiftCashMode,
       cashier_name: cashierName || "Operator",
       cash_total: Number(totalCash || 0),
@@ -3794,11 +3854,11 @@ export default function POSPage() {
     const nextRecords = [record, ...shiftRecords].slice(0, 20);
     setShiftRecords(nextRecords);
     if (typeof window !== "undefined") {
-      localStorage.setItem("pos_shift_records", JSON.stringify(nextRecords));
+      localStorage.setItem(shiftStorageKey(storeId, currentUserId, "records"), JSON.stringify(nextRecords));
       if (shiftCashMode === "open") {
-        localStorage.setItem("pos_shift_starting_cash", String(totalCash || 0));
+        localStorage.setItem(shiftStorageKey(storeId, currentUserId, "starting_cash"), String(totalCash || 0));
       } else {
-        localStorage.removeItem("pos_shift_starting_cash");
+        localStorage.removeItem(shiftStorageKey(storeId, currentUserId, "starting_cash"));
       }
     }
     if (shiftCashMode === "open") {
@@ -4680,7 +4740,9 @@ export default function POSPage() {
                       <p className="text-[12px] font-bold text-slate-800 truncate">{r.receipt_number}</p>
                       <span className="text-[12px] font-semibold text-[#FC687D]">{peso2(r.total_collected || r.net_sales || 0)}</span>
                     </div>
-                    <p className="text-[10px] font-semibold italic text-slate-400 truncate">{r.date || ""} · {r.status || "Closed"}</p>
+                    <p className="text-[10px] font-semibold italic text-slate-400 truncate">
+                      {r.date || ""} · {r.payment_type || "Other"} · {r.status || "Closed"}
+                    </p>
                   </button>
                 ))}
               </div>
@@ -5177,7 +5239,7 @@ export default function POSPage() {
               onRemoveCustomer={removeAttachedCustomer}
               onChangeCustomer={prepareCustomerChange}
               appliedVoucher={appliedVoucher}
-              discountRules={discountRules}
+              discountRules={orderDiscountRules}
               appliedDiscount={appliedDiscount}
               onApplyDiscount={setAppliedDiscount}
               onRemoveDiscount={() => setAppliedDiscount(null)}
@@ -5281,7 +5343,7 @@ export default function POSPage() {
                 onRemoveCustomer={removeAttachedCustomer}
                 onChangeCustomer={prepareCustomerChange}
                 appliedVoucher={appliedVoucher}
-                discountRules={discountRules}
+                discountRules={orderDiscountRules}
                 appliedDiscount={appliedDiscount}
                 onApplyDiscount={setAppliedDiscount}
                 onRemoveDiscount={() => setAppliedDiscount(null)}
@@ -5376,6 +5438,7 @@ export default function POSPage() {
           item={selectedItemForModal} 
           onClose={() => setSelectedItemForModal(null)} 
           onAddToCart={onAddToCart} 
+          discountRules={itemDiscountRules}
         />
       )}
       
