@@ -4,11 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { getStableSession } from "@/lib/supabase/session";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
-import { deductInventoryForOrder, restoreInventoryForOrder } from "@/lib/inventory";
+import { deductInventoryForOrder, normalizeUnit, restoreInventoryForOrder } from "@/lib/inventory";
 import { markKdsTicketItemVoided, markKdsTicketStatus, upsertKdsTicket, webDiningOptionLabel } from "@/lib/kds";
 import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib/loyalty/annualReset";
 import TicketPanel from "@/components/pos/TicketPanel";
-import { Barcode, Bluetooth, CalendarDays, DollarSign, MapPin, MessageSquare, Phone, Printer, RefreshCw, RotateCcw, Save, ShoppingBasket, Star, Trash2 } from "lucide-react";
+import { Barcode, Bluetooth, CalendarDays, DollarSign, MapPin, MessageSquare, Phone, Printer, RefreshCw, RotateCcw, Save, Search, ShoppingBasket, Star, Trash2 } from "lucide-react";
 
 // Initialize Supabase Client instance cleanly at layout bundle level
 const supabaseGlobalInstance = getSupabaseClient();
@@ -2283,6 +2283,10 @@ export default function POSPage() {
   const [categories, setCategories] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [diningOptions, setDiningOptions] = useState([]);
+  const [recipeRows, setRecipeRows] = useState([]);
+  const [recipeInventoryItems, setRecipeInventoryItems] = useState([]);
+  const [recipeCategoryFilter, setRecipeCategoryFilter] = useState("all");
+  const [recipeMenuSearch, setRecipeMenuSearch] = useState("");
 
   const [paymentTypes, setPaymentTypes] = useState([]);
   const [, setTicketTemplates] = useState([]);
@@ -2688,6 +2692,64 @@ export default function POSPage() {
       })
       .filter((item) => !search || `${item.name || ""} ${item.category || ""}`.toLowerCase().includes(search));
   }, [items, activeCategory, menuSearch]);
+
+  const recipeCategoryOptions = useMemo(() => {
+    return Array.from(new Set((items || []).map((item) => item.category || "Uncategorized")))
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b));
+  }, [items]);
+
+  const recipesByMenuItem = useMemo(() => {
+    const map = new Map();
+    (recipeRows || []).forEach((row) => {
+      const key = String(row.menu_item_id || "");
+      if (!key) return;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(row);
+    });
+    return map;
+  }, [recipeRows]);
+
+  const recipeMenuItemsByCategory = useMemo(() => {
+    const search = recipeMenuSearch.trim().toLowerCase();
+    const grouped = new Map();
+    (items || [])
+      .filter((item) => {
+        const category = item.category || "Uncategorized";
+        if (recipeCategoryFilter !== "all" && category !== recipeCategoryFilter) return false;
+        if (!search) return true;
+        return `${item.name || ""} ${category}`.toLowerCase().includes(search);
+      })
+      .sort((a, b) => String(a.category || "").localeCompare(String(b.category || "")) || String(a.name || "").localeCompare(String(b.name || "")))
+      .forEach((item) => {
+        const category = item.category || "Uncategorized";
+        if (!grouped.has(category)) grouped.set(category, []);
+        grouped.get(category).push(item);
+      });
+    return Array.from(grouped.entries()).map(([name, rows]) => ({ name, rows }));
+  }, [items, recipeCategoryFilter, recipeMenuSearch]);
+
+  const getRecipeIngredientName = (row) =>
+    row?.common_inventory_names?.common_name ||
+    row?.inventory_items?.common_inventory_names?.common_name ||
+    row?.inventory_items?.common_name ||
+    row?.common_name ||
+    row?.ingredient_name ||
+    "Ingredient";
+
+  const getRecipeIngredientStock = (row) => {
+    const commonId = row?.common_name_id || row?.inventory_items?.common_name_id || null;
+    const commonName = getRecipeIngredientName(row);
+    const normalizedName = String(commonName || "").trim().toLowerCase().replace(/\s+/g, " ");
+    const matches = (recipeInventoryItems || []).filter((item) => {
+      if (commonId && String(item.common_name_id || "") === String(commonId)) return true;
+      const itemCommonName = item?.common_inventory_names?.common_name || item?.common_name || item?.item_name || "";
+      return String(itemCommonName).trim().toLowerCase().replace(/\s+/g, " ") === normalizedName;
+    });
+    const unit = normalizeUnit(matches[0]?.unit || row?.unit || row?.inventory_items?.unit || "");
+    const total = matches.reduce((sum, item) => sum + Number(item.current_stock || 0), 0);
+    return `${total.toLocaleString("en-PH", { maximumFractionDigits: 3 })}${unit ? ` ${unit}` : ""}`;
+  };
 
   const optionSelectionGroups = useMemo(() => {
     const map = new Map();
@@ -3352,9 +3414,31 @@ export default function POSPage() {
         supabase.from("loyalty_members").select("*"),
         supabase.from("menu_item_store_availability").select("item_id, store_id, is_available").eq("store_id", sid),
       ]);
+      const [recipeRes, recipeInventoryRes] = await Promise.all([
+        supabase
+          .from("menu_item_ingredients")
+          .select("*, inventory_items(item_name, common_name, common_name_id, current_stock, unit), common_inventory_names(common_name)")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("inventory_items")
+          .select("id, item_name, common_name, common_name_id, current_stock, unit, common_inventory_names(common_name)")
+          .order("item_name", { ascending: true }),
+      ]);
 
       const cats = catRes.data || [];
       if (itemStoreAvailabilityRes.error) throw itemStoreAvailabilityRes.error;
+      if (recipeRes.error) {
+        console.warn("POS recipes unavailable:", recipeRes.error.message);
+        setRecipeRows([]);
+      } else {
+        setRecipeRows(recipeRes.data || []);
+      }
+      if (recipeInventoryRes.error) {
+        console.warn("POS recipe inventory unavailable:", recipeInventoryRes.error.message);
+        setRecipeInventoryItems([]);
+      } else {
+        setRecipeInventoryItems(recipeInventoryRes.data || []);
+      }
       const storeAvailabilityByItem = new Map(
         (itemStoreAvailabilityRes.data || []).map((row) => [String(row.item_id), row.is_available !== false])
       );
@@ -3392,6 +3476,8 @@ export default function POSPage() {
         items: itemRows,
         categories: cats,
         customers: customerRows,
+        recipeRows: recipeRes.error ? [] : recipeRes.data || [],
+        recipeInventoryItems: recipeInventoryRes.error ? [] : recipeInventoryRes.data || [],
       });
       setIsOfflineMode(false);
 
@@ -3404,6 +3490,8 @@ export default function POSPage() {
         setItems(cached.items || []);
         setCategories(cached.categories || []);
         setCustomers(cached.customers || []);
+        setRecipeRows(cached.recipeRows || []);
+        setRecipeInventoryItems(cached.recipeInventoryItems || []);
         setIsOfflineMode(true);
         showToast("warn", "Offline Cache Loaded", `Using saved POS data from ${formatReceiptDateTime(cached.cached_at)}.`);
       } else {
@@ -5593,6 +5681,7 @@ export default function POSPage() {
                     ["receipts", "Receipts"],
                     ["shift", "Shift"],
                     ["items", "Items"],
+                    ["recipes", "Recipes"],
                     ["settings", "Settings"],
                   ].map(([key, label]) => (
                     <button
@@ -5623,7 +5712,7 @@ export default function POSPage() {
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-[#FC687D]">POS Control</p>
               <h2 className="text-md font-black text-slate-800">
-                {managementView === "receipts" ? "Receipts" : managementView === "shift" ? "Shift" : managementView === "items" ? "Items" : "Settings"}
+                {managementView === "receipts" ? "Receipts" : managementView === "shift" ? "Shift" : managementView === "items" ? "Items" : managementView === "recipes" ? "Recipes" : "Settings"}
               </h2>
             </div>
             <div className="flex items-center gap-2">
@@ -5726,7 +5815,7 @@ export default function POSPage() {
                 <h3 className="text-sm font-black text-slate-800">Cash Drawer</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button type="button" onClick={() => openShiftCashModal("close")} className="h-10 rounded-xl bg-[#FC687D] text-white text-[10px] font-black uppercase tracking-wider">Close Shift</button>
-                  <button type="button" onClick={() => openShiftCashModal("end_day")} className="h-10 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider"></button>
+                  <button type="button" onClick={() => openShiftCashModal("end_day")} className="h-10 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider">End Day</button>
                 </div>
                 <div className="flex justify-between rounded-lg bg-white border border-slate-100 p-2 text-xs font-bold">
                   <span className="text-slate-500">Starting Cash</span><span>{peso2(startingCash || 0)}</span>
@@ -5867,6 +5956,99 @@ export default function POSPage() {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {managementView === "recipes" && (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-cyan-100 bg-cyan-50/50 p-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-700">Inventory Recipes</p>
+                    <h3 className="text-sm font-black text-slate-900">Recipe Reference</h3>
+                    <p className="mt-1 text-[11px] font-semibold leading-4 text-slate-500">
+                      View-only recipe list using Admin Inventory recipes and common-name stock.
+                    </p>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[520px]">
+                    <label className="space-y-1">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Search Menu Items</span>
+                      <div className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3">
+                        <Search size={14} className="text-slate-400" />
+                        <input
+                          value={recipeMenuSearch}
+                          onChange={(e) => setRecipeMenuSearch(e.target.value)}
+                          className="h-full w-full bg-transparent text-xs font-semibold text-slate-800 outline-none"
+                          placeholder="Search all categories"
+                        />
+                      </div>
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Category</span>
+                      <select
+                        value={recipeCategoryFilter}
+                        onChange={(e) => setRecipeCategoryFilter(e.target.value)}
+                        className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none"
+                      >
+                        <option value="all">All categories</option>
+                        {recipeCategoryOptions.map((category) => (
+                          <option key={category} value={category}>{category}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-5">
+                {recipeMenuItemsByCategory.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 p-4 text-xs font-semibold text-slate-400">
+                    No menu items found for this recipe filter.
+                  </div>
+                ) : recipeMenuItemsByCategory.map((group) => (
+                  <section key={group.name} className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-600">{group.name}</h4>
+                      <div className="h-px flex-1 bg-slate-200" />
+                    </div>
+                    <div className="grid gap-3 lg:grid-cols-2">
+                      {group.rows.map((menu) => {
+                        const menuRecipes = recipesByMenuItem.get(String(menu.id)) || [];
+                        return (
+                          <div key={menu.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="truncate text-xs font-black text-slate-900">{menu.name}</p>
+                                <p className="text-[10px] font-semibold text-slate-400">{menu.category || "Uncategorized"}</p>
+                              </div>
+                              <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[9px] font-black uppercase tracking-wider text-slate-500">
+                                {menuRecipes.length} item(s)
+                              </span>
+                            </div>
+                            <div className="mt-3 space-y-2">
+                              {menuRecipes.length ? menuRecipes.map((row) => (
+                                <div key={row.id} className="flex items-center justify-between gap-3 rounded-lg border border-white bg-white p-2 text-xs">
+                                  <div className="min-w-0">
+                                    <p className="truncate font-semibold text-slate-800">{getRecipeIngredientName(row)}</p>
+                                    <p className="text-[10px] font-semibold text-slate-400">Available: {getRecipeIngredientStock(row)}</p>
+                                  </div>
+                                  <span className="shrink-0 rounded-full bg-cyan-50 px-2 py-1 text-[10px] font-black text-cyan-700">
+                                    {Number(row.quantity_required || 0).toLocaleString("en-PH", { maximumFractionDigits: 3 })} {normalizeUnit(row.unit || "")}
+                                  </span>
+                                </div>
+                              )) : (
+                                <p className="rounded-lg border border-amber-100 bg-amber-50 p-3 text-[11px] font-semibold text-amber-700">
+                                  No recipe set. POS checkout can continue, but inventory deduction will be skipped for this menu item.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))}
+              </div>
             </div>
           )}
 

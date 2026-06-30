@@ -260,13 +260,6 @@ export default function PublicMenuPage() {
     return Array.from(new Set(list));
   }, [cats, items]);
 
-  // default category
-  useEffect(() => {
-    if (!selectedCategory && categoryList.length > 0) {
-      setSelectedCategory(categoryList[0]);
-    }
-  }, [categoryList, selectedCategory]);
-
   useEffect(() => {
     if (promoOpen) return undefined;
 
@@ -306,9 +299,11 @@ export default function PublicMenuPage() {
     if (q) {
       return items.filter((i) => (i.name || "").toLowerCase().includes(q));
     }
-    const cat = selectedCategory || categoryList[0] || "";
-    return items.filter((i) => (i.category || "Others") === cat);
-  }, [items, q, selectedCategory, categoryList]);
+    if (!selectedCategory) {
+      return items.filter((i) => i.is_featured === true || i.featured === true);
+    }
+    return items.filter((i) => (i.category || "Others") === selectedCategory);
+  }, [items, q, selectedCategory]);
 
   // 5) Most Ordered badge (only if dataset has an order metric)
   const metricKey = useMemo(() => {
@@ -416,6 +411,7 @@ export default function PublicMenuPage() {
             disabled={!!q}
             className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 disabled:opacity-60"
           >
+            <option value="">Featured Menu Items</option>
             {categoryList.map((cat) => (
               <option key={cat} value={cat}>
                 {cat}
@@ -446,7 +442,7 @@ export default function PublicMenuPage() {
           <>
             <div className="flex items-end justify-between mb-3">
               <h2 className="text-lg font-semibold text-slate-800 uppercase tracking-wider">
-                {q ? "Search results" : (selectedCategory || "Menu")}
+                {q ? "Search results" : (selectedCategory || "Featured Menu Items")}
               </h2>
               <p className="text-xs text-slate-400">{visibleItems.length} item(s)</p>
             </div>
