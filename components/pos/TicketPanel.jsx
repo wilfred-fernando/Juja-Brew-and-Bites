@@ -415,7 +415,7 @@ export default function TicketPanel({
                 {itemDiscount > 0 && (
                   <div className="flex justify-between rounded-lg bg-cyan-50 px-2 py-1 text-[11px] font-semibold text-cyan-800">
                     <span>Item discount</span>
-                    <span>-₱{Number(itemDiscount).toLocaleString("en-PH", { maximumFractionDigits: 0 })}</span>
+                    <span>-₱{Number(itemDiscount).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 )}
                 {line.appliedVoucher && (

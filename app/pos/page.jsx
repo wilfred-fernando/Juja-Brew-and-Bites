@@ -3757,24 +3757,25 @@ export default function POSPage() {
         .from("open_tickets")
         .update(payload)
         .eq("id", originalTicketId)
-        .select("id, created_at, updated_at");
+        .select("id, created_at");
       if (error) throw error;
       const ticketRow = Array.isArray(ticketRows) && ticketRows[0]
         ? ticketRows[0]
-        : { id: originalTicketId, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+        : { id: originalTicketId, created_at: new Date().toISOString() };
+      const ticketPrintedAt = ticketRow.created_at || new Date();
       await autoPrintOrderSlip({
         orderId: ticketRow.id,
         slipCart: savedItems,
         slipDining: name,
         slipCustomer: attachedCustomer?.name || "Walk-in",
         slipTotal: Number(subtotal || 0),
-        printedAt: ticketRow.updated_at || ticketRow.created_at || new Date(),
+        printedAt: ticketPrintedAt,
       });
       await autoPrintBarCupLabels({
         orderId: ticketRow.id,
         labelCart: savedItems,
         labelDining: name,
-        printedAt: ticketRow.updated_at || ticketRow.created_at || new Date(),
+        printedAt: ticketPrintedAt,
         askBeforePrint: true,
         promptContext: "this saved ticket",
       });
