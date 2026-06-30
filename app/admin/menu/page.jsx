@@ -38,6 +38,10 @@ export default function MenuAdminPage() {
     is_available: true,
     is_featured: false,
     pos_only: false,
+    grab_price: "",
+    panda_price: "",
+    grab_available: true,
+    panda_available: true,
   });
 
   const [optionGroups, setOptionGroups] = useState([]);
@@ -119,6 +123,10 @@ export default function MenuAdminPage() {
         is_available: item.is_available !== false,
         is_featured: !!item.is_featured,
         pos_only: !!item.pos_only,
+        grab_price: item.grab_price ?? "",
+        panda_price: item.panda_price ?? "",
+        grab_available: item.grab_available !== false,
+        panda_available: item.panda_available !== false,
       });
 
       setOptionGroups(
@@ -143,6 +151,10 @@ export default function MenuAdminPage() {
         is_available: true,
         is_featured: false,
         pos_only: false,
+        grab_price: "",
+        panda_price: "",
+        grab_available: true,
+        panda_available: true,
       });
 
       setOptionGroups([]);
@@ -164,6 +176,10 @@ export default function MenuAdminPage() {
       const finalPayload = {
         ...form, // ✅ includes pos_only now
         price: parseFloat(form.price) || 0,
+        grab_price: form.grab_price === "" || form.grab_price == null ? null : parseFloat(form.grab_price) || 0,
+        panda_price: form.panda_price === "" || form.panda_price == null ? null : parseFloat(form.panda_price) || 0,
+        grab_available: form.grab_available !== false,
+        panda_available: form.panda_available !== false,
         variants: optionGroups.map((group) => ({
           ...group,
           posOnly: !!group.posOnly,
@@ -1123,6 +1139,63 @@ export default function MenuAdminPage() {
                       </div>
                       <span className="text-xs md:text-sm font-medium text-slate-700">POS Only (hide from public menu)</span>
                     </label>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <div className="mb-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600">POS Channel Pricing</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Normal tables, takeout, function room, and web orders use the base price. GRAB/PANDA can override price or hide the item in POS only.
+                      </p>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                        <label className="mb-2 flex items-center justify-between gap-3">
+                          <span className="text-xs font-bold text-slate-700">Show in GRAB</span>
+                          <input
+                            type="checkbox"
+                            checked={form.grab_available !== false}
+                            onChange={(e) => setForm({ ...form, grab_available: e.target.checked })}
+                            className="h-4 w-4 accent-cyan-700"
+                          />
+                        </label>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                          GRAB Price
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={form.grab_price}
+                            placeholder="Blank = base price"
+                            onChange={(e) => setForm({ ...form, grab_price: e.target.value })}
+                            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium normal-case tracking-normal text-slate-800 outline-none transition focus:border-sky-500"
+                          />
+                        </label>
+                      </div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                        <label className="mb-2 flex items-center justify-between gap-3">
+                          <span className="text-xs font-bold text-slate-700">Show in PANDA</span>
+                          <input
+                            type="checkbox"
+                            checked={form.panda_available !== false}
+                            onChange={(e) => setForm({ ...form, panda_available: e.target.checked })}
+                            className="h-4 w-4 accent-cyan-700"
+                          />
+                        </label>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                          PANDA Price
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={form.panda_price}
+                            placeholder="Blank = base price"
+                            onChange={(e) => setForm({ ...form, panda_price: e.target.value })}
+                            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium normal-case tracking-normal text-slate-800 outline-none transition focus:border-sky-500"
+                          />
+                        </label>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="rounded-xl border border-cyan-100 bg-cyan-50/40 p-4">

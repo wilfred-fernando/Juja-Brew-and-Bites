@@ -1681,6 +1681,8 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [] }) {
       name: item.name,
       category: item.category || item.category_name || null,
       categoryId: item.category_id || item.menu_category_id || null,
+      priceChannel: item.priceChannel || item.price_channel || null,
+      basePrice: item.basePrice ?? item.base_price ?? item.price ?? null,
       unitPrice,
       quantity,
       discountAmount: discountValue,
@@ -2368,10 +2370,37 @@ export default function POSPage() {
 
   const diningOptionName = selectedDining?.name || "";
   const isGrabDiningOption = /grab/i.test(diningOptionName || "");
+  const isPandaDiningOption = /panda|foodpanda/i.test(diningOptionName || "");
+  const activeMenuChannel = isGrabDiningOption ? "grab" : isPandaDiningOption ? "panda" : "standard";
   const trimmedGrabOrderNumber = String(grabOrderNumber || "")
     .trim()
     .replace(/^grab[\s-]*/i, "");
   const ticketDiningLabel = isGrabDiningOption && trimmedGrabOrderNumber ? `${diningOptionName} ${trimmedGrabOrderNumber}` : diningOptionName;
+  const itemPriceForChannel = (item, channel = activeMenuChannel) => {
+    const basePrice = Number(item?.price || 0);
+    if (channel === "grab" && item?.grab_price !== null && item?.grab_price !== undefined && item?.grab_price !== "") {
+      return Number(item.grab_price) || 0;
+    }
+    if (channel === "panda" && item?.panda_price !== null && item?.panda_price !== undefined && item?.panda_price !== "") {
+      return Number(item.panda_price) || 0;
+    }
+    return basePrice;
+  };
+  const itemAvailableForChannel = (item, channel = activeMenuChannel) => {
+    if (channel === "grab") return item?.grab_available !== false;
+    if (channel === "panda") return item?.panda_available !== false;
+    return true;
+  };
+  const itemForActiveChannel = (item) => {
+    const price = itemPriceForChannel(item);
+    return {
+      ...item,
+      basePrice: Number(item?.price || 0),
+      price,
+      priceChannel: activeMenuChannel,
+      channel_price_label: activeMenuChannel === "grab" ? "GRAB" : activeMenuChannel === "panda" ? "PANDA" : "",
+    };
+  };
   const getResolvedBranchId = () => {
     if (activeWebOrderBranchId) return activeWebOrderBranchId;
     if (storeId) return storeId;
@@ -2686,12 +2715,14 @@ export default function POSPage() {
     const search = menuSearch.trim().toLowerCase();
     return (items || [])
       .filter((item) => item.is_available !== false)
+      .filter((item) => itemAvailableForChannel(item))
       .filter((item) => {
         if (search) return true;
         return activeCategory ? item.category === activeCategory : item.is_featured === true;
       })
-      .filter((item) => !search || `${item.name || ""} ${item.category || ""}`.toLowerCase().includes(search));
-  }, [items, activeCategory, menuSearch]);
+      .filter((item) => !search || `${item.name || ""} ${item.category || ""}`.toLowerCase().includes(search))
+      .map((item) => itemForActiveChannel(item));
+  }, [items, activeCategory, menuSearch, activeMenuChannel]);
 
   const recipeCategoryOptions = useMemo(() => {
     return Array.from(new Set((items || []).map((item) => item.category || "Uncategorized")))
@@ -6330,7 +6361,14 @@ export default function POSPage() {
                             )}
                           </div>
                           <div className="mt-2.5 px-0.5">                            
-                            <p className="text-[14px] font-bold text-slate-800 leading-tight truncate mt-1">{item.name}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="min-w-0 flex-1 truncate text-[14px] font-bold leading-tight text-slate-800">{item.name}</p>
+                              {item.channel_price_label && (
+                                <span className="rounded-full bg-cyan-50 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-cyan-800">
+                                  {item.channel_price_label}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <p className="text-[14px] font-semibold text-slate-800 mt-2 px-0.5 pt-2 border-t border-slate-50 w-full">
@@ -6413,7 +6451,7 @@ export default function POSPage() {
                 setVoucherTargetCartItemId(line.cartItemId);
                 const base = items.find((i) => i.id === line.id) || null;
                 if (!base) return;
-                setSelectedItemForModal({ ...base, editData: line, editIndex: idx });
+                setSelectedItemForModal({ ...itemForActiveChannel(base), editData: line, editIndex: idx });
               }}
               onRemoveCartItem={removeCartItemAt}
             />
@@ -6525,7 +6563,7 @@ export default function POSPage() {
                   setVoucherTargetCartItemId(line.cartItemId);
                   const base = items.find((i) => i.id === line.id) || null;
                   if (!base) return;
-                  setSelectedItemForModal({ ...base, editData: line, editIndex: idx });
+                  setSelectedItemForModal({ ...itemForActiveChannel(base), editData: line, editIndex: idx });
                 }}
                 onRemoveCartItem={removeCartItemAt}
                 onCloseMobile={() => setTicketDrawerOpen(false)}
