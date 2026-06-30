@@ -7,6 +7,16 @@ function accountName(account) {
   return account.full_name || account.email || "Unnamed account";
 }
 
+const ROLE_ORDER = ["super_admin", "admin", "cashier", "kds", "kitchen", "customer"];
+
+function roleLabel(role) {
+  const value = String(role || "user").trim() || "user";
+  return value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 export default function AdminAccountsPage() {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +59,28 @@ export default function AdminAccountsPage() {
     );
   }, [accounts, search]);
 
+  const groupedAccounts = useMemo(() => {
+    const map = new Map();
+    filteredAccounts.forEach((account) => {
+      const role = String(account.role || "user").toLowerCase();
+      if (!map.has(role)) map.set(role, []);
+      map.get(role).push(account);
+    });
+
+    return Array.from(map.entries())
+      .map(([role, rows]) => ({
+        role,
+        label: roleLabel(role),
+        rows: rows.sort((a, b) => accountName(a).localeCompare(accountName(b))),
+      }))
+      .sort((a, b) => {
+        const ai = ROLE_ORDER.indexOf(a.role);
+        const bi = ROLE_ORDER.indexOf(b.role);
+        if (ai !== -1 || bi !== -1) return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+        return a.label.localeCompare(b.label);
+      });
+  }, [filteredAccounts]);
+
   return (
     <div className="space-y-6">
       <div className="rounded-3xl border border-slate-200/75 bg-white/84 p-6 text-slate-900 shadow-[0_24px_70px_rgba(51,65,85,0.14)] backdrop-blur-xl">
@@ -90,36 +122,52 @@ export default function AdminAccountsPage() {
           />
         </div>
 
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-          <table className="w-full min-w-[920px] text-sm">
-            <thead className="bg-slate-100 text-left text-[10px] uppercase tracking-[0.16em] text-slate-700">
-              <tr>
-                <th className="p-3">Full Name</th>
-                <th>Email Address</th>
-                <th>Role</th>
-                <th>Store</th>
-                <th>Date Created</th>
-                <th>Last Sign In</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan="6" className="p-8 text-center text-sm font-semibold text-slate-500">Loading accounts...</td></tr>
-              ) : filteredAccounts.length === 0 ? (
-                <tr><td colSpan="6" className="p-8 text-center text-sm font-semibold text-slate-500">No accounts found.</td></tr>
-              ) : filteredAccounts.map((account) => (
-                <tr key={account.id} className="border-t border-slate-100 transition hover:bg-cyan-50/45">
-                  <td className="p-3 font-semibold text-slate-950">{accountName(account)}</td>
-                  <td className="text-slate-700">{account.email || "-"}</td>
-                  <td><span className="rounded-full border border-cyan-100 bg-cyan-50 px-3 py-1 text-[10px] font-semibold uppercase text-cyan-700">{account.role || "user"}</span></td>
-                  <td className="text-slate-700">{account.store_name || "All stores"}</td>
-                  <td className="text-slate-700">{formatDateTime(account.created_at)}</td>
-                  <td className="text-slate-700">{formatDateTime(account.last_sign_in_at)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {loading ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm font-semibold text-slate-500">
+            Loading accounts...
+          </div>
+        ) : groupedAccounts.length === 0 ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm font-semibold text-slate-500">
+            No accounts found.
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {groupedAccounts.map((group) => (
+              <section key={group.role} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-3">
+                  <div>
+                    <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-800">{group.label}</h2>
+                    <p className="mt-1 text-xs text-slate-500">{group.rows.length} account(s)</p>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[860px] text-sm">
+                    <thead className="bg-slate-100 text-left text-[10px] uppercase tracking-[0.16em] text-slate-700">
+                      <tr>
+                        <th className="p-3">Full Name</th>
+                        <th>Email Address</th>
+                        <th>Store</th>
+                        <th>Date Created</th>
+                        <th>Last Sign In</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {group.rows.map((account) => (
+                        <tr key={account.id} className="border-t border-slate-100 transition hover:bg-cyan-50/45">
+                          <td className="p-3 font-semibold text-slate-950">{accountName(account)}</td>
+                          <td className="text-slate-700">{account.email || "-"}</td>
+                          <td className="text-slate-700">{account.store_name || "All stores"}</td>
+                          <td className="text-slate-700">{formatDateTime(account.created_at)}</td>
+                          <td className="text-slate-700">{formatDateTime(account.last_sign_in_at)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
