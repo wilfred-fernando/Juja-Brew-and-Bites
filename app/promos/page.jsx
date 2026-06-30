@@ -1,133 +1,231 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
-// --- Constants ---
 const supabase = getSupabaseClient();
 
-const LOGO =
-  "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
+const LOGO = "https://images.jujabrewandbites.com/SIGNAGE%20light%20with%20korean%20letters%203.png";
+
+function formatMoney(value) {
+  const amount = Number(value || 0);
+  return new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+    maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
+  }).format(amount);
+}
+
+function getPromoValue(promo) {
+  const discount = Number(promo.discount || 0);
+  if (promo.type === "percent") return `${discount}% OFF`;
+  return `${formatMoney(discount)} OFF`;
+}
+
+function getPromoDescription(promo) {
+  if (promo.description) return promo.description;
+  const minimum = Number(promo.min_order || 0);
+  if (minimum > 0) {
+    return `Use this code on orders worth at least ${formatMoney(minimum)}.`;
+  }
+  return "Use this code on your next Juja order while the offer is active.";
+}
 
 export default function PromoPage() {
   const [promos, setPromos] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    async function fetchPromos() {
-      try {
-        const { data } = await supabase
-          .from("promotions")
-          .select("*")
-          .eq("is_active", true);
+    let mounted = true;
 
+    async function fetchPromos() {
+      setIsLoading(true);
+      setError("");
+
+      const { data, error: promoError } = await supabase
+        .from("promo_codes")
+        .select("id, code, discount, type, min_order, active, created_at")
+        .eq("active", true)
+        .order("created_at", { ascending: false });
+
+      if (!mounted) return;
+
+      if (promoError) {
+        console.error("Error fetching promos:", promoError);
+        setPromos([]);
+        setError("Promos are temporarily unavailable. Please check again soon.");
+      } else {
         setPromos(data || []);
-      } catch (error) {
-        console.error("Error fetching promos:", error);
-      } finally {
-        setIsLoading(false);
       }
+
+      setIsLoading(false);
     }
 
     fetchPromos();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
+  const featuredPromo = useMemo(() => promos[0] || null, [promos]);
+  const otherPromos = useMemo(() => promos.slice(1), [promos]);
+
   return (
-    <div className="juja-page-bg min-h-screen bg-slate-50/50 text-slate-800 font-sans flex flex-col justify-between">
-      <div>
-        {/* Shared Nav Component (Active ID: 'promo') */}
-        <Nav active="promo" />
+    <div className="juja-page-bg flex min-h-screen flex-col bg-white text-slate-900">
+      <Nav active="promo" />
 
-        {/* Main Content Area */}
-        <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-12 pt-28 pb-16">
-          
-          {/* Header Typography Section */}
-          <div className="text-center max-w-2xl mx-auto mb-16 mt-6">
-            <span className="text-[10px] uppercase tracking-[0.25em] text-[#FC687D] bg-[#FC687D]/10 px-4 py-1.5 rounded-full font-semibold">
-              Exclusive Perks
-            </span>
-            <h1 className="text-3xl sm:text-4xl font-normal tracking-tight text-slate-800 mt-4 mb-4">
-              Deals &amp; Promotions
-            </h1>
-            <p className="text-slate-500 text-sm sm:text-base font-normal leading-relaxed">
-              Explore our latest limited-time treats. Click on any active offer to apply the savings directly to your checkout.
-            </p>
-          </div>
-
-          {/* Skeleton Loading State */}
-          {isLoading && (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {[1, 2, 3].map((n) => (
-                <div 
-                  key={n} 
-                  className="h-48 bg-slate-100 rounded-2xl border border-slate-200/60 animate-pulse" 
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Empty State Block */}
-          {!isLoading && promos.length === 0 && (
-            <div className="text-center py-16 border border-dashed border-slate-200 rounded-2xl bg-white max-w-md mx-auto shadow-sm">
-              <span className="text-3xl">✨</span>
-              <h3 className="mt-4 text-sm font-medium text-slate-700 tracking-wide">No Active Promotions</h3>
-              <p className="mt-1.5 text-xs text-slate-400 max-w-xs mx-auto">
-                We are mixing up brand new recipes and offers. Follow us or check back soon!
+      <main className="flex-1 px-4 pb-14 pt-24 sm:px-6 lg:px-10">
+        <section className="mx-auto max-w-7xl">
+          <div className="grid items-stretch gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+            <div className="rounded-[2rem] border border-white/70 bg-white/78 p-7 shadow-[0_28px_80px_rgba(51,65,85,0.16)] backdrop-blur-xl sm:p-9 lg:p-10">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#087830]">
+                Current Promos
               </p>
-            </div>
-          )}
-
-          {/* Promos Cards Grid Layout */}
-          {!isLoading && promos.length > 0 && (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              { promos.map((p) => (
-                <div
-                  key={p.id}
-                  className="group relative flex flex-col justify-between border border-slate-100 rounded-2xl p-6 bg-white shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_30px_rgba(0,0,0,0.06)] transition-all duration-300 hover:-translate-y-1"
+              <h1 className="mt-4 max-w-2xl text-4xl font-semibold leading-tight tracking-tight text-slate-950 sm:text-5xl">
+                Fresh deals for your next Juja craving.
+              </h1>
+              <p className="mt-5 max-w-xl text-sm leading-7 text-slate-700 sm:text-base">
+                Browse active promo codes created from Admin Promos. Claim a code, order from the customer portal, and enjoy the latest offers while they are available.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="/customer?tab=order"
+                  className="inline-flex items-center justify-center rounded-full bg-[#087830] px-7 py-3 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(8,120,48,0.25)] transition hover:-translate-y-0.5 hover:bg-[#096b2d]"
                 >
-                  <div>
-                    {/* Voucher Code Tag */}
-                    <div className="mb-4">
-                      <span className="font-mono text-[11px] font-bold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-md uppercase tracking-wider border border-slate-200/70">
-                        {p.code}
-                      </span>
-                    </div>
+                  Order Now
+                </Link>
+                <Link
+                  href="/menu"
+                  className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white/78 px-7 py-3 text-sm font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:border-[#087830] hover:text-[#087830]"
+                >
+                  View Menu
+                </Link>
+              </div>
+            </div>
 
-                    <h3 className="font-semibold text-base text-slate-800 leading-snug group-hover:text-[#FC687D] transition-colors duration-200">
-                      {p.title}
-                    </h3>
-                    
-                    <p className="text-xs text-slate-400 mt-2 leading-relaxed line-clamp-3">
-                      {p.description}
+            <div className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-slate-800 p-7 text-white shadow-[0_28px_80px_rgba(15,23,42,0.22)] sm:p-9">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(125,211,252,0.28),transparent_30%),radial-gradient(circle_at_80%_10%,rgba(8,120,48,0.28),transparent_28%)]" />
+              <div className="relative">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-cyan-100">
+                  Featured Code
+                </p>
+
+                {isLoading ? (
+                  <div className="mt-8 space-y-5">
+                    <div className="h-14 w-56 animate-pulse rounded-2xl bg-white/15" />
+                    <div className="h-4 w-72 animate-pulse rounded-full bg-white/15" />
+                    <div className="h-24 animate-pulse rounded-3xl bg-white/10" />
+                  </div>
+                ) : featuredPromo ? (
+                  <div className="mt-7">
+                    <div className="inline-flex rounded-2xl border border-white/25 bg-white/12 px-5 py-3 font-mono text-2xl font-semibold uppercase tracking-[0.16em] text-white">
+                      {featuredPromo.code}
+                    </div>
+                    <h2 className="mt-7 text-5xl font-semibold tracking-tight text-white sm:text-6xl">
+                      {getPromoValue(featuredPromo)}
+                    </h2>
+                    <p className="mt-4 max-w-lg text-sm leading-7 text-slate-100">
+                      {getPromoDescription(featuredPromo)}
+                    </p>
+                    <div className="mt-7 rounded-3xl border border-white/15 bg-white/10 p-5">
+                      <div className="flex items-center justify-between gap-4 text-sm">
+                        <span className="text-slate-200">Minimum order</span>
+                        <span className="font-semibold text-white">
+                          {Number(featuredPromo.min_order || 0) > 0 ? formatMoney(featuredPromo.min_order) : "No minimum"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-9 rounded-3xl border border-white/15 bg-white/10 p-7">
+                    <h2 className="text-2xl font-semibold text-white">No active promo today</h2>
+                    <p className="mt-3 text-sm leading-7 text-slate-200">
+                      New promo codes will appear here automatically once enabled in Admin Promos.
                     </p>
                   </div>
-
-                  <div className="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between">
-                    <Link
-                      href={`/customer?tab=order&promo=${p.code}`}
-                      className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#FC687D] group-hover:text-rose-400 transition-colors duration-200"
-                    >
-                      <span>Claim Code</span>
-                      <span className="transform group-hover:translate-x-1 transition-transform duration-200">→</span>
-                    </Link>
-                  </div>
-                </div>
-              ))}
+                )}
+              </div>
             </div>
-          )}
-        </main>
-      </div>
+          </div>
 
-      {/* Shared Footer Component */}
+          <div className="mt-8 rounded-[2rem] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(51,65,85,0.12)] backdrop-blur-xl sm:p-7">
+            <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+                  Promo Board
+                </p>
+                <h2 className="mt-2 text-2xl font-semibold text-slate-950">All Active Offers</h2>
+              </div>
+              <p className="text-sm text-slate-600">{promos.length} active promo{promos.length === 1 ? "" : "s"}</p>
+            </div>
+
+            {error && (
+              <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {error}
+              </div>
+            )}
+
+            {isLoading ? (
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {[1, 2, 3, 4, 5, 6].map((item) => (
+                  <div key={item} className="h-48 animate-pulse rounded-3xl border border-slate-200 bg-slate-100/80" />
+                ))}
+              </div>
+            ) : promos.length === 0 ? (
+              <div className="rounded-3xl border border-dashed border-slate-300 bg-white/70 px-6 py-14 text-center">
+                <p className="text-lg font-semibold text-slate-900">No active promotions</p>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
+                  Promo codes enabled in Admin Promos will show here automatically.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {(otherPromos.length ? otherPromos : promos).map((promo) => (
+                  <PromoCard key={promo.id || promo.code} promo={promo} />
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      </main>
+
       <Footer />
     </div>
   );
 }
 
-/* ─────────────────────────────────────────────────────────────
-    Shared Nav (Pure JavaScript Syntax)
-───────────────────────────────────────────────────────────── */
+function PromoCard({ promo }) {
+  return (
+    <article className="group flex min-h-[210px] flex-col justify-between rounded-3xl border border-slate-200/80 bg-white/86 p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-[#087830]/45 hover:shadow-[0_20px_45px_rgba(51,65,85,0.14)]">
+      <div>
+        <div className="flex items-start justify-between gap-4">
+          <span className="rounded-2xl bg-slate-900 px-4 py-2 font-mono text-sm font-semibold uppercase tracking-[0.16em] text-white">
+            {promo.code}
+          </span>
+          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-700">
+            Active
+          </span>
+        </div>
+        <h3 className="mt-5 text-3xl font-semibold tracking-tight text-slate-950">
+          {getPromoValue(promo)}
+        </h3>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          {getPromoDescription(promo)}
+        </p>
+      </div>
+      <Link
+        href={`/customer?tab=order&promo=${encodeURIComponent(promo.code || "")}`}
+        className="mt-6 inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-800 transition group-hover:border-[#087830] group-hover:bg-[#087830] group-hover:text-white"
+      >
+        Claim Code
+      </Link>
+    </article>
+  );
+}
+
 function Nav({ active }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -138,7 +236,7 @@ function Nav({ active }) {
       const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
       setLoginUrl(isLocal ? "http://customer.localhost:3000/login" : "https://customer.jujabrewandbites.com/login");
     }
-    
+
     const fn = () => setScrolled(window.scrollY > 40);
     window.addEventListener("scroll", fn);
     return () => window.removeEventListener("scroll", fn);
@@ -150,88 +248,79 @@ function Nav({ active }) {
     ["promo", "Promos", "/promos"],
     ["function room", "Function Room", "/function-room"],
     ["event-cart", "Event Cart", "/event-cart"],
-    ["about", "About Us", "/about"]
-  ];
-
-  const mobileLinks = [
-    ["Home", "/"],
-    ["Menu", "/menu"],
-    ["Promos", "/promos"],
-    ["Function Room", "/function-room"],
-    ["Event Cart", "/event-cart"],
-    ["About Us", "/about"]
+    ["about", "About Us", "/about"],
   ];
 
   return (
-    <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${
-      scrolled ? "bg-white/95 backdrop-blur-2xl shadow-[0_1px_30px_rgba(0,0,0,0.05)]" : "bg-transparent"
+    <nav className={`fixed top-0 z-50 w-full transition-all duration-500 ${
+      scrolled ? "bg-white/95 shadow-[0_1px_30px_rgba(0,0,0,0.05)] backdrop-blur-2xl" : "bg-transparent"
     }`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between h-20">
+      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-12">
         <Link href="/" className="flex-shrink-0">
-          <img src={LOGO} alt="Juja" className="h-12 sm:h-14 md:h-16 w-auto object-contain transition-all duration-300 hover:scale-105 drop-shadow-sm" />
+          <img src={LOGO} alt="Juja" className="h-12 w-auto object-contain drop-shadow-sm transition-all duration-300 hover:scale-105 sm:h-14 md:h-16" />
         </Link>
 
-        {/* Desktop Links */}
-        <div className="hidden md:flex items-center gap-8">
+        <div className="hidden items-center gap-8 md:flex">
           {links.map(([id, label, href]) => (
-            <Link key={id} href={href}
-              className={`relative text-[11px] lg:text-[12px] font-semibold uppercase tracking-[0.18em] transition-all duration-300 group pb-1 ${
-                active === id ? "text-[#FC687D]" : "text-slate-600 hover:text-slate-900"
-              }`}>
+            <Link
+              key={id}
+              href={href}
+              className={`group relative pb-1 text-[11px] font-semibold uppercase tracking-[0.18em] transition-all duration-300 lg:text-[12px] ${
+                active === id ? "text-[#087830]" : "text-slate-700 hover:text-slate-950"
+              }`}
+            >
               {label}
-              <span className={`absolute bottom-0 left-0 h-[2px] rounded-full bg-gradient-to-r from-[#FC687D] to-rose-400 transition-all duration-350 ${
+              <span className={`absolute bottom-0 left-0 h-[2px] rounded-full bg-[#087830] transition-all duration-300 ${
                 active === id ? "w-full" : "w-0 group-hover:w-full"
               }`} />
             </Link>
           ))}
         </div>
 
-        <div className="hidden md:flex items-center gap-3">
-          <Link
-            href={loginUrl}
-            className="text-[11px] font-semibold uppercase tracking-widest px-5 py-2.5 rounded-full border border-slate-200 text-slate-500 hover:border-[#FC687D] hover:text-[#FC687D] transition-colors"
-          >
-            Login
-          </Link>
-        </div>
+        <Link
+          href={loginUrl}
+          className="hidden rounded-full border border-[#087830]/45 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-widest text-[#087830] transition hover:bg-[#087830] hover:text-white md:inline-flex"
+        >
+          Login
+        </Link>
 
         <button
-          className="md:hidden p-2 text-slate-800"
-          onClick={() => setOpen(!open)}
-          aria-label="Toggle Menu"
+          className="p-2 text-slate-900 md:hidden"
+          onClick={() => setOpen((value) => !value)}
+          aria-label="Toggle menu"
           type="button"
         >
           <div className="w-5 space-y-[5px]">
-            <span className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${open ? "rotate-45 translate-y-[7px]" : ""}`} />
-            <span className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${open ? "opacity-0" : ""}`} />
-            <span className={`block h-[2px] bg-current rounded-full transition-all duration-300 ${open ? "-rotate-45 -translate-y-[7px]" : ""}`} />
+            <span className={`block h-[2px] rounded-full bg-current transition-all duration-300 ${open ? "translate-y-[7px] rotate-45" : ""}`} />
+            <span className={`block h-[2px] rounded-full bg-current transition-all duration-300 ${open ? "opacity-0" : ""}`} />
+            <span className={`block h-[2px] rounded-full bg-current transition-all duration-300 ${open ? "-translate-y-[7px] -rotate-45" : ""}`} />
           </div>
         </button>
       </div>
 
       {open && (
-        <div className="md:hidden bg-white border-t border-slate-100 px-6 py-6 flex flex-col gap-3">
-          {mobileLinks.map(([label, href]) => (
+        <div className="flex flex-col gap-3 border-t border-slate-100 bg-white px-6 py-6 md:hidden">
+          {links.map(([, label, href]) => (
             <Link
               key={label}
               href={href}
               onClick={() => setOpen(false)}
-              className="text-slate-800 font-medium tracking-wide text-sm py-2 border-b border-slate-50"
+              className="border-b border-slate-100 py-2 text-sm font-medium tracking-wide text-slate-800"
             >
               {label}
             </Link>
           ))}
           <Link
-            href="/order"
+            href="/customer?tab=order"
             onClick={() => setOpen(false)}
-            className="mt-4 py-3.5 rounded-full bg-[#FC687D] text-white font-semibold text-sm text-center"
+            className="mt-4 rounded-full bg-[#087830] py-3.5 text-center text-sm font-semibold text-white"
           >
-            Order Now →
+            Order Now
           </Link>
           <Link
             href={loginUrl}
             onClick={() => setOpen(false)}
-            className="py-3.5 rounded-full border border-[#087830]/50 bg-white/80 text-[#087830] font-semibold text-sm text-center"
+            className="rounded-full border border-[#087830]/50 bg-white/80 py-3.5 text-center text-sm font-semibold text-[#087830]"
           >
             Login
           </Link>
@@ -241,48 +330,43 @@ function Nav({ active }) {
   );
 }
 
-/* ─────────────────────────────────────────────────────────────
-    Shared Footer
-───────────────────────────────────────────────────────────── */
 function Footer() {
   return (
-    <footer className="bg-slate-900 text-slate-400 py-2 md:py-3 px-6 flex-none">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-5 mb-2 md:mb-3">
+    <footer className="flex-none bg-slate-900 px-6 py-2 text-slate-400 md:py-3">
+      <div className="mx-auto mb-2 grid max-w-7xl grid-cols-1 gap-3 md:mb-3 md:grid-cols-3 md:gap-5">
         <div className="flex flex-col justify-center">
-          <p className="text-slate-400 mb-2 leading-relaxed max-w-sm">
-            ROMANS 15:13
-          </p>
-          <p className="text-slate-400 text-xs leading-relaxed max-w-sm">
+          <p className="mb-2 max-w-sm leading-relaxed text-slate-300">ROMANS 15:13</p>
+          <p className="max-w-sm text-xs leading-relaxed text-slate-400">
             May the God of hope fill you with all joy and peace...
           </p>
         </div>
 
         <div className="text-xs">
-          <p className="text-[#FC687D] font-bold mb-2 uppercase text-[10px] tracking-[0.2em]">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white">
             Pasong Tamo Branch
           </p>
-          <div className="space-y- text-slate-400 leading-relaxed">
-            <p>📍 36D Visayas Ave., Pasong Tamo, QC</p>
-            <p>📞 0939-9228383</p>
-            <p className="text-slate-500 text-[11px]">Store: 10AM–12MN · Function Room: 10AM–2AM</p>
+          <div className="space-y-1 leading-relaxed text-slate-300">
+            <p>36D Visayas Ave., Pasong Tamo, QC</p>
+            <p>0939-9228383</p>
+            <p className="text-[11px] text-slate-400">Store: 10AM-12MN - Function Room: 10AM-2AM</p>
           </div>
         </div>
 
         <div className="text-xs">
-          <p className="text-[#FC687D] font-bold mb-2 uppercase text-[10px] tracking-[0.2em]">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white">
             Diliman Branch
           </p>
-          <div className="space-y-1 text-slate-400 leading-relaxed">
-            <p>📍 8 Visayas Ave., Diliman, QC</p>
-            <p>📞 0961-6320909</p>
-            <p className="text-slate-500 text-[11px]">Mon-Wed: 8AM–10PM · Thu-Sat: 10AM–10PM</p>
+          <div className="space-y-1 leading-relaxed text-slate-300">
+            <p>8 Visayas Ave., Diliman, QC</p>
+            <p>0961-6320909</p>
+            <p className="text-[11px] text-slate-400">Mon-Wed: 8AM-10PM - Thu-Sat: 10AM-10PM</p>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto pt-2 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center text-slate-500 text-[10px] tracking-wider uppercase">
-        <p>© {new Date().getFullYear()} Juja Brew &amp; Bites® · All rights reserved</p>
-        <p>Quezon City · Philippines</p>
+      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between border-t border-white/10 pt-2 text-[10px] uppercase tracking-wider text-slate-400 sm:flex-row">
+        <p>(c) {new Date().getFullYear()} Juja Brew &amp; Bites - All rights reserved</p>
+        <p>Quezon City - Philippines</p>
       </div>
     </footer>
   );

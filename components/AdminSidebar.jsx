@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   CalendarCheck,
-  CalendarDays,
   Boxes,
   ChevronDown,
   ChevronUp,
@@ -14,7 +13,6 @@ import {
   Gift,
   Home,
   Puzzle,
-  ReceiptText,
   Settings,
   ShoppingCart,
   Star,
@@ -54,7 +52,6 @@ export default function AdminSidebar({
       items: [
         { name: "Dashboard", path: "/admin", icon: Home },
         { name: "Bookings", path: "/admin/bookings", icon: CalendarCheck },
-        { name: "Calendar", path: "/admin/calendar", icon: CalendarDays },
         { name: "Orders", path: "/admin/orders", icon: ClipboardList },
 
         {
@@ -96,7 +93,6 @@ export default function AdminSidebar({
           ],
         },
         { name: "Inventory", path: "/admin/inventory", icon: Boxes },
-        { name: "Expenses", path: "/admin/expenses", icon: ReceiptText },
         { name: "Menu", path: "/admin/menu", icon: Puzzle },
         { name: "Customers", path: "/admin/customers", icon: Star },
         { name: "Promos", path: "/admin/promos", icon: Gift },
@@ -114,12 +110,10 @@ export default function AdminSidebar({
   const PAGE_KEY_BY_PATH = {
     "/admin": "dashboard",
     "/admin/bookings": "bookings",
-    "/admin/calendar": "calendar",
     "/admin/orders": "live_orders",
     "/admin/pos-admin": "pos_admin",
     "/admin/menu": "menu_builder",
     "/admin/inventory": "inventory",
-    "/admin/expenses": "expenses",
     "/admin/loyalty": "customers",
     "/admin/customers": "customers",
     "/admin/promos": "promos",
