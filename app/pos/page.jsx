@@ -5,7 +5,7 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { getStableSession } from "@/lib/supabase/session";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { deductInventoryForOrder, normalizeUnit, restoreInventoryForOrder } from "@/lib/inventory";
-import { markKdsTicketItemVoided, markKdsTicketStatus, upsertKdsTicket, webDiningOptionLabel } from "@/lib/kds";
+import { appendKdsTicketItems, markKdsTicketItemVoided, markKdsTicketStatus, upsertKdsTicket, webDiningOptionLabel } from "@/lib/kds";
 import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib/loyalty/annualReset";
 import TicketPanel from "@/components/pos/TicketPanel";
 import { Barcode, Bluetooth, CalendarDays, DollarSign, MapPin, MessageSquare, Phone, Printer, RefreshCw, RotateCcw, Save, Search, ShoppingBasket, Star, Trash2 } from "lucide-react";
@@ -2523,6 +2523,56 @@ export default function POSPage() {
     if (insertError) throw insertError;
   };
 
+  const stableTicketLineKey = (line) => {
+    if (line?.cartItemId) return `cart:${line.cartItemId}`;
+    const selectedOptions = Array.isArray(line?.selectedOptions)
+      ? line.selectedOptions
+      : Array.isArray(line?.selected_options)
+        ? line.selected_options
+        : [];
+    return JSON.stringify({
+      menuItemId: line?.menuItemId || line?.menu_item_id || line?.id || null,
+      name: normalizeLabelLine(line?.name || line?.item_name || ""),
+      unitPrice: Number(line?.unitPrice ?? line?.price ?? line?.unit_price ?? 0),
+      variantDetails: normalizeLabelLine(line?.variantDetails || line?.variant_details || ""),
+      instructions: normalizeLabelLine(line?.instructions || line?.specialInstructions || line?.special_instructions || ""),
+      selectedOptions,
+      voucherId: line?.appliedVoucher?.id || line?.applied_voucher?.id || null,
+      voided: Boolean(line?.voided || line?.isVoided),
+    });
+  };
+
+  const getAddedTicketLines = (previousItems = [], nextItems = []) => {
+    const previousQuantities = new Map();
+    (Array.isArray(previousItems) ? previousItems : []).forEach((line) => {
+      const key = stableTicketLineKey(line);
+      previousQuantities.set(key, (previousQuantities.get(key) || 0) + Number(line?.quantity || line?.qty || 1));
+    });
+
+    return (Array.isArray(nextItems) ? nextItems : [])
+      .map((line, index) => {
+        const key = stableTicketLineKey(line);
+        const nextQty = Number(line?.quantity || line?.qty || 1);
+        const prevQty = Number(previousQuantities.get(key) || 0);
+        previousQuantities.set(key, Math.max(0, prevQty - nextQty));
+        const addedQty = Math.max(0, nextQty - prevQty);
+        if (addedQty <= 0) return null;
+        return {
+          ...line,
+          quantity: addedQty,
+          qty: addedQty,
+          cartItemId: `${line?.cartItemId || line?.id || "line"}-add-${Date.now()}-${index}`,
+        };
+      })
+      .filter(Boolean);
+  };
+
+  const getKitchenPrinterGroupItems = (lines = []) => {
+    const kitchenGroup = (orderSlipPrinterGroups || []).find((group) => group.key === "kitchen");
+    if (!kitchenGroup) return [];
+    return filterItemsByPrinterGroup(lines, kitchenGroup.categoryIds, kitchenGroup.categoryNames);
+  };
+
   const clearActiveWebOrderContext = () => {
     setActiveWebOrderId(null);
     setActiveWebOrderBranchId(null);
@@ -3806,51 +3856,87 @@ export default function POSPage() {
     };
 
     if (originalTicketId) {
-      let { data: ticketRows, error } = await supabase
+      let { data: existingTicket, error: existingTicketError } = await supabase
         .from("open_tickets")
-        .update(payload)
+        .select("id, items, created_at")
         .eq("id", originalTicketId)
-        .select("id, created_at");
+        .maybeSingle();
 
-      if (error) throw error;
-      let savedTicketId = originalTicketId;
+      if (existingTicketError) throw existingTicketError;
 
-      if (!Array.isArray(ticketRows) || ticketRows.length === 0) {
-        const fallback = await supabase
+      if (!existingTicket) {
+        const { data: fallbackTicket, error: fallbackTicketError } = await supabase
           .from("open_tickets")
-          .update(payload)
+          .select("id, items, created_at")
           .eq("order_type", name)
-          .select("id, created_at");
-        if (fallback.error) throw fallback.error;
-        ticketRows = fallback.data || [];
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (fallbackTicketError) throw fallbackTicketError;
+        existingTicket = fallbackTicket;
       }
 
-      if (!Array.isArray(ticketRows) || ticketRows.length === 0) {
+      if (!existingTicket?.id) {
         throw new Error("Saved ticket was not updated. Please reopen the saved ticket and try again.");
       }
 
-      const ticketRow = Array.isArray(ticketRows) && ticketRows[0]
-        ? ticketRows[0]
-        : { id: savedTicketId, created_at: new Date().toISOString() };
-      savedTicketId = ticketRow.id || savedTicketId;
+      const savedTicketId = existingTicket.id;
+      const previousLineItemsByTicket = await fetchOpenTicketLineItems([savedTicketId]);
+      const previousSavedItems = previousLineItemsByTicket.get(String(savedTicketId)) || existingTicket.items || [];
+      const addedItems = getAddedTicketLines(previousSavedItems, savedItems);
+
+      const { data: ticketRow, error } = await supabase
+        .from("open_tickets")
+        .update(payload)
+        .eq("id", savedTicketId)
+        .select("id, created_at")
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!ticketRow?.id) {
+        throw new Error("Saved ticket was not updated. Please reopen the saved ticket and try again.");
+      }
+
       await syncOpenTicketLineItems(savedTicketId, savedItems);
       const ticketPrintedAt = ticketRow.created_at || new Date();
-      await autoPrintOrderSlip({
-        orderId: savedTicketId,
-        slipCart: savedItems,
-        slipDining: name,
-        slipCustomer: attachedCustomer?.name || "Walk-in",
-        slipTotal: Number(subtotal || 0),
-        printedAt: ticketPrintedAt,
-      });
-      await autoPrintBarCupLabels({
-        orderId: savedTicketId,
-        labelCart: savedItems,
-        labelDining: name,
-        printedAt: ticketPrintedAt,
-        askBeforePrint: true,
-        promptContext: "this saved ticket",
-      });
+      if (addedItems.length > 0) {
+        const kitchenAddedItems = getKitchenPrinterGroupItems(addedItems);
+        if (kitchenAddedItems.length > 0) {
+          const { error: kdsErr } = await appendKdsTicketItems(supabase, {
+            sourceType: "pos",
+            order: {
+              id: savedTicketId,
+              store_id: storeId,
+              branch_id: storeId,
+              customer_name: attachedCustomer?.name || "Walk-in",
+              order_type: name,
+              dining_option: name,
+              items: kitchenAddedItems,
+              total_amount: Number(subtotal || 0),
+              created_at: ticketRow.created_at || existingTicket.created_at,
+            },
+            items: kitchenAddedItems,
+            status: "preparing",
+          });
+          if (kdsErr) throw kdsErr;
+        }
+        await autoPrintOrderSlip({
+          orderId: savedTicketId,
+          slipCart: addedItems,
+          slipDining: name,
+          slipCustomer: attachedCustomer?.name || "Walk-in",
+          slipTotal: calcTotal(addedItems),
+          printedAt: ticketPrintedAt,
+        });
+        await autoPrintBarCupLabels({
+          orderId: savedTicketId,
+          labelCart: addedItems,
+          labelDining: name,
+          printedAt: ticketPrintedAt,
+          askBeforePrint: true,
+          promptContext: "the newly added saved-ticket items",
+        });
+      }
     } else {
       const { data: ticketRow, error } = await supabase.from("open_tickets").insert([payload]).select("*").single();
       if (error) throw error;
