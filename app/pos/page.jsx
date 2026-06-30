@@ -822,13 +822,13 @@ function buildBillText({ orderId, cart, diningOptionName, customerName, subtotal
   return lines.join("\n");
 }
 
-function buildEndDayReportText({ store, cashierName, startingCash, actualCash, denominations, summary, printedAt }) {
+function buildEndDayReportText({ store, cashierName, startingCash, actualCash, denominations, summary, printedAt, title = "END DAY SALES REPORT" }) {
   const branchName = store?.store_name || store?.name || store?.branch_name || "Store";
   const expectedCash = Number(summary?.expectedCash || 0);
   const actualCashValue = Number(actualCash || 0);
   const difference = actualCashValue - expectedCash;
   const lines = [
-    centerReceiptText("END DAY SALES REPORT"),
+    centerReceiptText(title),
     centerReceiptText(branchName),
     receiptLine(),
     receiptPair("Printed", formatReceiptFooterDate(printedAt || new Date())),
@@ -2249,6 +2249,19 @@ function getShiftRecordMode(record) {
   return String(record?.mode || record?.shift_type || record?.type || record?.action || "").toLowerCase();
 }
 
+function parseShiftJsonValue(value, fallback = {}) {
+  if (!value) return fallback;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object" ? parsed : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+  return typeof value === "object" ? value : fallback;
+}
+
 function getShiftStatusFromRecords(records, storeId, cashierId) {
   const latest = getLatestShiftRecord(records, storeId, cashierId);
   const mode = getShiftRecordMode(latest);
@@ -2347,6 +2360,7 @@ export default function POSPage() {
   const [shiftDenominations, setShiftDenominations] = useState({});
   const [shiftRecords, setShiftRecords] = useState([]);
   const [shiftStatus, setShiftStatus] = useState("loading");
+  const [selectedShiftReportId, setSelectedShiftReportId] = useState("");
   const [printerForm, setPrinterForm] = useState(() => createPrinterProfiles());
 
   const [toast, setToast] = useState(null);
@@ -2696,6 +2710,21 @@ export default function POSPage() {
       total: Number(row.total_collected || row.net_sales || 0),
     }));
   }, [receiptRows, activeShiftStartMs]);
+  const closedShiftReportRecords = useMemo(() => {
+    return (shiftRecords || [])
+      .filter((record) => {
+        const mode = getShiftRecordMode(record);
+        if (!(mode.includes("close") || mode.includes("end_day"))) return false;
+        if (storeId && String(record.store_id || "") !== String(storeId)) return false;
+        if (mode.includes("end_day")) return true;
+        if (!record.cashier_id || !currentUserId) return true;
+        return String(record.cashier_id) === String(currentUserId);
+      })
+      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+  }, [shiftRecords, storeId, currentUserId]);
+  const selectedShiftReportRecord = useMemo(() => {
+    return closedShiftReportRecords.find((record) => String(record.id) === String(selectedShiftReportId)) || closedShiftReportRecords[0] || null;
+  }, [closedShiftReportRecords, selectedShiftReportId]);
   const itemsByManagementCategory = useMemo(() => {
     const map = new Map();
     const categoryNames = (categories || []).map((cat) => cat?.name || cat?.label || cat).filter(Boolean);
@@ -4740,6 +4769,10 @@ export default function POSPage() {
     }
 
     const isEndDay = shiftCashMode === "end_day";
+    const capturedShiftSummary = {
+      ...shiftSummary,
+      startingCash: Number(startingCash || 0),
+    };
     const record = {
       id: `${shiftCashMode}-${Date.now()}`,
       store_id: storeId,
@@ -4748,7 +4781,7 @@ export default function POSPage() {
       cashier_name: cashierName || "Operator",
       cash_total: Number(totalCash || 0),
       denominations: shiftDenominations,
-      sales_summary: shiftSummary,
+      sales_summary: capturedShiftSummary,
       created_at: new Date().toISOString(),
     };
 
@@ -4787,7 +4820,7 @@ export default function POSPage() {
         startingCash,
         actualCash: totalCash,
         denominations: shiftDenominations,
-        summary: shiftSummary,
+        summary: capturedShiftSummary,
         printedAt: record.created_at,
       });
       try {
@@ -4798,6 +4831,48 @@ export default function POSPage() {
     }
 
     setShiftCashOpen(false);
+  }
+
+  async function reprintCloseShiftReport(record = selectedShiftReportRecord) {
+    if (!record) {
+      showToast("error", "No Shift Selected", "Select a closed shift report to reprint.");
+      return;
+    }
+
+    const mode = getShiftRecordMode(record);
+    const summary = parseShiftJsonValue(record.sales_summary, {});
+    const denominations = parseShiftJsonValue(record.denominations, {});
+    const closeTime = coerceReceiptTimestamp(record.created_at);
+    const closeTimeMs = Number.isNaN(closeTime.getTime()) ? Date.now() : closeTime.getTime();
+    const matchingOpen = (shiftRecords || [])
+      .filter((row) => {
+        if (!getShiftRecordMode(row).includes("open")) return false;
+        if (String(row.store_id || "") !== String(record.store_id || "")) return false;
+        if (record.cashier_id && row.cashier_id && String(row.cashier_id) !== String(record.cashier_id)) return false;
+        const rowTime = coerceReceiptTimestamp(row.created_at);
+        return !Number.isNaN(rowTime.getTime()) && rowTime.getTime() <= closeTimeMs;
+      })
+      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())[0];
+
+    const reportText = buildEndDayReportText({
+      store: currentStore,
+      cashierName: record.cashier_name || cashierName,
+      startingCash: summary.startingCash ?? matchingOpen?.cash_total ?? matchingOpen?.starting_cash ?? startingCash ?? 0,
+      actualCash: record.cash_total ?? summary.actualCash ?? 0,
+      denominations,
+      summary,
+      printedAt: new Date(),
+      title: mode.includes("end_day") ? "END DAY SALES REPORT" : "CLOSE SHIFT REPORT",
+    });
+
+    setReceiptText(reportText);
+    setReceiptOpen(true);
+    try {
+      await printByRole("receipt", reportText, printerConfig, { fallbackToBrowser: true });
+      showToast("success", "Shift Report Printed", "Closed shift report was sent to the receipt printer.");
+    } catch (printError) {
+      showToast("warn", "Shift Report Not Printed", printError?.message || "Select and save the receipt printer in POS Settings.");
+    }
   }
 
   async function voidTicket(ticketId) {
@@ -5847,6 +5922,36 @@ export default function POSPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button type="button" onClick={() => openShiftCashModal("close")} className="h-10 rounded-xl bg-[#FC687D] text-white text-[10px] font-black uppercase tracking-wider">Close Shift</button>
                   <button type="button" onClick={() => openShiftCashModal("end_day")} className="h-10 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider">End Day</button>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-2">
+                  <label className="block text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Reprint close shift report</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+                    <select
+                      value={selectedShiftReportRecord?.id || ""}
+                      onChange={(e) => setSelectedShiftReportId(e.target.value)}
+                      className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-800 outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-100"
+                    >
+                      {closedShiftReportRecords.length === 0 ? (
+                        <option value="">No closed shifts found</option>
+                      ) : closedShiftReportRecords.map((record) => {
+                        const mode = getShiftRecordMode(record).includes("end_day") ? "End day" : "Close shift";
+                        const total = peso2(record.cash_total || 0);
+                        return (
+                          <option key={record.id} value={record.id}>
+                            {mode} - {formatReceiptDateTime(record.created_at)} - {total}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => reprintCloseShiftReport()}
+                      disabled={!selectedShiftReportRecord}
+                      className="h-10 rounded-xl border border-cyan-100 bg-cyan-50 px-4 text-[10px] font-black uppercase tracking-wider text-cyan-800 transition hover:bg-cyan-100 disabled:cursor-not-allowed disabled:border-slate-100 disabled:bg-slate-100 disabled:text-slate-400"
+                    >
+                      Reprint
+                    </button>
+                  </div>
                 </div>
                 <div className="flex justify-between rounded-lg bg-white border border-slate-100 p-2 text-xs font-bold">
                   <span className="text-slate-500">Starting Cash</span><span>{peso2(startingCash || 0)}</span>
