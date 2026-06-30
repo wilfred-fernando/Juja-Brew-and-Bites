@@ -1669,6 +1669,8 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [] }) {
       id: option.id,
       name: option.name,
       price: Number(option.price) || 0,
+      basePrice: option.basePrice ?? option.base_price ?? option.price ?? 0,
+      priceChannel: option.priceChannel || item.priceChannel || item.price_channel || null,
       groupId,
       groupName: group.name || group.label || group.id || "Options",
     }));
@@ -2400,6 +2402,16 @@ export default function POSPage() {
     }
     return basePrice;
   };
+  const optionPriceForChannel = (option, channel = activeMenuChannel) => {
+    const basePrice = Number(option?.price || 0);
+    if (channel === "grab" && option?.grab_price !== null && option?.grab_price !== undefined && option?.grab_price !== "") {
+      return Number(option.grab_price) || 0;
+    }
+    if (channel === "panda" && option?.panda_price !== null && option?.panda_price !== undefined && option?.panda_price !== "") {
+      return Number(option.panda_price) || 0;
+    }
+    return basePrice;
+  };
   const itemAvailableForChannel = (item, channel = activeMenuChannel) => {
     if (channel === "grab") return item?.grab_available !== false;
     if (channel === "panda") return item?.panda_available !== false;
@@ -2407,10 +2419,24 @@ export default function POSPage() {
   };
   const itemForActiveChannel = (item) => {
     const price = itemPriceForChannel(item);
+    const variants = Array.isArray(item?.variants)
+      ? item.variants.map((group) => ({
+          ...group,
+          options: Array.isArray(group.options)
+            ? group.options.map((option) => ({
+                ...option,
+                basePrice: Number(option?.price || 0),
+                price: optionPriceForChannel(option),
+                priceChannel: activeMenuChannel,
+              }))
+            : [],
+        }))
+      : [];
     return {
       ...item,
       basePrice: Number(item?.price || 0),
       price,
+      variants,
       priceChannel: activeMenuChannel,
       channel_price_label: activeMenuChannel === "grab" ? "GRAB" : activeMenuChannel === "panda" ? "PANDA" : "",
     };

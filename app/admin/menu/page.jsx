@@ -10,6 +10,21 @@ function normalizeMaxSelection(value) {
   return Number.isFinite(numberValue) && numberValue >= 1 ? Math.floor(numberValue) : null;
 }
 
+function optionalPriceValue(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+}
+
+function normalizeOptionForSave(option) {
+  return {
+    ...option,
+    price: optionalPriceValue(option.price) ?? 0,
+    grab_price: optionalPriceValue(option.grab_price),
+    panda_price: optionalPriceValue(option.panda_price),
+  };
+}
+
 export default function MenuAdminPage() {
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -185,6 +200,7 @@ export default function MenuAdminPage() {
           posOnly: !!group.posOnly,
           hidePublic: !!group.hidePublic,
           maxSelection: group.isMultiSelect ? normalizeMaxSelection(group.maxSelection ?? group.max_selection) : null,
+          options: (group.options || []).map(normalizeOptionForSave),
         })),
       };
 
@@ -275,7 +291,7 @@ export default function MenuAdminPage() {
         maxSelection: "",
         posOnly: false,
         hidePublic: false,
-        options: [{ id: Date.now() + 1, name: "", price: "" }],
+        options: [{ id: Date.now() + 1, name: "", price: "", grab_price: "", panda_price: "" }],
       },
     ]);
     setModalTab("Option Groups");
@@ -288,7 +304,7 @@ export default function MenuAdminPage() {
   const addOption = (groupId) =>
     setOptionGroups(
       optionGroups.map((g) =>
-        g.id === groupId ? { ...g, options: [...g.options, { id: Date.now(), name: "", price: "" }] } : g
+        g.id === groupId ? { ...g, options: [...g.options, { id: Date.now(), name: "", price: "", grab_price: "", panda_price: "" }] } : g
       )
     );
 
@@ -318,7 +334,7 @@ export default function MenuAdminPage() {
         max_selection: group.isMultiSelect ? normalizeMaxSelection(group.maxSelection ?? group.max_selection) : null,
         pos_only: !!group.posOnly,
         hide_public: !!group.hidePublic,
-        options: group.options,
+        options: (group.options || []).map(normalizeOptionForSave),
       };
 
       const { error } = await supabase.from("option_group_templates").insert([payload]);
@@ -343,7 +359,7 @@ export default function MenuAdminPage() {
           max_selection: templateForm.is_multi_select ? normalizeMaxSelection(templateForm.max_selection) : null,
           pos_only: !!templateForm.pos_only,
           hide_public: !!templateForm.hide_public,
-          options: templateForm.options,
+          options: (templateForm.options || []).map(normalizeOptionForSave),
         })
         .eq("id", editingTemplate.id);
 
@@ -941,7 +957,7 @@ export default function MenuAdminPage() {
 
               <div className="space-y-3">
                 {templateForm.options.map((opt, idx) => (
-                  <div key={idx} className="flex gap-2">
+                  <div key={idx} className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_100px_100px_100px]">
                     <input
                       value={opt.name}
                       onChange={(e) => {
@@ -962,7 +978,29 @@ export default function MenuAdminPage() {
                         setTemplateForm({ ...templateForm, options: updated });
                       }}
                       placeholder="Price"
-                      className="w-28 border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                    />
+                    <input
+                      type="number"
+                      value={opt.grab_price ?? ""}
+                      onChange={(e) => {
+                        const updated = [...templateForm.options];
+                        updated[idx].grab_price = e.target.value;
+                        setTemplateForm({ ...templateForm, options: updated });
+                      }}
+                      placeholder="GRAB"
+                      className="border border-cyan-100 bg-cyan-50/40 rounded-xl px-3 py-2 text-sm"
+                    />
+                    <input
+                      type="number"
+                      value={opt.panda_price ?? ""}
+                      onChange={(e) => {
+                        const updated = [...templateForm.options];
+                        updated[idx].panda_price = e.target.value;
+                        setTemplateForm({ ...templateForm, options: updated });
+                      }}
+                      placeholder="PANDA"
+                      className="border border-slate-200 bg-slate-50 rounded-xl px-3 py-2 text-sm"
                     />
                   </div>
                 ))}
@@ -973,7 +1011,7 @@ export default function MenuAdminPage() {
                 onClick={() =>
                   setTemplateForm({
                     ...templateForm,
-                    options: [...templateForm.options, { name: "", price: 0 }],
+                    options: [...templateForm.options, { name: "", price: 0, grab_price: "", panda_price: "" }],
                   })
                 }
                 className="text-xs font-bold text-slate-700"
@@ -1274,6 +1312,8 @@ export default function MenuAdminPage() {
                               id: Date.now() + Math.random(),
                               name: opt.name,
                               price: opt.price,
+                              grab_price: opt.grab_price ?? "",
+                              panda_price: opt.panda_price ?? "",
                             })),
                           },
                         ]);
@@ -1427,7 +1467,7 @@ export default function MenuAdminPage() {
 
                         <div className="space-y-3 pl-2 md:pl-4 border-l-2 border-slate-100 ml-1">
                           {group.options.map((opt) => (
-                            <div key={opt.id} className="flex gap-2 md:gap-3 items-center">
+                            <div key={opt.id} className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_120px_120px_120px_auto] md:items-center">
                               <input
                                 placeholder="Option name (e.g. Regular)"
                                 value={opt.name}
@@ -1443,6 +1483,32 @@ export default function MenuAdminPage() {
                                   value={opt.price}
                                   onChange={(e) => updateOption(group.id, opt.id, "price", e.target.value)}
                                   className="w-full pl-7 pr-3 py-2.5 border border-slate-200 rounded-xl text-xs md:text-sm focus:outline-none focus:border-sky-500 transition"
+                                />
+                              </div>
+
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-cyan-700">GRAB</span>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  placeholder="Same"
+                                  value={opt.grab_price ?? ""}
+                                  onChange={(e) => updateOption(group.id, opt.id, "grab_price", e.target.value)}
+                                  className="w-full pl-12 pr-3 py-2.5 border border-cyan-100 bg-cyan-50/40 rounded-xl text-xs md:text-sm focus:outline-none focus:border-sky-500 transition"
+                                />
+                              </div>
+
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-600">PANDA</span>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  placeholder="Same"
+                                  value={opt.panda_price ?? ""}
+                                  onChange={(e) => updateOption(group.id, opt.id, "panda_price", e.target.value)}
+                                  className="w-full pl-14 pr-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-xs md:text-sm focus:outline-none focus:border-sky-500 transition"
                                 />
                               </div>
 
