@@ -1211,19 +1211,20 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
 
   const filteredItems = useMemo(() => {
     return items
-      .filter((i) => {
-        if (!selectedBranch) return true;
-        const row = itemStoreAvailability.find(
-          (entry) => String(entry.item_id) === String(i.id) && String(entry.store_id) === String(selectedBranch)
-        );
-        return row ? row.is_available !== false : true;
-      })
       .filter((i) => visibleCategories.some((cat) => cat.name === i.category))
       .filter((i) => (activeTab === "ALL" ? true : i.category === activeTab))
       .filter((i) => (q ? (i.name || "").toLowerCase().includes(q) : true));
-  }, [items, itemStoreAvailability, selectedBranch, visibleCategories, activeTab, q]);
+  }, [items, visibleCategories, activeTab, q]);
 
-  const isItemOrderable = (item) => isMenuItemMarkedAvailable(item);
+  const isItemAvailableForSelectedStore = (item) => {
+    if (!selectedBranch) return true;
+    const row = itemStoreAvailability.find(
+      (entry) => String(entry.item_id) === String(item.id) && String(entry.store_id) === String(selectedBranch)
+    );
+    return row ? row.is_available !== false : true;
+  };
+
+  const isItemOrderable = (item) => isMenuItemMarkedAvailable(item) && isItemAvailableForSelectedStore(item);
 
   const subtotal = useMemo(() => cart.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0), [cart]);
   const itemCount = useMemo(() => cart.reduce((sum, i) => sum + i.quantity, 0), [cart]);

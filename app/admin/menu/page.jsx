@@ -1034,7 +1034,7 @@ export default function MenuAdminPage() {
           onClick={() => setIsModalOpen(false)}
         >
           <div
-            className="bg-white w-full max-w-2xl rounded-t-[20px] md:rounded-[24px] p-5 md:p-8 shadow-2xl animate-in slide-in-from-bottom-full md:slide-in-from-bottom-10 md:zoom-in-95 duration-300 max-h-[90vh] flex flex-col"
+            className="bg-white w-full max-w-2xl lg:max-w-3xl xl:max-w-4xl rounded-t-[20px] md:rounded-[24px] p-5 md:p-8 shadow-2xl animate-in slide-in-from-bottom-full md:slide-in-from-bottom-10 md:zoom-in-95 duration-300 max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4 md:hidden flex-shrink-0" />
@@ -1467,7 +1467,7 @@ export default function MenuAdminPage() {
 
                         <div className="space-y-3 pl-2 md:pl-4 border-l-2 border-slate-100 ml-1">
                           {group.options.map((opt) => (
-                            <div key={opt.id} className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(150px,1fr)_minmax(96px,105px)_minmax(104px,112px)_minmax(112px,120px)_auto] md:items-center">
+                            <div key={opt.id} className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(180px,1fr)_minmax(100px,120px)_minmax(120px,135px)_minmax(130px,150px)_32px] md:items-center">
                               <input
                                 placeholder="Option name (e.g. Regular)"
                                 value={opt.name}
@@ -1515,7 +1515,7 @@ export default function MenuAdminPage() {
                               <button
                                 type="button"
                                 onClick={() => removeOption(group.id, opt.id)}
-                                className="text-red-300 hover:text-red-500 font-bold px-1 transition-colors text-base"
+                                className="flex h-9 w-8 items-center justify-center rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 font-bold transition-colors text-base"
                               >
                                 ✕
                               </button>

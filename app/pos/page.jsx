@@ -768,7 +768,6 @@ function buildOrderSlipText({ orderId, cart, diningOptionName, customerName, tot
   });
 
   lines.push(receiptLine());
-  if (Number.isFinite(Number(total))) lines.push(receiptPair("Total", receiptAmount(total)));
   lines.push(receiptPair("Printed", formatReceiptFooterDate(printedAt || new Date())));
   return lines.join("\n");
 }
@@ -2769,8 +2768,6 @@ export default function POSPage() {
   const visibleMenuItems = useMemo(() => {
     const search = menuSearch.trim().toLowerCase();
     return (items || [])
-      .filter((item) => item.is_available !== false)
-      .filter((item) => itemAvailableForChannel(item))
       .filter((item) => {
         if (search) return true;
         return activeCategory ? item.category === activeCategory : item.is_featured === true;
@@ -6477,12 +6474,27 @@ export default function POSPage() {
                     <div className="col-span-full rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-xs font-semibold text-slate-500">
                       {activeCategory ? "No available items found in this category." : "No featured menu items found."}
                     </div>
-                  ) : visibleMenuItems.map((item) => (
+                  ) : visibleMenuItems.map((item) => {
+                    const orderable = item.is_available !== false && itemAvailableForChannel(item);
+                    return (
                       <button
                         key={item.id}
-                        onClick={() => setSelectedItemForModal(item)}
-                        className="group bg-white border border-slate-100 rounded-xl p-2.5 text-left hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-md transition-all duration-200 flex flex-col h-full justify-between"
+                        disabled={!orderable}
+                        onClick={() => {
+                          if (!orderable) return;
+                          setSelectedItemForModal(item);
+                        }}
+                        className={`group relative border rounded-xl p-2.5 text-left transition-all duration-200 flex flex-col h-full justify-between ${
+                          orderable
+                            ? "bg-white border-slate-100 hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-md"
+                            : "cursor-not-allowed border-slate-200 bg-slate-100 opacity-70 grayscale"
+                        }`}
                       >
+                        {!orderable && (
+                          <span className="absolute left-2 top-2 z-10 rounded-full bg-slate-800 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-white shadow-sm">
+                            Unavailable
+                          </span>
+                        )}
                         <div className="w-full">
                           <div className="w-full aspect-square bg-[#FFF9FA] border border-rose-50/50 flex items-center justify-center overflow-hidden rounded-lg relative">
                             {item.image_url ? (
@@ -6506,7 +6518,8 @@ export default function POSPage() {
                           {item.is_variable_price ? "Variable Price" : `₱${Number(item.price || 0).toFixed(0)}`}
                         </p>
                       </button>
-                    ))}
+                    );
+                  })}
               </div>
             )}
           </div>
