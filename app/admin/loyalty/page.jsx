@@ -230,30 +230,23 @@ export default function LoyaltyAdminPage() {
   async function updateVoucherStatus(voucher, nextStatus) {
     if (!voucher?.id || !nextStatus) return;
     const normalized = String(nextStatus).toLowerCase();
-    const dbStatus = normalized === "available" ? "active" : normalized;
-    const nowIso = new Date().toISOString();
-    const nextExpiry = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
 
     setVoucherStatusBusyId(voucher.id);
     setVoucherView((prev) => ({ ...prev, error: "" }));
 
     try {
-      const updatePayload = {
-        status: dbStatus,
-        redeemed_at: dbStatus === "redeemed" ? nowIso : null,
-      };
-
-      if (dbStatus === "active") {
-        const expiryMs = voucher.expires_at ? new Date(voucher.expires_at).getTime() : 0;
-        if (!expiryMs || expiryMs < Date.now()) updatePayload.expires_at = nextExpiry;
-      }
-
-      const { error } = await supabase
-        .from("vouchers")
-        .update(updatePayload)
-        .eq("id", voucher.id);
-
-      if (error) throw error;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      const response = await fetch("/api/admin/voucher-status", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ voucherId: voucher.id, status: normalized }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.error || "Unable to update voucher status.");
 
       setNotice(`✅ Voucher changed to ${voucherStatusLabel(normalized)}.`);
       await openVoucherList(voucherView.member, normalized);
