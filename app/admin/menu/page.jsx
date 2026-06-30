@@ -582,7 +582,7 @@ export default function MenuAdminPage() {
                 <button
                   onClick={() => setCatFilter(cat.name)}
                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-normal uppercase transition-all duration-300 active:scale-95 ${
-                    catFilter === cat.name ? "bg-slate-600 text-white shadow-sm shadow-sky-200" : "bg-transparent text-slate-500 hover:bg-slate-50 border-transparent"
+                    catFilter === cat.name ? "bg-blue-300/50 text-white shadow-sm shadow-sky-200" : "bg-transparent text-slate-500 hover:bg-slate-50 border-transparent"
                   }`}
                 >
                   <div className="flex items-center gap-2 pr-2">
@@ -870,7 +870,7 @@ export default function MenuAdminPage() {
                 <button
                   type="submit"
                   disabled={catSaving}
-                  className="w-full py-3.5 rounded-xl bg-slate-400/78 text-white font-bold text-xs hover:bg-slate-300 transition-all shadow-md shadow-slate-200 disabled:opacity-70 active:scale-95"
+                  className="w-full py-3.5 rounded-xl bg-blue-300/50 text-white font-bold text-xs hover:bg-blue-400/50 transition-all shadow-md shadow-slate-200 disabled:opacity-70 active:scale-95"
                 >
                   {catSaving ? "Saving..." : editingCategory ? "Update Category" : "Add Category"}
                 </button>
@@ -1551,7 +1551,7 @@ export default function MenuAdminPage() {
                   onClick={handleSave}
                   form="item-form"
                   disabled={saving}
-                  className="w-full py-3 md:py-3.5 rounded-xl bg-slate-400/78 text-white font-bold text-xs hover:bg-slate-300 transition-all shadow-md shadow-slate-200 disabled:opacity-70 active:scale-95"
+                  className="w-full py-3 md:py-3.5 rounded-xl bg-blue-300/50 text-white font-bold text-xs hover:bg-blue-400/50 transition-all shadow-md shadow-slate-200 disabled:opacity-70 active:scale-95"
                 >
                   {saving ? "Saving..." : "Save Menu Item"}
                 </button>
