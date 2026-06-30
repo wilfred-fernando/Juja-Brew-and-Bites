@@ -11,7 +11,7 @@ const supabase = getSupabaseClient();
 ======================= */
 const OPERATING_START_HOUR = 10; // 10AM
 const BUFFER_HOURS = 1; // 1 hour buffer before & after
-const MAX_EXTENSION_HOURS = 2; // extension max 2 hours
+const MAX_EXTENSION_HOURS = 5; // extension max 5 hours
 const MIN_ADVANCE_HOURS = 3; // must be at least 3 hours in advance
 const RESCHEDULE_MIN_DAYS = 2; // update/reschedule allowed only if >= 2 days before start
 
@@ -78,7 +78,7 @@ const PACKAGE_POLICIES = {
       additional_guests:
         "Additional guests: ₱300 worth of food & drinks per person (maximum of 5 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
-      extension: ["Extension maximum of 2 hours:", "₱250 per hour."],
+      extension: ["Extension maximum of 5 hours:", "₱250 per hour."],
     },
     rental_fees_inclusions: {
       rental_fee: "Standard rental fee: ₱3,000 for 3 hours.",
@@ -112,7 +112,7 @@ const PACKAGE_POLICIES = {
       additional_guests:
         "Additional guests: ₱300 worth of food & drinks per person (maximum of 5 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
-      extension: ["Extension maximum of 2 hours:", "₱750 per hour."],
+      extension: ["Extension maximum of 5 hours:", "₱750 per hour."],
     },
     rental_fees_inclusions: {
       rental_fee: "Standard rental fee: ₱7,000 for 3 hours.",
@@ -146,7 +146,7 @@ const PACKAGE_POLICIES = {
       additional_guests:
         "Additional guests: ₱300 worth of food & drinks per person (maximum of 5 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
-      extension: ["Extension maximum of 2 hours:", "₱1,500 per hour."],
+      extension: ["Extension maximum of 5 hours:", "₱1,500 per hour."],
     },
     rental_fees_inclusions: {
       rental_fee: "Standard rental fee: ₱15,000 for 3 hours.",
@@ -181,7 +181,7 @@ const PACKAGE_POLICIES = {
       additional_guests:
         "Additional guests: ₱150 per person (maximum of 5 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
-      extension: ["Extension maximum of 2 hours: ₱1,000 per hour."],
+      extension: ["Extension maximum of 5 hours: ₱1,000 per hour."],
     },
     rental_fees_inclusions: {
       rental_fee: "Standard rental fee: ₱2,500 for 3 hours.",
@@ -211,7 +211,7 @@ const PACKAGE_POLICIES = {
       additional_guests:
         "Additional guests: ₱150 per person (maximum of 5 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
-      extension: ["Extension maximum of 2 hours: ₱1,500 per hour."],
+      extension: ["Extension maximum of 5 hours: ₱1,500 per hour."],
     },
     rental_fees_inclusions: {
       rental_fee: "Standard rental fee: ₱3,500 for 3 hours.",
@@ -240,7 +240,7 @@ const PACKAGE_POLICIES = {
         "Capacity: up to 60 Guests (children aged 4 years and below are not counted in the headcount).",
       additional_guests: "Additional guests: FREE.",
       rental_duration: "Rental duration: 3 hours.",
-      extension: ["Extension maximum of 2 hours: ₱2,500 per hour."],
+      extension: ["Extension maximum of 5 hours: ₱2,500 per hour."],
     },
     rental_fees_inclusions: {
       rental_fee: "Standard rental fee: ₱8,000 for 3 hours.",

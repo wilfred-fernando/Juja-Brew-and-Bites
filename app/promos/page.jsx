@@ -18,8 +18,9 @@ function formatMoney(value) {
 }
 
 function getPromoValue(promo) {
-  const discount = Number(promo.discount || 0);
-  if (promo.type === "percent") return `${discount}% OFF`;
+  const discount = Number(promo.discount_value ?? promo.discount ?? 0);
+  if (discount <= 0) return promo.title || "Featured Promo";
+  if ((promo.discount_type || promo.type) === "percent") return `${discount}% OFF`;
   return `${formatMoney(discount)} OFF`;
 }
 
@@ -45,9 +46,9 @@ export default function PromoPage() {
       setError("");
 
       const { data, error: promoError } = await supabase
-        .from("promo_codes")
-        .select("id, code, discount, type, min_order, active, created_at")
-        .eq("active", true)
+        .from("promotions")
+        .select("id, code, title, description, discount_type, discount_value, is_active, start_date, end_date, created_at")
+        .eq("is_active", true)
         .order("created_at", { ascending: false });
 
       if (!mounted) return;

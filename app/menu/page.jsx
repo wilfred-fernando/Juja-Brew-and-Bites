@@ -201,9 +201,9 @@ export default function PublicMenuPage() {
       setPromoLoading(true);
 
       const { data, error } = await supabase
-        .from("promo_codes")
+        .from("promotions")
         .select("*")
-        .eq("active", true)
+        .eq("is_active", true)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -331,13 +331,18 @@ export default function PublicMenuPage() {
     if (!promoOpen) return null;
 
     const code = promo?.code || "PROMO";
-    const type = promo?.type || "";
-    const discount = promo?.discount ?? "";
+    const type = promo?.discount_type || promo?.type || "";
+    const discount = promo?.discount_value ?? promo?.discount ?? "";
     const minOrder = promo?.min_order ?? 0;
 
     const prettyDiscount =
-      type === "percent" ? `${discount}% OFF` : type === "fixed" ? `₱${discount} OFF` : `${discount}`;
-
+      Number(discount || 0) <= 0
+        ? promo?.title || "Featured Promo"
+        : type === "percent"
+          ? `${discount}% OFF`
+          : type === "fixed"
+            ? `PHP ${Number(discount || 0).toLocaleString("en-PH")} OFF`
+            : `${discount}`;
     return (
       <div
         className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-6"

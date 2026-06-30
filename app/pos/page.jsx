@@ -6077,7 +6077,7 @@ export default function POSPage() {
                   const hasDevice = Boolean(roleForm.device_id || savedPrinter?.ble_device_id);
 
                   return (
-                    <div key={role} className={`rounded-2xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${roleForm.enabled ? "border-cyan-200 bg-cyan-50/40" : "border-slate-200 bg-white"}`}>
+                    <div key={role} className={`rounded-2xl border p-4 shadow-sm transition ${roleForm.enabled ? "border-cyan-200 bg-cyan-50/40" : "border-slate-200 bg-white"}`}>
                       <div className="mb-3 flex items-start justify-between gap-3">
                         <div>
                           <p className="text-sm font-black uppercase tracking-wider text-slate-900">{label}</p>

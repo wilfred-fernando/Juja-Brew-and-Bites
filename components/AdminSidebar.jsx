@@ -8,7 +8,6 @@ import {
   Boxes,
   ChevronDown,
   ChevronUp,
-  ClipboardList,
   DollarSign,
   Gift,
   Home,
@@ -52,8 +51,6 @@ export default function AdminSidebar({
       items: [
         { name: "Dashboard", path: "/admin", icon: Home },
         { name: "Bookings", path: "/admin/bookings", icon: CalendarCheck },
-        { name: "Orders", path: "/admin/orders", icon: ClipboardList },
-
         {
           name: "POS Admin",
           path: "/admin/pos-admin",
@@ -110,7 +107,6 @@ export default function AdminSidebar({
   const PAGE_KEY_BY_PATH = {
     "/admin": "dashboard",
     "/admin/bookings": "bookings",
-    "/admin/orders": "live_orders",
     "/admin/pos-admin": "pos_admin",
     "/admin/menu": "menu_builder",
     "/admin/inventory": "inventory",

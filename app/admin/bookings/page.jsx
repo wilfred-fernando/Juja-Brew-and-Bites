@@ -10,7 +10,7 @@ const supabase = getSupabaseClient();
 ======================= */
 const OPERATING_START_HOUR = 10; // 10AM
 const BASE_BOOKING_MINUTES = 2 * 60 + 59; // 2h59m
-const MAX_EXTENSION_HOURS = 2;
+const MAX_EXTENSION_HOURS = 5;
 const BOOKING_TIME_ZONE = "Asia/Manila";
 const BOOKING_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
