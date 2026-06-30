@@ -3705,12 +3705,14 @@ export default function POSPage() {
   }
 
   async function saveTableOrder() {
+    const savedItems = jsonSafeValue(enrichOrderItemsForKds(cart));
+
     if (activeWebOrderId) {
       // Direct rewrite update to keep the active web order synchronized 
       const { error } = await supabase
         .from("web_orders")
         .update({
-          items: enrichOrderItemsForKds(cart),
+          items: savedItems,
           subtotal: Number(subtotal),
           total: Number(subtotal),
           dining_option: webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName),
@@ -3718,26 +3720,9 @@ export default function POSPage() {
         })
         .eq("id", activeWebOrderId);
       if (error) throw error;
-      const { error: kdsErr } = await upsertKdsTicket(supabase, {
-        sourceType: "web",
-        order: {
-          id: activeWebOrderId,
-          store_id: activeWebOrderBranchId || storeId,
-          branch_id: activeWebOrderBranchId || storeId,
-          customer_name: attachedCustomer?.name || "Web Customer",
-          dining_option: webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName),
-          fulfillment_type: activeWebOrderFulfillmentType || diningOptionName || "Web Order",
-          items: enrichOrderItemsForKds(cart),
-          subtotal: Number(subtotal),
-          total: Number(subtotal),
-          accepted_at: new Date().toISOString(),
-        },
-        status: "preparing",
-      });
-      if (kdsErr) throw kdsErr;
       await autoPrintOrderSlip({
         orderId: activeWebOrderId,
-        slipCart: cart,
+        slipCart: savedItems,
         slipDining: webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName),
         slipCustomer: attachedCustomer?.name || "Web Customer",
         slipTotal: Number(subtotal || 0),
@@ -3746,7 +3731,7 @@ export default function POSPage() {
       });
       await autoPrintBarCupLabels({
         orderId: activeWebOrderId,
-        labelCart: cart,
+        labelCart: savedItems,
         labelDining: webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName),
         printedAt: new Date(),
         askBeforePrint: true,
@@ -3763,32 +3748,16 @@ export default function POSPage() {
       ticket_name: name,
       order_type: name,
       customer_id: attachedCustomer?.id || null,
-      items: cart,
+      items: savedItems,
       total_amount: Number(subtotal || 0),
     };
 
     if (originalTicketId) {
       const { data: ticketRow, error } = await supabase.from("open_tickets").update(payload).eq("id", originalTicketId).select("*").single();
       if (error) throw error;
-      const { error: kdsErr } = await upsertKdsTicket(supabase, {
-        sourceType: "pos",
-        order: {
-          id: ticketRow.id,
-          store_id: storeId,
-          branch_id: storeId,
-          customer_name: attachedCustomer?.name || "Walk-in",
-          order_type: name,
-          dining_option: name,
-          items: enrichOrderItemsForKds(cart),
-          total_amount: Number(subtotal || 0),
-          created_at: ticketRow.created_at,
-        },
-        status: "preparing",
-      });
-      if (kdsErr) throw kdsErr;
       await autoPrintOrderSlip({
         orderId: ticketRow.id,
-        slipCart: cart,
+        slipCart: savedItems,
         slipDining: name,
         slipCustomer: attachedCustomer?.name || "Walk-in",
         slipTotal: Number(subtotal || 0),
@@ -3796,7 +3765,7 @@ export default function POSPage() {
       });
       await autoPrintBarCupLabels({
         orderId: ticketRow.id,
-        labelCart: cart,
+        labelCart: savedItems,
         labelDining: name,
         printedAt: ticketRow.updated_at || ticketRow.created_at || new Date(),
         askBeforePrint: true,
@@ -3815,7 +3784,7 @@ export default function POSPage() {
           customer_name: attachedCustomer?.name || "Walk-in",
           order_type: name,
           dining_option: name,
-          items: enrichOrderItemsForKds(cart),
+          items: savedItems,
           total_amount: Number(subtotal || 0),
           created_at: ticketRow.created_at,
         },
@@ -3824,7 +3793,7 @@ export default function POSPage() {
       if (kdsErr) throw kdsErr;
       await autoPrintOrderSlip({
         orderId: ticketRow.id,
-        slipCart: cart,
+        slipCart: savedItems,
         slipDining: name,
         slipCustomer: attachedCustomer?.name || "Walk-in",
         slipTotal: Number(subtotal || 0),
@@ -3832,7 +3801,7 @@ export default function POSPage() {
       });
       await autoPrintBarCupLabels({
         orderId: ticketRow.id,
-        labelCart: cart,
+        labelCart: savedItems,
         labelDining: name,
         printedAt: ticketRow.created_at || new Date(),
         askBeforePrint: true,
@@ -5311,7 +5280,8 @@ export default function POSPage() {
           }
         }
         if (originalTicketId) {
-          await markKdsTicketStatus(supabase, { sourceType: "pos", sourceId: originalTicketId, status: "completed" });
+          // The saved ticket was already sent to KDS when first saved.
+          // Charging should not resend or complete the kitchen ticket.
           await supabase.from("open_tickets").delete().eq("id", originalTicketId);
         } else {
           await supabase.from("open_tickets").delete().eq("order_type", chargedDiningLabel);
