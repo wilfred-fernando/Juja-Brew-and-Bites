@@ -3753,35 +3753,28 @@ export default function POSPage() {
     };
 
     if (originalTicketId) {
-      let updateQuery = supabase
+      let { data: ticketRows, error } = await supabase
         .from("open_tickets")
-        .update(payload, { count: "exact" })
-        .eq("id", originalTicketId);
-      let { count: updatedCount, error } = await updateQuery;
+        .update(payload)
+        .eq("id", originalTicketId)
+        .select("id, created_at");
 
       if (error) throw error;
       let savedTicketId = originalTicketId;
 
-      if (!updatedCount) {
+      if (!Array.isArray(ticketRows) || ticketRows.length === 0) {
         const fallback = await supabase
           .from("open_tickets")
-          .update(payload, { count: "exact" })
-          .eq("order_type", name);
+          .update(payload)
+          .eq("order_type", name)
+          .select("id, created_at");
         if (fallback.error) throw fallback.error;
-        updatedCount = fallback.count || 0;
+        ticketRows = fallback.data || [];
       }
 
-      if (!updatedCount) {
+      if (!Array.isArray(ticketRows) || ticketRows.length === 0) {
         throw new Error("Saved ticket was not updated. Please reopen the saved ticket and try again.");
       }
-
-      const { data: ticketRows, error: fetchError } = await supabase
-        .from("open_tickets")
-        .select("id, created_at")
-        .eq("order_type", name)
-        .order("created_at", { ascending: false })
-        .limit(1);
-      if (fetchError) throw fetchError;
 
       const ticketRow = Array.isArray(ticketRows) && ticketRows[0]
         ? ticketRows[0]
