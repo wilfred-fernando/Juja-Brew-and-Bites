@@ -6600,7 +6600,7 @@ export default function POSPage() {
             <span className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center text-xs font-black">{itemCount}</span>
             <div className="text-left leading-tight">
               <p className="text-[10px] uppercase font-bold tracking-wider text-rose-100">Review Ticket Balance</p>
-              <p className="text-sm font-black">{peso0(totalDue)}</p>
+              <p className="text-sm font-black">{peso2(totalDue)}</p>
             </div>
           </div>
           <span className="text-xs font-bold uppercase tracking-wider bg-black/10 px-2.5 py-1 rounded-lg">View Cart 🛒</span>

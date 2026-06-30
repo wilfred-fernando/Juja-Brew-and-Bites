@@ -1467,7 +1467,7 @@ export default function MenuAdminPage() {
 
                         <div className="space-y-3 pl-2 md:pl-4 border-l-2 border-slate-100 ml-1">
                           {group.options.map((opt) => (
-                            <div key={opt.id} className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_120px_120px_120px_auto] md:items-center">
+                            <div key={opt.id} className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(150px,1fr)_minmax(96px,105px)_minmax(104px,112px)_minmax(112px,120px)_auto] md:items-center">
                               <input
                                 placeholder="Option name (e.g. Regular)"
                                 value={opt.name}
@@ -1475,7 +1475,7 @@ export default function MenuAdminPage() {
                                 className="flex-1 border border-slate-200 rounded-xl p-2.5 text-xs md:text-sm focus:outline-none focus:border-sky-500 transition"
                               />
 
-                              <div className="relative w-28 md:w-32">
+                              <div className="relative w-full">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">₱</span>
                                 <input
                                   type="number"

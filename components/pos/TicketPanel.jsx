@@ -454,7 +454,7 @@ export default function TicketPanel({
         <div className="flex justify-between items-baseline">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Balance</span>
           <span className="font-bold text-2xl text-slate-800">
-            ₱{Number(subtotal || 0).toLocaleString("en-PH", { maximumFractionDigits: 0 })}
+            ₱{Number(subtotal || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
 
