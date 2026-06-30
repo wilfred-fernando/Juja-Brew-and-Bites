@@ -3753,8 +3753,15 @@ export default function POSPage() {
     };
 
     if (originalTicketId) {
-      const { data: ticketRow, error } = await supabase.from("open_tickets").update(payload).eq("id", originalTicketId).select("*").single();
+      const { data: ticketRows, error } = await supabase
+        .from("open_tickets")
+        .update(payload)
+        .eq("id", originalTicketId)
+        .select("id, created_at, updated_at");
       if (error) throw error;
+      const ticketRow = Array.isArray(ticketRows) && ticketRows[0]
+        ? ticketRows[0]
+        : { id: originalTicketId, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
       await autoPrintOrderSlip({
         orderId: ticketRow.id,
         slipCart: savedItems,
