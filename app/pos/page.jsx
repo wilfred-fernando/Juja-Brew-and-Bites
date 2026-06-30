@@ -3753,18 +3753,43 @@ export default function POSPage() {
     };
 
     if (originalTicketId) {
-      const { data: ticketRows, error } = await supabase
+      let updateQuery = supabase
         .from("open_tickets")
-        .update(payload)
-        .eq("id", originalTicketId)
-        .select("id, created_at");
+        .update(payload, { count: "exact" })
+        .eq("id", originalTicketId);
+      let { count: updatedCount, error } = await updateQuery;
+
       if (error) throw error;
+      let savedTicketId = originalTicketId;
+
+      if (!updatedCount) {
+        const fallback = await supabase
+          .from("open_tickets")
+          .update(payload, { count: "exact" })
+          .eq("order_type", name);
+        if (fallback.error) throw fallback.error;
+        updatedCount = fallback.count || 0;
+      }
+
+      if (!updatedCount) {
+        throw new Error("Saved ticket was not updated. Please reopen the saved ticket and try again.");
+      }
+
+      const { data: ticketRows, error: fetchError } = await supabase
+        .from("open_tickets")
+        .select("id, created_at")
+        .eq("order_type", name)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (fetchError) throw fetchError;
+
       const ticketRow = Array.isArray(ticketRows) && ticketRows[0]
         ? ticketRows[0]
-        : { id: originalTicketId, created_at: new Date().toISOString() };
+        : { id: savedTicketId, created_at: new Date().toISOString() };
+      savedTicketId = ticketRow.id || savedTicketId;
       const ticketPrintedAt = ticketRow.created_at || new Date();
       await autoPrintOrderSlip({
-        orderId: ticketRow.id,
+        orderId: savedTicketId,
         slipCart: savedItems,
         slipDining: name,
         slipCustomer: attachedCustomer?.name || "Walk-in",
@@ -3772,7 +3797,7 @@ export default function POSPage() {
         printedAt: ticketPrintedAt,
       });
       await autoPrintBarCupLabels({
-        orderId: ticketRow.id,
+        orderId: savedTicketId,
         labelCart: savedItems,
         labelDining: name,
         printedAt: ticketPrintedAt,
@@ -4997,6 +5022,7 @@ export default function POSPage() {
     setSavingTicket(true);
     try {
       await saveTableOrder();
+      await fetchSavedTickets();
       showToast("success", "Saved successfully", activeWebOrderId ? "Web order values updated." : "Ticket updated in system.");
       clearTicketSoft();
     } catch (err) {
