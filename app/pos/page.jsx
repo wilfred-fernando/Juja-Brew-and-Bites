@@ -2472,6 +2472,57 @@ export default function POSPage() {
     items: enrichOrderItemsForKds(overrides.items || order?.items || []),
   });
 
+  const fetchOpenTicketLineItems = async (ticketIds = []) => {
+    const ids = [...new Set((ticketIds || []).filter(Boolean).map(String))];
+    const grouped = new Map();
+    if (ids.length === 0) return grouped;
+
+    const { data, error } = await supabase
+      .from("open_ticket_items")
+      .select("ticket_id, line_index, item_data")
+      .in("ticket_id", ids)
+      .order("line_index", { ascending: true });
+
+    if (error) {
+      console.warn("Open ticket line-item load skipped:", error);
+      return grouped;
+    }
+
+    (data || []).forEach((row) => {
+      const key = String(row.ticket_id);
+      const lines = grouped.get(key) || [];
+      lines.push(row.item_data);
+      grouped.set(key, lines);
+    });
+    return grouped;
+  };
+
+  const syncOpenTicketLineItems = async (ticketId, ticketItems = []) => {
+    if (!ticketId) return;
+    const safeItems = jsonSafeValue(enrichOrderItemsForKds(ticketItems));
+
+    const { error: deleteError } = await supabase
+      .from("open_ticket_items")
+      .delete()
+      .eq("ticket_id", ticketId);
+
+    if (deleteError) {
+      console.warn("Open ticket line-item delete skipped:", deleteError);
+      return;
+    }
+
+    if (safeItems.length === 0) return;
+
+    const rows = safeItems.map((item, index) => ({
+      ticket_id: ticketId,
+      line_index: index,
+      item_data: item,
+    }));
+
+    const { error: insertError } = await supabase.from("open_ticket_items").insert(rows);
+    if (insertError) throw insertError;
+  };
+
   const clearActiveWebOrderContext = () => {
     setActiveWebOrderId(null);
     setActiveWebOrderBranchId(null);
@@ -3676,8 +3727,10 @@ export default function POSPage() {
         return;
       }
 
+      const lineItemsByTicket = await fetchOpenTicketLineItems([data.id]);
+      const ticketItems = lineItemsByTicket.get(String(data.id)) || data.items || [];
       setOriginalTicketId(data.id);
-      setCart(data.items || []);
+      setCart(ticketItems);
       clearActiveWebOrderContext(); // Clear web tracking context when switching to a physical table
       const linkedCustomer = customers.find((c) => c.id === data.customer_id);
       setAttachedCustomer(linkedCustomer || null);
@@ -3780,6 +3833,7 @@ export default function POSPage() {
         ? ticketRows[0]
         : { id: savedTicketId, created_at: new Date().toISOString() };
       savedTicketId = ticketRow.id || savedTicketId;
+      await syncOpenTicketLineItems(savedTicketId, savedItems);
       const ticketPrintedAt = ticketRow.created_at || new Date();
       await autoPrintOrderSlip({
         orderId: savedTicketId,
@@ -3801,6 +3855,7 @@ export default function POSPage() {
       const { data: ticketRow, error } = await supabase.from("open_tickets").insert([payload]).select("*").single();
       if (error) throw error;
       setOriginalTicketId(ticketRow.id);
+      await syncOpenTicketLineItems(ticketRow.id, savedItems);
       const { error: kdsErr } = await upsertKdsTicket(supabase, {
         sourceType: "pos",
         order: {
@@ -3855,9 +3910,14 @@ export default function POSPage() {
       return;
     }
 
+    const lineItemsByTicket = await fetchOpenTicketLineItems((res.data || []).map((t) => t.id));
     const enriched = (res.data || []).map((t) => {
       const c = customers.find((x) => x.id === t.customer_id);
-      return { ...t, _customerName: c?.name || "Walk-in" };
+      return {
+        ...t,
+        items: lineItemsByTicket.get(String(t.id)) || t.items || [],
+        _customerName: c?.name || "Walk-in",
+      };
     });
 
     setSavedTickets(enriched);
@@ -4943,6 +5003,7 @@ export default function POSPage() {
       showToast("error", "Void Item Failed", error.message || error.details || "Open ticket update was rejected.");
       return;
     }
+    await syncOpenTicketLineItems(ticket.id, safeNextItems);
 
     const { error: kdsError } = await markKdsTicketItemVoided(supabase, {
       sourceType: "pos",
@@ -5603,11 +5664,12 @@ export default function POSPage() {
         total_amount: calcTotal(movingItems),
       };
 
-      const { error } = await supabase.from("open_tickets").insert([payload]);
+      const { data: ticketRow, error } = await supabase.from("open_tickets").insert([payload]).select("id").single();
       if (error) {
         showToast("error", "Move Failed", error.message);
         return;
       }
+      await syncOpenTicketLineItems(ticketRow.id, movingItems);
 
       setCart((prev) => prev.filter((x) => !splitSelected.includes(x.cartItemId)));
 
@@ -5654,6 +5716,7 @@ export default function POSPage() {
         showToast("error", "Move Failed", error.message);
         return;
       }
+      await syncOpenTicketLineItems(ticket.id, merged);
 
       setCart((prev) => prev.filter((x) => !splitSelected.includes(x.cartItemId)));
 
