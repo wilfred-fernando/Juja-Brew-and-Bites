@@ -931,12 +931,42 @@ function normalizeLabelLine(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
 }
 
+function parseReceiptSelectedOptions(value) {
+  if (Array.isArray(value)) return value;
+  if (!value) return [];
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return parsed;
+      if (parsed && typeof parsed === "object") return Object.entries(parsed).flatMap(([groupName, options]) => {
+        const values = Array.isArray(options) ? options : [options];
+        return values.map((option) => (
+          typeof option === "object"
+            ? { ...option, groupName: option.groupName || option.group_name || groupName }
+            : { groupName, name: option }
+        ));
+      });
+    } catch {
+      return trimmed.split(",").map((name) => ({ name: normalizeLabelLine(name) })).filter((option) => option.name);
+    }
+  }
+  if (typeof value === "object") {
+    return Object.entries(value).flatMap(([groupName, options]) => {
+      const values = Array.isArray(options) ? options : [options];
+      return values.map((option) => (
+        typeof option === "object"
+          ? { ...option, groupName: option.groupName || option.group_name || groupName }
+          : { groupName, name: option }
+      ));
+    });
+  }
+  return [];
+}
+
 function selectedOptionReceiptLines(item) {
-  const selectedOptions = Array.isArray(item?.selectedOptions)
-    ? item.selectedOptions
-    : Array.isArray(item?.selected_options)
-      ? item.selected_options
-      : [];
+  const selectedOptions = parseReceiptSelectedOptions(item?.selectedOptions || item?.selected_options || item?.options || item?.modifiers);
 
   if (selectedOptions.length > 0) {
     const grouped = new Map();
@@ -955,6 +985,13 @@ function selectedOptionReceiptLines(item) {
 
   const variantDetails = normalizeLabelLine(item?.variantDetails || item?.variant_details || item?.variant || "");
   return variantDetails ? [variantDetails] : [];
+}
+
+function receiptItemDisplayLines(item) {
+  const lines = selectedOptionReceiptLines(item);
+  const instructions = normalizeLabelLine(item?.instructions || item?.note || item?.specialInstructions || item?.special_instructions || "");
+  if (instructions) lines.push(`Note: ${instructions}`);
+  return lines;
 }
 
 function buildCupLabels({ orderId, cart, diningOptionName, printedAt, barCategoryIds = [], barCategoryNames = [] }) {
@@ -6134,8 +6171,13 @@ export default function POSPage() {
                     <div className="space-y-2">
                       {selectedReceiptItems.map((row, idx) => (
                         <div key={`${row.receipt_number}-${row.item}-${idx}`} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-slate-100 bg-white p-2">
-                          <div>
+                          <div className="min-w-0">
                             <p className="text-xs font-bold uppercase text-slate-800">{row.item}</p>
+                            {receiptItemDisplayLines(row).map((line, lineIdx) => (
+                              <p key={`${row.receipt_number}-${row.item}-${idx}-option-${lineIdx}`} className="mt-0.5 text-[11px] font-medium text-slate-600">
+                                {line}
+                              </p>
+                            ))}
                             <p className="text-[10px] font-semibold italic text-slate-400">Qty {row.quantity} · {peso2(row.net_sales || row.gross_sales || 0)} · {row.status || "Closed"}</p>
                           </div>
                           <button type="button" onClick={() => refundReceiptItem(row)} className="h-8 px-3 rounded-lg border border-red-100 bg-red-50 text-[10px] font-bold uppercase tracking-wider text-red-600">
