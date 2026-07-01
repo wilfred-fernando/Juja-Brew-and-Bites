@@ -7,6 +7,7 @@ import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { deductInventoryForOrder, normalizeUnit, restoreInventoryForOrder } from "@/lib/inventory";
 import { appendKdsTicketItems, markKdsTicketItemVoided, markKdsTicketStatus, upsertKdsTicket, webDiningOptionLabel } from "@/lib/kds";
 import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib/loyalty/annualReset";
+import { isWelcomeVoucher, WELCOME_VOUCHER_REWARD_TEXT } from "@/lib/loyalty/welcomeVoucher";
 import { loyaltyEligibleLineTotal } from "@/lib/menuPromos";
 import TicketPanel from "@/components/pos/TicketPanel";
 import { Barcode, Bluetooth, CalendarDays, DollarSign, MapPin, MessageSquare, Phone, Printer, RefreshCw, RotateCcw, Save, Search, ShoppingBasket, Star, Trash2 } from "lucide-react";
@@ -739,8 +740,9 @@ function buildReceiptText({
 
   if (voucher?.code) {
     lines.push(`Voucher: ${voucher.code}`);
-    if (voucher.reward_text) {
-      splitReceiptText(voucher.reward_text, RECEIPT_COLUMNS).forEach((line) => lines.push(`  ${line}`));
+    const voucherRewardText = displayVoucherRewardText(voucher);
+    if (voucherRewardText) {
+      splitReceiptText(voucherRewardText, RECEIPT_COLUMNS).forEach((line) => lines.push(`  ${line}`));
     }
   }
   if (appliedDiscount?.name) lines.push(`Discount: ${appliedDiscount.name}`);
@@ -847,8 +849,9 @@ function buildBillText({ orderId, cart, diningOptionName, customerName, subtotal
     if (itemDiscount > 0) lines.push(receiptPair("  Item discount", `-${receiptAmount(itemDiscount)}`));
     if (x.appliedVoucher?.code) {
       lines.push(`  Voucher: ${x.appliedVoucher.code}`);
-      if (x.appliedVoucher.reward_text) {
-        splitReceiptText(x.appliedVoucher.reward_text, RECEIPT_COLUMNS - 2).forEach((line) => lines.push(`  ${line}`));
+      const voucherRewardText = displayVoucherRewardText(x.appliedVoucher);
+      if (voucherRewardText) {
+        splitReceiptText(voucherRewardText, RECEIPT_COLUMNS - 2).forEach((line) => lines.push(`  ${line}`));
       }
     }
 
@@ -2306,6 +2309,25 @@ function lineDiscountAmount(line) {
 
 function lineNetAmount(line) {
   return Math.max(0, lineGrossAmount(line) - lineDiscountAmount(line));
+}
+
+function voucherDiscountRate(voucher) {
+  return isWelcomeVoucher(voucher) ? 0.5 : 1;
+}
+
+function displayVoucherRewardText(voucher) {
+  return isWelcomeVoucher(voucher) ? WELCOME_VOUCHER_REWARD_TEXT : voucher?.reward_text;
+}
+
+function restoreVoucherLine(line) {
+  const next = { ...line };
+  if (typeof next._origUnitPrice === "number") next.unitPrice = next._origUnitPrice;
+  if (typeof next._origDiscountAmount === "number") next.discountAmount = next._origDiscountAmount;
+  else delete next.discountAmount;
+  delete next._origUnitPrice;
+  delete next._origDiscountAmount;
+  delete next.appliedVoucher;
+  return next;
 }
 
 function cartLoyaltyEligibleTotal(lines = []) {
@@ -5227,7 +5249,15 @@ export default function POSPage() {
         (prev || []).map((line) => {
           if (line.cartItemId !== targetId) return line;
           const orig = typeof line._origUnitPrice === "number" ? line._origUnitPrice : line.unitPrice;
-          return { ...line, _origUnitPrice: orig, unitPrice: 0, appliedVoucher: t.applied_voucher };
+          const originalDiscount = Number(line._origDiscountAmount ?? line.discountAmount ?? line.discount_amount ?? 0);
+          const restoredLine = { ...line, _origUnitPrice: orig, unitPrice: orig, discountAmount: originalDiscount };
+          const voucherDiscount = lineGrossAmount(restoredLine) * voucherDiscountRate(t.applied_voucher);
+          return {
+            ...restoredLine,
+            _origDiscountAmount: originalDiscount,
+            discountAmount: Math.max(originalDiscount, voucherDiscount),
+            appliedVoucher: t.applied_voucher,
+          };
         })
       );
     } else {
@@ -5424,34 +5454,20 @@ export default function POSPage() {
       }
 
       if (voucherToRedeem?.id) {
-        const { data: currentVoucher, error: voucherCheckError } = await supabase
-          .from("vouchers")
-          .select("id, status, expires_at, redeemed_at")
-          .eq("id", voucherToRedeem.id)
-          .maybeSingle();
-
-        if (voucherCheckError) return showToast("error", "Voucher Redeem Failed", voucherCheckError.message);
-
-        const voucherStatus = String(currentVoucher?.status || "").toLowerCase();
-        const expiryMs = currentVoucher?.expires_at ? new Date(currentVoucher.expires_at).getTime() : 0;
-        const voucherIsActive = currentVoucher?.id
-          && ACTIVE_VOUCHER_STATUSES.includes(voucherStatus || "active")
-          && !currentVoucher.redeemed_at
-          && (!expiryMs || expiryMs > Date.now());
-
-        if (!voucherIsActive) {
-          return showToast("error", "Voucher Redeem Failed", "Voucher is no longer active or was already used.");
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+        const redeemResponse = await fetch("/api/pos/redeem-voucher", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+          body: JSON.stringify({ voucherId: voucherToRedeem.id }),
+        });
+        const redeemJson = await redeemResponse.json().catch(() => ({}));
+        if (!redeemResponse.ok || !redeemJson?.success) {
+          return showToast("error", "Voucher Redeem Failed", redeemJson?.error || "Voucher is no longer active or was already used.");
         }
-
-        const { data: redeemedVoucher, error } = await supabase
-          .from("vouchers")
-          .update({ status: "redeemed", redeemed_at: new Date().toISOString() })
-          .eq("id", voucherToRedeem.id)
-          .is("redeemed_at", null)
-          .select("id")
-          .maybeSingle();
-        if (error) return showToast("error", "Voucher Redeem Failed", error.message);
-        if (!redeemedVoucher?.id) return showToast("error", "Voucher Redeem Failed", "Voucher is no longer active or was already used.");
         setAvailableVouchers((prev) => prev.filter((voucher) => String(voucher.id) !== String(voucherToRedeem.id)));
       }
 
@@ -5722,13 +5738,7 @@ export default function POSPage() {
     setVoucherTargetCartItemId(null);
     setCart((prev) =>
       prev.map((line) => {
-        const x = { ...line };
-        if (x.appliedVoucher) {
-          if (typeof x._origUnitPrice === "number") x.unitPrice = x._origUnitPrice;
-          delete x._origUnitPrice;
-          delete x.appliedVoucher;
-        }
-        return x;
+        return line.appliedVoucher ? restoreVoucherLine(line) : line;
       })
     );
     showToast("info", "Customer Removed", "Ticket is now assigned to walk-in.");
@@ -5759,21 +5769,19 @@ export default function POSPage() {
     setAppliedVoucher({ ...voucher, applied_to_cartItemId: voucherTargetCartItemId });
     setCart((prev) =>
       prev.map((line) => {
-        const cleared = { ...line };
-        if (cleared.appliedVoucher) {
-          if (typeof cleared._origUnitPrice === "number") cleared.unitPrice = cleared._origUnitPrice;
-          delete cleared._origUnitPrice;
-          delete cleared.appliedVoucher;
-        }
+        const cleared = line.appliedVoucher ? restoreVoucherLine(line) : { ...line };
 
         if (line.cartItemId === voucherTargetCartItemId) {
-          const orig = typeof line.unitPrice === "number" ? line.unitPrice : 0;
+          const orig = typeof cleared.unitPrice === "number" ? cleared.unitPrice : 0;
+          const originalDiscount = Number(cleared.discountAmount || cleared.discount_amount || 0);
+          const voucherDiscount = lineGrossAmount(cleared) * voucherDiscountRate(voucher);
           cleared._origUnitPrice = orig;
-          cleared.unitPrice = 0;
+          cleared._origDiscountAmount = originalDiscount;
+          cleared.discountAmount = Math.max(originalDiscount, voucherDiscount);
           cleared.appliedVoucher = {
             id: voucher.id,
             code: voucher.code,
-            reward_text: voucher.reward_text,
+            reward_text: displayVoucherRewardText(voucher),
             reward_type: voucher.reward_type,
             expires_at: voucher.expires_at,
           };
@@ -5781,20 +5789,14 @@ export default function POSPage() {
         return cleared;
       })
     );
-    showToast("success", "Voucher Applied", `${voucher.code} applied (100% OFF).`);
+    showToast("success", "Voucher Applied", `${voucher.code} applied (${isWelcomeVoucher(voucher) ? "50% OFF" : "100% OFF"}).`);
   };
 
   const removeAppliedVoucher = () => {
     setAppliedVoucher(null);
     setCart((prev) =>
       prev.map((line) => {
-        const x = { ...line };
-        if (x.appliedVoucher) {
-          if (typeof x._origUnitPrice === "number") x.unitPrice = x._origUnitPrice;
-          delete x._origUnitPrice;
-          delete x.appliedVoucher;
-        }
-        return x;
+        return line.appliedVoucher ? restoreVoucherLine(line) : line;
       })
     );
     showToast("info", "Voucher Removed", "Voucher discount removed.");

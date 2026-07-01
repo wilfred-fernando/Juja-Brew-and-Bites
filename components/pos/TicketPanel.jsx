@@ -53,9 +53,14 @@ export default function TicketPanel({
 
   const lineGrossAmount = (line) =>
     Number(line?.unitPrice || line?.price || 0) * Number(line?.quantity || line?.qty || 0);
-  const lineDiscountAmount = (line) =>
-    Math.max(0, Math.min(lineGrossAmount(line), Number(line?.discountAmount || line?.discount_amount || 0)));
-  const lineNetAmount = (line) => Math.max(0, lineGrossAmount(line) - lineDiscountAmount(line));
+const lineDiscountAmount = (line) =>
+  Math.max(0, Math.min(lineGrossAmount(line), Number(line?.discountAmount || line?.discount_amount || 0)));
+const lineNetAmount = (line) => Math.max(0, lineGrossAmount(line) - lineDiscountAmount(line));
+const isWelcomeVoucher = (voucher) => {
+  const code = String(voucher?.code || "").toUpperCase();
+  const rewardText = String(voucher?.reward_text || "").toLowerCase();
+  return voucher?.reward_type === "welcome" || code.startsWith("WELCOME") || rewardText.includes("welcome voucher");
+};
 
   /* ✅ FIX: find selected dining option (ID → name mapping) */
   const selectedDining = useMemo(() => {
@@ -422,7 +427,7 @@ export default function TicketPanel({
                   <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-800">
                     <div className="flex items-center justify-between gap-2">
                       <span className="truncate">Voucher: {line.appliedVoucher.code}</span>
-                      <span className="whitespace-nowrap">100% OFF</span>
+                      <span className="whitespace-nowrap">{isWelcomeVoucher(line.appliedVoucher) ? "50% OFF" : "100% OFF"}</span>
                     </div>
                     {line.appliedVoucher.reward_text && (
                       <p className="mt-0.5 line-clamp-2 text-[10px] font-medium text-emerald-700">

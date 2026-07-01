@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { webDiningOptionLabel } from "@/lib/kds";
 import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib/loyalty/annualReset";
+import { isWelcomeVoucher, WELCOME_VOUCHER_REWARD_TEXT } from "@/lib/loyalty/welcomeVoucher";
 import { findVoucherForMenuItem, isPromoCategoryName, isPromoMenuItem, isVoucherAvailable, loyaltyEligibleLineTotal } from "@/lib/menuPromos";
 import BookingTab from "@/components/BookingForm";
 
@@ -23,6 +24,22 @@ const peso0 = (amount) => `₱${Number(amount || 0).toLocaleString("en-PH", { ma
 const ALERT_SOUND_SRC = "/sound/notification.mp3";
 const CUSTOMER_NOTIFICATION_ICON = "/images/juja-logo.png";
 const isMenuItemMarkedAvailable = (item) => item?.is_available !== false && item?.available !== false;
+
+function customerLineGross(line) {
+  return Number(line?.unitPrice || line?.price || 0) * Number(line?.quantity || line?.qty || 0);
+}
+
+function customerLineDiscount(line) {
+  return Math.max(0, Math.min(customerLineGross(line), Number(line?.discountAmount || line?.discount_amount || 0)));
+}
+
+function customerLineNet(line) {
+  return Math.max(0, customerLineGross(line) - customerLineDiscount(line));
+}
+
+function voucherRewardText(voucher) {
+  return isWelcomeVoucher(voucher) ? WELCOME_VOUCHER_REWARD_TEXT : voucher?.reward_text;
+}
 
 const loyaltyPerkSections = [  
   {
@@ -662,6 +679,9 @@ function AddToCartModal({ item, onClose, onAdd }) {
       .reduce((sum, o) => sum + (Number(o.price) || 0), 0) || 0;
 
   const unitPrice = (Number(item.price) || 0) + variantPrice;
+  const promoVoucher = item._promoVoucher || null;
+  const voucherDiscountRate = promoVoucher ? (isWelcomeVoucher(promoVoucher) ? 0.5 : 1) : 0;
+  const voucherDiscountAmount = promoVoucher ? Number((unitPrice * quantity * voucherDiscountRate).toFixed(2)) : 0;
   const variantDetails = Object.values(selections)
     .flat()
     .map((o) => o.name)
@@ -806,15 +826,16 @@ function AddToCartModal({ item, onClose, onAdd }) {
                 variantDetails,
                 selectedOptions,
                 instructions,
+                discountAmount: voucherDiscountAmount,
                 isPromoRedemption: isPromoMenuItem(item),
                 loyaltyPointsEligible: !isPromoMenuItem(item),
-                appliedVoucher: item._promoVoucher
+                appliedVoucher: promoVoucher
                   ? {
-                      id: item._promoVoucher.id,
-                      code: item._promoVoucher.code,
-                      reward_text: item._promoVoucher.reward_text,
-                      reward_type: item._promoVoucher.reward_type,
-                      expires_at: item._promoVoucher.expires_at,
+                      id: promoVoucher.id,
+                      code: promoVoucher.code,
+                      reward_text: voucherRewardText(promoVoucher),
+                      reward_type: promoVoucher.reward_type,
+                      expires_at: promoVoucher.expires_at,
                     }
                   : null,
                 cartItemId: item.editData?.cartItemId || Date.now(),
@@ -822,7 +843,7 @@ function AddToCartModal({ item, onClose, onAdd }) {
             }
             className="bg-blue-200 w-full sm:flex-1 h-12 rounded-xl text-sm font-bold transition-all active:scale-[0.98]"
           >
-            {canAdd ? `Add To Basket • ${peso0(unitPrice * quantity)}` : "Select Required Configurations"}
+            {canAdd ? `Add To Basket • ${peso0(unitPrice * quantity - voucherDiscountAmount)}` : "Select Required Configurations"}
           </button>
         </div>
       </div>
@@ -1278,9 +1299,9 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
     isItemAvailableForSelectedStore(item) &&
     (!isPromoMenuItem(item) || !!findVoucherForMenuItem(activeVouchers, item));
 
-  const subtotal = useMemo(() => cart.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0), [cart]);
+  const subtotal = useMemo(() => cart.reduce((sum, line) => sum + customerLineNet(line), 0), [cart]);
   const loyaltyEligibleSubtotal = useMemo(
-    () => cart.reduce((sum, line) => sum + loyaltyEligibleLineTotal(line, Number(line.unitPrice || 0) * Number(line.quantity || 0)), 0),
+    () => cart.reduce((sum, line) => sum + loyaltyEligibleLineTotal(line, customerLineNet(line)), 0),
     [cart]
   );
   const itemCount = useMemo(() => cart.reduce((sum, i) => sum + i.quantity, 0), [cart]);
@@ -1448,10 +1469,15 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
               <div className="min-w-0">
                 <div className="flex justify-between items-start">
                   <p className="text-sm font-bold text-slate-800 truncate max-w-[70%]">{line.name}</p>
-                  <p className="text-sm font-bold text-slate-800">{peso0(line.unitPrice * line.quantity)}</p>
+                  <p className="text-sm font-bold text-slate-800">{peso0(customerLineNet(line))}</p>
                 </div>
                 {line.variantDetails && <p className="text-xs text-slate-400 mt-0.5 italic">{line.variantDetails}</p>}
                 {line.instructions && <p className="text-xs text-[#FC687D] font-medium mt-1">Note: {line.instructions}</p>}
+                {line.appliedVoucher && (
+                  <p className="mt-1 rounded-lg bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">
+                    Voucher: {line.appliedVoucher.code} • {voucherRewardText(line.appliedVoucher)}
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center justify-between border-t border-slate-50 pt-2 mt-1">
@@ -2382,7 +2408,7 @@ function LoyaltyTab({ member, setMember, user }) {
                           <span className="text-xs font-bold text-slate-800 truncate">{v._isBirthday ? "🎂 Birthday Special" : "🎁 Points Reward"}</span>
                           {countdownObj?.expiresTonight && <span className="bg-amber-50 text-amber-700 text-[9px] font-extrabold uppercase border border-amber-200 px-1.5 rounded">Expiring</span>}
                         </div>
-                        <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">{v.reward_text}</p>
+                        <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">{voucherRewardText(v)}</p>
                       </div>
                       <div className="border-t border-slate-50 pt-2.5 mt-3 flex items-center justify-between text-[10px] font-mono text-slate-400">
                         <span>Code: {v.code}</span>
