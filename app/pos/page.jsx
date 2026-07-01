@@ -1187,7 +1187,7 @@ function Toast({ toast, onClose }) {
   );
 }
 
-const TARGET_WEB_STATUSES = ["scheduled", "accepted", "preparing", "ready", "Scheduled", "Accepted", "Preparing", "Ready"];
+const TARGET_WEB_STATUSES = ["pending", "scheduled", "accepted", "preparing", "ready", "Pending", "Scheduled", "Accepted", "Preparing", "Ready"];
 const calcLoyaltyPoints = (amount) => Number(((Number(amount) || 0) * 0.04).toFixed(2));
 const SHIFT_DENOMINATIONS = [1000, 500, 200, 100, 50, 20, 10, 5, 1];
 const POS_RECEIPT_HISTORY_DAYS = 15;
