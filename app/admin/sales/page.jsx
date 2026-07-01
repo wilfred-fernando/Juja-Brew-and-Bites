@@ -1001,10 +1001,10 @@ export default function AdminSalesPage() {
             <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100">Admin Sales</p>
-                <h1 className="mt-2 text-3xl font-semibold">Sales Report System</h1>
+                <p className="mt-2 text-3xl font-semibold">Sales Report System</p>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-100">Daily, weekly, monthly, yearly, and custom analytics for POS and completed web orders.</p>
               </div>
-              <button onClick={() => loadData(filters)} className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/12 px-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/20">
+              <button onClick={() => loadData(filters)} className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/60 px-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/20">
                 <RefreshCw className="h-4 w-4" /> Refresh
               </button>
             </div>
@@ -1033,7 +1033,7 @@ export default function AdminSalesPage() {
             </div>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2 text-xs text-slate-500"><Filter className="h-4 w-4" /> Filters apply to every report tab.</div>
-              <button onClick={() => loadData(filters)} className="rounded-2xl bg-cyan-700 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-900/10 transition hover:-translate-y-0.5 hover:bg-cyan-600">Apply Filters</button>
+              <button onClick={() => loadData(filters)} className="rounded-2xl bg-blue-300/80  px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-900/10 transition hover:-translate-y-0.5 hover:bg-blue-400/80">Apply Filters</button>
             </div>
           </Card>
         </>
@@ -1044,7 +1044,7 @@ export default function AdminSalesPage() {
 
       {!loading && activeTab === "summary" && (
         <div className="space-y-4">
-          <div className="rounded-t-md bg-slate-700 px-4 py-3 shadow-sm">
+          <div className="rounded-t-md bg-blue-300/50 px-4 py-3 shadow-sm">
             <h1 className="text-lg font-semibold text-white">Sales summary</h1>
           </div>
 
@@ -1065,7 +1065,7 @@ export default function AdminSalesPage() {
             <SummarySelectControl icon={Clock} value={filters.paymentMethod} onChange={(value) => updateSummaryFilters({ paymentMethod: value })} options={paymentOptions} allLabel="All day" />
             <SummarySelectControl icon={Store} value={filters.branchId} onChange={(value) => updateSummaryFilters({ branchId: value })} options={branchOptions} wide />
             <SummarySelectControl icon={UserRound} value={filters.cashierId} onChange={(value) => updateSummaryFilters({ cashierId: value })} options={cashierOptions} wide />
-            <button onClick={() => loadData(filters)} className="ml-auto inline-flex h-10 items-center justify-center gap-2 rounded-md bg-slate-700 px-4 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-600">
+            <button onClick={() => loadData(filters)} className="ml-auto inline-flex h-10 items-center justify-center gap-2 rounded-md bg-blue-300/80 px-4 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-600">
               <RefreshCw className="h-4 w-4" /> Refresh
             </button>
           </div>

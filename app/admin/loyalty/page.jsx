@@ -6,6 +6,18 @@ import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib
 
 const supabase = getSupabaseClient();
 
+const emptyRegistrationForm = {
+  customer_name: "",
+  Phone: "",
+  Email: "",
+  City: "",
+  birthday: "",
+  "Points balance": "0",
+  "Available points": "0",
+  "Total visits": "0",
+  "Total spent": "0",
+};
+
 export default function LoyaltyAdminPage() {
   // =========================
   // DATA
@@ -37,6 +49,9 @@ export default function LoyaltyAdminPage() {
   const [saving, setSaving] = useState(false);
   const [pointsAdd, setPointsAdd] = useState(0);
   const [pointsDeduct, setPointsDeduct] = useState(0);
+  const [registrationOpen, setRegistrationOpen] = useState(false);
+  const [registrationSaving, setRegistrationSaving] = useState(false);
+  const [registrationForm, setRegistrationForm] = useState(emptyRegistrationForm);
 
   // =========================
   // LINK REQUESTS (PENDING APPROVAL)
@@ -718,6 +733,63 @@ export default function LoyaltyAdminPage() {
     }));
   };
 
+  const openRegistrationModal = () => {
+    setRegistrationForm(emptyRegistrationForm);
+    setRegistrationOpen(true);
+    setNotice("");
+  };
+
+  const updateRegistrationField = (field, value) => {
+    setRegistrationForm((prev) => {
+      if (field === "Points balance") {
+        return {
+          ...prev,
+          "Points balance": value,
+          "Available points": prev["Available points"] === "" || prev["Available points"] === prev["Points balance"]
+            ? value
+            : prev["Available points"],
+        };
+      }
+      return { ...prev, [field]: value };
+    });
+  };
+
+  const handleManualRegistration = async (e) => {
+    e.preventDefault();
+    setRegistrationSaving(true);
+    setNotice("");
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      const response = await fetch("/api/admin/loyalty-member-register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify(registrationForm),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.error || "Unable to register loyalty member.");
+
+      await fetchMembers();
+      setRegistrationOpen(false);
+      setRegistrationForm(emptyRegistrationForm);
+
+      const code = payload?.member?.customer_code || payload?.member?.["customer_code"] || "new member";
+      const voucherText = Number(payload?.pointVouchersCreated || 0) > 0
+        ? ` ${payload.pointVouchersCreated} point voucher${Number(payload.pointVouchersCreated) === 1 ? "" : "s"} created.`
+        : "";
+      const warningText = payload?.voucherWarning ? ` Voucher allocation skipped: ${payload.voucherWarning}` : "";
+      setNotice(`Loyalty member registered: ${code}.${voucherText}${warningText}`);
+    } catch (err) {
+      setNotice("Registration failed: " + (err?.message || "Unknown error"));
+    } finally {
+      setRegistrationSaving(false);
+    }
+  };
+
   const handleSave = async (e) => {
   e.preventDefault();
   if (!editingMember?.id) return;
@@ -1123,12 +1195,23 @@ export default function LoyaltyAdminPage() {
   return (
     <div className="max-w-6xl mx-auto pb-24 px-3 md:px-8 space-y-6">
       <header className="pt-4 md:pt-6">
-        <h1 className="text-2xl md:text-4xl font-normal text-slate-800 tracking-tight">
-          JUJA LOYALTY PROGRAM
-        </h1>
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl md:text-4xl font-normal text-slate-800 tracking-tight">
+              JUJA LOYALTY PROGRAM
+            </h1>
         <p className="text-slate-500 text-xs md:text-sm mt-2">
           ADMIN DASHBOARD (Members: {members.length} • Linked: {linkedMembersList.length} • Not linked: {unlinkedMembersList.length})
-        </p>
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={openRegistrationModal}
+            className="self-start px-4 py-3 rounded-2xl bg-[#1f2f46] text-white text-xs font-semibold tracking-wide shadow-sm hover:bg-[#2d405a] active:scale-95 transition"
+          >
+            Manual Registration
+          </button>
+        </div>
 
         {notice && (
           <div className="mt-4 bg-sky-50 border border-slate-200 text-slate-700 rounded-xl p-3 text-sm">
@@ -1337,6 +1420,157 @@ export default function LoyaltyAdminPage() {
           unlinkedMembersList.map((m) => <MemberCard key={m.id} member={m} />)
         )}
       </section>
+
+      {/* MANUAL REGISTRATION MODAL */}
+      {registrationOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4"
+          onClick={() => setRegistrationOpen(false)}
+        >
+          <div
+            className="bg-white w-full max-w-2xl rounded-t-[24px] md:rounded-[28px] p-5 md:p-8 shadow-2xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start mb-5">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Admin Customer</p>
+                <h3 className="text-xl md:text-2xl font-semibold text-slate-800">Manual Loyalty Registration</h3>
+                <p className="text-xs text-slate-500 mt-1">Customer code will be generated automatically.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRegistrationOpen(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-500 hover:text-slate-800 hover:bg-slate-100 active:scale-90"
+              >
+                x
+              </button>
+            </div>
+
+            <form onSubmit={handleManualRegistration} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={registrationForm.customer_name}
+                    onChange={(e) => updateRegistrationField("customer_name", e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Phone</label>
+                  <input
+                    type="text"
+                    required
+                    value={registrationForm.Phone}
+                    onChange={(e) => updateRegistrationField("Phone", e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Birthday</label>
+                  <input
+                    type="date"
+                    required
+                    value={registrationForm.birthday}
+                    onChange={(e) => updateRegistrationField("birthday", e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={registrationForm.Email}
+                    onChange={(e) => updateRegistrationField("Email", e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">City / Address</label>
+                  <input
+                    type="text"
+                    value={registrationForm.City}
+                    onChange={(e) => updateRegistrationField("City", e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 border-t border-slate-100 pt-4">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Total Points</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    inputMode="decimal"
+                    value={registrationForm["Points balance"]}
+                    onChange={(e) => updateRegistrationField("Points balance", e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Available Points</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    inputMode="decimal"
+                    value={registrationForm["Available points"]}
+                    onChange={(e) => updateRegistrationField("Available points", e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Visits</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={registrationForm["Total visits"]}
+                    onChange={(e) => updateRegistrationField("Total visits", e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Total Spent</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    inputMode="decimal"
+                    value={registrationForm["Total spent"]}
+                    onChange={(e) => updateRegistrationField("Total spent", e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-sky-50 border border-sky-100 rounded-xl p-3 text-xs text-slate-600">
+                If available points are 100 or higher, point reward vouchers will be generated after saving.
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setRegistrationOpen(false)}
+                  className="w-full py-3 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={registrationSaving}
+                  className="w-full py-3 rounded-xl bg-[#1f2f46] text-white text-xs font-bold disabled:opacity-70"
+                >
+                  {registrationSaving ? "Registering..." : "Register Member"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* EDIT MODAL */}
       {isModalOpen && editingMember && (
@@ -1642,8 +1876,8 @@ export default function LoyaltyAdminPage() {
                   onClick={() => openVoucherList(voucherView.member, status)}
                   className={`px-3 py-2 rounded-xl border text-xs active:scale-95 ${
                     voucherView.status === status
-                      ? "bg-[#5b7288] border-[#5b7288] text-white"
-                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                      ? "bg-blue-300/50 border-[#5b7288] text-white"
+                      : "bg-white border-slate-200 text-slate-600 hover:bg-blue-200/50"
                   }`}
                 >
                   {voucherStatusLabel(status)}
