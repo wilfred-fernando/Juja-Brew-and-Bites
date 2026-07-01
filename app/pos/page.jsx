@@ -43,6 +43,7 @@ const RECEIPT_COLUMNS = 32;
 const RECEIPT_LOGO_URL = "https://images.jujabrewandbites.com/SIGNAGE%20light%20with%20korean%20letters%203.png";
 const POS_AUTO_REFRESH_MS = 5000;
 const bluetoothPrinterDeviceCache = new Map();
+const bluetoothPrinterCharacteristicCache = new Map();
 const PRINTER_ROLE_LABELS = {
   receipt: "Bar",
   order_slip: "Kitchen",
@@ -107,6 +108,40 @@ function cacheBluetoothPrinterDevice(device, cfg = {}) {
   bluetoothDeviceCacheKeys(device, cfg).forEach((key) => {
     bluetoothPrinterDeviceCache.set(key, device);
   });
+}
+
+function bluetoothConnectionCacheKeys(cfg = {}) {
+  return [
+    cfg?.ble_device_id,
+    cfg?.ble_device_name,
+    cfg?.name,
+    `${normalizeBluetoothUuid(cfg?.ble_service_uuid, DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID)}:${normalizeBluetoothUuid(
+      cfg?.ble_characteristic_uuid,
+      DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID
+    )}`,
+    "default",
+  ].filter(Boolean);
+}
+
+function cacheBluetoothPrinterCharacteristic(cfg = {}, characteristic) {
+  if (!characteristic) return;
+  bluetoothConnectionCacheKeys(cfg).forEach((key) => {
+    bluetoothPrinterCharacteristicCache.set(key, characteristic);
+  });
+}
+
+function getCachedBluetoothPrinterCharacteristic(cfg = {}) {
+  const keys = bluetoothConnectionCacheKeys(cfg);
+  for (const key of keys) {
+    const characteristic = bluetoothPrinterCharacteristicCache.get(key);
+    const device = characteristic?.service?.device;
+    if (characteristic && device?.gatt?.connected) return characteristic;
+  }
+  return null;
+}
+
+function forgetBluetoothPrinterCharacteristic(cfg = {}) {
+  bluetoothConnectionCacheKeys(cfg).forEach((key) => bluetoothPrinterCharacteristicCache.delete(key));
 }
 
 function bluetoothDeviceMatchesConfig(device, cfg = {}) {
@@ -197,6 +232,9 @@ async function findSavedBluetoothDevice(cfg, serviceUuid) {
 }
 
 async function bleConnect(cfg) {
+  const cachedCharacteristic = getCachedBluetoothPrinterCharacteristic(cfg);
+  if (cachedCharacteristic) return cachedCharacteristic;
+
   const serviceUuid = normalizeBluetoothUuid(cfg?.ble_service_uuid, DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID);
   const characteristicUuid = normalizeBluetoothUuid(
     cfg?.ble_characteristic_uuid,
@@ -208,6 +246,8 @@ async function bleConnect(cfg) {
   const service = await server?.getPrimaryService(serviceUuid);
   const characteristic = await service?.getCharacteristic(characteristicUuid);
 
+  cacheBluetoothPrinterDevice(device, cfg);
+  cacheBluetoothPrinterCharacteristic(cfg, characteristic);
   return characteristic;
 }
 
@@ -389,10 +429,12 @@ async function printByRole(role, text, printerConfig, opts = {}) {
 
   if (!cfg) {
     if (fallbackToBrowser) print58mmTextBrowser(text);
+    else throw new Error(`${PRINTER_ROLE_LABELS[role] || "Printer"} Bluetooth printer is not configured.`);
     return false;
   }
 
   if (cfg.transport === "browser") {
+    if (!fallbackToBrowser) throw new Error(`${PRINTER_ROLE_LABELS[role] || "Printer"} is set to browser preview, not Bluetooth.`);
     print58mmTextBrowser(text);
     return true;
   }
@@ -405,6 +447,7 @@ async function printByRole(role, text, printerConfig, opts = {}) {
     await blePrint(characteristic, text, role);
     return true;
   } catch (err) {
+    forgetBluetoothPrinterCharacteristic(cfg);
     console.warn("Bluetooth printing failed", err);
     throw err;
   }
@@ -4563,7 +4606,7 @@ export default function POSPage() {
     try {
       setReceiptText(receiptCopy);
       setReceiptOpen(true);
-      await printByRole("receipt", receiptCopy, printerConfig);
+      await printByRole("receipt", receiptCopy, printerConfig, { fallbackToBrowser: false });
       showToast("success", "Receipt Reprinted", receipt.receipt_number);
     } catch (error) {
       showToast("error", "Reprint Failed", error?.message || "Unable to reprint receipt.");
@@ -4818,9 +4861,6 @@ export default function POSPage() {
           name: device.name || cfg.ble_device_name || cfg.name || `${PRINTER_ROLE_LABELS[role]} Printer`,
         });
       }
-      try {
-        characteristic?.service?.device?.gatt?.disconnect?.();
-      } catch {}
       showToast("success", "Printer Reconnected", `${PRINTER_ROLE_LABELS[role]} permission is still available for this browser.`);
     } catch (error) {
       showToast("warn", "Reconnect Needs Permission", error?.message || "Use Search to grant printer permission again.");
@@ -4877,9 +4917,15 @@ export default function POSPage() {
       try {
         const server = await device.gatt?.connect();
         const service = await server?.getPrimaryService(serviceUuid);
-        await service?.getCharacteristic(characteristicUuid);
+        const characteristic = await service?.getCharacteristic(characteristicUuid);
+        cacheBluetoothPrinterCharacteristic({
+          ...form,
+          ble_device_id: device.id,
+          ble_device_name: device.name || form.name,
+          ble_service_uuid: serviceUuid,
+          ble_characteristic_uuid: characteristicUuid,
+        }, characteristic);
         connectionVerified = true;
-        device.gatt?.disconnect?.();
       } catch (err) {
         console.warn("Bluetooth printer validation skipped or failed", err);
       }
@@ -4988,7 +5034,7 @@ export default function POSPage() {
         printedAt: record.created_at,
       });
       try {
-        await printByRole("receipt", reportText, printerConfig, { fallbackToBrowser: true });
+        await printByRole("receipt", reportText, printerConfig, { fallbackToBrowser: false });
       } catch (printError) {
         showToast("warn", "End Day Report Not Printed", printError?.message || "Select and save the receipt printer in POS Settings.");
       }
@@ -5032,7 +5078,7 @@ export default function POSPage() {
     setReceiptText(reportText);
     setReceiptOpen(true);
     try {
-      await printByRole("receipt", reportText, printerConfig, { fallbackToBrowser: true });
+      await printByRole("receipt", reportText, printerConfig, { fallbackToBrowser: false });
       showToast("success", "Shift Report Printed", "Closed shift report was sent to the receipt printer.");
     } catch (printError) {
       showToast("warn", "Shift Report Not Printed", printError?.message || "Select and save the receipt printer in POS Settings.");
