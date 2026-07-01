@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { webDiningOptionLabel } from "@/lib/kds";
 import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib/loyalty/annualReset";
+import { findVoucherForMenuItem, isPromoCategoryName, isPromoMenuItem, isVoucherAvailable, loyaltyEligibleLineTotal } from "@/lib/menuPromos";
 import BookingTab from "@/components/BookingForm";
 
 const Barcode = dynamic(() => import("react-barcode"), { ssr: false });
@@ -798,11 +799,24 @@ function AddToCartModal({ item, onClose, onAdd }) {
               onAdd({
                 id: item.id,
                 name: item.name,
+                category: item.category || item.category_name || item.categoryName || null,
+                categoryId: item.category_id || item.menu_category_id || null,
                 unitPrice,
                 quantity,
                 variantDetails,
                 selectedOptions,
                 instructions,
+                isPromoRedemption: isPromoMenuItem(item),
+                loyaltyPointsEligible: !isPromoMenuItem(item),
+                appliedVoucher: item._promoVoucher
+                  ? {
+                      id: item._promoVoucher.id,
+                      code: item._promoVoucher.code,
+                      reward_text: item._promoVoucher.reward_text,
+                      reward_type: item._promoVoucher.reward_type,
+                      expires_at: item._promoVoucher.expires_at,
+                    }
+                  : null,
                 cartItemId: item.editData?.cartItemId || Date.now(),
               })
             }
@@ -819,7 +833,7 @@ function AddToCartModal({ item, onClose, onAdd }) {
 /* ──────────────────────────────────────────────────────────────
     Interactive Checkout Confirmation Drawer
 ────────────────────────────────────────────────────────────── */
-function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems, isSubmitting, selectedStore, selectedStoreName }) {
+function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEligibleSubtotal, cartItems, isSubmitting, selectedStore, selectedStoreName }) {
   const [diningOption, setDiningOption] = useState("TAKEOUT");
   const [fulfillmentDate, setFulfillmentDate] = useState(getManilaDateString(0));
   const [fulfillmentTime, setFulfillmentTime] = useState(getManilaTimeString(30));
@@ -853,7 +867,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, cartItems,
     isValidTime &&
     (diningOption !== "DELIVERY" || deliveryAddress.trim().length >= 8) &&
     (!requiresPaymentProof || !!paymentProof);
-  const potentialPointsEarned = loyaltyPoints(subtotal);
+  const potentialPointsEarned = loyaltyPoints(loyaltyEligibleSubtotal);
 
   return (
     <div className="fixed inset-0 z-[150] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4">
@@ -1128,6 +1142,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
   const [stores, setStores] = useState([]);
   const [itemStoreAvailability, setItemStoreAvailability] = useState([]);
   const [categoryStoreAvailability, setCategoryStoreAvailability] = useState([]);
+  const [activeVouchers, setActiveVouchers] = useState([]);
   const [availabilityNotice, setAvailabilityNotice] = useState("");
 
   const [selectedItemForModal, setSelectedItemForModal] = useState(null);
@@ -1158,6 +1173,32 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
     }
     fetchMenu();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchActiveVouchers() {
+      if (!member?.id) {
+        setActiveVouchers([]);
+        return;
+      }
+      const { data, error } = await supabase
+        .from("vouchers")
+        .select("id, code, reward_text, reward_type, status, expires_at, redeemed_at, member_id")
+        .eq("member_id", member.id)
+        .order("issued_at", { ascending: false });
+      if (cancelled) return;
+      if (error) {
+        console.warn("Unable to load promo vouchers:", error.message);
+        setActiveVouchers([]);
+        return;
+      }
+      setActiveVouchers((data || []).filter((voucher) => isVoucherAvailable(voucher)));
+    }
+    fetchActiveVouchers();
+    return () => {
+      cancelled = true;
+    };
+  }, [member?.id]);
 
   useEffect(() => {
     const channel = supabase
@@ -1200,9 +1241,16 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       const row = categoryStoreAvailability.find(
         (entry) => String(entry.category_id) === String(cat.id) && String(entry.store_id) === String(selectedBranch)
       );
-      return row ? row.is_available !== false : true;
+      const storeAvailable = row ? row.is_available !== false : true;
+      if (!storeAvailable) return false;
+      if (!isPromoCategoryName(cat.name)) return true;
+      return items.some(
+        (item) =>
+          String(item.category || "").toLowerCase() === String(cat.name || "").toLowerCase() &&
+          findVoucherForMenuItem(activeVouchers, item)
+      );
     });
-  }, [cats, categoryStoreAvailability, selectedBranch]);
+  }, [cats, categoryStoreAvailability, selectedBranch, items, activeVouchers]);
 
   useEffect(() => {
     if (activeTab === "ALL") return;
@@ -1213,8 +1261,9 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
     return items
       .filter((i) => visibleCategories.some((cat) => cat.name === i.category))
       .filter((i) => (activeTab === "ALL" ? true : i.category === activeTab))
+      .filter((i) => (!isPromoMenuItem(i) ? true : !!findVoucherForMenuItem(activeVouchers, i)))
       .filter((i) => (q ? (i.name || "").toLowerCase().includes(q) : true));
-  }, [items, visibleCategories, activeTab, q]);
+  }, [items, visibleCategories, activeTab, q, activeVouchers]);
 
   const isItemAvailableForSelectedStore = (item) => {
     if (!selectedBranch) return true;
@@ -1224,9 +1273,16 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
     return row ? row.is_available !== false : true;
   };
 
-  const isItemOrderable = (item) => isMenuItemMarkedAvailable(item) && isItemAvailableForSelectedStore(item);
+  const isItemOrderable = (item) =>
+    isMenuItemMarkedAvailable(item) &&
+    isItemAvailableForSelectedStore(item) &&
+    (!isPromoMenuItem(item) || !!findVoucherForMenuItem(activeVouchers, item));
 
   const subtotal = useMemo(() => cart.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0), [cart]);
+  const loyaltyEligibleSubtotal = useMemo(
+    () => cart.reduce((sum, line) => sum + loyaltyEligibleLineTotal(line, Number(line.unitPrice || 0) * Number(line.quantity || 0)), 0),
+    [cart]
+  );
   const itemCount = useMemo(() => cart.reduce((sum, i) => sum + i.quantity, 0), [cart]);
 
   const onAddToCart = (line) => {
@@ -1357,7 +1413,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
           console.warn("Web order email notification failed:", emailError);
         });
 
-      alert(`🎉 Order sent to POS! Method: ${fulfillmentMetadata.diningOption} @ ${fulfillmentMetadata.fulfillmentTime}\nEstimated loyalty points: +${loyaltyPoints(subtotal).toFixed(2)} upon payment collection.`);
+      alert(`🎉 Order sent to POS! Method: ${fulfillmentMetadata.diningOption} @ ${fulfillmentMetadata.fulfillmentTime}\nEstimated loyalty points: +${loyaltyPoints(loyaltyEligibleSubtotal).toFixed(2)} upon payment collection.`);
       setCart([]);
       setConfirmationOpen(false);
       setCartOpen(false);
@@ -1385,7 +1441,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
               key={line.cartItemId || idx}
               onClick={() => {
                 const base = items.find((i) => i.id === line.id) || {};
-                setSelectedItemForModal({ ...base, editData: line, editIndex: idx });
+                setSelectedItemForModal({ ...base, _promoVoucher: line.appliedVoucher || findVoucherForMenuItem(activeVouchers, base), editData: line, editIndex: idx });
               }}
               className="w-full text-left border border-slate-200 bg-white rounded-xl p-3 hover:border-rose-200 transition cursor-pointer flex flex-col justify-between gap-2"
             >
@@ -1528,7 +1584,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
                 disabled={!orderable}
                 onClick={() => {
                   if (!orderable) return;
-                  setSelectedItemForModal(item);
+                  setSelectedItemForModal({ ...item, _promoVoucher: findVoucherForMenuItem(activeVouchers, item) });
                 }}
                 className={`group relative flex h-full min-h-[230px] flex-col items-center justify-between rounded-[100px] border p-3 text-center shadow-[0_18px_45px_rgba(15,23,42,0.08)] transition-all duration-300 ${
                   orderable
@@ -1646,6 +1702,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
         onClose={() => setConfirmationOpen(false)}
         onConfirm={executeOrderSubmission}
         subtotal={subtotal}
+        loyaltyEligibleSubtotal={loyaltyEligibleSubtotal}
         cartItems={cart}
         isSubmitting={isSubmitting}
         selectedStore={selectedStore}

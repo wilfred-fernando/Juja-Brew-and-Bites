@@ -7,6 +7,7 @@ import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { deductInventoryForOrder, normalizeUnit, restoreInventoryForOrder } from "@/lib/inventory";
 import { appendKdsTicketItems, markKdsTicketItemVoided, markKdsTicketStatus, upsertKdsTicket, webDiningOptionLabel } from "@/lib/kds";
 import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib/loyalty/annualReset";
+import { loyaltyEligibleLineTotal } from "@/lib/menuPromos";
 import TicketPanel from "@/components/pos/TicketPanel";
 import { Barcode, Bluetooth, CalendarDays, DollarSign, MapPin, MessageSquare, Phone, Printer, RefreshCw, RotateCcw, Save, Search, ShoppingBasket, Star, Trash2 } from "lucide-react";
 
@@ -684,6 +685,7 @@ function buildReceiptText({
   store,
   cashierName,
   loyaltyAlreadyAwarded = false,
+  loyaltyEligibleTotal = null,
 }) {
   const rs = receiptSettings || {};
   const lines = [];
@@ -704,7 +706,10 @@ function buildReceiptText({
   const totalValue = Number(total || subtotalValue - discountValue || 0);
   const customerName = customerDisplayName(customer);
   const customerPhone = customerDisplayPhone(customer);
-  const pointsEarned = customerName ? calcLoyaltyPoints(totalValue) : 0;
+  const pointsBaseValue = loyaltyEligibleTotal === null || typeof loyaltyEligibleTotal === "undefined"
+    ? totalValue
+    : Number(loyaltyEligibleTotal || 0);
+  const pointsEarned = customerName ? calcLoyaltyPoints(pointsBaseValue) : 0;
   const availablePoints = customerName
     ? Number((customerAvailablePoints(customer) + (loyaltyAlreadyAwarded ? 0 : pointsEarned)).toFixed(2))
     : 0;
@@ -2303,6 +2308,10 @@ function lineNetAmount(line) {
   return Math.max(0, lineGrossAmount(line) - lineDiscountAmount(line));
 }
 
+function cartLoyaltyEligibleTotal(lines = []) {
+  return (lines || []).reduce((sum, line) => sum + loyaltyEligibleLineTotal(line, lineNetAmount(line)), 0);
+}
+
 function jsonSafeValue(value) {
   return JSON.parse(JSON.stringify(value, (_key, current) => {
     if (typeof current === "number" && !Number.isFinite(current)) return 0;
@@ -2746,7 +2755,8 @@ export default function POSPage() {
 
     if (draft.customer?.id) {
       try {
-        await awardMemberLoyaltyPoints(draft.customer.id, calcLoyaltyPoints(draft.total), draft.total, orderRow.id);
+        const draftLoyaltyEligibleTotal = cartLoyaltyEligibleTotal(draftCart);
+        await awardMemberLoyaltyPoints(draft.customer.id, calcLoyaltyPoints(draftLoyaltyEligibleTotal), draft.total, orderRow.id);
       } catch (loyaltyError) {
         console.warn("Offline synced sale loyalty update skipped:", loyaltyError);
       }
@@ -5361,6 +5371,8 @@ export default function POSPage() {
     const discount = Number(itemDiscountTotal + orderDiscount);
     const total = Number(totalDue || 0);
     const grossTotal = Number(cart.reduce((sum, line) => sum + lineGrossAmount(line), 0));
+    const loyaltyEligibleTotal = cartLoyaltyEligibleTotal(cart);
+    const voucherToRedeem = appliedVoucher || cart.find((line) => line?.appliedVoucher?.id)?.appliedVoucher || null;
     const chargedDiningLabel = activeWebOrderId
       ? webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName)
       : ticketDiningLabel;
@@ -5411,11 +5423,11 @@ export default function POSPage() {
         activeWebOrderForCharge = webOrderForCharge;
       }
 
-      if (appliedVoucher?.id) {
+      if (voucherToRedeem?.id) {
         const { data: currentVoucher, error: voucherCheckError } = await supabase
           .from("vouchers")
           .select("id, status, expires_at, redeemed_at")
-          .eq("id", appliedVoucher.id)
+          .eq("id", voucherToRedeem.id)
           .maybeSingle();
 
         if (voucherCheckError) return showToast("error", "Voucher Redeem Failed", voucherCheckError.message);
@@ -5434,13 +5446,13 @@ export default function POSPage() {
         const { data: redeemedVoucher, error } = await supabase
           .from("vouchers")
           .update({ status: "redeemed", redeemed_at: new Date().toISOString() })
-          .eq("id", appliedVoucher.id)
+          .eq("id", voucherToRedeem.id)
           .is("redeemed_at", null)
           .select("id")
           .maybeSingle();
         if (error) return showToast("error", "Voucher Redeem Failed", error.message);
         if (!redeemedVoucher?.id) return showToast("error", "Voucher Redeem Failed", "Voucher is no longer active or was already used.");
-        setAvailableVouchers((prev) => prev.filter((voucher) => String(voucher.id) !== String(appliedVoucher.id)));
+        setAvailableVouchers((prev) => prev.filter((voucher) => String(voucher.id) !== String(voucherToRedeem.id)));
       }
 
       const { data: receiptData, error: receiptErr } = await supabase.rpc("generate_receipt_number", {
@@ -5543,11 +5555,11 @@ export default function POSPage() {
 
         await markKdsTicketStatus(supabase, { sourceType: "web", sourceId: activeWebOrderId, status: "completed" });
 
-        await awardWebOrderLoyaltyPoints({ ...activeWebOrderForCharge, pos_order_id: orderRow.id }, calcLoyaltyPoints(total), attachedCustomer?.id);
+        await awardWebOrderLoyaltyPoints({ ...activeWebOrderForCharge, pos_order_id: orderRow.id }, calcLoyaltyPoints(loyaltyEligibleTotal), attachedCustomer?.id);
       } else {
         if (attachedCustomer?.id) {
           try {
-            const updatedCustomer = await awardMemberLoyaltyPoints(attachedCustomer.id, calcLoyaltyPoints(total), total, orderRow.id);
+            const updatedCustomer = await awardMemberLoyaltyPoints(attachedCustomer.id, calcLoyaltyPoints(loyaltyEligibleTotal), total, orderRow.id);
             if (updatedCustomer?.id) {
               receiptCustomer = updatedCustomer;
               loyaltyAlreadyAwarded = true;
@@ -5567,7 +5579,7 @@ export default function POSPage() {
 
       const receipt = buildReceiptText({
         receiptSettings, order: { ...orderRow, id: generatedReceiptNumber }, cart, diningOptionName: chargedDiningLabel || "WEB_ORDER", payment: paymentLabel,
-        customer: receiptCustomer, subtotal: grossTotal, discount, total, voucher: appliedVoucher, appliedDiscount, store: currentStore, cashierName, loyaltyAlreadyAwarded,
+        customer: receiptCustomer, subtotal: grossTotal, discount, total, voucher: voucherToRedeem, appliedDiscount, store: currentStore, cashierName, loyaltyAlreadyAwarded, loyaltyEligibleTotal,
       });
 
       setReceiptText(receipt);
@@ -5614,7 +5626,7 @@ export default function POSPage() {
       ]);
     } catch (err) {
       console.error("Execution failed:", err);
-      if (!createdOrderRow && !activeWebOrderId && !appliedVoucher?.id && isProbablyOfflineError(err)) {
+      if (!createdOrderRow && !activeWebOrderId && !voucherToRedeem?.id && isProbablyOfflineError(err)) {
         queueOfflineCharge(offlineDraft);
         setIsOfflineMode(true);
 
@@ -5638,10 +5650,11 @@ export default function POSPage() {
           subtotal: grossTotal,
           discount,
           total,
-          voucher: appliedVoucher,
+          voucher: voucherToRedeem,
           appliedDiscount,
           store: currentStore,
           cashierName,
+          loyaltyEligibleTotal,
           copyLabel: "*** OFFLINE COPY - PENDING SYNC ***",
         });
 

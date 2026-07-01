@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { cacheHeaders, getCached } from "@/lib/serverCache";
+import { isPromoCategoryName, isPromoMenuItem } from "@/lib/menuPromos";
 
 const MENU_TTL_MS = 30 * 1000;
 
@@ -51,9 +52,14 @@ async function loadMenuData(mode) {
   const errors = [itemRes.error, catRes.error, storeRes?.error, availabilityRes?.error, categoryAvailabilityRes?.error].filter(Boolean);
   if (errors.length) throw errors[0];
 
+  const rawItems = itemRes.data || [];
+  const rawCategories = catRes.data || [];
+  const items = isCustomer ? rawItems : rawItems.filter((item) => !isPromoMenuItem(item));
+  const categories = isCustomer ? rawCategories : rawCategories.filter((cat) => !isPromoCategoryName(cat.name));
+
   return {
-    items: itemRes.data || [],
-    categories: catRes.data || [],
+    items,
+    categories,
     stores: storeRes?.data || [],
     itemStoreAvailability: availabilityRes?.data || [],
     categoryStoreAvailability: categoryAvailabilityRes?.data || [],
