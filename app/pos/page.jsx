@@ -5435,7 +5435,6 @@ export default function POSPage() {
           .from("vouchers")
           .update({ status: "redeemed", redeemed_at: new Date().toISOString() })
           .eq("id", appliedVoucher.id)
-          .in("status", ACTIVE_VOUCHER_STATUSES)
           .is("redeemed_at", null)
           .select("id")
           .maybeSingle();
