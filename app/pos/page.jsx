@@ -1188,6 +1188,7 @@ function Toast({ toast, onClose }) {
 }
 
 const TARGET_WEB_STATUSES = ["pending", "scheduled", "accepted", "preparing", "ready", "Pending", "Scheduled", "Accepted", "Preparing", "Ready"];
+const ACTIVE_VOUCHER_STATUSES = ["active", "available"];
 const calcLoyaltyPoints = (amount) => Number(((Number(amount) || 0) * 0.04).toFixed(2));
 const SHIFT_DENOMINATIONS = [1000, 500, 200, 100, 50, 20, 10, 5, 1];
 const POS_RECEIPT_HISTORY_DAYS = 15;
@@ -3571,7 +3572,7 @@ export default function POSPage() {
         ...x,
         reward_type: x.reward_type || (String(x.code || "").toUpperCase().startsWith("BDAY") ? "birthday" : "reward"),
       }))
-      .filter((x) => String(x.status || "active").toLowerCase() === "active")
+      .filter((x) => ACTIVE_VOUCHER_STATUSES.includes(String(x.status || "active").toLowerCase()))
       .filter((x) => {
         if (!x.expires_at) return true;
         const expMs = new Date(x.expires_at).getTime();
@@ -5374,11 +5375,31 @@ export default function POSPage() {
       }
 
       if (appliedVoucher?.id) {
+        const { data: currentVoucher, error: voucherCheckError } = await supabase
+          .from("vouchers")
+          .select("id, status, expires_at, redeemed_at")
+          .eq("id", appliedVoucher.id)
+          .maybeSingle();
+
+        if (voucherCheckError) return showToast("error", "Voucher Redeem Failed", voucherCheckError.message);
+
+        const voucherStatus = String(currentVoucher?.status || "").toLowerCase();
+        const expiryMs = currentVoucher?.expires_at ? new Date(currentVoucher.expires_at).getTime() : 0;
+        const voucherIsActive = currentVoucher?.id
+          && ACTIVE_VOUCHER_STATUSES.includes(voucherStatus || "active")
+          && !currentVoucher.redeemed_at
+          && (!expiryMs || expiryMs > Date.now());
+
+        if (!voucherIsActive) {
+          return showToast("error", "Voucher Redeem Failed", "Voucher is no longer active or was already used.");
+        }
+
         const { data: redeemedVoucher, error } = await supabase
           .from("vouchers")
           .update({ status: "redeemed", redeemed_at: new Date().toISOString() })
           .eq("id", appliedVoucher.id)
-          .eq("status", "active")
+          .in("status", ACTIVE_VOUCHER_STATUSES)
+          .is("redeemed_at", null)
           .select("id")
           .maybeSingle();
         if (error) return showToast("error", "Voucher Redeem Failed", error.message);

@@ -133,6 +133,10 @@ export default function LoyaltyAdminPage() {
     });
   }
 
+  function roundPoints(value) {
+    return Number((Number(value) || 0).toFixed(2));
+  }
+
   function displayDateTime(value) {
     if (!value) return "—";
     const date = new Date(value);
@@ -737,8 +741,8 @@ export default function LoyaltyAdminPage() {
 
     const delta = add - deduct;
 
-    const newTotal = Math.max(0, currentTotal + delta);
-    const newAvail = Math.max(0, currentAvail + delta);
+    const newTotal = roundPoints(Math.max(0, currentTotal + delta));
+    const newAvail = roundPoints(Math.max(0, currentAvail + delta));
 
     const updatePayload = {
       customer_name: form.customer_name,
@@ -1416,8 +1420,9 @@ export default function LoyaltyAdminPage() {
                     </label>
                     <input
                       type="number"
-                      step="1"
+                      step="0.01"
                       min="0"
+                      inputMode="decimal"
                       value={pointsAdd}
                       onChange={(e) => setPointsAdd(e.target.value)}
                       className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
@@ -1430,8 +1435,9 @@ export default function LoyaltyAdminPage() {
                     </label>
                     <input
                       type="number"
-                      step="1"
+                      step="0.01"
                       min="0"
+                      inputMode="decimal"
                       value={pointsDeduct}
                       onChange={(e) => setPointsDeduct(e.target.value)}
                       className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
@@ -1445,12 +1451,12 @@ export default function LoyaltyAdminPage() {
                   <p className="mt-1">
                     Total:{" "}
                     <span className="font-mono">
-                      {Math.max(0, Number(form["Points balance"] || 0) + (Number(pointsAdd || 0) - Number(pointsDeduct || 0)))}
+                      {roundPoints(Math.max(0, Number(form["Points balance"] || 0) + (Number(pointsAdd || 0) - Number(pointsDeduct || 0)))).toFixed(2)}
                     </span>
                     {"  "}•{"  "}
                     Available:{" "}
                     <span className="font-mono">
-                      {Math.max(0, Number(form["Available points"] || 0) + (Number(pointsAdd || 0) - Number(pointsDeduct || 0)))}
+                      {roundPoints(Math.max(0, Number(form["Available points"] || 0) + (Number(pointsAdd || 0) - Number(pointsDeduct || 0)))).toFixed(2)}
                     </span>
                   </p>
                 </div>
