@@ -254,6 +254,7 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
     const closedAt = record.created_at;
     const rowDate = (closedAt || openedAt || "").slice(0, 10);
     const storeName = storeById.get(storeId) || storeId || "Store";
+    const paymentValue = (...names) => names.reduce((sum, name) => sum + num(payments[name]), 0);
 
     rows.push({
       id: record.id,
@@ -280,12 +281,12 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
       netSales: num(summary.netSales, cashPayments + Object.values(payments).reduce((sum, value) => sum + num(value), 0) - cashRefunds),
       payments: {
         Cash: cashPayments,
-        CARD: num(payments.Card),
-        GCASH: num(payments.Gcash),
-        GRABFOOD: num(payments.GrabFood),
-        QRPH: num(payments.QRPH),
-        Panda: num(payments.Panda),
-        "Grab Dine Out": num(payments["Grab Dine Out"]),
+        CARD: paymentValue("Card", "CARD"),
+        GCASH: paymentValue("Gcash", "GCash", "GCASH"),
+        GRABFOOD: paymentValue("GrabFood", "GRABFOOD"),
+        QRPH: paymentValue("QRPH", "Qrph"),
+        Panda: paymentValue("Panda", "Foodpanda", "FOODPANDA"),
+        "Grab Dine Out": paymentValue("Grab Dine Out", "GRAB DINE OUT"),
       },
       taxes: num(summary.taxes),
       rawOpen: open,

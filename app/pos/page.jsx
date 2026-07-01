@@ -1930,6 +1930,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
   const splitRemaining = Math.max(0, due - splitTotal);
   const splitChange = Math.max(0, splitTotal - due);
   const splitReady = splitPayments.length > 1 && splitPayments.every((p) => p.method && Number(p.amount || 0) > 0) && splitTotal >= due;
+  const isZeroDue = due <= 0;
   const roundCash = (value) => {
     if (value <= 100) return Math.ceil(value / 10) * 10;
     if (value <= 500) return Math.ceil(value / 50) * 50;
@@ -1944,7 +1945,9 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
     .slice(0, 6);
 
   const disableConfirm =
-    useSplitPayment
+    isZeroDue
+      ? false
+      : useSplitPayment
       ? !splitReady
       : !selectedPayment ||
         !paymentAmount ||
@@ -2105,7 +2108,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
                 amountPaid: splitTotal,
                 changeDue: splitChange,
               }
-            : { amountPaid: amt, changeDue: change })}
+            : { amountPaid: isZeroDue ? 0 : amt, changeDue: isZeroDue ? 0 : change })}
           className="w-full h-12 rounded-xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-wider shadow-sm transition disabled:opacity-40"
         >
           Finalize Transaction • {peso0(total)}
@@ -2897,14 +2900,16 @@ export default function POSPage() {
     const isRefunded = (r) => String(r.status || "").toLowerCase().includes("refund");
     const saleRows = rows.filter((r) => !isRefunded(r));
     const refundRows = rows.filter(isRefunded);
-    const paymentTotal = (needle) =>
+    const normalizePaymentKey = (value) => String(value || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
+    const paymentMatches = (value, keys) => keys.map(normalizePaymentKey).includes(normalizePaymentKey(value));
+    const paymentTotal = (...keys) =>
       rows
-        .filter((r) => String(r.payment_type || "").toLowerCase().includes(needle.toLowerCase()))
+        .filter((r) => paymentMatches(r.payment_type, keys))
         .filter((r) => !isRefunded(r))
         .reduce((sum, r) => sum + Number(r.total_collected || 0), 0);
     const cashPayments = paymentTotal("cash");
     const cashRefunds = rows
-      .filter((r) => String(r.payment_type || "").toLowerCase().includes("cash"))
+      .filter((r) => paymentMatches(r.payment_type, ["cash"]))
       .filter(isRefunded)
       .reduce((sum, r) => sum + Number(r.total_collected || 0), 0);
     const grossSales = saleRows.reduce((sum, r) => sum + Number(r.gross_sales || r.total_collected || r.net_sales || 0), 0);
@@ -2923,9 +2928,9 @@ export default function POSPage() {
         Gcash: paymentTotal("gcash"),
         QRPH: paymentTotal("qrph"),
         GrabFood: paymentTotal("grabfood"),
-        "Grab Dine Out": paymentTotal("grab dine out"),
+        "Grab Dine Out": paymentTotal("grab dine out", "grabdineout"),
         Card: paymentTotal("card"),
-        Panda: paymentTotal("panda"),
+        Panda: paymentTotal("panda", "foodpanda"),
       },
     };
   }, [receiptRows, startingCash, activeShiftStartMs]);
@@ -5386,10 +5391,11 @@ export default function POSPage() {
 
   async function confirmCharge(paymentPayload = {}) {
     if (charging) return;
+    const total = Number(totalDue || 0);
     const splitPaymentsPayload = Array.isArray(paymentPayload.payments) ? paymentPayload.payments.filter((p) => p.method && Number(p.amount || 0) > 0) : [];
     const paymentLabel = splitPaymentsPayload.length > 0
       ? splitPaymentsPayload.map((p) => `${p.method} ${peso2(p.amount)}`).join(" + ")
-      : selectedPayment;
+      : selectedPayment || (total <= 0 ? "No Payment Required" : "");
     if (!paymentLabel) return showToast("error", "Payment Required", "Select a payment type.");
     const resolvedBranchId = getResolvedBranchId();
     if (!resolvedBranchId) return showToast("error", "Branch not set", "Please sign out and sign in again so POS can load your branch.");
@@ -5399,7 +5405,6 @@ export default function POSPage() {
     const itemDiscountTotal = cart.reduce((sum, line) => sum + lineDiscountAmount(line), 0);
     const orderDiscount = Number(discountAmount || 0);
     const discount = Number(itemDiscountTotal + orderDiscount);
-    const total = Number(totalDue || 0);
     const grossTotal = Number(cart.reduce((sum, line) => sum + lineGrossAmount(line), 0));
     const loyaltyEligibleTotal = cartLoyaltyEligibleTotal(cart);
     const voucherToRedeem = appliedVoucher || cart.find((line) => line?.appliedVoucher?.id)?.appliedVoucher || null;
