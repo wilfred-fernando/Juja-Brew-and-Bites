@@ -629,6 +629,18 @@ function formatReceiptDateTime(value) {
   return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute} ${parts.dayPeriod}`;
 }
 
+function formatReceiptDayLabel(value) {
+  const date = coerceReceiptTimestamp(value);
+  if (isNaN(date.getTime())) return "Unknown Date";
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  }).formatToParts(date).map((part) => [part.type, part.value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
 function receiptDisplayTimestamp(row) {
   return row?.paid_at || row?.completed_at || row?.closed_at || row?.receipt_date || row?.created_at || null;
 }
@@ -2907,6 +2919,19 @@ export default function POSPage() {
     () => receiptRows.find((row) => row.receipt_number === selectedReceiptNumber) || receiptRows[0] || null,
     [receiptRows, selectedReceiptNumber]
   );
+  const receiptRowsWithDaySeparators = useMemo(() => {
+    const entries = [];
+    let currentDay = "";
+    (receiptRows || []).forEach((row) => {
+      const day = formatReceiptDayLabel(receiptDisplayTimestamp(row));
+      if (day !== currentDay) {
+        currentDay = day;
+        entries.push({ type: "day", key: `day-${day}`, label: day });
+      }
+      entries.push({ type: "receipt", key: `receipt-${row.receipt_number}`, row });
+    });
+    return entries;
+  }, [receiptRows]);
   const selectedReceiptItems = useMemo(
     () => receiptItemRows.filter((row) => row.receipt_number === selectedReceipt?.receipt_number),
     [receiptItemRows, selectedReceipt]
@@ -6178,24 +6203,39 @@ export default function POSPage() {
                 
                 {receiptRows.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-slate-200 p-4 text-xs font-semibold text-slate-400">No receipts found.</div>
-                ) : receiptRows.map((r) => (
-                  <button
-                    key={r.receipt_number}
-                    type="button"
-                    onClick={() => setSelectedReceiptNumber(r.receipt_number)}
-                    className={`w-full rounded-xl border p-3 text-left transition ${
-                      selectedReceipt?.receipt_number === r.receipt_number ? "border-rose-300 bg-rose-50" : "border-slate-100 bg-white hover:bg-slate-50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-[12px] font-bold text-slate-800 truncate">{r.receipt_number}</p>
-                      <span className="text-[12px] font-semibold text-[#FC687D]">{peso2(r.total_collected || r.net_sales || 0)}</span>
-                    </div>
-                    <p className="text-[10px] font-semibold italic text-slate-400 truncate">
-                      {r.date || ""} · {r.payment_type || "Other"} · {r.status || "Closed"}
-                    </p>
-                  </button>
-                ))}
+                ) : receiptRowsWithDaySeparators.map((entry) => {
+                  if (entry.type === "day") {
+                    return (
+                      <div key={entry.key} className="sticky top-0 z-10 flex items-center gap-2 bg-white/95 py-1.5 backdrop-blur">
+                        <span className="h-px flex-1 bg-slate-200" />
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                          {entry.label}
+                        </span>
+                        <span className="h-px flex-1 bg-slate-200" />
+                      </div>
+                    );
+                  }
+
+                  const r = entry.row;
+                  return (
+                    <button
+                      key={entry.key}
+                      type="button"
+                      onClick={() => setSelectedReceiptNumber(r.receipt_number)}
+                      className={`w-full rounded-xl border p-3 text-left transition ${
+                        selectedReceipt?.receipt_number === r.receipt_number ? "border-rose-300 bg-rose-50" : "border-slate-100 bg-white hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[12px] font-bold text-slate-800 truncate">{r.receipt_number}</p>
+                        <span className="text-[12px] font-semibold text-[#FC687D]">{peso2(r.total_collected || r.net_sales || 0)}</span>
+                      </div>
+                      <p className="text-[10px] font-semibold italic text-slate-400 truncate">
+                        {r.date || ""} · {r.payment_type || "Other"} · {r.status || "Closed"}
+                      </p>
+                    </button>
+                  );
+                })}
               </div>
 
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 min-h-56">

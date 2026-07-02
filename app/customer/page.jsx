@@ -973,8 +973,8 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                         }}
                         className={`w-full rounded-lg px-3 py-2 text-left text-xs font-bold transition ${
                           fulfillmentTime === option.value
-                            ? "bg-cyan-600 text-white"
-                            : "text-slate-700 hover:bg-cyan-50"
+                            ? "bg-blue-200/80 text-white"
+                            : "text-slate-700 hover:bg-blue-50"
                         }`}
                       >
                         {option.label}
@@ -1060,7 +1060,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
           )}
 
           <div className="bg-emerald-50/60 border border-emerald-100 rounded-xl p-3 flex items-center justify-between text-xs text-emerald-800 font-medium">
-            <span className="flex items-center gap-2">⭐ <span>Rewards Points Earned</span></span>
+            <span className="flex items-center gap-2">⭐ <span>Points Earned</span></span>
             <span className="font-extrabold text-sm text-emerald-700">+{potentialPointsEarned.toFixed(2)} pts</span>
           </div>
 
@@ -1104,7 +1104,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
               isScheduled: isScheduledOrder,
             })}
             disabled={isSubmitting || !canSubmit}
-            className="w-full py-3 bg-cyan-400/78 hover:bg-cyan-500/78 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-md disabled:opacity-40"
+            className="w-full py-3 bg-blue-400/50 hover:bg-blue-400/80 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-md disabled:opacity-40"
           >
             {isSubmitting ? "Sending..." : "CHECKOUT ✓"}
           </button>
@@ -1480,19 +1480,19 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
                 )}
               </div>
 
-              <div className="flex items-center justify-between border-t border-slate-50 pt-2 mt-1">
+              <div className="flex items-center justify-between border-t border-slate-50 pt-1 mt-1">
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); removeLine(line.cartItemId); }}
-                  className="text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 px-2.5 py-1 rounded-lg"
+                  className="text-xs font-bold text-red-500 hover:text-red-700 hover:bg-red-400/80 bg-red-300/80 px-1 py-1 rounded-lg"
                 >
-                  Delete
+                  Remove
                 </button>
                 <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                   <button
                     type="button"
                     onClick={() => changeQty(line.cartItemId, -1)}
-                    className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center font-bold text-slate-600"
+                    className="w-5 h-5 rounded-lg bg-slate-100 flex items-center justify-center font-bold text-slate-600"
                   >
                     −
                   </button>
@@ -1500,7 +1500,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
                   <button
                     type="button"
                     onClick={() => changeQty(line.cartItemId, 1)}
-                    className="w-7 h-7 rounded-lg bg-[#FC687D] flex items-center justify-center font-bold text-white"
+                    className="w-5 h-5 rounded-lg bg-slate-100 flex items-center justify-center font-bold text-slate-600"
                   >
                      +
                   </button>
@@ -1527,7 +1527,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
             </div>
             <button
               onClick={handleOpenCheckoutValidation}
-              className="w-full h-11 rounded-xl bg-rose-500 text-white text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-rose-500 transition"
+              className="w-full h-11 rounded-xl bg-blue-300/80 text-white text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-blue-400/80 transition"
             >
              CHECKOUT
             </button>
@@ -1547,8 +1547,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 items-start">
       <div className="space-y-5">
         <div className="bg-white border border-rose-50 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Fresh Selection</p>
+          <div>            
             <h2 className="text-lg font-bold text-slate-800">Order Menu</h2>
             <p className="mt-1 text-[11px] text-cyan-700">{selectedStore?.name ? `Showing items for ${selectedStore.name}` : "Select a store to view available items"}</p>
           </div>
@@ -1653,7 +1652,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       <aside className="hidden lg:block bg-white border border-rose-50 rounded-2xl p-5 shadow-sm sticky top-6 h-[calc(100vh-140px)]">
         <div className="border-b border-slate-100 pb-3 mb-4">
           <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
-            <span>🛒</span> Shopping Basket
+            <span>🛒</span> Order Basket
           </h3>
           <p className="text-xs text-slate-400 mt-0.5">{itemCount} items configured</p>
         </div>
