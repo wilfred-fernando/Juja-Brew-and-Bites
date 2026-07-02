@@ -110,6 +110,10 @@ function isItemVoided(item) {
   );
 }
 
+function isItemRetiredFromLiveBatch(item) {
+  return Boolean(item?.kdsCompleted || item?.kds_completed || item?.kitchenCompleted || item?.kitchen_completed || item?.kitchen_completed_at);
+}
+
 function kdsItemLayoutClasses(itemCount) {
   if (itemCount >= 9) {
     return {
@@ -263,7 +267,8 @@ export default function KitchenDisplay() {
 
   function getDisplayItems(ticket) {
     const kitchenItems = getKitchenItems(ticket);
-    if (kitchenItems.length > 0 || !showHistory) return kitchenItems;
+    const visibleKitchenItems = showHistory ? kitchenItems : kitchenItems.filter((item) => !isItemRetiredFromLiveBatch(item));
+    if (visibleKitchenItems.length > 0 || !showHistory) return visibleKitchenItems;
     return Array.isArray(ticket?.items) ? ticket.items : [];
   }
 
