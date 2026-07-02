@@ -117,20 +117,20 @@ function isItemRetiredFromLiveBatch(item) {
 function kdsItemLayoutClasses(itemCount) {
   if (itemCount >= 9) {
     return {
-      card: "w-[96vw] md:w-[820px] xl:w-[920px]",
+      card: "w-[94vw] md:w-[720px] xl:w-[800px]",
       items: "md:grid-cols-2 xl:grid-cols-3",
     };
   }
 
   if (itemCount >= 5) {
     return {
-      card: "w-[94vw] md:w-[620px]",
+      card: "w-[90vw] md:w-[520px]",
       items: "md:grid-cols-2",
     };
   }
 
   return {
-    card: "w-[86vw] sm:w-[340px] lg:w-[360px] xl:w-[380px]",
+    card: "w-[82vw] sm:w-[300px] lg:w-[310px] xl:w-[320px]",
     items: "grid-cols-1",
   };
 }
