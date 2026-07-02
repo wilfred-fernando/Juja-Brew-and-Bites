@@ -6199,7 +6199,7 @@ export default function POSPage() {
           <div className="min-h-0 flex-1 overflow-y-auto pr-1">
           {managementView === "receipts" && (
             <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-200 overflow-y-auto pr-">
                 
                 {receiptRows.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-slate-200 p-4 text-xs font-semibold text-slate-400">No receipts found.</div>
@@ -6277,13 +6277,13 @@ export default function POSPage() {
                       {selectedReceiptItems.map((row, idx) => (
                         <div key={`${row.receipt_number}-${row.item}-${idx}`} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-slate-100 bg-white p-2">
                           <div className="min-w-0">
-                            <p className="text-xs font-bold uppercase text-slate-800">{row.item}</p>
+                            <p className="text-[14px] font-bold uppercase text-slate-800">{row.item}</p>
                             {receiptItemDisplayLines(row).map((line, lineIdx) => (
-                              <p key={`${row.receipt_number}-${row.item}-${idx}-option-${lineIdx}`} className="mt-0.5 text-[11px] font-medium text-slate-600">
+                              <p key={`${row.receipt_number}-${row.item}-${idx}-option-${lineIdx}`} className="mt-0.5 text-[15px] font-medium text-slate-600">
                                 {line}
                               </p>
                             ))}
-                            <p className="text-[10px] font-semibold italic text-slate-400">Qty {row.quantity} · {peso2(row.net_sales || row.gross_sales || 0)} · {row.status || "Closed"}</p>
+                            <p className="text-[12px] font-semibold italic text-slate-400">Qty {row.quantity} · {peso2(row.net_sales || row.gross_sales || 0)} · {row.status || "Closed"}</p>
                           </div>
                           <button type="button" onClick={() => refundReceiptItem(row)} className="h-8 px-3 rounded-lg border border-red-100 bg-red-50 text-[10px] font-bold uppercase tracking-wider text-red-600">
                             Refund Item
@@ -6303,8 +6303,7 @@ export default function POSPage() {
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-3">
                 <h3 className="text-sm font-black text-slate-800">Cash Drawer</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <button type="button" onClick={() => openShiftCashModal("close")} className="h-10 rounded-xl bg-[#FC687D] text-white text-[10px] font-black uppercase tracking-wider">Close Shift</button>
-                  <button type="button" onClick={() => openShiftCashModal("end_day")} className="h-10 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider">End Day</button>
+                  <button type="button" onClick={() => openShiftCashModal("close")} className="h-10 rounded-xl bg-[#FC687D] text-white text-[10px] font-black uppercase tracking-wider">Close Shift</button>              
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-2">
                   <label className="block text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Reprint close shift report</label>
