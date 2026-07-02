@@ -110,6 +110,27 @@ function isItemVoided(item) {
   );
 }
 
+function kdsItemLayoutClasses(itemCount) {
+  if (itemCount >= 9) {
+    return {
+      card: "w-[96vw] md:w-[900px] xl:w-[1040px]",
+      items: "md:grid-cols-2 xl:grid-cols-3",
+    };
+  }
+
+  if (itemCount >= 5) {
+    return {
+      card: "w-[94vw] md:w-[720px]",
+      items: "md:grid-cols-2",
+    };
+  }
+
+  return {
+    card: "w-[90vw] sm:w-[420px] xl:w-[460px]",
+    items: "grid-cols-1",
+  };
+}
+
 export default function KitchenDisplay() {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -651,11 +672,12 @@ export default function KitchenDisplay() {
             </div>
           </section>
         ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4 2xl:grid-cols-5">
+          <div className="flex h-[calc(100vh-8.75rem)] min-h-[420px] snap-x snap-mandatory gap-4 overflow-x-auto overflow-y-hidden pb-2 pr-2 scroll-smooth">
             {visibleTickets.map((ticket) => {
               const status = String(ticket.status || "pending").toLowerCase();
               const minutes = ticket.created_at ? Math.floor((Date.now() - new Date(ticket.created_at).getTime()) / 60000) : 0;
               const ticketItems = getDisplayItems(ticket);
+              const itemLayout = kdsItemLayoutClasses(ticketItems.length);
               const allItemsReady = ticketItems.length > 0 && ticketItems.every((item) => isItemReady(item) || isItemVoided(item));
               const terminalStatus = ["completed", "voided", "rejected"].includes(status);
               const voidedOrder = ["voided", "rejected"].includes(status);
@@ -670,7 +692,7 @@ export default function KitchenDisplay() {
               return (
                 <article
                   key={ticket.id}
-                  className={`overflow-hidden rounded-3xl border shadow-lg backdrop-blur transition ${
+                  className={`flex h-full shrink-0 snap-start flex-col overflow-hidden rounded-3xl border shadow-lg backdrop-blur transition ${itemLayout.card} ${
                     voidedOrder
                       ? "animate-pulse border-red-500 bg-red-50/95 shadow-red-200"
                       : ageWarning === "red"
@@ -678,9 +700,9 @@ export default function KitchenDisplay() {
                       : ageWarning === "yellow"
                       ? "border-amber-300 bg-amber-50/95 shadow-amber-100"
                       : "border-slate-200 bg-white/95"
-                  }`}
+                    }`}
                 >
-                  <div className={`border-b p-4 ${
+                  <div className={`shrink-0 border-b p-4 ${
                     voidedOrder
                       ? "border-red-200 bg-red-100/80"
                       : ageWarning === "red"
@@ -713,7 +735,7 @@ export default function KitchenDisplay() {
                     </div>
                   </div>
 
-                  <div className="space-y-2 p-4">
+                  <div className={`grid min-h-0 flex-1 grid-cols-1 content-start gap-3 overflow-hidden p-3 ${itemLayout.items}`}>
                     {ticketItems.map((item, idx) => {
                       const ready = isItemReady(item);
                       const voidedItem = isItemVoided(item) || voidedOrder;
@@ -725,7 +747,7 @@ export default function KitchenDisplay() {
                           key={item.id || idx}
                           onClick={() => canToggleReady && toggleItemReady(ticket, item.__kdsIndex ?? idx)}
                           disabled={!canToggleReady}
-                          className={`w-full rounded-2xl border p-3 text-left transition disabled:cursor-not-allowed ${
+                          className={`h-fit w-full rounded-2xl border p-3 text-left transition disabled:cursor-not-allowed ${
                             voidedItem
                               ? "animate-pulse border-red-400 bg-red-50 shadow-sm shadow-red-100"
                               : ready
@@ -755,8 +777,8 @@ export default function KitchenDisplay() {
                       );
                     })}
                   </div>
-                  
-                  <div className="grid grid-cols-1 gap-2 border-t border-slate-200 bg-slate-50/80 p-3 sm:grid-cols-2">
+
+                  <div className="grid shrink-0 grid-cols-1 gap-2 border-t border-slate-200 bg-slate-50/80 p-3 sm:grid-cols-2">
                     {["voided", "rejected"].includes(status) && (
                       <button
                         onClick={() => removeVoidedTicket(ticket)}
