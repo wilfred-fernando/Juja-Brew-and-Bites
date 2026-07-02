@@ -1467,9 +1467,9 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
               className="w-full text-left border border-slate-200 bg-white rounded-xl p-3 hover:border-rose-200 transition cursor-pointer flex flex-col justify-between gap-2"
             >
               <div className="min-w-0">
-                <div className="flex justify-between items-start">
-                  <p className="text-sm font-bold text-slate-800 truncate max-w-[70%]">{line.name}</p>
-                  <p className="text-sm font-bold text-slate-800">{peso0(customerLineNet(line))}</p>
+                <div className="flex justify-between items-start gap-3">
+                  <p className="min-w-0 flex-1 whitespace-normal break-words text-sm font-bold leading-snug text-slate-800">{line.name}</p>
+                  <p className="shrink-0 text-right text-sm font-bold text-slate-800">{peso0(customerLineNet(line))}</p>
                 </div>
                 {line.variantDetails && <p className="text-xs text-slate-400 mt-0.5 italic">{line.variantDetails}</p>}
                 {line.instructions && <p className="text-xs text-[#FC687D] font-medium mt-1">Note: {line.instructions}</p>}

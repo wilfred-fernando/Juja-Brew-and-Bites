@@ -1207,7 +1207,7 @@ export default function LoyaltyAdminPage() {
           <button
             type="button"
             onClick={openRegistrationModal}
-            className="self-start px-4 py-3 rounded-2xl bg-[#1f2f46] text-white text-xs font-semibold tracking-wide shadow-sm hover:bg-[#2d405a] active:scale-95 transition"
+            className="self-start px-4 py-3 rounded-2xl bg-blue-300/50 text-white text-xs font-semibold tracking-wide shadow-sm hover:bg-blue-400/50 active:scale-95 transition"
           >
             Manual Registration
           </button>

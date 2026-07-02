@@ -997,7 +997,7 @@ export default function AdminSalesPage() {
     <div className="space-y-6">
       {activeTab !== "summary" && (
         <>
-          <section className="rounded-[32px] border border-white/70 bg-slate-700/88 p-6 text-white shadow-[0_24px_80px_rgba(51,65,85,0.26)] backdrop-blur-xl">
+          <section className="rounded-[20px] border border-white/70 bg-blue-300/50 p-6 text-black backdrop-blur-xl">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100">Admin Sales</p>

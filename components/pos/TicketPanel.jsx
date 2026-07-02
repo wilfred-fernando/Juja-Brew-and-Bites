@@ -427,7 +427,7 @@ const isWelcomeVoucher = (voucher) => {
                   <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-800">
                     <div className="flex items-center justify-between gap-2">
                       <span className="truncate">Voucher: {line.appliedVoucher.code}</span>
-                      <span className="whitespace-nowrap">{isWelcomeVoucher(line.appliedVoucher) ? "50% OFF" : "100% OFF"}</span>
+                      <span className="whitespace-nowrap">{isWelcomeVoucher(line.appliedVoucher) ? "B1T1" : "100% OFF"}</span>
                     </div>
                     {line.appliedVoucher.reward_text && (
                       <p className="mt-0.5 line-clamp-2 text-[10px] font-medium text-emerald-700">

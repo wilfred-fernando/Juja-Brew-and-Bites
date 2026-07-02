@@ -758,13 +758,13 @@ function buildReceiptText({
     lines.push(receiptPair(nameLines[0], receiptAmount(netLineTotal)));
     nameLines.slice(1).forEach((line) => lines.push(line));
     lines.push(`${quantity} x ${receiptAmount(unitPrice)}`);
-    if (itemDiscount > 0) lines.push(receiptPair("  Item discount", `-${receiptAmount(itemDiscount)}`));
     const optionLines = selectedOptionReceiptLines(x);
     const instructions = normalizeLabelLine(x.instructions || x.specialInstructions || x.special_instructions || "");
     optionLines.forEach((optionLine) => {
       splitReceiptText(optionLine, RECEIPT_COLUMNS).forEach((line) => lines.push(`  ${line}`));
     });
     if (instructions) splitReceiptText(`Note: ${instructions}`, RECEIPT_COLUMNS).forEach((line) => lines.push(`  ${line}`));
+    if (itemDiscount > 0) lines.push(receiptPair("  Item discount", `-${receiptAmount(itemDiscount)}`));
   });
   lines.push(receiptLine());
   if (customerName) {
@@ -822,17 +822,25 @@ function buildOrderSlipText({ orderId, cart, diningOptionName, customerName, tot
   return lines.join("\n");
 }
 
-function buildBillText({ orderId, cart, diningOptionName, customerName, subtotal, discount, total, printedAt }) {
+function buildBillText({ receiptSettings, orderId, cart, diningOptionName, customerName, subtotal, discount, total, printedAt, store }) {
+  const rs = receiptSettings || {};
+  const header = (rs.header_text || "").trim();
+  const branchName = store?.store_name || store?.name || store?.branch_name || "Pasong Tamo";
+  const businessName = store?.business_name || "Juja Brew & Bites";
+  const receiptTitle = store?.receipt_title || `${branchName}`;
+  const address = store?.address || "36D Visayas Ave., Pasong Tamo, Quezon City";
   const subtotalValue = Number(subtotal || 0);
   const discountValue = Number(discount || 0);
   const totalValue = Number(total ?? Math.max(0, subtotalValue - discountValue));
-  const lines = [
-    centerReceiptText("BILL"),
-    centerReceiptText("NOT YET PAID"),
-    receiptLine(),
-    `Order: ${orderId || "-"}`,
-    `Dining: ${normalizeLabelLine(diningOptionName || "POS ORDER")}`,
-  ];
+  const lines = [];
+  lines.push(centerReceiptText(businessName));
+  lines.push(centerReceiptText(header || receiptTitle));
+  splitReceiptText(address, RECEIPT_COLUMNS).forEach((line) => lines.push(centerReceiptText(line)));
+  lines.push(receiptLine());
+  lines.push(centerReceiptText("BILL"));
+  lines.push(receiptLine());
+  lines.push(`Order: ${orderId || "-"}`);
+  lines.push(`Dining: ${normalizeLabelLine(diningOptionName || "POS ORDER")}`);
   const customer = normalizeLabelLine(customerName);
   if (customer) lines.push(`Customer: ${customer}`);
   lines.push(receiptLine());
@@ -846,6 +854,12 @@ function buildBillText({ orderId, cart, diningOptionName, customerName, subtotal
     lines.push(receiptPair(nameLines[0], receiptAmount(lineTotal)));
     nameLines.slice(1).forEach((line) => lines.push(line));
     lines.push(`${quantity} x ${receiptAmount(unitPrice)}`);
+    const optionLines = selectedOptionReceiptLines(x);
+    const instructions = normalizeLabelLine(x.instructions || x.specialInstructions || x.special_instructions || "");
+    optionLines.forEach((optionLine) => {
+      splitReceiptText(optionLine, RECEIPT_COLUMNS).forEach((line) => lines.push(`  ${line}`));
+    });
+    if (instructions) splitReceiptText(`Note: ${instructions}`, RECEIPT_COLUMNS).forEach((line) => lines.push(`  ${line}`));
     if (itemDiscount > 0) lines.push(receiptPair("  Item discount", `-${receiptAmount(itemDiscount)}`));
     if (x.appliedVoucher?.code) {
       lines.push(`  Voucher: ${x.appliedVoucher.code}`);
@@ -854,11 +868,6 @@ function buildBillText({ orderId, cart, diningOptionName, customerName, subtotal
         splitReceiptText(voucherRewardText, RECEIPT_COLUMNS - 2).forEach((line) => lines.push(`  ${line}`));
       }
     }
-
-    const variants = normalizeLabelLine(x.variantDetails || "");
-    const instructions = normalizeLabelLine(x.instructions || x.specialInstructions || x.special_instructions || "");
-    if (variants) splitReceiptText(variants, RECEIPT_COLUMNS).forEach((line) => lines.push(`  ${line}`));
-    if (instructions) splitReceiptText(`Note: ${instructions}`, RECEIPT_COLUMNS).forEach((line) => lines.push(`  ${line}`));
   });
 
   lines.push(receiptLine());
@@ -1345,6 +1354,17 @@ function PrinterPermissionModal({ open, roleLabel, onAllow, onCancel }) {
   );
 }
 
+async function requestScannerCameraAccess() {
+  if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+    throw new Error("Camera access is not available in this browser. Use HTTPS or the installed POS app.");
+  }
+
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: { ideal: "environment" } },
+  });
+  stream.getTracks().forEach((track) => track.stop());
+}
+
 function BarcodeScannerModal({ open, onClose, onResult }) {
   const [step, setStep] = useState("intro");
   const [errMsg, setErrMsg] = useState("");
@@ -1372,6 +1392,7 @@ function BarcodeScannerModal({ open, onClose, onResult }) {
     setErrMsg("");
     try {
       if (typeof window !== "undefined") localStorage.setItem("pos_scanner_seen", "1");
+      await requestScannerCameraAccess();
       const mod = await import("html5-qrcode");
       const { Html5QrcodeScanner } = mod;
 
@@ -1399,7 +1420,7 @@ function BarcodeScannerModal({ open, onClose, onResult }) {
         scannerRef.current = scanner;
       }, 50);
     } catch (e) {
-      setErrMsg(e?.message || "Unable to start camera scanner.");
+      setErrMsg(e?.message || "Unable to start camera scanner. Allow camera access, then try again.");
     }
   }
 
@@ -4543,6 +4564,10 @@ export default function POSPage() {
           item: item.name,
           net_sales: item.line_total,
           gross_sales: item.line_total,
+          variantDetails: item.variantDetails || item.variant_details || "",
+          selectedOptions: item.selectedOptions || item.selected_options || item.options || item.modifiers || [],
+          selected_options: item.selected_options || item.selectedOptions || item.options || item.modifiers || [],
+          instructions: item.instructions || item.note || item.specialInstructions || item.special_instructions || "",
           status: refunds[receiptNumberByOrderId.get(String(item.order_id)) || String(item.order_id)]?.items?.[item.id || item.name] || "Closed",
         }));
       const webItems = webRows.flatMap((order) =>
@@ -5312,6 +5337,7 @@ export default function POSPage() {
     const grossTotal = cart.reduce((sum, line) => sum + lineGrossAmount(line), 0);
     const itemDiscountTotal = cart.reduce((sum, line) => sum + lineDiscountAmount(line), 0);
     const bill = buildBillText({
+      receiptSettings,
       orderId: activeWebOrderId || originalTicketId || ticketDiningLabel || "Current Ticket",
       cart,
       diningOptionName: activeWebOrderId ? webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName) : ticketDiningLabel,
@@ -5320,6 +5346,7 @@ export default function POSPage() {
       discount: itemDiscountTotal + discountAmount,
       total: totalDue,
       printedAt: new Date(),
+      store: currentStore,
     });
 
     setReceiptText(bill);
@@ -5794,7 +5821,7 @@ export default function POSPage() {
         return cleared;
       })
     );
-    showToast("success", "Voucher Applied", `${voucher.code} applied (${isWelcomeVoucher(voucher) ? "50% OFF" : "100% OFF"}).`);
+    showToast("success", "Voucher Applied", `${voucher.code} applied (${isWelcomeVoucher(voucher) ? "B1T1" : "100% OFF"}).`);
   };
 
   const removeAppliedVoucher = () => {
