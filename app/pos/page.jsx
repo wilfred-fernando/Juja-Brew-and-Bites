@@ -949,7 +949,11 @@ function normalizeLabelLine(value) {
 }
 
 function parseReceiptSelectedOptions(value) {
-  if (Array.isArray(value)) return value;
+  if (Array.isArray(value)) {
+    return value
+      .map((option) => (option && typeof option === "object" ? option : { name: option }))
+      .filter((option) => normalizeLabelLine(option?.name || option?.label || option?.option_name || option?.value));
+  }
   if (!value) return [];
   if (typeof value === "string") {
     const trimmed = value.trim();
@@ -4535,6 +4539,18 @@ export default function POSPage() {
 
     const posOrderIds = posRows.map((r) => r.order_id).filter(Boolean);
     const receiptNumberByOrderId = new Map(posRows.map((row) => [String(row.order_id), row.receipt_number]));
+    const receiptOrderById = new Map(posRows.map((row) => [String(row.order_id), row]));
+    const findReceiptSourceLine = (row) => {
+      const sourceItems = receiptOrderById.get(String(row.order_id))?.items || [];
+      if (!Array.isArray(sourceItems) || sourceItems.length === 0) return null;
+      const rowMenuId = row.menu_item_id || row.menuItemId || row.menu_item || null;
+      const rowName = normalizeLabelLine(row.item || row.name || "").toLowerCase();
+      return sourceItems.find((line) => {
+        const lineMenuId = line.menu_item_id || line.menuItemId || line.menuItemID || line.id || null;
+        const lineName = normalizeLabelLine(line.name || line.item || line.item_name || "").toLowerCase();
+        return (rowMenuId && lineMenuId && String(rowMenuId) === String(lineMenuId)) || (rowName && lineName === rowName);
+      }) || null;
+    };
     if (posOrderIds.length === 0) {
       setReceiptItemRows(webRows.flatMap((order) =>
         (order.web_items || []).map((item, idx) => ({
@@ -4558,18 +4574,21 @@ export default function POSPage() {
       .select("*")
       .in("order_id", posOrderIds);
     if (!itemRes.error) {
-      const posItems = (itemRes.data || []).map((item) => ({
+      const posItems = (itemRes.data || []).map((item) => {
+        const sourceLine = findReceiptSourceLine(item);
+        return ({
           ...item,
           receipt_number: receiptNumberByOrderId.get(String(item.order_id)) || String(item.order_id),
           item: item.name,
           net_sales: item.line_total,
           gross_sales: item.line_total,
-          variantDetails: item.variantDetails || item.variant_details || "",
-          selectedOptions: item.selectedOptions || item.selected_options || item.options || item.modifiers || [],
-          selected_options: item.selected_options || item.selectedOptions || item.options || item.modifiers || [],
-          instructions: item.instructions || item.note || item.specialInstructions || item.special_instructions || "",
+          variantDetails: item.variantDetails || item.variant_details || item.variant_name || sourceLine?.variantDetails || sourceLine?.variant_details || sourceLine?.variant || "",
+          selectedOptions: item.selectedOptions || item.selected_options || item.options || item.modifiers || sourceLine?.selectedOptions || sourceLine?.selected_options || sourceLine?.options || sourceLine?.modifiers || [],
+          selected_options: item.selected_options || item.selectedOptions || item.options || item.modifiers || sourceLine?.selectedOptions || sourceLine?.selected_options || sourceLine?.options || sourceLine?.modifiers || [],
+          instructions: item.instructions || item.note || item.specialInstructions || item.special_instructions || sourceLine?.instructions || sourceLine?.note || sourceLine?.specialInstructions || sourceLine?.special_instructions || "",
           status: refunds[receiptNumberByOrderId.get(String(item.order_id)) || String(item.order_id)]?.items?.[item.id || item.name] || "Closed",
-        }));
+        });
+      });
       const webItems = webRows.flatMap((order) =>
         (order.web_items || []).map((item, idx) => ({
           id: `${order.receipt_number}-${idx}`,
