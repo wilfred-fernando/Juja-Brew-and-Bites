@@ -2283,7 +2283,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
 
 function ReceiptPreviewModal({ open, onClose, receiptText }) {
   return (
-    <ModalShell open={open} onClose={onClose} title="Receipt Printout" subtitle="Slip Log Preview" z={160}>
+    <ModalShell open={open} onClose={onClose} title="Receipt Printout" z={160}>
       <pre className="whitespace-pre-wrap text-xs bg-rose-950 text-rose-50 font-mono rounded-xl p-4 shadow-inner max-h-[40vh] overflow-y-auto">{receiptText || "No active buffer logged."}</pre>
       <div className="grid grid-cols-2 gap-3 mt-4">
         <button
