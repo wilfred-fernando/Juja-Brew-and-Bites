@@ -670,6 +670,83 @@ function receiptPeso(value) {
   return peso(value).replace("PHP", "₱");
 }
 
+function normalizeReceiptText(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function parseReceiptOptions(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    try {
+      return parseReceiptOptions(JSON.parse(trimmed));
+    } catch {
+      return trimmed
+        .split(",")
+        .map((entry) => normalizeReceiptText(entry))
+        .filter(Boolean)
+        .map((name) => ({ name }));
+    }
+  }
+  if (typeof value === "object") {
+    return Object.entries(value).flatMap(([groupName, groupValue]) => {
+      const groupItems = Array.isArray(groupValue) ? groupValue : [groupValue];
+      return groupItems.map((entry) => (
+        typeof entry === "object" && entry !== null
+          ? { ...entry, groupName: entry.groupName || entry.group || groupName }
+          : { name: entry, groupName }
+      ));
+    });
+  }
+  return [];
+}
+
+function receiptOptionLines(item) {
+  const parsedOptions = parseReceiptOptions(item?.selectedOptions || item?.selected_options || item?.options || item?.modifiers);
+  const groups = new Map();
+  parsedOptions.forEach((option) => {
+    const optionName = normalizeReceiptText(option?.name || option?.optionName || option?.option_name || option?.label || option?.value || option);
+    if (!optionName) return;
+    const groupName = normalizeReceiptText(option?.groupName || option?.group || option?.optionGroupName || option?.option_group_name);
+    const key = groupName || "__ungrouped";
+    if (!groups.has(key)) groups.set(key, { groupName, values: [] });
+    groups.get(key).values.push(optionName);
+  });
+  const groupedLines = Array.from(groups.values()).map((group) => {
+    const values = Array.from(new Set(group.values));
+    return group.groupName ? `${group.groupName}: ${values.join(", ")}` : values.join(", ");
+  });
+  if (groupedLines.length) return groupedLines;
+  const variantDetails = normalizeReceiptText(item?.variantDetails || item?.variant_details || item?.variant || item?.variant_name);
+  return variantDetails ? [variantDetails] : [];
+}
+
+function normalizeVoucher(value) {
+  if (!value) return null;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    try {
+      return normalizeVoucher(JSON.parse(trimmed));
+    } catch {
+      return { code: trimmed };
+    }
+  }
+  if (typeof value === "object") return value;
+  return null;
+}
+
+function voucherLabel(value) {
+  const voucher = normalizeVoucher(value);
+  if (!voucher) return "";
+  return [
+    voucher.code || voucher.voucher_code || voucher.id,
+    voucher.reward_text || voucher.reward || voucher.name || voucher.title || voucher.description,
+  ].map(normalizeReceiptText).filter(Boolean).join(" - ");
+}
+
 function ReceiptDrawer({ order, items = [], onClose }) {
   if (!order) return null;
   const totalCollected = Number(order.raw?.total_collected ?? order.raw?.["Total collected"] ?? order.net ?? 0);
@@ -679,6 +756,9 @@ function ReceiptDrawer({ order, items = [], onClose }) {
   const hasCustomer = Boolean(order.customerName && !["walk-in", "web customer"].includes(String(order.customerName).toLowerCase()));
   const pointsEarned = hasCustomer ? Number(order.net || 0) * 0.04 : 0;
   const pointsBalance = Number(order.customerAvailablePoints ?? order.customerPointsBalance ?? NaN);
+  const orderVoucherLabel = voucherLabel(
+    order.raw?.applied_voucher || order.raw?.appliedVoucher || order.raw?.voucher || order.raw?.voucher_code || order.raw?.applied_voucher_code
+  );
   return (
     <div className="fixed inset-0 z-[80] flex justify-end bg-slate-900/35 backdrop-blur-sm" onClick={onClose}>
       <div className="h-full w-full max-w-[320px] overflow-y-auto bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
@@ -713,18 +793,36 @@ function ReceiptDrawer({ order, items = [], onClose }) {
           ) : null}
 
           <div className="border-t border-slate-200">
-            {(items.length ? items : [{ itemName: order.raw?.description || order.raw?.Description || "Receipt total", quantity: 1, unitPrice: order.net, net: order.net }]).map((item, index) => (
+            {(items.length ? items : [{ itemName: order.raw?.description || order.raw?.Description || "Receipt total", quantity: 1, unitPrice: order.net, net: order.net }]).map((item, index) => {
+              const optionLines = receiptOptionLines(item);
+              const instructions = normalizeReceiptText(item.instructions || item.special_instructions || item.note);
+              const itemVoucherLabel = voucherLabel(item.appliedVoucher || item.applied_voucher);
+              return (
               <div key={item.id || index} className="flex gap-3 border-b border-slate-200 py-2">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-slate-900">{item.itemName}</p>
+                  <p className="text-slate-900">{item.itemName}</p>
                   <p className="text-slate-500">{number(item.quantity)} × {receiptPeso(item.unitPrice || (item.quantity ? item.net / item.quantity : item.net))}</p>
+                  {optionLines.map((line) => (
+                    <p key={line} className="mt-0.5 text-[10px] leading-3 text-slate-500">{line}</p>
+                  ))}
+                  {instructions ? <p className="mt-0.5 text-[10px] leading-3 text-slate-500">Note: {instructions}</p> : null}
+                  {itemVoucherLabel ? <p className="mt-0.5 text-[10px] leading-3 text-green-600">Voucher: {itemVoucherLabel}</p> : null}
                 </div>
                 <p className="shrink-0 text-right text-slate-900">{receiptPeso(item.net)}</p>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="border-b border-slate-200 py-2">
+            {orderVoucherLabel ? (
+              <div className="mb-2 border-b border-slate-200 pb-2 text-green-600">
+                <div className="flex justify-between gap-3">
+                  <span>Voucher used</span>
+                  <span className="text-right">{orderVoucherLabel}</span>
+                </div>
+              </div>
+            ) : null}
             {hasCustomer ? (
               <div className="mb-2 border-b border-slate-200 pb-2 text-green-600">
                 <div className="flex justify-between gap-3">
@@ -911,6 +1009,10 @@ export default function AdminSalesPage() {
           quantity,
           unitPrice: Number(item.unit_price || (quantity ? net / quantity : net)),
           net,
+          variantDetails: item.variantDetails || item.variant_details || item.variant_name || "",
+          selectedOptions: item.selectedOptions || item.selected_options || item.options || item.modifiers || [],
+          instructions: item.instructions || item.special_instructions || item.note || "",
+          appliedVoucher: item.appliedVoucher || item.applied_voucher || null,
         };
       }));
     }

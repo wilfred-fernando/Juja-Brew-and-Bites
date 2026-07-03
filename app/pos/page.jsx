@@ -1963,19 +1963,37 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [] }) {
       
       <div className="mt-4">
         <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1">Quantity Selection</label>
-        <input
-          type="number"
-          min="1"
-          value={quantity}
-          onChange={(e) => {
-            const val = e.target.value;
-            if (val === "") { setQuantity(""); return; }
-            const num = Number(val);
-            if (!isNaN(num) && num >= 1) setQuantity(Math.floor(num));
-          }}
-          onBlur={() => { if (!quantity || quantity < 1) setQuantity(1); }}
-          className="w-full h-11 bg-white border border-slate-200 rounded-xl text-center text-base font-bold text-slate-800 outline-none focus:border-[#FC687D]"
-        />
+        <div className="flex h-11 overflow-hidden rounded-xl border border-slate-200 bg-white focus-within:border-slate-500 focus-within:ring-2 focus-within:ring-slate-200">
+          <button
+            type="button"
+            onClick={() => setQuantity((current) => Math.max(1, Number(current || 1) - 1))}
+            className="flex h-full w-12 items-center justify-center border-r border-slate-200 text-xl font-semibold text-slate-800 transition hover:bg-slate-100 active:bg-slate-200"
+            aria-label="Decrease quantity"
+          >
+            -
+          </button>
+          <input
+            type="number"
+            min="1"
+            value={quantity}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === "") { setQuantity(""); return; }
+              const num = Number(val);
+              if (!isNaN(num) && num >= 1) setQuantity(Math.floor(num));
+            }}
+            onBlur={() => { if (!quantity || quantity < 1) setQuantity(1); }}
+            className="h-full min-w-0 flex-1 border-0 bg-transparent text-center text-base font-bold text-slate-800 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          />
+          <button
+            type="button"
+            onClick={() => setQuantity((current) => Number(current || 0) + 1)}
+            className="flex h-full w-12 items-center justify-center border-l border-slate-200 text-xl font-semibold text-slate-800 transition hover:bg-slate-100 active:bg-slate-200"
+            aria-label="Increase quantity"
+          >
+            +
+          </button>
+        </div>
       </div>
 
       {discountRules.length > 0 && (
