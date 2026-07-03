@@ -142,6 +142,15 @@ function getCachedBluetoothPrinterCharacteristic(cfg = {}) {
   return null;
 }
 
+function getCachedBluetoothPrinterDevice(cfg = {}) {
+  const keys = bluetoothDeviceCacheKeys(null, cfg);
+  for (const key of keys) {
+    const device = bluetoothPrinterDeviceCache.get(key);
+    if (device) return device;
+  }
+  return null;
+}
+
 function forgetBluetoothPrinterCharacteristic(cfg = {}) {
   bluetoothConnectionCacheKeys(cfg).forEach((key) => bluetoothPrinterCharacteristicCache.delete(key));
 }
@@ -325,19 +334,33 @@ function renderNiimbotCupLabelImage(text) {
   const margin = 24;
   const width = canvas.width - margin * 2;
   const lines = String(text || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  const dining = lines[0] || "ORDER";
-  const itemName = lines[1] || "Item";
+  const storeName = lines[0] || "JUJA BREW & BITES";
+  const dining = lines[1] || "ORDER";
+  const itemName = lines[2] || "Item";
   const footerRaw = lines[lines.length - 1] || `#ORDER|${formatCupLabelDateTime(new Date())}`;
   const [footerLeftRaw, footerRightRaw] = footerRaw.split("|");
   const footerLeft = normalizeLabelLine(footerLeftRaw || "");
   const footerRight = normalizeLabelLine(footerRightRaw || "");
-  const detailLines = lines.slice(2, -1).filter((line) => line !== "---");
+  const detailLines = lines.slice(3, -1).filter((line) => line !== "---");
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#000000";
   ctx.textBaseline = "top";
 
-  let y = 18;
+  let y = 12;
+  const drawFitSingleLine = (value, weight, startSize, minSize, lineHeight) => {
+    const textValue = normalizeLabelLine(value);
+    let size = startSize;
+    do {
+      ctx.font = `${weight} ${size}px Arial, sans-serif`;
+      if (ctx.measureText(textValue).width <= width || size <= minSize) break;
+      size -= 2;
+    } while (size >= minSize);
+    const textWidth = ctx.measureText(textValue).width;
+    ctx.fillText(textValue, margin + Math.max(0, (width - textWidth) / 2), y);
+    y += lineHeight;
+  };
+
   const drawWrapped = (value, font, lineHeight, maxLines = 4) => {
     ctx.font = font;
     const wrapped = wrapLabelCanvasText(ctx, value, width).slice(0, maxLines);
@@ -347,8 +370,9 @@ function renderNiimbotCupLabelImage(text) {
     });
   };
 
-  drawWrapped(dining, "800 54px Arial, sans-serif", 60, 1);
-  y += 8;
+  drawFitSingleLine(storeName, 700, 26, 14, 31);
+  drawWrapped(dining, "800 49px Arial, sans-serif", 54, 1);
+  y += 5;
 
   ctx.strokeStyle = "#000000";
   ctx.lineWidth = 3;
@@ -1027,7 +1051,7 @@ function receiptItemDisplayLines(item) {
   return lines;
 }
 
-function buildCupLabels({ orderId, cart, diningOptionName, printedAt, barCategoryIds = [], barCategoryNames = [] }) {
+function buildCupLabels({ orderId, cart, diningOptionName, printedAt, storeName = "Juja Brew & Bites", barCategoryIds = [], barCategoryNames = [] }) {
   const barIds = new Set((barCategoryIds || []).map((id) => String(id)));
   const barNames = new Set((barCategoryNames || []).map((name) => String(name || "").trim().toLowerCase()).filter(Boolean));
   if (barIds.size === 0 && barNames.size === 0) return [];
@@ -1040,16 +1064,27 @@ function buildCupLabels({ orderId, cart, diningOptionName, printedAt, barCategor
     if (!matchesCategory) return;
 
     const dining = normalizeLabelLine(diningOptionName || "POS ORDER").toUpperCase();
+    const storeLine = normalizeLabelLine(storeName || "Juja Brew & Bites");
     const itemName = normalizeLabelLine(x.name || "Item");
-    const variants = normalizeLabelLine(x.variantDetails || "")
+    const variantLines = normalizeLabelLine(x.variantDetails || "")
       .split(",")
       .map((value) => normalizeLabelLine(value))
       .filter(Boolean);
+    const optionLines = selectedOptionReceiptLines(x)
+      .flatMap((line) => {
+        const cleanLine = normalizeLabelLine(line);
+        const valuePart = cleanLine.includes(":") ? cleanLine.split(":").slice(1).join(":") : cleanLine;
+        return valuePart.split(",");
+      })
+      .map((value) => normalizeLabelLine(value))
+      .filter((value) => value && !value.toLowerCase().startsWith("note:"));
+    const variants = [...new Set([...variantLines, ...optionLines])];
     const instructions = normalizeLabelLine(x.instructions || x.specialInstructions || x.special_instructions || "");
     const footer = normalizeLabelLine(`${formatCupLabelDateTime(printedAt || new Date())}|${shortReceiptNumber(orderId)}`);
 
     for (let i = 0; i < x.quantity; i++) {
       const lines = [
+        storeLine,
         dining,
         itemName,
         ...variants,
@@ -1477,79 +1512,144 @@ function isVoidedLine(line) {
 }
 
 function SavedTicketsModal({ open, onClose, tickets, onSelect, onRefresh, onVoid, onVoidItem, mode = "resume" }) {
+  const [selectedTicketId, setSelectedTicketId] = useState(null);
+  const selectedTicket = useMemo(
+    () => tickets.find((ticket) => String(ticket.id) === String(selectedTicketId)) || null,
+    [tickets, selectedTicketId]
+  );
+
+  useEffect(() => {
+    if (!open) setSelectedTicketId(null);
+  }, [open]);
+
+  const selectedActiveItems = useMemo(
+    () => (selectedTicket?.items || []).filter((line) => !isVoidedLine(line)),
+    [selectedTicket]
+  );
+
   return (
-    <ModalShell open={open} onClose={onClose} title="Saved Tickets" subtitle={mode === "move" ? "Move Items" : "Resume"} z={145}>
-      <div className="flex mb-3">
-        <button
-          onClick={onRefresh}
-          className="px-4 h-9 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
-        >
-          ↻ Refresh List
-        </button>
-      </div>
-      {tickets.length === 0 ? (
-        <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 text-xs font-medium">No parked orders located.</div>
-      ) : (
-        <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
-          {tickets.map((t) => {
-            const activeItems = (t.items || []).filter((line) => !isVoidedLine(line));
-            return (
-            <div key={t.id} className="p-3.5 border rounded-xl bg-white shadow-sm hover:border-rose-100 transition">
-              <div className="flex justify-between items-start gap-3">
-                <div className="min-w-0 text-left">
-                  <p className="font-bold text-slate-800 text-sm truncate">{t.order_type || t.ticket_name}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">Active lines: {activeItems.length} / {(t.items || []).length} • <span className="font-bold text-slate-700">{peso0(t.total_amount)}</span></p>
-                  <p className="text-[11px] font-medium text-slate-400 mt-1 truncate">Client: {t._customerName || "Walk-in"}</p>
+    <>
+      <ModalShell open={open} onClose={onClose} title="Saved Tickets" subtitle={mode === "move" ? "Move Items" : "Resume"} z={145}>
+        <div className="flex mb-3">
+          <button
+            onClick={onRefresh}
+            className="px-4 h-9 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
+          >
+            ↻ Refresh List
+          </button>
+        </div>
+        {tickets.length === 0 ? (
+          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 text-xs font-medium">No parked orders located.</div>
+        ) : (
+          <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
+            {tickets.map((t) => {
+              const activeItems = (t.items || []).filter((line) => !isVoidedLine(line));
+              return (
+                <div key={t.id} className="p-3.5 border rounded-xl bg-white shadow-sm hover:border-cyan-200 transition">
+                  <div className="flex justify-between items-start gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTicketId(t.id)}
+                      className="min-w-0 flex-1 text-left"
+                    >
+                      <p className="font-bold text-slate-800 text-sm truncate">{t.order_type || t.ticket_name}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">Active lines: {activeItems.length} / {(t.items || []).length} • <span className="font-bold text-slate-700">{peso0(t.total_amount)}</span></p>
+                      <p className="text-[11px] font-medium text-slate-500 mt-1 truncate">Client: {t._customerName || "Walk-in"}</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onVoid(t)}
+                      className="text-xs text-red-500 font-bold hover:text-red-700 transition px-2 py-1 bg-red-50 rounded-md"
+                    >
+                      VOID TICKET
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTicketId(t.id)}
+                    disabled={activeItems.length === 0}
+                    className="mt-3 w-full text-center h-9 rounded-lg bg-slate-50 hover:bg-cyan-50 hover:text-cyan-700 text-xs font-bold text-slate-700 transition disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                  >
+                    View Order List
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onVoid(t)}
-                  className="text-xs text-red-500 font-bold hover:text-red-700 transition px-2 py-1 bg-red-50 rounded-md"
-                >
-                  VOID TICKET
-                </button>
-              </div>
-              <div className="mt-3 space-y-1.5">
-                {(t.items || []).map((line, idx) => {
-                  const voided = isVoidedLine(line);
-                  return (
-                    <div key={line.cartItemId || line.id || idx} className={`flex items-center justify-between gap-2 rounded-lg border px-2 py-1.5 text-xs ${voided ? "border-red-200 bg-red-50 text-red-700 line-through decoration-2" : "border-slate-100 bg-slate-50 text-slate-700"}`}>
-                      <span className="min-w-0 truncate font-semibold">{line.quantity || 1} x {line.name}</span>
-                      {voided ? (
-                        <span className="shrink-0 rounded-md bg-red-100 px-2 py-0.5 text-[10px] font-black uppercase text-red-700 no-underline">Voided</span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => onVoidItem(t, line, idx)}
-                          className="shrink-0 rounded-md bg-red-50 px-2 py-1 text-[10px] font-black uppercase text-red-600 transition hover:bg-red-100"
-                        >
-                          Void Item
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              <button
-                type="button"
-                onClick={() => onSelect(t)}
-                disabled={activeItems.length === 0}
-                className="mt-3 w-full text-center h-9 rounded-lg bg-slate-50 hover:bg-rose-50 hover:text-[#FC687D] text-xs font-bold text-slate-700 transition disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+              );
+            })}
+          </div>
+        )}
+        <button
+          onClick={onClose}
+          className="w-full mt-4 h-11 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider"
+        >
+          Close
+        </button>
+      </ModalShell>
+
+      <ModalShell
+        open={Boolean(selectedTicket)}
+        onClose={() => setSelectedTicketId(null)}
+        title={selectedTicket?.order_type || selectedTicket?.ticket_name || "Saved Ticket"}
+        subtitle={`${selectedTicket?._customerName || "Walk-in"} • ${peso0(selectedTicket?.total_amount || 0)}`}
+        z={155}
+      >
+        <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
+          {(selectedTicket?.items || []).map((line, idx) => {
+            const voided = isVoidedLine(line);
+            const details = receiptItemDisplayLines(line);
+            return (
+              <div
+                key={line.cartItemId || line.id || idx}
+                className={`rounded-xl border p-3 text-sm ${voided ? "border-red-200 bg-red-50 text-red-700" : "border-slate-200 bg-white text-slate-800"}`}
               >
-                {mode === "move" ? "Move selected lines here" : "Resume This Order"}
-              </button>
-            </div>
-          );
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className={`font-bold ${voided ? "line-through decoration-2" : ""}`}>{line.quantity || 1} x {line.name}</p>
+                    {details.length > 0 && (
+                      <div className="mt-1.5 space-y-0.5">
+                        {details.map((detail, detailIndex) => (
+                          <p key={`${detail}-${detailIndex}`} className={`text-xs ${voided ? "text-red-600 line-through decoration-2" : "text-slate-500"}`}>
+                            {detail}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                    <p className={`mt-2 text-xs font-bold ${voided ? "text-red-700 line-through decoration-2" : "text-slate-600"}`}>{peso2(lineNetAmount(line))}</p>
+                  </div>
+                  {voided ? (
+                    <span className="shrink-0 rounded-md bg-red-100 px-2 py-1 text-[10px] font-black uppercase text-red-700">Voided</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onVoidItem(selectedTicket, line, idx)}
+                      className="shrink-0 rounded-lg bg-red-50 px-3 py-2 text-[10px] font-black uppercase text-red-600 transition hover:bg-red-100"
+                    >
+                      Void Item
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
           })}
         </div>
-      )}
-      <button
-        onClick={onClose}
-        className="w-full mt-4 h-11 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider"
-      >
-        Close
-      </button>
-    </ModalShell>
+        <div className="grid grid-cols-2 gap-3 mt-4">
+          <button
+            type="button"
+            onClick={() => setSelectedTicketId(null)}
+            className="h-11 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider"
+          >
+            Back
+          </button>
+          <button
+            type="button"
+            onClick={() => selectedTicket && onSelect(selectedTicket)}
+            disabled={selectedActiveItems.length === 0}
+            className="h-11 rounded-xl bg-cyan-700 text-white text-xs font-bold uppercase tracking-wider shadow-sm transition hover:bg-cyan-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+          >
+            {mode === "move" ? "Move selected lines here" : "Resume This Order"}
+          </button>
+        </div>
+      </ModalShell>
+    </>
   );
 }
 
@@ -2507,6 +2607,7 @@ export default function POSPage() {
   const [receiptRefunds, setReceiptRefunds] = useState({});
   const [selectedReceiptNumber, setSelectedReceiptNumber] = useState("");
   const [reprintingReceipt, setReprintingReceipt] = useState(false);
+  const [reprintingCupLabel, setReprintingCupLabel] = useState(false);
   const [startingCash, setStartingCash] = useState("");
   const [shiftCashOpen, setShiftCashOpen] = useState(false);
   const [shiftCashMode, setShiftCashMode] = useState("open");
@@ -2519,6 +2620,7 @@ export default function POSPage() {
   const [toast, setToast] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [printerPermissionRole, setPrinterPermissionRole] = useState(null);
+  const pendingPrinterReconnectRef = useRef(null);
   const [charging, setCharging] = useState(false);
   const [savingTicket, setSavingTicket] = useState(false);
   const [moving, setMoving] = useState(false);
@@ -3886,6 +3988,7 @@ export default function POSPage() {
       cart: labelCart,
       diningOptionName: labelDining,
       printedAt,
+      storeName: currentStore?.store_name || currentStore?.name || currentStore?.branch_name || "Juja Brew & Bites",
       barCategoryIds: barPrinterCategoryIds,
       barCategoryNames: barPrinterCategoryNames,
     });
@@ -3900,11 +4003,44 @@ export default function POSPage() {
 
     try {
       for (const label of labels) {
-        await printByRole("cup_label", label, printerConfig, { fallbackToBrowser: false });
+        await printByRoleWhenReady("cup_label", label);
       }
     } catch (printError) {
       showToast("warn", "Cup Label Not Printed", printError?.message || "Select and save the Bluetooth cup label printer in POS Settings.");
     }
+  }
+
+  async function isBluetoothPrinterConnected(role = "receipt") {
+    const cfg = printerConfig?.[role];
+    if (!cfg || cfg.transport === "browser") return true;
+    if (getCachedBluetoothPrinterCharacteristic(cfg)) return true;
+
+    const cachedDevice = getCachedBluetoothPrinterDevice(cfg);
+    if (cachedDevice?.gatt?.connected) return true;
+
+    try {
+      const serviceUuid = normalizeBluetoothUuid(cfg?.ble_service_uuid, DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID);
+      const rememberedDevice = await findSavedBluetoothDevice(cfg, serviceUuid);
+      cacheBluetoothPrinterDevice(rememberedDevice, cfg);
+      return !!rememberedDevice?.gatt?.connected;
+    } catch {
+      return false;
+    }
+  }
+
+  function promptPrinterReconnectBeforePrint(role = "receipt") {
+    const roleLabel = PRINTER_ROLE_LABELS[role] || "Bluetooth Printer";
+    return new Promise((resolve, reject) => {
+      pendingPrinterReconnectRef.current = { role, resolve, reject };
+      showToast("warn", `${roleLabel} Disconnected`, "Reconnect the printer first before printing.");
+      setPrinterPermissionRole(role);
+    });
+  }
+
+  async function printByRoleWhenReady(role, text, options = {}) {
+    const ready = await isBluetoothPrinterConnected(role);
+    if (!ready) await promptPrinterReconnectBeforePrint(role);
+    return printByRole(role, text, printerConfig, { fallbackToBrowser: false, ...options });
   }
 
   async function autoPrintOrderSlip({
@@ -3940,7 +4076,7 @@ export default function POSPage() {
           printedAt,
           slipTitle: `${job.groupName.toUpperCase()} ORDER SLIP`,
         });
-        await printByRole("receipt", slipText, printerConfig, { fallbackToBrowser: false });
+        await printByRoleWhenReady("receipt", slipText);
       }
     } catch (printError) {
       showToast("warn", "Order Slip Not Printed", printError?.message || "Select and save the receipt printer in POS Settings.");
@@ -3950,13 +4086,21 @@ export default function POSPage() {
   const [originalTicketId, setOriginalTicketId] = useState(null);
 
   async function loadDiningOptionOrder(optionName) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("open_tickets")
       .select("*")
       .eq("order_type", optionName)
-      .maybeSingle();
+      .order("created_at", { ascending: false })
+      .limit(1);
 
-    if (data) {
+    if (error) {
+      showToast("error", "Ticket Load Failed", error.message);
+      return;
+    }
+
+    const ticket = (data || [])[0] || null;
+
+    if (ticket) {
       if (cart.length > 0) {
         setOriginalTicketId(null);
         clearActiveWebOrderContext();
@@ -3964,12 +4108,12 @@ export default function POSPage() {
         return;
       }
 
-      const lineItemsByTicket = await fetchOpenTicketLineItems([data.id]);
-      const ticketItems = lineItemsByTicket.get(String(data.id)) || data.items || [];
-      setOriginalTicketId(data.id);
+      const lineItemsByTicket = await fetchOpenTicketLineItems([ticket.id]);
+      const ticketItems = lineItemsByTicket.get(String(ticket.id)) || ticket.items || [];
+      setOriginalTicketId(ticket.id);
       setCart(ticketItems);
       clearActiveWebOrderContext(); // Clear web tracking context when switching to a physical table
-      const linkedCustomer = customers.find((c) => c.id === data.customer_id);
+      const linkedCustomer = customers.find((c) => c.id === ticket.customer_id);
       setAttachedCustomer(linkedCustomer || null);
       showToast("info", "Table Loaded", optionName);
     } else {
@@ -4604,6 +4748,10 @@ export default function POSPage() {
           quantity: item.quantity || item.qty || 1,
           net_sales: Number(item.unitPrice || item.price || 0) * Number(item.quantity || item.qty || 1),
           gross_sales: Number(item.unitPrice || item.price || 0) * Number(item.quantity || item.qty || 1),
+          categoryId: item.categoryId || item.category_id || item.menu_category_id || null,
+          category_id: item.category_id || item.categoryId || item.menu_category_id || null,
+          category: item.category || item.categoryName || item.category_name || "",
+          categoryName: item.categoryName || item.category_name || item.category || "",
           variantDetails: item.variantDetails || item.variant_details || "",
           selectedOptions: item.selectedOptions || item.selected_options || [],
           instructions: item.instructions || item.note || item.specialInstructions || item.special_instructions || "",
@@ -4626,6 +4774,10 @@ export default function POSPage() {
           item: item.name,
           net_sales: item.line_total,
           gross_sales: item.line_total,
+          categoryId: item.categoryId || item.category_id || item.menu_category_id || sourceLine?.categoryId || sourceLine?.category_id || sourceLine?.menu_category_id || null,
+          category_id: item.category_id || item.categoryId || item.menu_category_id || sourceLine?.category_id || sourceLine?.categoryId || sourceLine?.menu_category_id || null,
+          category: item.category || item.categoryName || item.category_name || sourceLine?.category || sourceLine?.categoryName || sourceLine?.category_name || "",
+          categoryName: item.categoryName || item.category_name || item.category || sourceLine?.categoryName || sourceLine?.category_name || sourceLine?.category || "",
           variantDetails: item.variantDetails || item.variant_details || item.variant_name || sourceLine?.variantDetails || sourceLine?.variant_details || sourceLine?.variant || "",
           selectedOptions: item.selectedOptions || item.selected_options || item.options || item.modifiers || sourceLine?.selectedOptions || sourceLine?.selected_options || sourceLine?.options || sourceLine?.modifiers || [],
           selected_options: item.selected_options || item.selectedOptions || item.options || item.modifiers || sourceLine?.selectedOptions || sourceLine?.selected_options || sourceLine?.options || sourceLine?.modifiers || [],
@@ -4641,6 +4793,10 @@ export default function POSPage() {
           quantity: item.quantity || item.qty || 1,
           net_sales: Number(item.unitPrice || item.price || 0) * Number(item.quantity || item.qty || 1),
           gross_sales: Number(item.unitPrice || item.price || 0) * Number(item.quantity || item.qty || 1),
+          categoryId: item.categoryId || item.category_id || item.menu_category_id || null,
+          category_id: item.category_id || item.categoryId || item.menu_category_id || null,
+          category: item.category || item.categoryName || item.category_name || "",
+          categoryName: item.categoryName || item.category_name || item.category || "",
           variantDetails: item.variantDetails || item.variant_details || "",
           selectedOptions: item.selectedOptions || item.selected_options || [],
           instructions: item.instructions || item.note || item.specialInstructions || item.special_instructions || "",
@@ -4768,12 +4924,55 @@ export default function POSPage() {
     try {
       setReceiptText(receiptCopy);
       setReceiptOpen(true);
-      await printByRole("receipt", receiptCopy, printerConfig, { fallbackToBrowser: false });
+      await printByRoleWhenReady("receipt", receiptCopy);
       showToast("success", "Receipt Reprinted", receipt.receipt_number);
     } catch (error) {
       showToast("error", "Reprint Failed", error?.message || "Unable to reprint receipt.");
     } finally {
       setReprintingReceipt(false);
+    }
+  }
+
+  async function reprintCupLabelsForReceipt(receipt) {
+    if (!receipt?.receipt_number || reprintingCupLabel) return;
+    const items = receiptItemRows.filter((row) => row.receipt_number === receipt.receipt_number);
+    const labelCart = items.map((row) => ({
+      ...row,
+      name: row.item || row.name || "Item",
+      quantity: Math.max(1, Number(row.quantity || row.qty || 1)),
+      categoryId: row.categoryId || row.category_id || row.menu_category_id || row.category?.id || null,
+      category_id: row.category_id || row.categoryId || row.menu_category_id || null,
+      category: row.category || row.categoryName || row.category_name || "",
+      categoryName: row.categoryName || row.category_name || row.category || "",
+      variantDetails: row.variantDetails || row.variant_details || row.variant_name || "",
+      selectedOptions: row.selectedOptions || row.selected_options || row.options || row.modifiers || [],
+      instructions: row.instructions || row.note || row.specialInstructions || row.special_instructions || "",
+    }));
+    const labels = buildCupLabels({
+      orderId: receipt.receipt_number,
+      cart: labelCart,
+      diningOptionName: receipt.dining_option || receipt.order_type || receipt.description || "Receipt",
+      printedAt: receiptDisplayTimestamp(receipt) || receipt.created_at || new Date(),
+      storeName: receipt.store_name || receipt.branch_name || currentStore?.store_name || currentStore?.name || currentStore?.branch_name || "Juja Brew & Bites",
+      barCategoryIds: barPrinterCategoryIds,
+      barCategoryNames: barPrinterCategoryNames,
+    });
+
+    if (labels.length === 0) {
+      showToast("info", "No Cup Labels", "This receipt has no items assigned to the Bar printer group.");
+      return;
+    }
+
+    setReprintingCupLabel(true);
+    try {
+      for (const label of labels) {
+        await printByRoleWhenReady("cup_label", label);
+      }
+      showToast("success", "Cup Labels Reprinted", `${labels.length} label${labels.length === 1 ? "" : "s"} sent to the cup label printer.`);
+    } catch (error) {
+      showToast("error", "Cup Label Reprint Failed", error?.message || "Unable to reprint cup labels.");
+    } finally {
+      setReprintingCupLabel(false);
     }
   }
 
@@ -5059,7 +5258,7 @@ export default function POSPage() {
         "Use Chrome or Edge on a Bluetooth-capable device over HTTPS or localhost."
       );
       setPrinterPermissionRole(null);
-      return;
+      return false;
     }
 
     const form = printerForm?.[role] || createPrinterProfile(role);
@@ -5112,14 +5311,36 @@ export default function POSPage() {
           : "The device was selected. Save it, then test printing from this browser."
       );
       setPrinterPermissionRole(null);
+      return true;
     } catch (err) {
       if (err?.name === "NotFoundError") {
         showToast("info", "Bluetooth Selection Cancelled", "No printer was selected.");
         setPrinterPermissionRole(null);
-        return;
+        return false;
       }
       showToast("error", "Bluetooth Selection Failed", err?.message || "Unable to open Bluetooth device picker.");
       setPrinterPermissionRole(null);
+      return false;
+    }
+  }
+
+  async function handlePrinterPermissionAllow() {
+    const role = printerPermissionRole;
+    const pending = pendingPrinterReconnectRef.current;
+    const ok = await requestBluetoothPrinterDevice(role);
+    if (pending && pending.role === role) {
+      pendingPrinterReconnectRef.current = null;
+      if (ok) pending.resolve(true);
+      else pending.reject(new Error(`${PRINTER_ROLE_LABELS[role] || "Printer"} was not reconnected.`));
+    }
+  }
+
+  function handlePrinterPermissionCancel() {
+    const pending = pendingPrinterReconnectRef.current;
+    pendingPrinterReconnectRef.current = null;
+    setPrinterPermissionRole(null);
+    if (pending) {
+      pending.reject(new Error(`${PRINTER_ROLE_LABELS[pending.role] || "Printer"} reconnect was cancelled.`));
     }
   }
 
@@ -5196,7 +5417,7 @@ export default function POSPage() {
         printedAt: record.created_at,
       });
       try {
-        await printByRole("receipt", reportText, printerConfig, { fallbackToBrowser: false });
+        await printByRoleWhenReady("receipt", reportText);
       } catch (printError) {
         showToast("warn", "End Day Report Not Printed", printError?.message || "Select and save the receipt printer in POS Settings.");
       }
@@ -5240,7 +5461,7 @@ export default function POSPage() {
     setReceiptText(reportText);
     setReceiptOpen(true);
     try {
-      await printByRole("receipt", reportText, printerConfig, { fallbackToBrowser: false });
+      await printByRoleWhenReady("receipt", reportText);
       showToast("success", "Shift Report Printed", "Closed shift report was sent to the receipt printer.");
     } catch (printError) {
       showToast("warn", "Shift Report Not Printed", printError?.message || "Select and save the receipt printer in POS Settings.");
@@ -5415,7 +5636,7 @@ export default function POSPage() {
     setReceiptOpen(true);
 
     try {
-      await printByRole("receipt", bill, printerConfig, { fallbackToBrowser: false });
+      await printByRoleWhenReady("receipt", bill);
       showToast("success", "Bill Printed", "Bill sent to the receipt printer.");
     } catch (printError) {
       showToast("warn", "Bill Not Printed", printError?.message || "Select and save the receipt printer in POS Settings.");
@@ -5455,7 +5676,7 @@ export default function POSPage() {
       if (originalTicketId) {
         await supabase.from("open_tickets").delete().eq("id", originalTicketId);
       } else {
-        await supabase.from("open_tickets").delete().eq("order_type", ticketDiningLabel || diningOptionName);
+        showToast("warn", "Void Skipped", "No saved ticket id was attached. Reopen the saved ticket before voiding it.");
       }
       clearTicketSoft();
       showToast("success", "Live Ticket Voided", "Order scrubbed successfully.");
@@ -5683,7 +5904,7 @@ export default function POSPage() {
           // Charging should not resend or complete the kitchen ticket.
           await supabase.from("open_tickets").delete().eq("id", originalTicketId);
         } else {
-          await supabase.from("open_tickets").delete().eq("order_type", chargedDiningLabel);
+          console.warn("Charge completed without an attached open ticket id; skipped open_tickets cleanup.");
         }
       }
 
@@ -5720,7 +5941,7 @@ export default function POSPage() {
 
       if (receiptSettings?.auto_print) {
         try {
-          await printByRole("receipt", receipt, printerConfig, { fallbackToBrowser: false });
+          await printByRoleWhenReady("receipt", receipt);
         } catch (printError) {
           showToast("warn", "Sale Saved, Printer Needs Permission", printError?.message || "Open POS Settings, select the saved printer, then reprint the receipt.");
         }
@@ -5772,7 +5993,7 @@ export default function POSPage() {
         setReceiptOpen(true);
         if (receiptSettings?.auto_print) {
           try {
-            await printByRole("receipt", offlineReceipt, printerConfig, { fallbackToBrowser: false });
+            await printByRoleWhenReady("receipt", offlineReceipt);
           } catch (printError) {
             showToast("warn", "Offline Sale Queued", "Sale saved locally. Printer needs permission before reprint.");
           }
@@ -6274,6 +6495,14 @@ export default function POSPage() {
                           className="h-9 px-3 rounded-xl bg-cyan-50 border border-cyan-100 text-[10px] font-bold uppercase tracking-wider text-cyan-700 disabled:opacity-60"
                         >
                           {reprintingReceipt ? "Reprinting..." : "Reprint Receipt"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => reprintCupLabelsForReceipt(selectedReceipt)}
+                          disabled={reprintingCupLabel || selectedReceiptItems.length === 0}
+                          className="h-9 px-3 rounded-xl bg-cyan-50 border border-cyan-100 text-[10px] font-bold uppercase tracking-wider text-cyan-700 disabled:opacity-60"
+                        >
+                          {reprintingCupLabel ? "Printing Labels..." : "Reprint Cup Labels"}
                         </button>
                         <button type="button" onClick={() => refundReceipt(selectedReceipt)} className="h-9 px-3 rounded-xl bg-red-50 border border-red-100 text-[10px] font-bold uppercase tracking-wider text-red-600">
                           Refund Receipt
@@ -7154,8 +7383,8 @@ export default function POSPage() {
       <PrinterPermissionModal
         open={!!printerPermissionRole}
         roleLabel={PRINTER_ROLE_LABELS[printerPermissionRole]}
-        onCancel={() => setPrinterPermissionRole(null)}
-        onAllow={() => requestBluetoothPrinterDevice(printerPermissionRole)}
+        onCancel={handlePrinterPermissionCancel}
+        onAllow={handlePrinterPermissionAllow}
       />
       {shiftCashModal}
       <PaymentModal open={paymentOpen} onClose={() => setPaymentOpen(false)} paymentTypes={paymentTypes} selectedPayment={selectedPayment} onSelect={(name) => setSelectedPayment(name)} onConfirm={confirmCharge} total={totalDue} paymentAmount={paymentAmount} setPaymentAmount={setPaymentAmount} />
