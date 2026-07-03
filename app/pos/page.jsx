@@ -3125,24 +3125,37 @@ export default function POSPage() {
       }
       return formatDate(stamp) === todayKey;
     });
-    const isRefunded = (r) => String(r.status || "").toLowerCase().includes("refund");
-    const saleRows = rows.filter((r) => !isRefunded(r));
-    const refundRows = rows.filter(isRefunded);
+    const itemRefundsByReceipt = new Map();
+    (receiptItemRows || []).forEach((item) => {
+      const itemStatus = String(item?.status || "").toLowerCase();
+      if (!item?.receipt_number || (!item.refunded_at && !itemStatus.includes("refund"))) return;
+      const current = itemRefundsByReceipt.get(String(item.receipt_number)) || 0;
+      itemRefundsByReceipt.set(String(item.receipt_number), current + Math.abs(Number(item.refund_amount || item.net_sales || item.gross_sales || 0)));
+    });
+    const rowStatus = (r) => String(r.status || "").toLowerCase();
+    const isPartialRefund = (r) => rowStatus(r).includes("partial");
+    const isFullRefund = (r) => rowStatus(r).includes("refund") && !isPartialRefund(r);
+    const rowRefundAmount = (r) => {
+      const itemRefund = itemRefundsByReceipt.get(String(r.receipt_number)) || 0;
+      if (isPartialRefund(r)) return itemRefund || Math.abs(Number(r.refund_amount || 0));
+      return Math.abs(Number(r.refund_amount || itemRefund || (isFullRefund(r) ? (r.net_sales || r.total_collected || 0) : 0)));
+    };
+    const saleRows = rows.filter((r) => !isFullRefund(r));
+    const refundRows = rows.filter((r) => rowRefundAmount(r) > 0);
     const normalizePaymentKey = (value) => String(value || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
     const paymentMatches = (value, keys) => keys.map(normalizePaymentKey).includes(normalizePaymentKey(value));
     const paymentTotal = (...keys) =>
       rows
         .filter((r) => paymentMatches(r.payment_type, keys))
-        .filter((r) => !isRefunded(r))
+        .filter((r) => !isFullRefund(r))
         .reduce((sum, r) => sum + Number(r.total_collected || 0), 0);
     const cashPayments = paymentTotal("cash");
     const cashRefunds = rows
       .filter((r) => paymentMatches(r.payment_type, ["cash"]))
-      .filter(isRefunded)
-      .reduce((sum, r) => sum + Number(r.total_collected || 0), 0);
+      .reduce((sum, r) => sum + rowRefundAmount(r), 0);
     const grossSales = saleRows.reduce((sum, r) => sum + Number(r.gross_sales || r.total_collected || r.net_sales || 0), 0);
     const discounts = saleRows.reduce((sum, r) => sum + Number(r.discounts || r.discount || 0), 0);
-    const refunds = refundRows.reduce((sum, r) => sum + Math.abs(Number(r.refund_amount || r.net_sales || r.total_collected || 0)), 0);
+    const refunds = refundRows.reduce((sum, r) => sum + rowRefundAmount(r), 0);
     const netSales = saleRows.reduce((sum, r) => sum + Number(r.net_sales || r.total_collected || 0), 0) - refunds;
     return {
       grossSales,
@@ -3161,7 +3174,7 @@ export default function POSPage() {
         Panda: paymentTotal("panda", "foodpanda"),
       },
     };
-  }, [receiptRows, startingCash, activeShiftStartMs]);
+  }, [receiptRows, receiptItemRows, startingCash, activeShiftStartMs]);
   const shiftSalesRows = useMemo(() => {
     const todayKey = formatDate(new Date());
     const todaysRows = (receiptRows || []).filter((row) => {
