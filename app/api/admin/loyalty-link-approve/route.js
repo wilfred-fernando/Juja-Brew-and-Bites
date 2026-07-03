@@ -61,6 +61,30 @@ async function requireAdmin(adminClient) {
   return { allowed: true, requester };
 }
 
+async function allocateLinkVouchers(admin, memberId) {
+  let pointResult = { created: 0 };
+  let welcomeResult = { created: 0 };
+  const warnings = [];
+
+  try {
+    pointResult = await createMissingPointRewardVouchers(admin, memberId);
+  } catch (error) {
+    warnings.push(`Point voucher allocation skipped: ${error?.message || "Unknown error"}`);
+  }
+
+  try {
+    welcomeResult = await createWelcomeVoucherIfNeeded(admin, memberId);
+  } catch (error) {
+    warnings.push(`Welcome voucher allocation skipped: ${error?.message || "Unknown error"}`);
+  }
+
+  return {
+    pointVouchersCreated: pointResult.created || 0,
+    welcomeVoucherCreated: welcomeResult.created || 0,
+    warnings,
+  };
+}
+
 async function approveExistingRequest(admin, requestId, chosenMemberId) {
   const { error } = await admin
     .from("loyalty_link_requests")
@@ -73,16 +97,12 @@ async function approveExistingRequest(admin, requestId, chosenMemberId) {
 
   if (error) throw error;
 
-  const [voucherResult, welcomeResult] = await Promise.all([
-    createMissingPointRewardVouchers(admin, chosenMemberId),
-    createWelcomeVoucherIfNeeded(admin, chosenMemberId),
-  ]);
+  const voucherAllocation = await allocateLinkVouchers(admin, chosenMemberId);
 
   return {
     success: true,
     alreadyLinked: true,
-    pointVouchersCreated: voucherResult.created || 0,
-    welcomeVoucherCreated: welcomeResult.created || 0,
+    ...voucherAllocation,
   };
 }
 
@@ -226,15 +246,11 @@ export async function POST(req) {
 
     if (updateRequestError) throw updateRequestError;
 
-    const [voucherResult, welcomeResult] = await Promise.all([
-      createMissingPointRewardVouchers(admin, chosenMemberId),
-      createWelcomeVoucherIfNeeded(admin, chosenMemberId),
-    ]);
+    const voucherAllocation = await allocateLinkVouchers(admin, chosenMemberId);
 
     return Response.json({
       success: true,
-      pointVouchersCreated: voucherResult.created || 0,
-      welcomeVoucherCreated: welcomeResult.created || 0,
+      ...voucherAllocation,
     });
   } catch (error) {
     return Response.json({ error: error?.message || "Unable to approve loyalty link request." }, { status: 500 });

@@ -13,6 +13,7 @@ export default function TicketPanel({
   diningOption,
   diningOptions,
   setDiningOption,
+  occupiedDiningOptionIds,
   grabOrderNumber = "",
   setGrabOrderNumber,
   showGrabOrderNumber = false,
@@ -206,11 +207,14 @@ const isWelcomeVoucher = (voucher) => {
 
           {/* ✅ Direct mapping against pre-filtered database arrays to circumvent schema field mismatches */}
           {Array.isArray(diningOptions) && diningOptions.length > 0 ? (
-            diningOptions.map((opt) => (
-              <option key={String(opt.id)} value={String(opt.id)}>
-                {opt.name}
-              </option>
-            ))
+            diningOptions.map((opt) => {
+              const occupied = occupiedDiningOptionIds?.has?.(String(opt.id));
+              return (
+                <option key={String(opt.id)} value={String(opt.id)} disabled={occupied}>
+                  {opt.name}{occupied ? " - Occupied" : ""}
+                </option>
+              );
+            })
           ) : (
             <option disabled value="">
               ⚠️ No options loaded (Check Admin Settings)

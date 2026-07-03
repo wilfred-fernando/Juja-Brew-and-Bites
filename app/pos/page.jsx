@@ -1748,20 +1748,31 @@ function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onD
   );
 }
 
-function DiningOptionModal({ open, onClose, options, onPick }) {
+function DiningOptionModal({ open, onClose, options, onPick, occupiedOptionIds }) {
   if (!open) return null;
   return (
     <ModalShell open={open} onClose={onClose} title="New Ticket" subtitle="Select Dining Option" z={145}>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {(options || []).map((opt) => (
-          <button
-            key={opt.id || opt.name}
-            onClick={() => onPick(opt.name)}
-            className="w-full text-left p-3.5 rounded-xl border border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 transition"
-          >
-            {opt.name}
-          </button>
-        ))}
+        {(options || []).map((opt) => {
+          const occupied = occupiedOptionIds?.has?.(String(opt.id));
+          return (
+            <button
+              key={opt.id || opt.name}
+              onClick={() => {
+                if (!occupied) onPick(opt.name);
+              }}
+              disabled={occupied}
+              className={`w-full text-left p-3.5 rounded-xl border font-bold transition ${
+                occupied
+                  ? "border-amber-200 bg-amber-50 text-amber-800 cursor-not-allowed opacity-75"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              <span className="block">{opt.name}</span>
+              {occupied && <span className="mt-1 block text-[10px] uppercase tracking-widest">Occupied</span>}
+            </button>
+          );
+        })}
       </div>
       <button onClick={onClose} className="w-full mt-4 h-11 bg-rose-950 text-white rounded-xl font-bold text-xs uppercase tracking-wider">Close</button>
     </ModalShell>
@@ -2587,6 +2598,16 @@ function getShiftStatusFromRecords(records, storeId, cashierId) {
   return getShiftRecordMode(latest).includes("open") ? "open" : "closed";
 }
 
+function tableDiningKey(value) {
+  const label = String(value || "").trim();
+  const match = label.match(/^table\s*[-#:]?\s*(\d+)\b/i);
+  return match ? `TABLE ${match[1]}` : "";
+}
+
+function isTableDiningOption(value) {
+  return Boolean(tableDiningKey(value));
+}
+
 // ================= MAIN TERMINAL SCREEN =================
 
 export default function POSPage() {
@@ -2657,6 +2678,7 @@ export default function POSPage() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
   const [savedTickets, setSavedTickets] = useState([]);
+  const [activeKitchenTables, setActiveKitchenTables] = useState([]);
   const [savedMode, setSavedMode] = useState("resume");
   const [webOrdersOpen, setWebOrdersOpen] = useState(false);
   const [webOrders, setWebOrders] = useState([]);
@@ -3712,13 +3734,31 @@ export default function POSPage() {
   useEffect(() => {
     const channel = supabase
       .channel('open_tickets_changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'open_tickets' }, () => {
-        fetchSavedTickets(); 
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'open_tickets' }, () => {
+        fetchSavedTickets();
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
   }, []);
+
+  useEffect(() => {
+    if (!storeId) return;
+    const channel = supabase
+      .channel("pos-kds-table-occupancy")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "kds_tickets" },
+        (payload) => {
+          const row = payload.new || payload.old || {};
+          if (row.store_id && String(row.store_id) !== String(storeId)) return;
+          fetchActiveKitchenTables();
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [storeId]);
 
   useEffect(() => {
     if (!ticketDrawerOpen) return;
@@ -3775,6 +3815,7 @@ export default function POSPage() {
       await fetchPendingCount(activeStoreId); 
       await loadShiftState(activeStoreId, session.user.id);
       await fetchData(activeStoreId);
+      await fetchActiveKitchenTables(activeStoreId);
     };
 
     init();
@@ -4174,6 +4215,36 @@ export default function POSPage() {
   }
 
   const [originalTicketId, setOriginalTicketId] = useState(null);
+  const occupiedTableKeys = useMemo(() => {
+    const keys = new Set();
+
+    (savedTickets || []).forEach((ticket) => {
+      if (originalTicketId && String(ticket.id) === String(originalTicketId)) return;
+      const key = tableDiningKey(ticket.order_type || ticket.ticket_name);
+      if (key) keys.add(key);
+    });
+
+    (activeKitchenTables || []).forEach((ticket) => {
+      if (originalTicketId && String(ticket.source_id) === String(originalTicketId)) return;
+      if (ticket.key) keys.add(ticket.key);
+    });
+
+    return keys;
+  }, [savedTickets, activeKitchenTables, originalTicketId]);
+
+  const occupiedDiningOptionIds = useMemo(() => {
+    const ids = new Set();
+    (diningOptions || []).forEach((option) => {
+      const key = tableDiningKey(option?.name);
+      if (key && occupiedTableKeys.has(key)) ids.add(String(option.id));
+    });
+    return ids;
+  }, [diningOptions, occupiedTableKeys]);
+
+  function isDiningOptionOccupied(optionName) {
+    const key = tableDiningKey(optionName);
+    return Boolean(key && occupiedTableKeys.has(key));
+  }
 
   async function loadDiningOptionOrder(optionName) {
     const { data, error } = await supabase
@@ -4191,11 +4262,16 @@ export default function POSPage() {
     const ticket = (data || [])[0] || null;
 
     if (ticket) {
+      if (isTableDiningOption(optionName) && String(ticket.id) !== String(originalTicketId || "")) {
+        showToast("warn", "Table Occupied", `${optionName} already has a saved ticket. Resume it from Saved Tickets instead.`);
+        return false;
+      }
+
       if (cart.length > 0) {
         setOriginalTicketId(null);
         clearActiveWebOrderContext();
         showToast("info", "Dining Option Changed", `${optionName} has a saved ticket. Your current cart was kept.`);
-        return;
+        return true;
       }
 
       const lineItemsByTicket = await fetchOpenTicketLineItems([ticket.id]);
@@ -4211,21 +4287,30 @@ export default function POSPage() {
       clearActiveWebOrderContext();
       showToast("info", "Dining Option Changed", optionName);
     }
+    return true;
   }
 
   async function handleDiningChange(optionId) {
-    setDiningOption(optionId);
     const opt = (diningOptions || []).find((d) => String(d.id) === String(optionId));
     const name = opt?.name || "";
-    if (!/grab/i.test(name)) setGrabOrderNumber("");
 
     if (!name) {
+      setDiningOption(optionId);
       setOriginalTicketId(null);
       clearActiveWebOrderContext();
       return;
     }
 
-    await loadDiningOptionOrder(name);
+    if (isTableDiningOption(name) && isDiningOptionOccupied(name)) {
+      showToast("warn", "Table Occupied", `${name} already has a saved ticket or active kitchen order.`);
+      return;
+    }
+
+    const changed = await loadDiningOptionOrder(name);
+    if (!changed) return;
+
+    setDiningOption(optionId);
+    if (!/grab/i.test(name)) setGrabOrderNumber("");
   }
 
   async function saveTableOrder() {
@@ -4267,6 +4352,9 @@ export default function POSPage() {
     if (!diningOption) return;
     const name = ticketDiningLabel;
     if (!name) return;
+    if (!originalTicketId && isTableDiningOption(name) && isDiningOptionOccupied(name)) {
+      throw new Error(`${name} already has a saved ticket or active kitchen order.`);
+    }
 
     const payload = {
       ticket_name: name,
@@ -4430,6 +4518,34 @@ export default function POSPage() {
     setSavedTickets(enriched);
   }
 
+  async function fetchActiveKitchenTables(sid = storeId) {
+    if (!sid) {
+      setActiveKitchenTables([]);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("kds_tickets")
+      .select("source_id, dining_option, status")
+      .eq("store_id", String(sid))
+      .in("status", ["pending", "scheduled", "accepted", "preparing", "ready"]);
+
+    if (error) {
+      console.warn("Active kitchen table load failed:", error);
+      setActiveKitchenTables([]);
+      return;
+    }
+
+    setActiveKitchenTables(
+      (data || [])
+        .map((ticket) => ({
+          source_id: ticket.source_id,
+          key: tableDiningKey(ticket.dining_option),
+        }))
+        .filter((ticket) => ticket.key)
+    );
+  }
+
   async function fetchAcceptedWebOrders() {
     if (!storeId) return;
 
@@ -4459,6 +4575,7 @@ export default function POSPage() {
         currentUserId ? loadShiftState(storeId, currentUserId) : Promise.resolve(),
         fetchData(storeId, { showLoading: false }),
         fetchSavedTickets(),
+        fetchActiveKitchenTables(),
         fetchAcceptedWebOrders(),
         managementOpen ? fetchReceiptLogs() : Promise.resolve(),
       ]);
@@ -4484,6 +4601,7 @@ export default function POSPage() {
           loadShiftState(storeId, currentUserId),
           fetchData(storeId, { showLoading: false }),
           fetchSavedTickets(),
+          fetchActiveKitchenTables(),
           fetchAcceptedWebOrders(),
           managementOpen ? fetchReceiptLogs() : Promise.resolve(),
         ]);
@@ -5190,9 +5308,17 @@ export default function POSPage() {
         .eq("id", orderId)
         .maybeSingle();
       const itemRefundAmount = Number(itemRow.net_sales || itemRow.gross_sales || 0);
-      const nextRefundAmount = Number(orderAudit?.refund_amount || 0) + itemRefundAmount;
       const itemRefundedAt = new Date().toISOString();
       if (itemRow.id) {
+        const { data: existingItem } = await supabase
+          .from("order_items")
+          .select("status, refunded_at")
+          .eq("id", itemRow.id)
+          .maybeSingle();
+        if (existingItem?.refunded_at || String(existingItem?.status || "").toLowerCase().includes("refund")) {
+          showToast("info", "Item Already Refunded", itemRow.item);
+          return;
+        }
         const { error: itemRefundError } = await supabase
           .from("order_items")
           .update({
@@ -5205,8 +5331,18 @@ export default function POSPage() {
           .eq("id", itemRow.id);
         if (itemRefundError) {
           showToast("warn", "Item Refund Audit Skipped", itemRefundError.message);
+          return;
         }
       }
+      const { data: refundedItems } = await supabase
+        .from("order_items")
+        .select("refund_amount, net_amount, line_total, status, refunded_at")
+        .eq("order_id", orderId);
+      const nextRefundAmount = (refundedItems || []).reduce((sum, item) => {
+        const status = String(item?.status || "").toLowerCase();
+        if (!item?.refunded_at && !status.includes("refund")) return sum;
+        return sum + Math.abs(Number(item.refund_amount || item.net_amount || item.line_total || 0));
+      }, 0) || itemRefundAmount;
       const currentAwarded = Number(orderAudit?.loyalty_points_awarded || 0);
       const calculatedPoints = calcLoyaltyPoints(itemRefundAmount);
       const pointsToReverse = currentAwarded > 0 ? Math.min(currentAwarded, calculatedPoints) : calculatedPoints;
@@ -5814,6 +5950,9 @@ export default function POSPage() {
     if (!activeWebOrderId && isGrabDiningOption && !trimmedGrabOrderNumber) {
       return showToast("error", "GRAB Order Number Required", "Enter the GRAB order number before saving.");
     }
+    if (!activeWebOrderId && !originalTicketId && isTableDiningOption(ticketDiningLabel) && isDiningOptionOccupied(ticketDiningLabel)) {
+      return showToast("error", "Table Occupied", `${ticketDiningLabel} already has a saved ticket or active kitchen order.`);
+    }
 
     const promptMessage = activeWebOrderId 
       ? "Save adjustments directly back to this active web order?" 
@@ -5922,6 +6061,9 @@ export default function POSPage() {
     }
     if (!activeWebOrderId && isGrabDiningOption && !trimmedGrabOrderNumber) {
       return showToast("error", "GRAB Order Number Required", "Enter the GRAB order number before charging.");
+    }
+    if (!activeWebOrderId && !originalTicketId && isTableDiningOption(ticketDiningLabel) && isDiningOptionOccupied(ticketDiningLabel)) {
+      return showToast("error", "Table Occupied", `${ticketDiningLabel} already has a saved ticket or active kitchen order.`);
     }
     setPaymentOpen(true);
   }
@@ -6393,6 +6535,11 @@ export default function POSPage() {
   const createNewTicketWithItems = async (newType) => {
     setDiningOptionPickOpen(false);
     if (!newType) return;
+
+    if (isTableDiningOption(newType) && isDiningOptionOccupied(newType)) {
+      showToast("warn", "Table Occupied", `${newType} already has a saved ticket or active kitchen order.`);
+      return;
+    }
 
     const movingItems = splitSelectedLines;
     if (!movingItems.length) return;
@@ -7393,6 +7540,7 @@ export default function POSPage() {
               diningOptions={diningOptions}
               diningOption={diningOption}
               setDiningOption={handleDiningChange}
+              occupiedDiningOptionIds={occupiedDiningOptionIds}
               grabOrderNumber={grabOrderNumber}
               setGrabOrderNumber={setGrabOrderNumber}
               showGrabOrderNumber={isGrabDiningOption && !activeWebOrderId}
@@ -7505,6 +7653,7 @@ export default function POSPage() {
                 diningOptions={diningOptions}
                 diningOption={diningOption}
                 setDiningOption={handleDiningChange}
+                occupiedDiningOptionIds={occupiedDiningOptionIds}
                 grabOrderNumber={grabOrderNumber}
                 setGrabOrderNumber={setGrabOrderNumber}
                 showGrabOrderNumber={isGrabDiningOption && !activeWebOrderId}
@@ -7601,7 +7750,13 @@ export default function POSPage() {
         onReady={markWebOrderReady}
         onDelivered={openWebOrderCharge}
       />
-      <DiningOptionModal open={diningOptionPickOpen} onClose={() => setDiningOptionPickOpen(false)} options={diningOptions} onPick={createNewTicketWithItems} />
+      <DiningOptionModal
+        open={diningOptionPickOpen}
+        onClose={() => setDiningOptionPickOpen(false)}
+        options={diningOptions}
+        onPick={createNewTicketWithItems}
+        occupiedOptionIds={occupiedDiningOptionIds}
+      />
       <VouchersModal
         open={voucherModalOpen}
         onClose={() => setVoucherModalOpen(false)}

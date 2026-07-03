@@ -86,14 +86,27 @@ export async function POST(req) {
       return Response.json({ error: "Loyalty member is required." }, { status: 400 });
     }
 
-    const [pointResult, welcomeResult] = await Promise.all([
-      createMissingPointRewardVouchers(admin, memberId),
-      createWelcomeVoucherIfNeeded(admin, memberId),
-    ]);
+    let pointResult = { created: 0 };
+    let welcomeResult = { created: 0 };
+    const warnings = [];
+
+    try {
+      pointResult = await createMissingPointRewardVouchers(admin, memberId);
+    } catch (error) {
+      warnings.push(`Point voucher allocation skipped: ${error?.message || "Unknown error"}`);
+    }
+
+    try {
+      welcomeResult = await createWelcomeVoucherIfNeeded(admin, memberId);
+    } catch (error) {
+      warnings.push(`Welcome voucher allocation skipped: ${error?.message || "Unknown error"}`);
+    }
+
     return Response.json({
       success: true,
       pointVouchersCreated: pointResult.created || 0,
       welcomeVoucherCreated: welcomeResult.created || 0,
+      warnings,
     });
   } catch (error) {
     return Response.json(
