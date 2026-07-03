@@ -56,6 +56,7 @@ export default function TicketPanel({
 const lineDiscountAmount = (line) =>
   Math.max(0, Math.min(lineGrossAmount(line), Number(line?.discountAmount || line?.discount_amount || 0)));
 const lineNetAmount = (line) => Math.max(0, lineGrossAmount(line) - lineDiscountAmount(line));
+const isVariableDiscountRule = (rule) => Boolean(rule?.is_variable || rule?.isVariable || rule?.variable);
 const isWelcomeVoucher = (voucher) => {
   const code = String(voucher?.code || "").toUpperCase();
   const rewardText = String(voucher?.reward_text || "").toLowerCase();
@@ -339,7 +340,7 @@ const isWelcomeVoucher = (voucher) => {
               <option value="">No order discount</option>
               {discountRules.map((rule) => (
                 <option key={rule.id} value={rule.id}>
-                  {rule.name || rule.discount_name || "Discount"}
+                  {rule.name || rule.discount_name || "Discount"}{isVariableDiscountRule(rule) ? " (Manual)" : ""}
                 </option>
               ))}
             </select>
@@ -353,6 +354,11 @@ const isWelcomeVoucher = (voucher) => {
               </button>
             )}
           </div>
+          {appliedDiscount?.manual_label && (
+            <p className="mt-1 text-[10px] font-semibold text-slate-500">
+              Manual value: {appliedDiscount.manual_label}
+            </p>
+          )}
         </div>
       )}
 

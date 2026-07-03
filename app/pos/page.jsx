@@ -781,7 +781,9 @@ function buildReceiptText({
       splitReceiptText(voucherRewardText, RECEIPT_COLUMNS).forEach((line) => lines.push(`  ${line}`));
     }
   }
-  if (appliedDiscount?.name) lines.push(`Discount: ${appliedDiscount.name}`);
+  if (appliedDiscount?.name) {
+    lines.push(`Discount: ${appliedDiscount.name}${appliedDiscount.manual_label ? ` (${appliedDiscount.manual_label})` : ""}`);
+  }
   if (voucher?.code || appliedDiscount?.name) lines.push(receiptLine());
 
   cart.forEach((x) => {
@@ -858,7 +860,7 @@ function buildOrderSlipText({ orderId, cart, diningOptionName, customerName, tot
   return lines.join("\n");
 }
 
-function buildBillText({ receiptSettings, orderId, cart, diningOptionName, customerName, subtotal, discount, total, printedAt, store }) {
+function buildBillText({ receiptSettings, orderId, cart, diningOptionName, customerName, subtotal, discount, total, printedAt, store, appliedDiscount }) {
   const rs = receiptSettings || {};
   const header = (rs.header_text || "").trim();
   const branchName = store?.store_name || store?.name || store?.branch_name || "Pasong Tamo";
@@ -880,6 +882,10 @@ function buildBillText({ receiptSettings, orderId, cart, diningOptionName, custo
   const customer = normalizeLabelLine(customerName);
   if (customer) lines.push(`Customer: ${customer}`);
   lines.push(receiptLine());
+  if (appliedDiscount?.name) {
+    lines.push(`Discount: ${appliedDiscount.name}${appliedDiscount.manual_label ? ` (${appliedDiscount.manual_label})` : ""}`);
+    lines.push(receiptLine());
+  }
 
   (cart || []).forEach((x) => {
     const quantity = Number(x.quantity || x.qty || 1);
@@ -1827,6 +1833,7 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [] }) {
   const [selections, setSelections] = useState({});
   const [instructions, setInstructions] = useState("");
   const [itemDiscountRuleId, setItemDiscountRuleId] = useState("");
+  const [itemDiscountOverride, setItemDiscountOverride] = useState(null);
   const [collapsed, setCollapsed] = useState({});
 
   useEffect(() => {
@@ -1836,6 +1843,7 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [] }) {
     setQuantity(source.quantity || 1);
     setInstructions(source.instructions || "");
     setItemDiscountRuleId(source.discountRuleId || source.discount_rule_id || "");
+    setItemDiscountOverride(null);
 
     const selected = {};
     if (source.variantDetails && item.variants) {
@@ -1879,7 +1887,11 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [] }) {
 
   const basePrice = Number(item.price) || 0;
   const unitPrice = basePrice + variantPrice;
-  const itemDiscountRule = discountRules.find((rule) => String(rule.id) === String(itemDiscountRuleId));
+  const itemDiscountBaseRule = discountRules.find((rule) => String(rule.id) === String(itemDiscountRuleId));
+  const itemDiscountRule =
+    itemDiscountOverride && String(itemDiscountOverride.id) === String(itemDiscountRuleId)
+      ? itemDiscountOverride
+      : itemDiscountBaseRule;
   const discountValue = Math.max(0, Math.min(unitPrice * Number(quantity || 1), discountAmountFromRule(itemDiscountRule, unitPrice * Number(quantity || 1))));
   const availableVariantGroups = (item.variants || []).filter((g) => g.isAvailable !== false && g.is_available !== false);
   const canAdd = availableVariantGroups.every((g) => !g.isRequired || (selections[g.id] || []).length > 0);
@@ -1915,6 +1927,8 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [] }) {
       discountAmount: discountValue,
       discountRuleId: itemDiscountRule?.id || null,
       discountName: itemDiscountRule?.name || itemDiscountRule?.discount_name || null,
+      discountManualValue: itemDiscountRule?.manual_value ?? null,
+      discountManualLabel: itemDiscountRule?.manual_label ?? null,
       variantDetails,
       selectedOptions,
       instructions,
@@ -1958,13 +1972,25 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [] }) {
           <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1">Item Discount</label>
           <select
             value={itemDiscountRuleId}
-            onChange={(e) => setItemDiscountRuleId(e.target.value)}
+            onChange={(e) => {
+              const selectedId = e.target.value;
+              if (!selectedId) {
+                setItemDiscountRuleId("");
+                setItemDiscountOverride(null);
+                return;
+              }
+              const selectedRule = discountRules.find((rule) => String(rule.id) === String(selectedId));
+              const resolvedRule = promptForVariableDiscount(selectedRule, unitPrice * Number(quantity || 1));
+              if (!resolvedRule) return;
+              setItemDiscountRuleId(selectedId);
+              setItemDiscountOverride(isVariableDiscountRule(selectedRule) ? resolvedRule : null);
+            }}
             className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 outline-none focus:border-[#FC687D]"
           >
             <option value="">No item discount</option>
             {discountRules.map((rule) => (
               <option key={rule.id} value={rule.id}>
-                {rule.name || rule.discount_name || "Discount"}
+                {rule.name || rule.discount_name || "Discount"}{isVariableDiscountRule(rule) ? " (Manual)" : ""}
               </option>
             ))}
           </select>
@@ -2437,6 +2463,45 @@ function discountAmountFromRule(rule, subtotal) {
   if (type === "fixed") return value;
   if (type === "comp") return subtotal;
   return 0;
+}
+
+function isVariableDiscountRule(rule) {
+  return Boolean(rule?.is_variable || rule?.isVariable || rule?.variable);
+}
+
+function formatManualDiscountValue(rule, value) {
+  const type = String(rule?.type || "").toLowerCase();
+  if (type === "percent") return `${Number(value || 0).toFixed(2).replace(/\.00$/, "")}%`;
+  return peso2(Number(value || 0));
+}
+
+function promptForVariableDiscount(rule, subtotal) {
+  if (!rule || !isVariableDiscountRule(rule)) return rule || null;
+  if (typeof window === "undefined") return null;
+
+  const type = String(rule.type || "").toLowerCase();
+  if (type === "comp") return rule;
+
+  const name = rule.name || rule.discount_name || "Discount";
+  const inputLabel = type === "percent" ? "discount percent" : "discount amount";
+  const raw = window.prompt(`Enter ${inputLabel} for ${name}`, "");
+  if (raw == null) return null;
+
+  const cleaned = Number(String(raw).replace(/[^\d.-]/g, ""));
+  if (!Number.isFinite(cleaned) || cleaned < 0) {
+    window.alert("Please enter a valid discount value.");
+    return null;
+  }
+
+  const value = type === "percent" ? Math.min(100, cleaned) : Math.min(Number(subtotal || 0), cleaned);
+  const roundedValue = Number(value.toFixed(2));
+  return {
+    ...rule,
+    value: roundedValue,
+    manual_value: roundedValue,
+    is_variable_applied: true,
+    manual_label: formatManualDiscountValue(rule, roundedValue),
+  };
 }
 
 function lineGrossAmount(line) {
@@ -2993,6 +3058,17 @@ export default function POSPage() {
     setCart((prev) => prev.filter((_, idx) => idx !== index));
     setVoucherTargetCartItemId(null);
     showToast("info", "Item Removed", "The item was removed from the active ticket.");
+  };
+
+  const handleApplyOrderDiscount = (rule) => {
+    if (!rule) {
+      setAppliedDiscount(null);
+      return;
+    }
+
+    const resolvedRule = promptForVariableDiscount(rule, subtotal);
+    if (!resolvedRule) return;
+    setAppliedDiscount(resolvedRule);
   };
 
   const discountAmount = useMemo(() => {
@@ -3840,6 +3916,7 @@ export default function POSPage() {
             normalize(r.name),
             normalize(r.type),
             Number(r.value || 0).toFixed(2),
+            r.is_variable ? "variable" : "fixed",
           ].join("|");
           if (key && !map.has(key)) map.set(key, r);
         });
@@ -5630,6 +5707,7 @@ export default function POSPage() {
       total: totalDue,
       printedAt: new Date(),
       store: currentStore,
+      appliedDiscount,
     });
 
     setReceiptText(bill);
@@ -7164,7 +7242,7 @@ export default function POSPage() {
               appliedVoucher={appliedVoucher}
               discountRules={orderDiscountRules}
               appliedDiscount={appliedDiscount}
-              onApplyDiscount={setAppliedDiscount}
+              onApplyDiscount={handleApplyOrderDiscount}
               onRemoveDiscount={() => setAppliedDiscount(null)}
               onOpenVouchers={async () => {
                 if (!attachedCustomer?.id) return showToast("error", "Attach Customer", "Scan/select a customer first.");
@@ -7276,7 +7354,7 @@ export default function POSPage() {
                 appliedVoucher={appliedVoucher}
                 discountRules={orderDiscountRules}
                 appliedDiscount={appliedDiscount}
-                onApplyDiscount={setAppliedDiscount}
+                onApplyDiscount={handleApplyOrderDiscount}
                 onRemoveDiscount={() => setAppliedDiscount(null)}
                 onOpenVouchers={async () => {
                   if (!attachedCustomer?.id) return showToast("error", "Attach Customer", "Scan/select a customer first.");

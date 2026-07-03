@@ -11,6 +11,14 @@ function usePosStoreId() {
 }
 
 function discountLabel(row) {
+  if (row?.is_variable) {
+    const type = String(row?.type || "").toLowerCase();
+    if (type === "percent") return "Manual percent";
+    if (type === "fixed") return "Manual amount";
+    if (type === "comp") return "Comp / Free";
+    return "Manual value";
+  }
+
   const type = String(row?.type || "").toLowerCase();
   const value = Number(row?.value || 0);
   if (type === "percent") return `${value.toFixed(2).replace(/\.00$/, "")}%`;
@@ -38,6 +46,7 @@ export default function DiscountsSettingsPage() {
     type: "percent",
     scope: "receipt",
     value: 0,
+    is_variable: false,
   });
 
   useEffect(() => {
@@ -71,7 +80,8 @@ export default function DiscountsSettingsPage() {
       name,
       type: form.type,
       scope: form.scope,
-      value: Number(form.value || 0),
+      value: form.is_variable && form.type !== "comp" ? 0 : Number(form.value || 0),
+      is_variable: Boolean(form.is_variable),
       is_active: true,
       sort_order: rows.length,
     };
@@ -96,7 +106,7 @@ export default function DiscountsSettingsPage() {
       return;
     }
 
-    setForm({ name: "", type: "percent", scope: "receipt", value: 0 });
+    setForm({ name: "", type: "percent", scope: "receipt", value: 0, is_variable: false });
     await load();
     setSaving(false);
   }
@@ -104,6 +114,13 @@ export default function DiscountsSettingsPage() {
   async function toggle(row) {
     setErrorMessage("");
     const { error } = await supabase.from("pos_discounts").update({ is_active: !row.is_active }).eq("id", row.id);
+    if (error) setErrorMessage(error.message);
+    load();
+  }
+
+  async function toggleVariable(row) {
+    setErrorMessage("");
+    const { error } = await supabase.from("pos_discounts").update({ is_variable: !row.is_variable }).eq("id", row.id);
     if (error) setErrorMessage(error.message);
     load();
   }
@@ -133,7 +150,7 @@ export default function DiscountsSettingsPage() {
         <div className="grid md:grid-cols-3 gap-2">
           <select
             value={form.type}
-            onChange={(e) => setForm((p) => ({ ...p, type: e.target.value }))}
+            onChange={(e) => setForm((p) => ({ ...p, type: e.target.value, is_variable: e.target.value === "comp" ? false : p.is_variable }))}
             className="border rounded px-3 py-2"
           >
             <option value="percent">Percent</option>
@@ -155,10 +172,27 @@ export default function DiscountsSettingsPage() {
             step="0.01"
             value={form.value}
             onChange={(e) => setForm((p) => ({ ...p, value: e.target.value }))}
+            disabled={form.is_variable || form.type === "comp"}
             className="border rounded px-3 py-2"
-            placeholder="Value"
+            placeholder={form.is_variable ? "Cashier inputs in POS" : "Value"}
           />
         </div>
+
+        <label className="flex items-start gap-2 rounded-xl border border-cyan-100 bg-cyan-50/60 px-3 py-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={form.is_variable}
+            disabled={form.type === "comp"}
+            onChange={(e) => setForm((p) => ({ ...p, is_variable: e.target.checked }))}
+            className="mt-1"
+          />
+          <span>
+            <span className="block font-semibold">Variable in POS</span>
+            <span className="block text-xs text-slate-500">
+              Cashier manually enters the discount {form.type === "percent" ? "percent" : "amount"} when this discount is selected.
+            </span>
+          </span>
+        </label>
 
         {errorMessage && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{errorMessage}</div>}
 
@@ -180,10 +214,17 @@ export default function DiscountsSettingsPage() {
               <div>
                 <div className="font-semibold">{r.name}</div>
                 <div className="text-xs text-slate-500">
-                  {r.type} | {r.scope} | {discountLabel(r)} | {r.is_active ? "Active" : "Inactive"}
+                  {r.type} | {r.scope} | {discountLabel(r)} | {r.is_variable ? "Variable" : "Fixed"} | {r.is_active ? "Active" : "Inactive"}
                 </div>
               </div>
               <div className="flex gap-2">
+                <button
+                  onClick={() => toggleVariable(r)}
+                  disabled={String(r.type || "").toLowerCase() === "comp"}
+                  className="px-3 py-2 text-xs rounded border disabled:opacity-40"
+                >
+                  {r.is_variable ? "Fixed" : "Variable"}
+                </button>
                 <button onClick={() => toggle(r)} className="px-3 py-2 text-xs rounded border">
                   {r.is_active ? "Disable" : "Enable"}
                 </button>
