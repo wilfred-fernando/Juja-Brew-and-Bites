@@ -3728,6 +3728,26 @@ export default function POSPage() {
       });
     };
 
+    const mergeDiscountRules = (rows) => {
+      const map = new Map();
+      (rows || [])
+        .filter((r) => r && r.is_active !== false)
+        .forEach((r) => {
+          const key = [
+            normalize(r.scope || "receipt"),
+            normalize(r.name),
+            normalize(r.type),
+            Number(r.value || 0).toFixed(2),
+          ].join("|");
+          if (key && !map.has(key)) map.set(key, r);
+        });
+      return Array.from(map.values()).sort((a, b) => {
+        const so = (a.sort_order ?? 0) - (b.sort_order ?? 0);
+        if (so !== 0) return so;
+        return new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime();
+      });
+    };
+
     const [payRes, dineRes, ticketRes, discRes, receiptRes, storeRes] = await Promise.all([
       supabase.from("pos_payment_types").select("*").or(`store_id.eq.${sid},store_id.is.null`).eq("is_active", true),
       supabase.from("pos_dining_options").select("*").eq("store_id", sid).eq("is_active", true).order("sort_order", { ascending: true }),
@@ -3735,7 +3755,6 @@ export default function POSPage() {
       supabase
         .from("pos_discounts")
         .select("*")
-        .or(`store_id.eq.${sid},store_id.is.null`)
         .order("sort_order", { ascending: true }),
       supabase.from("pos_receipt_settings").select("*").eq("store_id", sid).maybeSingle(),
       supabase.from("stores").select("*").eq("id", sid).maybeSingle(),
@@ -3745,7 +3764,7 @@ export default function POSPage() {
     setPaymentTypes(mergedPaymentTypes);
     setDiningOptions(dineRes.data || []);
     setTicketTemplates(ticketRes.data || []);
-    setDiscountRules(discRes.data || []);
+    setDiscountRules(mergeDiscountRules(discRes.data || []));
     setReceiptSettings(receiptRes.data || null);
     setCurrentStore(storeRes.data || null);
 
