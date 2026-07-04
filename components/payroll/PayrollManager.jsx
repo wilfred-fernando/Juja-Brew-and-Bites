@@ -194,6 +194,24 @@ function overtimeHours(scheduleIn, scheduleOut, actualOut) {
   return Math.max(0, Math.floor(diff / 60) || 0);
 }
 
+const DEFAULT_PAYROLL_PAID_HOURS = 8;
+
+function payrollPaidHours(scheduleIn, scheduleOut) {
+  const start = timeMinutes(scheduleIn);
+  const end = endpointMinutes(scheduleIn, scheduleOut);
+  if (start === null || end === null) return DEFAULT_PAYROLL_PAID_HOURS;
+  const scheduledHours = Math.max(0, (end - start) / 60);
+  return Math.max(1, scheduledHours - 1);
+}
+
+function payrollHourlyRate(dailyRate, scheduleIn, scheduleOut) {
+  return num(dailyRate) / payrollPaidHours(scheduleIn, scheduleOut);
+}
+
+function payrollMinuteRate(dailyRate, scheduleIn, scheduleOut) {
+  return payrollHourlyRate(dailyRate, scheduleIn, scheduleOut) / 60;
+}
+
 function attendanceStatusFromSchedule(status) {
   const value = String(status || "scheduled").toLowerCase();
   if (value === "rest_day") return "rest_day";
@@ -242,8 +260,8 @@ function statusClass(status) {
 }
 
 function blankEntry(periodId = "", employeeId = "", dailyRate = 0) {
-  const overtimeRate = num(dailyRate) / 8;
-  const minuteRate = overtimeRate / 60;
+  const overtimeRate = payrollHourlyRate(dailyRate);
+  const minuteRate = payrollMinuteRate(dailyRate);
   return {
     id: "",
     period_id: periodId,
@@ -289,19 +307,20 @@ function buildPayrollEntryFromAttendance({ employee, period, rows, repaymentRows
   }, 0);
   const overtimePay = rowsForPeriod.reduce((sum, row) => {
     const dayRate = dailyRateForWorkDate(employee, row.work_date, rateChanges);
-    return sum + num(row.overtime_hours) * (dayRate / 8);
+    return sum + num(row.overtime_hours) * payrollHourlyRate(dayRate, row.schedule_in, row.schedule_out);
   }, 0);
   const lateDeduction = rowsForPeriod.reduce((sum, row) => {
     const dayRate = dailyRateForWorkDate(employee, row.work_date, rateChanges);
-    return sum + num(row.late_minutes) * (dayRate / 8 / 60);
+    return sum + num(row.late_minutes) * payrollMinuteRate(dayRate, row.schedule_in, row.schedule_out);
   }, 0);
   const undertimeDeduction = rowsForPeriod.reduce((sum, row) => {
     const dayRate = dailyRateForWorkDate(employee, row.work_date, rateChanges);
-    return sum + num(row.undertime_minutes) * (dayRate / 8 / 60);
+    return sum + num(row.undertime_minutes) * payrollMinuteRate(dayRate, row.schedule_in, row.schedule_out);
   }, 0);
   const dailyRate = daysWorked ? basePay / daysWorked : dailyRateForWorkDate(employee, end, rateChanges);
-  const otRate = dailyRate / 8;
-  const minuteRate = otRate / 60;
+  const otRate = ot ? overtimePay / ot : payrollHourlyRate(dailyRate);
+  const lateRate = late ? lateDeduction / late : payrollMinuteRate(dailyRate);
+  const undertimeRate = under ? undertimeDeduction / under : payrollMinuteRate(dailyRate);
   const cashAdvanceDeduction = repaymentRows.filter((row) => row.employee_id === employee.id && row.period_id === periodId).reduce((sum, row) => sum + num(row.amount), 0);
   const loanRepaymentTotal = loanRepaymentRows.filter((row) => row.employee_id === employee.id && row.period_id === periodId).reduce((sum, row) => sum + num(row.amount), 0);
   const miscDeduction = miscDeductionRows.filter((row) => row.employee_id === employee.id && row.period_id === periodId).reduce((sum, row) => sum + num(row.amount), 0);
@@ -326,9 +345,9 @@ function buildPayrollEntryFromAttendance({ employee, period, rows, repaymentRows
     overtime_rate: otRate,
     absent_days: absent,
     late_minutes: late,
-    late_rate_per_minute: minuteRate,
+    late_rate_per_minute: lateRate,
     undertime_minutes: under,
-    undertime_rate_per_minute: minuteRate,
+    undertime_rate_per_minute: undertimeRate,
     allowance_15th: allowance15th,
     allowance_30th: allowance30th,
     payroll_allowance: payrollAllowance,
@@ -849,16 +868,16 @@ export default function AdminPayrollPage() {
         if (employee && !current.id) {
           const rate = employeeCurrentDailyRate(employee);
           next.daily_rate = rate;
-          next.overtime_rate = rate / 8;
-          next.late_rate_per_minute = rate / 8 / 60;
-          next.undertime_rate_per_minute = rate / 8 / 60;
+          next.overtime_rate = payrollHourlyRate(rate);
+          next.late_rate_per_minute = payrollMinuteRate(rate);
+          next.undertime_rate_per_minute = payrollMinuteRate(rate);
         }
       }
       if (field === "daily_rate") {
         const rate = num(value);
-        next.overtime_rate = rate / 8;
-        next.late_rate_per_minute = rate / 8 / 60;
-        next.undertime_rate_per_minute = rate / 8 / 60;
+        next.overtime_rate = payrollHourlyRate(rate);
+        next.late_rate_per_minute = payrollMinuteRate(rate);
+        next.undertime_rate_per_minute = payrollMinuteRate(rate);
       }
       return next;
     });
