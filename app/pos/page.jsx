@@ -2118,6 +2118,7 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [] }) {
 }
 
 function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, onConfirm, total, paymentAmount, setPaymentAmount }) {
+  const splitDraftInitializedRef = useRef(false);
   const [useSplitPayment, setUseSplitPayment] = useState(false);
   const [splitPayments, setSplitPayments] = useState([]);
   const isCash = String(selectedPayment || "").toLowerCase().includes("cash");
@@ -2126,7 +2127,12 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
   const availableTypes = paymentTypes || [];
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      splitDraftInitializedRef.current = false;
+      return;
+    }
+    if (splitDraftInitializedRef.current) return;
+    splitDraftInitializedRef.current = true;
     setUseSplitPayment(false);
     setSplitPayments([
       { id: "split-1", method: availableTypes[0]?.name || selectedPayment || "", amount: "" },
