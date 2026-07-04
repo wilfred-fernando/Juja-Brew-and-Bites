@@ -59,6 +59,7 @@ import {
   uniqueOptions,
   normalizeSalesData,
 } from "@/lib/reports/salesReports";
+import { loyaltyEligibleLineTotal } from "@/lib/menuPromos";
 
 const supabase = getSupabaseClient();
 const DEFAULT_ROWS_PER_PAGE = 10;
@@ -747,6 +748,17 @@ function voucherLabel(value) {
   ].map(normalizeReceiptText).filter(Boolean).join(" - ");
 }
 
+function receiptPointsEarned(order, items) {
+  const storedPoints = Number(order?.loyaltyPointsAwarded ?? order?.raw?.loyalty_points_awarded ?? order?.raw?.points_earned);
+  if (Number.isFinite(storedPoints)) return storedPoints;
+
+  const detailItems = items.length
+    ? items
+    : [{ itemName: order.raw?.description || order.raw?.Description || "Receipt total", quantity: 1, unitPrice: order.net, net: order.net }];
+  const eligibleTotal = detailItems.reduce((sum, item) => sum + loyaltyEligibleLineTotal(item, item.net), 0);
+  return Number((eligibleTotal * 0.04).toFixed(2));
+}
+
 function ReceiptDrawer({ order, items = [], onClose }) {
   if (!order) return null;
   const totalCollected = Number(order.raw?.total_collected ?? order.raw?.["Total collected"] ?? order.net ?? 0);
@@ -754,7 +766,7 @@ function ReceiptDrawer({ order, items = [], onClose }) {
   const tableLabel = order.raw?.table_name || order.raw?.table || (String(order.orderType || "").toLowerCase().includes("dine") ? "TABLE 1" : "");
   const paymentAmount = totalCollected || order.net;
   const hasCustomer = Boolean(order.customerName && !["walk-in", "web customer"].includes(String(order.customerName).toLowerCase()));
-  const pointsEarned = hasCustomer ? Number(order.net || 0) * 0.04 : 0;
+  const pointsEarned = hasCustomer ? receiptPointsEarned(order, items) : 0;
   const pointsBalance = Number(order.customerAvailablePoints ?? order.customerPointsBalance ?? NaN);
   const orderVoucherLabel = voucherLabel(
     order.raw?.applied_voucher || order.raw?.appliedVoucher || order.raw?.voucher || order.raw?.voucher_code || order.raw?.applied_voucher_code

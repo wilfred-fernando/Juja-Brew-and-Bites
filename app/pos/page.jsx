@@ -986,6 +986,24 @@ function filterItemsByBarPrinterGroup(cart, barCategoryIds = [], barCategoryName
   return filterItemsByPrinterGroup(cart, barCategoryIds, barCategoryNames);
 }
 
+function isActiveKdsKitchenItem(item) {
+  return !(
+    item?.voided ||
+    item?.isVoided ||
+    item?.is_voided ||
+    item?.kdsCompleted ||
+    item?.kds_completed ||
+    item?.kitchenCompleted ||
+    item?.kitchen_completed ||
+    String(item?.status || "").toLowerCase().includes("void") ||
+    String(item?.status || "").toLowerCase().includes("refund")
+  );
+}
+
+function kitchenPrinterGroup(groups = []) {
+  return (groups || []).find((group) => group.key === "kitchen" || String(group.name || "").trim().toLowerCase() === "kitchen") || null;
+}
+
 function normalizeLabelLine(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
 }
@@ -3882,6 +3900,7 @@ export default function POSPage() {
       setBarPrinterCategoryIds([]);
       setBarPrinterCategoryNames([]);
       setOrderSlipPrinterGroups([]);
+      setActiveKitchenTables([]);
       return;
     }
 
@@ -3922,6 +3941,7 @@ export default function POSPage() {
     setBarPrinterCategoryIds(barGroup?.categoryIds || []);
     setBarPrinterCategoryNames(barGroup?.categoryNames || []);
     setOrderSlipPrinterGroups(printerGroups);
+    fetchActiveKitchenTables(sid, printerGroups).catch((err) => console.warn("Active kitchen table refresh skipped", err));
   }
 
   async function fetchActiveVouchers(memberId) {
@@ -4536,15 +4556,21 @@ export default function POSPage() {
     setSavedTickets(enriched);
   }
 
-  async function fetchActiveKitchenTables(sid = storeId) {
+  async function fetchActiveKitchenTables(sid = storeId, printerGroups = orderSlipPrinterGroups) {
     if (!sid) {
+      setActiveKitchenTables([]);
+      return;
+    }
+
+    const kitchenGroup = kitchenPrinterGroup(printerGroups);
+    if (!kitchenGroup) {
       setActiveKitchenTables([]);
       return;
     }
 
     const { data, error } = await supabase
       .from("kds_tickets")
-      .select("source_id, dining_option, status")
+      .select("source_id, dining_option, status, items")
       .eq("store_id", String(sid))
       .in("status", ["pending", "scheduled", "accepted", "preparing", "ready"]);
 
@@ -4556,6 +4582,10 @@ export default function POSPage() {
 
     setActiveKitchenTables(
       (data || [])
+        .filter((ticket) => {
+          const activeItems = (Array.isArray(ticket.items) ? ticket.items : []).filter(isActiveKdsKitchenItem);
+          return filterItemsByPrinterGroup(activeItems, kitchenGroup.categoryIds, kitchenGroup.categoryNames).length > 0;
+        })
         .map((ticket) => ({
           source_id: ticket.source_id,
           key: tableDiningKey(ticket.dining_option),
