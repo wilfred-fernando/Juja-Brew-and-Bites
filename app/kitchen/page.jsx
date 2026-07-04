@@ -111,7 +111,16 @@ function isItemVoided(item) {
 }
 
 function isItemRetiredFromLiveBatch(item) {
-  return Boolean(item?.kdsCompleted || item?.kds_completed || item?.kitchenCompleted || item?.kitchen_completed || item?.kitchen_completed_at);
+  return Boolean(
+    item?.kdsCompleted ||
+      item?.kds_completed ||
+      item?.kdsCompletedAt ||
+      item?.kds_completed_at ||
+      item?.kitchenCompleted ||
+      item?.kitchen_completed ||
+      item?.kitchenCompletedAt ||
+      item?.kitchen_completed_at
+  );
 }
 
 function kdsItemLayoutClasses(itemCount) {
@@ -468,11 +477,31 @@ export default function KitchenDisplay() {
 
   const updateTicketStatus = async (ticket, status) => {
     const timestamp = new Date().toISOString();
+    const completedItems =
+      status === "completed" && Array.isArray(ticket.items)
+        ? ticket.items.map((item) => ({
+            ...item,
+            ready: true,
+            kitchenReady: true,
+            kitchen_ready: true,
+            ready_at: item.ready_at || item.kitchen_ready_at || item.kitchenReadyAt || timestamp,
+            kitchenReadyAt: item.kitchenReadyAt || item.kitchen_ready_at || item.ready_at || timestamp,
+            kitchen_ready_at: item.kitchen_ready_at || item.kitchenReadyAt || item.ready_at || timestamp,
+            kdsCompleted: true,
+            kds_completed: true,
+            kitchenCompleted: true,
+            kitchen_completed: true,
+            kdsCompletedAt: item.kdsCompletedAt || item.kds_completed_at || item.kitchen_completed_at || timestamp,
+            kds_completed_at: item.kds_completed_at || item.kdsCompletedAt || item.kitchen_completed_at || timestamp,
+            kitchenCompletedAt: item.kitchenCompletedAt || item.kitchen_completed_at || item.kds_completed_at || timestamp,
+            kitchen_completed_at: item.kitchen_completed_at || item.kitchenCompletedAt || item.kds_completed_at || timestamp,
+          }))
+        : null;
     const extra =
       {
         preparing: { started_at: ticket.started_at || timestamp },
         ready: { ready_at: timestamp },
-        completed: { completed_at: timestamp },
+        completed: { completed_at: timestamp, ...(completedItems ? { items: completedItems } : {}) },
         voided: { voided_at: timestamp },
         rejected: { voided_at: timestamp },
       }[status] || {};
