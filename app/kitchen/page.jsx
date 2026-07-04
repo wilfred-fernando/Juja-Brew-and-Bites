@@ -164,12 +164,13 @@ export default function KitchenDisplay() {
       .filter((ticket) => allowedStatuses.includes(String(ticket.status || "").toLowerCase()))
       .filter((ticket) => {
         const kitchenItems = getKitchenItems(ticket);
-        if (kitchenItems.length > 0) return true;
+        const displayItems = showHistory ? kitchenItems : kitchenItems.filter((item) => !isItemRetiredFromLiveBatch(item));
+        if (displayItems.length > 0) return true;
         return showHistory && Array.isArray(ticket.items) && ticket.items.length > 0;
       });
     if (statusFilter === "all") return rows;
     return rows.filter((ticket) => String(ticket.status || "").toLowerCase() === statusFilter);
-  }, [tickets, statusFilter, allowedStatuses, kitchenCategoriesByStore, menuItemCategoryLookup]);
+  }, [tickets, statusFilter, allowedStatuses, showHistory, kitchenCategoriesByStore, menuItemCategoryLookup]);
 
   const playAlert = () => {
     [0, 900, 1800].forEach((delay) => {
@@ -367,6 +368,25 @@ export default function KitchenDisplay() {
     setLoading(false);
   };
 
+  function mergeRealtimeTicket(payload) {
+    const changed = payload.new || payload.old || {};
+    if (!changed?.id) return;
+    const changedStatus = String(changed.status || "").toLowerCase();
+
+    if (payload.eventType === "DELETE" || !allowedStatuses.includes(changedStatus)) {
+      setTickets((prev) => prev.filter((ticket) => ticket.id !== changed.id));
+      return;
+    }
+
+    if (assignedStoreId && String(changed.store_id || "") !== String(assignedStoreId)) return;
+    if (!showHistory && getKitchenItems(changed).filter((item) => !isItemRetiredFromLiveBatch(item)).length === 0) return;
+
+    setTickets((prev) => {
+      const withoutChanged = prev.filter((ticket) => ticket.id !== changed.id);
+      return showHistory ? [changed, ...withoutChanged] : [...withoutChanged, changed];
+    });
+  }
+
   useEffect(() => {
     bootstrapAuth();
   }, []);
@@ -426,6 +446,7 @@ export default function KitchenDisplay() {
       .on("postgres_changes", { event: "*", schema: "public", table: "kds_tickets" }, (payload) => {
         const changed = payload.new || payload.old || {};
         if (assignedStoreId && String(changed.store_id || "") !== String(assignedStoreId)) return;
+        mergeRealtimeTicket(payload);
         if (payload.eventType === "INSERT") showNewTicketAlert(payload.new);
         fetchTickets({ silent: true });
       })
