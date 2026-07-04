@@ -235,14 +235,14 @@ export default function KitchenDisplay() {
     setAuthLoading(false);
   }
 
-  function getKitchenCategoryRule(storeId) {
+  function getKitchenCategoryRule(storeId, rulesOverride = null) {
     const key = String(storeId || "");
-    const rules = kitchenCategoriesRef.current || kitchenCategoriesByStore;
+    const rules = rulesOverride || kitchenCategoriesRef.current || kitchenCategoriesByStore;
     return rules[key] || rules.__global || { ids: new Set(), names: new Set(), configured: false };
   }
 
-  function getItemCategoryMeta(item) {
-    const lookupMap = menuItemCategoryLookupRef.current || menuItemCategoryLookup;
+  function getItemCategoryMeta(item, lookupOverride = null) {
+    const lookupMap = lookupOverride || menuItemCategoryLookupRef.current || menuItemCategoryLookup;
     const lookup = lookupMap[String(item?.menuItemId || item?.menu_item_id || item?.id || "")] || {};
     return {
       categoryId: item?.categoryId || item?.category_id || item?.menu_category_id || lookup.categoryId || null,
@@ -250,19 +250,19 @@ export default function KitchenDisplay() {
     };
   }
 
-  function isKitchenItem(ticket, item) {
-    const rule = getKitchenCategoryRule(ticket?.store_id);
+  function isKitchenItem(ticket, item, resources = null) {
+    const rule = getKitchenCategoryRule(ticket?.store_id, resources?.rules);
     if (!rule.configured) return false;
-    const meta = getItemCategoryMeta(item);
+    const meta = getItemCategoryMeta(item, resources?.lookup);
     return Boolean(
       (meta.categoryId && rule.ids.has(String(meta.categoryId))) ||
       (meta.categoryName && rule.names.has(normalizeText(meta.categoryName)))
     );
   }
 
-  function getKitchenItems(ticket) {
+  function getKitchenItems(ticket, resources = null) {
     const rows = Array.isArray(ticket?.items) ? ticket.items : [];
-    return rows.map((item, index) => ({ ...item, __kdsIndex: index })).filter((item) => isKitchenItem(ticket, item));
+    return rows.map((item, index) => ({ ...item, __kdsIndex: index })).filter((item) => isKitchenItem(ticket, item, resources));
   }
 
   function getDisplayItems(ticket) {
@@ -286,7 +286,7 @@ export default function KitchenDisplay() {
 
     if (groupsRes.error || mapRes.error || categoriesRes.error) {
       setLoadError(groupsRes.error?.message || mapRes.error?.message || categoriesRes.error?.message || "Unable to load kitchen printer categories.");
-      return;
+      return { rules: {}, lookup: {} };
     }
 
     const categoryById = new Map((categoriesRes.data || []).map((cat) => [String(cat.id), cat]));
@@ -316,6 +316,7 @@ export default function KitchenDisplay() {
     menuItemCategoryLookupRef.current = itemLookup;
     setKitchenCategoriesByStore(nextRules);
     setMenuItemCategoryLookup(itemLookup);
+    return { rules: nextRules, lookup: itemLookup };
   }
 
   const showNewTicketAlert = (ticket) => {
@@ -334,7 +335,7 @@ export default function KitchenDisplay() {
     setTimeout(() => setAlertMessage(""), 5000);
   };
 
-  const fetchTickets = async ({ silent = false } = {}) => {
+  const fetchTickets = async ({ silent = false, resources = null } = {}) => {
     if (!authorized) return;
     if (!silent) setLoading(true);
     let query = supabase
@@ -357,7 +358,7 @@ export default function KitchenDisplay() {
       const next = new Set(rows.map((ticket) => ticket.id));
       const fresh = rows.find((ticket) => {
         const status = String(ticket.status || "").toLowerCase();
-        return !previous.has(ticket.id) && ["pending", "accepted"].includes(status) && getKitchenItems(ticket).length > 0;
+        return !previous.has(ticket.id) && ["pending", "accepted"].includes(status) && getKitchenItems(ticket, resources).length > 0;
       });
       knownTicketIds.current = next;
       setTickets(rows);
@@ -416,8 +417,8 @@ export default function KitchenDisplay() {
     if (!authorized || authLoading) return undefined;
     let cancelled = false;
     (async () => {
-      await loadKitchenPrinterCategories();
-      if (!cancelled) await fetchTickets();
+      const resources = await loadKitchenPrinterCategories();
+      if (!cancelled) await fetchTickets({ resources });
     })();
 
     const channel = supabase
