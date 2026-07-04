@@ -92,6 +92,19 @@ function employeeStartingDailyRate(employee) {
   return num(employee?.starting_daily_rate ?? employee?.default_daily_rate);
 }
 
+function nextEmployeeNo(employees = []) {
+  const fallback = { prefix: "JUJA-", width: 3, number: 0 };
+  const latest = employees.reduce((current, employee) => {
+    const value = String(employee?.employee_no || "").trim();
+    const match = value.match(/^(.*?)(\d+)\s*$/);
+    if (!match) return current;
+    const number = Number(match[2]);
+    if (!Number.isFinite(number) || number < current.number) return current;
+    return { prefix: match[1] || fallback.prefix, width: match[2].length || fallback.width, number };
+  }, fallback);
+  return `${latest.prefix}${String(latest.number + 1).padStart(latest.width, "0")}`;
+}
+
 function employeeEmploymentStatus(employee) {
   return employee?.employment_status || (employee?.active === false ? "resigned" : "active");
 }
@@ -491,6 +504,11 @@ export default function AdminPayrollPage() {
     setMiscDeductionForm((current) => ({ ...current, employee_id: current.employee_id || firstEmployee, period_id: current.period_id || selectedPeriodId }));
     setRateIncreaseForm((current) => ({ ...current, employee_id: current.employee_id || firstEmployee }));
   }, [employees, selectedEmployeeId, selectedPeriodId]);
+
+  useEffect(() => {
+    if (editingEmployeeId || employeeForm.employee_no || loading) return;
+    setEmployeeForm((current) => ({ ...current, employee_no: nextEmployeeNo(employees) }));
+  }, [editingEmployeeId, employeeForm.employee_no, employees, loading]);
 
   const employeeById = useMemo(() => {
     const map = {};
@@ -914,14 +932,15 @@ export default function AdminPayrollPage() {
     };
     const { data, error } = await supabase.from("payroll_employees").upsert(payload).select().maybeSingle();
     if (error) return setNotice(`Employee Save Failed: ${error.message}`);
-    setEmployees((prev) => [data, ...prev.filter((row) => row.id !== data.id)].sort((a, b) => String(a.employee_no || a.full_name).localeCompare(String(b.employee_no || b.full_name))));
-    resetEmployeeForm();
+    const nextEmployees = [data, ...employees.filter((row) => row.id !== data.id)].sort((a, b) => String(a.employee_no || a.full_name).localeCompare(String(b.employee_no || b.full_name)));
+    setEmployees(nextEmployees);
+    resetEmployeeForm(nextEmployees);
     setNotice("Employee saved.");
   }
 
-  function resetEmployeeForm() {
+  function resetEmployeeForm(employeeList = employees) {
     setEditingEmployeeId("");
-    setEmployeeForm(blankEmployeeForm());
+    setEmployeeForm({ ...blankEmployeeForm(), employee_no: nextEmployeeNo(employeeList) });
   }
 
   function openEmployeeEdit(employee) {
