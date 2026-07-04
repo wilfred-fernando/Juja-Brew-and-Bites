@@ -343,7 +343,7 @@ export default function KitchenDisplay() {
       .from("kds_tickets")
       .select("*")
       .in("status", allowedStatuses)
-      .order("created_at", { ascending: !showHistory })
+      .order("created_at", { ascending: false })
       .limit(200);
 
     if (assignedStoreId) query = query.eq("store_id", assignedStoreId);
@@ -354,7 +354,7 @@ export default function KitchenDisplay() {
       setLoadError(error.message || "Unable to load KDS tickets.");
     } else {
       setLoadError("");
-      const rows = data || [];
+      const rows = showHistory ? data || [] : [...(data || [])].reverse();
       const previous = knownTicketIds.current;
       const next = new Set(rows.map((ticket) => ticket.id));
       const fresh = rows.find((ticket) => {
