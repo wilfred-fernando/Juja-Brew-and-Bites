@@ -123,6 +123,23 @@ function isItemRetiredFromLiveBatch(item) {
   );
 }
 
+function itemReceivedTimestamp(item) {
+  return item?.kdsReceivedAt || item?.kds_received_at || item?.received_at || item?.added_at || null;
+}
+
+function activeTicketTimestamp(ticket, displayItems = []) {
+  const itemTimes = (Array.isArray(displayItems) ? displayItems : [])
+    .map((item) => {
+      const timestamp = itemReceivedTimestamp(item);
+      const time = timestamp ? new Date(timestamp).getTime() : 0;
+      return Number.isFinite(time) ? time : 0;
+    })
+    .filter(Boolean);
+  const newestItemTime = itemTimes.length ? Math.max(...itemTimes) : 0;
+  if (newestItemTime) return new Date(newestItemTime).toISOString();
+  return ticket?.started_at || ticket?.source_created_at || ticket?.created_at || null;
+}
+
 function kdsItemLayoutClasses(itemCount) {
   if (itemCount >= 9) {
     return {
@@ -731,8 +748,9 @@ export default function KitchenDisplay() {
           <div className="flex h-[calc(100vh-8.75rem)] min-h-[420px] snap-x snap-mandatory gap-4 overflow-x-auto overflow-y-hidden pb-2 pr-2 scroll-smooth">
             {visibleTickets.map((ticket) => {
               const status = String(ticket.status || "pending").toLowerCase();
-              const minutes = ticket.created_at ? Math.floor((Date.now() - new Date(ticket.created_at).getTime()) / 60000) : 0;
               const ticketItems = getDisplayItems(ticket);
+              const activeTimestamp = activeTicketTimestamp(ticket, ticketItems);
+              const minutes = activeTimestamp ? Math.floor((Date.now() - new Date(activeTimestamp).getTime()) / 60000) : 0;
               const itemLayout = kdsItemLayoutClasses(ticketItems.length);
               const allItemsReady = ticketItems.length > 0 && ticketItems.every((item) => isItemReady(item) || isItemVoided(item));
               const terminalStatus = ["completed", "voided", "rejected"].includes(status);
@@ -771,7 +789,7 @@ export default function KitchenDisplay() {
                       <div>
                         <p className="text-2xl font-bold tracking-tight text-slate-950">{ticket.dining_option || "Kitchen Order"}</p>
                         <p className="mt-1 text-xs font-semibold text-slate-500">
-                          {ticket.customer_name || "Walk-in"} - {getTimeAgo(ticket.created_at)}
+                          {ticket.customer_name || "Walk-in"} - {activeTimestamp ? getTimeAgo(activeTimestamp) : "Just now"}
                         </p>
                       </div>
                       <div className="text-right">
@@ -786,7 +804,7 @@ export default function KitchenDisplay() {
                     <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-600">
                       <span className="rounded-full bg-white px-3 py-1">{String(ticket.source_type || "").toUpperCase()}</span>
                       <span className="rounded-full bg-white px-3 py-1">
-                        <Clock3 className="mr-1 inline h-3 w-3" /> {ticket.created_at ? formatDateTime(ticket.created_at) : ""}
+                        <Clock3 className="mr-1 inline h-3 w-3" /> {activeTimestamp ? formatDateTime(activeTimestamp) : ""}
                       </span>
                     </div>
                   </div>
