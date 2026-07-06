@@ -1681,7 +1681,17 @@ function SavedTicketsModal({ open, onClose, tickets, onSelect, onRefresh, onVoid
   );
 }
 
-function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onDelivered }) {
+function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onDelivered, onRemoveItem }) {
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const selectedOrder = useMemo(
+    () => orders.find((order) => String(order.id) === String(selectedOrderId)) || null,
+    [orders, selectedOrderId]
+  );
+
+  useEffect(() => {
+    if (!open) setSelectedOrderId(null);
+  }, [open]);
+
   const statusClass = (status) => {
     const s = String(status || "").toLowerCase();
     if (s === "pending") return "bg-amber-50 text-amber-700 border-amber-200";
@@ -1692,81 +1702,150 @@ function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onD
   const activeOrders = orders.filter((order) => String(order.status || "").toLowerCase() !== "completed");
 
   return (
-    <ModalShell open={open} onClose={onClose} title="Web Orders" subtitle="Pending & Accepted" z={145}>
-      <div className="flex mb-3">
-        <button
-          onClick={onRefresh}
-          className="px-4 h-9 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
-        >
-          ↻ Refresh List
-        </button>
-      </div>
-      {activeOrders.length === 0 ? (
-        <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 text-xs font-medium">
-          No pending or accepted web orders located.
+    <>
+      <ModalShell open={open} onClose={onClose} title="Web Orders" subtitle="Pending & Accepted" z={145}>
+        <div className="flex mb-3">
+          <button
+            onClick={onRefresh}
+            className="px-4 h-9 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
+          >
+            ↻ Refresh List
+          </button>
         </div>
-      ) : (
-        <div className="space-y-2 max-h-[52vh] overflow-y-auto pr-1">
-          {activeOrders.map((order) => {
-            const status = String(order.status || "accepted").toLowerCase();
-            const readyDisabled = status === "ready" || status === "completed";
-            const deliveredDisabled = status === "completed";
-            const total = Number(order.total || order.subtotal || 0);
+        {activeOrders.length === 0 ? (
+          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 text-xs font-medium">
+            No pending or accepted web orders located.
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-[52vh] overflow-y-auto pr-1">
+            {activeOrders.map((order) => {
+              const total = Number(order.total || order.subtotal || 0);
 
-            return (
-              <div key={order.id} className="p-3.5 border rounded-xl bg-white shadow-sm hover:border-rose-100 transition">
-                <div className="flex justify-between items-start gap-3">
-                  <div className="min-w-0 text-left">
-                    <p className="font-bold text-slate-800 text-sm truncate">{order.customer_name || "Web Customer"}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Lines: {(order.items || []).length} • <span className="font-bold text-slate-700">{peso2(total)}</span>
-                    </p>
-                    <p className="text-[11px] font-medium text-slate-400 mt-1 truncate">
-                      {webDiningOptionLabel(order.fulfillment_type || order.dining_option)} {order.fulfillment_time ? `• ${order.fulfillment_time}` : ""}
-                    </p>
+              return (
+                <button
+                  type="button"
+                  key={order.id}
+                  onClick={() => setSelectedOrderId(order.id)}
+                  className="w-full p-3.5 border rounded-xl bg-white shadow-sm hover:border-cyan-200 hover:bg-cyan-50/30 transition text-left"
+                >
+                  <div className="flex justify-between items-start gap-3">
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-800 text-sm truncate">{order.customer_name || "Web Customer"}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Lines: {(order.items || []).length} • <span className="font-bold text-slate-700">{peso2(total)}</span>
+                      </p>
+                      <p className="text-[11px] font-medium text-slate-400 mt-1 truncate">
+                        {webDiningOptionLabel(order.fulfillment_type || order.dining_option)} {order.fulfillment_time ? `• ${order.fulfillment_time}` : ""}
+                      </p>
+                    </div>
+                    <span className={`px-2 py-1 rounded-md border text-[10px] font-black uppercase tracking-wider ${statusClass(order.status)}`}>
+                      {order.status}
+                    </span>
                   </div>
-                  <span className={`px-2 py-1 rounded-md border text-[10px] font-black uppercase tracking-wider ${statusClass(order.status)}`}>
-                    {order.status}
-                  </span>
-                </div>
+                  <div className="mt-3 h-9 rounded-lg bg-slate-50 text-center text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center justify-center">
+                    View Web Order Ticket
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <button
+          onClick={onClose}
+          className="w-full mt-4 h-11 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider"
+        >
+          Close
+        </button>
+      </ModalShell>
 
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onEdit(order)}
-                    className="h-9 rounded-lg bg-rose-50 hover:bg-rose-100 text-xs font-bold text-rose-700 transition"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    disabled={readyDisabled}
-                    onClick={() => onReady(order)}
-                    className="h-9 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-xs font-bold text-emerald-700 transition disabled:opacity-40"
-                  >
-                    Ready
-                  </button>
-                  <button
-                    type="button"
-                    disabled={deliveredDisabled}
-                    onClick={() => onDelivered(order)}
-                    className="h-9 rounded-lg bg-[#FC687D] hover:bg-rose-500 text-xs font-bold text-white transition disabled:opacity-40"
-                  >
-                    Delivered
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      <button
-        onClick={onClose}
-        className="w-full mt-4 h-11 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider"
+      <ModalShell
+        open={Boolean(selectedOrder)}
+        onClose={() => setSelectedOrderId(null)}
+        title={selectedOrder?.customer_name || "Web Customer"}
+        subtitle={`${webDiningOptionLabel(selectedOrder?.fulfillment_type || selectedOrder?.dining_option)} • ${peso2(selectedOrder?.total || selectedOrder?.subtotal || 0)}`}
+        z={155}
       >
-        Close
-      </button>
-    </ModalShell>
+        {selectedOrder && (() => {
+          const status = String(selectedOrder.status || "accepted").toLowerCase();
+          const readyDisabled = status === "ready" || status === "completed";
+          const deliveredDisabled = status === "completed";
+          const orderItems = Array.isArray(selectedOrder.items) ? selectedOrder.items : [];
+          return (
+            <>
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => onEdit(selectedOrder)}
+                  className="h-10 rounded-lg bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  disabled={readyDisabled}
+                  onClick={() => onReady(selectedOrder)}
+                  className="h-10 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-xs font-bold text-emerald-700 transition disabled:opacity-40"
+                >
+                  Ready
+                </button>
+                <button
+                  type="button"
+                  disabled={deliveredDisabled}
+                  onClick={() => onDelivered(selectedOrder)}
+                  className="h-10 rounded-lg bg-[#FC687D] hover:bg-rose-500 text-xs font-bold text-white transition disabled:opacity-40"
+                >
+                  Delivered
+                </button>
+              </div>
+              <div className="space-y-2 max-h-[52vh] overflow-y-auto pr-1">
+                {orderItems.length === 0 ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-700">
+                    No items are left in this web order.
+                  </div>
+                ) : (
+                  orderItems.map((line, idx) => {
+                    const details = receiptItemDisplayLines(line);
+                    return (
+                      <div key={line.cartItemId || line.id || idx} className="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-800">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-bold">{line.quantity || 1} x {line.name}</p>
+                            {details.length > 0 && (
+                              <div className="mt-1.5 space-y-0.5">
+                                {details.map((detail, detailIndex) => (
+                                  <p key={`${detail}-${detailIndex}`} className="text-xs text-slate-500">
+                                    {detail}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                            <p className="mt-2 text-xs font-bold text-slate-600">{peso2(lineNetAmount(line))}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => onRemoveItem(selectedOrder, idx)}
+                            className="shrink-0 rounded-lg bg-red-50 px-3 py-2 text-[10px] font-black uppercase text-red-600 transition hover:bg-red-100"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedOrderId(null)}
+                className="w-full mt-4 h-11 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider"
+              >
+                Back to Web Orders
+              </button>
+            </>
+          );
+        })()}
+      </ModalShell>
+    </>
   );
 }
 
@@ -4793,6 +4872,51 @@ export default function POSPage() {
     setAttachedCustomer(customer || null);
     setWebOrdersOpen(false);
     showToast("info", "Web Order Loaded", "Edit the order in the active ticket workspace.");
+  }
+
+  async function removeAcceptedWebOrderItem(order, itemIndex) {
+    if (!order?.id) return;
+    const orderStoreId = getWebOrderStoreId(order) || storeId;
+    if (String(orderStoreId || "") !== String(storeId || "")) {
+      showToast("error", "Wrong Store Order", "This web order belongs to another store.");
+      await fetchAcceptedWebOrders();
+      return;
+    }
+
+    const currentItems = Array.isArray(order.items) ? order.items : [];
+    if (!currentItems[itemIndex]) return;
+    if (currentItems.length <= 1) {
+      showToast("warn", "Cannot Remove Last Item", "Reject the web order instead if no items can be fulfilled.");
+      return;
+    }
+
+    const removedItemName = currentItems[itemIndex]?.name || "Item";
+    const nextItems = enrichOrderItemsForKds(currentItems.filter((_, idx) => idx !== itemIndex));
+    const nextTotal = Number(calcTotal(nextItems).toFixed(2));
+
+    const { error } = await supabase
+      .from("web_orders")
+      .update({
+        items: nextItems,
+        subtotal: nextTotal,
+        total: nextTotal,
+      })
+      .eq("id", order.id)
+      .or(buildStoreOrderFilter(orderStoreId));
+
+    if (error) {
+      showToast("error", "Remove Item Failed", error.message);
+      return;
+    }
+
+    setWebOrders((current) =>
+      current.map((row) =>
+        String(row.id) === String(order.id)
+          ? { ...row, items: nextItems, subtotal: nextTotal, total: nextTotal }
+          : row
+      )
+    );
+    showToast("success", "Item Removed", `${removedItemName} removed from the web order.`);
   }
 
   async function markWebOrderReady(order) {
@@ -7997,6 +8121,7 @@ export default function POSPage() {
         onEdit={editAcceptedWebOrder}
         onReady={markWebOrderReady}
         onDelivered={openWebOrderCharge}
+        onRemoveItem={removeAcceptedWebOrderItem}
       />
       <DiningOptionModal
         open={diningOptionPickOpen}
