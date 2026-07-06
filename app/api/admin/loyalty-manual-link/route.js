@@ -111,6 +111,43 @@ export async function GET(req) {
     const type = String(url.searchParams.get("type") || "").toLowerCase();
     const query = String(url.searchParams.get("q") || "").trim();
 
+    if (type === "unlinked-users") {
+      const [{ data: usersData, error: usersError }, { data: profiles, error: profilesError }, { data: linkedMembers, error: linkedMembersError }] =
+        await Promise.all([
+          admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+          admin.from("profiles").select("id,email,full_name,role,loyalty_account_id"),
+          admin.from("loyalty_members").select("user_id").not("user_id", "is", null),
+        ]);
+
+      if (usersError) throw usersError;
+      if (profilesError) throw profilesError;
+      if (linkedMembersError) throw linkedMembersError;
+
+      const profileById = Object.fromEntries((profiles || []).map((profile) => [profile.id, profile]));
+      const linkedUserIds = new Set((linkedMembers || []).map((member) => String(member.user_id || "")).filter(Boolean));
+
+      const rows = (usersData?.users || [])
+        .map((user) => {
+          const profile = profileById[user.id] || {};
+          const role = String(profile.role || user.user_metadata?.role || "customer").toLowerCase();
+          if (["admin", "super_admin", "cashier", "kds"].includes(role)) return null;
+          if (profile.loyalty_account_id || linkedUserIds.has(String(user.id))) return null;
+
+          return {
+            id: user.id,
+            email: profile.email || user.email || "",
+            full_name: profile.full_name || user.user_metadata?.full_name || user.email || "",
+            role,
+            loyalty_account_id: "",
+            created_at: user.created_at || profile.created_at || "",
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => String(a.full_name || a.email).localeCompare(String(b.full_name || b.email)));
+
+      return Response.json({ rows });
+    }
+
     if (query.length < 2) return Response.json({ rows: [] });
 
     if (type === "users") {

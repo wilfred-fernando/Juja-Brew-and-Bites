@@ -90,11 +90,10 @@ export default function LoyaltyAdminPage() {
   });
   const [voucherStatusBusyId, setVoucherStatusBusyId] = useState("");
 
-  // Select user by email (searchable)
-  const [userQuery, setUserQuery] = useState("");
+  // Select unlinked registered customer account
   const [userOptions, setUserOptions] = useState([]);
+  const [loadingUserOptions, setLoadingUserOptions] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
-  const userTimer = useRef(null);
 
   // Select loyalty member by typing (searchable)
   const [memberQuery, setMemberQuery] = useState("");
@@ -609,37 +608,37 @@ export default function LoyaltyAdminPage() {
     }
   }
 
-  // =========================
-  // SEARCH: Profiles by email/full_name (manual link)
-  // =========================
+  async function fetchUnlinkedCustomerAccounts() {
+    setLoadingUserOptions(true);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      const params = new URLSearchParams({ type: "unlinked-users" });
+      const response = await fetch(`/api/admin/loyalty-manual-link?${params.toString()}`, {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.error || "Unable to load unlinked customer accounts.");
+
+      const rows = payload?.rows || [];
+      setUserOptions(rows);
+      setSelectedUser((current) => {
+        if (!current?.id) return current;
+        return rows.some((row) => row.id === current.id) ? current : null;
+      });
+    } catch (error) {
+      console.error(error);
+      setNotice(`Unable to load unlinked customer accounts: ${error?.message || "Unknown error"}`);
+      setUserOptions([]);
+    } finally {
+      setLoadingUserOptions(false);
+    }
+  }
+
   useEffect(() => {
-    if (userTimer.current) clearTimeout(userTimer.current);
-
-    userTimer.current = setTimeout(async () => {
-      const q = userQuery.trim();
-      if (q.length < 2) {
-        setUserOptions([]);
-        return;
-      }
-
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const accessToken = sessionData?.session?.access_token;
-        const params = new URLSearchParams({ type: "users", q });
-        const response = await fetch(`/api/admin/loyalty-manual-link?${params.toString()}`, {
-          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-        });
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(payload?.error || "Unable to search users.");
-        setUserOptions(payload?.rows || []);
-      } catch (error) {
-        console.error(error);
-        setUserOptions([]);
-      }
-    }, 250);
-
-    return () => clearTimeout(userTimer.current);
-  }, [userQuery]);
+    fetchUnlinkedCustomerAccounts();
+  }, []);
 
   // =========================
   // SEARCH: loyalty_members by name/code (manual link)
@@ -925,12 +924,10 @@ export default function LoyaltyAdminPage() {
       setNotice(`✅ Linked successfully.${voucherMessage}`);
       setSelectedUser(null);
       setSelectedMember(null);
-      setUserQuery("");
       setMemberQuery("");
-      setUserOptions([]);
       setMemberOptions([]);
 
-      await fetchMembers();
+      await Promise.all([fetchMembers(), fetchUnlinkedCustomerAccounts()]);
     } catch (err) {
       setNotice("❌ Manual link failed: " + (err?.message || "Unknown error"));
     } finally {
@@ -1195,44 +1192,44 @@ export default function LoyaltyAdminPage() {
             <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
               Registered Customer Account
             </label>
-            <input
-              value={userQuery}
-              onChange={(event) => {
-                setUserQuery(event.target.value);
-                setSelectedUser(null);
-              }}
-              placeholder="Search full name or email..."
-              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
-            />
+            <div className="flex gap-2">
+              <select
+                value={selectedUser?.id || ""}
+                onChange={(event) => {
+                  const nextUser = userOptions.find((user) => user.id === event.target.value) || null;
+                  setSelectedUser(nextUser);
+                }}
+                disabled={loadingUserOptions}
+                className="min-w-0 flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm disabled:opacity-60"
+              >
+                <option value="">
+                  {loadingUserOptions ? "Loading accounts..." : "Select unlinked customer account"}
+                </option>
+                {userOptions.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {(user.full_name || user.email || "Customer account")} {user.email ? `- ${user.email}` : ""}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={fetchUnlinkedCustomerAccounts}
+                disabled={loadingUserOptions}
+                className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600 disabled:opacity-60"
+              >
+                Refresh
+              </button>
+            </div>
             {selectedUser ? (
               <div className="mt-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
                 Selected: {selectedUser.full_name || selectedUser.email}{" "}
                 <span className="font-mono">({selectedUser.email || selectedUser.id})</span>
               </div>
             ) : null}
-            {userOptions.length > 0 ? (
-              <div className="mt-2 max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white">
-                {userOptions.map((user) => (
-                  <button
-                    key={user.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedUser(user);
-                      setUserQuery(user.full_name || user.email || "");
-                      setUserOptions([]);
-                    }}
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-sky-50"
-                  >
-                    <div className="font-semibold text-slate-800">
-                      {user.full_name || user.email || "Customer account"}
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      {user.email || "No email"}{" "}
-                      {user.loyalty_account_id ? `• Linked: ${user.loyalty_account_id}` : "• Not linked"}
-                    </div>
-                  </button>
-                ))}
-              </div>
+            {!loadingUserOptions && userOptions.length === 0 ? (
+              <p className="mt-2 text-xs text-slate-500">
+                No unlinked registered customer accounts found.
+              </p>
             ) : null}
           </div>
 
