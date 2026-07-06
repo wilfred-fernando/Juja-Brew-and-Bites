@@ -2842,7 +2842,7 @@ export default function POSPage() {
     if (typeof window !== "undefined") return localStorage.getItem("pos_store_id") || null;
     return null;
   };
-  const getTicketStoreId = (ticket) => ticket?.store_id || ticket?.branch_id || null;
+  const getTicketStoreId = (ticket) => ticket?.store_id || null;
   const isTicketInCurrentStore = (ticket, sid = storeId) => {
     const ticketStoreId = getTicketStoreId(ticket);
     return Boolean(sid && ticketStoreId && String(ticketStoreId) === String(sid));
@@ -4328,7 +4328,7 @@ export default function POSPage() {
       .from("open_tickets")
       .select("*")
       .eq("order_type", optionName)
-      .or(buildStoreOrderFilter(storeId))
+      .eq("store_id", storeId)
       .order("created_at", { ascending: false })
       .limit(1);
 
@@ -4443,7 +4443,6 @@ export default function POSPage() {
       order_type: name,
       customer_id: attachedCustomer?.id || null,
       store_id: storeId,
-      branch_id: storeId,
       items: savedItems,
       total_amount: Number(subtotal || 0),
     };
@@ -4451,9 +4450,9 @@ export default function POSPage() {
     if (originalTicketId) {
       let { data: existingTicket, error: existingTicketError } = await supabase
         .from("open_tickets")
-        .select("id, store_id, branch_id, items, created_at")
+        .select("id, store_id, items, created_at")
         .eq("id", originalTicketId)
-        .or(buildStoreOrderFilter(storeId))
+        .eq("store_id", storeId)
         .maybeSingle();
 
       if (existingTicketError) throw existingTicketError;
@@ -4461,9 +4460,9 @@ export default function POSPage() {
       if (!existingTicket) {
         const { data: fallbackTicket, error: fallbackTicketError } = await supabase
           .from("open_tickets")
-          .select("id, store_id, branch_id, items, created_at")
+          .select("id, store_id, items, created_at")
           .eq("order_type", name)
-          .or(buildStoreOrderFilter(storeId))
+          .eq("store_id", storeId)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -4485,8 +4484,8 @@ export default function POSPage() {
         .from("open_tickets")
         .update(payload)
         .eq("id", savedTicketId)
-        .or(buildStoreOrderFilter(storeId))
-        .select("id, store_id, branch_id, created_at")
+        .eq("store_id", storeId)
+        .select("id, store_id, created_at")
         .maybeSingle();
 
       if (error) throw error;
@@ -4504,7 +4503,6 @@ export default function POSPage() {
             order: {
               id: savedTicketId,
               store_id: getTicketStoreId(ticketRow) || storeId,
-              branch_id: getTicketStoreId(ticketRow) || storeId,
               customer_name: attachedCustomer?.name || "Walk-in",
               order_type: name,
               dining_option: name,
@@ -4544,7 +4542,6 @@ export default function POSPage() {
         order: {
           id: ticketRow.id,
           store_id: storeId,
-          branch_id: storeId,
           customer_name: attachedCustomer?.name || "Walk-in",
           order_type: name,
           dining_option: name,
@@ -4581,15 +4578,15 @@ export default function POSPage() {
     }
     let res = await supabase
       .from("open_tickets")
-      .select("id, store_id, branch_id, ticket_name, order_type, customer_id, items, total_amount, applied_voucher, created_at")
-      .or(buildStoreOrderFilter(storeId))
+      .select("id, store_id, ticket_name, order_type, customer_id, items, total_amount, applied_voucher, created_at")
+      .eq("store_id", storeId)
       .order("created_at", { ascending: false });
 
     if (res.error && /applied_voucher/i.test(res.error.message || "")) {
       res = await supabase
         .from("open_tickets")
-        .select("id, store_id, branch_id, ticket_name, order_type, customer_id, items, total_amount, created_at")
-        .or(buildStoreOrderFilter(storeId))
+        .select("id, store_id, ticket_name, order_type, customer_id, items, total_amount, created_at")
+        .eq("store_id", storeId)
         .order("created_at", { ascending: false });
     }
 
@@ -5961,7 +5958,7 @@ export default function POSPage() {
     const confirmVoid = confirm("Void this saved ticket? This cannot be undone.");
     if (!confirmVoid) return;
 
-    const { error } = await supabase.from("open_tickets").delete().eq("id", ticketId).or(buildStoreOrderFilter(storeId));
+    const { error } = await supabase.from("open_tickets").delete().eq("id", ticketId).eq("store_id", storeId);
     if (error) {
       showToast("error", "Void Failed", error.message);
       return;
@@ -6006,7 +6003,7 @@ export default function POSPage() {
       .from("open_tickets")
       .update({ items: safeNextItems, total_amount: nextTotal })
       .eq("id", ticket.id)
-      .or(buildStoreOrderFilter(storeId));
+      .eq("store_id", storeId);
 
     if (error) {
       console.error("Saved ticket item void failed:", error);
@@ -6187,9 +6184,9 @@ export default function POSPage() {
       if (originalTicketId) {
         const { data: loadedTicket, error: loadedTicketErr } = await supabase
           .from("open_tickets")
-          .select("id, store_id, branch_id")
+          .select("id, store_id")
           .eq("id", originalTicketId)
-          .or(buildStoreOrderFilter(storeId))
+          .eq("store_id", storeId)
           .maybeSingle();
         if (loadedTicketErr) throw loadedTicketErr;
         if (!loadedTicket?.id) throw new Error("This saved ticket is not assigned to this POS store.");
@@ -6197,7 +6194,7 @@ export default function POSPage() {
         await markKdsTicketStatus(supabase, { sourceType: "pos", sourceId: originalTicketId, status: "voided" });
       }
       if (originalTicketId) {
-        await supabase.from("open_tickets").delete().eq("id", originalTicketId).or(buildStoreOrderFilter(getTicketStoreId(ticketForVoid) || storeId));
+        await supabase.from("open_tickets").delete().eq("id", originalTicketId).eq("store_id", getTicketStoreId(ticketForVoid) || storeId);
       } else {
         showToast("warn", "Void Skipped", "No saved ticket id was attached. Reopen the saved ticket before voiding it.");
       }
@@ -6299,9 +6296,9 @@ export default function POSPage() {
       if (!activeWebOrderId && originalTicketId) {
         const { data: ticketForCharge, error: ticketForChargeErr } = await supabase
           .from("open_tickets")
-          .select("id, store_id, branch_id, ticket_name, order_type")
+          .select("id, store_id, ticket_name, order_type")
           .eq("id", originalTicketId)
-          .or(buildStoreOrderFilter(resolvedBranchId))
+          .eq("store_id", resolvedBranchId)
           .maybeSingle();
         if (ticketForChargeErr) return showToast("error", "Saved Ticket Check Failed", ticketForChargeErr.message);
         if (!ticketForCharge?.id) {
@@ -6450,7 +6447,7 @@ export default function POSPage() {
         if (originalTicketId) {
           // The saved ticket was already sent to KDS when first saved.
           // Charging should not resend or complete the kitchen ticket.
-          await supabase.from("open_tickets").delete().eq("id", originalTicketId).or(buildStoreOrderFilter(getTicketStoreId(originalTicketForCharge) || resolvedBranchId));
+          await supabase.from("open_tickets").delete().eq("id", originalTicketId).eq("store_id", getTicketStoreId(originalTicketForCharge) || resolvedBranchId);
         } else {
           console.warn("Charge completed without an attached open ticket id; skipped open_tickets cleanup.");
         }
@@ -6744,7 +6741,6 @@ export default function POSPage() {
         order_type: newType,
         customer_id: attachedCustomer?.id || null,
         store_id: storeId,
-        branch_id: storeId,
         items: movingItems,
         total_amount: calcTotal(movingItems),
       };
@@ -6802,7 +6798,7 @@ export default function POSPage() {
         .from("open_tickets")
         .update({ items: merged, total_amount: total })
         .eq("id", ticket.id)
-        .or(buildStoreOrderFilter(storeId));
+        .eq("store_id", storeId);
 
       if (error) {
         showToast("error", "Move Failed", error.message);
