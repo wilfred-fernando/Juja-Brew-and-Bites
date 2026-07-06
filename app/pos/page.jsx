@@ -2842,6 +2842,15 @@ export default function POSPage() {
     if (typeof window !== "undefined") return localStorage.getItem("pos_store_id") || null;
     return null;
   };
+  const getTicketStoreId = (ticket) => ticket?.store_id || ticket?.branch_id || null;
+  const isTicketInCurrentStore = (ticket, sid = storeId) => {
+    const ticketStoreId = getTicketStoreId(ticket);
+    return Boolean(sid && ticketStoreId && String(ticketStoreId) === String(sid));
+  };
+  const assertTicketInCurrentStore = (ticket, actionLabel = "use this saved ticket") => {
+    if (isTicketInCurrentStore(ticket)) return;
+    throw new Error(`This saved ticket belongs to another store. Sign in to the correct POS branch to ${actionLabel}.`);
+  };
 
   const enrichOrderItemsForKds = (orderItems = []) => {
     const menuItemsById = new Map((items || []).map((item) => [String(item.id), item]));
@@ -3670,13 +3679,18 @@ export default function POSPage() {
     stopContinuousAlertChime();
 
     try {
+      const incomingStoreId = getWebOrderStoreId(incomingOrder) || storeId;
+      if (String(incomingStoreId || "") !== String(storeId || "")) {
+        throw new Error("This web order belongs to another store.");
+      }
       const acceptedAt = new Date().toISOString();
       const scheduledOrder = isScheduledWebOrder(incomingOrder);
       const acceptedStatus = scheduledOrder ? "scheduled" : "accepted";
       const { error: updateErr } = await supabase
         .from("web_orders")
         .update({ status: acceptedStatus, order_status: acceptedStatus, accepted_at: acceptedAt })
-        .eq("id", incomingOrder.id);
+        .eq("id", incomingOrder.id)
+        .or(buildStoreOrderFilter(incomingStoreId));
       if (updateErr) throw updateErr;
 
       const { error: kdsErr } = await upsertKdsTicket(supabase, {
@@ -3747,10 +3761,15 @@ export default function POSPage() {
     stopContinuousAlertChime();
 
     try {
+      const incomingStoreId = getWebOrderStoreId(incomingOrder) || storeId;
+      if (String(incomingStoreId || "") !== String(storeId || "")) {
+        throw new Error("This web order belongs to another store.");
+      }
       const { error } = await supabase
         .from("web_orders")
         .update({ status: "rejected" })
-        .eq("id", incomingOrder.id);
+        .eq("id", incomingOrder.id)
+        .or(buildStoreOrderFilter(incomingStoreId));
 
       if (error) throw error;
       await fetchPendingCount(storeId);
@@ -4304,10 +4323,12 @@ export default function POSPage() {
   }
 
   async function loadDiningOptionOrder(optionName) {
+    if (!storeId) return false;
     const { data, error } = await supabase
       .from("open_tickets")
       .select("*")
       .eq("order_type", optionName)
+      .or(buildStoreOrderFilter(storeId))
       .order("created_at", { ascending: false })
       .limit(1);
 
@@ -4374,6 +4395,8 @@ export default function POSPage() {
     const savedItems = jsonSafeValue(enrichOrderItemsForKds(cart));
 
     if (activeWebOrderId) {
+      const activeWebOrderStore = activeWebOrderBranchId || storeId;
+      if (!activeWebOrderStore) throw new Error("Store is still loading. Please refresh POS or sign in again before saving this web order.");
       // Direct rewrite update to keep the active web order synchronized 
       const { error } = await supabase
         .from("web_orders")
@@ -4384,7 +4407,8 @@ export default function POSPage() {
           dining_option: webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName),
           fulfillment_type: activeWebOrderFulfillmentType || diningOptionName || null,
         })
-        .eq("id", activeWebOrderId);
+        .eq("id", activeWebOrderId)
+        .or(buildStoreOrderFilter(activeWebOrderStore));
       if (error) throw error;
       await autoPrintOrderSlip({
         orderId: activeWebOrderId,
@@ -4407,6 +4431,7 @@ export default function POSPage() {
     }
 
     if (!diningOption) return;
+    if (!storeId) throw new Error("Store is still loading. Please refresh POS or sign in again before saving a ticket.");
     const name = ticketDiningLabel;
     if (!name) return;
     if (!originalTicketId && isTableDiningOption(name) && isDiningOptionOccupied(name)) {
@@ -4417,6 +4442,8 @@ export default function POSPage() {
       ticket_name: name,
       order_type: name,
       customer_id: attachedCustomer?.id || null,
+      store_id: storeId,
+      branch_id: storeId,
       items: savedItems,
       total_amount: Number(subtotal || 0),
     };
@@ -4424,8 +4451,9 @@ export default function POSPage() {
     if (originalTicketId) {
       let { data: existingTicket, error: existingTicketError } = await supabase
         .from("open_tickets")
-        .select("id, items, created_at")
+        .select("id, store_id, branch_id, items, created_at")
         .eq("id", originalTicketId)
+        .or(buildStoreOrderFilter(storeId))
         .maybeSingle();
 
       if (existingTicketError) throw existingTicketError;
@@ -4433,8 +4461,9 @@ export default function POSPage() {
       if (!existingTicket) {
         const { data: fallbackTicket, error: fallbackTicketError } = await supabase
           .from("open_tickets")
-          .select("id, items, created_at")
+          .select("id, store_id, branch_id, items, created_at")
           .eq("order_type", name)
+          .or(buildStoreOrderFilter(storeId))
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -4445,6 +4474,7 @@ export default function POSPage() {
       if (!existingTicket?.id) {
         throw new Error("Saved ticket was not updated. Please reopen the saved ticket and try again.");
       }
+      assertTicketInCurrentStore(existingTicket, "update it");
 
       const savedTicketId = existingTicket.id;
       const previousLineItemsByTicket = await fetchOpenTicketLineItems([savedTicketId]);
@@ -4455,7 +4485,8 @@ export default function POSPage() {
         .from("open_tickets")
         .update(payload)
         .eq("id", savedTicketId)
-        .select("id, created_at")
+        .or(buildStoreOrderFilter(storeId))
+        .select("id, store_id, branch_id, created_at")
         .maybeSingle();
 
       if (error) throw error;
@@ -4472,8 +4503,8 @@ export default function POSPage() {
             sourceType: "pos",
             order: {
               id: savedTicketId,
-              store_id: storeId,
-              branch_id: storeId,
+              store_id: getTicketStoreId(ticketRow) || storeId,
+              branch_id: getTicketStoreId(ticketRow) || storeId,
               customer_name: attachedCustomer?.name || "Walk-in",
               order_type: name,
               dining_option: name,
@@ -4544,15 +4575,21 @@ export default function POSPage() {
   }
 
   async function fetchSavedTickets() {
+    if (!storeId) {
+      setSavedTickets([]);
+      return;
+    }
     let res = await supabase
       .from("open_tickets")
-      .select("id, ticket_name, order_type, customer_id, items, total_amount, applied_voucher, created_at")
+      .select("id, store_id, branch_id, ticket_name, order_type, customer_id, items, total_amount, applied_voucher, created_at")
+      .or(buildStoreOrderFilter(storeId))
       .order("created_at", { ascending: false });
 
     if (res.error && /applied_voucher/i.test(res.error.message || "")) {
       res = await supabase
         .from("open_tickets")
-        .select("id, ticket_name, order_type, customer_id, items, total_amount, created_at")
+        .select("id, store_id, branch_id, ticket_name, order_type, customer_id, items, total_amount, created_at")
+        .or(buildStoreOrderFilter(storeId))
         .order("created_at", { ascending: false });
     }
 
@@ -4562,8 +4599,9 @@ export default function POSPage() {
       return;
     }
 
-    const lineItemsByTicket = await fetchOpenTicketLineItems((res.data || []).map((t) => t.id));
-    const enriched = (res.data || []).map((t) => {
+    const storeTickets = (res.data || []).filter((ticket) => isTicketInCurrentStore(ticket));
+    const lineItemsByTicket = await fetchOpenTicketLineItems(storeTickets.map((t) => t.id));
+    const enriched = storeTickets.map((t) => {
       const c = customers.find((x) => x.id === t.customer_id);
       return {
         ...t,
@@ -4692,6 +4730,11 @@ export default function POSPage() {
   }
 
   function editAcceptedWebOrder(order) {
+    if (String(getWebOrderStoreId(order) || "") !== String(storeId || "")) {
+      showToast("error", "Wrong Store Order", "This web order belongs to another store.");
+      fetchAcceptedWebOrders();
+      return;
+    }
     setCart(enrichOrderItemsForKds(order.items || []));
     setOriginalTicketId(null);
     setActiveWebOrderId(order.id); // Secure tracking context parameter link
@@ -4713,11 +4756,18 @@ export default function POSPage() {
 
   async function markWebOrderReady(order) {
     if (!order?.id) return;
+    const orderStoreId = getWebOrderStoreId(order) || storeId;
+    if (String(orderStoreId || "") !== String(storeId || "")) {
+      showToast("error", "Wrong Store Order", "This web order belongs to another store.");
+      await fetchAcceptedWebOrders();
+      return;
+    }
 
     const { error } = await supabase
       .from("web_orders")
       .update({ status: "ready", order_status: "ready", ready_at: new Date().toISOString() })
-      .eq("id", order.id);
+      .eq("id", order.id)
+      .or(buildStoreOrderFilter(orderStoreId));
 
     if (error) {
       showToast("error", "Ready Failed", error.message);
@@ -4991,6 +5041,7 @@ export default function POSPage() {
       .from("orders")
       .select("*")
       .gte("created_at", receiptCutoffIso)
+      .or(buildStoreOrderFilter(storeId))
       .order("created_at", { ascending: false })
         .limit(120),
       supabase
@@ -4998,6 +5049,7 @@ export default function POSPage() {
         .select("*")
         .in("status", ["completed", "Completed"])
         .gte("created_at", receiptCutoffIso)
+        .or(buildStoreOrderFilter(storeId))
         .order("created_at", { ascending: false })
         .limit(120),
     ]);
@@ -5899,10 +5951,17 @@ export default function POSPage() {
 
   async function voidTicket(ticketId) {
     if (!ticketId) return;
+    const ticket = (savedTickets || []).find((row) => String(row.id) === String(ticketId));
+    try {
+      assertTicketInCurrentStore(ticket, "void it");
+    } catch (err) {
+      showToast("error", "Wrong Store Ticket", err.message);
+      return;
+    }
     const confirmVoid = confirm("Void this saved ticket? This cannot be undone.");
     if (!confirmVoid) return;
 
-    const { error } = await supabase.from("open_tickets").delete().eq("id", ticketId);
+    const { error } = await supabase.from("open_tickets").delete().eq("id", ticketId).or(buildStoreOrderFilter(storeId));
     if (error) {
       showToast("error", "Void Failed", error.message);
       return;
@@ -5914,6 +5973,12 @@ export default function POSPage() {
 
   async function voidSavedTicketItem(ticket, line, index) {
     if (!ticket?.id || !line) return;
+    try {
+      assertTicketInCurrentStore(ticket, "void its items");
+    } catch (err) {
+      showToast("error", "Wrong Store Ticket", err.message);
+      return;
+    }
     const confirmVoid = confirm(`Void "${line.name}" from ${ticket.order_type || ticket.ticket_name || "saved ticket"}?`);
     if (!confirmVoid) return;
 
@@ -5940,7 +6005,8 @@ export default function POSPage() {
     const { error } = await supabase
       .from("open_tickets")
       .update({ items: safeNextItems, total_amount: nextTotal })
-      .eq("id", ticket.id);
+      .eq("id", ticket.id)
+      .or(buildStoreOrderFilter(storeId));
 
     if (error) {
       console.error("Saved ticket item void failed:", error);
@@ -5969,6 +6035,13 @@ export default function POSPage() {
   }
 
   async function resumeTicket(t) {
+    try {
+      assertTicketInCurrentStore(t, "resume it");
+    } catch (err) {
+      showToast("error", "Wrong Store Ticket", err.message);
+      await fetchSavedTickets();
+      return;
+    }
     setOriginalTicketId(t.id);
     setCart((t.items || []).filter((line) => !isVoidedLine(line)));
     clearActiveWebOrderContext(); // This layout block references physical tickets, clear web target references
@@ -6084,7 +6157,14 @@ export default function POSPage() {
       if (!confirmWebVoid) return;
       setSavingTicket(true);
       try {
-        await supabase.from("web_orders").update({ status: "rejected", order_status: "rejected", rejected_at: new Date().toISOString() }).eq("id", activeWebOrderId);
+        const activeWebOrderStore = activeWebOrderBranchId || storeId;
+        if (!activeWebOrderStore) throw new Error("Store is still loading. Please refresh POS and try again.");
+        const { error: webVoidError } = await supabase
+          .from("web_orders")
+          .update({ status: "rejected", order_status: "rejected", rejected_at: new Date().toISOString() })
+          .eq("id", activeWebOrderId)
+          .or(buildStoreOrderFilter(activeWebOrderStore));
+        if (webVoidError) throw webVoidError;
         await markKdsTicketStatus(supabase, { sourceType: "web", sourceId: activeWebOrderId, status: "rejected" });
         clearTicketSoft();
         showToast("warn", "Web Order Cancelled", "Order updated to rejected status rows.");
@@ -6103,11 +6183,21 @@ export default function POSPage() {
 
     setSavingTicket(true);
     try {
+      let ticketForVoid = null;
       if (originalTicketId) {
+        const { data: loadedTicket, error: loadedTicketErr } = await supabase
+          .from("open_tickets")
+          .select("id, store_id, branch_id")
+          .eq("id", originalTicketId)
+          .or(buildStoreOrderFilter(storeId))
+          .maybeSingle();
+        if (loadedTicketErr) throw loadedTicketErr;
+        if (!loadedTicket?.id) throw new Error("This saved ticket is not assigned to this POS store.");
+        ticketForVoid = loadedTicket;
         await markKdsTicketStatus(supabase, { sourceType: "pos", sourceId: originalTicketId, status: "voided" });
       }
       if (originalTicketId) {
-        await supabase.from("open_tickets").delete().eq("id", originalTicketId);
+        await supabase.from("open_tickets").delete().eq("id", originalTicketId).or(buildStoreOrderFilter(getTicketStoreId(ticketForVoid) || storeId));
       } else {
         showToast("warn", "Void Skipped", "No saved ticket id was attached. Reopen the saved ticket before voiding it.");
       }
@@ -6184,6 +6274,7 @@ export default function POSPage() {
     let receiptCustomer = attachedCustomer;
     let loyaltyAlreadyAwarded = false;
     let activeWebOrderForCharge = null;
+    let originalTicketForCharge = null;
 
     setCharging(true);
     try {
@@ -6192,6 +6283,7 @@ export default function POSPage() {
           .from("web_orders")
           .select("*")
           .eq("id", activeWebOrderId)
+          .or(buildStoreOrderFilter(resolvedBranchId))
           .maybeSingle();
         if (webOrderForChargeErr) return showToast("error", "Web Order Check Failed", webOrderForChargeErr.message);
         if (!webOrderForCharge?.id) return showToast("error", "Web Order Missing", "Refresh POS and try again.");
@@ -6203,6 +6295,20 @@ export default function POSPage() {
           return showToast("error", "Web Order Already Charged", "This web order already has a receipt or is no longer active.");
         }
         activeWebOrderForCharge = webOrderForCharge;
+      }
+      if (!activeWebOrderId && originalTicketId) {
+        const { data: ticketForCharge, error: ticketForChargeErr } = await supabase
+          .from("open_tickets")
+          .select("id, store_id, branch_id, ticket_name, order_type")
+          .eq("id", originalTicketId)
+          .or(buildStoreOrderFilter(resolvedBranchId))
+          .maybeSingle();
+        if (ticketForChargeErr) return showToast("error", "Saved Ticket Check Failed", ticketForChargeErr.message);
+        if (!ticketForCharge?.id) {
+          await fetchSavedTickets();
+          return showToast("error", "Wrong Store Ticket", "This saved ticket is not assigned to this POS store. Reopen the correct ticket list and try again.");
+        }
+        originalTicketForCharge = ticketForCharge;
       }
 
       if (appliedCartVouchers.length > 0) {
@@ -6322,7 +6428,8 @@ export default function POSPage() {
             subtotal: Number(subtotal),
             total: total
           })
-          .eq("id", activeWebOrderId);
+          .eq("id", activeWebOrderId)
+          .or(buildStoreOrderFilter(resolvedBranchId));
         if (webCompleteErr) return showToast("error", "Web Order Update Failed", webCompleteErr.message);
 
         await markKdsTicketStatus(supabase, { sourceType: "web", sourceId: activeWebOrderId, status: "completed" });
@@ -6343,7 +6450,7 @@ export default function POSPage() {
         if (originalTicketId) {
           // The saved ticket was already sent to KDS when first saved.
           // Charging should not resend or complete the kitchen ticket.
-          await supabase.from("open_tickets").delete().eq("id", originalTicketId);
+          await supabase.from("open_tickets").delete().eq("id", originalTicketId).or(buildStoreOrderFilter(getTicketStoreId(originalTicketForCharge) || resolvedBranchId));
         } else {
           console.warn("Charge completed without an attached open ticket id; skipped open_tickets cleanup.");
         }
@@ -6636,6 +6743,8 @@ export default function POSPage() {
         ticket_name: newType,
         order_type: newType,
         customer_id: attachedCustomer?.id || null,
+        store_id: storeId,
+        branch_id: storeId,
         items: movingItems,
         total_amount: calcTotal(movingItems),
       };
@@ -6674,6 +6783,12 @@ export default function POSPage() {
   const moveItemsToSavedTicket = async (ticket) => {
     const movingItems = splitSelectedLines;
     if (!movingItems.length) return;
+    try {
+      assertTicketInCurrentStore(ticket, "merge into it");
+    } catch (err) {
+      showToast("error", "Wrong Store Ticket", err.message);
+      return;
+    }
 
     const confirmMove = confirm(`Merge selected items into the existing saved ticket for "${ticket.order_type || ticket.ticket_name}"?`);
     if (!confirmMove) return;
@@ -6686,7 +6801,8 @@ export default function POSPage() {
       const { error } = await supabase
         .from("open_tickets")
         .update({ items: merged, total_amount: total })
-        .eq("id", ticket.id);
+        .eq("id", ticket.id)
+        .or(buildStoreOrderFilter(storeId));
 
       if (error) {
         showToast("error", "Move Failed", error.message);
