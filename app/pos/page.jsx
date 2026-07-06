@@ -3750,23 +3750,6 @@ export default function POSPage() {
         status: acceptedStatus,
       });
       if (kdsErr) showToast("warn", "KDS Sync Warning", kdsErr.message);
-      await autoPrintOrderSlip({
-        orderId: incomingOrder.id,
-        slipCart: acceptedItems,
-        slipDining: webDiningOptionLabel(incomingOrder.fulfillment_type || incomingOrder.dining_option),
-        slipCustomer: incomingOrder.customer_name || "Web Customer",
-        slipTotal: acceptedTotal,
-        printedAt: acceptedAt,
-        onlineBarOnly: true,
-      });
-      await autoPrintBarCupLabels({
-        orderId: incomingOrder.id,
-        labelCart: acceptedItems,
-        labelDining: webDiningOptionLabel(incomingOrder.fulfillment_type || incomingOrder.dining_option),
-        printedAt: acceptedAt,
-        askBeforePrint: true,
-        promptContext: "this accepted web order",
-      });
       if (!scheduledOrder) {
         window.setTimeout(() => {
           markKdsTicketStatus(supabase, { sourceType: "web", sourceId: incomingOrder.id, status: "preparing" });
@@ -3775,8 +3758,38 @@ export default function POSPage() {
 
       await fetchPendingCount(storeId);
       await fetchAcceptedWebOrders();
+      setIncomingOrderModalOpen(false);
+      setIncomingOrder(null);
       showToast("success", "Order Accepted", "Web order moved to accepted web orders.");
+
+      try {
+        await autoPrintOrderSlip({
+          orderId: acceptedOrder.id,
+          slipCart: acceptedItems,
+          slipDining: webDiningOptionLabel(acceptedOrder.fulfillment_type || acceptedOrder.dining_option),
+          slipCustomer: acceptedOrder.customer_name || "Web Customer",
+          slipTotal: acceptedTotal,
+          printedAt: acceptedAt,
+          onlineBarOnly: true,
+        });
+      } catch (printError) {
+        showToast("warn", "Order Slip Not Printed", printError?.message || "Reconnect the order-slip printer, then print manually if needed.");
+      }
+
+      try {
+        await autoPrintBarCupLabels({
+          orderId: acceptedOrder.id,
+          labelCart: acceptedItems,
+          labelDining: webDiningOptionLabel(acceptedOrder.fulfillment_type || acceptedOrder.dining_option),
+          printedAt: acceptedAt,
+          askBeforePrint: true,
+          promptContext: "this accepted web order",
+        });
+      } catch (labelError) {
+        showToast("warn", "Cup Label Not Printed", labelError?.message || "Reconnect the cup-label printer, then reprint if needed.");
+      }
     } catch (err) {
+      console.error("Incoming web order acceptance failed:", err);
       showToast("error", "Acceptance Failed", err.message);
     } finally {
       setIncomingOrderModalOpen(false);
