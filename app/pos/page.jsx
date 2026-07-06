@@ -2442,8 +2442,25 @@ function ShiftCashModal({ open, mode, counts, onChange, onClose, onSave }) {
 /* ──────────────────────────────────────────────────────────────
     NEW MODULE: Interactive Incoming Order Intercept overlay
 ────────────────────────────────────────────────────────────── */
-function IncomingOrderModal({ open, order, onAccept, onEdit, onReject }) {
+function IncomingOrderModal({ open, order, onAccept, onReject }) {
+  const [reviewItems, setReviewItems] = useState([]);
+
+  useEffect(() => {
+    if (open && order) setReviewItems(Array.isArray(order.items) ? order.items : []);
+  }, [open, order]);
+
   if (!open || !order) return null;
+
+  const reviewedTotal = reviewItems.reduce((sum, line) => {
+    const qty = Number(line.quantity || 1);
+    const unit = Number(line.unitPrice || line.price || 0);
+    const discount = Number(line.discountAmount || line.discount_amount || 0);
+    return sum + Math.max(0, unit * qty - discount);
+  }, 0);
+
+  const removeReviewItem = (idx) => {
+    setReviewItems((current) => current.filter((_, itemIndex) => itemIndex !== idx));
+  };
 
   return (
     <div className="fixed inset-0 z-[200] bg-rose-950/60 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -2467,18 +2484,32 @@ function IncomingOrderModal({ open, order, onAccept, onEdit, onReject }) {
           <div className="flex justify-between"><span>System User ID</span><span className="font-mono text-slate-700">{order.user_id?.slice(0,12)}...</span></div>
           <div className="flex justify-between border-t border-slate-200/60 pt-2 text-slate-900 text-sm">
             <span>Subtotal Calculated</span>
-            <span className="font-black text-[#FC687D]">{peso0(order.subtotal || order.total)}</span>
+            <span className="font-black text-[#FC687D]">{peso0(reviewedTotal)}</span>
           </div>
         </div>
 
         {/* Item Configurations Sublist */}
         <div className="mt-4 flex-1 overflow-y-auto border border-slate-100 rounded-2xl p-3 bg-white space-y-2">
           <p className="text-[10px] uppercase tracking-widest text-slate-400 font-extrabold px-1 mb-1">Items Summary</p>
-          {Array.isArray(order.items) && order.items.map((line, idx) => (
+          {reviewItems.length === 0 && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-700">
+              No items left to accept. Reject this web order or keep at least one item.
+            </div>
+          )}
+          {reviewItems.map((line, idx) => (
             <div key={line.cartItemId || idx} className="p-3 border border-slate-100 rounded-xl bg-[#FFF9FA]/40 flex flex-col gap-1">
-              <div className="flex justify-between text-xs font-bold text-slate-800">
-                <span className="truncate max-w-[75%]">{line.name} <span className="text-[#FC687D]">x{line.quantity}</span></span>
-                <span>{peso0(Number(line.unitPrice || line.price || 0) * Number(line.quantity || 0))}</span>
+              <div className="flex items-start justify-between gap-3 text-xs font-bold text-slate-800">
+                <span className="min-w-0 flex-1">{line.name} <span className="text-[#FC687D]">x{line.quantity}</span></span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span>{peso0(Number(line.unitPrice || line.price || 0) * Number(line.quantity || 0))}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeReviewItem(idx)}
+                    className="rounded-lg border border-red-100 bg-red-50 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-red-600 transition hover:bg-red-100"
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
               {line.variantDetails && <p className="text-[11px] text-slate-400 font-medium italic">Modifiers: {line.variantDetails}</p>}
               {line.instructions && <p className="text-[11px] text-[#FC687D] font-bold mt-0.5">Note: {line.instructions}</p>}
@@ -2487,7 +2518,7 @@ function IncomingOrderModal({ open, order, onAccept, onEdit, onReject }) {
         </div>
 
         {/* Trigger Controls Dashboard */}
-        <div className="grid grid-cols-3 gap-3 mt-6 pt-4 border-t border-slate-100">
+        <div className="grid grid-cols-2 gap-3 mt-6 pt-4 border-t border-slate-100">
           <button
             onClick={onReject}
             className="h-12 rounded-xl bg-red-50 border border-red-100 text-red-600 font-black text-xs uppercase tracking-wider active:scale-95 transition"
@@ -2495,14 +2526,9 @@ function IncomingOrderModal({ open, order, onAccept, onEdit, onReject }) {
             Reject ✕
           </button>
           <button
-            onClick={onEdit}
-            className="h-12 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-wider active:scale-95 transition"
-          >
-            Edit ✏️
-          </button>
-          <button
-            onClick={onAccept}
-            className="h-12 rounded-xl bg-[#FC687D] hover:bg-rose-500 text-white font-black text-xs uppercase tracking-wider active:scale-95 transition shadow-sm"
+            disabled={reviewItems.length === 0}
+            onClick={() => onAccept(reviewItems)}
+            className="h-12 rounded-xl bg-[#FC687D] hover:bg-rose-500 text-white font-black text-xs uppercase tracking-wider active:scale-95 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
           >
             Accept ✓
           </button>
@@ -3678,7 +3704,7 @@ export default function POSPage() {
   }, [storeId, shiftStatus, supabase]);
 
   // ================= INTERCEPT OVERLAY lifecycle actions dashboards =================
-  const acceptIncomingWebOrder = async () => {
+  const acceptIncomingWebOrder = async (reviewItems = null) => {
     if (!incomingOrder) return;
     stopContinuousAlertChime();
 
@@ -3690,31 +3716,52 @@ export default function POSPage() {
       const acceptedAt = new Date().toISOString();
       const scheduledOrder = isScheduledWebOrder(incomingOrder);
       const acceptedStatus = scheduledOrder ? "scheduled" : "accepted";
+      const acceptedItems = Array.isArray(reviewItems) ? enrichOrderItemsForKds(reviewItems) : enrichOrderItemsForKds(incomingOrder.items || []);
+      if (acceptedItems.length === 0) {
+        throw new Error("Remove unavailable items or reject the web order. At least one item is required to accept.");
+      }
+      const acceptedTotal = Number(calcTotal(acceptedItems).toFixed(2));
+      const acceptedOrder = {
+        ...incomingOrder,
+        items: acceptedItems,
+        subtotal: acceptedTotal,
+        total: acceptedTotal,
+        status: acceptedStatus,
+        order_status: acceptedStatus,
+        accepted_at: acceptedAt,
+      };
       const { error: updateErr } = await supabase
         .from("web_orders")
-        .update({ status: acceptedStatus, order_status: acceptedStatus, accepted_at: acceptedAt })
+        .update({
+          status: acceptedStatus,
+          order_status: acceptedStatus,
+          accepted_at: acceptedAt,
+          items: acceptedItems,
+          subtotal: acceptedTotal,
+          total: acceptedTotal,
+        })
         .eq("id", incomingOrder.id)
         .or(buildStoreOrderFilter(incomingStoreId));
       if (updateErr) throw updateErr;
 
       const { error: kdsErr } = await upsertKdsTicket(supabase, {
         sourceType: "web",
-        order: buildWebOrderForKds(incomingOrder, { status: acceptedStatus, order_status: acceptedStatus, accepted_at: acceptedAt }),
+        order: buildWebOrderForKds(acceptedOrder),
         status: acceptedStatus,
       });
       if (kdsErr) showToast("warn", "KDS Sync Warning", kdsErr.message);
       await autoPrintOrderSlip({
         orderId: incomingOrder.id,
-        slipCart: incomingOrder.items || [],
+        slipCart: acceptedItems,
         slipDining: webDiningOptionLabel(incomingOrder.fulfillment_type || incomingOrder.dining_option),
         slipCustomer: incomingOrder.customer_name || "Web Customer",
-        slipTotal: Number(incomingOrder.total || incomingOrder.subtotal || 0),
+        slipTotal: acceptedTotal,
         printedAt: acceptedAt,
         onlineBarOnly: true,
       });
       await autoPrintBarCupLabels({
         orderId: incomingOrder.id,
-        labelCart: incomingOrder.items || [],
+        labelCart: acceptedItems,
         labelDining: webDiningOptionLabel(incomingOrder.fulfillment_type || incomingOrder.dining_option),
         printedAt: acceptedAt,
         askBeforePrint: true,
@@ -3735,26 +3782,6 @@ export default function POSPage() {
       setIncomingOrderModalOpen(false);
       setIncomingOrder(null);
     }
-  };
-
-  const editIncomingWebOrder = () => {
-    if (!incomingOrder) return;
-    stopContinuousAlertChime();
-
-    // Route attributes into workspace memory cache tracking rows
-    setCart(enrichOrderItemsForKds(incomingOrder.items || []));
-    setOriginalTicketId(null);
-    setActiveWebOrderId(incomingOrder.id); // Secure the unique ID link 
-    setActiveWebOrderBranchId(getWebOrderStoreId(incomingOrder) || storeId || null);
-    setActiveWebOrderFulfillmentType(incomingOrder.fulfillment_type || incomingOrder.dining_option || "");
-
-    const linkedCustomer = customers.find((c) => c.name === incomingOrder.customer_name);
-    if (linkedCustomer) setAttachedCustomer(linkedCustomer);
-
-    showToast("info", "Web Order Loaded", "Modifiers loaded inside active register workspace frame.");
-    
-    setIncomingOrderModalOpen(false);
-    setIncomingOrder(null);
   };
 
   const rejectIncomingWebOrder = async () => {
@@ -7928,7 +7955,6 @@ export default function POSPage() {
         open={incomingOrderModalOpen} 
         order={incomingOrder} 
         onAccept={acceptIncomingWebOrder} 
-        onEdit={editIncomingWebOrder} 
         onReject={rejectIncomingWebOrder} 
       />
       <BarcodeScannerModal open={scannerOpen} onClose={() => setScannerOpen(false)} onResult={(txt) => handleCodeInput(txt)} />
