@@ -1580,13 +1580,6 @@ function SavedTicketsModal({ open, onClose, tickets, onSelect, onRefresh, onVoid
                       <p className="text-xs text-slate-500 mt-0.5">Active lines: {activeItems.length} / {(t.items || []).length} • <span className="font-bold text-slate-700">{peso0(t.total_amount)}</span></p>
                       <p className="text-[11px] font-medium text-slate-500 mt-1 truncate">Client: {t._customerName || "Walk-in"}</p>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => onVoid(t)}
-                      className="text-xs text-red-500 font-bold hover:text-red-700 transition px-2 py-1 bg-red-50 rounded-md"
-                    >
-                      VOID TICKET
-                    </button>
                   </div>
                   <button
                     type="button"
@@ -1655,13 +1648,24 @@ function SavedTicketsModal({ open, onClose, tickets, onSelect, onRefresh, onVoid
             );
           })}
         </div>
-        <div className="grid grid-cols-2 gap-3 mt-4">
+        <div className="grid grid-cols-3 gap-3 mt-4">
           <button
             type="button"
             onClick={() => setSelectedTicketId(null)}
             className="h-11 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider"
           >
             Back
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              if (!selectedTicket) return;
+              await onVoid(selectedTicket);
+              setSelectedTicketId(null);
+            }}
+            className="h-11 rounded-xl bg-red-50 border border-red-100 text-red-600 text-xs font-bold uppercase tracking-wider transition hover:bg-red-100 hover:text-red-700"
+          >
+            Void Ticket
           </button>
           <button
             type="button"
