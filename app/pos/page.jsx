@@ -2399,11 +2399,12 @@ function PrinterStatusPill({ children, active = false, tone = "slate" }) {
 
 function ShiftCashModal({ open, mode, counts, onChange, onClose, onSave }) {
   if (!open) return null;
-  const title = mode === "open" ? "Open Shift" : mode === "end_day" ? "End Day" : "Close Shift";
+  const isBreakdown = mode === "breakdown";
+  const title = mode === "open" ? "Open Shift" : mode === "end_day" ? "End Day" : isBreakdown ? "Cash Breakdown" : "Close Shift";
   const total = SHIFT_DENOMINATIONS.reduce((sum, denom) => sum + denom * Number(counts[denom] || 0), 0);
 
   return (
-    <ModalShell open={open} onClose={onClose} title={title} subtitle="Cash denomination count" z={170}>
+    <ModalShell open={open} onClose={onClose} title={title} subtitle={isBreakdown ? "Quick cash count calculator" : "Cash denomination count"} z={170}>
       <div className="space-y-2 max-h-[52vh] overflow-y-auto pr-1">
         {SHIFT_DENOMINATIONS.map((denom) => {
           const count = Number(counts[denom] || 0);
@@ -2427,8 +2428,8 @@ function ShiftCashModal({ open, mode, counts, onChange, onClose, onSave }) {
         <span className="text-xs font-black uppercase tracking-wider text-rose-500">Overall Total</span>
         <span className="text-lg font-black text-slate-900">{peso2(total)}</span>
       </div>
-      <button type="button" onClick={() => onSave(total)} className="mt-4 w-full h-11 rounded-xl bg-[#FC687D] text-white text-xs font-black uppercase tracking-wider">
-        Save {title}
+      <button type="button" onClick={() => (isBreakdown ? onClose() : onSave(total))} className="mt-4 w-full h-11 rounded-xl bg-[#FC687D] text-white text-xs font-black uppercase tracking-wider">
+        {isBreakdown ? "Close Cash Breakdown" : `Save ${title}`}
       </button>
     </ModalShell>
   );
@@ -6861,6 +6862,16 @@ export default function POSPage() {
                       {label}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPosMenuOpen(false);
+                      openShiftCashModal("breakdown");
+                    }}
+                    className="h-10 rounded-xl border border-slate-200 bg-white text-xs font-semibold uppercase tracking-wider text-slate-600"
+                  >
+                    Cash Breakdown
+                  </button>
                 </div>
                 <button type="button" onClick={() => setPosMenuOpen(false)} className="w-full mt-3 h-10 rounded-xl border border-slate-200 bg-white text-xs font-black uppercase tracking-wider text-slate-500">
                   Close
