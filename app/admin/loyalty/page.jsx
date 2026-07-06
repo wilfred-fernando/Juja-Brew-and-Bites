@@ -622,19 +622,20 @@ export default function LoyaltyAdminPage() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id,email,full_name,role,loyalty_account_id")
-        .or(`email.ilike.%${q}%,full_name.ilike.%${q}%`)
-        .limit(10);
-
-      if (error) {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+        const params = new URLSearchParams({ type: "users", q });
+        const response = await fetch(`/api/admin/loyalty-manual-link?${params.toString()}`, {
+          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload?.error || "Unable to search users.");
+        setUserOptions(payload?.rows || []);
+      } catch (error) {
         console.error(error);
         setUserOptions([]);
-        return;
       }
-
-      setUserOptions(data || []);
     }, 250);
 
     return () => clearTimeout(userTimer.current);
@@ -653,19 +654,20 @@ export default function LoyaltyAdminPage() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("loyalty_members")
-        .select("id,user_id,customer_name,customer_code,Email,Phone")
-        .or(`customer_name.ilike.%${q}%,customer_code.ilike.%${q}%`)
-        .limit(10);
-
-      if (error) {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+        const params = new URLSearchParams({ type: "members", q });
+        const response = await fetch(`/api/admin/loyalty-manual-link?${params.toString()}`, {
+          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload?.error || "Unable to search loyalty members.");
+        setMemberOptions(payload?.rows || []);
+      } catch (error) {
         console.error(error);
         setMemberOptions([]);
-        return;
       }
-
-      setMemberOptions(data || []);
     }, 250);
 
     return () => clearTimeout(memberTimer.current);
@@ -896,91 +898,29 @@ export default function LoyaltyAdminPage() {
     setActionBusy(true);
 
     try {
-      const { data: mRow, error: mErr } = await supabase
-        .from("loyalty_members")
-        .select("id,user_id,customer_name,customer_code")
-        .eq("id", selectedMember.id)
-        .single();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      const response = await fetch("/api/admin/loyalty-manual-link", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({
+          userId: selectedUser.id,
+          memberId: selectedMember.id,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.error || "Unable to link loyalty member.");
 
-      if (mErr) throw mErr;
-      if (mRow?.user_id) {
-        setNotice("⚠️ Selected loyalty member is already linked. Unlink first.");
-        return;
-      }
-
-      const { data: existingMember, error: exErr } = await supabase
-        .from("loyalty_members")
-        .select("id,customer_name,customer_code")
-        .eq("user_id", selectedUser.id)
-        .maybeSingle();
-
-      if (!exErr && existingMember?.id) {
-        setNotice(
-          `⚠️ This user is already linked to ${existingMember.customer_name || "Unknown"} (${existingMember.customer_code || existingMember.id}). Unlink first.`
-        );
-        return;
-      }
-
-      const { data: pRow, error: pErr } = await supabase
-        .from("profiles")
-        .select("id,loyalty_account_id")
-        .eq("id", selectedUser.id)
-        .single();
-
-      if (pErr) throw pErr;
-      if (pRow?.loyalty_account_id) {
-        setNotice(`⚠️ This user already has loyalty_account_id = ${pRow.loyalty_account_id}. Unlink first.`);
-        return;
-      }
-
-      const { error: linkErr } = await supabase
-        .from("loyalty_members")
-        .update({ user_id: selectedUser.id })
-        .eq("id", selectedMember.id)
-        .is("user_id", null);
-
-      if (linkErr) throw linkErr;
-
-      const { data: linkedRow, error: linkedCheckErr } = await supabase
-        .from("loyalty_members")
-        .select("id,user_id")
-        .eq("id", selectedMember.id)
-        .maybeSingle();
-
-      if (linkedCheckErr) throw linkedCheckErr;
-      if (String(linkedRow?.user_id || "") !== String(selectedUser.id)) {
-        setNotice("⚠️ Selected loyalty member was linked by another customer account. Refresh and try again.");
-        return;
-      }
-
-      const { error: profErr } = await supabase
-        .from("profiles")
-        .update({ loyalty_account_id: selectedMember.id })
-        .eq("id", selectedUser.id);
-
-      if (profErr) {
-        await supabase.from("loyalty_members").update({ user_id: null }).eq("id", selectedMember.id);
-        throw profErr;
-      }
-
-      let voucherMessage = "";
-      try {
-        const voucherRes = await fetch("/api/admin/loyalty-point-vouchers", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ memberId: selectedMember.id }),
-        });
-        const voucherJson = await voucherRes.json().catch(() => ({}));
-        if (!voucherRes.ok) throw new Error(voucherJson?.error || "Unable to allocate point vouchers.");
-        const pointCreated = Number(voucherJson?.pointVouchersCreated || 0);
-        const welcomeCreated = Number(voucherJson?.welcomeVoucherCreated || 0);
-        const messages = [];
-        if (welcomeCreated > 0) messages.push("welcome voucher created");
-        if (pointCreated > 0) messages.push(`${pointCreated} point voucher${pointCreated === 1 ? "" : "s"} created`);
-        if (messages.length) voucherMessage = ` ${messages.join(", ")}.`;
-      } catch (voucherErr) {
-        voucherMessage = ` Voucher allocation skipped: ${voucherErr?.message || "Unknown error"}.`;
-      }
+      const pointCreated = Number(payload?.pointVouchersCreated || 0);
+      const welcomeCreated = Number(payload?.welcomeVoucherCreated || 0);
+      const messages = [];
+      if (welcomeCreated > 0) messages.push("welcome voucher created");
+      if (pointCreated > 0) messages.push(`${pointCreated} point voucher${pointCreated === 1 ? "" : "s"} created`);
+      if (Array.isArray(payload?.warnings) && payload.warnings.length > 0) messages.push(payload.warnings.join("; "));
+      const voucherMessage = messages.length ? ` ${messages.join(", ")}.` : "";
 
       setNotice(`✅ Linked successfully.${voucherMessage}`);
       setSelectedUser(null);
@@ -1228,6 +1168,123 @@ export default function LoyaltyAdminPage() {
           - handleSave updates both columns
           - MemberCard shows both */}
       {/* --- Your existing sections below (Link Requests / Manual Link / Search / Lists / Modals) --- */}
+
+      {/* MANUAL LINK REGISTERED USER */}
+      <section className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
+          <div>
+            <h2 className="text-sm md:text-base font-semibold text-slate-800">
+              Manual Link Registered User
+            </h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Select a customer login account and attach it to an existing loyalty member.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={manualLink}
+            disabled={actionBusy || !selectedUser?.id || !selectedMember?.id}
+            className="px-4 py-3 rounded-xl bg-slate-600 text-white text-xs font-bold disabled:opacity-50 active:scale-95"
+          >
+            {actionBusy ? "Linking..." : "Link Account"}
+          </button>
+        </div>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
+              Registered Customer Account
+            </label>
+            <input
+              value={userQuery}
+              onChange={(event) => {
+                setUserQuery(event.target.value);
+                setSelectedUser(null);
+              }}
+              placeholder="Search full name or email..."
+              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
+            />
+            {selectedUser ? (
+              <div className="mt-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                Selected: {selectedUser.full_name || selectedUser.email}{" "}
+                <span className="font-mono">({selectedUser.email || selectedUser.id})</span>
+              </div>
+            ) : null}
+            {userOptions.length > 0 ? (
+              <div className="mt-2 max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white">
+                {userOptions.map((user) => (
+                  <button
+                    key={user.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedUser(user);
+                      setUserQuery(user.full_name || user.email || "");
+                      setUserOptions([]);
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-sky-50"
+                  >
+                    <div className="font-semibold text-slate-800">
+                      {user.full_name || user.email || "Customer account"}
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {user.email || "No email"}{" "}
+                      {user.loyalty_account_id ? `• Linked: ${user.loyalty_account_id}` : "• Not linked"}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
+              Loyalty Member / Card
+            </label>
+            <input
+              value={memberQuery}
+              onChange={(event) => {
+                setMemberQuery(event.target.value);
+                setSelectedMember(null);
+              }}
+              placeholder="Search loyalty name, code, or phone..."
+              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
+            />
+            {selectedMember ? (
+              <div className="mt-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                Selected: {selectedMember.customer_name || "Member"}{" "}
+                <span className="font-mono">({selectedMember.customer_code || selectedMember.id})</span>
+              </div>
+            ) : null}
+            {memberOptions.length > 0 ? (
+              <div className="mt-2 max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white">
+                {memberOptions.map((member) => (
+                  <button
+                    key={member.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedMember(member);
+                      setMemberQuery(member.customer_name || member.customer_code || "");
+                      setMemberOptions([]);
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-sky-50"
+                  >
+                    <div className="font-semibold text-slate-800">
+                      {member.customer_name || "Loyalty member"}{" "}
+                      <span className="font-mono text-xs text-slate-500">
+                        {member.customer_code || member.id}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      Phone: {member.Phone || "—"}{" "}
+                      {member.user_id ? `• Linked: ${member.user_id}` : "• Not linked"}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </section>
 
       {/* LINK REQUESTS (Pending) */}
       <section className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5">
