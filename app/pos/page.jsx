@@ -2409,7 +2409,7 @@ function ShiftCashModal({ open, mode, counts, onChange, onClose, onSave }) {
         {SHIFT_DENOMINATIONS.map((denom) => {
           const count = Number(counts[denom] || 0);
           return (
-            <div key={denom} className="grid grid-cols-[70px_1fr_110px] gap-2 items-center rounded-xl border border-slate-100 bg-slate-50 p-2">
+            <div key={denom} className="grid grid-cols-[58px_minmax(70px,1fr)_minmax(126px,auto)] gap-1.5 sm:gap-2 items-center rounded-xl border border-slate-100 bg-slate-50 p-2">
               <span className="text-xs font-black text-slate-700">₱{denom}</span>
               <input
                 type="number"
@@ -2419,14 +2419,14 @@ function ShiftCashModal({ open, mode, counts, onChange, onClose, onSave }) {
                 className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold outline-none"
                 placeholder="0"
               />
-              <span className="text-right text-xs font-black text-[#FC687D]">{peso2(denom * count)}</span>
+              <span className="whitespace-nowrap text-right text-[11px] sm:text-xs font-black text-[#FC687D]">{peso2(denom * count)}</span>
             </div>
           );
         })}
       </div>
       <div className="mt-4 rounded-xl border border-rose-100 bg-rose-50 p-3 flex items-center justify-between">
         <span className="text-xs font-black uppercase tracking-wider text-rose-500">Overall Total</span>
-        <span className="text-lg font-black text-slate-900">{peso2(total)}</span>
+        <span className="shrink-0 whitespace-nowrap text-lg font-black text-slate-900">{peso2(total)}</span>
       </div>
       <button type="button" onClick={() => (isBreakdown ? onClose() : onSave(total))} className="mt-4 w-full h-11 rounded-xl bg-[#FC687D] text-white text-xs font-black uppercase tracking-wider">
         {isBreakdown ? "Close Cash Breakdown" : `Save ${title}`}
