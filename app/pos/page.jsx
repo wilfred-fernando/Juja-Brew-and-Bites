@@ -513,6 +513,57 @@ function receiptAmount(value) {
   return peso2(value).replace("₱", "P");
 }
 
+function normalizePaymentMethodName(value) {
+  const text = String(value || "").trim();
+  const compact = text.toLowerCase().replace(/[\s_-]+/g, "");
+  const map = {
+    cash: "Cash",
+    card: "Card",
+    qrph: "QRPH",
+    gcash: "Gcash",
+    grabfood: "GrabFood",
+    grabdineout: "Grab Dine Out",
+    panda: "Panda",
+    foodpanda: "Panda",
+    giftcertificate: "Gift Certificate",
+  };
+  return map[compact] || text || "Other";
+}
+
+function parsePaymentAmountText(value) {
+  const cleaned = String(value || "").replace(/[^\d.-]/g, "");
+  const amount = Number(cleaned);
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+function paymentSplitEntries(rawSplits, paymentLabel, fallbackAmount = 0) {
+  const fromJson = Array.isArray(rawSplits)
+    ? rawSplits
+        .map((entry) => ({
+          method: normalizePaymentMethodName(entry.method || entry.payment_method || entry.type || entry.name),
+          amount: Number(entry.amount || entry.value || 0),
+        }))
+        .filter((entry) => entry.method && entry.amount > 0)
+    : [];
+  if (fromJson.length > 0) return fromJson;
+
+  const label = String(paymentLabel || "").trim();
+  if (!label) return [];
+  const parts = label.split(/\s+\+\s+/);
+  if (parts.length > 1) {
+    const parsed = parts
+      .map((part) => {
+        const match = part.match(/^(.+?)\s+([₱P]?\s*[\d,]+(?:\.\d{1,2})?)$/i);
+        return match
+          ? { method: normalizePaymentMethodName(match[1]), amount: parsePaymentAmountText(match[2]) }
+          : null;
+      })
+      .filter((entry) => entry?.method && entry.amount > 0);
+    if (parsed.length > 0) return parsed;
+  }
+  return [{ method: normalizePaymentMethodName(label), amount: Number(fallbackAmount || 0) }];
+}
+
 function coerceReceiptTimestamp(value) {
   if (!value) return new Date();
   if (value instanceof Date) return value;
@@ -920,6 +971,29 @@ function buildBillText({ receiptSettings, orderId, cart, diningOptionName, custo
   lines.push(receiptPair("Total Due", receiptAmount(totalValue)));
   lines.push(receiptLine());
   lines.push(receiptPair("Printed", formatReceiptFooterDate(printedAt || new Date())));
+  return lines.join("\n");
+}
+
+function buildCashBreakdownReportText({ store, cashierName, denominations, printedAt }) {
+  const branchName = store?.store_name || store?.name || store?.branch_name || "Store";
+  const totalCash = SHIFT_DENOMINATIONS.reduce((sum, denom) => sum + denom * Number(denominations?.[denom] || 0), 0);
+  const lines = [
+    centerReceiptText("CASH BREAKDOWN"),
+    centerReceiptText(branchName),
+    receiptLine(),
+    receiptPair("Printed", formatReceiptFooterDate(printedAt || new Date())),
+    receiptPair("Cashier", normalizeLabelLine(cashierName || "Operator")),
+    receiptLine(),
+  ];
+
+  SHIFT_DENOMINATIONS.forEach((denom) => {
+    const count = Number(denominations?.[denom] || 0);
+    if (count > 0) lines.push(receiptPair(`${receiptAmount(denom)} x ${count}`, receiptAmount(denom * count)));
+  });
+
+  if (!lines.some((line) => line.includes(" x "))) lines.push(centerReceiptText("No cash count entered"));
+  lines.push(receiptLine());
+  lines.push(receiptPair("Total cash", receiptAmount(totalCash)));
   return lines.join("\n");
 }
 
@@ -2480,7 +2554,7 @@ function PrinterStatusPill({ children, active = false, tone = "slate" }) {
   );
 }
 
-function ShiftCashModal({ open, mode, counts, onChange, onClose, onSave }) {
+function ShiftCashModal({ open, mode, counts, onChange, onClose, onSave, onPrint }) {
   if (!open) return null;
   const isBreakdown = mode === "breakdown";
   const title = mode === "open" ? "Open Shift" : mode === "end_day" ? "End Day" : isBreakdown ? "Cash Breakdown" : "Close Shift";
@@ -2511,9 +2585,16 @@ function ShiftCashModal({ open, mode, counts, onChange, onClose, onSave }) {
         <span className="text-xs font-black uppercase tracking-wider text-rose-500">Overall Total</span>
         <span className="shrink-0 whitespace-nowrap text-lg font-black text-slate-900">{peso2(total)}</span>
       </div>
-      <button type="button" onClick={() => (isBreakdown ? onClose() : onSave(total))} className="mt-4 w-full h-11 rounded-xl bg-[#FC687D] text-white text-xs font-black uppercase tracking-wider">
-        {isBreakdown ? "Close Cash Breakdown" : `Save ${title}`}
-      </button>
+      <div className={`mt-4 grid gap-3 ${isBreakdown ? "grid-cols-2" : "grid-cols-1"}`}>
+        {isBreakdown ? (
+          <button type="button" onClick={() => onPrint?.(total)} className="h-11 rounded-xl bg-slate-900 text-white text-xs font-black uppercase tracking-wider">
+            Print
+          </button>
+        ) : null}
+        <button type="button" onClick={() => (isBreakdown ? onClose() : onSave(total))} className="h-11 rounded-xl bg-[#FC687D] text-white text-xs font-black uppercase tracking-wider">
+          {isBreakdown ? "Close" : `Save ${title}`}
+        </button>
+      </div>
     </ModalShell>
   );
 }
@@ -3126,6 +3207,7 @@ export default function POSPage() {
     const generatedReceiptNumber = receiptRow?.receipt_number;
     if (!generatedReceiptNumber) throw new Error("No receipt number was returned by the database.");
 
+    const replayPaymentSplits = paymentSplitEntries(draft.payment_splits, draft.payment, Number(draft.total || 0));
     const { data: orderRow, error: orderErr } = await supabase
       .from("orders")
       .insert([{
@@ -3150,6 +3232,11 @@ export default function POSPage() {
         paid_at: draft.created_at || new Date().toISOString(),
         status: "paid",
         payment_method: draft.payment || "Offline Sync",
+        source_metadata: {
+          ...(draft.source_metadata || {}),
+          payment_splits: replayPaymentSplits,
+          payment_label: draft.payment || "Offline Sync",
+        },
         dining_option: draft.diningOption || "POS ORDER",
       }])
       .select("*")
@@ -3339,15 +3426,38 @@ export default function POSPage() {
     const refundRows = rows.filter((r) => rowRefundAmount(r) > 0);
     const normalizePaymentKey = (value) => String(value || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
     const paymentMatches = (value, keys) => keys.map(normalizePaymentKey).includes(normalizePaymentKey(value));
+    const rowPaymentEntries = (row) =>
+      paymentSplitEntries(
+        row?.payment_splits || row?.source_metadata?.payment_splits,
+        row?.payment_type,
+        Number(row?.total_collected || row?.net_sales || 0)
+      );
     const paymentTotal = (...keys) =>
       rows
-        .filter((r) => paymentMatches(r.payment_type, keys))
         .filter((r) => !isFullRefund(r))
-        .reduce((sum, r) => sum + Number(r.total_collected || 0), 0);
+        .reduce(
+          (sum, r) =>
+            sum +
+            rowPaymentEntries(r)
+              .filter((entry) => paymentMatches(entry.method, keys))
+              .reduce((entrySum, entry) => entrySum + Number(entry.amount || 0), 0),
+          0
+        );
+    const paymentRefundTotal = (...keys) =>
+      rows.reduce((sum, r) => {
+        const refundAmount = rowRefundAmount(r);
+        if (!refundAmount) return sum;
+        const entries = rowPaymentEntries(r);
+        const paidTotal = entries.reduce((entrySum, entry) => entrySum + Number(entry.amount || 0), 0) || Number(r.total_collected || r.net_sales || 0) || 1;
+        return (
+          sum +
+          entries
+            .filter((entry) => paymentMatches(entry.method, keys))
+            .reduce((entrySum, entry) => entrySum + refundAmount * (Number(entry.amount || 0) / paidTotal), 0)
+        );
+      }, 0);
     const cashPayments = paymentTotal("cash");
-    const cashRefunds = rows
-      .filter((r) => paymentMatches(r.payment_type, ["cash"]))
-      .reduce((sum, r) => sum + rowRefundAmount(r), 0);
+    const cashRefunds = paymentRefundTotal("cash");
     const grossSales = saleRows.reduce((sum, r) => sum + Number(r.gross_sales || r.total_collected || r.net_sales || 0), 0);
     const discounts = saleRows.reduce((sum, r) => sum + Number(r.discounts || r.discount || 0), 0);
     const refunds = refundRows.reduce((sum, r) => sum + rowRefundAmount(r), 0);
@@ -5252,6 +5362,7 @@ export default function POSPage() {
       const orderTotal = Number(order.total || 0);
       const orderDiscount = Number(order.discount || 0);
       const orderRefund = Number(order.refund_amount || 0);
+      const paymentSplits = paymentSplitEntries(order?.source_metadata?.payment_splits, order.payment_method, orderTotal);
       return {
         ...order,
         receipt_number: receiptKey,
@@ -5263,6 +5374,7 @@ export default function POSPage() {
         net_sales: Math.max(0, orderTotal - orderRefund),
         total_collected: orderTotal,
         payment_type: order.payment_method || "Other",
+        payment_splits: paymentSplits,
         description: order.dining_option || "POS Order",
         status: receiptStatusForOrder(order, receiptKey),
         customer,
@@ -5290,6 +5402,7 @@ export default function POSPage() {
           net_sales: Number(order.total || order.subtotal || 0),
           total_collected: Number(order.total || order.subtotal || 0),
           payment_type: order.payment_method || "Web Order",
+          payment_splits: paymentSplitEntries(order?.source_metadata?.payment_splits, order.payment_method || "Web Order", Number(order.total || order.subtotal || 0)),
           description: `${order.dining_option || "Web Order"}${order.delivery_address ? ` - ${order.delivery_address}` : ""}`,
           status: refunds[`WEB-${order.id}`]?.receipt || "Closed",
           source: "web_order",
@@ -6052,7 +6165,7 @@ export default function POSPage() {
       showToast("success", shiftCashMode === "open" ? "Shift Opened" : isEndDay ? "End Day Closed" : "Shift Closed", isEndDay ? "All POS accounts for this store will show closed after refresh." : "Shift record saved.");
     }
 
-    if (isEndDay) {
+    if (shiftCashMode !== "open") {
       const reportText = buildEndDayReportText({
         store: currentStore,
         cashierName,
@@ -6061,15 +6174,33 @@ export default function POSPage() {
         denominations: shiftDenominations,
         summary: capturedShiftSummary,
         printedAt: record.created_at,
+        title: isEndDay ? "END DAY SALES REPORT" : "CLOSE SHIFT REPORT",
       });
       try {
         await printByRoleWhenReady("receipt", reportText);
       } catch (printError) {
-        showToast("warn", "End Day Report Not Printed", printError?.message || "Select and save the receipt printer in POS Settings.");
+        showToast("warn", isEndDay ? "End Day Report Not Printed" : "Close Shift Report Not Printed", printError?.message || "Select and save the receipt printer in POS Settings.");
       }
     }
 
     setShiftCashOpen(false);
+  }
+
+  async function printCashBreakdown(totalCash) {
+    const reportText = buildCashBreakdownReportText({
+      store: currentStore,
+      cashierName,
+      denominations: shiftDenominations,
+      printedAt: new Date(),
+    });
+    setReceiptText(reportText);
+    setReceiptOpen(true);
+    try {
+      await printByRoleWhenReady("receipt", reportText);
+      showToast("success", "Cash Breakdown Printed", `${peso2(totalCash)} sent to the receipt printer.`);
+    } catch (printError) {
+      showToast("warn", "Cash Breakdown Not Printed", printError?.message || "Select and save the receipt printer in POS Settings.");
+    }
   }
 
   async function reprintCloseShiftReport(record = selectedShiftReportRecord) {
@@ -6394,8 +6525,14 @@ export default function POSPage() {
     if (charging) return;
     const total = Number(totalDue || 0);
     const splitPaymentsPayload = Array.isArray(paymentPayload.payments) ? paymentPayload.payments.filter((p) => p.method && Number(p.amount || 0) > 0) : [];
-    const paymentLabel = splitPaymentsPayload.length > 0
-      ? splitPaymentsPayload.map((p) => `${p.method} ${peso2(p.amount)}`).join(" + ")
+    const normalizedSplitPayments = splitPaymentsPayload
+      .map((p) => ({
+        method: normalizePaymentMethodName(p.method),
+        amount: Number(p.amount || 0),
+      }))
+      .filter((p) => p.method && p.amount > 0);
+    const paymentLabel = normalizedSplitPayments.length > 0
+      ? normalizedSplitPayments.map((p) => `${p.method} ${peso2(p.amount)}`).join(" + ")
       : selectedPayment || (total <= 0 ? "No Payment Required" : "");
     if (!paymentLabel) return showToast("error", "Payment Required", "Select a payment type.");
     const resolvedBranchId = getResolvedBranchId();
@@ -6429,6 +6566,11 @@ export default function POSPage() {
         code: customerDisplayCode(attachedCustomer) || attachedCustomer.code || null,
       } : null,
       payment: paymentLabel,
+      payment_splits: normalizedSplitPayments,
+      source_metadata: {
+        payment_splits: normalizedSplitPayments,
+        payment_label: paymentLabel,
+      },
       diningOption: chargedDiningLabel || "POS ORDER",
       grossTotal,
       discount,
@@ -6534,6 +6676,10 @@ export default function POSPage() {
           paid_at: chargedAt,
           status: "paid",
           payment_method: paymentLabel,
+          source_metadata: {
+            payment_splits: normalizedSplitPayments,
+            payment_label: paymentLabel,
+          },
           dining_option: chargedDiningLabel || "WEB_ORDER",
         }])
         .select("*")
@@ -7042,6 +7188,7 @@ export default function POSPage() {
       onChange={updateShiftDenomination}
       onClose={() => setShiftCashOpen(false)}
       onSave={saveShiftCash}
+      onPrint={printCashBreakdown}
     />
   );
 
