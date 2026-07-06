@@ -11,6 +11,30 @@ function customerPath(path) {
   return window.location.hostname.startsWith("customer.") ? path : `/customer${path}`;
 }
 
+function getAuthParams() {
+  const searchParams = new URLSearchParams(window.location.search);
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+
+  return {
+    code: searchParams.get("code") || hashParams.get("code"),
+    tokenHash: searchParams.get("token_hash") || hashParams.get("token_hash"),
+    type: searchParams.get("type") || hashParams.get("type"),
+    accessToken: hashParams.get("access_token"),
+    refreshToken: hashParams.get("refresh_token"),
+    error:
+      searchParams.get("error_description") ||
+      hashParams.get("error_description") ||
+      searchParams.get("error") ||
+      hashParams.get("error"),
+  };
+}
+
+function normalizeOtpType(type) {
+  const normalized = String(type || "").toLowerCase();
+  if (normalized === "email") return "signup";
+  return normalized;
+}
+
 export default function CustomerAuthCallbackPage() {
   const [status, setStatus] = useState("Confirming your email...");
   const [error, setError] = useState("");
@@ -20,10 +44,11 @@ export default function CustomerAuthCallbackPage() {
 
     async function finishConfirmation() {
       try {
-        const params = new URLSearchParams(window.location.search);
-        const code = params.get("code");
-        const tokenHash = params.get("token_hash");
-        const type = params.get("type");
+        const { code, tokenHash, type, accessToken, refreshToken, error: linkError } = getAuthParams();
+
+        if (linkError) {
+          throw new Error(linkError);
+        }
 
         if (code) {
           const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
@@ -31,9 +56,27 @@ export default function CustomerAuthCallbackPage() {
         } else if (tokenHash && type) {
           const { error: verifyError } = await supabase.auth.verifyOtp({
             token_hash: tokenHash,
-            type,
+            type: normalizeOtpType(type),
           });
           if (verifyError) throw verifyError;
+        } else if (accessToken && refreshToken) {
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (sessionError) throw sessionError;
+        } else {
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (!sessionData?.session) {
+            throw new Error("Verification link is missing or expired. Please request a new verification email.");
+          }
+        }
+
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
+
+        if (!userData?.user?.email_confirmed_at) {
+          throw new Error("Email was not confirmed by Supabase. Please request a new verification email.");
         }
 
         setStatus("Email confirmed successfully. Redirecting to login...");
