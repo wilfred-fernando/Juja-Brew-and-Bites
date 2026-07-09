@@ -2483,19 +2483,20 @@ function LoyaltyTab({ member, setMember, user }) {
           <div className="space-y-5 px-6 pb-5 text-[12px] text-slate-900">
             <div className="grid grid-cols-[22px_1fr] items-center gap-4">
               <Phone className="h-4 w-4 text-slate-500" />
-              <input
-  value={detailsForm.Phone}
-  disabled={!editingDetails}
-  onChange={(e) =>
-    setDetailsForm((prev) => ({ ...prev, Phone: e.target.value }))
-  }
-  className={`w-full rounded-lg border text-sm font-medium outline-none transition ${
-    editingDetails
-      ? "border-slate-200 bg-white px-3 py-2 text-slate-950 shadow-sm focus:border-cyan-600"
-      : "border-transparent bg-transparent px-0 py-1 text-slate-900 opacity-100"
-  }`}
-  aria-label="Contact number"
-/>
+              {editingDetails ? (
+                <input
+                  value={detailsForm.Phone}
+                  onChange={(e) =>
+                    setDetailsForm((prev) => ({ ...prev, Phone: e.target.value }))
+                  }
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-950 shadow-sm outline-none transition focus:border-cyan-600"
+                  aria-label="Contact number"
+                />
+              ) : (
+                <span className="text-sm font-medium text-slate-900">
+                  {member?.Phone || member?.phone || "-"}
+                </span>
+              )}
             </div>
 
             <div className="grid grid-cols-[22px_1fr] items-center gap-4">

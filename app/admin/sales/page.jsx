@@ -245,6 +245,7 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
     const open = opens.pop() || null;
     const summary = record.sales_summary || {};
     const payments = summary.payments || {};
+    const paymentTransactions = summary.paymentTransactions || summary.payment_transactions || {};
     const startingCash = num(open?.cash_total);
     const cashPayments = jsonNumber(summary, "cashPayments");
     const cashRefunds = jsonNumber(summary, "cashRefunds");
@@ -253,9 +254,12 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
     const difference = actualCash - expectedCash;
     const openedAt = open?.created_at || record.created_at;
     const closedAt = record.created_at;
-    const rowDate = (closedAt || openedAt || "").slice(0, 10);
+    const rowDate = manilaDate(openedAt || closedAt || record.created_at);
     const storeName = storeById.get(storeId) || storeId || "Store";
     const paymentValue = (...names) => names.reduce((sum, name) => sum + num(payments[name]), 0);
+    const nonCashPaymentTotal = Object.entries(payments).reduce((sum, [key, value]) => {
+      return String(key).toLowerCase() === "cash" ? sum : sum + num(value);
+    }, 0);
 
     rows.push({
       id: record.id,
@@ -276,10 +280,10 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
       expectedCash,
       actualCash,
       difference,
-      grossSales: cashPayments + Object.values(payments).reduce((sum, value) => sum + num(value), 0),
-      refunds: cashRefunds,
+      grossSales: num(summary.grossSales, cashPayments + nonCashPaymentTotal),
+      refunds: num(summary.refunds, cashRefunds),
       discounts: num(summary.discounts),
-      netSales: num(summary.netSales, cashPayments + Object.values(payments).reduce((sum, value) => sum + num(value), 0) - cashRefunds),
+      netSales: num(summary.netSales, cashPayments + nonCashPaymentTotal - cashRefunds),
       payments: {
         Cash: cashPayments,
         CARD: paymentValue("Card", "CARD"),
@@ -288,6 +292,17 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
         QRPH: paymentValue("QRPH", "Qrph"),
         Panda: paymentValue("Panda", "Foodpanda", "FOODPANDA"),
         "Grab Dine Out": paymentValue("Grab Dine Out", "GRAB DINE OUT"),
+        "No Payment Required": paymentValue("No Payment Required", "NO PAYMENT REQUIRED"),
+      },
+      paymentTransactions: {
+        Cash: num(paymentTransactions.Cash),
+        CARD: num(paymentTransactions.Card ?? paymentTransactions.CARD),
+        GCASH: num(paymentTransactions.Gcash ?? paymentTransactions.GCash ?? paymentTransactions.GCASH),
+        GRABFOOD: num(paymentTransactions.GrabFood ?? paymentTransactions.GRABFOOD),
+        QRPH: num(paymentTransactions.QRPH ?? paymentTransactions.Qrph),
+        Panda: num(paymentTransactions.Panda ?? paymentTransactions.Foodpanda ?? paymentTransactions.FOODPANDA),
+        "Grab Dine Out": num(paymentTransactions["Grab Dine Out"] ?? paymentTransactions["GRAB DINE OUT"]),
+        "No Payment Required": num(paymentTransactions["No Payment Required"] ?? paymentTransactions["NO PAYMENT REQUIRED"]),
       },
       taxes: num(summary.taxes),
       rawOpen: open,
@@ -393,7 +408,11 @@ function ShiftReportDrawer({ shift, onClose }) {
           <DrawerAmount label="Discounts" value={shift.discounts} />
           <DrawerAmount label="Net sales" value={shift.netSales} strong />
           {Object.entries(shift.payments).filter(([, value]) => Math.abs(num(value)) > 0).map(([label, value]) => (
-            <DrawerAmount key={label} label={label} value={value} />
+            <DrawerAmount
+              key={label}
+              label={`${label}${num(shift.paymentTransactions?.[label]) ? ` (${number(shift.paymentTransactions[label])})` : ""}`}
+              value={value}
+            />
           ))}
           <DrawerAmount label="Taxes" value={shift.taxes} />
         </ReportDrawerSection>

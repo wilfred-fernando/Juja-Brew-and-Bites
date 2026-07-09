@@ -3443,6 +3443,13 @@ export default function POSPage() {
               .reduce((entrySum, entry) => entrySum + Number(entry.amount || 0), 0),
           0
         );
+    const paymentCount = (...keys) =>
+      rows
+        .filter((r) => !isFullRefund(r))
+        .reduce((sum, r) => {
+          const entries = rowPaymentEntries(r);
+          return sum + (entries.some((entry) => paymentMatches(entry.method, keys)) ? 1 : 0);
+        }, 0);
     const paymentRefundTotal = (...keys) =>
       rows.reduce((sum, r) => {
         const refundAmount = rowRefundAmount(r);
@@ -3471,12 +3478,24 @@ export default function POSPage() {
       cashRefunds,
       expectedCash: Number(startingCash || 0) + cashPayments - cashRefunds,
       payments: {
+        Cash: cashPayments,
         Gcash: paymentTotal("gcash"),
         QRPH: paymentTotal("qrph"),
         GrabFood: paymentTotal("grabfood"),
         "Grab Dine Out": paymentTotal("grab dine out", "grabdineout"),
         Card: paymentTotal("card"),
         Panda: paymentTotal("panda", "foodpanda"),
+        "No Payment Required": paymentTotal("no payment required", "nopaymentrequired"),
+      },
+      paymentTransactions: {
+        Cash: paymentCount("cash"),
+        Gcash: paymentCount("gcash"),
+        QRPH: paymentCount("qrph"),
+        GrabFood: paymentCount("grabfood"),
+        "Grab Dine Out": paymentCount("grab dine out", "grabdineout"),
+        Card: paymentCount("card"),
+        Panda: paymentCount("panda", "foodpanda"),
+        "No Payment Required": paymentCount("no payment required", "nopaymentrequired"),
       },
     };
   }, [receiptRows, receiptItemRows, startingCash, activeShiftStartMs]);
@@ -5300,7 +5319,9 @@ export default function POSPage() {
   async function fetchReceiptLogs() {
     const receiptCutoff = new Date();
     receiptCutoff.setDate(receiptCutoff.getDate() - POS_RECEIPT_HISTORY_DAYS);
-    const receiptCutoffIso = receiptCutoff.toISOString();
+    const shiftCutoff = activeShiftStartMs ? new Date(activeShiftStartMs) : null;
+    const receiptCutoffIso = shiftCutoff && shiftCutoff < receiptCutoff ? shiftCutoff.toISOString() : receiptCutoff.toISOString();
+    const receiptLimit = shiftCutoff ? 1000 : 120;
     const resolveOrderCustomer = (order) => {
       const linked = customers.find((customer) =>
         String(customer.id) === String(order?.customer_id || "") ||
@@ -5318,7 +5339,7 @@ export default function POSPage() {
       .gte("created_at", receiptCutoffIso)
       .or(buildStoreOrderFilter(storeId))
       .order("created_at", { ascending: false })
-        .limit(120),
+        .limit(receiptLimit),
       supabase
         .from("web_orders")
         .select("*")
@@ -5326,7 +5347,7 @@ export default function POSPage() {
         .gte("created_at", receiptCutoffIso)
         .or(buildStoreOrderFilter(storeId))
         .order("created_at", { ascending: false })
-        .limit(120),
+        .limit(receiptLimit),
     ]);
     if (receiptRes.error) {
       showToast("error", "Receipts Failed", receiptRes.error.message);
