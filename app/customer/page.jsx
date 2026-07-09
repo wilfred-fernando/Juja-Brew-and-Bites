@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Barcode as BarcodeIcon, CalendarDays, DollarSign, MapPin, Phone, ShoppingBasket, Star } from "lucide-react";
 
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { webDiningOptionLabel } from "@/lib/kds";
 import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib/loyalty/annualReset";
@@ -18,6 +18,8 @@ const Barcode = dynamic(() => import("react-barcode"), { ssr: false });
 
 const LOGO =
   "https://images.jujabrewandbites.com/SIGNAGE%20light%20with%20korean%20letters%203.png";
+
+const supabase = getSupabaseClient();
 
 const loyaltyPoints = (amount) => Number(((Number(amount) || 0) * 0.04).toFixed(2));
 const peso0 = (amount) => `₱${Number(amount || 0).toLocaleString("en-PH", { maximumFractionDigits: 0 })}`;
@@ -87,6 +89,11 @@ const loyaltyTerms = [
 function isCustomerPwaInstalled() {
   if (typeof window === "undefined") return false;
   return window.matchMedia?.("(display-mode: standalone)")?.matches || window.navigator?.standalone === true;
+}
+
+function customerPortalPath(path) {
+  if (typeof window === "undefined") return `/customer${path}`;
+  return window.location.hostname.startsWith("customer.") ? path : `/customer${path}`;
 }
 
 async function registerCustomerServiceWorker() {
@@ -2744,38 +2751,46 @@ export default function Customer() {
     link.href = "/manifest-customer.json";
 
     async function loadData() {
-      const { data } = await supabase.auth.getSession();
-      const session = data?.session;
-
-      if (!session) {
-        router.push("/login");
-        return;
-      }
-
-      setUser(session.user);
-      await fetchOrderHistory(session.user.id);
-
       try {
-        const { data: mData } = await supabase
-          .from("loyalty_members")
-          .select("*")
-          .eq("user_id", session.user.id)
-          .maybeSingle();
+        const { data, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
 
-        if (mData) {
-          try {
-            const resetResult = await resetMemberPointsIfExpired(supabase, mData);
-            setMember(resetResult.member || mData);
-          } catch (resetErr) {
-            console.warn("Annual loyalty point reset skipped:", resetErr);
-            setMember(applyAnnualPointResetToMember(mData));
-          }
+        const session = data?.session;
+        if (!session) {
+          setLoading(false);
+          router.replace(customerPortalPath("/login"));
+          return;
         }
-      } catch (e) {
-        console.warn("No active member profiles registered.", e);
-      }
 
-      setLoading(false);
+        setUser(session.user);
+        await fetchOrderHistory(session.user.id);
+
+        try {
+          const { data: mData } = await supabase
+            .from("loyalty_members")
+            .select("*")
+            .eq("user_id", session.user.id)
+            .maybeSingle();
+
+          if (mData) {
+            try {
+              const resetResult = await resetMemberPointsIfExpired(supabase, mData);
+              setMember(resetResult.member || mData);
+            } catch (resetErr) {
+              console.warn("Annual loyalty point reset skipped:", resetErr);
+              setMember(applyAnnualPointResetToMember(mData));
+            }
+          }
+        } catch (e) {
+          console.warn("No active member profiles registered.", e);
+        }
+      } catch (err) {
+        console.warn("Customer session load failed:", err);
+        await supabase.auth.signOut();
+        router.replace(customerPortalPath("/login"));
+      } finally {
+        setLoading(false);
+      }
     }
 
     loadData();
@@ -2953,7 +2968,7 @@ export default function Customer() {
 
   const logout = async () => {
     await supabase.auth.signOut();
-    router.push("/login");
+    router.push(customerPortalPath("/login"));
   };
 
   return (
