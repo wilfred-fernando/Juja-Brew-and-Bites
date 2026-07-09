@@ -215,6 +215,24 @@ function jsonNumber(source, key, fallback = 0) {
   return num(source?.[key], fallback);
 }
 
+function plainObject(value) {
+  if (!value) return {};
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  return typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function safeManilaDate(value) {
+  const date = value ? new Date(value) : new Date();
+  return Number.isNaN(date.getTime()) ? manilaDate(new Date()) : manilaDate(date);
+}
+
 function formatDifference(value) {
   const amount = num(value);
   if (Math.abs(amount) < SHIFT_DIFF_TOLERANCE) return "-";
@@ -243,9 +261,9 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
 
     const opens = openQueues.get(storeId) || [];
     const open = opens.pop() || null;
-    const summary = record.sales_summary || {};
-    const payments = summary.payments || {};
-    const paymentTransactions = summary.paymentTransactions || summary.payment_transactions || {};
+    const summary = plainObject(record.sales_summary);
+    const payments = plainObject(summary.payments);
+    const paymentTransactions = plainObject(summary.paymentTransactions || summary.payment_transactions);
     const startingCash = num(open?.cash_total);
     const cashPayments = jsonNumber(summary, "cashPayments");
     const cashRefunds = jsonNumber(summary, "cashRefunds");
@@ -254,7 +272,7 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
     const difference = actualCash - expectedCash;
     const openedAt = open?.created_at || record.created_at;
     const closedAt = record.created_at;
-    const rowDate = manilaDate(openedAt || closedAt || record.created_at);
+    const rowDate = safeManilaDate(openedAt || closedAt || record.created_at);
     const storeName = storeById.get(storeId) || storeId || "Store";
     const paymentValue = (...names) => names.reduce((sum, name) => sum + num(payments[name]), 0);
     const nonCashPaymentTotal = Object.entries(payments).reduce((sum, [key, value]) => {
