@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import AuthTurnstile, { isTurnstileEnabled } from "@/components/AuthTurnstile";
 import PasswordField from "@/components/PasswordField";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase/client";
+
+const supabase = getSupabaseClient();
 
 const LOGO =
   "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";

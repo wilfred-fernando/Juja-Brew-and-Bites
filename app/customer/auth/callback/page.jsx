@@ -29,10 +29,34 @@ function getAuthParams() {
   };
 }
 
-function normalizeOtpType(type) {
+function otpTypeCandidates(type) {
   const normalized = String(type || "").toLowerCase();
-  if (normalized === "email") return "signup";
-  return normalized;
+  const candidates = [normalized];
+
+  if (normalized === "email") candidates.push("signup");
+  if (normalized === "signup") candidates.push("email");
+
+  return [...new Set(candidates.filter(Boolean))];
+}
+
+function isEmailConfirmed(user) {
+  return Boolean(user?.email_confirmed_at || user?.confirmed_at);
+}
+
+async function verifyTokenHash(tokenHash, type) {
+  let lastError = null;
+
+  for (const candidateType of otpTypeCandidates(type)) {
+    const { data, error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: candidateType,
+    });
+
+    if (!error) return data;
+    lastError = error;
+  }
+
+  throw lastError || new Error("Unable to verify email confirmation link.");
 }
 
 export default function CustomerAuthCallbackPage() {
@@ -50,32 +74,35 @@ export default function CustomerAuthCallbackPage() {
           throw new Error(linkError);
         }
 
+        let confirmedUser = null;
+
         if (code) {
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
           if (exchangeError) throw exchangeError;
+          confirmedUser = data?.user || null;
         } else if (tokenHash && type) {
-          const { error: verifyError } = await supabase.auth.verifyOtp({
-            token_hash: tokenHash,
-            type: normalizeOtpType(type),
-          });
-          if (verifyError) throw verifyError;
+          const data = await verifyTokenHash(tokenHash, type);
+          confirmedUser = data?.user || null;
         } else if (accessToken && refreshToken) {
-          const { error: sessionError } = await supabase.auth.setSession({
+          const { data, error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
           if (sessionError) throw sessionError;
+          confirmedUser = data?.user || null;
         } else {
           const { data: sessionData } = await supabase.auth.getSession();
           if (!sessionData?.session) {
             throw new Error("Verification link is missing or expired. Please request a new verification email.");
           }
+          confirmedUser = sessionData.session.user || null;
         }
 
         const { data: userData, error: userError } = await supabase.auth.getUser();
-        if (userError) throw userError;
+        if (userError && !confirmedUser) throw userError;
 
-        if (!userData?.user?.email_confirmed_at) {
+        const user = isEmailConfirmed(userData?.user) ? userData.user : confirmedUser;
+        if (!isEmailConfirmed(user)) {
           throw new Error("Email was not confirmed by Supabase. Please request a new verification email.");
         }
 
