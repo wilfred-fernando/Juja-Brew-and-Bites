@@ -101,7 +101,9 @@ export async function POST(req) {
     }
 
     const payload = await req.json();
-    const fullName = String(payload?.customer_name || "").trim();
+    const firstName = String(payload?.first_name || payload?.firstName || "").trim();
+    const lastName = String(payload?.last_name || payload?.lastName || "").trim();
+    const fullName = [firstName, lastName].filter(Boolean).join(" ") || String(payload?.customer_name || "").trim();
     const phone = String(payload?.Phone || "").trim();
     const email = String(payload?.Email || "").trim();
     const city = String(payload?.City || "").trim();
@@ -111,6 +113,7 @@ export async function POST(req) {
     const totalVisits = Math.max(0, numberValue(payload?.["Total visits"]));
     const totalSpent = Math.max(0, numberValue(payload?.["Total spent"]));
 
+    if (!firstName || !lastName) return Response.json({ error: "First name and last name are required." }, { status: 400 });
     if (!fullName) return Response.json({ error: "Full name is required." }, { status: 400 });
     if (!phone) return Response.json({ error: "Phone number is required." }, { status: 400 });
     if (!birthday) return Response.json({ error: "Birthday is required." }, { status: 400 });

@@ -1903,7 +1903,7 @@ function LoyaltyTab({ member, setMember, user }) {
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
 
-  const [form, setForm] = useState({ customer_name: "", Phone: "", City: "", Note: "" });
+  const [form, setForm] = useState({ first_name: "", last_name: "", customer_name: "", Phone: "", City: "", Note: "" });
 
   const [vouchersActive, setVouchersActive] = useState([]);
   const [vouchersRedeemed, setVouchersRedeemed] = useState([]);
@@ -2065,12 +2065,15 @@ function LoyaltyTab({ member, setMember, user }) {
     if (!user?.id) return;
     const b = normalizeBirthday(form.Note);
     if (!b.ok) { setNotice("⚠️ " + b.msg); return; }
-    if (!form.customer_name || !form.City || !form.Phone) { setNotice("⚠️ Please complete all fields."); return; }
+    const firstName = String(form.first_name || "").trim();
+    const lastName = String(form.last_name || "").trim();
+    const fullName = [firstName, lastName].join(" ");
+    if (!firstName || !lastName || !form.City || !form.Phone) { setNotice("⚠️ Please complete all fields."); return; }
     
     setLoading(true);
     try {
       const { data, error } = await supabase.from("loyalty_members").insert([{
-        user_id: user.id, "Customer ID": genCustomerId(), customer_name: form.customer_name,
+        user_id: user.id, "Customer ID": genCustomerId(), customer_name: fullName,
         Email: user.email, Phone: form.Phone, City: form.City,
         "Points balance": 0,
         "Available points": 0,
@@ -2117,10 +2120,13 @@ function LoyaltyTab({ member, setMember, user }) {
   const checkMatchPreview = async () => {
     const b = normalizeBirthday(form.Note);
     if (!b.ok) { setNotice("⚠️ " + b.msg); return; }
-    if (!form.customer_name.trim()) { setNotice("⚠️ Please enter your full name."); return; }
+    const firstName = String(form.first_name || "").trim();
+    const lastName = String(form.last_name || "").trim();
+    const fullName = [firstName, lastName].join(" ");
+    if (!firstName || !lastName) { setNotice("⚠️ Please enter your first and last name."); return; }
     setNotice("");
     setCheckingMatch(true);
-    const typedName = normalizeLoyaltyName(form.customer_name);
+    const typedName = normalizeLoyaltyName(fullName);
     const { data, error } = await supabase.from("loyalty_members").select("*").eq("Note", b.value).limit(50);
     if (error) {
       setNotice("Unable to check loyalty records. Please send a manual link request.");
@@ -2142,7 +2148,10 @@ function LoyaltyTab({ member, setMember, user }) {
 
   const requestLink = async () => {
     const b = normalizeBirthday(form.Note);
-    if (!form.customer_name.trim()) { setNotice("Please enter your full name."); return; }
+    const firstName = String(form.first_name || "").trim();
+    const lastName = String(form.last_name || "").trim();
+    const fullName = [firstName, lastName].join(" ");
+    if (!firstName || !lastName) { setNotice("Please enter your first and last name."); return; }
     setSendingLinkRequest(true);
     setNotice("");
     if (!b.ok) {
@@ -2161,7 +2170,7 @@ function LoyaltyTab({ member, setMember, user }) {
           ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
         body: JSON.stringify({
-          customerName: form.customer_name,
+          customerName: fullName,
           birthday: b.value,
           matchedMemberId: matchedPreview?.id || null,
         }),
@@ -2222,10 +2231,21 @@ function LoyaltyTab({ member, setMember, user }) {
         {notice && <p className="text-xs font-semibold text-rose-500 bg-rose-50 p-2.5 rounded-lg">{notice}</p>}
         <div className="space-y-3">
           <input
-            placeholder="Full Registration Name"
-            value={form.customer_name}
+            placeholder="First Name"
+            value={form.first_name}
             onChange={(e)=>{
-              setForm({...form, customer_name: e.target.value});
+              setForm({...form, first_name: e.target.value});
+              setNotice("");
+              setLinkRequestSent(false);
+              setMatchChecked(false);
+            }}
+            className="w-full border border-slate-200 px-4 py-3 rounded-xl text-sm font-medium outline-none"
+          />
+          <input
+            placeholder="Last Name"
+            value={form.last_name}
+            onChange={(e)=>{
+              setForm({...form, last_name: e.target.value});
               setNotice("");
               setLinkRequestSent(false);
               setMatchChecked(false);

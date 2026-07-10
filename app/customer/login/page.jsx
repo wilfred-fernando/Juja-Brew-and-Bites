@@ -21,7 +21,7 @@ export default function Login() {
   const router = useRouter();
 
   const [mode, setMode] = useState("signin");
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", birthday: "", password: "" });
   const [captchaToken, setCaptchaToken] = useState("");
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -71,14 +71,26 @@ export default function Login() {
 
     setLoading(true);
 
-    try {
-      if (mode === "signup") {
+      try {
+        if (mode === "signup") {
+        const firstName = form.firstName.trim();
+        const lastName = form.lastName.trim();
+        const fullName = [firstName, lastName].filter(Boolean).join(" ");
+        if (!firstName || !lastName || !form.birthday) {
+          throw new Error("First name, last name, and birthday are required.");
+        }
+
         const { error: authError } = await supabase.auth.signUp({
           email: form.email,
           password: form.password,
           options: {
             captchaToken: token,
-            data: { full_name: form.name },
+            data: {
+              first_name: firstName,
+              last_name: lastName,
+              full_name: fullName,
+              birthday: form.birthday,
+            },
             emailRedirectTo: customerLoginRedirectUrl(),
           },
         });
@@ -88,7 +100,7 @@ export default function Login() {
         await supabase.auth.signOut();
         setSuccess("Account created. Please verify your email before signing in.");
         setMode("signin");
-        setForm((current) => ({ ...current, password: "" }));
+        setForm({ firstName: "", lastName: "", email: form.email, birthday: "", password: "" });
         setCaptchaToken("");
         setCaptchaResetKey((key) => key + 1);
         setLoading(false);
@@ -170,28 +182,47 @@ export default function Login() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {mode === "signup" && (
-                <div>
-                  <label className="block text-xs text-slate-500 mb-1">
-                    
-                  </label>
+                <>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">
+                      First Name
+                    </label>
 
-                  <input
-                    type="text"
-                    required
-                    value={form.name}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, name: e.target.value }))
-                    }
-                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-sky-500/30 transition-all text-slate-700"
-                    placeholder="Your full name"
-                  />
-                </div>
+                    <input
+                      type="text"
+                      required
+                      value={form.firstName}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, firstName: e.target.value }))
+                      }
+                      className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-sky-500/30 transition-all text-slate-700"
+                      placeholder="First name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">
+                      Last Name
+                    </label>
+
+                    <input
+                      type="text"
+                      required
+                      value={form.lastName}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, lastName: e.target.value }))
+                      }
+                      className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-sky-500/30 transition-all text-slate-700"
+                      placeholder="Last name"
+                    />
+                  </div>
+                </>
               )}
 
               {/* EMAIL */}
               <div>
-                <label className="block text-xs text-slate-500 mb-1">
-                 
+                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  Email
                 </label>
 
                 <input
@@ -206,10 +237,28 @@ export default function Login() {
                 />
               </div>
 
+              {mode === "signup" && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    Birthday
+                  </label>
+
+                  <input
+                    type="date"
+                    required
+                    value={form.birthday}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, birthday: e.target.value }))
+                    }
+                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-sky-500/30 transition-all text-slate-700"
+                  />
+                </div>
+              )}
+
               {/* PASSWORD */}
               <div>
-                <label className="block text-xs text-slate-500 mb-1">
-                  
+                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  Password
                 </label>
 
                 <PasswordField

@@ -7,6 +7,8 @@ import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib
 const supabase = getSupabaseClient();
 
 const emptyRegistrationForm = {
+  first_name: "",
+  last_name: "",
   customer_name: "",
   Phone: "",
   Email: "",
@@ -761,6 +763,9 @@ export default function LoyaltyAdminPage() {
     setNotice("");
 
     try {
+      const firstName = String(registrationForm.first_name || "").trim();
+      const lastName = String(registrationForm.last_name || "").trim();
+      if (!firstName || !lastName) throw new Error("First name and last name are required.");
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData?.session?.access_token;
       const response = await fetch("/api/admin/loyalty-member-register", {
@@ -769,7 +774,10 @@ export default function LoyaltyAdminPage() {
           "Content-Type": "application/json",
           ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
-        body: JSON.stringify(registrationForm),
+        body: JSON.stringify({
+          ...registrationForm,
+          customer_name: [firstName, lastName].join(" "),
+        }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload?.error || "Unable to register loyalty member.");
@@ -1503,12 +1511,22 @@ export default function LoyaltyAdminPage() {
             <form onSubmit={handleManualRegistration} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Full Name</label>
+                  <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">First Name</label>
                   <input
                     type="text"
                     required
-                    value={registrationForm.customer_name}
-                    onChange={(e) => updateRegistrationField("customer_name", e.target.value)}
+                    value={registrationForm.first_name}
+                    onChange={(e) => updateRegistrationField("first_name", e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Last Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={registrationForm.last_name}
+                    onChange={(e) => updateRegistrationField("last_name", e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:outline-none focus:border-sky-500"
                   />
                 </div>
@@ -1541,7 +1559,7 @@ export default function LoyaltyAdminPage() {
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:outline-none focus:border-sky-500"
                   />
                 </div>
-                <div className="md:col-span-2">
+                <div>
                   <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">City / Address</label>
                   <input
                     type="text"
