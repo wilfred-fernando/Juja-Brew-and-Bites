@@ -1769,6 +1769,19 @@ function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onD
     [orders, selectedOrderId]
   );
 
+  const webOrderPaymentLabel = (order) => {
+    const raw =
+      order?.payment_method ||
+      order?.payment_type ||
+      order?.payment_option ||
+      order?.paymentOption ||
+      order?.payment ||
+      order?.source_metadata?.payment_label ||
+      "";
+    const value = String(raw || "").trim();
+    return value || "Not selected";
+  };
+
   useEffect(() => {
     if (!open) setSelectedOrderId(null);
   }, [open]);
@@ -1818,6 +1831,9 @@ function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onD
                       <p className="text-[11px] font-medium text-slate-400 mt-1 truncate">
                         {webDiningOptionLabel(order.fulfillment_type || order.dining_option)} {order.fulfillment_time ? `• ${order.fulfillment_time}` : ""}
                       </p>
+                      <p className="text-[11px] font-bold text-slate-500 mt-1 truncate">
+                        Payment: <span className="text-slate-700">{webOrderPaymentLabel(order)}</span>
+                      </p>
                     </div>
                     <span className={`px-2 py-1 rounded-md border text-[10px] font-black uppercase tracking-wider ${statusClass(order.status)}`}>
                       {order.status}
@@ -1853,6 +1869,20 @@ function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onD
           const orderItems = Array.isArray(selectedOrder.items) ? selectedOrder.items : [];
           return (
             <>
+              <div className="mb-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Order Type</p>
+                  <p className="mt-1 text-xs font-bold text-slate-800">{webDiningOptionLabel(selectedOrder.fulfillment_type || selectedOrder.dining_option)}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Payment Type</p>
+                  <p className="mt-1 text-xs font-bold text-slate-800">{webOrderPaymentLabel(selectedOrder)}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total</p>
+                  <p className="mt-1 text-xs font-bold text-slate-800">{peso2(selectedOrder.total || selectedOrder.subtotal || 0)}</p>
+                </div>
+              </div>
               <div className="grid grid-cols-3 gap-2 mb-4">
                 <button
                   type="button"
@@ -3056,11 +3086,12 @@ export default function POSPage() {
     if (typeof window !== "undefined") return localStorage.getItem("pos_store_id") || null;
     return null;
   };
-  const getTicketStoreId = (ticket) => ticket?.store_id || null;
-  const isTicketInCurrentStore = (ticket, sid = storeId) => {
+  const getTicketStoreId = (ticket) => ticket?.store_id || ticket?.branch_id || ticket?.storeId || ticket?.branchId || null;
+  const isTicketInStore = (ticket, sid) => {
     const ticketStoreId = getTicketStoreId(ticket);
     return Boolean(sid && ticketStoreId && String(ticketStoreId) === String(sid));
   };
+  const isTicketInCurrentStore = (ticket, sid = storeId) => isTicketInStore(ticket, sid);
   const assertTicketInCurrentStore = (ticket, actionLabel = "use this saved ticket") => {
     if (isTicketInCurrentStore(ticket)) return;
     throw new Error(`This saved ticket belongs to another store. Sign in to the correct POS branch to ${actionLabel}.`);
@@ -3091,15 +3122,29 @@ export default function POSPage() {
     items: enrichOrderItemsForKds(overrides.items || order?.items || []),
   });
 
-  const fetchOpenTicketLineItems = async (ticketIds = []) => {
+  const fetchOpenTicketLineItems = async (ticketIds = [], sid = storeId) => {
     const ids = [...new Set((ticketIds || []).filter(Boolean).map(String))];
     const grouped = new Map();
-    if (ids.length === 0) return grouped;
+    if (ids.length === 0 || !sid) return grouped;
+
+    const { data: parentTickets, error: parentError } = await supabase
+      .from("open_tickets")
+      .select("id, store_id")
+      .in("id", ids)
+      .eq("store_id", sid);
+
+    if (parentError) {
+      console.warn("Open ticket parent validation skipped:", parentError);
+      return grouped;
+    }
+
+    const allowedIds = [...new Set((parentTickets || []).filter((ticket) => isTicketInStore(ticket, sid)).map((ticket) => String(ticket.id)))];
+    if (allowedIds.length === 0) return grouped;
 
     const { data, error } = await supabase
       .from("open_ticket_items")
       .select("ticket_id, line_index, item_data")
-      .in("ticket_id", ids)
+      .in("ticket_id", allowedIds)
       .order("line_index", { ascending: true });
 
     if (error) {
@@ -3116,8 +3161,21 @@ export default function POSPage() {
     return grouped;
   };
 
-  const syncOpenTicketLineItems = async (ticketId, ticketItems = []) => {
-    if (!ticketId) return;
+  const syncOpenTicketLineItems = async (ticketId, ticketItems = [], sid = storeId) => {
+    if (!ticketId || !sid) return;
+
+    const { data: parentTicket, error: parentError } = await supabase
+      .from("open_tickets")
+      .select("id, store_id")
+      .eq("id", ticketId)
+      .eq("store_id", sid)
+      .maybeSingle();
+
+    if (parentError) throw parentError;
+    if (!parentTicket?.id || !isTicketInStore(parentTicket, sid)) {
+      throw new Error("Saved ticket item sync blocked because this ticket is not assigned to the active POS store.");
+    }
+
     const safeItems = jsonSafeValue(enrichOrderItemsForKds(ticketItems));
 
     const { error: deleteError } = await supabase
@@ -4111,15 +4169,19 @@ export default function POSPage() {
   }, [storeId, shiftStatus]);
 
   useEffect(() => {
+    if (!storeId) {
+      setSavedTickets([]);
+      return;
+    }
     const channel = supabase
-      .channel('open_tickets_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'open_tickets' }, () => {
-        fetchSavedTickets();
+      .channel(`open_tickets_changes:${storeId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'open_tickets', filter: `store_id=eq.${storeId}` }, () => {
+        fetchSavedTickets(storeId);
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [storeId]);
 
   useEffect(() => {
     if (!storeId) return;
@@ -4188,6 +4250,8 @@ export default function POSPage() {
 
       const activeStoreId = profile.store_id;
       setCurrentUserId(session.user.id);
+      setSavedTickets([]);
+      setOriginalTicketId(null);
       localStorage.setItem("pos_store_id", activeStoreId);
       setStoreId(activeStoreId);
 
@@ -4657,7 +4721,7 @@ export default function POSPage() {
         return true;
       }
 
-      const lineItemsByTicket = await fetchOpenTicketLineItems([ticket.id]);
+      const lineItemsByTicket = await fetchOpenTicketLineItems([ticket.id], storeId);
       const ticketItems = lineItemsByTicket.get(String(ticket.id)) || ticket.items || [];
       setOriginalTicketId(ticket.id);
       setCart(ticketItems);
@@ -4781,7 +4845,7 @@ export default function POSPage() {
       assertTicketInCurrentStore(existingTicket, "update it");
 
       const savedTicketId = existingTicket.id;
-      const previousLineItemsByTicket = await fetchOpenTicketLineItems([savedTicketId]);
+      const previousLineItemsByTicket = await fetchOpenTicketLineItems([savedTicketId], storeId);
       const previousSavedItems = previousLineItemsByTicket.get(String(savedTicketId)) || existingTicket.items || [];
       const addedItems = getAddedTicketLines(previousSavedItems, savedItems);
 
@@ -4798,7 +4862,7 @@ export default function POSPage() {
         throw new Error("Saved ticket was not updated. Please reopen the saved ticket and try again.");
       }
 
-      await syncOpenTicketLineItems(savedTicketId, savedItems);
+      await syncOpenTicketLineItems(savedTicketId, savedItems, storeId);
       const ticketPrintedAt = ticketRow.created_at || new Date();
       if (addedItems.length > 0) {
         const kitchenAddedItems = getKitchenPrinterGroupItems(addedItems);
@@ -4841,7 +4905,7 @@ export default function POSPage() {
       const { data: ticketRow, error } = await supabase.from("open_tickets").insert([payload]).select("*").single();
       if (error) throw error;
       setOriginalTicketId(ticketRow.id);
-      await syncOpenTicketLineItems(ticketRow.id, savedItems);
+      await syncOpenTicketLineItems(ticketRow.id, savedItems, storeId);
       const { error: kdsErr } = await upsertKdsTicket(supabase, {
         sourceType: "pos",
         order: {
@@ -4876,23 +4940,23 @@ export default function POSPage() {
     }
   }
 
-  async function fetchSavedTickets() {
-    if (!storeId) {
+  async function fetchSavedTickets(sid = storeId) {
+    if (!sid) {
       setSavedTickets([]);
       return;
     }
     let res = await supabase
       .from("open_tickets")
       .select("id, store_id, ticket_name, order_type, customer_id, items, total_amount, applied_voucher, created_at")
-      .eq("store_id", storeId)
+      .eq("store_id", sid)
       .order("created_at", { ascending: false });
 
     if (res.error && /applied_voucher/i.test(res.error.message || "")) {
       res = await supabase
-        .from("open_tickets")
-        .select("id, store_id, ticket_name, order_type, customer_id, items, total_amount, created_at")
-        .eq("store_id", storeId)
-        .order("created_at", { ascending: false });
+          .from("open_tickets")
+          .select("id, store_id, ticket_name, order_type, customer_id, items, total_amount, created_at")
+          .eq("store_id", sid)
+          .order("created_at", { ascending: false });
     }
 
     if (res.error) {
@@ -4901,8 +4965,8 @@ export default function POSPage() {
       return;
     }
 
-    const storeTickets = (res.data || []).filter((ticket) => isTicketInCurrentStore(ticket));
-    const lineItemsByTicket = await fetchOpenTicketLineItems(storeTickets.map((t) => t.id));
+    const storeTickets = (res.data || []).filter((ticket) => isTicketInStore(ticket, sid));
+    const lineItemsByTicket = await fetchOpenTicketLineItems(storeTickets.map((t) => t.id), sid);
     const enriched = storeTickets.map((t) => {
       const c = customers.find((x) => x.id === t.customer_id);
       return {
@@ -4981,7 +5045,7 @@ export default function POSPage() {
         fetchPendingCount(storeId),
         currentUserId ? loadShiftState(storeId, currentUserId) : Promise.resolve(),
         fetchData(storeId, { showLoading: false }),
-        fetchSavedTickets(),
+        fetchSavedTickets(storeId),
         fetchActiveKitchenTables(),
         fetchAcceptedWebOrders(),
         managementOpen ? fetchReceiptLogs() : Promise.resolve(),
@@ -5007,7 +5071,7 @@ export default function POSPage() {
           fetchPendingCount(storeId),
           loadShiftState(storeId, currentUserId),
           fetchData(storeId, { showLoading: false }),
-          fetchSavedTickets(),
+          fetchSavedTickets(storeId),
           fetchActiveKitchenTables(),
           fetchAcceptedWebOrders(),
           managementOpen ? fetchReceiptLogs() : Promise.resolve(),
@@ -6337,7 +6401,7 @@ export default function POSPage() {
       return;
     }
     await markKdsTicketStatus(supabase, { sourceType: "pos", sourceId: ticketId, status: "voided" });
-    await fetchSavedTickets();
+    await fetchSavedTickets(storeId);
     showToast("success", "Ticket Voided", "Ticket removed successfully.");
   }
 
@@ -6383,7 +6447,7 @@ export default function POSPage() {
       showToast("error", "Void Item Failed", error.message || error.details || "Open ticket update was rejected.");
       return;
     }
-    await syncOpenTicketLineItems(ticket.id, safeNextItems);
+    await syncOpenTicketLineItems(ticket.id, safeNextItems, storeId);
 
     const { error: kdsError } = await markKdsTicketItemVoided(supabase, {
       sourceType: "pos",
@@ -6409,7 +6473,7 @@ export default function POSPage() {
       assertTicketInCurrentStore(t, "resume it");
     } catch (err) {
       showToast("error", "Wrong Store Ticket", err.message);
-      await fetchSavedTickets();
+      await fetchSavedTickets(storeId);
       return;
     }
     setOriginalTicketId(t.id);
@@ -6474,7 +6538,7 @@ export default function POSPage() {
     setSavingTicket(true);
     try {
       await saveTableOrder();
-      await fetchSavedTickets();
+      await fetchSavedTickets(storeId);
       showToast("success", "Saved successfully", activeWebOrderId ? "Web order values updated." : "Ticket updated in system.");
       clearTicketSoft();
     } catch (err) {
@@ -6686,7 +6750,7 @@ export default function POSPage() {
           .maybeSingle();
         if (ticketForChargeErr) return showToast("error", "Saved Ticket Check Failed", ticketForChargeErr.message);
         if (!ticketForCharge?.id) {
-          await fetchSavedTickets();
+          await fetchSavedTickets(storeId);
           return showToast("error", "Wrong Store Ticket", "This saved ticket is not assigned to this POS store. Reopen the correct ticket list and try again.");
         }
         originalTicketForCharge = ticketForCharge;
@@ -7138,7 +7202,7 @@ export default function POSPage() {
         showToast("error", "Move Failed", error.message);
         return;
       }
-      await syncOpenTicketLineItems(ticketRow.id, movingItems);
+      await syncOpenTicketLineItems(ticketRow.id, movingItems, storeId);
 
       setCart((prev) => prev.filter((x) => !splitSelected.includes(x.cartItemId)));
 
@@ -7159,7 +7223,7 @@ export default function POSPage() {
 
   const openMoveToSaved = async () => {
     if (!splitSelected.length) return showToast("info", "Select Items", "Choose items to move first.");
-    await fetchSavedTickets();
+    await fetchSavedTickets(storeId);
     setSavedMode("move");
     setSavedOpen(true);
   };
@@ -7192,7 +7256,7 @@ export default function POSPage() {
         showToast("error", "Move Failed", error.message);
         return;
       }
-      await syncOpenTicketLineItems(ticket.id, merged);
+      await syncOpenTicketLineItems(ticket.id, merged, storeId);
 
       setCart((prev) => prev.filter((x) => !splitSelected.includes(x.cartItemId)));
 
@@ -8166,7 +8230,7 @@ export default function POSPage() {
               onVoidLiveTicket={handleVoidCurrentTicket}
               onOpenWebOrdersModal={openAcceptedWebOrders}
               onOpenSavedTicketsModal={async () => {
-                await fetchSavedTickets();
+                await fetchSavedTickets(storeId);
                 setSavedMode("resume");
                 setSavedOpen(true);
               }}
@@ -8279,7 +8343,7 @@ export default function POSPage() {
                 onVoidLiveTicket={handleVoidCurrentTicket}
                 onOpenWebOrdersModal={openAcceptedWebOrders}
                 onOpenSavedTicketsModal={async () => {
-                  await fetchSavedTickets();
+                  await fetchSavedTickets(storeId);
                   setSavedMode("resume");
                   setSavedOpen(true);
                 }}
