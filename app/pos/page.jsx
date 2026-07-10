@@ -1156,6 +1156,68 @@ function receiptItemDisplayLines(item) {
   return lines;
 }
 
+function parseMaybeJsonArray(value) {
+  if (Array.isArray(value)) return value;
+  if (!value || typeof value !== "string") return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function receiptSourceItems(receipt) {
+  const metadata = receipt?.source_metadata && typeof receipt.source_metadata === "object" ? receipt.source_metadata : {};
+  const candidates = [
+    receipt?.items,
+    receipt?.web_items,
+    receipt?.order_items,
+    metadata.items,
+    metadata.cart,
+    metadata.web_items,
+  ];
+  for (const candidate of candidates) {
+    const parsed = parseMaybeJsonArray(candidate);
+    if (parsed.length) return parsed;
+  }
+  return [];
+}
+
+function normalizeReceiptSourceItems(receipt) {
+  return receiptSourceItems(receipt).map((item, idx) => {
+    const qty = Math.max(1, Number(item.quantity || item.qty || 1));
+    const unitPrice = Number(item.unitPrice ?? item.unit_price ?? item.price ?? item.base_price ?? 0);
+    const discountAmount = Number(item.discountAmount ?? item.discount_amount ?? item.discount ?? 0);
+    const lineTotal = Math.max(0, qty * unitPrice - discountAmount);
+    return {
+      ...item,
+      id: item.id || item.cartItemId || `${receipt?.receipt_number || receipt?.id || "receipt"}-fallback-${idx}`,
+      receipt_number: receipt?.receipt_number || receipt?.order_number || String(receipt?.id || ""),
+      item: item.item || item.name || item.item_name || "Menu item",
+      name: item.name || item.item || item.item_name || "Menu item",
+      quantity: qty,
+      qty,
+      unitPrice,
+      price: unitPrice,
+      gross_sales: Number(item.gross_sales ?? item.grossSales ?? qty * unitPrice),
+      net_sales: Number(item.net_sales ?? item.netSales ?? item.line_total ?? lineTotal),
+      line_total: Number(item.line_total ?? item.net_sales ?? item.netSales ?? lineTotal),
+      categoryId: item.categoryId || item.category_id || item.menu_category_id || item.category?.id || null,
+      category_id: item.category_id || item.categoryId || item.menu_category_id || item.category?.id || null,
+      category: item.category || item.categoryName || item.category_name || "",
+      categoryName: item.categoryName || item.category_name || item.category || "",
+      variantDetails: item.variantDetails || item.variant_details || item.variant || "",
+      selectedOptions: item.selectedOptions || item.selected_options || item.options || item.modifiers || [],
+      selected_options: item.selected_options || item.selectedOptions || item.options || item.modifiers || [],
+      instructions: item.instructions || item.note || item.specialInstructions || item.special_instructions || "",
+      discountAmount,
+      discount_amount: discountAmount,
+      status: item.status || receipt?.status || "Closed",
+    };
+  });
+}
+
 function buildCupLabels({ orderId, cart, diningOptionName, printedAt, storeName = "Juja Brew & Bites", barCategoryIds = [], barCategoryNames = [] }) {
   const barIds = new Set((barCategoryIds || []).map((id) => String(id)));
   const barNames = new Set((barCategoryNames || []).map((name) => String(name || "").trim().toLowerCase()).filter(Boolean));
@@ -3477,33 +3539,8 @@ export default function POSPage() {
   const selectedReceiptItems = useMemo(
     () => {
       const rows = receiptItemRows.filter((row) => row.receipt_number === selectedReceipt?.receipt_number);
-      if (rows.length || !selectedReceipt?.receipt_number || !Array.isArray(selectedReceipt.items)) return rows;
-      return selectedReceipt.items.map((item, idx) => {
-        const qty = Number(item.quantity || item.qty || 1);
-        const unitPrice = Number(item.unitPrice || item.unit_price || item.price || 0);
-        const discountAmount = Number(item.discountAmount || item.discount_amount || item.discount || 0);
-        const lineTotal = Math.max(0, qty * unitPrice - discountAmount);
-        return {
-          id: `${selectedReceipt.receipt_number}-fallback-${idx}`,
-          receipt_number: selectedReceipt.receipt_number,
-          item: item.name || item.item || item.item_name || "Menu item",
-          name: item.name || item.item || item.item_name || "Menu item",
-          quantity: qty,
-          net_sales: lineTotal,
-          gross_sales: qty * unitPrice,
-          line_total: lineTotal,
-          categoryId: item.categoryId || item.category_id || item.menu_category_id || null,
-          category_id: item.category_id || item.categoryId || item.menu_category_id || null,
-          category: item.category || item.categoryName || item.category_name || "",
-          categoryName: item.categoryName || item.category_name || item.category || "",
-          variantDetails: item.variantDetails || item.variant_details || item.variant || "",
-          selectedOptions: item.selectedOptions || item.selected_options || item.options || item.modifiers || [],
-          selected_options: item.selected_options || item.selectedOptions || item.options || item.modifiers || [],
-          instructions: item.instructions || item.note || item.specialInstructions || item.special_instructions || "",
-          discount_amount: discountAmount,
-          status: selectedReceipt.status || "Closed",
-        };
-      });
+      if (rows.length || !selectedReceipt?.receipt_number) return rows;
+      return normalizeReceiptSourceItems(selectedReceipt);
     },
     [receiptItemRows, selectedReceipt]
   );
@@ -5702,19 +5739,12 @@ export default function POSPage() {
     showToast("success", "Receipt Refunded", receipt.receipt_number);
   }
 
-  async function reprintReceipt(receipt) {
-    if (!receipt?.receipt_number || reprintingReceipt) return;
-    const items = receiptItemRows.filter((row) => row.receipt_number === receipt.receipt_number);
-    if (items.length === 0) {
-      showToast("error", "Reprint Failed", "No receipt items were found for this receipt.");
-      return;
-    }
-
+  function normalizeOrderItemRowsForReceipt(rows, receipt) {
     const sourceItems = Array.isArray(receipt.items)
       ? receipt.items
       : Array.isArray(receipt.web_items)
         ? receipt.web_items
-        : [];
+        : receiptSourceItems(receipt);
     const findSourceLine = (row, index) => {
       const indexed = sourceItems[index];
       const rowMenuId = row.menu_item_id || row.menuItemId || row.menu_item || null;
@@ -5735,19 +5765,78 @@ export default function POSPage() {
       }) || null;
     };
 
-    const cartForReceipt = items.map((row, index) => {
+    return (rows || []).map((row, index) => {
       const sourceLine = findSourceLine(row, index);
       const quantity = Number(row.quantity || 1);
-      const lineTotal = Number(row.net_sales ?? row.gross_sales ?? 0);
+      const lineGross = Number(row.gross_sales ?? row.line_gross ?? row.net_sales ?? row.line_total ?? 0);
+      const lineNet = Number(row.net_sales ?? row.line_total ?? lineGross);
+      const itemDiscount = Number(row.discountAmount ?? row.discount_amount ?? Math.max(0, lineGross - lineNet));
       return {
+        ...row,
         name: row.item || row.name || "Item",
         quantity,
-        unitPrice: quantity > 0 ? lineTotal / quantity : lineTotal,
+        unitPrice: quantity > 0 ? lineGross / quantity : lineGross,
+        price: quantity > 0 ? lineGross / quantity : lineGross,
         variantDetails: row.variantDetails || row.variant_details || sourceLine?.variantDetails || sourceLine?.variant_details || "",
         selectedOptions: row.selectedOptions || row.selected_options || sourceLine?.selectedOptions || sourceLine?.selected_options || [],
+        selected_options: row.selected_options || row.selectedOptions || sourceLine?.selected_options || sourceLine?.selectedOptions || [],
         instructions: row.instructions || row.note || row.specialInstructions || row.special_instructions || sourceLine?.instructions || sourceLine?.note || sourceLine?.specialInstructions || sourceLine?.special_instructions || "",
+        discountAmount: itemDiscount,
+        discount_amount: itemDiscount,
       };
     });
+  }
+
+  function receiptItemsForReceipt(receipt) {
+    if (!receipt?.receipt_number) return [];
+    const rows = receiptItemRows.filter((row) => row.receipt_number === receipt.receipt_number);
+    return rows.length ? rows : normalizeReceiptSourceItems(receipt);
+  }
+
+  async function loadReceiptItemsForAction(receipt) {
+    const inMemoryItems = receiptItemsForReceipt(receipt);
+    if (inMemoryItems.length) return inMemoryItems;
+
+    const orderId = receipt?.order_id || (receipt?.source === "web_order" ? null : receipt?.id);
+    if (!orderId) return [];
+    const { data, error } = await supabase
+      .from("order_items")
+      .select("*")
+      .eq("order_id", orderId);
+    if (error) throw error;
+    return (data || []).map((item) => ({
+      ...item,
+      receipt_number: receipt.receipt_number,
+      item: item.item || item.name || item.item_name || "Menu item",
+      name: item.name || item.item || item.item_name || "Menu item",
+      net_sales: Number(item.net_sales ?? item.line_total ?? 0),
+      gross_sales: Number(item.gross_sales ?? item.line_total ?? 0),
+      categoryId: item.categoryId || item.category_id || item.menu_category_id || null,
+      category_id: item.category_id || item.categoryId || item.menu_category_id || null,
+      category: item.category || item.categoryName || item.category_name || "",
+      categoryName: item.categoryName || item.category_name || item.category || "",
+      variantDetails: item.variantDetails || item.variant_details || item.variant_name || "",
+      selectedOptions: item.selectedOptions || item.selected_options || item.options || item.modifiers || [],
+      selected_options: item.selected_options || item.selectedOptions || item.options || item.modifiers || [],
+      instructions: item.instructions || item.note || item.specialInstructions || item.special_instructions || "",
+    }));
+  }
+
+  async function reprintReceipt(receipt) {
+    if (!receipt?.receipt_number || reprintingReceipt) return;
+    let items = [];
+    try {
+      items = await loadReceiptItemsForAction(receipt);
+    } catch (error) {
+      showToast("error", "Reprint Failed", error?.message || "Unable to load receipt items.");
+      return;
+    }
+    if (items.length === 0) {
+      showToast("error", "Reprint Failed", "No receipt items were found for this receipt.");
+      return;
+    }
+
+    const cartForReceipt = normalizeOrderItemRowsForReceipt(items, receipt);
     const gross = Number(receipt.gross_sales || 0);
     const discount = Number(receipt.discounts || 0);
     const total = Number(receipt.net_sales || receipt.total_collected || receipt.total || 0);
@@ -5786,8 +5875,14 @@ export default function POSPage() {
 
   async function reprintCupLabelsForReceipt(receipt) {
     if (!receipt?.receipt_number || reprintingCupLabel) return;
-    const items = receiptItemRows.filter((row) => row.receipt_number === receipt.receipt_number);
-    const labelCart = items.map((row) => ({
+    let items = [];
+    try {
+      items = await loadReceiptItemsForAction(receipt);
+    } catch (error) {
+      showToast("error", "Cup Label Reprint Failed", error?.message || "Unable to load receipt items.");
+      return;
+    }
+    const labelCart = normalizeOrderItemRowsForReceipt(items, receipt).map((row) => ({
       ...row,
       name: row.item || row.name || "Item",
       quantity: Math.max(1, Number(row.quantity || row.qty || 1)),
