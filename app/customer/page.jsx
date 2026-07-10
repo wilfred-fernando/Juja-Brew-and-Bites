@@ -980,8 +980,8 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                         }}
                         className={`w-full rounded-lg px-3 py-2 text-left text-xs font-bold transition ${
                           fulfillmentTime === option.value
-                            ? "bg-blue-200/80 text-white"
-                            : "text-slate-700 hover:bg-blue-50"
+                            ? "border-[#FC687D] bg-blue-300/50 text-[#FC687D]"
+                            : "border-slate-200 bg-white text-slate-600 hover:bg-blue-100"
                         }`}
                       >
                         {option.label}
