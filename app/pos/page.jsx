@@ -974,9 +974,12 @@ function buildBillText({ receiptSettings, orderId, cart, diningOptionName, custo
   return lines.join("\n");
 }
 
-function buildCashBreakdownReportText({ store, cashierName, denominations, printedAt }) {
+function buildCashBreakdownReportText({ store, cashierName, denominations, expectedCash, printedAt }) {
   const branchName = store?.store_name || store?.name || store?.branch_name || "Store";
   const totalCash = SHIFT_DENOMINATIONS.reduce((sum, denom) => sum + denom * Number(denominations?.[denom] || 0), 0);
+  const hasExpectedCash = expectedCash !== undefined && expectedCash !== null && expectedCash !== "";
+  const expectedCashValue = hasExpectedCash ? Number(expectedCash || 0) : 0;
+  const difference = totalCash - expectedCashValue;
   const lines = [
     centerReceiptText("CASH BREAKDOWN"),
     centerReceiptText(branchName),
@@ -994,6 +997,10 @@ function buildCashBreakdownReportText({ store, cashierName, denominations, print
   if (!lines.some((line) => line.includes(" x "))) lines.push(centerReceiptText("No cash count entered"));
   lines.push(receiptLine());
   lines.push(receiptPair("Total cash", receiptAmount(totalCash)));
+  if (hasExpectedCash) {
+    lines.push(receiptPair("Expected cash", receiptAmount(expectedCashValue)));
+    lines.push(receiptPair("Difference", `${difference < 0 ? "-" : ""}${receiptAmount(Math.abs(difference))}`));
+  }
   return lines.join("\n");
 }
 
@@ -2554,11 +2561,14 @@ function PrinterStatusPill({ children, active = false, tone = "slate" }) {
   );
 }
 
-function ShiftCashModal({ open, mode, counts, onChange, onClose, onSave, onPrint }) {
+function ShiftCashModal({ open, mode, counts, expectedCash = null, onChange, onClose, onSave, onPrint }) {
   if (!open) return null;
   const isBreakdown = mode === "breakdown";
+  const showsExpectedCash = mode === "close" || mode === "end_day";
   const title = mode === "open" ? "Open Shift" : mode === "end_day" ? "End Day" : isBreakdown ? "Cash Breakdown" : "Close Shift";
   const total = SHIFT_DENOMINATIONS.reduce((sum, denom) => sum + denom * Number(counts[denom] || 0), 0);
+  const expectedCashValue = Number(expectedCash || 0);
+  const difference = total - expectedCashValue;
 
   return (
     <ModalShell open={open} onClose={onClose} title={title} subtitle={isBreakdown ? "Quick cash count calculator" : "Cash denomination count"} z={170}>
@@ -2582,16 +2592,30 @@ function ShiftCashModal({ open, mode, counts, onChange, onClose, onSave, onPrint
         })}
       </div>
       <div className="mt-4 rounded-xl border border-rose-100 bg-rose-50 p-3 flex items-center justify-between">
-        <span className="text-xs font-black uppercase tracking-wider text-rose-500">Overall Total</span>
+        <span className="text-xs font-bold uppercase tracking-wider text-rose-500">Overall Total</span>
         <span className="shrink-0 whitespace-nowrap text-lg font-black text-slate-900">{peso2(total)}</span>
       </div>
-      <div className={`mt-4 grid gap-3 ${isBreakdown ? "grid-cols-2" : "grid-cols-1"}`}>
-        {isBreakdown ? (
-          <button type="button" onClick={() => onPrint?.(total)} className="h-11 rounded-xl bg-slate-900 text-white text-xs font-black uppercase tracking-wider">
+      {showsExpectedCash && (
+        <div className="mt-3 space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+          <div className="flex items-center justify-between gap-4 text-xs font-bold">
+            <span className="uppercase tracking-wider text-slate-500">Expected Cash Amount</span>
+            <span className="shrink-0 whitespace-nowrap text-slate-900">{peso2(expectedCashValue)}</span>
+          </div>
+          <div className="flex items-center justify-between gap-4 text-xs font-bold">
+            <span className="uppercase tracking-wider text-slate-500">Difference</span>
+            <span className={`shrink-0 whitespace-nowrap ${difference < 0 ? "text-red-600" : difference > 0 ? "text-emerald-700" : "text-slate-900"}`}>
+              {difference < 0 ? "-" : ""}{peso2(Math.abs(difference))}
+            </span>
+          </div>
+        </div>
+      )}
+      <div className={`mt-4 grid gap-3 ${isBreakdown || showsExpectedCash ? "grid-cols-2" : "grid-cols-1"}`}>
+        {isBreakdown || showsExpectedCash ? (
+          <button type="button" onClick={() => onPrint?.(total, { expectedCash: showsExpectedCash ? expectedCashValue : null })} className="h-11 rounded-xl border border-cyan-100 bg-cyan-50 text-xs font-bold uppercase tracking-wider text-cyan-800 transition hover:bg-cyan-100">
             Print
           </button>
         ) : null}
-        <button type="button" onClick={() => (isBreakdown ? onClose() : onSave(total))} className="h-11 rounded-xl bg-[#FC687D] text-white text-xs font-black uppercase tracking-wider">
+        <button type="button" onClick={() => (isBreakdown ? onClose() : onSave(total))} className="h-11 rounded-xl bg-slate-900 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-slate-700">
           {isBreakdown ? "Close" : `Save ${title}`}
         </button>
       </div>
@@ -3393,7 +3417,36 @@ export default function POSPage() {
     return entries;
   }, [receiptRows]);
   const selectedReceiptItems = useMemo(
-    () => receiptItemRows.filter((row) => row.receipt_number === selectedReceipt?.receipt_number),
+    () => {
+      const rows = receiptItemRows.filter((row) => row.receipt_number === selectedReceipt?.receipt_number);
+      if (rows.length || !selectedReceipt?.receipt_number || !Array.isArray(selectedReceipt.items)) return rows;
+      return selectedReceipt.items.map((item, idx) => {
+        const qty = Number(item.quantity || item.qty || 1);
+        const unitPrice = Number(item.unitPrice || item.unit_price || item.price || 0);
+        const discountAmount = Number(item.discountAmount || item.discount_amount || item.discount || 0);
+        const lineTotal = Math.max(0, qty * unitPrice - discountAmount);
+        return {
+          id: `${selectedReceipt.receipt_number}-fallback-${idx}`,
+          receipt_number: selectedReceipt.receipt_number,
+          item: item.name || item.item || item.item_name || "Menu item",
+          name: item.name || item.item || item.item_name || "Menu item",
+          quantity: qty,
+          net_sales: lineTotal,
+          gross_sales: qty * unitPrice,
+          line_total: lineTotal,
+          categoryId: item.categoryId || item.category_id || item.menu_category_id || null,
+          category_id: item.category_id || item.categoryId || item.menu_category_id || null,
+          category: item.category || item.categoryName || item.category_name || "",
+          categoryName: item.categoryName || item.category_name || item.category || "",
+          variantDetails: item.variantDetails || item.variant_details || item.variant || "",
+          selectedOptions: item.selectedOptions || item.selected_options || item.options || item.modifiers || [],
+          selected_options: item.selected_options || item.selectedOptions || item.options || item.modifiers || [],
+          instructions: item.instructions || item.note || item.specialInstructions || item.special_instructions || "",
+          discount_amount: discountAmount,
+          status: selectedReceipt.status || "Closed",
+        };
+      });
+    },
     [receiptItemRows, selectedReceipt]
   );
   const shiftSummary = useMemo(() => {
@@ -6178,6 +6231,7 @@ export default function POSPage() {
       setPosMenuOpen(false);
       setTicketDrawerOpen(false);
     }
+    setShiftCashOpen(false);
 
     const { error } = await supabase.from("cashier_pos").insert([record]);
     if (error) {
@@ -6203,15 +6257,14 @@ export default function POSPage() {
         showToast("warn", isEndDay ? "End Day Report Not Printed" : "Close Shift Report Not Printed", printError?.message || "Select and save the receipt printer in POS Settings.");
       }
     }
-
-    setShiftCashOpen(false);
   }
 
-  async function printCashBreakdown(totalCash) {
+  async function printCashBreakdown(totalCash, options = {}) {
     const reportText = buildCashBreakdownReportText({
       store: currentStore,
       cashierName,
       denominations: shiftDenominations,
+      expectedCash: options.expectedCash,
       printedAt: new Date(),
     });
     setReceiptText(reportText);
@@ -7206,6 +7259,7 @@ export default function POSPage() {
       open={shiftCashOpen}
       mode={shiftCashMode}
       counts={shiftDenominations}
+      expectedCash={shiftSummary.expectedCash}
       onChange={updateShiftDenomination}
       onClose={() => setShiftCashOpen(false)}
       onSave={saveShiftCash}
