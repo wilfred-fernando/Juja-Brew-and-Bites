@@ -182,6 +182,9 @@ export default function OrderTab() {
                 <p className="mb-3 text-center text-[13px] font-normal text-[#FC687D] md:text-[15px]">
                   ₱{Number(item.price).toLocaleString()}
                 </p>
+                <p className="mb-3 text-center text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  Tap for options
+                </p>
 
                 <div className="mt-auto">
                   {inCart > 0 ? (

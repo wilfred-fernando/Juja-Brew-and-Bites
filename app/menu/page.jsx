@@ -512,8 +512,8 @@ export default function PublicMenuPage() {
                         {peso0(item.price)}
                       </p>
 
-                      <p className="text-[10px] text-slate-400 mt-2 uppercase tracking-widest">
-                       
+                      <p className="mt-2 text-center text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        Tap for options
                       </p>
                     </button>
                   );
