@@ -2707,7 +2707,7 @@ function ShiftCashModal({ open, mode, counts, expectedCash = null, onChange, onC
             Print
           </button>
         ) : null}
-        <button type="button" onClick={() => (isBreakdown ? onClose() : onSave(total))} className="h-11 rounded-xl bg-slate-900 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-slate-700">
+        <button type="button" onClick={() => (isBreakdown ? onClose() : onSave(total))} className="h-11 rounded-xl bg-blue-300/50 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-blue-400/50">
           {isBreakdown ? "Close" : `Save ${title}`}
         </button>
       </div>
