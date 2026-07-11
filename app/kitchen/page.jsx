@@ -809,7 +809,7 @@ export default function KitchenDisplay() {
                     </div>
                   </div>
 
-                  <div className={`grid min-h-0 flex-1 grid-cols-1 content-start gap-3 overflow-hidden p-3 ${itemLayout.items}`}>
+                  <div className={`grid min-h-0 flex-1 auto-rows-max grid-cols-1 content-start items-start gap-3 overflow-y-auto overflow-x-hidden p-3 pb-4 ${itemLayout.items}`}>
                     {ticketItems.map((item, idx) => {
                       const ready = isItemReady(item);
                       const voidedItem = isItemVoided(item) || voidedOrder;
@@ -821,7 +821,7 @@ export default function KitchenDisplay() {
                           key={item.id || idx}
                           onClick={() => canToggleReady && toggleItemReady(ticket, item.__kdsIndex ?? idx)}
                           disabled={!canToggleReady}
-                          className={`h-fit w-full rounded-2xl border p-3 text-left transition disabled:cursor-not-allowed ${
+                          className={`relative h-auto min-h-fit w-full break-inside-avoid rounded-2xl border p-3 text-left transition disabled:cursor-not-allowed ${
                             voidedItem
                               ? "animate-pulse border-red-400 bg-red-50 shadow-sm shadow-red-100"
                               : ready
@@ -829,13 +829,13 @@ export default function KitchenDisplay() {
                               : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-cyan-200 hover:bg-cyan-50/40 hover:shadow-md"
                           }`}
                         >
-                          <div className="flex items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-start justify-between gap-3">
                             <div className={voidedItem ? "text-red-800 line-through decoration-2" : showReadyStrike ? "text-slate-500 line-through decoration-2" : "text-slate-900"}>
-                              <p className="text-[18px] font-bold">
+                              <p className="break-words text-[18px] font-bold leading-snug">
                                 {item.quantity || 1} x {item.name}
                               </p>
                               {itemOptionRows(item).map((row) => (
-                                <p key={`${row.group}-${row.values}`} className="text-[17px] font-normal italic">
+                                <p key={`${row.group}-${row.values}`} className="break-words text-[17px] font-normal italic leading-snug">
                                   {row.values}
                                 </p>
                               ))}
