@@ -16,6 +16,15 @@ function customerLoginRedirectUrl() {
   return "https://customer.jujabrewandbites.com/auth/callback";
 }
 
+function isEmailConfirmed(user) {
+  return Boolean(
+    user?.email_confirmed_at ||
+      user?.confirmed_at ||
+      user?.user_metadata?.email_verified ||
+      user?.app_metadata?.email_verified
+  );
+}
+
 export default function Login() {
   const pathname = usePathname();
   const router = useRouter();
@@ -115,7 +124,10 @@ export default function Login() {
 
       if (authError) throw authError;
 
-      if (!data?.user?.email_confirmed_at) {
+      const { data: freshUserData } = await supabase.auth.getUser();
+      const signedInUser = freshUserData?.user || data?.user;
+
+      if (!isEmailConfirmed(signedInUser)) {
         await supabase.auth.signOut();
         throw new Error("Please verify your email before signing in.");
       }

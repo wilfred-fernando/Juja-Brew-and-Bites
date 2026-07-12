@@ -31,7 +31,7 @@ function getAuthParams() {
 
 function otpTypeCandidates(type) {
   const normalized = String(type || "").toLowerCase();
-  const candidates = [normalized];
+  const candidates = normalized ? [normalized] : ["signup", "email"];
 
   if (normalized === "email") candidates.push("signup");
   if (normalized === "signup") candidates.push("email");
@@ -40,7 +40,12 @@ function otpTypeCandidates(type) {
 }
 
 function isEmailConfirmed(user) {
-  return Boolean(user?.email_confirmed_at || user?.confirmed_at);
+  return Boolean(
+    user?.email_confirmed_at ||
+      user?.confirmed_at ||
+      user?.user_metadata?.email_verified ||
+      user?.app_metadata?.email_verified
+  );
 }
 
 async function verifyTokenHash(tokenHash, type) {
@@ -80,7 +85,7 @@ export default function CustomerAuthCallbackPage() {
           const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
           if (exchangeError) throw exchangeError;
           confirmedUser = data?.user || null;
-        } else if (tokenHash && type) {
+        } else if (tokenHash) {
           const data = await verifyTokenHash(tokenHash, type);
           confirmedUser = data?.user || null;
         } else if (accessToken && refreshToken) {
