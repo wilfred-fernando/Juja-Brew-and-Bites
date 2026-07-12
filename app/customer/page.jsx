@@ -26,6 +26,7 @@ const peso0 = (amount) => `₱${Number(amount || 0).toLocaleString("en-PH", { ma
 const ALERT_SOUND_SRC = "/sound/notification.mp3";
 const CUSTOMER_NOTIFICATION_ICON = "/images/juja-logo.png";
 const isMenuItemMarkedAvailable = (item) => item?.is_available !== false && item?.available !== false;
+const optionGroupKey = (value) => String(value || "").trim().toLowerCase();
 
 function customerLineGross(line) {
   return Number(line?.unitPrice || line?.price || 0) * Number(line?.quantity || line?.qty || 0);
@@ -1170,6 +1171,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
   const [stores, setStores] = useState([]);
   const [itemStoreAvailability, setItemStoreAvailability] = useState([]);
   const [categoryStoreAvailability, setCategoryStoreAvailability] = useState([]);
+  const [optionGroupStoreAvailability, setOptionGroupStoreAvailability] = useState([]);
   const [activeVouchers, setActiveVouchers] = useState([]);
   const [availabilityNotice, setAvailabilityNotice] = useState("");
 
@@ -1197,6 +1199,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       setAvailabilityNotice("");
       setItemStoreAvailability(json.itemStoreAvailability || []);
       setCategoryStoreAvailability(json.categoryStoreAvailability || []);
+      setOptionGroupStoreAvailability(json.optionGroupStoreAvailability || []);
       setLoading(false);
     }
     fetchMenu();
@@ -1305,6 +1308,25 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
     isMenuItemMarkedAvailable(item) &&
     isItemAvailableForSelectedStore(item) &&
     (!isPromoMenuItem(item) || !!findVoucherForMenuItem(activeVouchers, item));
+
+  const itemWithStoreOptionGroupAvailability = (item) => {
+    if (!selectedBranch || !Array.isArray(item?.variants)) return item;
+    const availabilityByGroup = new Map(
+      optionGroupStoreAvailability
+        .filter((entry) => String(entry.store_id) === String(selectedBranch))
+        .map((entry) => [entry.group_key || optionGroupKey(entry.group_name), entry.is_available !== false])
+    );
+    if (availabilityByGroup.size === 0) return item;
+    return {
+      ...item,
+      variants: item.variants.map((group) => {
+        const key = optionGroupKey(group.name || group.groupName || group.label || group.id);
+        if (!availabilityByGroup.has(key)) return group;
+        const isAvailable = availabilityByGroup.get(key);
+        return { ...group, isAvailable, is_available: isAvailable };
+      }),
+    };
+  };
 
   const subtotal = useMemo(() => cart.reduce((sum, line) => sum + customerLineNet(line), 0), [cart]);
   const loyaltyEligibleSubtotal = useMemo(
@@ -1616,7 +1638,8 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
                 disabled={!orderable}
                 onClick={() => {
                   if (!orderable) return;
-                  setSelectedItemForModal({ ...item, _promoVoucher: findVoucherForMenuItem(activeVouchers, item) });
+                  const storeItem = itemWithStoreOptionGroupAvailability(item);
+                  setSelectedItemForModal({ ...storeItem, _promoVoucher: findVoucherForMenuItem(activeVouchers, item) });
                 }}
                 className={`group relative flex h-full min-h-[230px] flex-col items-center justify-between rounded-[100px] border p-3 text-center shadow-[0_18px_45px_rgba(15,23,42,0.08)] transition-all duration-300 ${
                   orderable

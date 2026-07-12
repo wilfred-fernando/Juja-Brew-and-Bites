@@ -68,6 +68,7 @@ const PRINTER_ROLE_STATUS = {
 };
 const POS_OFFLINE_CACHE_KEY = "juja_pos_cached_payload_v1";
 const POS_OFFLINE_CHARGE_QUEUE_KEY = "juja_pos_offline_charge_queue_v1";
+const optionGroupKey = (value) => String(value || "").trim().toLowerCase();
 
 function createPrinterProfile(role, source = {}) {
   const isCupLabel = role === "cup_label";
@@ -4494,11 +4495,12 @@ export default function POSPage() {
     const showLoadingState = opts.showLoading !== false;
     if (showLoadingState) setLoading(true);
     try {
-      const [iRes, catRes, cRes, itemStoreAvailabilityRes] = await Promise.all([
+      const [iRes, catRes, cRes, itemStoreAvailabilityRes, optionGroupAvailabilityRes] = await Promise.all([
         supabase.from("menu_items").select("*").order("name"),
         supabase.from("menu_categories").select("*").order("name", { ascending: true }),
         supabase.from("loyalty_members").select("*"),
         supabase.from("menu_item_store_availability").select("item_id, store_id, is_available").eq("store_id", sid),
+        supabase.from("option_group_store_availability").select("store_id, group_key, group_name, is_available").eq("store_id", sid),
       ]);
       const [recipeRes, recipeInventoryRes] = await Promise.all([
         supabase
@@ -4528,11 +4530,23 @@ export default function POSPage() {
       const storeAvailabilityByItem = new Map(
         (itemStoreAvailabilityRes.data || []).map((row) => [String(row.item_id), row.is_available !== false])
       );
+      const optionGroupAvailabilityByGroup = new Map(
+        (optionGroupAvailabilityRes.data || []).map((row) => [row.group_key || optionGroupKey(row.group_name), row.is_available !== false])
+      );
       const itemRows = (iRes.data || []).map((item) => {
         const hasStoreOverride = storeAvailabilityByItem.has(String(item.id));
         const storeAvailable = hasStoreOverride ? storeAvailabilityByItem.get(String(item.id)) : item.is_available !== false;
+        const variants = Array.isArray(item.variants)
+          ? item.variants.map((group) => {
+              const key = optionGroupKey(group.name || group.groupName || group.label || group.id);
+              if (!optionGroupAvailabilityByGroup.has(key)) return group;
+              const isAvailable = optionGroupAvailabilityByGroup.get(key);
+              return { ...group, isAvailable, is_available: isAvailable };
+            })
+          : item.variants;
         return {
           ...item,
+          variants,
           global_is_available: item.is_available !== false,
           is_available: storeAvailable,
           store_is_available: storeAvailable,

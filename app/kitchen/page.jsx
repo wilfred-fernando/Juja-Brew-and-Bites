@@ -16,6 +16,7 @@ const peso = (n) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+const optionGroupKey = (value) => String(value || "").trim().toLowerCase();
 
 function statusStyle(status) {
   switch (String(status || "").toLowerCase()) {
@@ -174,7 +175,9 @@ export default function KitchenDisplay() {
   const [kitchenCategoriesByStore, setKitchenCategoriesByStore] = useState({});
   const [menuItemCategoryLookup, setMenuItemCategoryLookup] = useState({});
   const [showAvailabilityPanel, setShowAvailabilityPanel] = useState(false);
+  const [availabilityTab, setAvailabilityTab] = useState("items");
   const [availabilityItems, setAvailabilityItems] = useState([]);
+  const [availabilityGroups, setAvailabilityGroups] = useState([]);
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [availabilitySavingId, setAvailabilitySavingId] = useState("");
   const [availabilitySearch, setAvailabilitySearch] = useState("");
@@ -210,6 +213,14 @@ export default function KitchenDisplay() {
       normalizeText(`${item.name || ""} ${item.category || ""}`).includes(needle)
     );
   }, [availabilityItems, availabilitySearch]);
+
+  const filteredAvailabilityGroups = useMemo(() => {
+    const needle = normalizeText(availabilitySearch);
+    if (!needle) return availabilityGroups;
+    return availabilityGroups.filter((group) =>
+      normalizeText(`${group.group_name || ""} ${[...group.categories].join(" ")} ${group.item_count || ""}`).includes(needle)
+    );
+  }, [availabilityGroups, availabilitySearch]);
 
   const playAlert = () => {
     [0, 900, 1800].forEach((delay) => {
@@ -363,25 +374,30 @@ export default function KitchenDisplay() {
     const storeId = storeIdOverride || assignedStoreId;
     if (!storeId) {
       setAvailabilityItems([]);
+      setAvailabilityGroups([]);
       return;
     }
 
     setAvailabilityLoading(true);
     const rule = getKitchenCategoryRule(storeId, resources?.rules);
-    const [itemsRes, availabilityRes] = await Promise.all([
+    const [itemsRes, availabilityRes, groupAvailabilityRes] = await Promise.all([
       supabase
         .from("menu_items")
-        .select("id, name, category, is_available")
+        .select("id, name, category, is_available, variants")
         .order("category", { ascending: true })
         .order("name", { ascending: true }),
       supabase
         .from("menu_item_store_availability")
         .select("item_id, store_id, is_available")
         .eq("store_id", storeId),
+      supabase
+        .from("option_group_store_availability")
+        .select("store_id, group_key, group_name, is_available")
+        .eq("store_id", storeId),
     ]);
 
-    if (itemsRes.error || availabilityRes.error) {
-      setLoadError(itemsRes.error?.message || availabilityRes.error?.message || "Unable to load kitchen item availability.");
+    if (itemsRes.error || availabilityRes.error || groupAvailabilityRes.error) {
+      setLoadError(itemsRes.error?.message || availabilityRes.error?.message || groupAvailabilityRes.error?.message || "Unable to load kitchen availability.");
       setAvailabilityLoading(false);
       return;
     }
@@ -389,19 +405,44 @@ export default function KitchenDisplay() {
     const availabilityByItem = new Map(
       (availabilityRes.data || []).map((row) => [String(row.item_id), row.is_available !== false])
     );
-    const rows = (itemsRes.data || [])
+    const groupAvailabilityByKey = new Map(
+      (groupAvailabilityRes.data || []).map((row) => [row.group_key || optionGroupKey(row.group_name), row.is_available !== false])
+    );
+    const kitchenItems = (itemsRes.data || [])
       .filter((item) => {
         if (!rule.configured) return false;
         return rule.names.has(normalizeText(item.category));
-      })
-      .map((item) => ({
+      });
+    const rows = kitchenItems.map((item) => ({
         ...item,
         is_available: availabilityByItem.has(String(item.id))
           ? availabilityByItem.get(String(item.id))
           : item.is_available !== false,
       }));
+    const groupsByKey = new Map();
+    kitchenItems.forEach((item) => {
+      (Array.isArray(item.variants) ? item.variants : []).forEach((group) => {
+        const name = String(group.name || group.groupName || group.label || group.id || "").trim();
+        if (!name) return;
+        const key = optionGroupKey(name);
+        const current = groupsByKey.get(key) || {
+          group_key: key,
+          group_name: name,
+          item_count: 0,
+          categories: new Set(),
+          is_available: groupAvailabilityByKey.has(key) ? groupAvailabilityByKey.get(key) : true,
+        };
+        current.item_count += 1;
+        if (item.category) current.categories.add(item.category);
+        if (!groupAvailabilityByKey.has(key) && (group.isAvailable === false || group.is_available === false)) {
+          current.is_available = false;
+        }
+        groupsByKey.set(key, current);
+      });
+    });
 
     setAvailabilityItems(rows);
+    setAvailabilityGroups([...groupsByKey.values()].sort((a, b) => a.group_name.localeCompare(b.group_name)));
     setAvailabilityLoading(false);
   }
 
@@ -428,6 +469,35 @@ export default function KitchenDisplay() {
         prev.map((row) => (String(row.id) === String(item.id) ? { ...row, is_available: nextAvailable } : row))
       );
       setAlertMessage(`${item.name} is now ${nextAvailable ? "available" : "unavailable"}.`);
+      setTimeout(() => setAlertMessage(""), 4000);
+    }
+    setAvailabilitySavingId("");
+  }
+
+  async function toggleKitchenOptionGroupAvailability(group) {
+    if (!assignedStoreId || !group?.group_key) return;
+    const nextAvailable = group.is_available === false;
+    setAvailabilitySavingId(`group:${group.group_key}`);
+    const { error } = await supabase
+      .from("option_group_store_availability")
+      .upsert(
+        {
+          store_id: String(assignedStoreId),
+          group_key: group.group_key,
+          group_name: group.group_name,
+          is_available: nextAvailable,
+        },
+        { onConflict: "store_id,group_key" }
+      );
+
+    if (error) {
+      setAlertMessage(`Option group update failed: ${error.message}`);
+      setTimeout(() => setAlertMessage(""), 6000);
+    } else {
+      setAvailabilityGroups((prev) =>
+        prev.map((row) => (row.group_key === group.group_key ? { ...row, is_available: nextAvailable } : row))
+      );
+      setAlertMessage(`${group.group_name} is now ${nextAvailable ? "available" : "unavailable"}.`);
       setTimeout(() => setAlertMessage(""), 4000);
     }
     setAvailabilitySavingId("");
@@ -1010,11 +1080,30 @@ export default function KitchenDisplay() {
               </div>
             </div>
 
-            <div className="border-b border-slate-200 bg-white px-5 py-3">
+            <div className="space-y-3 border-b border-slate-200 bg-white px-5 py-3">
+              <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                {[
+                  ["items", "Menu Items"],
+                  ["groups", "Option Groups"],
+                ].map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setAvailabilityTab(key)}
+                    className={`h-9 rounded-xl px-4 text-[11px] font-bold uppercase tracking-wider transition ${
+                      availabilityTab === key
+                        ? "bg-slate-800 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-white"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
               <input
                 value={availabilitySearch}
                 onChange={(event) => setAvailabilitySearch(event.target.value)}
-                placeholder="Search kitchen items..."
+                placeholder={availabilityTab === "groups" ? "Search option groups..." : "Search kitchen items..."}
                 className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
               />
             </div>
@@ -1025,14 +1114,21 @@ export default function KitchenDisplay() {
                   <div className="mx-auto h-9 w-9 animate-spin rounded-full border-4 border-cyan-100 border-t-cyan-700" />
                   <p className="mt-3 text-sm font-bold text-slate-500">Loading kitchen items...</p>
                 </div>
-              ) : filteredAvailabilityItems.length === 0 ? (
+              ) : availabilityTab === "items" && filteredAvailabilityItems.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
                   <Utensils className="mx-auto h-9 w-9 text-slate-400" />
                   <p className="mt-3 text-sm font-bold text-slate-500">
                     No Kitchen printer group items found for this store.
                   </p>
                 </div>
-              ) : (
+              ) : availabilityTab === "groups" && filteredAvailabilityGroups.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
+                  <PackageCheck className="mx-auto h-9 w-9 text-slate-400" />
+                  <p className="mt-3 text-sm font-bold text-slate-500">
+                    No option groups attached to Kitchen printer group categories.
+                  </p>
+                </div>
+              ) : availabilityTab === "items" ? (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {filteredAvailabilityItems.map((item) => {
                     const available = item.is_available !== false;
@@ -1054,6 +1150,61 @@ export default function KitchenDisplay() {
                             <p className="break-words text-base font-bold text-slate-950">{item.name}</p>
                             <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
                               {item.category || "Kitchen"}
+                            </p>
+                          </div>
+                          <span
+                            className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                              available ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
+                            }`}
+                          >
+                            {saving ? "Saving" : available ? "Available" : "Unavailable"}
+                          </span>
+                        </div>
+                        <div className="mt-4 flex items-center justify-between border-t border-white/70 pt-3">
+                          <span className="text-xs font-semibold text-slate-600">
+                            Tap to mark {available ? "unavailable" : "available"}
+                          </span>
+                          <span
+                            className={`h-6 w-11 rounded-full p-1 transition ${
+                              available ? "bg-emerald-500" : "bg-slate-300"
+                            }`}
+                          >
+                            <span
+                              className={`block h-4 w-4 rounded-full bg-white shadow transition ${
+                                available ? "translate-x-5" : "translate-x-0"
+                              }`}
+                            />
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {filteredAvailabilityGroups.map((group) => {
+                    const available = group.is_available !== false;
+                    const saving = availabilitySavingId === `group:${group.group_key}`;
+                    return (
+                      <button
+                        key={group.group_key}
+                        type="button"
+                        onClick={() => toggleKitchenOptionGroupAvailability(group)}
+                        disabled={saving}
+                        className={`rounded-2xl border p-4 text-left shadow-sm transition hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-70 ${
+                          available
+                            ? "border-emerald-200 bg-emerald-50/80 hover:bg-emerald-100"
+                            : "border-red-200 bg-red-50/90 hover:bg-red-100"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="break-words text-lg font-bold text-slate-950">{group.group_name}</p>
+                            <p className="mt-1 text-xs font-semibold text-slate-600">
+                              Used by {group.item_count} kitchen item{group.item_count === 1 ? "" : "s"}
+                            </p>
+                            <p className="mt-2 break-words text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                              {[...group.categories].join(" / ") || "Kitchen"}
                             </p>
                           </div>
                           <span

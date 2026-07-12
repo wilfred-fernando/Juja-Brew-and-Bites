@@ -45,11 +45,12 @@ async function loadMenuData(mode) {
         supabase.from("stores").select("id, name, is_active").eq("is_active", true).order("name"),
         supabase.from("menu_item_store_availability").select("item_id, store_id, is_available"),
         supabase.from("menu_category_store_availability").select("category_id, store_id, is_available"),
+        supabase.from("option_group_store_availability").select("store_id, group_key, group_name, is_available"),
       ]
     : [itemQuery, categoryQuery];
 
-  const [itemRes, catRes, storeRes, availabilityRes, categoryAvailabilityRes] = await Promise.all(promises);
-  const errors = [itemRes.error, catRes.error, storeRes?.error, availabilityRes?.error, categoryAvailabilityRes?.error].filter(Boolean);
+  const [itemRes, catRes, storeRes, availabilityRes, categoryAvailabilityRes, optionGroupAvailabilityRes] = await Promise.all(promises);
+  const errors = [itemRes.error, catRes.error, storeRes?.error, availabilityRes?.error, categoryAvailabilityRes?.error, optionGroupAvailabilityRes?.error].filter(Boolean);
   if (errors.length) throw errors[0];
 
   const rawItems = itemRes.data || [];
@@ -63,6 +64,7 @@ async function loadMenuData(mode) {
     stores: storeRes?.data || [],
     itemStoreAvailability: availabilityRes?.data || [],
     categoryStoreAvailability: categoryAvailabilityRes?.data || [],
+    optionGroupStoreAvailability: optionGroupAvailabilityRes?.data || [],
     generatedAt: new Date().toISOString(),
   };
 }
