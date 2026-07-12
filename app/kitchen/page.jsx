@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, Clock3, Download, History, LogOut, Maximize2, RefreshCcw, Trash2, Utensils, X } from "lucide-react";
+import { CheckCircle2, Clock3, Download, History, LogOut, Maximize2, PackageCheck, RefreshCcw, Trash2, Utensils, X } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDateTime } from "@/lib/dateFormat";
 import { KDS_ACTIVE_STATUSES, KDS_VISIBLE_STATUSES } from "@/lib/kds";
@@ -173,6 +173,11 @@ export default function KitchenDisplay() {
   const [showInstallButton, setShowInstallButton] = useState(false);
   const [kitchenCategoriesByStore, setKitchenCategoriesByStore] = useState({});
   const [menuItemCategoryLookup, setMenuItemCategoryLookup] = useState({});
+  const [showAvailabilityPanel, setShowAvailabilityPanel] = useState(false);
+  const [availabilityItems, setAvailabilityItems] = useState([]);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [availabilitySavingId, setAvailabilitySavingId] = useState("");
+  const [availabilitySearch, setAvailabilitySearch] = useState("");
   const [authLoading, setAuthLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [userEmail, setUserEmail] = useState("");
@@ -197,6 +202,14 @@ export default function KitchenDisplay() {
     if (statusFilter === "all") return rows;
     return rows.filter((ticket) => String(ticket.status || "").toLowerCase() === statusFilter);
   }, [tickets, statusFilter, allowedStatuses, showHistory, kitchenCategoriesByStore, menuItemCategoryLookup]);
+
+  const filteredAvailabilityItems = useMemo(() => {
+    const needle = normalizeText(availabilitySearch);
+    if (!needle) return availabilityItems;
+    return availabilityItems.filter((item) =>
+      normalizeText(`${item.name || ""} ${item.category || ""}`).includes(needle)
+    );
+  }, [availabilityItems, availabilitySearch]);
 
   const playAlert = () => {
     [0, 900, 1800].forEach((delay) => {
@@ -346,6 +359,80 @@ export default function KitchenDisplay() {
     return { rules: nextRules, lookup: itemLookup };
   }
 
+  async function loadKitchenAvailabilityItems(resources = null, storeIdOverride = null) {
+    const storeId = storeIdOverride || assignedStoreId;
+    if (!storeId) {
+      setAvailabilityItems([]);
+      return;
+    }
+
+    setAvailabilityLoading(true);
+    const rule = getKitchenCategoryRule(storeId, resources?.rules);
+    const [itemsRes, availabilityRes] = await Promise.all([
+      supabase
+        .from("menu_items")
+        .select("id, name, category, is_available")
+        .order("category", { ascending: true })
+        .order("name", { ascending: true }),
+      supabase
+        .from("menu_item_store_availability")
+        .select("item_id, store_id, is_available")
+        .eq("store_id", storeId),
+    ]);
+
+    if (itemsRes.error || availabilityRes.error) {
+      setLoadError(itemsRes.error?.message || availabilityRes.error?.message || "Unable to load kitchen item availability.");
+      setAvailabilityLoading(false);
+      return;
+    }
+
+    const availabilityByItem = new Map(
+      (availabilityRes.data || []).map((row) => [String(row.item_id), row.is_available !== false])
+    );
+    const rows = (itemsRes.data || [])
+      .filter((item) => {
+        if (!rule.configured) return false;
+        return rule.names.has(normalizeText(item.category));
+      })
+      .map((item) => ({
+        ...item,
+        is_available: availabilityByItem.has(String(item.id))
+          ? availabilityByItem.get(String(item.id))
+          : item.is_available !== false,
+      }));
+
+    setAvailabilityItems(rows);
+    setAvailabilityLoading(false);
+  }
+
+  async function toggleKitchenItemAvailability(item) {
+    if (!assignedStoreId || !item?.id) return;
+    const nextAvailable = item.is_available === false;
+    setAvailabilitySavingId(String(item.id));
+    const { error } = await supabase
+      .from("menu_item_store_availability")
+      .upsert(
+        {
+          item_id: String(item.id),
+          store_id: String(assignedStoreId),
+          is_available: nextAvailable,
+        },
+        { onConflict: "item_id,store_id" }
+      );
+
+    if (error) {
+      setAlertMessage(`Availability update failed: ${error.message}`);
+      setTimeout(() => setAlertMessage(""), 6000);
+    } else {
+      setAvailabilityItems((prev) =>
+        prev.map((row) => (String(row.id) === String(item.id) ? { ...row, is_available: nextAvailable } : row))
+      );
+      setAlertMessage(`${item.name} is now ${nextAvailable ? "available" : "unavailable"}.`);
+      setTimeout(() => setAlertMessage(""), 4000);
+    }
+    setAvailabilitySavingId("");
+  }
+
   const showNewTicketAlert = (ticket) => {
     if (getKitchenItems(ticket).length === 0) return;
     const label = ticket?.dining_option || ticket?.ticket_number || "Kitchen order";
@@ -464,6 +551,7 @@ export default function KitchenDisplay() {
     let cancelled = false;
     (async () => {
       const resources = await loadKitchenPrinterCategories();
+      if (!cancelled && assignedStoreId) await loadKitchenAvailabilityItems(resources);
       if (!cancelled) await fetchTickets({ resources });
     })();
 
@@ -640,6 +728,16 @@ export default function KitchenDisplay() {
                   <Download className="h-4 w-4" /> Install KDS
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAvailabilityPanel(true);
+                  loadKitchenAvailabilityItems();
+                }}
+                className="inline-flex h-9 items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-[11px] font-bold uppercase tracking-wider text-emerald-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-100"
+              >
+                <PackageCheck className="h-4 w-4" /> Availability
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -875,6 +973,122 @@ export default function KitchenDisplay() {
           </div>
         )}
       </div>
+
+      {showAvailabilityPanel && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
+          onClick={() => setShowAvailabilityPanel(false)}
+        >
+          <section
+            className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex flex-col gap-4 border-b border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-slate-500">Kitchen Availability</p>
+                <h2 className="mt-1 text-2xl font-bold text-slate-950">Menu items</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Kitchen printer group items only. Changes apply to this store and appear in POS and customer ordering.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => loadKitchenAvailabilityItems()}
+                  className="inline-flex h-10 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 text-[11px] font-bold uppercase tracking-wider text-slate-700 transition hover:bg-slate-100"
+                >
+                  <RefreshCcw className="h-4 w-4" /> Refresh
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAvailabilityPanel(false)}
+                  className="grid h-10 w-10 place-items-center rounded-2xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100"
+                  aria-label="Close availability panel"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="border-b border-slate-200 bg-white px-5 py-3">
+              <input
+                value={availabilitySearch}
+                onChange={(event) => setAvailabilitySearch(event.target.value)}
+                placeholder="Search kitchen items..."
+                className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
+              />
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-5">
+              {availabilityLoading ? (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-10 text-center">
+                  <div className="mx-auto h-9 w-9 animate-spin rounded-full border-4 border-cyan-100 border-t-cyan-700" />
+                  <p className="mt-3 text-sm font-bold text-slate-500">Loading kitchen items...</p>
+                </div>
+              ) : filteredAvailabilityItems.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
+                  <Utensils className="mx-auto h-9 w-9 text-slate-400" />
+                  <p className="mt-3 text-sm font-bold text-slate-500">
+                    No Kitchen printer group items found for this store.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {filteredAvailabilityItems.map((item) => {
+                    const available = item.is_available !== false;
+                    const saving = availabilitySavingId === String(item.id);
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => toggleKitchenItemAvailability(item)}
+                        disabled={saving}
+                        className={`rounded-2xl border p-4 text-left shadow-sm transition hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-70 ${
+                          available
+                            ? "border-emerald-200 bg-emerald-50/80 hover:bg-emerald-100"
+                            : "border-red-200 bg-red-50/90 hover:bg-red-100"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="break-words text-base font-bold text-slate-950">{item.name}</p>
+                            <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                              {item.category || "Kitchen"}
+                            </p>
+                          </div>
+                          <span
+                            className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                              available ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
+                            }`}
+                          >
+                            {saving ? "Saving" : available ? "Available" : "Unavailable"}
+                          </span>
+                        </div>
+                        <div className="mt-4 flex items-center justify-between border-t border-white/70 pt-3">
+                          <span className="text-xs font-semibold text-slate-600">
+                            Tap to mark {available ? "unavailable" : "available"}
+                          </span>
+                          <span
+                            className={`h-6 w-11 rounded-full p-1 transition ${
+                              available ? "bg-emerald-500" : "bg-slate-300"
+                            }`}
+                          >
+                            <span
+                              className={`block h-4 w-4 rounded-full bg-white shadow transition ${
+                                available ? "translate-x-5" : "translate-x-0"
+                              }`}
+                            />
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
 
       {selectedHistoryTicket && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" onClick={() => setSelectedHistoryTicket(null)}>
