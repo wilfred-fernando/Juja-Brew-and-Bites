@@ -222,6 +222,22 @@ export default function KitchenDisplay() {
     );
   }, [availabilityGroups, availabilitySearch]);
 
+  const optionGroupsByKitchenCategory = useMemo(() => {
+    const buckets = new Map();
+    filteredAvailabilityGroups.forEach((group) => {
+      const categories = [...(group.categories || [])];
+      const bucketName = categories[0] || "Kitchen";
+      if (!buckets.has(bucketName)) buckets.set(bucketName, []);
+      buckets.get(bucketName).push(group);
+    });
+    return [...buckets.entries()]
+      .map(([name, rows]) => ({
+        name,
+        rows: rows.sort((a, b) => a.group_name.localeCompare(b.group_name)),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [filteredAvailabilityGroups]);
+
   const playAlert = () => {
     [0, 900, 1800].forEach((delay) => {
       window.setTimeout(() => {
@@ -1181,59 +1197,42 @@ export default function KitchenDisplay() {
                   })}
                 </div>
               ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {filteredAvailabilityGroups.map((group) => {
-                    const available = group.is_available !== false;
-                    const saving = availabilitySavingId === `group:${group.group_key}`;
-                    return (
-                      <button
-                        key={group.group_key}
-                        type="button"
-                        onClick={() => toggleKitchenOptionGroupAvailability(group)}
-                        disabled={saving}
-                        className={`rounded-2xl border p-4 text-left shadow-sm transition hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-70 ${
-                          available
-                            ? "border-emerald-200 bg-emerald-50/80 hover:bg-emerald-100"
-                            : "border-red-200 bg-red-50/90 hover:bg-red-100"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="break-words text-lg font-bold text-slate-950">{group.group_name}</p>
-                            <p className="mt-1 text-xs font-semibold text-slate-600">
-                              Used by {group.item_count} kitchen item{group.item_count === 1 ? "" : "s"}
-                            </p>
-                            <p className="mt-2 break-words text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
-                              {[...group.categories].join(" / ") || "Kitchen"}
-                            </p>
+                <div className="space-y-3">
+                  {optionGroupsByKitchenCategory.map((category) => (
+                    <div key={category.name} className="space-y-2">
+                      <div className="sticky top-0 z-10 rounded-lg bg-slate-100 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-700">
+                        {category.name}
+                      </div>
+                      {category.rows.map((group) => {
+                        const available = group.is_available !== false;
+                        const saving = availabilitySavingId === `group:${group.group_key}`;
+                        return (
+                          <div key={group.group_key} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="truncate text-xs font-bold text-slate-800">{group.group_name}</p>
+                                <p className="text-[10px] font-semibold text-slate-400">
+                                  {group.item_count} kitchen item{group.item_count === 1 ? "" : "s"}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => toggleKitchenOptionGroupAvailability(group)}
+                                disabled={saving}
+                                className={`h-8 rounded-full px-3 text-[10px] font-black uppercase tracking-wider disabled:cursor-wait disabled:opacity-70 ${
+                                  available
+                                    ? "border border-emerald-100 bg-emerald-50 text-emerald-600"
+                                    : "bg-slate-200 text-slate-500"
+                                }`}
+                              >
+                                {saving ? "..." : available ? "On" : "Off"}
+                              </button>
+                            </div>
                           </div>
-                          <span
-                            className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${
-                              available ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
-                            }`}
-                          >
-                            {saving ? "Saving" : available ? "Available" : "Unavailable"}
-                          </span>
-                        </div>
-                        <div className="mt-4 flex items-center justify-between border-t border-white/70 pt-3">
-                          <span className="text-xs font-semibold text-slate-600">
-                            Tap to mark {available ? "unavailable" : "available"}
-                          </span>
-                          <span
-                            className={`h-6 w-11 rounded-full p-1 transition ${
-                              available ? "bg-emerald-500" : "bg-slate-300"
-                            }`}
-                          >
-                            <span
-                              className={`block h-4 w-4 rounded-full bg-white shadow transition ${
-                                available ? "translate-x-5" : "translate-x-0"
-                              }`}
-                            />
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
+                        );
+                      })}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
