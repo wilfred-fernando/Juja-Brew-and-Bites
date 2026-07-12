@@ -69,6 +69,7 @@ const PRINTER_ROLE_STATUS = {
 const POS_OFFLINE_CACHE_KEY = "juja_pos_cached_payload_v1";
 const POS_OFFLINE_CHARGE_QUEUE_KEY = "juja_pos_offline_charge_queue_v1";
 const optionGroupKey = (value) => String(value || "").trim().toLowerCase();
+const optionSelectionKey = (value) => String(value || "").trim().toLowerCase();
 
 function createPrinterProfile(role, source = {}) {
   const isCupLabel = role === "cup_label";
@@ -4495,12 +4496,13 @@ export default function POSPage() {
     const showLoadingState = opts.showLoading !== false;
     if (showLoadingState) setLoading(true);
     try {
-      const [iRes, catRes, cRes, itemStoreAvailabilityRes, optionGroupAvailabilityRes] = await Promise.all([
+      const [iRes, catRes, cRes, itemStoreAvailabilityRes, optionGroupAvailabilityRes, optionSelectionAvailabilityRes] = await Promise.all([
         supabase.from("menu_items").select("*").order("name"),
         supabase.from("menu_categories").select("*").order("name", { ascending: true }),
         supabase.from("loyalty_members").select("*"),
         supabase.from("menu_item_store_availability").select("item_id, store_id, is_available").eq("store_id", sid),
         supabase.from("option_group_store_availability").select("store_id, group_key, group_name, is_available").eq("store_id", sid),
+        supabase.from("option_selection_store_availability").select("store_id, group_key, option_key, group_name, option_name, is_available").eq("store_id", sid),
       ]);
       const [recipeRes, recipeInventoryRes] = await Promise.all([
         supabase
@@ -4533,15 +4535,30 @@ export default function POSPage() {
       const optionGroupAvailabilityByGroup = new Map(
         (optionGroupAvailabilityRes.data || []).map((row) => [row.group_key || optionGroupKey(row.group_name), row.is_available !== false])
       );
+      const optionAvailabilityBySelection = new Map(
+        (optionSelectionAvailabilityRes.data || []).map((row) => [
+          `${row.group_key || optionGroupKey(row.group_name)}::${row.option_key || optionSelectionKey(row.option_name)}`,
+          row.is_available !== false,
+        ])
+      );
       const itemRows = (iRes.data || []).map((item) => {
         const hasStoreOverride = storeAvailabilityByItem.has(String(item.id));
         const storeAvailable = hasStoreOverride ? storeAvailabilityByItem.get(String(item.id)) : item.is_available !== false;
         const variants = Array.isArray(item.variants)
           ? item.variants.map((group) => {
               const key = optionGroupKey(group.name || group.groupName || group.label || group.id);
-              if (!optionGroupAvailabilityByGroup.has(key)) return group;
-              const isAvailable = optionGroupAvailabilityByGroup.get(key);
-              return { ...group, isAvailable, is_available: isAvailable };
+              const groupAvailable = optionGroupAvailabilityByGroup.has(key) ? optionGroupAvailabilityByGroup.get(key) : null;
+              const options = Array.isArray(group.options)
+                ? group.options.map((option) => {
+                    const optKey = optionSelectionKey(option.name || option.label || option.id || option.value);
+                    const mapKey = `${key}::${optKey}`;
+                    if (!optionAvailabilityBySelection.has(mapKey)) return option;
+                    const isAvailable = optionAvailabilityBySelection.get(mapKey);
+                    return { ...option, isAvailable, is_available: isAvailable };
+                  })
+                : group.options;
+              if (groupAvailable === null) return { ...group, options };
+              return { ...group, isAvailable: groupAvailable, is_available: groupAvailable, options };
             })
           : item.variants;
         return {

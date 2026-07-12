@@ -46,11 +46,12 @@ async function loadMenuData(mode) {
         supabase.from("menu_item_store_availability").select("item_id, store_id, is_available"),
         supabase.from("menu_category_store_availability").select("category_id, store_id, is_available"),
         supabase.from("option_group_store_availability").select("store_id, group_key, group_name, is_available"),
+        supabase.from("option_selection_store_availability").select("store_id, group_key, option_key, group_name, option_name, is_available"),
       ]
     : [itemQuery, categoryQuery];
 
-  const [itemRes, catRes, storeRes, availabilityRes, categoryAvailabilityRes, optionGroupAvailabilityRes] = await Promise.all(promises);
-  const errors = [itemRes.error, catRes.error, storeRes?.error, availabilityRes?.error, categoryAvailabilityRes?.error, optionGroupAvailabilityRes?.error].filter(Boolean);
+  const [itemRes, catRes, storeRes, availabilityRes, categoryAvailabilityRes, optionGroupAvailabilityRes, optionSelectionAvailabilityRes] = await Promise.all(promises);
+  const errors = [itemRes.error, catRes.error, storeRes?.error, availabilityRes?.error, categoryAvailabilityRes?.error, optionGroupAvailabilityRes?.error, optionSelectionAvailabilityRes?.error].filter(Boolean);
   if (errors.length) throw errors[0];
 
   const rawItems = itemRes.data || [];
@@ -65,6 +66,7 @@ async function loadMenuData(mode) {
     itemStoreAvailability: availabilityRes?.data || [],
     categoryStoreAvailability: categoryAvailabilityRes?.data || [],
     optionGroupStoreAvailability: optionGroupAvailabilityRes?.data || [],
+    optionSelectionStoreAvailability: optionSelectionAvailabilityRes?.data || [],
     generatedAt: new Date().toISOString(),
   };
 }

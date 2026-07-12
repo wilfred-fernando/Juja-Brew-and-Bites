@@ -218,25 +218,9 @@ export default function KitchenDisplay() {
     const needle = normalizeText(availabilitySearch);
     if (!needle) return availabilityGroups;
     return availabilityGroups.filter((group) =>
-      normalizeText(`${group.group_name || ""} ${[...group.categories].join(" ")} ${group.item_count || ""}`).includes(needle)
+      normalizeText(`${group.groupName || ""} ${(group.options || []).map((option) => option.optionName).join(" ")}`).includes(needle)
     );
   }, [availabilityGroups, availabilitySearch]);
-
-  const optionGroupsByKitchenCategory = useMemo(() => {
-    const buckets = new Map();
-    filteredAvailabilityGroups.forEach((group) => {
-      const categories = [...(group.categories || [])];
-      const bucketName = categories[0] || "Kitchen";
-      if (!buckets.has(bucketName)) buckets.set(bucketName, []);
-      buckets.get(bucketName).push(group);
-    });
-    return [...buckets.entries()]
-      .map(([name, rows]) => ({
-        name,
-        rows: rows.sort((a, b) => a.group_name.localeCompare(b.group_name)),
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [filteredAvailabilityGroups]);
 
   const playAlert = () => {
     [0, 900, 1800].forEach((delay) => {
@@ -396,7 +380,7 @@ export default function KitchenDisplay() {
 
     setAvailabilityLoading(true);
     const rule = getKitchenCategoryRule(storeId, resources?.rules);
-    const [itemsRes, availabilityRes, groupAvailabilityRes] = await Promise.all([
+    const [itemsRes, availabilityRes, groupAvailabilityRes, optionAvailabilityRes] = await Promise.all([
       supabase
         .from("menu_items")
         .select("id, name, category, is_available, variants")
@@ -410,10 +394,14 @@ export default function KitchenDisplay() {
         .from("option_group_store_availability")
         .select("store_id, group_key, group_name, is_available")
         .eq("store_id", storeId),
+      supabase
+        .from("option_selection_store_availability")
+        .select("store_id, group_key, option_key, group_name, option_name, is_available")
+        .eq("store_id", storeId),
     ]);
 
-    if (itemsRes.error || availabilityRes.error || groupAvailabilityRes.error) {
-      setLoadError(itemsRes.error?.message || availabilityRes.error?.message || groupAvailabilityRes.error?.message || "Unable to load kitchen availability.");
+    if (itemsRes.error || availabilityRes.error || groupAvailabilityRes.error || optionAvailabilityRes.error) {
+      setLoadError(itemsRes.error?.message || availabilityRes.error?.message || groupAvailabilityRes.error?.message || optionAvailabilityRes.error?.message || "Unable to load kitchen availability.");
       setAvailabilityLoading(false);
       return;
     }
@@ -423,6 +411,12 @@ export default function KitchenDisplay() {
     );
     const groupAvailabilityByKey = new Map(
       (groupAvailabilityRes.data || []).map((row) => [row.group_key || optionGroupKey(row.group_name), row.is_available !== false])
+    );
+    const optionAvailabilityByKey = new Map(
+      (optionAvailabilityRes.data || []).map((row) => [
+        `${row.group_key || optionGroupKey(row.group_name)}::${row.option_key || optionGroupKey(row.option_name)}`,
+        row.is_available !== false,
+      ])
     );
     const kitchenItems = (itemsRes.data || [])
       .filter((item) => {
@@ -435,30 +429,64 @@ export default function KitchenDisplay() {
           ? availabilityByItem.get(String(item.id))
           : item.is_available !== false,
       }));
-    const groupsByKey = new Map();
+    const groupsByName = new Map();
     kitchenItems.forEach((item) => {
       (Array.isArray(item.variants) ? item.variants : []).forEach((group) => {
-        const name = String(group.name || group.groupName || group.label || group.id || "").trim();
-        if (!name) return;
-        const key = optionGroupKey(name);
-        const current = groupsByKey.get(key) || {
-          group_key: key,
-          group_name: name,
-          item_count: 0,
-          categories: new Set(),
-          is_available: groupAvailabilityByKey.has(key) ? groupAvailabilityByKey.get(key) : true,
-        };
-        current.item_count += 1;
-        if (item.category) current.categories.add(item.category);
-        if (!groupAvailabilityByKey.has(key) && (group.isAvailable === false || group.is_available === false)) {
-          current.is_available = false;
+        const groupName = String(group.name || group.groupName || group.label || group.id || "").trim();
+        if (!groupName) return;
+        const groupKey = optionGroupKey(groupName);
+        const groupAvailable = groupAvailabilityByKey.has(groupKey)
+          ? groupAvailabilityByKey.get(groupKey)
+          : (group.isAvailable ?? group.is_available ?? true) !== false;
+        if (!groupsByName.has(groupKey)) {
+          groupsByName.set(groupKey, {
+            groupKey,
+            groupName,
+            optionsByKey: new Map(),
+          });
         }
-        groupsByKey.set(key, current);
+        const groupRow = groupsByName.get(groupKey);
+        (Array.isArray(group.options) ? group.options : []).forEach((option) => {
+          const optionName = String(option.name || option.label || option.id || option.value || "").trim();
+          if (!optionName) return;
+          const optionKey = optionGroupKey(optionName);
+          const mapKey = `${groupKey}::${optionKey}`;
+          const enabled = groupAvailable && (
+            optionAvailabilityByKey.has(mapKey)
+              ? optionAvailabilityByKey.get(mapKey)
+              : (option.isAvailable ?? option.is_available ?? true) !== false
+          );
+          if (!groupRow.optionsByKey.has(optionKey)) {
+            groupRow.optionsByKey.set(optionKey, {
+              key: mapKey,
+              groupKey,
+              optionKey,
+              groupName,
+              optionName,
+              count: 0,
+              enabledCount: 0,
+            });
+          }
+          const optionRow = groupRow.optionsByKey.get(optionKey);
+          optionRow.count += 1;
+          if (enabled) optionRow.enabledCount += 1;
+        });
       });
     });
 
     setAvailabilityItems(rows);
-    setAvailabilityGroups([...groupsByKey.values()].sort((a, b) => a.group_name.localeCompare(b.group_name)));
+    setAvailabilityGroups(
+      [...groupsByName.values()]
+        .map((group) => ({
+          groupKey: group.groupKey,
+          groupName: group.groupName,
+          options: [...group.optionsByKey.values()]
+            .map((option) => ({ ...option, enabled: option.enabledCount > 0 }))
+            .sort((a, b) => a.optionName.localeCompare(b.optionName)),
+        }))
+        .filter((group) => group.options.length > 0)
+        .sort((a, b) => a.groupName.localeCompare(b.groupName))
+    );
     setAvailabilityLoading(false);
   }
 
@@ -490,30 +518,37 @@ export default function KitchenDisplay() {
     setAvailabilitySavingId("");
   }
 
-  async function toggleKitchenOptionGroupAvailability(group) {
-    if (!assignedStoreId || !group?.group_key) return;
-    const nextAvailable = group.is_available === false;
-    setAvailabilitySavingId(`group:${group.group_key}`);
+  async function toggleKitchenOptionSelectionAvailability(option) {
+    if (!assignedStoreId || !option?.groupKey || !option?.optionKey) return;
+    const nextAvailable = !option.enabled;
+    setAvailabilitySavingId(`option:${option.key}`);
     const { error } = await supabase
-      .from("option_group_store_availability")
+      .from("option_selection_store_availability")
       .upsert(
         {
           store_id: String(assignedStoreId),
-          group_key: group.group_key,
-          group_name: group.group_name,
+          group_key: option.groupKey,
+          option_key: option.optionKey,
+          group_name: option.groupName,
+          option_name: option.optionName,
           is_available: nextAvailable,
         },
-        { onConflict: "store_id,group_key" }
+        { onConflict: "store_id,group_key,option_key" }
       );
 
     if (error) {
-      setAlertMessage(`Option group update failed: ${error.message}`);
+      setAlertMessage(`Option update failed: ${error.message}`);
       setTimeout(() => setAlertMessage(""), 6000);
     } else {
       setAvailabilityGroups((prev) =>
-        prev.map((row) => (row.group_key === group.group_key ? { ...row, is_available: nextAvailable } : row))
+        prev.map((group) => ({
+          ...group,
+          options: group.options.map((row) =>
+            row.key === option.key ? { ...row, enabled: nextAvailable, enabledCount: nextAvailable ? row.count : 0 } : row
+          ),
+        }))
       );
-      setAlertMessage(`${group.group_name} is now ${nextAvailable ? "available" : "unavailable"}.`);
+      setAlertMessage(`${option.optionName} is now ${nextAvailable ? "available" : "unavailable"}.`);
       setTimeout(() => setAlertMessage(""), 4000);
     }
     setAvailabilitySavingId("");
@@ -1141,7 +1176,7 @@ export default function KitchenDisplay() {
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
                   <PackageCheck className="mx-auto h-9 w-9 text-slate-400" />
                   <p className="mt-3 text-sm font-bold text-slate-500">
-                    No option groups attached to Kitchen printer group categories.
+                    No option selections attached to Kitchen printer group categories.
                   </p>
                 </div>
               ) : availabilityTab === "items" ? (
@@ -1198,39 +1233,43 @@ export default function KitchenDisplay() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {optionGroupsByKitchenCategory.map((category) => (
-                    <div key={category.name} className="space-y-2">
-                      <div className="sticky top-0 z-10 rounded-lg bg-slate-100 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-700">
-                        {category.name}
+                  {filteredAvailabilityGroups.map((group) => (
+                    <div key={group.groupKey} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                      <div className="mb-3">
+                        <p className="text-xs font-black text-slate-800">{group.groupName}</p>
+                        <p className="text-[10px] font-semibold text-slate-500">
+                          {group.options.reduce((sum, option) => sum + Number(option.count || 0), 0)} option selection link(s)
+                        </p>
                       </div>
-                      {category.rows.map((group) => {
-                        const available = group.is_available !== false;
-                        const saving = availabilitySavingId === `group:${group.group_key}`;
+                      <div className="space-y-2">
+                        {group.options.map((option) => {
+                        const saving = availabilitySavingId === `option:${option.key}`;
                         return (
-                          <div key={group.group_key} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                          <div key={option.key} className="rounded-lg border border-white bg-white p-2 shadow-sm">
                             <div className="flex items-center justify-between gap-3">
                               <div className="min-w-0">
-                                <p className="truncate text-xs font-bold text-slate-800">{group.group_name}</p>
+                                <p className="truncate text-xs font-semibold text-slate-700">{option.optionName}</p>
                                 <p className="text-[10px] font-semibold text-slate-400">
-                                  {group.item_count} kitchen item{group.item_count === 1 ? "" : "s"}
+                                  {option.count} item link{option.count === 1 ? "" : "s"}
                                 </p>
                               </div>
                               <button
                                 type="button"
-                                onClick={() => toggleKitchenOptionGroupAvailability(group)}
+                                onClick={() => toggleKitchenOptionSelectionAvailability(option)}
                                 disabled={saving}
                                 className={`h-8 rounded-full px-3 text-[10px] font-black uppercase tracking-wider disabled:cursor-wait disabled:opacity-70 ${
-                                  available
+                                  option.enabled
                                     ? "border border-emerald-100 bg-emerald-50 text-emerald-600"
                                     : "bg-slate-200 text-slate-500"
                                 }`}
                               >
-                                {saving ? "..." : available ? "On" : "Off"}
+                                {saving ? "..." : option.enabled ? "On" : "Off"}
                               </button>
                             </div>
                           </div>
                         );
                       })}
+                      </div>
                     </div>
                   ))}
                 </div>

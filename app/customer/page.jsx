@@ -27,6 +27,7 @@ const ALERT_SOUND_SRC = "/sound/notification.mp3";
 const CUSTOMER_NOTIFICATION_ICON = "/images/juja-logo.png";
 const isMenuItemMarkedAvailable = (item) => item?.is_available !== false && item?.available !== false;
 const optionGroupKey = (value) => String(value || "").trim().toLowerCase();
+const optionSelectionKey = (value) => String(value || "").trim().toLowerCase();
 
 function customerLineGross(line) {
   return Number(line?.unitPrice || line?.price || 0) * Number(line?.quantity || line?.qty || 0);
@@ -1172,6 +1173,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
   const [itemStoreAvailability, setItemStoreAvailability] = useState([]);
   const [categoryStoreAvailability, setCategoryStoreAvailability] = useState([]);
   const [optionGroupStoreAvailability, setOptionGroupStoreAvailability] = useState([]);
+  const [optionSelectionStoreAvailability, setOptionSelectionStoreAvailability] = useState([]);
   const [activeVouchers, setActiveVouchers] = useState([]);
   const [availabilityNotice, setAvailabilityNotice] = useState("");
 
@@ -1200,6 +1202,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       setItemStoreAvailability(json.itemStoreAvailability || []);
       setCategoryStoreAvailability(json.categoryStoreAvailability || []);
       setOptionGroupStoreAvailability(json.optionGroupStoreAvailability || []);
+      setOptionSelectionStoreAvailability(json.optionSelectionStoreAvailability || []);
       setLoading(false);
     }
     fetchMenu();
@@ -1316,14 +1319,31 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
         .filter((entry) => String(entry.store_id) === String(selectedBranch))
         .map((entry) => [entry.group_key || optionGroupKey(entry.group_name), entry.is_available !== false])
     );
-    if (availabilityByGroup.size === 0) return item;
+    const availabilityByOption = new Map(
+      optionSelectionStoreAvailability
+        .filter((entry) => String(entry.store_id) === String(selectedBranch))
+        .map((entry) => [
+          `${entry.group_key || optionGroupKey(entry.group_name)}::${entry.option_key || optionSelectionKey(entry.option_name)}`,
+          entry.is_available !== false,
+        ])
+    );
+    if (availabilityByGroup.size === 0 && availabilityByOption.size === 0) return item;
     return {
       ...item,
       variants: item.variants.map((group) => {
         const key = optionGroupKey(group.name || group.groupName || group.label || group.id);
-        if (!availabilityByGroup.has(key)) return group;
-        const isAvailable = availabilityByGroup.get(key);
-        return { ...group, isAvailable, is_available: isAvailable };
+        const groupAvailable = availabilityByGroup.has(key) ? availabilityByGroup.get(key) : null;
+        const options = Array.isArray(group.options)
+          ? group.options.map((option) => {
+              const optionKey = optionSelectionKey(option.name || option.label || option.id || option.value);
+              const mapKey = `${key}::${optionKey}`;
+              if (!availabilityByOption.has(mapKey)) return option;
+              const isAvailable = availabilityByOption.get(mapKey);
+              return { ...option, isAvailable, is_available: isAvailable };
+            })
+          : group.options;
+        if (groupAvailable === null) return { ...group, options };
+        return { ...group, isAvailable: groupAvailable, is_available: groupAvailable, options };
       }),
     };
   };
