@@ -4,6 +4,19 @@ import { useState, useEffect } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
 const supabase = getSupabaseClient();
+const defaultVoucherCampaignForm = {
+  code: "WELCOME-VOUCHER",
+  title: "Welcome voucher",
+  reward_text: "B1T1 16oz Cheesecake Milk Tea (Welcome Voucher)",
+  reward_type: "welcome",
+  voucher_prefix: "WELCOME",
+  validity_days: "15",
+  starts_at: "2026-01-01",
+  ends_at: "2026-08-31",
+  is_active: true,
+  auto_create_on_signup: true,
+  auto_create_on_link: true,
+};
 
 function mapPromo(row) {
   return {
@@ -21,14 +34,45 @@ function promoValueLabel(promo) {
   return promo.type === "percent" ? `${discount}% OFF` : `PHP ${discount.toLocaleString("en-PH")} OFF`;
 }
 
+function toDateInput(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${map.year}-${map.month}-${map.day}`;
+}
+
+function campaignPeriodLabel(campaign) {
+  const start = toDateInput(campaign.starts_at);
+  const end = toDateInput(campaign.ends_at);
+  if (start && end) return `${start} to ${end}`;
+  if (start) return `From ${start}`;
+  if (end) return `Until ${end}`;
+  return "No promo period";
+}
+
 export default function AdminPromos() {
   const [promos, setPromos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [voucherCampaigns, setVoucherCampaigns] = useState([]);
+  const [voucherCampaignLoading, setVoucherCampaignLoading] = useState(true);
+  const [addingVoucherCampaign, setAddingVoucherCampaign] = useState(false);
+  const [voucherCampaignSubmitting, setVoucherCampaignSubmitting] = useState(false);
   const [form, setForm] = useState({ code: "", title: "", description: "", discount: "", type: "percent", min_order: "", active: true });
+  const [voucherCampaignForm, setVoucherCampaignForm] = useState(defaultVoucherCampaignForm);
 
-  useEffect(() => { fetchPromos(); }, []);
+  useEffect(() => {
+    fetchPromos();
+    fetchVoucherCampaigns();
+  }, []);
 
   async function fetchPromos() {
     setLoading(true);
@@ -36,6 +80,21 @@ export default function AdminPromos() {
     if (!error && data) setPromos(data.map(mapPromo));
     else setPromos([]);
     setLoading(false);
+  }
+
+  async function fetchVoucherCampaigns() {
+    setVoucherCampaignLoading(true);
+    try {
+      const response = await fetch("/api/admin/voucher-campaigns");
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error || "Unable to load voucher campaigns.");
+      setVoucherCampaigns(payload.rows || []);
+    } catch (error) {
+      console.error("Voucher campaign load failed:", error);
+      setVoucherCampaigns([]);
+    } finally {
+      setVoucherCampaignLoading(false);
+    }
   }
 
   const handleAddPromo = async (e) => {
@@ -66,6 +125,59 @@ export default function AdminPromos() {
     if (!confirm("Delete this promo code permanently?")) return;
     setPromos(promos.filter(p => p.id !== id));
     await supabase.from("promotions").delete().eq("id", id);
+  };
+
+  const handleAddVoucherCampaign = async (e) => {
+    e.preventDefault();
+    setVoucherCampaignSubmitting(true);
+    try {
+      const response = await fetch("/api/admin/voucher-campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(voucherCampaignForm),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error || "Unable to create voucher campaign.");
+      setVoucherCampaigns([payload.campaign, ...voucherCampaigns].filter(Boolean));
+      setVoucherCampaignForm(defaultVoucherCampaignForm);
+      setAddingVoucherCampaign(false);
+    } catch (error) {
+      alert(error?.message || "Unable to create voucher campaign.");
+    } finally {
+      setVoucherCampaignSubmitting(false);
+    }
+  };
+
+  const toggleVoucherCampaign = async (campaign) => {
+    const nextActive = !campaign.is_active;
+    setVoucherCampaigns((rows) => rows.map((row) => row.id === campaign.id ? { ...row, is_active: nextActive } : row));
+    const response = await fetch("/api/admin/voucher-campaigns", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: campaign.id, partial: { is_active: nextActive } }),
+    });
+    if (!response.ok) {
+      setVoucherCampaigns((rows) => rows.map((row) => row.id === campaign.id ? campaign : row));
+      const payload = await response.json().catch(() => ({}));
+      alert(payload?.error || "Unable to update voucher campaign.");
+    }
+  };
+
+  const duplicateVoucherCampaign = (campaign) => {
+    setVoucherCampaignForm({
+      code: `${String(campaign.code || "VOUCHER").toUpperCase()}-COPY`,
+      title: campaign.title || "",
+      reward_text: campaign.reward_text || "",
+      reward_type: campaign.reward_type || "welcome",
+      voucher_prefix: campaign.voucher_prefix || "VOUCHER",
+      validity_days: String(campaign.validity_days || 15),
+      starts_at: toDateInput(campaign.starts_at),
+      ends_at: toDateInput(campaign.ends_at),
+      is_active: true,
+      auto_create_on_signup: Boolean(campaign.auto_create_on_signup),
+      auto_create_on_link: Boolean(campaign.auto_create_on_link),
+    });
+    setAddingVoucherCampaign(true);
   };
 
   return (
@@ -119,6 +231,80 @@ export default function AdminPromos() {
         )}
       </div>
 
+      <section className="mt-12 rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm">
+        <div className="mb-6 flex flex-col gap-4 border-b border-slate-100 pb-5 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-slate-500">Loyalty Voucher Setup</p>
+            <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-800">Voucher Campaigns</h2>
+            <p className="mt-1 text-xs font-semibold text-slate-500">
+              Create promo-period vouchers that can be auto-issued on signup or loyalty account linking.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              setVoucherCampaignForm(defaultVoucherCampaignForm);
+              setAddingVoucherCampaign(true);
+            }}
+            className="rounded-full bg-slate-600 px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-sky-500"
+          >
+            + Create Voucher Campaign
+          </button>
+        </div>
+
+        {voucherCampaignLoading ? (
+          <div className="py-12 text-center text-xs font-bold uppercase tracking-widest text-slate-400">Loading voucher campaigns...</div>
+        ) : voucherCampaigns.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 py-12 text-center text-xs font-bold uppercase tracking-widest text-slate-400">
+            No voucher campaigns created.
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {voucherCampaigns.map((campaign) => (
+              <article key={campaign.id} className={`rounded-2xl border p-5 transition-all hover:-translate-y-0.5 hover:shadow-md ${campaign.is_active ? "border-sky-100 bg-sky-50/45" : "border-slate-200 bg-slate-50 opacity-75"}`}>
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-2 flex flex-wrap items-center gap-3">
+                      <h3 className="text-lg font-extrabold uppercase tracking-tight text-slate-800">{campaign.title}</h3>
+                      <span className={`rounded-full border px-3 py-1 text-[9px] font-bold uppercase tracking-widest ${campaign.is_active ? "border-emerald-100 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-500"}`}>
+                        {campaign.is_active ? "Active" : "Disabled"}
+                      </span>
+                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-slate-500">
+                        {campaign.reward_type || "voucher"}
+                      </span>
+                    </div>
+                    <p className="text-sm font-semibold leading-6 text-slate-600">{campaign.reward_text}</p>
+                    <div className="mt-4 grid gap-3 text-[10px] font-bold uppercase tracking-widest text-slate-500 md:grid-cols-4">
+                      <span>Code: <b className="text-slate-700">{campaign.code}</b></span>
+                      <span>Prefix: <b className="text-slate-700">{campaign.voucher_prefix}</b></span>
+                      <span>Valid: <b className="text-slate-700">{campaign.validity_days} day(s)</b></span>
+                      <span>Period: <b className="text-slate-700">{campaignPeriodLabel(campaign)}</b></span>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                      <span className={`rounded-full px-3 py-1 ${campaign.auto_create_on_signup ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>Signup auto-create: {campaign.auto_create_on_signup ? "On" : "Off"}</span>
+                      <span className={`rounded-full px-3 py-1 ${campaign.auto_create_on_link ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>Link auto-create: {campaign.auto_create_on_link ? "On" : "Off"}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 md:shrink-0">
+                    <button
+                      onClick={() => toggleVoucherCampaign(campaign)}
+                      className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 transition-colors hover:border-sky-400 hover:bg-sky-50 hover:text-slate-800"
+                    >
+                      {campaign.is_active ? "Disable" : "Enable"}
+                    </button>
+                    <button
+                      onClick={() => duplicateVoucherCampaign(campaign)}
+                      className="rounded-full bg-slate-600 px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-sky-500"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
       {adding && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white shadow-2xl w-full max-w-lg rounded-3xl animate-in zoom-in-95 duration-200">
@@ -166,6 +352,151 @@ export default function AdminPromos() {
                 <button type="button" onClick={() => setAdding(false)} className="flex-1 py-4 border border-slate-200 bg-white text-slate-500 text-[10px] font-bold uppercase tracking-widest hover:border-sky-500 hover:text-slate-700 hover:bg-sky-50 transition-colors rounded-full">Cancel</button>
                 <button type="submit" disabled={submitting} className="flex-1 py-4 bg-slate-600 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-sky-500 transition-colors rounded-full shadow-sm disabled:opacity-50">
                   {submitting ? "Saving..." : "Create Promo"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {addingVoucherCampaign && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-sky-50 p-8">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-slate-500">Voucher Campaign</p>
+                <h2 className="mt-2 text-xl font-extrabold tracking-tight text-slate-800">Create Promo Voucher Rule</h2>
+              </div>
+              <button
+                onClick={() => setAddingVoucherCampaign(false)}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-50 pb-1 text-xl font-bold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleAddVoucherCampaign} className="space-y-6 p-8">
+              <div className="grid gap-5 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 ml-1 block text-[10px] font-bold uppercase tracking-widest text-slate-500">Campaign Code *</label>
+                  <input
+                    required
+                    value={voucherCampaignForm.code}
+                    onChange={(e) => setVoucherCampaignForm({ ...voucherCampaignForm, code: e.target.value.toUpperCase() })}
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm font-bold uppercase tracking-widest text-slate-800 transition-all focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5b7288]/20"
+                    placeholder="WELCOME-VOUCHER"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 ml-1 block text-[10px] font-bold uppercase tracking-widest text-slate-500">Voucher Prefix *</label>
+                  <input
+                    required
+                    value={voucherCampaignForm.voucher_prefix}
+                    onChange={(e) => setVoucherCampaignForm({ ...voucherCampaignForm, voucher_prefix: e.target.value.toUpperCase() })}
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm font-bold uppercase tracking-widest text-slate-800 transition-all focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5b7288]/20"
+                    placeholder="WELCOME"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 ml-1 block text-[10px] font-bold uppercase tracking-widest text-slate-500">Title *</label>
+                <input
+                  required
+                  value={voucherCampaignForm.title}
+                  onChange={(e) => setVoucherCampaignForm({ ...voucherCampaignForm, title: e.target.value })}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm font-bold text-slate-800 transition-all focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5b7288]/20"
+                  placeholder="Welcome voucher"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 ml-1 block text-[10px] font-bold uppercase tracking-widest text-slate-500">Voucher Details *</label>
+                <textarea
+                  required
+                  value={voucherCampaignForm.reward_text}
+                  onChange={(e) => setVoucherCampaignForm({ ...voucherCampaignForm, reward_text: e.target.value })}
+                  className="min-h-24 w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm font-semibold leading-6 text-slate-800 transition-all focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5b7288]/20"
+                  placeholder="B1T1 16oz Cheesecake Milk Tea (Welcome Voucher)"
+                />
+              </div>
+
+              <div className="grid gap-5 md:grid-cols-4">
+                <div>
+                  <label className="mb-2 ml-1 block text-[10px] font-bold uppercase tracking-widest text-slate-500">Type</label>
+                  <select
+                    value={voucherCampaignForm.reward_type}
+                    onChange={(e) => setVoucherCampaignForm({ ...voucherCampaignForm, reward_type: e.target.value })}
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-xs font-bold uppercase tracking-widest text-slate-800 transition-all focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5b7288]/20"
+                  >
+                    <option value="welcome">Welcome</option>
+                    <option value="promo">Promo</option>
+                    <option value="birthday">Birthday</option>
+                    <option value="points">Points</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-2 ml-1 block text-[10px] font-bold uppercase tracking-widest text-slate-500">Valid Days</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={voucherCampaignForm.validity_days}
+                    onChange={(e) => setVoucherCampaignForm({ ...voucherCampaignForm, validity_days: e.target.value })}
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm font-bold text-slate-800 transition-all focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5b7288]/20"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 ml-1 block text-[10px] font-bold uppercase tracking-widest text-slate-500">Start Date</label>
+                  <input
+                    type="date"
+                    value={voucherCampaignForm.starts_at}
+                    onChange={(e) => setVoucherCampaignForm({ ...voucherCampaignForm, starts_at: e.target.value })}
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm font-bold text-slate-800 transition-all focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5b7288]/20"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 ml-1 block text-[10px] font-bold uppercase tracking-widest text-slate-500">End Date</label>
+                  <input
+                    type="date"
+                    value={voucherCampaignForm.ends_at}
+                    onChange={(e) => setVoucherCampaignForm({ ...voucherCampaignForm, ends_at: e.target.value })}
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm font-bold text-slate-800 transition-all focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5b7288]/20"
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                {[
+                  ["is_active", "Campaign active"],
+                  ["auto_create_on_signup", "Auto-create on signup"],
+                  ["auto_create_on_link", "Auto-create on loyalty link"],
+                ].map(([key, label]) => (
+                  <label key={key} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-600">
+                    <span>{label}</span>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(voucherCampaignForm[key])}
+                      onChange={(e) => setVoucherCampaignForm({ ...voucherCampaignForm, [key]: e.target.checked })}
+                      className="h-5 w-5 accent-slate-600"
+                    />
+                  </label>
+                ))}
+              </div>
+
+              <div className="mt-6 flex gap-4 border-t border-sky-50 pt-6">
+                <button
+                  type="button"
+                  onClick={() => setAddingVoucherCampaign(false)}
+                  className="flex-1 rounded-full border border-slate-200 bg-white py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 transition-colors hover:border-sky-500 hover:bg-sky-50 hover:text-slate-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={voucherCampaignSubmitting}
+                  className="flex-1 rounded-full bg-slate-600 py-4 text-[10px] font-bold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-sky-500 disabled:opacity-50"
+                >
+                  {voucherCampaignSubmitting ? "Saving..." : "Create Campaign"}
                 </button>
               </div>
             </form>

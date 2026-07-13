@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies, headers } from "next/headers";
 import { createMissingPointRewardVouchers } from "@/lib/loyalty/pointVouchers";
+import { createWelcomeVoucherIfNeeded } from "@/lib/loyalty/welcomeVoucher";
 
 function supabaseConfig() {
   return {
@@ -143,6 +144,7 @@ export async function POST(req) {
     if (!created?.id) return Response.json({ error: "Loyalty member was not created." }, { status: 409 });
 
     let pointVouchersCreated = 0;
+    let welcomeVoucherCreated = 0;
     let voucherWarning = "";
     if (availablePoints >= 100) {
       try {
@@ -153,6 +155,15 @@ export async function POST(req) {
       }
     }
 
+    try {
+      const welcomeResult = await createWelcomeVoucherIfNeeded(admin, created.id);
+      welcomeVoucherCreated = Number(welcomeResult?.created || 0);
+    } catch (welcomeError) {
+      voucherWarning = [voucherWarning, welcomeError?.message || "Welcome voucher allocation skipped."]
+        .filter(Boolean)
+        .join(" ");
+    }
+
     const { data: member, error: memberError } = await admin
       .from("loyalty_members")
       .select("*")
@@ -161,7 +172,13 @@ export async function POST(req) {
 
     if (memberError) throw memberError;
 
-    return Response.json({ success: true, member: member || created, pointVouchersCreated, voucherWarning });
+    return Response.json({
+      success: true,
+      member: member || created,
+      pointVouchersCreated,
+      welcomeVoucherCreated,
+      voucherWarning,
+    });
   } catch (error) {
     return Response.json({ error: error?.message || "Unable to register loyalty member." }, { status: 500 });
   }
