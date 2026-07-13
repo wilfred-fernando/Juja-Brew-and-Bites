@@ -5380,6 +5380,39 @@ export default function POSPage() {
 
     const resetResult = await resetMemberPointsIfExpired(supabase, member);
     const activeMember = resetResult.member || member;
+
+    if (orderId) {
+      const { data: awardedMember, error: awardErr } = await supabase.rpc("award_loyalty_points_for_order", {
+        p_order_id: orderId,
+        p_member_id: activeMember.id,
+        p_points: Number(pointsEarned.toFixed(2)),
+        p_sale_total: Number(saleTotal || 0),
+      });
+
+      if (!awardErr && awardedMember?.id) {
+        const voucherMember = await createPointRewardVouchers(awardedMember.id, awardedMember["Available points"]);
+        const finalMember = voucherMember || awardedMember;
+        const normalizedMember = {
+          ...finalMember,
+          name: finalMember.customer_name || finalMember.name || "",
+          code: finalMember.customer_code || finalMember.code || "",
+          availablePoints: finalMember["Available points"] ?? 0,
+          pointsBalance: finalMember["Points balance"] ?? 0,
+        };
+
+        setCustomers((prev) => prev.map((row) => (row.id === activeMember.id ? { ...row, ...normalizedMember } : row)));
+        setAttachedCustomer((prev) => (prev?.id === activeMember.id ? { ...prev, ...normalizedMember } : prev));
+        return normalizedMember;
+      }
+
+      const canFallbackToLegacyAward =
+        awardErr?.message?.includes("Could not find the function") ||
+        awardErr?.message?.includes("schema cache");
+      if (!canFallbackToLegacyAward) {
+        throw new Error(awardErr?.message || "Loyalty points were not awarded. Please review this order.");
+      }
+    }
+
     const currentBalance = Number(activeMember["Points balance"] || 0);
     const currentAvailable = Number(activeMember["Available points"] || 0);
     const currentVisits = Number(activeMember["Total visits"] || 0);
@@ -5421,7 +5454,7 @@ export default function POSPage() {
     setAttachedCustomer((prev) => (prev?.id === activeMember.id ? { ...prev, ...normalizedMember } : prev));
 
     if (orderId) {
-      await supabase
+      const { data: markedOrder, error: markerErr } = await supabase
         .from("orders")
         .update({
           loyalty_points_awarded: Number(pointsEarned.toFixed(2)),
@@ -5430,7 +5463,12 @@ export default function POSPage() {
           loyalty_member_id: activeMember.id,
           customer_name: finalMember.customer_name || finalMember.name || null,
         })
-        .eq("id", orderId);
+        .eq("id", orderId)
+        .select("id")
+        .maybeSingle();
+      if (markerErr || !markedOrder?.id) {
+        throw new Error(markerErr?.message || "Loyalty order marker was not updated. Please review this order.");
+      }
     }
 
     return normalizedMember;
