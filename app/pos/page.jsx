@@ -5612,8 +5612,23 @@ export default function POSPage() {
 
     try {
       const directMemberId = fallbackMemberId || order?.loyalty_member_id || order?.customer_id || null;
+      const sourceOrderId = order?.pos_order_id || order?.order_id || null;
+      const awardViaWebOrder = async (memberId) => {
+        if (!order?.id) return await awardMemberLoyaltyPoints(memberId, pointsEarned, order?.total || order?.subtotal || 0, null);
+        const { data: awardedMember, error: awardErr } = await supabase.rpc("award_loyalty_points_for_web_order", {
+          p_web_order_id: order.id,
+          p_member_id: memberId,
+          p_points: Number(pointsEarned.toFixed(2)),
+          p_sale_total: Number(order?.total || order?.subtotal || 0),
+        });
+        if (awardErr) throw new Error(awardErr.message || "Web order loyalty points were not awarded.");
+        const voucherMember = await createPointRewardVouchers(awardedMember.id, awardedMember["Available points"]);
+        return normalizeLoyaltyCustomer(voucherMember || awardedMember);
+      };
+
       if (directMemberId) {
-        return await awardMemberLoyaltyPoints(directMemberId, pointsEarned, order?.total || order?.subtotal || 0, order?.pos_order_id || order?.order_id || null);
+        if (sourceOrderId) return await awardMemberLoyaltyPoints(directMemberId, pointsEarned, order?.total || order?.subtotal || 0, sourceOrderId);
+        return await awardViaWebOrder(directMemberId);
       }
 
       let member = null;
@@ -5643,7 +5658,8 @@ export default function POSPage() {
       }
 
       if (!member?.id) return null;
-      return await awardMemberLoyaltyPoints(member.id, pointsEarned, order?.total || order?.subtotal || 0, order?.pos_order_id || order?.order_id || null);
+      if (sourceOrderId) return await awardMemberLoyaltyPoints(member.id, pointsEarned, order?.total || order?.subtotal || 0, sourceOrderId);
+      return await awardViaWebOrder(member.id);
     } catch (err) {
       console.warn("Loyalty point update skipped:", err);
       throw err;
