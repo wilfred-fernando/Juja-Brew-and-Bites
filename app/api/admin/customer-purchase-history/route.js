@@ -67,12 +67,43 @@ function uniqueValues(values) {
   return Array.from(new Set(values.map(cleanValue).filter(Boolean)));
 }
 
+function purchaseDedupeKeys(row) {
+  const keys = [];
+  const receipt = cleanValue(row?.receipt).toLowerCase();
+  const webOrderId = cleanValue(row?.webOrderId || row?.sourceWebOrderId).toLowerCase();
+  if (receipt) keys.push(`receipt:${receipt}`);
+  if (webOrderId) keys.push(`web-order:${webOrderId}`);
+  return keys;
+}
+
+function preferPurchaseRow(nextRow, currentRow) {
+  if (!currentRow) return nextRow;
+  if (nextRow?.source === "POS order" && currentRow?.source !== "POS order") return nextRow;
+  if (nextRow?.source === currentRow?.source && new Date(nextRow?.date || 0) > new Date(currentRow?.date || 0)) return nextRow;
+  return currentRow;
+}
+
 function dedupeRows(rows) {
-  const seen = new Map();
+  const keyed = new Map();
+  const unkeyed = [];
+
   rows.forEach((row) => {
-    if (row?.id) seen.set(row.id, row);
+    if (!row?.id) return;
+    const keys = purchaseDedupeKeys(row);
+    if (keys.length === 0) {
+      unkeyed.push(row);
+      return;
+    }
+
+    const current = keys.map((key) => keyed.get(key)).find(Boolean);
+    const preferred = preferPurchaseRow(row, current);
+    [...keys, ...purchaseDedupeKeys(current || {})].forEach((key) => keyed.set(key, preferred));
   });
-  return Array.from(seen.values()).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+  const unique = new Map();
+  keyed.forEach((row) => unique.set(row.id, row));
+  unkeyed.forEach((row) => unique.set(row.id, row));
+  return Array.from(unique.values()).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 }
 
 async function safeQuery(query, mapper) {
@@ -112,6 +143,7 @@ export async function POST(req) {
 
     const posMapper = (row) => ({
       id: `pos-${row.id}`,
+      sourceWebOrderId: row.source_web_order_id || "",
       source: "POS order",
       date: row.paid_at || row.created_at,
       receipt: row.receipt_number || row.order_number || String(row.id).slice(0, 12),
@@ -123,6 +155,7 @@ export async function POST(req) {
 
     const webMapper = (row) => ({
       id: `web-${row.id}`,
+      webOrderId: row.id,
       source: "Web order",
       date: row.completed_at || row.created_at,
       receipt: row.receipt_number || `WEB-${String(row.id).slice(0, 8).toUpperCase()}`,
@@ -132,7 +165,7 @@ export async function POST(req) {
       status: row.status,
     });
 
-    const posSelect = "id,created_at,paid_at,receipt_number,order_number,customer_name,customer_id,loyalty_member_id,user_id,total,net_amount,payment_method,status,order_type,dining_option,source_store_name";
+    const posSelect = "id,created_at,paid_at,receipt_number,order_number,source_web_order_id,customer_name,customer_id,loyalty_member_id,user_id,total,net_amount,payment_method,status,order_type,dining_option,source_store_name";
     const webSelect = "id,created_at,completed_at,receipt_number,customer_name,customer_contact,total,payment_method,status,dining_option,fulfillment_type,user_id";
 
     const posQueries = [

@@ -1931,12 +1931,21 @@ function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onD
           const readyDisabled = status === "ready" || status === "completed";
           const deliveredDisabled = status === "completed";
           const orderItems = Array.isArray(selectedOrder.items) ? selectedOrder.items : [];
+          const orderTypeLabel = webDiningOptionLabel(selectedOrder.fulfillment_type || selectedOrder.dining_option);
+          const isDeliveryOrder = orderTypeLabel === "ONLINE: DELIVERY";
+          const contactNumber =
+            selectedOrder.customer_contact ||
+            selectedOrder.contact_number ||
+            selectedOrder.phone ||
+            selectedOrder.mobile ||
+            "";
+          const deliveryAddress = selectedOrder.delivery_address || selectedOrder.address || "";
           return (
             <>
               <div className="mb-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                   <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Order Type</p>
-                  <p className="mt-1 text-xs font-bold text-slate-800">{webDiningOptionLabel(selectedOrder.fulfillment_type || selectedOrder.dining_option)}</p>
+                  <p className="mt-1 text-xs font-bold text-slate-800">{orderTypeLabel}</p>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                   <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Payment Type</p>
@@ -1947,6 +1956,22 @@ function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onD
                   <p className="mt-1 text-xs font-bold text-slate-800">{peso2(selectedOrder.total || selectedOrder.subtotal || 0)}</p>
                 </div>
               </div>
+              {(contactNumber || (isDeliveryOrder && deliveryAddress)) && (
+                <div className="mb-4 grid grid-cols-1 gap-2">
+                  {contactNumber && (
+                    <div className="rounded-xl border border-cyan-100 bg-cyan-50/70 px-3 py-2">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-cyan-700">Contact Number</p>
+                      <p className="mt-1 text-xs font-bold text-slate-800">{contactNumber}</p>
+                    </div>
+                  )}
+                  {isDeliveryOrder && deliveryAddress && (
+                    <div className="rounded-xl border border-cyan-100 bg-cyan-50/70 px-3 py-2">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-cyan-700">Delivery Address</p>
+                      <p className="mt-1 text-xs font-bold leading-relaxed text-slate-800">{deliveryAddress}</p>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="grid grid-cols-3 gap-2 mb-4">
                 <button
                   type="button"
@@ -5477,27 +5502,113 @@ export default function POSPage() {
     return normalizedMember;
   }
 
+  function normalizeLoyaltyCustomer(row) {
+    if (!row?.id) return null;
+    return {
+      ...row,
+      id: row.id,
+      name: row.customer_name || row.name || row.full_name || "",
+      code: row.customer_code || row.code || "",
+      phone: row.Phone || row.phone || row.contact_number || "",
+      availablePoints: row["Available points"] ?? row.available_points ?? 0,
+      pointsBalance: row["Points balance"] ?? row.points_balance ?? 0,
+    };
+  }
+
+  async function resolveWebOrderLoyaltyCustomer(order) {
+    if (!order) return null;
+    const directIds = [order.loyalty_member_id, order.customer_id].map((value) => String(value || "").trim()).filter(Boolean);
+    const localDirect = customers.find((customer) => directIds.includes(String(customer.id)));
+    if (localDirect?.id) return normalizeLoyaltyCustomer(localDirect);
+
+    for (const memberId of directIds) {
+      const { data: directMember } = await supabase
+        .from("loyalty_members")
+        .select("*")
+        .eq("id", memberId)
+        .maybeSingle();
+      if (directMember?.id) return normalizeLoyaltyCustomer(directMember);
+    }
+
+    const userId = String(order.user_id || "").trim();
+    if (userId) {
+      const localUserMember = customers.find((customer) => String(customer.user_id || customer.profile_id || "") === userId);
+      if (localUserMember?.id) return normalizeLoyaltyCustomer(localUserMember);
+
+      const { data: userMember } = await supabase
+        .from("loyalty_members")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (userMember?.id) return normalizeLoyaltyCustomer(userMember);
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("loyalty_account_id")
+        .eq("id", userId)
+        .maybeSingle();
+      if (profile?.loyalty_account_id) {
+        const { data: profileMember } = await supabase
+          .from("loyalty_members")
+          .select("*")
+          .eq("id", profile.loyalty_account_id)
+          .maybeSingle();
+        if (profileMember?.id) return normalizeLoyaltyCustomer(profileMember);
+      }
+    }
+
+    const orderName = String(order.customer_name || "").trim().toLowerCase();
+    const orderContact = String(order.customer_contact || order.contact_number || order.phone || "").replace(/\D/g, "");
+    const localMatch = customers.find((customer) => {
+      const customerName = customerDisplayName(customer).trim().toLowerCase();
+      const customerPhone = customerDisplayPhone(customer).replace(/\D/g, "");
+      return (orderContact && customerPhone && customerPhone.endsWith(orderContact.slice(-10))) || (orderName && customerName === orderName);
+    });
+    if (localMatch?.id) return normalizeLoyaltyCustomer(localMatch);
+
+    return null;
+  }
+
   async function awardWebOrderLoyaltyPoints(order, pointsEarned, fallbackMemberId = null) {
-    if (!pointsEarned) return;
+    if (!pointsEarned) return null;
 
     try {
       const directMemberId = fallbackMemberId || order?.loyalty_member_id || order?.customer_id || null;
       if (directMemberId) {
-        await awardMemberLoyaltyPoints(directMemberId, pointsEarned, order?.total || order?.subtotal || 0, order?.pos_order_id || order?.order_id || null);
-        return;
+        return await awardMemberLoyaltyPoints(directMemberId, pointsEarned, order?.total || order?.subtotal || 0, order?.pos_order_id || order?.order_id || null);
       }
 
-      if (!order?.user_id) return;
-      const { data: member, error: findErr } = await supabase
-        .from("loyalty_members")
-        .select("*")
-        .eq("user_id", order.user_id)
-        .maybeSingle();
+      let member = null;
+      if (order?.user_id) {
+        const { data: userMember, error: findErr } = await supabase
+          .from("loyalty_members")
+          .select("*")
+          .eq("user_id", order.user_id)
+          .maybeSingle();
+        if (!findErr) member = userMember;
 
-      if (findErr || !member) return;
-      await awardMemberLoyaltyPoints(member.id, pointsEarned, order?.total || order?.subtotal || 0, order?.pos_order_id || order?.order_id || null);
+        if (!member?.id) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("loyalty_account_id")
+            .eq("id", order.user_id)
+            .maybeSingle();
+          if (profile?.loyalty_account_id) {
+            const { data: profileMember } = await supabase
+              .from("loyalty_members")
+              .select("*")
+              .eq("id", profile.loyalty_account_id)
+              .maybeSingle();
+            member = profileMember;
+          }
+        }
+      }
+
+      if (!member?.id) return null;
+      return await awardMemberLoyaltyPoints(member.id, pointsEarned, order?.total || order?.subtotal || 0, order?.pos_order_id || order?.order_id || null);
     } catch (err) {
       console.warn("Loyalty point update skipped:", err);
+      throw err;
     }
   }
 
@@ -6843,6 +6954,7 @@ export default function POSPage() {
     };
     let createdOrderRow = null;
     let receiptCustomer = attachedCustomer;
+    let resolvedSaleCustomer = attachedCustomer;
     let loyaltyAlreadyAwarded = false;
     let activeWebOrderForCharge = null;
     let originalTicketForCharge = null;
@@ -6866,6 +6978,11 @@ export default function POSPage() {
           return showToast("error", "Web Order Already Charged", "This web order already has a receipt or is no longer active.");
         }
         activeWebOrderForCharge = webOrderForCharge;
+        const webOrderCustomer = await resolveWebOrderLoyaltyCustomer(webOrderForCharge);
+        if (webOrderCustomer?.id) {
+          resolvedSaleCustomer = webOrderCustomer;
+          receiptCustomer = webOrderCustomer;
+        }
       }
       if (!activeWebOrderId && originalTicketId) {
         const { data: ticketForCharge, error: ticketForChargeErr } = await supabase
@@ -6925,9 +7042,9 @@ export default function POSPage() {
           source_web_order_id: activeWebOrderId || null,
           store_id: resolvedBranchId,
           branch_id: resolvedBranchId,
-          customer_id: attachedCustomer?.id || null,
-          loyalty_member_id: attachedCustomer?.id || null,
-          customer_name: attachedCustomer?.name || null,
+          customer_id: resolvedSaleCustomer?.id || null,
+          loyalty_member_id: resolvedSaleCustomer?.id || null,
+          customer_name: customerDisplayName(resolvedSaleCustomer) || activeWebOrderForCharge?.customer_name || null,
           items: enrichOrderItemsForKds(cart),
           subtotal: grossTotal,
           total,
@@ -6998,7 +7115,7 @@ export default function POSPage() {
             receipt_date: receiptRow.receipt_date || null,
             payment_method: paymentLabel,
             payment_status: "paid",
-            customer_name: attachedCustomer?.name || activeWebOrderForCharge?.customer_name || null,
+            customer_name: customerDisplayName(resolvedSaleCustomer) || activeWebOrderForCharge?.customer_name || null,
             items: enrichOrderItemsForKds(cart),
             subtotal: Number(subtotal),
             total: total
@@ -7009,7 +7126,15 @@ export default function POSPage() {
 
         await markKdsTicketStatus(supabase, { sourceType: "web", sourceId: activeWebOrderId, status: "completed" });
 
-        await awardWebOrderLoyaltyPoints({ ...activeWebOrderForCharge, pos_order_id: orderRow.id }, calcLoyaltyPoints(loyaltyEligibleTotal), attachedCustomer?.id);
+        try {
+          const updatedCustomer = await awardWebOrderLoyaltyPoints({ ...activeWebOrderForCharge, total, subtotal: grossTotal, pos_order_id: orderRow.id }, calcLoyaltyPoints(loyaltyEligibleTotal), resolvedSaleCustomer?.id);
+          if (updatedCustomer?.id) {
+            receiptCustomer = updatedCustomer;
+            loyaltyAlreadyAwarded = true;
+          }
+        } catch (loyaltyError) {
+          showToast("warn", "Loyalty Points Not Added", loyaltyError?.message || "Sale completed, but loyalty points need review.");
+        }
       } else {
         if (attachedCustomer?.id) {
           try {

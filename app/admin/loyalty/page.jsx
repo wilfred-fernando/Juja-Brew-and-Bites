@@ -1129,6 +1129,22 @@ export default function LoyaltyAdminPage() {
   // =========================
   // RENDER
   // =========================
+  const purchaseHistoryStats = useMemo(() => {
+    const rows = purchaseHistory.rows || [];
+    const activeRows = rows.filter((row) => !["refunded", "voided", "cancelled", "canceled"].includes(String(row.status || "").toLowerCase()));
+    const totalSpentFromRows = activeRows.reduce((sum, row) => sum + Number(row.total || 0), 0);
+    const datedRows = rows
+      .map((row) => ({ ...row, dateValue: new Date(row.date || 0) }))
+      .filter((row) => !Number.isNaN(row.dateValue.getTime()))
+      .sort((a, b) => a.dateValue - b.dateValue);
+
+    return {
+      totalSpent: rows.length > 0 ? totalSpentFromRows : memberValue(purchaseHistory.member, ["Total spent", "total_spent"], 0),
+      firstVisit: datedRows[0]?.date || memberValue(purchaseHistory.member, ["First visit", "first_visit"]),
+      lastVisit: datedRows[datedRows.length - 1]?.date || memberValue(purchaseHistory.member, ["Last visit", "last_visit"]),
+    };
+  }, [purchaseHistory.member, purchaseHistory.rows]);
+
   if (loading) {
     return (
       <div className="p-8 flex justify-center">
@@ -1842,19 +1858,19 @@ export default function LoyaltyAdminPage() {
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-[10px] uppercase tracking-widest text-slate-500">Total Spent</p>
                 <p className="mt-2 text-xl font-semibold text-slate-800">
-                  {peso(memberValue(purchaseHistory.member, ["Total spent", "total_spent"], 0))}
+                  {peso(purchaseHistoryStats.totalSpent)}
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-[10px] uppercase tracking-widest text-slate-500">First Visit</p>
                 <p className="mt-2 text-lg font-semibold text-slate-800">
-                  {displayDateTime(memberValue(purchaseHistory.member, ["First visit", "first_visit"]))}
+                  {displayDateTime(purchaseHistoryStats.firstVisit)}
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-[10px] uppercase tracking-widest text-slate-500">Last Visit</p>
                 <p className="mt-2 text-lg font-semibold text-slate-800">
-                  {displayDateTime(memberValue(purchaseHistory.member, ["Last visit", "last_visit"]))}
+                  {displayDateTime(purchaseHistoryStats.lastVisit)}
                 </p>
               </div>
             </div>
