@@ -10,6 +10,8 @@ import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib
 import { isWelcomeVoucher, WELCOME_VOUCHER_REWARD_TEXT } from "@/lib/loyalty/welcomeVoucher";
 import { loyaltyEligibleLineTotal } from "@/lib/menuPromos";
 import TicketPanel from "@/components/pos/TicketPanel";
+import PosApkUpdatePrompt from "@/components/PosApkUpdatePrompt";
+import ApkDownloadBanner from "@/components/ApkDownloadBanner";
 import { Barcode, Bluetooth, CalendarDays, DollarSign, MapPin, MessageSquare, Phone, Printer, RefreshCw, RotateCcw, Save, Search, ShoppingBasket, Star, Trash2 } from "lucide-react";
 
 // Initialize Supabase Client instance cleanly at layout bundle level
@@ -7640,6 +7642,7 @@ export default function POSPage() {
   if (shiftStatus === "loading") {
     return (
       <div className="min-h-screen overscroll-none bg-[#FFF5F7] font-sans antialiased text-slate-800" style={{ overscrollBehaviorY: "none" }}>
+        <PosApkUpdatePrompt />
         <Toast toast={toast} onClose={() => setToast(null)} />
         <div className="min-h-screen flex items-center justify-center p-6">
           <div className="h-10 w-10 rounded-full border-4 border-rose-100 border-t-[#FC687D] animate-spin" />
@@ -7651,6 +7654,7 @@ export default function POSPage() {
   if (shiftStatus === "closed") {
     return (
       <div className="min-h-screen overscroll-none bg-[#FFF5F7] font-sans antialiased text-slate-800" style={{ overscrollBehaviorY: "none" }}>
+        <PosApkUpdatePrompt />
         <Toast toast={toast} onClose={() => setToast(null)} />
         <div className="min-h-screen flex items-center justify-center p-6">
           <button
@@ -7669,31 +7673,16 @@ export default function POSPage() {
 
   return (
     <div className="min-h-screen overscroll-none bg-[#FFF5F7] pb-24 lg:pb-0 font-sans antialiased text-slate-800" style={{ overscrollBehaviorY: "none" }}>
+      <PosApkUpdatePrompt />
       <Toast toast={toast} onClose={() => setToast(null)} />
 
-      {/* PERSISTENT PWA INSTALLATION TRIGGER BANNER LAYOUT */}
-      {showInstallBanner && (
-        <div className="bg-gradient-to-r from-blue-700 to-[#FC687D] text-white py-2 px-4 shadow-sm flex items-center justify-between text-xs font-semibold select-none animate-in slide-in-from-top duration-300">
-          <div className="flex text-[14px] items-center gap-2">
-            <span>📱</span>
-            <span>Run Juja POS directly as a standalone hardware desktop app window.</span>
-          </div>
-          <div className="flex items-center gap-2 font-bold uppercase tracking-wider">
-            <button 
-              onClick={handleExecuteInstall} 
-              className="bg-white/10 text-slate-900 rounded-lg px-3 py-1 text-[11px] active:scale-95 transition"
-            >
-              INSTALL APP
-            </button>
-            <button 
-              onClick={() => setShowInstallBanner(false)} 
-              className="text-white/80 hover:text-slate-900 px-2 py-1 text-sm font-normal"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
+      <ApkDownloadBanner
+        manifestUrl="/app-updates/pos.json"
+        storageKey="juja_pos_apk_download_dismissed"
+        title="Download JUJA POS APK"
+        description="Install the Android POS app for cashier use and self-hosted updates."
+        className="mx-3 mt-3 rounded-2xl border border-cyan-100 bg-white px-4 py-3 text-slate-900 shadow-sm flex items-center justify-between gap-4 animate-in slide-in-from-top duration-300 sm:mx-4 lg:mx-6"
+      />
 
       <div className="max-w-[1600px] mx-auto p-3 sm:p-4 lg:p-6 transition-all">
         {posMenuOpen && (

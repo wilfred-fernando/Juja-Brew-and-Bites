@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import AuthTurnstile, { isTurnstileEnabled } from "@/components/AuthTurnstile";
+import CustomerApkUpdatePrompt from "@/components/CustomerApkUpdatePrompt";
 import PasswordField from "@/components/PasswordField";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
@@ -150,6 +151,7 @@ export default function Login() {
   if (loading) {
     return (
       <div className="juja-page-bg min-h-screen flex items-center justify-center bg-[#FFF5F7]">
+        <CustomerApkUpdatePrompt />
         <div className="animate-spin rounded-full h-10 w-10 border-2 border-slate-200 border-t-[#FC687D]" />
       </div>
     );
@@ -157,6 +159,7 @@ export default function Login() {
 
   return (
     <div className="juja-page-bg min-h-screen flex flex-col bg-[#FFF5F7]">
+      <CustomerApkUpdatePrompt />
       {/* HEADER */}
       <div className="px-6 py-8 flex items-center justify-between max-w-7xl mx-auto w-full">
         <Link href="/">

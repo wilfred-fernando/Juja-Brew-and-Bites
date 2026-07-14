@@ -13,6 +13,8 @@ import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib
 import { isWelcomeVoucher, WELCOME_VOUCHER_REWARD_TEXT } from "@/lib/loyalty/welcomeVoucher";
 import { findVoucherForMenuItem, isPromoCategoryName, isPromoMenuItem, isVoucherAvailable, loyaltyEligibleLineTotal } from "@/lib/menuPromos";
 import BookingTab from "@/components/BookingForm";
+import CustomerApkUpdatePrompt from "@/components/CustomerApkUpdatePrompt";
+import ApkDownloadBanner from "@/components/ApkDownloadBanner";
 
 const Barcode = dynamic(() => import("react-barcode"), { ssr: false });
 
@@ -3025,6 +3027,7 @@ export default function Customer() {
   if (loading) {
     return (
       <div className="juja-page-bg min-h-screen flex items-center justify-center bg-[#FFF5F7]">
+        <CustomerApkUpdatePrompt />
         <div className="w-9 h-9 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
       </div>
     );
@@ -3037,6 +3040,7 @@ export default function Customer() {
 
   return (
     <div className="juja-page-bg min-h-screen bg-[#FFF5F7] text-slate-800 antialiased flex flex-col lg:flex-row">
+      <CustomerApkUpdatePrompt />
       {/* Visual In-App Notification System Render Slot */}
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[250] px-4 w-full max-w-md animate-in fade-in slide-in-from-top-4 duration-300">
@@ -3076,33 +3080,14 @@ export default function Customer() {
         {tab === "profile" && <ProfileTab user={user} onLogout={logout} />}
       </main>
 
-      {showInstallBanner && (
-        <div className="fixed bottom-[84px] md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96 z-[90] bg-white border border-rose-100 p-4 rounded-2xl shadow-[0_10px_30px_rgba(252,104,125,0.12)] flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-300">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl border border-rose-50 flex items-center justify-center bg-[#FFF9FA] overflow-hidden shrink-0">
-              <img src={LOGO} alt="Juja App Logo" className="w-8 h-8 object-contain" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-800">Save Juja Brew & Bites</p>
-              <p className="text-[10px] text-slate-400 font-medium">Order faster & manage your loyalty pass directly on your device home screen.</p>
-            </div>
-          </div>
-          <div className="flex flex-col gap-1.5 shrink-0">
-            <button
-              onClick={triggerPwaInstallation}
-              className="px-3 py-1.5 bg-[#FC687D] hover:bg-rose-500 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg shadow-sm transition"
-            >
-              Save
-            </button>
-            <button
-              onClick={closeInstallBannerForever}
-              className="text-[9px] uppercase tracking-wider text-slate-400 hover:text-slate-600 font-bold text-center"
-            >
-              Dismiss
-            </button>
-          </div>
-        </div>
-      )}
+      <ApkDownloadBanner
+        manifestUrl="/app-updates/customer.json"
+        storageKey="juja_customer_apk_download_dismissed"
+        logo={LOGO}
+        title="Download JUJA Brew & Bites"
+        description="Install the Android APK to order faster and manage your loyalty pass."
+        className="fixed bottom-[84px] md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96 z-[90] bg-white border border-cyan-100 p-4 rounded-2xl shadow-[0_10px_30px_rgba(14,116,144,0.14)] flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-300"
+      />
 
       {showNotificationBanner && (
         <div className="fixed bottom-[84px] md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96 z-[95] bg-white border border-rose-100 p-4 rounded-2xl shadow-[0_10px_30px_rgba(252,104,125,0.14)] flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-300">

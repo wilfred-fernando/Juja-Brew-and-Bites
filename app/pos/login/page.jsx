@@ -3,6 +3,7 @@
 import { useState } from "react";
 import AuthTurnstile, { isTurnstileEnabled } from "@/components/AuthTurnstile";
 import PasswordField from "@/components/PasswordField";
+import PosApkUpdatePrompt from "@/components/PosApkUpdatePrompt";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -93,6 +94,7 @@ export default function LoginPage() {
 
   return (
     <div className="juja-page-bg flex min-h-screen items-center justify-center p-6">
+      <PosApkUpdatePrompt />
       <form
         onSubmit={handleLogin}
         className="w-full max-w-md space-y-4 rounded-[32px] border border-white/70 bg-white/82 p-6 shadow-[0_30px_90px_rgba(2,6,23,0.20)] backdrop-blur-xl"
