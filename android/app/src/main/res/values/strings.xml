@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">JUJA Pos</string>
+    <string name="title_activity_main">JUJA Pos</string>
+    <string name="package_name">com.jujabrewandbites.pos</string>
+    <string name="custom_url_scheme">com.jujabrewandbites.pos</string>
+</resources>

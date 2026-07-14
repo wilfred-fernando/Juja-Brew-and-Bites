@@ -1594,6 +1594,7 @@ function BarcodeScannerModal({ open, onClose, onResult }) {
     const s = scannerRef.current;
     scannerRef.current = null;
     try {
+      if (s?.stop) s.stop().catch?.(() => {});
       if (s?.clear) s.clear();
     } catch {}
     const el = typeof window !== "undefined" ? document.getElementById("pos-scan-area") : null;
@@ -1614,7 +1615,7 @@ function BarcodeScannerModal({ open, onClose, onResult }) {
       if (typeof window !== "undefined") localStorage.setItem("pos_scanner_seen", "1");
       await requestScannerCameraAccess();
       const mod = await import("html5-qrcode");
-      const { Html5QrcodeScanner } = mod;
+      const { Html5Qrcode } = mod;
 
       setStep("scanning");
       setTimeout(() => {
@@ -1622,22 +1623,22 @@ function BarcodeScannerModal({ open, onClose, onResult }) {
         if (!el) return;
         el.innerHTML = "";
 
-        const scanner = new Html5QrcodeScanner(
-          "pos-scan-area",
-          { fps: 10, qrbox: { width: 240, height: 240 } },
-          false
-        );
-
-        scanner.render(
-          (decodedText) => {
+        const scanner = new Html5Qrcode("pos-scan-area");
+        const config = { fps: 10, qrbox: { width: 240, height: 240 } };
+        const onScanSuccess = (decodedText) => {
             stopScanner();
             onResult(decodedText);
             onClose();
-          },
-          () => {}
-        );
+        };
 
         scannerRef.current = scanner;
+        scanner
+          .start({ facingMode: { exact: "environment" } }, config, onScanSuccess, () => {})
+          .catch(() => scanner.start({ facingMode: "environment" }, config, onScanSuccess, () => {}))
+          .catch((scanError) => {
+            scannerRef.current = null;
+            setErrMsg(scanError?.message || "Unable to start the back camera scanner.");
+          });
       }, 50);
     } catch (e) {
       setErrMsg(e?.message || "Unable to start camera scanner. Allow camera access, then try again.");
