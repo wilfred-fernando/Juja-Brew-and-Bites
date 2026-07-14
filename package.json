@@ -12,6 +12,7 @@
     "android:open": "cap open android"
   },
   "dependencies": {
+    "@capacitor-community/bluetooth-le": "^8.2.0",
     "@capacitor/app": "^8.1.0",
     "@capacitor/core": "^8.4.1",
     "@dnd-kit/core": "^6.3.1",

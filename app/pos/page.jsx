@@ -13,6 +13,8 @@ import TicketPanel from "@/components/pos/TicketPanel";
 import PosApkUpdatePrompt from "@/components/PosApkUpdatePrompt";
 import ApkDownloadBanner from "@/components/ApkDownloadBanner";
 import { Barcode, Bluetooth, CalendarDays, DollarSign, MapPin, MessageSquare, Phone, Printer, RefreshCw, RotateCcw, Save, Search, ShoppingBasket, Star, Trash2 } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
+import { BleClient, ScanMode } from "@capacitor-community/bluetooth-le";
 
 // Initialize Supabase Client instance cleanly at layout bundle level
 const supabaseGlobalInstance = getSupabaseClient();
@@ -48,6 +50,8 @@ const RECEIPT_LOGO_URL = "https://images.jujabrewandbites.com/SIGNAGE%20light%20
 const POS_AUTO_REFRESH_MS = 5000;
 const bluetoothPrinterDeviceCache = new Map();
 const bluetoothPrinterCharacteristicCache = new Map();
+const nativeBluetoothPrinterDeviceCache = new Map();
+let nativeBluetoothReadyPromise = null;
 const PRINTER_ROLE_LABELS = {
   receipt: "Bar",
   order_slip: "Kitchen",
@@ -97,6 +101,100 @@ function createPrinterProfiles(savedByRole = {}) {
 
 function normalizeBluetoothUuid(value, fallback = "") {
   return String(value || fallback).trim().toLowerCase();
+}
+
+function isNativeBluetoothApp() {
+  return Boolean(Capacitor?.isNativePlatform?.());
+}
+
+async function ensureNativeBluetoothReady() {
+  if (!isNativeBluetoothApp()) return false;
+  if (!nativeBluetoothReadyPromise) {
+    nativeBluetoothReadyPromise = BleClient.initialize({ androidNeverForLocation: true });
+  }
+  await nativeBluetoothReadyPromise;
+  return true;
+}
+
+function toDataView(value) {
+  if (value instanceof DataView) return value;
+  const bytes = value instanceof Uint8Array ? value : new Uint8Array(value || []);
+  return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+}
+
+function cacheNativeBluetoothPrinterDevice(device, cfg = {}) {
+  if (!device?.deviceId) return;
+  bluetoothDeviceCacheKeys({ id: device.deviceId, name: device.name }, cfg).forEach((key) => {
+    nativeBluetoothPrinterDeviceCache.set(key, device);
+  });
+}
+
+function getCachedNativeBluetoothPrinterDevice(cfg = {}) {
+  const keys = bluetoothDeviceCacheKeys(null, cfg);
+  for (const key of keys) {
+    const device = nativeBluetoothPrinterDeviceCache.get(key);
+    if (device?.deviceId) return device;
+  }
+  if (cfg?.ble_device_id) return { deviceId: cfg.ble_device_id, name: cfg?.ble_device_name || cfg?.name || "Bluetooth Printer" };
+  return null;
+}
+
+function createNativeBleCharacteristicAdapter(device, cfg = {}) {
+  const serviceUuid = normalizeBluetoothUuid(cfg?.ble_service_uuid, DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID);
+  const characteristicUuid = normalizeBluetoothUuid(
+    cfg?.ble_characteristic_uuid,
+    DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID
+  );
+
+  return {
+    nativeBle: true,
+    service: {
+      device: {
+        id: device.deviceId,
+        name: device.name,
+        gatt: { connected: true },
+      },
+    },
+    async writeValue(value) {
+      await BleClient.write(device.deviceId, serviceUuid, characteristicUuid, toDataView(value));
+    },
+    async writeValueWithoutResponse(value) {
+      await BleClient.writeWithoutResponse(device.deviceId, serviceUuid, characteristicUuid, toDataView(value));
+    },
+  };
+}
+
+async function requestNativeBluetoothPrinterDevice(cfg = {}) {
+  await ensureNativeBluetoothReady();
+  const serviceUuid = normalizeBluetoothUuid(cfg?.ble_service_uuid, DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID);
+  const device = await BleClient.requestDevice({
+    optionalServices: [serviceUuid],
+    scanMode: ScanMode.SCAN_MODE_LOW_LATENCY,
+  });
+  if (!device?.deviceId) throw new Error("No Bluetooth printer was selected.");
+  await BleClient.connect(device.deviceId);
+  cacheNativeBluetoothPrinterDevice(device, cfg);
+  return device;
+}
+
+async function connectNativeBluetoothPrinter(cfg = {}) {
+  await ensureNativeBluetoothReady();
+  const savedDevice = getCachedNativeBluetoothPrinterDevice(cfg);
+  let device = savedDevice;
+
+  if (!device?.deviceId) {
+    device = await requestNativeBluetoothPrinterDevice(cfg);
+  } else {
+    try {
+      await BleClient.connect(device.deviceId);
+    } catch (error) {
+      if (!cfg?.ble_device_id) throw error;
+      device = await requestNativeBluetoothPrinterDevice(cfg);
+    }
+  }
+
+  cacheNativeBluetoothPrinterDevice(device, cfg);
+  return createNativeBleCharacteristicAdapter(device, cfg);
 }
 
 function bluetoothDeviceCacheKeys(device, cfg = {}) {
@@ -170,6 +268,13 @@ function bluetoothDeviceMatchesConfig(device, cfg = {}) {
 }
 
 async function warmBluetoothPrinterDeviceCache(configByRole = {}) {
+  if (isNativeBluetoothApp()) {
+    Object.values(configByRole || {}).forEach((cfg) => {
+      if (!cfg?.ble_device_id) return;
+      cacheNativeBluetoothPrinterDevice({ deviceId: cfg.ble_device_id, name: cfg?.ble_device_name || cfg?.name }, cfg);
+    });
+    return;
+  }
   if (typeof navigator === "undefined" || !navigator.bluetooth?.getDevices) return;
   const devices = await navigator.bluetooth.getDevices();
   Object.values(configByRole || {}).forEach((cfg) => {
@@ -230,6 +335,12 @@ function print58mmTextBrowser(text) {
 // ================= BLE PRINT =================
 
 async function findSavedBluetoothDevice(cfg, serviceUuid) {
+  if (isNativeBluetoothApp()) {
+    const nativeDevice = getCachedNativeBluetoothPrinterDevice(cfg);
+    if (nativeDevice?.deviceId) return { id: nativeDevice.deviceId, name: nativeDevice.name, nativeDevice };
+    throw new Error("Bluetooth printer permission is not available in this app. Open POS Settings, choose the printer once, then save it.");
+  }
+
   const deviceKey = cfg?.ble_device_id || cfg?.ble_device_name || cfg?.name || cfg?.id || "default";
   const cached = bluetoothPrinterDeviceCache.get(deviceKey);
   if (cached) return cached;
@@ -247,6 +358,12 @@ async function findSavedBluetoothDevice(cfg, serviceUuid) {
 }
 
 async function bleConnect(cfg) {
+  if (isNativeBluetoothApp()) {
+    const characteristic = await connectNativeBluetoothPrinter(cfg);
+    cacheBluetoothPrinterCharacteristic(cfg, characteristic);
+    return characteristic;
+  }
+
   const cachedCharacteristic = getCachedBluetoothPrinterCharacteristic(cfg);
   if (cachedCharacteristic) return cachedCharacteristic;
 
@@ -6442,16 +6559,6 @@ export default function POSPage() {
   }
 
   async function requestBluetoothPrinterDevice(role) {
-    if (typeof navigator === "undefined" || !navigator.bluetooth) {
-      showToast(
-        "error",
-        "Bluetooth Not Supported",
-        "Use Chrome or Edge on a Bluetooth-capable device over HTTPS or localhost."
-      );
-      setPrinterPermissionRole(null);
-      return false;
-    }
-
     const form = printerForm?.[role] || createPrinterProfile(role);
     const serviceUuid = normalizeBluetoothUuid(form.service_uuid, DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID);
     const characteristicUuid = normalizeBluetoothUuid(
@@ -6460,6 +6567,34 @@ export default function POSPage() {
     );
 
     try {
+      if (isNativeBluetoothApp()) {
+        const device = await requestNativeBluetoothPrinterDevice({
+          ...form,
+          ble_service_uuid: serviceUuid,
+          ble_characteristic_uuid: characteristicUuid,
+        });
+        updatePrinterProfile(role, {
+          enabled: true,
+          name: device.name || form.name?.trim() || `${PRINTER_ROLE_LABELS[role]} Printer`,
+          service_uuid: serviceUuid,
+          characteristic_uuid: characteristicUuid,
+          device_id: device.deviceId || "",
+        });
+        showToast("success", "Bluetooth Printer Selected", "The printer was selected through the Android Bluetooth picker.");
+        setPrinterPermissionRole(null);
+        return true;
+      }
+
+      if (typeof navigator === "undefined" || !navigator.bluetooth) {
+        showToast(
+          "error",
+          "Bluetooth Not Supported",
+          "Use Chrome or Edge on a Bluetooth-capable device over HTTPS or localhost."
+        );
+        setPrinterPermissionRole(null);
+        return false;
+      }
+
       const device = await navigator.bluetooth.requestDevice({
         acceptAllDevices: true,
         optionalServices: [serviceUuid],
