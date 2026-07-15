@@ -1,7 +1,7 @@
 {
   "app": "pos",
-  "latestVersion": "1.0.4",
-  "latestBuild": 5,
-  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-pos-v1.0.4.apk",
-  "releaseNotes": "Improves APK incoming web order popup alerts, audible notification channel, and notification sound."
+  "latestVersion": "1.0.5",
+  "latestBuild": 6,
+  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-pos-v1.0.5.apk",
+  "releaseNotes": "Rebuilt with verified POS package target, APK incoming web order popup alerts, audible notification channel, and notification sound."
 }
