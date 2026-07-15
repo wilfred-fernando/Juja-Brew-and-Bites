@@ -2711,6 +2711,7 @@ export default function Customer() {
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const alertedOrderStatusRef = useRef(new Set());
+  const orderStatusSnapshotRef = useRef(new Map());
 
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
@@ -2725,9 +2726,10 @@ export default function Customer() {
     setTimeout(() => setToast(null), 4500);
   };
 
-  const fetchOrderHistory = async (userId) => {
+  const fetchOrderHistory = async (userId, options = {}) => {
     if (!userId) return;
-    setLoadingOrders(true);
+    const { silent = false, notifyChanges = false } = options;
+    if (!silent) setLoadingOrders(true);
     try {
       const { data: webRows, error: webError } = await supabase
         .from("web_orders")
@@ -2779,11 +2781,27 @@ export default function Customer() {
         };
       });
 
-      setOrders([...(webRows || []), ...migratedRows].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)));
+      const combinedRows = [...(webRows || []), ...migratedRows].sort(
+        (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+      );
+
+      combinedRows.forEach((order) => {
+        const orderId = order?.id || order?.receipt_number || order?.order_number;
+        if (!orderId) return;
+        const key = String(orderId);
+        const currentStatus = String(order?.status || "").toLowerCase();
+        const previousStatus = orderStatusSnapshotRef.current.get(key);
+        if (notifyChanges && previousStatus && previousStatus !== currentStatus) {
+          notifyOrderStatus(order);
+        }
+        orderStatusSnapshotRef.current.set(key, currentStatus);
+      });
+
+      setOrders(combinedRows);
     } catch (err) {
       console.warn("Unable to sync log metrics:", err);
     } finally {
-      setLoadingOrders(false);
+      if (!silent) setLoadingOrders(false);
     }
   };
 
@@ -2899,13 +2917,22 @@ export default function Customer() {
           if (String(incomingUserId) !== String(user.id)) return;
 
           if (payload.eventType === "INSERT") {
+            if (payload.new?.id) {
+              orderStatusSnapshotRef.current.set(String(payload.new.id), String(payload.new.status || "").toLowerCase());
+            }
             setOrders((prev) => [payload.new, ...prev]);
           } else if (payload.eventType === "UPDATE") {
             notifyOrderStatus(payload.new);
+            if (payload.new?.id) {
+              orderStatusSnapshotRef.current.set(String(payload.new.id), String(payload.new.status || "").toLowerCase());
+            }
             setOrders((prev) =>
               prev.map((o) => (o.id === payload.new.id ? payload.new : o))
             );
           } else if (payload.eventType === "DELETE") {
+            if (payload.old?.id) {
+              orderStatusSnapshotRef.current.delete(String(payload.old.id));
+            }
             setOrders((prev) => prev.filter((o) => o.id !== payload.old.id));
           }
         }
@@ -2917,6 +2944,26 @@ export default function Customer() {
       supabase.removeChannel(ordersChannel);
     };
   }, [user]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    let pollInFlight = false;
+    const pollCustomerOrders = async () => {
+      if (pollInFlight) return;
+      pollInFlight = true;
+      try {
+        await fetchOrderHistory(user.id, { silent: true, notifyChanges: true });
+      } finally {
+        pollInFlight = false;
+      }
+    };
+
+    const pollTimer = window.setInterval(pollCustomerOrders, 3000);
+    pollCustomerOrders();
+
+    return () => window.clearInterval(pollTimer);
+  }, [user?.id]);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e) => {

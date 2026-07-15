@@ -4229,7 +4229,36 @@ export default function POSPage() {
         .subscribe()
     );
 
+    let pollInFlight = false;
+    const pollIncomingOrders = async () => {
+      if (pollInFlight) return;
+      pollInFlight = true;
+      try {
+        const { data, error } = await supabase
+          .from("web_orders")
+          .select("*")
+          .in("status", ["pending", "Pending", "scheduled", "Scheduled"])
+          .or(buildStoreOrderFilter(storeId))
+          .order("created_at", { ascending: true })
+          .limit(10);
+
+        if (error) throw error;
+        await fetchPendingCount(storeId);
+        for (const order of data || []) {
+          await showIncomingOrder(order);
+        }
+      } catch (err) {
+        console.warn("POS web order polling fallback failed:", err);
+      } finally {
+        pollInFlight = false;
+      }
+    };
+
+    pollIncomingOrders();
+    const pollTimer = window.setInterval(pollIncomingOrders, 3000);
+
     return () => {
+      window.clearInterval(pollTimer);
       supabase.removeChannel(dbChannel);
       broadcastChannels.forEach((channel) => supabase.removeChannel(channel));
     };
