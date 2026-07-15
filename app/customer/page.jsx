@@ -139,7 +139,7 @@ async function showCustomerPanelNotification(payload) {
     title: notificationPayload.title,
     body: notificationPayload.body,
     tag: notificationPayload.tag,
-    channelId: "customer-orders",
+    channelId: "customer-orders-audible",
     channelName: "Customer Order Alerts",
   });
   if (nativeShown) return;
@@ -2791,7 +2791,7 @@ export default function Customer() {
   useEffect(() => {
     registerCustomerServiceWorker();
 
-    if (isCustomerPwaInstalled()) {
+    if (isNativeApp() || isCustomerPwaInstalled()) {
       requestCustomerNotificationPermission().then((permission) => {
         setShowNotificationBanner(permission === "default");
       });

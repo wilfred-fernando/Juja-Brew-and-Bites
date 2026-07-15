@@ -4185,7 +4185,7 @@ export default function POSPage() {
         title: "New Web Order",
         body: notificationBody,
         tag: `web-order:${incomingId}`,
-        channelId: "pos-web-orders",
+        channelId: "pos-web-orders-audible",
         channelName: "POS Web Orders",
       });
       if (nativeShown) return;

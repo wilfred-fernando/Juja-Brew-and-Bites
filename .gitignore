@@ -21,6 +21,7 @@
 /build
 
 # Android APK binaries are hosted in Supabase Storage, not GitHub.
+/releases/*.apk
 /public/downloads/*.apk
 /android/app/build/outputs/**/*.apk
 /android/keystore.properties
