@@ -1,14 +1,31 @@
 apply plugin: 'com.android.application'
 
+def appTarget = (System.getenv('CAPACITOR_APP_TARGET') ?: 'pos').toLowerCase()
+def appIds = [
+    pos: 'com.jujabrewandbites.pos',
+    customer: 'com.jujabrewandbites.customer'
+]
+def selectedApplicationId = appIds.containsKey(appTarget) ? appIds[appTarget] : appIds.pos
+def appVersionCode = (System.getenv('ANDROID_VERSION_CODE') ?: '1').toInteger()
+def appVersionName = System.getenv('ANDROID_VERSION_NAME') ?: '1.0'
+
+def targetKeystorePropertiesFile = rootProject.file("keystore-${appTarget}.properties")
+def defaultKeystorePropertiesFile = rootProject.file('keystore.properties')
+def keystorePropertiesFile = targetKeystorePropertiesFile.exists() ? targetKeystorePropertiesFile : defaultKeystorePropertiesFile
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
-    namespace = "com.jujabrewandbites.pos"
+    namespace = selectedApplicationId
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.jujabrewandbites.pos"
+        applicationId selectedApplicationId
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode appVersionCode
+        versionName appVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,9 +33,22 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile rootProject.file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            }
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }

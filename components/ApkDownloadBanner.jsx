@@ -9,7 +9,7 @@ export default function ApkDownloadBanner({
   description,
   logo,
   className = "",
-  cta = "Download APK",
+  cta = "Download App",
 }) {
   const [manifest, setManifest] = useState(null);
   const [visible, setVisible] = useState(false);
