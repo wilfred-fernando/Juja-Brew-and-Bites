@@ -12,7 +12,7 @@
 
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
-            android:name=".MainActivity"
+            android:name="com.jujabrewandbites.pos.MainActivity"
             android:label="${appName}"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
