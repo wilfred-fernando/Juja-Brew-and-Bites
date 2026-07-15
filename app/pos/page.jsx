@@ -110,9 +110,20 @@ function isNativeBluetoothApp() {
 async function ensureNativeBluetoothReady() {
   if (!isNativeBluetoothApp()) return false;
   if (!nativeBluetoothReadyPromise) {
-    nativeBluetoothReadyPromise = BleClient.initialize({ androidNeverForLocation: true });
+    nativeBluetoothReadyPromise = BleClient.initialize({ androidNeverForLocation: true }).catch((error) => {
+      nativeBluetoothReadyPromise = null;
+      throw error;
+    });
   }
   await nativeBluetoothReadyPromise;
+  try {
+    const bluetoothEnabled = await BleClient.isEnabled();
+    if (!bluetoothEnabled) {
+      await BleClient.requestEnable();
+    }
+  } catch (error) {
+    console.warn("Native Bluetooth enable check failed", error);
+  }
   return true;
 }
 
@@ -166,13 +177,17 @@ function createNativeBleCharacteristicAdapter(device, cfg = {}) {
 
 async function requestNativeBluetoothPrinterDevice(cfg = {}) {
   await ensureNativeBluetoothReady();
-  const serviceUuid = normalizeBluetoothUuid(cfg?.ble_service_uuid, DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID);
   const device = await BleClient.requestDevice({
-    optionalServices: [serviceUuid],
     scanMode: ScanMode.SCAN_MODE_LOW_LATENCY,
   });
   if (!device?.deviceId) throw new Error("No Bluetooth printer was selected.");
-  await BleClient.connect(device.deviceId);
+  try {
+    await BleClient.connect(device.deviceId);
+  } catch (error) {
+    throw new Error(
+      `${device?.name || "Selected Bluetooth device"} was found, but POS could not connect. Make sure the printer supports BLE mode, is turned on, and is not connected to another device.`
+    );
+  }
   cacheNativeBluetoothPrinterDevice(device, cfg);
   return device;
 }

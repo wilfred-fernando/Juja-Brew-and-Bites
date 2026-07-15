@@ -3082,7 +3082,7 @@ export default function Customer() {
         manifestUrl="/app-updates/customer.json"
         storageKey="juja_customer_apk_download_dismissed"
         logo={LOGO}
-        title="Download JUJA Brew & Bites"
+        title="Download JUJA Customer Portal"
         description="Install the Android APK to order faster and manage your loyalty pass."
         className="fixed bottom-[84px] md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96 z-[90] bg-white border border-cyan-100 p-4 rounded-2xl shadow-[0_10px_30px_rgba(14,116,144,0.14)] flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-300"
       />

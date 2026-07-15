@@ -9,7 +9,7 @@ const appConfigs = {
   },
   customer: {
     appId: 'com.jujabrewandbites.customer',
-    appName: 'JUJA Brew & Bites',
+    appName: 'JUJA Customer Portal',
     url: 'https://customer.jujabrewandbites.com',
   },
 } as const;

@@ -1,6 +1,6 @@
 {
-  "name": "JUJA Brew & Bites",
-  "short_name": "JUJA Brew & Bites",
+  "name": "JUJA Customer Portal",
+  "short_name": "JUJA Customer",
   "description": "Customer ordering and loyalty portal for Juja Brew & Bites.",
   "start_url": "/customer",
   "scope": "/",
