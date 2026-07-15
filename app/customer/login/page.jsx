@@ -7,6 +7,7 @@ import AuthTurnstile, { isTurnstileEnabled } from "@/components/AuthTurnstile";
 import CustomerApkUpdatePrompt from "@/components/CustomerApkUpdatePrompt";
 import PasswordField from "@/components/PasswordField";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { getStableSession } from "@/lib/supabase/session";
 
 const supabase = getSupabaseClient();
 
@@ -45,12 +46,12 @@ export default function Login() {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const { data } = await supabase.auth.getSession();
+        const { session } = await getStableSession(supabase);
 
-        if (data?.session) {
+        if (session) {
           
     if (window.location.pathname !== "/customer") {
-        window.location.href = "/customer";
+        window.location.replace("/customer");
       }
       return;
 
@@ -135,9 +136,9 @@ export default function Login() {
 
       // ✅ FORCE FULL RELOAD (IMPORTANT)
       if (isAdminPortal) {
-        window.location.href = "/admin/pos";
+        window.location.replace("/admin/pos");
       } else {
-        window.location.href = "/customer";
+        window.location.replace("/customer");
       }
     } catch (err) {
       setError(err.message || (mode === "signup" ? "Unable to create account." : "Invalid credentials."));

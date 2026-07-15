@@ -4427,7 +4427,6 @@ export default function POSPage() {
 
       const role = String(profile?.role || "").toLowerCase();
       if (role !== "cashier" && role !== "admin") {
-        await supabase.auth.signOut();
         window.location.replace("/pos/login");
         return;
       }
@@ -7757,7 +7756,7 @@ export default function POSPage() {
     if (typeof window !== "undefined") {
       localStorage.removeItem("pos_store_id");
       localStorage.removeItem("cashier_name");
-      window.location.href = "/pos/login";
+      window.location.replace("/pos/login");
     }
   };
 

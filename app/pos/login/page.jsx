@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AuthTurnstile, { isTurnstileEnabled } from "@/components/AuthTurnstile";
 import PasswordField from "@/components/PasswordField";
 import PosApkUpdatePrompt from "@/components/PosApkUpdatePrompt";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { getStableSession } from "@/lib/supabase/session";
 
 export default function LoginPage() {
   const supabase = getSupabaseClient();
@@ -16,6 +17,39 @@ export default function LoginPage() {
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    async function restoreSession() {
+      try {
+        const { session } = await getStableSession(supabase);
+        if (!active || !session?.user?.id) return;
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role, store_id, full_name")
+          .eq("id", session.user.id)
+          .maybeSingle();
+
+        const role = String(profile?.role || "").toLowerCase();
+        if ((role === "cashier" || role === "admin") && profile?.store_id) {
+          localStorage.setItem("pos_store_id", profile.store_id);
+          if (profile?.full_name) {
+            localStorage.setItem("cashier_name", profile.full_name);
+          }
+          window.location.replace("/pos");
+        }
+      } catch (err) {
+        console.warn("POS session restore skipped:", err);
+      }
+    }
+
+    restoreSession();
+    return () => {
+      active = false;
+    };
+  }, [supabase]);
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -56,20 +90,18 @@ export default function LoginPage() {
 
       // ✅ ✅ ✅ 3. FORCE CHANGE PASSWORD (FIXED)
       if (profile?.must_change_password === true) {
-        window.location.href = "/pos/change-password";
+        window.location.replace("/pos/change-password");
         return;
       }
 
       // ✅ 4. Role check
       const role = String(profile?.role || "").toLowerCase();
       if (role !== "cashier" && role !== "admin") {
-        await supabase.auth.signOut();
         throw new Error("This account is not allowed to use the POS.");
       }
 
       // ✅ 5. Store required
       if (!profile?.store_id) {
-        await supabase.auth.signOut();
         throw new Error("No store assigned. Ask admin.");
       }
 
@@ -81,7 +113,7 @@ export default function LoginPage() {
       }
 
       // ✅ 7. Go to POS
-      window.location.href = "/pos";
+      window.location.replace("/pos");
 
     } catch (err) {
       setErrorMsg(err?.message || "Login failed.");

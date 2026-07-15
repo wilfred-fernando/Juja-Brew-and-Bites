@@ -15,6 +15,7 @@ import { findVoucherForMenuItem, isPromoCategoryName, isPromoMenuItem, isVoucher
 import BookingTab from "@/components/BookingForm";
 import CustomerApkUpdatePrompt from "@/components/CustomerApkUpdatePrompt";
 import ApkDownloadBanner from "@/components/ApkDownloadBanner";
+import { getStableSession } from "@/lib/supabase/session";
 
 const Barcode = dynamic(() => import("react-barcode"), { ssr: false });
 
@@ -2818,10 +2819,9 @@ export default function Customer() {
 
     async function loadData() {
       try {
-        const { data, error: sessionError } = await supabase.auth.getSession();
+        const { session, error: sessionError } = await getStableSession(supabase);
         if (sessionError) throw sessionError;
 
-        const session = data?.session;
         if (!session) {
           setLoading(false);
           router.replace(customerPortalPath("/login"));
@@ -2852,8 +2852,6 @@ export default function Customer() {
         }
       } catch (err) {
         console.warn("Customer session load failed:", err);
-        await supabase.auth.signOut();
-        router.replace(customerPortalPath("/login"));
       } finally {
         setLoading(false);
       }
@@ -3035,7 +3033,7 @@ export default function Customer() {
 
   const logout = async () => {
     await supabase.auth.signOut();
-    router.push(customerPortalPath("/login"));
+    router.replace(customerPortalPath("/login"));
   };
 
   return (
