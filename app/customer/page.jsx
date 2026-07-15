@@ -462,7 +462,7 @@ function HomeTab({ member, user, setTab }) {
       address: "8 Visayas Ave., Diliman, QC",
       phone: "0961-6320909",
       hoursLabel: "STORE HOURS",
-      hours: ["Mon - Wed: 8AM – 10PM", "Thu - Sat: 10AM – 10PM", "Sun: CLOSED"],
+      hours: ["Mon - Sat: 9AM – 10PM", "Sun: CLOSED"],
       room: [],
     },
   };

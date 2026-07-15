@@ -413,7 +413,7 @@ function Footer() {
             <p>8 Visayas Ave., Diliman, QC</p>
             <p>0961-6320909</p>
             <p className="text-[11px] text-slate-500">
-              Mon-Wed: 8AM-10PM · Thu-Sat: 10AM-10PM
+              Mon-Sat: 9AM–10PM · Sun: CLOSED
             </p>
           </div>
         </div>
