@@ -937,7 +937,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                   className={`py-3 rounded-xl border flex flex-col items-center justify-center gap-1.5 font-bold text-xs transition ${
                     diningOption === opt.id
                       ? "border-[#FC687D] bg-blue-300/50 text-[#FC687D]"
-                      : "border-slate-200 bg-white text-slate-600 hover:bg-blue-100"
+                      : "border-slate-200 bg-blue-100/50 text-slate-600 hover:bg-blue-300/80"
                   }`}
                 >
                   <span className="text-base">{opt.icon}</span>
