@@ -1304,7 +1304,7 @@ export default function BookingForm({ user, member }) {
         </h2>
         <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">
           {stripCitationsAndLinks(
-            `Booking is 2 hours 59 minutes + optional extension (max ${MAX_EXTENSION_HOURS} hours).`
+            `Booking is 3 hours + optional extension (max ${MAX_EXTENSION_HOURS} hours).`
           )}
         </p>
       </div>

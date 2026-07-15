@@ -9,6 +9,7 @@ import { appendKdsTicketItems, markKdsTicketItemVoided, markKdsTicketStatus, ups
 import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib/loyalty/annualReset";
 import { isWelcomeVoucher, WELCOME_VOUCHER_REWARD_TEXT } from "@/lib/loyalty/welcomeVoucher";
 import { loyaltyEligibleLineTotal } from "@/lib/menuPromos";
+import { ensureNativeNotificationPermission, isNativeApp, showNativeNotification } from "@/lib/nativeNotifications";
 import TicketPanel from "@/components/pos/TicketPanel";
 import PosApkUpdatePrompt from "@/components/PosApkUpdatePrompt";
 import ApkDownloadBanner from "@/components/ApkDownloadBanner";
@@ -4024,6 +4025,10 @@ export default function POSPage() {
   }, []);
 
   useEffect(() => {
+    if (isNativeApp()) {
+      ensureNativeNotificationPermission();
+      return;
+    }
     if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
@@ -4175,9 +4180,18 @@ export default function POSPage() {
       fetchPendingCount(storeId);
       fetchAcceptedWebOrders();
       startContinuousAlertChime();
+      const notificationBody = `${order.customer_name || "Customer"} - ${peso2(order.total || order.subtotal || 0)}`;
+      const nativeShown = await showNativeNotification({
+        title: "New Web Order",
+        body: notificationBody,
+        tag: `web-order:${incomingId}`,
+        channelId: "pos-web-orders",
+        channelName: "POS Web Orders",
+      });
+      if (nativeShown) return;
       if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
         new Notification("New Web Order", {
-          body: `${order.customer_name || "Customer"} - ${peso2(order.total || order.subtotal || 0)}`,
+          body: notificationBody,
           icon: "/images/juja-logo.png",
           badge: "/images/juja-logo.png",
           tag: String(incomingId),
@@ -5847,11 +5861,14 @@ export default function POSPage() {
       }
     }
     const receiptStatusForOrder = (order, key) => {
+      const orderRefund = Math.abs(Number(order?.refund_amount || 0));
+      const orderTotal = Math.abs(Number(order?.total || order?.net_amount || order?.subtotal || 0));
+      const status = String(order?.status || "").toLowerCase();
+      const partialByAmount = orderRefund > 0 && (!orderTotal || orderRefund < orderTotal);
+      if (status.includes("partial_refund") || status.includes("partial refund") || partialByAmount) return "Partial Refund";
+      if (status.includes("refund")) return "Refunded";
       const cached = refunds[key]?.receipt;
       if (cached) return cached;
-      const status = String(order?.status || "").toLowerCase();
-      if (status.includes("partial_refund")) return "Partial Refund";
-      if (status.includes("refund")) return "Refunded";
       return "Closed";
     };
     const receiptStatusForItem = (item, receiptNumber, fallbackKey) => {
@@ -6261,10 +6278,11 @@ export default function POSPage() {
       return;
     }
     if (itemRow.order_id || receiptKey) {
+      let nextReceiptStatus = "Partial Refund";
       const orderId = itemRow.order_id || receiptKey;
       const { data: orderAudit } = await supabase
         .from("orders")
-        .select("refund_amount, loyalty_points_awarded, loyalty_member_id, customer_id")
+        .select("status, refund_amount, total, net_amount, subtotal, source_metadata, loyalty_points_awarded, loyalty_member_id, customer_id")
         .eq("id", orderId)
         .maybeSingle();
       const itemRefundAmount = Number(itemRow.net_sales || itemRow.gross_sales || 0);
@@ -6296,25 +6314,40 @@ export default function POSPage() {
       }
       const { data: refundedItems } = await supabase
         .from("order_items")
-        .select("refund_amount, net_amount, line_total, status, refunded_at")
+        .select("id, refund_amount, net_amount, line_total, status, refunded_at")
         .eq("order_id", orderId);
       const nextRefundAmount = (refundedItems || []).reduce((sum, item) => {
         const status = String(item?.status || "").toLowerCase();
         if (!item?.refunded_at && !status.includes("refund")) return sum;
         return sum + Math.abs(Number(item.refund_amount || item.net_amount || item.line_total || 0));
       }, 0) || itemRefundAmount;
+      const allItemsRefunded =
+        (refundedItems || []).length > 0 &&
+        (refundedItems || []).every((item) => {
+          const status = String(item?.status || "").toLowerCase();
+          return Boolean(item?.refunded_at || status.includes("refund"));
+        });
+      nextReceiptStatus = allItemsRefunded ? "Refunded" : "Partial Refund";
       const currentAwarded = Number(orderAudit?.loyalty_points_awarded || 0);
       const calculatedPoints = calcLoyaltyPoints(itemRefundAmount);
       const pointsToReverse = currentAwarded > 0 ? Math.min(currentAwarded, calculatedPoints) : calculatedPoints;
+      const orderRefundUpdate = allItemsRefunded
+        ? {
+            status: "refunded",
+            refund_amount: nextRefundAmount,
+            refunded_at: itemRefundedAt,
+            refunded_by: currentUserId || null,
+            refund_reason: "POS item refund",
+          }
+        : {
+            status: "partial_refund",
+            refund_amount: nextRefundAmount,
+            refunded_by: currentUserId || null,
+            refund_reason: "POS item refund",
+          };
       const { error: refundError } = await supabase
         .from("orders")
-        .update({
-          status: "partial_refund",
-          refund_amount: nextRefundAmount,
-          refunded_at: itemRefundedAt,
-          refunded_by: currentUserId || null,
-          refund_reason: "POS item refund",
-        })
+        .update(orderRefundUpdate)
         .eq("id", orderId);
       if (refundError) {
         showToast("warn", "Refund Audit Skipped", refundError.message);
@@ -6323,23 +6356,43 @@ export default function POSPage() {
       if (memberId && pointsToReverse > 0) {
         await reverseMemberLoyaltyPoints(memberId, pointsToReverse, itemRefundAmount, orderId);
       }
-      await markKdsTicketItemVoided(supabase, {
+      const kdsVoidResult = await markKdsTicketItemVoided(supabase, {
         sourceType: "pos",
         sourceId: orderId,
         itemId: itemRow.id,
         itemName: itemRow.item,
       });
+      const originalKdsSourceId = orderAudit?.source_metadata?.open_ticket_id || orderAudit?.source_metadata?.saved_ticket_id || null;
+      if (!kdsVoidResult?.matched && originalKdsSourceId && String(originalKdsSourceId) !== String(orderId)) {
+        await markKdsTicketItemVoided(supabase, {
+          sourceType: "pos",
+          sourceId: originalKdsSourceId,
+          itemId: itemRow.id,
+          itemName: itemRow.item,
+        });
+      }
+      const next = {
+        ...receiptRefunds,
+        [receiptKey]: {
+          ...(receiptRefunds[receiptKey] || {}),
+          receipt: nextReceiptStatus,
+          items: { ...(receiptRefunds[receiptKey]?.items || {}), [itemKey]: "Refunded" },
+        },
+      };
+      saveReceiptRefunds(next);
+      setReceiptRows((prev) => prev.map((row) => row.receipt_number === receiptKey ? { ...row, status: nextReceiptStatus, refund_amount: nextRefundAmount, net_sales: Math.max(0, Number(row.total_collected || row.net_sales || 0) - nextRefundAmount) } : row));
+    } else {
+      const next = {
+        ...receiptRefunds,
+        [receiptKey]: {
+          ...(receiptRefunds[receiptKey] || {}),
+          receipt: receiptRefunds[receiptKey]?.receipt === "Refunded" ? "Refunded" : "Partial Refund",
+          items: { ...(receiptRefunds[receiptKey]?.items || {}), [itemKey]: "Refunded" },
+        },
+      };
+      saveReceiptRefunds(next);
+      setReceiptRows((prev) => prev.map((row) => row.receipt_number === receiptKey && row.status !== "Refunded" ? { ...row, status: "Partial Refund" } : row));
     }
-    const next = {
-      ...receiptRefunds,
-      [receiptKey]: {
-        ...(receiptRefunds[receiptKey] || {}),
-        receipt: receiptRefunds[receiptKey]?.receipt === "Refunded" ? "Refunded" : "Partial Refund",
-        items: { ...(receiptRefunds[receiptKey]?.items || {}), [itemKey]: "Refunded" },
-      },
-    };
-    saveReceiptRefunds(next);
-    setReceiptRows((prev) => prev.map((row) => row.receipt_number === receiptKey && row.status !== "Refunded" ? { ...row, status: "Partial Refund" } : row));
     setReceiptItemRows((prev) => prev.map((row) => row.receipt_number === receiptKey && (row.id || row.item) === itemKey ? { ...row, status: "Refunded", refunded_at: new Date().toISOString(), refund_amount: Number(row.net_sales || row.gross_sales || 0) } : row));
     showToast("success", "Item Refunded", itemRow.item);
   }
@@ -7266,6 +7319,9 @@ export default function POSPage() {
           source_metadata: {
             payment_splits: normalizedSplitPayments,
             payment_label: paymentLabel,
+            open_ticket_id: originalTicketId || null,
+            saved_ticket_id: originalTicketId || null,
+            web_order_id: activeWebOrderId || null,
           },
           dining_option: chargedDiningLabel || "WEB_ORDER",
         }])

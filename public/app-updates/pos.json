@@ -1,7 +1,7 @@
 {
   "app": "pos",
-  "latestVersion": "1.0.2",
-  "latestBuild": 3,
-  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-pos-v1.0.2.apk",
-  "releaseNotes": "Latest JUJA POS app update."
+  "latestVersion": "1.0.3",
+  "latestBuild": 4,
+  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-pos-v1.0.3.apk",
+  "releaseNotes": "Adds native Android notifications for incoming web orders."
 }

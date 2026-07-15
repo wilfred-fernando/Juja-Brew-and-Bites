@@ -12,6 +12,7 @@ import { webDiningOptionLabel } from "@/lib/kds";
 import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib/loyalty/annualReset";
 import { isWelcomeVoucher, WELCOME_VOUCHER_REWARD_TEXT } from "@/lib/loyalty/welcomeVoucher";
 import { findVoucherForMenuItem, isPromoCategoryName, isPromoMenuItem, isVoucherAvailable, loyaltyEligibleLineTotal } from "@/lib/menuPromos";
+import { ensureNativeNotificationPermission, isNativeApp, showNativeNotification } from "@/lib/nativeNotifications";
 import BookingTab from "@/components/BookingForm";
 import CustomerApkUpdatePrompt from "@/components/CustomerApkUpdatePrompt";
 import ApkDownloadBanner from "@/components/ApkDownloadBanner";
@@ -113,6 +114,7 @@ async function registerCustomerServiceWorker() {
 }
 
 async function requestCustomerNotificationPermission() {
+  if (isNativeApp()) return ensureNativeNotificationPermission();
   if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
   if (Notification.permission !== "default") return Notification.permission;
   try {
@@ -124,9 +126,6 @@ async function requestCustomerNotificationPermission() {
 }
 
 async function showCustomerPanelNotification(payload) {
-  if (typeof window === "undefined" || !("Notification" in window)) return;
-  if (Notification.permission !== "granted") return;
-
   const notificationPayload = {
     title: "Juja Brew & Bites",
     icon: CUSTOMER_NOTIFICATION_ICON,
@@ -135,6 +134,18 @@ async function showCustomerPanelNotification(payload) {
     requireInteraction: true,
     ...payload,
   };
+
+  const nativeShown = await showNativeNotification({
+    title: notificationPayload.title,
+    body: notificationPayload.body,
+    tag: notificationPayload.tag,
+    channelId: "customer-orders",
+    channelName: "Customer Order Alerts",
+  });
+  if (nativeShown) return;
+
+  if (typeof window === "undefined" || !("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
 
   const registration = await registerCustomerServiceWorker();
   if (registration?.showNotification) {
@@ -2989,7 +3000,9 @@ export default function Customer() {
 
   const notifyOrderStatus = async (order) => {
     const status = String(order?.status || "").toLowerCase();
-    if (status !== "ready" && status !== "completed") return;
+    const isReady = status === "ready";
+    const isDelivered = status === "delivered" || status === "completed";
+    if (!isReady && !isDelivered) return;
 
     const key = `${order.id}:${status}`;
     if (alertedOrderStatusRef.current.has(key)) return;
@@ -2997,7 +3010,7 @@ export default function Customer() {
 
     const orderIdShort = order.id.slice(0, 8).toUpperCase();
     const points = loyaltyPoints(order.total || order.subtotal).toFixed(2);
-    if (status === "ready") {
+    if (isReady) {
       startReadyAlertSound();
     } else {
       stopReadyAlertSound();
@@ -3008,15 +3021,15 @@ export default function Customer() {
     showToast(
       "success",
       status === "ready" ? "Order Ready! 🛎️" : "Order Completed ✅",
-      status === "ready"
+      isReady
         ? `Order #${orderIdShort} is fresh and ready for pickup or delivery.`
-        : `Order #${orderIdShort} is completed. Loyalty points earned: +${points}.`
+        : `Order #${orderIdShort} is delivered. Loyalty points earned: +${points}.`
     );
 
     await showCustomerPanelNotification({
-      body: status === "ready"
+      body: isReady
         ? `Order #${orderIdShort} is ready! Come claim your fresh brews and bites.`
-        : `Order #${orderIdShort} has been completed. Enjoy your items!`,
+        : `Order #${orderIdShort} has been delivered. Enjoy your items!`,
       tag: `${order.id}:${status}`,
       url: "/customer?tab=history",
     });
