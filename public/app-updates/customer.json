@@ -1,7 +1,7 @@
 {
   "app": "customer",
-  "latestVersion": "1.0.1",
-  "latestBuild": 2,
-  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-customer-v1.0.1.apk",
+  "latestVersion": "1.0.2",
+  "latestBuild": 3,
+  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-customer-v1.0.2.apk",
   "releaseNotes": "Latest JUJA Customer Portal app update."
 }

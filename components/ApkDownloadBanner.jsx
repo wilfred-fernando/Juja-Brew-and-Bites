@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 
 export default function ApkDownloadBanner({
   manifestUrl,
@@ -19,6 +20,7 @@ export default function ApkDownloadBanner({
 
     async function loadManifest() {
       try {
+        if (Capacitor.isNativePlatform()) return;
         if (storageKey && localStorage.getItem(storageKey) === "true") return;
         const response = await fetch(`${manifestUrl}?t=${Date.now()}`, { cache: "no-store" });
         if (!response.ok) return;

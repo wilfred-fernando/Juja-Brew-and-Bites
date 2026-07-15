@@ -1,7 +1,7 @@
 {
   "app": "pos",
-  "latestVersion": "1.0.1",
-  "latestBuild": 2,
-  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-pos-v1.0.1.apk",
-  "releaseNotes": "Latest JUJA POS app update with native Bluetooth printer support."
+  "latestVersion": "1.0.2",
+  "latestBuild": 3,
+  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-pos-v1.0.2.apk",
+  "releaseNotes": "Latest JUJA POS app update."
 }
