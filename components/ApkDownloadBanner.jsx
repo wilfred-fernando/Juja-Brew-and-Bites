@@ -63,7 +63,7 @@ export default function ApkDownloadBanner({
         <a
           href={manifest.apkUrl}
           download
-          className="rounded-lg bg-cyan-700 px-3 py-1.5 text-center text-[10px] font-bold uppercase tracking-wider text-white shadow-sm transition hover:bg-cyan-800 active:scale-95"
+          className="rounded-lg bg-blue-300/50 px-3 py-1.5 text-center text-[10px] font-bold uppercase tracking-wider text-white shadow-sm transition hover:bg-blue-300/80 active:scale-95"
         >
           {cta}
         </a>

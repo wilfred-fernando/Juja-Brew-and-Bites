@@ -3083,7 +3083,7 @@ export default function Customer() {
         storageKey="juja_customer_apk_download_dismissed"
         logo={LOGO}
         title="Download JUJA Customer Portal"
-        description="Install the Android APK to order faster and manage your loyalty pass."
+        description="Install the Android APP to order faster and manage your loyalty pass."
         className="fixed bottom-[84px] md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96 z-[90] bg-white border border-cyan-100 p-4 rounded-2xl shadow-[0_10px_30px_rgba(14,116,144,0.14)] flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-300"
       />
 
@@ -3096,7 +3096,7 @@ export default function Customer() {
           <div className="flex flex-col gap-1.5 shrink-0">
             <button
               onClick={enableCustomerNotifications}
-              className="px-3 py-1.5 bg-[#FC687D] hover:bg-rose-500 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg shadow-sm transition"
+              className="px-3 py-1.5 bg-blue-300/50 hover:bg-blue-300/80 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg shadow-sm transition"
             >
               Enable
             </button>
