@@ -986,7 +986,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                         className={`w-full rounded-lg px-3 py-2 text-left text-xs font-bold transition ${
                           fulfillmentTime === option.value
                             ? "border-[#FC687D] bg-blue-300/50 text-[#FC687D]"
-                            : "border-slate-200 bg-white text-slate-600 hover:bg-blue-100"
+                            : "border-slate-200 bg-blue-100/50 text-slate-600 hover:bg-blue-300/80"
                         }`}
                       >
                         {option.label}
@@ -1041,7 +1041,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                     className={`h-10 rounded-xl border text-xs font-bold uppercase tracking-wider ${
                       paymentMethod === method
                         ? "border-[#FC687D] bg-blue-300/50 text-[#FC687D]"
-                      : "border-slate-200 bg-white text-slate-600 hover:bg-blue-100"
+                      : "border-slate-200 bg-blue-100/50 text-slate-600 hover:bg-blue-300/80"
                     }`}
                   >
                     {method}
