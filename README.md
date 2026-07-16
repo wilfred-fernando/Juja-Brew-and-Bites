@@ -96,3 +96,17 @@ For email confirmation, the button should point to:
 ```html
 https://customer.jujabrewandbites.com/auth/callback?token_hash={{ .TokenHash }}&type=email
 ```
+
+## Customer APK Push Notifications
+
+Native closed/background order status notifications use Firebase Cloud Messaging. See:
+
+```txt
+docs/firebase-push-notifications.md
+```
+
+After adding Firebase credentials locally and in Vercel, verify with:
+
+```bash
+npm run verify:push-config
+```

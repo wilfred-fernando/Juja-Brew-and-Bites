@@ -1,7 +1,7 @@
 {
   "app": "customer",
-  "latestVersion": "1.0.7",
-  "latestBuild": 8,
-  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-customer-v1.0.7.apk",
-  "releaseNotes": "Fixes Customer APK launch target so it opens the Customer Portal instead of the POS login."
+  "latestVersion": "1.0.8",
+  "latestBuild": 9,
+  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-customer-v1.0.8.apk",
+  "releaseNotes": "Adds native customer push notifications for order ready and completed alerts, including background notification support."
 }

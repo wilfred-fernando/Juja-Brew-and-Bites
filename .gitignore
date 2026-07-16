@@ -24,6 +24,8 @@
 /releases/*.apk
 /public/downloads/*.apk
 /android/app/build/outputs/**/*.apk
+/android/app/google-services.json
+/android/app/src/*/google-services.json
 /android/keystore.properties
 /android/keystore-*.properties
 /android/signing/*.jks

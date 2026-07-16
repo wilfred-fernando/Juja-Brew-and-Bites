@@ -12,7 +12,7 @@ import { webDiningOptionLabel } from "@/lib/kds";
 import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib/loyalty/annualReset";
 import { isWelcomeVoucher, WELCOME_VOUCHER_REWARD_TEXT } from "@/lib/loyalty/welcomeVoucher";
 import { findVoucherForMenuItem, isPromoCategoryName, isPromoMenuItem, isVoucherAvailable, loyaltyEligibleLineTotal } from "@/lib/menuPromos";
-import { ensureNativeNotificationPermission, isNativeApp, showNativeNotification } from "@/lib/nativeNotifications";
+import { ensureNativeNotificationPermission, isNativeApp, registerNativeCustomerPush, showNativeNotification } from "@/lib/nativeNotifications";
 import BookingTab from "@/components/BookingForm";
 import CustomerApkUpdatePrompt from "@/components/CustomerApkUpdatePrompt";
 import ApkDownloadBanner from "@/components/ApkDownloadBanner";
@@ -2963,6 +2963,15 @@ export default function Customer() {
     pollCustomerOrders();
 
     return () => window.clearInterval(pollTimer);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    registerNativeCustomerPush({ supabase, userId: user.id }).then((result) => {
+      if (result?.supported && result?.granted === false) {
+        setShowNotificationBanner(true);
+      }
+    });
   }, [user?.id]);
 
   useEffect(() => {

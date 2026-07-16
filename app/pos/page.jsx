@@ -5435,6 +5435,28 @@ export default function POSPage() {
     showToast("success", "Item Removed", `${removedItemName} removed from the web order.`);
   }
 
+  async function sendCustomerOrderPush(webOrderId, status) {
+    if (!webOrderId || !status) return;
+    try {
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data?.session?.access_token;
+      const response = await fetch("/api/customer/order-push", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ webOrderId, status }),
+      });
+      if (!response.ok) {
+        const details = await response.json().catch(() => ({}));
+        console.warn("Customer push notification skipped:", details?.error || response.status);
+      }
+    } catch (error) {
+      console.warn("Customer push notification skipped:", error);
+    }
+  }
+
   async function markWebOrderReady(order) {
     if (!order?.id) return;
     const orderStoreId = getWebOrderStoreId(order) || storeId;
@@ -5469,6 +5491,7 @@ export default function POSPage() {
         metadata: { status: "ready" },
       }]);
     }
+    await sendCustomerOrderPush(order.id, "ready");
 
     await fetchAcceptedWebOrders();
     showToast("success", "Customer Alert Sent", "Order status is now ready for pickup or delivery.");
@@ -7416,6 +7439,7 @@ export default function POSPage() {
         if (webCompleteErr) return showToast("error", "Web Order Update Failed", webCompleteErr.message);
 
         await markKdsTicketStatus(supabase, { sourceType: "web", sourceId: activeWebOrderId, status: "completed" });
+        await sendCustomerOrderPush(activeWebOrderId, "completed");
 
         try {
           const updatedCustomer = await awardWebOrderLoyaltyPoints({ ...activeWebOrderForCharge, total, subtotal: grossTotal, pos_order_id: orderRow.id }, calcLoyaltyPoints(loyaltyEligibleTotal), resolvedSaleCustomer?.id);
