@@ -1,7 +1,7 @@
 {
   "app": "pos",
-  "latestVersion": "1.0.5",
-  "latestBuild": 6,
-  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-pos-v1.0.5.apk",
-  "releaseNotes": "Rebuilt with verified POS package target, APK incoming web order popup alerts, audible notification channel, and notification sound."
+  "latestVersion": "1.0.6",
+  "latestBuild": 7,
+  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-pos-v1.0.6.apk",
+  "releaseNotes": "Adds native Android Niimbot B1 Pro cup label printing for POS APK so cup labels no longer depend on browser Web Bluetooth."
 }

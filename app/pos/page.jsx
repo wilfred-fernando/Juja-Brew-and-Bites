@@ -66,7 +66,7 @@ const PRINTER_ROLE_DEFAULT_WIDTH = {
 const PRINTER_ROLE_HINTS = {
   receipt: "Receipt printer for bills and final receipts.",
   order_slip: "Kitchen order slip printer.",
-  cup_label: "Niimbot B1 Pro cup label printer, 50mm x 40mm thermal sticker. Reconnect uses saved browser Bluetooth permission.",
+  cup_label: "Niimbot B1 Pro cup label printer, 50mm x 40mm thermal sticker. The Android app prints through native Bluetooth; browser use still requires Chrome or Edge.",
 };
 const PRINTER_ROLE_STATUS = {
   receipt: "Final receipts",
@@ -172,6 +172,9 @@ function createNativeBleCharacteristicAdapter(device, cfg = {}) {
     },
     async writeValueWithoutResponse(value) {
       await BleClient.writeWithoutResponse(device.deviceId, serviceUuid, characteristicUuid, toDataView(value));
+    },
+    async startNotifications(callback) {
+      await BleClient.startNotifications(device.deviceId, serviceUuid, characteristicUuid, callback);
     },
   };
 }
@@ -458,7 +461,7 @@ function wrapLabelCanvasText(ctx, text, maxWidth) {
   return lines;
 }
 
-function renderNiimbotCupLabelImage(text) {
+function createNiimbotCupLabelCanvas(text) {
   if (typeof document === "undefined") throw new Error("Label rendering is only available in the browser.");
   const canvas = document.createElement("canvas");
   canvas.width = NIIMBOT_50X40_LABEL_SIZE.w_px;
@@ -540,7 +543,204 @@ function renderNiimbotCupLabelImage(text) {
   ctx.fillText(footerLeft, margin, footerY);
   const rightWidth = ctx.measureText(footerRight).width;
   ctx.fillText(footerRight, canvas.width - margin - rightWidth, footerY);
+  return canvas;
+}
+
+function renderNiimbotCupLabelImage(text) {
+  const canvas = createNiimbotCupLabelCanvas(text);
   return canvas.toDataURL("image/png");
+}
+
+function niimbotPackFrame(cmd, data = []) {
+  const pkt = new Uint8Array(7 + data.length);
+  pkt[0] = 0x55;
+  pkt[1] = 0x55;
+  pkt[2] = cmd;
+  pkt[3] = data.length;
+  let crc = cmd ^ data.length;
+  data.forEach((byte, index) => {
+    pkt[4 + index] = byte;
+    crc ^= byte;
+  });
+  pkt[4 + data.length] = crc & 0xff;
+  pkt[5 + data.length] = 0xaa;
+  pkt[6 + data.length] = 0xaa;
+  return pkt;
+}
+
+function niimbotCanvasToPacked(canvas) {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Unable to read cup label canvas.");
+  const width = canvas.width;
+  const height = canvas.height;
+  const pixels = ctx.getImageData(0, 0, width, height).data;
+  const stride = (width + 7) >> 3;
+  const buf = new Uint8Array(stride * height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      const lum = 0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2];
+      if (pixels[i + 3] > 32 && lum < 128) {
+        buf[y * stride + (x >> 3)] |= 0x80 >> (x & 7);
+      }
+    }
+  }
+  return { buf, stride, height, width };
+}
+
+function niimbotRowEmpty(buf, off, stride) {
+  for (let b = 0; b < stride; b++) if (buf[off + b]) return false;
+  return true;
+}
+
+function niimbotPopcountRow(buf, off, stride) {
+  let count = 0;
+  for (let b = 0; b < stride; b++) {
+    let value = buf[off + b];
+    while (value) {
+      count += value & 1;
+      value >>= 1;
+    }
+  }
+  return count;
+}
+
+async function printNativeNiimbotCupLabel(text, cfg) {
+  const characteristic = await bleConnect({
+    ...cfg,
+    ble_service_uuid: cfg?.ble_service_uuid || NIIMBOT_BLE_SERVICE_UUID,
+    ble_characteristic_uuid: cfg?.ble_characteristic_uuid || NIIMBOT_BLE_CHARACTERISTIC_UUID,
+  });
+  const pending = { current: null, lastStatus: null };
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const onNotify = (value) => {
+    const view = value instanceof DataView ? value : toDataView(value);
+    if (view.byteLength < 7 || view.getUint8(0) !== 0x55 || view.getUint8(1) !== 0x55) return;
+    const cmd = view.getUint8(2);
+    const len = view.getUint8(3);
+    const data = [];
+    for (let i = 0; i < len && 4 + i < view.byteLength; i++) data.push(view.getUint8(4 + i));
+    if (pending.current && (pending.current.cmd === cmd || pending.current.cmd === null)) {
+      const waiter = pending.current;
+      pending.current = null;
+      waiter.resolve({ cmd, data });
+    } else if (cmd === 0xb3) {
+      pending.lastStatus = { cmd, data };
+    }
+  };
+
+  try {
+    await characteristic.startNotifications?.(onNotify);
+  } catch (error) {
+    console.warn("Niimbot notifications are unavailable; printing will continue without status polling.", error);
+  }
+
+  const writeRaw = async (bytes) => {
+    for (let tries = 0; tries < 30; tries++) {
+      try {
+        await characteristic.writeValueWithoutResponse(bytes);
+        return;
+      } catch (error) {
+        await sleep(4);
+      }
+    }
+    throw new Error("Failed to write to Niimbot printer. Reconnect the cup label printer and try again.");
+  };
+
+  const send = (cmd, data = []) => writeRaw(niimbotPackFrame(cmd, data));
+  const sendWait = async (cmd, data, wantResp, timeoutMs) => {
+    const wait = new Promise((resolve) => {
+      pending.current = { cmd: wantResp, resolve };
+    });
+    await send(cmd, data);
+    const result = await Promise.race([wait, sleep(timeoutMs).then(() => null)]);
+    if (pending.current?.cmd === wantResp) pending.current = null;
+    return result;
+  };
+
+  const sendImageRows = async ({ buf, stride, height }) => {
+    let row = 0;
+    while (row < height) {
+      const off = row * stride;
+      const isEmpty = niimbotRowEmpty(buf, off, stride);
+      let run = 1;
+      while (row + run < height && run < 200) {
+        let same = true;
+        const nextOff = (row + run) * stride;
+        for (let b = 0; b < stride; b++) {
+          if (buf[off + b] !== buf[nextOff + b]) {
+            same = false;
+            break;
+          }
+        }
+        if (!same) break;
+        run++;
+      }
+      if (isEmpty) {
+        await send(0x84, [(row >> 8) & 0xff, row & 0xff, run]);
+      } else {
+        const total = niimbotPopcountRow(buf, off, stride);
+        const data = new Array(6 + stride);
+        data[0] = (row >> 8) & 0xff;
+        data[1] = row & 0xff;
+        data[2] = 0;
+        data[3] = total & 0xff;
+        data[4] = (total >> 8) & 0xff;
+        data[5] = run;
+        for (let b = 0; b < stride; b++) data[6 + b] = buf[off + b];
+        await send(0x85, data);
+      }
+      row += run;
+    }
+  };
+
+  const getPrintStatus = async (timeoutMs) => {
+    pending.lastStatus = null;
+    const wait = new Promise((resolve) => {
+      pending.current = { cmd: 0xb3, resolve };
+    });
+    await send(0xa3, [0x01]);
+    const result = await Promise.race([wait, sleep(timeoutMs).then(() => null)]);
+    if (pending.current?.cmd === 0xb3) pending.current = null;
+    const status = result || pending.lastStatus;
+    if (!status?.data || status.data.length < 4) return null;
+    return { page: (status.data[0] << 8) | status.data[1], print: status.data[2], feed: status.data[3] };
+  };
+
+  const waitForPrintedPage = async () => {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < 8000) {
+      const status = await getPrintStatus(900);
+      if (status?.page >= 1) return;
+      await sleep(150);
+    }
+  };
+
+  const canvas = createNiimbotCupLabelCanvas(text);
+  const packed = niimbotCanvasToPacked(canvas);
+  const width = NIIMBOT_50X40_LABEL_SIZE.w_px;
+  const height = NIIMBOT_50X40_LABEL_SIZE.h_px;
+  const copies = 1;
+
+  await writeRaw(new Uint8Array([0x03, 0x55, 0x55, 0xc1, 0x01, 0x01, 0xc1, 0xaa, 0xaa]));
+  await sleep(200);
+  await sendWait(0x21, [NIIMBOT_B1_PRO_MODEL.density], 0x31, 1000);
+  await sendWait(0x23, [NIIMBOT_B1_PRO_MODEL.label_type], 0x33, 1000);
+  await sendWait(0x01, [0x00, copies, 0, 0, 0, 0, 0, NIIMBOT_B1_PRO_MODEL.speed, 0], 0x02, 2000);
+  await send(0xa3, [0x01]);
+  await sleep(30);
+  await sendWait(
+    0x13,
+    [(height >> 8) & 0xff, height & 0xff, (width >> 8) & 0xff, width & 0xff, 0x00, copies, 0, 0, 0, 0, 0, 0, 0],
+    0x14,
+    2000
+  );
+  await sendImageRows(packed);
+  await sendWait(0xe3, [0x01], 0xe4, 3000);
+  await waitForPrintedPage();
+  await sendWait(0xf3, [0x01], 0xf4, 2500);
+  return true;
 }
 
 async function getNiimbotDriver() {
@@ -572,6 +772,9 @@ async function withRememberedNiimbotDevice(cfg, callback) {
 }
 
 async function printNiimbotCupLabel(text, cfg) {
+  if (isNativeBluetoothApp()) {
+    return printNativeNiimbotCupLabel(text, cfg);
+  }
   const Niimbot = await getNiimbotDriver();
   const imageUrl = renderNiimbotCupLabelImage(text);
   await withRememberedNiimbotDevice(cfg, () =>
