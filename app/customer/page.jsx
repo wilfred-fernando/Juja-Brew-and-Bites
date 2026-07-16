@@ -1706,6 +1706,9 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
                 <p className="mt-1 w-full border-t border-cyan-50 pt-2 text-center text-[18px] font-semibold text-slate-950">
                   {peso0(item.price)}
                 </p>
+                <p className="mt-1 text-center text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  Tap for options
+                </p>
               </button>
               );
             })}
