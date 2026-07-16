@@ -1113,6 +1113,9 @@ export default function MenuAdminPage() {
                         onChange={(e) => setForm({ ...form, price: e.target.value })}
                         className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 md:py-3 text-xs md:text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-slate-200 transition-all"
                       />
+                      <p className="mt-1.5 text-[10px] text-slate-500">
+                        Base price stays editable even when required variants are enabled.
+                      </p>
                     </div>
                   </div>
 
@@ -1279,7 +1282,7 @@ export default function MenuAdminPage() {
               ) : (
                 <div className="flex flex-col h-full animate-in fade-in duration-300 pb-2">
                   <p className="text-xs text-slate-500 mb-5 font-medium leading-relaxed px-1">
-                    Group 1 acts as your base <strong className="text-slate-700">Variants</strong> (e.g. Regular/Spicy). Additional groups act as Add-ons.
+                    Group 1 can be used for <strong className="text-slate-700">Variants</strong> (e.g. Regular/Spicy). The item base price remains editable on the Details tab.
                   </p>
 
                   <button
