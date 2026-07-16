@@ -6,6 +6,10 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 const supabase = getSupabaseClient();
 import AddToCartModal from "./AddToCartModal";
 
+const hasMenuOptions = (item) =>
+  Array.isArray(item?.variants) &&
+  item.variants.some((group) => (Array.isArray(group?.options) ? group.options.length > 0 : true));
+
 export default function OrderTab() {
   const [items, setItems] = useState([]);
   const [cats, setCategories] = useState([]);
@@ -182,9 +186,11 @@ export default function OrderTab() {
                 <p className="mb-3 text-center text-[13px] font-normal text-[#FC687D] md:text-[15px]">
                   ₱{Number(item.price).toLocaleString()}
                 </p>
-                <p className="mb-3 text-center text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                  Tap for options
-                </p>
+                {hasMenuOptions(item) && (
+                  <p className="mb-3 text-center text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Tap for options
+                  </p>
+                )}
 
                 <div className="mt-auto">
                   {inCart > 0 ? (

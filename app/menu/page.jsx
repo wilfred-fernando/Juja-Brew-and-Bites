@@ -4,6 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
+const hasMenuOptions = (item) =>
+  Array.isArray(item?.variants) &&
+  item.variants.some((group) => (Array.isArray(group?.options) ? group.options.length > 0 : true));
+
 // One clean declaration using your client factory function
 const supabase = getSupabaseClient();
 
@@ -512,9 +516,11 @@ export default function PublicMenuPage() {
                         {peso0(item.price)}
                       </p>
 
-                      <p className="mt-2 text-center text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                        Tap for options
-                      </p>
+                      {hasMenuOptions(item) && (
+                        <p className="mt-2 text-center text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                          Tap for options
+                        </p>
+                      )}
                     </button>
                   );
                 })}

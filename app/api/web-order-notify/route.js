@@ -10,6 +10,10 @@ function peso(value) {
 function manilaDateTime(value) {
   if (!value) return "-";
   try {
+    const normalizedValue =
+      typeof value === "string" && /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(value) && !/(Z|[+-]\d{2}:?\d{2})$/.test(value)
+        ? `${value.replace(" ", "T")}Z`
+        : value;
     return new Intl.DateTimeFormat("en-PH", {
       timeZone: "Asia/Manila",
       year: "numeric",
@@ -18,7 +22,8 @@ function manilaDateTime(value) {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
-    }).format(new Date(value));
+      timeZoneName: "short",
+    }).format(new Date(normalizedValue));
   } catch {
     return String(value);
   }
@@ -87,7 +92,7 @@ export async function POST(req) {
         <tbody>${itemRows(order.items)}</tbody>
       </table>
       <p style="font-size:18px;"><b>Total:</b> ${escapeEmailHtml(peso(order.total || order.subtotal))}</p>
-      <p><b>Submitted:</b> ${escapeEmailHtml(manilaDateTime(order.created_at || new Date().toISOString()))}</p>
+      <p><b>Submitted:</b> ${escapeEmailHtml(manilaDateTime(order.created_at || order.submitted_at || new Date().toISOString()))}</p>
     `;
 
     const email = await sendNotificationEmail({
