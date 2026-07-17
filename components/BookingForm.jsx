@@ -22,6 +22,7 @@ const DEPOSIT_AMOUNT = 1000;
 const PAYMENT_HOLD_HOURS = 24;
 const QR_IMAGE_PATH = "/images/qrph.jpg";
 const ADMIN_EMAIL = "jujabrewandbites@gmail.com";
+const EXPIRED_BOOKING_STATUS = "expired";
 
 /* =====================================================
  Cleaner: Strip citations + OneDrive/SharePoint URLs
@@ -55,6 +56,14 @@ function isExpiredPaymentHold(booking, now = new Date()) {
   if (Number.isNaN(createdAt.getTime())) return false;
 
   return now.getTime() - createdAt.getTime() >= PAYMENT_HOLD_HOURS * 3600000;
+}
+
+function withExpiredBookingStatus(booking, now = new Date()) {
+  if (!booking) return booking;
+  if (booking.status === EXPIRED_BOOKING_STATUS || isExpiredPaymentHold(booking, now)) {
+    return { ...booking, status: EXPIRED_BOOKING_STATUS };
+  }
+  return booking;
 }
 
 function shouldBlockBookingSlot(booking, now = new Date()) {
@@ -649,6 +658,8 @@ export default function BookingForm({ user, member }) {
       setLoadingMyBookings(true);
       setNotice(null);
 
+      await fetch("/api/bookings/expire-stale", { method: "POST" }).catch(() => null);
+
       const { data, error } = await supabase
         .from("function_room_bookings")
         .select("*")
@@ -656,7 +667,7 @@ export default function BookingForm({ user, member }) {
         .order("start_at", { ascending: false });
 
       if (error) setNotice(error.message);
-      else setMyBookings(data || []);
+      else setMyBookings((data || []).map((booking) => withExpiredBookingStatus(booking)));
 
       setLoadingMyBookings(false);
     }
@@ -667,16 +678,23 @@ export default function BookingForm({ user, member }) {
     const now = new Date();
     const upcoming = [];
     const past = [];
+    const expired = [];
 
     for (const b of myBookings || []) {
-      const isPast = new Date(b.start_at) < now;
-      (isPast ? past : upcoming).push(b);
+      const booking = withExpiredBookingStatus(b, now);
+      if (booking.status === EXPIRED_BOOKING_STATUS) {
+        expired.push(booking);
+        continue;
+      }
+      const isPast = new Date(booking.start_at) < now;
+      (isPast ? past : upcoming).push(booking);
     }
 
     upcoming.sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
     past.sort((a, b) => new Date(b.start_at) - new Date(a.start_at));
+    expired.sort((a, b) => new Date(b.created_at || b.start_at) - new Date(a.created_at || a.start_at));
 
-    return { upcoming, past };
+    return { upcoming, past, expired };
   }, [myBookings]);
 
   useEffect(() => {
@@ -1120,16 +1138,19 @@ export default function BookingForm({ user, member }) {
   }
 
   function renderBookingCard(b) {
+    b = withExpiredBookingStatus(b);
     const now = new Date();
     const isPast = new Date(b.start_at) < now;
     const isPending = b.status === "pending";
     const isConfirmed = b.status === "confirmed";
-    const allowChange = !isPast && (isPending || canChangeBooking(b.start_at));
-    const canCancel = !isPast && (isPending || isConfirmed);
+    const isExpired = b.status === EXPIRED_BOOKING_STATUS;
+    const allowChange = !isExpired && !isPast && (isPending || canChangeBooking(b.start_at));
+    const canCancel = !isExpired && !isPast && (isPending || isConfirmed);
 
     const statusMap = {
       confirmed: { text: "Confirmed", color: "bg-green-100 text-green-700" },
       pending: { text: "Pending", color: "bg-blue-100 text-blue-700" },
+      expired: { text: "Expired", color: "bg-slate-200 text-slate-700" },
       rejected: { text: "Rejected", color: "bg-red-100 text-red-700" },
       cancelled_gc: { text: "Gift Certificate", color: "bg-yellow-100 text-yellow-700" },
       cancelled: { text: "Cancelled", color: "bg-slate-100 text-slate-700" },
@@ -1155,15 +1176,21 @@ export default function BookingForm({ user, member }) {
         text: "Payment approved",
         color: "bg-emerald-50 text-emerald-700 border-emerald-200",
       },
+      expired: {
+        text: "Payment hold expired",
+        color: "bg-slate-50 text-slate-700 border-slate-200",
+      },
     };
-    const paymentStatus = paymentStatusMap[b.payment_status] || null;
-    const canSubmitPayment = !isPast && b.status === "pending" && b.payment_status === "waiting_for_payment";
+    const paymentStatus = isExpired
+      ? paymentStatusMap.expired
+      : paymentStatusMap[b.payment_status] || null;
+    const canSubmitPayment = !isExpired && !isPast && b.status === "pending" && b.payment_status === "waiting_for_payment";
 
     return (
       <div
         key={b.id}
         className={`bg-white rounded-2xl border border-sky-50 shadow-sm p-5 transition-all ${
-          isPast ? "opacity-70" : "hover:shadow-md"
+          isPast || isExpired ? "opacity-70" : "hover:shadow-md"
         }`}
       >
         <div className="flex justify-between items-start gap-4">
@@ -1198,6 +1225,12 @@ export default function BookingForm({ user, member }) {
               </p>
             )}
 
+            {isExpired && (
+              <p className="text-[11px] text-slate-500 mt-2">
+                Booking expired because no payment proof was submitted within 24 hours.
+              </p>
+            )}
+
             {isPast && (
               <p className="text-[11px] text-slate-500 mt-2">
                 Past booking — actions are disabled.
@@ -1205,7 +1238,7 @@ export default function BookingForm({ user, member }) {
             )}
           </div>
 
-          {!isPast && (
+          {!isPast && !isExpired && (
             <div className="flex flex-col gap-2 min-w-[140px]">
               {canSubmitPayment && (
                 <button
@@ -1597,6 +1630,7 @@ export default function BookingForm({ user, member }) {
                   <option value="all">All</option>
                   <option value="upcoming">Upcoming</option>
                   <option value="past">Past</option>
+                  <option value="expired">Expired</option>
                 </select>
               </div>
             </div>
@@ -1621,6 +1655,19 @@ export default function BookingForm({ user, member }) {
                     </div>
                   ) : (
                     manageGroups.upcoming.map(renderBookingCard)
+                  )}
+                </div>
+              )}
+
+              {(manageFilter === "all" || manageFilter === "expired") && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-slate-700">Expired</h4>
+                  {manageGroups.expired.length === 0 ? (
+                    <div className="bg-white rounded-2xl border border-sky-50 shadow-sm p-6 text-center">
+                      <p className="text-slate-500 text-sm">No expired bookings.</p>
+                    </div>
+                  ) : (
+                    manageGroups.expired.map(renderBookingCard)
                   )}
                 </div>
               )}

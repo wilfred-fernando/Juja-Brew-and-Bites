@@ -11,6 +11,8 @@ const supabase = getSupabaseClient();
 const OPERATING_START_HOUR = 10; // 10AM
 const BASE_BOOKING_MINUTES = 2 * 60 + 59; // 2h59m
 const MAX_EXTENSION_HOURS = 5;
+const PAYMENT_HOLD_HOURS = 24;
+const EXPIRED_BOOKING_STATUS = "expired";
 const BOOKING_TIME_ZONE = "Asia/Manila";
 const BOOKING_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -100,6 +102,25 @@ function bookingDateTime(value, fallback = "-") {
   const suffix = parts.hour >= 12 ? "PM" : "AM";
   return `${parts.year}-${BOOKING_MONTHS[parts.month - 1]}-${String(parts.day).padStart(2, "0")} ${String(hour12).padStart(2, "0")}:${String(parts.minute).padStart(2, "0")} ${suffix}`;
 }
+function isExpiredPaymentHold(booking, now = new Date()) {
+  const status = String(booking?.status || "").toLowerCase();
+  const paymentStatus = String(booking?.payment_status || "").toLowerCase();
+  const hasProof = Boolean(booking?.payment_proof_url);
+
+  if (status !== "pending" || paymentStatus !== "waiting_for_payment" || hasProof) return false;
+
+  const createdAt = new Date(booking?.created_at || 0);
+  if (Number.isNaN(createdAt.getTime())) return false;
+
+  return now.getTime() - createdAt.getTime() >= PAYMENT_HOLD_HOURS * 3600000;
+}
+function withExpiredBookingStatus(booking, now = new Date()) {
+  if (!booking) return booking;
+  if (booking.status === EXPIRED_BOOKING_STATUS || isExpiredPaymentHold(booking, now)) {
+    return { ...booking, status: EXPIRED_BOOKING_STATUS };
+  }
+  return booking;
+}
 function formatPeso(n) {
   return `₱${Number(n || 0).toLocaleString()}`;
 }
@@ -107,6 +128,7 @@ function statusPill(status) {
   const map = {
     confirmed: "bg-green-100 text-green-700 border-green-200",
     pending: "bg-blue-100 text-blue-700 border-blue-200",
+    expired: "bg-slate-200 text-slate-700 border-slate-300",
     rejected: "bg-red-100 text-red-700 border-red-200",
     cancelled_gc: "bg-yellow-100 text-yellow-700 border-yellow-200",
     cancelled: "bg-slate-100 text-slate-700 border-slate-200",
@@ -117,6 +139,7 @@ function statusPill(status) {
 function niceStatus(status) {
   if (status === "confirmed") return "Confirmed";
   if (status === "pending") return "Pending";
+  if (status === "expired") return "Expired";
   if (status === "rejected") return "Rejected";
   if (status === "cancelled_gc") return "Gift Cert";
   if (status === "cancelled") return "Cancelled";
@@ -297,11 +320,12 @@ export default function AdminBookingsDashboard() {
 
   const isPastBooking = (b) => new Date(b.start_at) < now;
   const isConfirmedBooking = (b) => b.status === "confirmed";
-  const terminalBookingStatuses = new Set(["rejected", "cancelled", "cancelled_gc"]);
+  const isExpiredBooking = (b) => withExpiredBookingStatus(b, now)?.status === EXPIRED_BOOKING_STATUS;
+  const terminalBookingStatuses = new Set(["rejected", "cancelled", "cancelled_gc", EXPIRED_BOOKING_STATUS]);
 
-  const disableEdit = (b) => isPastBooking(b);
+  const disableEdit = (b) => isPastBooking(b) || isExpiredBooking(b);
   const disableApproveReject = (b) =>
-    isPastBooking(b) || isConfirmedBooking(b) || terminalBookingStatuses.has(b.status);
+    isPastBooking(b) || isConfirmedBooking(b) || terminalBookingStatuses.has(withExpiredBookingStatus(b, now)?.status);
 
   function statusUpdatePayload(type, booking) {
     const approving = type === "approve" || type === "approve_bulk";
@@ -333,6 +357,7 @@ export default function AdminBookingsDashboard() {
   ======================= */
   async function loadAll() {
     setLoading(true);
+    await fetch("/api/bookings/expire-stale", { method: "POST" }).catch(() => null);
     const [{ data: pkgData, error: pkgErr }, { data: bookingData, error: bookErr }] =
       await Promise.all([
         supabase.from("function_room_packages").select("*").order("id", { ascending: true }),
@@ -343,7 +368,7 @@ export default function AdminBookingsDashboard() {
     if (bookErr) console.error(bookErr);
 
     setPackages(pkgData || []);
-    setBookings(bookingData || []);
+    setBookings((bookingData || []).map((booking) => withExpiredBookingStatus(booking)));
     setSelectedIds(new Set());
     setLoading(false);
   }
@@ -378,8 +403,9 @@ export default function AdminBookingsDashboard() {
                 return next;
               }
 
-              if (idx >= 0) next[idx] = { ...next[idx], ...(payload.new || {}) };
-              else next.push(payload.new);
+              const normalized = withExpiredBookingStatus(payload.new);
+              if (idx >= 0) next[idx] = withExpiredBookingStatus({ ...next[idx], ...(payload.new || {}) });
+              else next.push(normalized);
 
               next.sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
               return next;
@@ -415,6 +441,7 @@ export default function AdminBookingsDashboard() {
     const pending = bookings.filter((b) => b.status === "pending" || b.status === "cancellation_requested").length;
     const confirmed = bookings.filter((b) => b.status === "confirmed").length;
     const rejected = bookings.filter((b) => b.status === "rejected").length;
+    const expired = bookings.filter((b) => b.status === EXPIRED_BOOKING_STATUS).length;
     const cancelled = bookings.filter((b) => b.status === "cancelled_gc" || b.status === "cancelled").length;
 
     const revenueConfirmed = bookings
@@ -434,7 +461,7 @@ export default function AdminBookingsDashboard() {
       return s >= now && s <= next7;
     }).length;
 
-    return { total, pending, confirmed, rejected, cancelled, revenueConfirmed, depositRevenue, upcoming7 };
+    return { total, pending, confirmed, rejected, expired, cancelled, revenueConfirmed, depositRevenue, upcoming7 };
   }, [bookings, pkgById, now]);
 
   const last14DaysCharts = useMemo(() => {
@@ -473,6 +500,7 @@ export default function AdminBookingsDashboard() {
       { label: "Pending", value: stats.pending, color: "#93C5FD" },
       { label: "Confirmed", value: stats.confirmed, color: "#86EFAC" },
       { label: "Rejected", value: stats.rejected, color: "#FCA5A5" },
+      { label: "Expired", value: stats.expired, color: "#CBD5E1" },
       { label: "Cancelled", value: stats.cancelled, color: "#FDE68A" },
     ];
   }, [stats]);
@@ -481,7 +509,7 @@ export default function AdminBookingsDashboard() {
     List Filters + Results
   ======================= */
   const filteredBookings = useMemo(() => {
-    let data = [...bookings];
+    let data = bookings.map((booking) => withExpiredBookingStatus(booking, now));
 
     if (q.trim()) {
       const qq = safeLower(q);
@@ -517,21 +545,26 @@ export default function AdminBookingsDashboard() {
   const bookingSections = useMemo(() => {
     const pending = [];
     const upcoming = [];
+    const expired = [];
     const past = [];
 
     for (const booking of filteredBookings) {
-      if (booking.status === "pending" || booking.status === "cancellation_requested") {
-        pending.push(booking);
-      } else if (new Date(booking.start_at) < now) {
-        past.push(booking);
+      const normalized = withExpiredBookingStatus(booking, now);
+      if (normalized.status === EXPIRED_BOOKING_STATUS) {
+        expired.push(normalized);
+      } else if (normalized.status === "pending" || normalized.status === "cancellation_requested") {
+        pending.push(normalized);
+      } else if (new Date(normalized.start_at) < now) {
+        past.push(normalized);
       } else {
-        upcoming.push(booking);
+        upcoming.push(normalized);
       }
     }
 
     return [
       { key: "pending", title: "Pending for Approval", rows: pending },
       { key: "upcoming", title: "Upcoming Bookings", rows: upcoming },
+      { key: "expired", title: "Expired Bookings", rows: expired },
       { key: "past", title: "Past Bookings", rows: past },
     ].filter((section) => section.rows.length > 0);
   }, [filteredBookings, now]);
@@ -1172,6 +1205,7 @@ export default function AdminBookingsDashboard() {
                     <option value="all">All status</option>
                     <option value="pending">Pending</option>
                     <option value="confirmed">Confirmed</option>
+                    <option value="expired">Expired</option>
                     <option value="rejected">Rejected</option>
                     <option value="cancelled">Cancelled</option>
                     <option value="cancellation_requested">Cancel Request</option>
@@ -1265,6 +1299,7 @@ export default function AdminBookingsDashboard() {
                     const pkgName = pkg?.name || `Package #${b.package_id || "—"}`;
                     const fee = pkg?.rental_fee;
 
+                    const expired = isExpiredBooking(b);
                     const past = disableEdit(b);
                     const lockAR = disableApproveReject(b);
 
@@ -1332,7 +1367,12 @@ export default function AdminBookingsDashboard() {
                             </div>
 
                             {/* Hints */}
-                            {past && (
+                            {expired && (
+                              <p className="text-[11px] text-slate-500 mt-2">
+                                Expired booking - payment proof was not submitted within 24 hours.
+                              </p>
+                            )}
+                            {past && !expired && (
                               <p className="text-[11px] text-slate-500 mt-2">
                                 Past booking — Edit/Approve/Reject are disabled.
                               </p>
