@@ -22,7 +22,6 @@ function manilaDateTime(value) {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
-      timeZoneName: "short",
     }).format(new Date(normalizedValue));
   } catch {
     return String(value);
