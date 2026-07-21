@@ -5,12 +5,30 @@ import { headers } from "next/headers";
 
 const MENU_TTL_MS = 30 * 1000;
 
+function supabaseConfig() {
+  return {
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  };
+}
+
 function getPublicClient(accessToken = "") {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error("Supabase environment is not configured.");
-  return createClient(url, key, {
+  const { url, anonKey } = supabaseConfig();
+  if (!url || !anonKey) throw new Error("Supabase environment is not configured.");
+  return createClient(url, anonKey, {
     global: accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : undefined,
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+}
+
+function getAdminClient() {
+  const { url, serviceRoleKey } = supabaseConfig();
+  if (!url || !serviceRoleKey) return null;
+  return createClient(url, serviceRoleKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -30,7 +48,8 @@ async function requesterCanSeeTestStores(accessToken) {
   const { data: userData, error: userError } = await supabase.auth.getUser(accessToken);
   if (userError || !userData?.user?.id) return false;
 
-  const { data: profile } = await supabase
+  const profileClient = getAdminClient() || supabase;
+  const { data: profile } = await profileClient
     .from("profiles")
     .select("role")
     .eq("id", userData.user.id)
@@ -40,7 +59,7 @@ async function requesterCanSeeTestStores(accessToken) {
 }
 
 async function loadMenuData(mode, { includeTestStores = false, accessToken = "" } = {}) {
-  const supabase = getPublicClient(includeTestStores ? accessToken : "");
+  const supabase = includeTestStores ? (getAdminClient() || getPublicClient(accessToken)) : getPublicClient();
   const isCustomer = mode === "customer";
 
   const itemQuery = supabase
@@ -104,14 +123,15 @@ export async function GET(req) {
     const mode = searchParams.get("mode") === "customer" ? "customer" : "public";
     const accessToken = await getRequesterAccessToken();
     const includeTestStores = mode === "customer" && await requesterCanSeeTestStores(accessToken);
-    const data = await getCached(`menu-data:${mode}:${includeTestStores ? "super-admin" : "public"}`, MENU_TTL_MS, () =>
-      loadMenuData(mode, { includeTestStores, accessToken })
-    );
+    const data = includeTestStores
+      ? await loadMenuData(mode, { includeTestStores, accessToken })
+      : await getCached(`menu-data:${mode}:public`, MENU_TTL_MS, () => loadMenuData(mode));
 
     return Response.json(data, {
       headers: {
-        ...cacheHeaders(30, 120),
+        ...(includeTestStores ? { "Cache-Control": "no-store" } : cacheHeaders(30, 120)),
         "X-Juja-Cache": "menu-data",
+        "X-Juja-Test-Stores": includeTestStores ? "included" : "hidden",
       },
     });
   } catch (error) {

@@ -1210,9 +1210,10 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
   useEffect(() => {
     async function fetchMenu() {
       setLoading(true);
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData?.session?.access_token;
+      const { session } = await getStableSession(supabase);
+      const accessToken = session?.access_token;
       const res = await fetch("/api/menu-data?mode=customer", {
+        cache: "no-store",
         headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
       });
       const json = await res.json();
