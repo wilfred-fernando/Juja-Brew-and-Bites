@@ -32,7 +32,7 @@ const supabase = getSupabaseClient();
 const loyaltyPoints = (amount) => Number(((Number(amount) || 0) * 0.04).toFixed(2));
 const peso0 = (amount) => `₱${Number(amount || 0).toLocaleString("en-PH", { maximumFractionDigits: 0 })}`;
 const ALERT_SOUND_SRC = "/sound/notification.mp3";
-const CUSTOMER_NOTIFICATION_ICON = "/images/juja-logo.png";
+const CUSTOMER_NOTIFICATION_ICON = "/favicon.ico";
 const isMenuItemMarkedAvailable = (item) => item?.is_available !== false && item?.available !== false;
 const optionGroupKey = (value) => String(value || "").trim().toLowerCase();
 const optionSelectionKey = (value) => String(value || "").trim().toLowerCase();
@@ -143,6 +143,7 @@ async function showCustomerPanelNotification(payload) {
     title: notificationPayload.title,
     body: notificationPayload.body,
     tag: notificationPayload.tag,
+    icon: notificationPayload.icon,
     channelId: "customer-orders-audible",
     channelName: "Customer Order Alerts",
     summaryText: notificationPayload.summaryText,

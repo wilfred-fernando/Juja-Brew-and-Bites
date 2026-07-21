@@ -14,8 +14,8 @@ self.addEventListener("message", (event) => {
   const title = payload.title || "Juja Brew & Bites";
   const options = {
     body: payload.body || "",
-    icon: payload.icon || "/images/juja-logo.png",
-    badge: payload.badge || "/images/juja-logo.png",
+    icon: payload.icon || "/favicon.ico",
+    badge: payload.badge || "/favicon.ico",
     tag: payload.tag || "juja-customer-order",
     renotify: true,
     requireInteraction: Boolean(payload.requireInteraction),

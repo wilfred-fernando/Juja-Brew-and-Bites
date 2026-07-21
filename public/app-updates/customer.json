@@ -1,7 +1,7 @@
 {
   "app": "customer",
-  "latestVersion": "1.0.8",
-  "latestBuild": 9,
-  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-customer-v1.0.8.apk",
-  "releaseNotes": "Adds native customer push notifications for order ready and completed alerts, including background notification support."
+  "latestVersion": "1.0.9",
+  "latestBuild": 10,
+  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-customer-v1.0.9.apk",
+  "releaseNotes": "Updates customer mobile notification icons to use the JUJA favicon/app icon."
 }
