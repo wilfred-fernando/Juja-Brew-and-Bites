@@ -42,7 +42,7 @@ async function loadMenuData(mode) {
     ? [
         itemQuery,
         categoryQuery,
-        supabase.from("stores").select("id, name, is_active").eq("is_active", true).order("name"),
+        supabase.from("stores").select("id, name, is_active").eq("is_active", true).eq("is_test", false).order("name"),
         supabase.from("menu_item_store_availability").select("item_id, store_id, is_available"),
         supabase.from("menu_category_store_availability").select("category_id, store_id, is_available"),
         supabase.from("option_group_store_availability").select("store_id, group_key, group_name, is_available"),

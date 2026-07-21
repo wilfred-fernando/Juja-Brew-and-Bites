@@ -145,6 +145,13 @@ async function showCustomerPanelNotification(payload) {
     tag: notificationPayload.tag,
     channelId: "customer-orders-audible",
     channelName: "Customer Order Alerts",
+    summaryText: notificationPayload.summaryText,
+    largeBody: notificationPayload.largeBody,
+    group: notificationPayload.group,
+    data: {
+      url: notificationPayload.url,
+      ...(notificationPayload.data || {}),
+    },
   });
   if (nativeShown) return;
 
@@ -161,7 +168,7 @@ async function showCustomerPanelNotification(payload) {
       renotify: true,
       requireInteraction: notificationPayload.requireInteraction,
       vibrate: [220, 90, 220, 90, 220],
-      data: { url: notificationPayload.url },
+      data: { url: notificationPayload.url, ...(notificationPayload.data || {}) },
     });
     return;
   }
@@ -3110,6 +3117,15 @@ export default function Customer() {
 
     const orderIdShort = order.id.slice(0, 8).toUpperCase();
     const points = loyaltyPoints(order.total || order.subtotal).toFixed(2);
+    const orderLabel = `Order #${orderIdShort}`;
+    const notificationTitle = "JUJA Brew & Bites";
+    const notificationBody = isReady
+      ? `Ready now - ${orderLabel} is ready for pickup or delivery.`
+      : `Completed - ${orderLabel} has been completed. Thank you!`;
+    const notificationLargeBody = isReady
+      ? `Ready now - ${orderLabel} is ready for pickup or delivery. Tap to view your order status.`
+      : `Completed - ${orderLabel} has been completed. Loyalty points earned: +${points}.`;
+
     if (isReady) {
       startReadyAlertSound();
     } else {
@@ -3127,11 +3143,18 @@ export default function Customer() {
     );
 
     await showCustomerPanelNotification({
-      body: isReady
-        ? `Order #${orderIdShort} is ready! Come claim your fresh brews and bites.`
-        : `Order #${orderIdShort} has been delivered. Enjoy your items!`,
+      title: notificationTitle,
+      body: notificationBody,
+      largeBody: notificationLargeBody,
+      summaryText: isReady ? "Order ready" : "Order completed",
+      group: `web-order:${order.id}`,
       tag: `${order.id}:${status}`,
       url: "/customer?tab=history",
+      data: {
+        type: "order_status",
+        web_order_id: String(order.id),
+        status,
+      },
     });
   };
 
