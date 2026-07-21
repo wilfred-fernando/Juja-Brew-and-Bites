@@ -20,6 +20,9 @@ import { BleClient, ScanMode } from "@capacitor-community/bluetooth-le";
 // Initialize Supabase Client instance cleanly at layout bundle level
 const supabaseGlobalInstance = getSupabaseClient();
 
+const POS_ALLOWED_ROLES = new Set(["cashier", "admin", "super_admin"]);
+const POS_TEST_STORE_CODE = "TST";
+
 const DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID = "000018f0-0000-1000-8000-00805f9b34fb";
 const DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID = "00002af1-0000-1000-8000-00805f9b34fb";
 const NIIMBOT_BLE_SERVICE_UUID = "e7810a71-73ae-499d-8c15-faa9aef0c3f2";
@@ -106,6 +109,27 @@ function normalizeBluetoothUuid(value, fallback = "") {
 
 function isNativeBluetoothApp() {
   return Boolean(Capacitor?.isNativePlatform?.());
+}
+
+async function resolvePosStoreIdForProfile(profile, supabaseClient) {
+  const role = String(profile?.role || "").toLowerCase();
+
+  if (role === "super_admin") {
+    const { data: testStore, error } = await supabaseClient
+      .from("stores")
+      .select("id")
+      .eq("store_code", POS_TEST_STORE_CODE)
+      .eq("is_active", true)
+      .eq("is_test", true)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!testStore?.id) throw new Error("Test store is not available. Ask admin.");
+    return testStore.id;
+  }
+
+  if (!profile?.store_id) throw new Error("No store assigned. Ask admin.");
+  return profile.store_id;
 }
 
 async function ensureNativeBluetoothReady() {
@@ -4687,16 +4711,25 @@ export default function POSPage() {
       }
 
       const role = String(profile?.role || "").toLowerCase();
-      if (role !== "cashier" && role !== "admin") {
+      if (!POS_ALLOWED_ROLES.has(role)) {
         window.location.replace("/pos/login");
         return;
       }
 
-      const activeStoreId = profile.store_id;
+      let activeStoreId = null;
+      try {
+        activeStoreId = await resolvePosStoreIdForProfile(profile, supabase);
+      } catch (storeError) {
+        console.error("POS store resolve error:", storeError);
+        showToast("error", "Store Error", storeError?.message || "Failed to resolve POS store.");
+        window.location.replace("/pos/login");
+        return;
+      }
       setCurrentUserId(session.user.id);
       setSavedTickets([]);
       setOriginalTicketId(null);
       localStorage.setItem("pos_store_id", activeStoreId);
+      if (profile?.full_name) localStorage.setItem("cashier_name", profile.full_name);
       setStoreId(activeStoreId);
 
       await fetchPendingCount(activeStoreId); 

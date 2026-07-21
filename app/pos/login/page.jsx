@@ -7,6 +7,9 @@ import PosApkUpdatePrompt from "@/components/PosApkUpdatePrompt";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { getStableSession } from "@/lib/supabase/session";
 
+const POS_ALLOWED_ROLES = new Set(["cashier", "admin", "super_admin"]);
+const POS_TEST_STORE_CODE = "TST";
+
 export default function LoginPage() {
   const supabase = getSupabaseClient();
 
@@ -17,6 +20,27 @@ export default function LoginPage() {
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  async function resolvePosStoreId(profile) {
+    const role = String(profile?.role || "").toLowerCase();
+
+    if (role === "super_admin") {
+      const { data: testStore, error } = await supabase
+        .from("stores")
+        .select("id")
+        .eq("store_code", POS_TEST_STORE_CODE)
+        .eq("is_active", true)
+        .eq("is_test", true)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!testStore?.id) throw new Error("Test store is not available. Ask admin.");
+      return testStore.id;
+    }
+
+    if (!profile?.store_id) throw new Error("No store assigned. Ask admin.");
+    return profile.store_id;
+  }
 
   useEffect(() => {
     let active = true;
@@ -33,8 +57,9 @@ export default function LoginPage() {
           .maybeSingle();
 
         const role = String(profile?.role || "").toLowerCase();
-        if ((role === "cashier" || role === "admin") && profile?.store_id) {
-          localStorage.setItem("pos_store_id", profile.store_id);
+        if (POS_ALLOWED_ROLES.has(role)) {
+          const activeStoreId = await resolvePosStoreId(profile);
+          localStorage.setItem("pos_store_id", activeStoreId);
           if (profile?.full_name) {
             localStorage.setItem("cashier_name", profile.full_name);
           }
@@ -96,17 +121,15 @@ export default function LoginPage() {
 
       // ✅ 4. Role check
       const role = String(profile?.role || "").toLowerCase();
-      if (role !== "cashier" && role !== "admin") {
+      if (!POS_ALLOWED_ROLES.has(role)) {
         throw new Error("This account is not allowed to use the POS.");
       }
 
       // ✅ 5. Store required
-      if (!profile?.store_id) {
-        throw new Error("No store assigned. Ask admin.");
-      }
+      const activeStoreId = await resolvePosStoreId(profile);
 
       // ✅ 6. Save POS settings
-      localStorage.setItem("pos_store_id", profile.store_id);
+      localStorage.setItem("pos_store_id", activeStoreId);
 
       if (profile?.full_name) {
         localStorage.setItem("cashier_name", profile.full_name);
