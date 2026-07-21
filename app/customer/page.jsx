@@ -1210,7 +1210,11 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
   useEffect(() => {
     async function fetchMenu() {
       setLoading(true);
-      const res = await fetch("/api/menu-data?mode=customer");
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      const res = await fetch("/api/menu-data?mode=customer", {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      });
       const json = await res.json();
       if (!res.ok) {
         setAvailabilityNotice(json.error || "Store availability is being synced. Showing all available menu items for now.");

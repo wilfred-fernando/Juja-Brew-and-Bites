@@ -1,14 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
 import { cacheHeaders, getCached } from "@/lib/serverCache";
 import { isPromoCategoryName, isPromoMenuItem } from "@/lib/menuPromos";
+import { headers } from "next/headers";
 
 const MENU_TTL_MS = 30 * 1000;
 
-function getPublicClient() {
+function getPublicClient(accessToken = "") {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) throw new Error("Supabase environment is not configured.");
   return createClient(url, key, {
+    global: accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : undefined,
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -16,8 +18,29 @@ function getPublicClient() {
   });
 }
 
-async function loadMenuData(mode) {
-  const supabase = getPublicClient();
+async function getRequesterAccessToken() {
+  const headerStore = await headers();
+  return String(headerStore.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
+}
+
+async function requesterCanSeeTestStores(accessToken) {
+  if (!accessToken) return false;
+
+  const supabase = getPublicClient(accessToken);
+  const { data: userData, error: userError } = await supabase.auth.getUser(accessToken);
+  if (userError || !userData?.user?.id) return false;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", userData.user.id)
+    .maybeSingle();
+
+  return String(profile?.role || "").toLowerCase() === "super_admin";
+}
+
+async function loadMenuData(mode, { includeTestStores = false, accessToken = "" } = {}) {
+  const supabase = getPublicClient(includeTestStores ? accessToken : "");
   const isCustomer = mode === "customer";
 
   const itemQuery = supabase
@@ -42,7 +65,11 @@ async function loadMenuData(mode) {
     ? [
         itemQuery,
         categoryQuery,
-        supabase.from("stores").select("id, name, is_active").eq("is_active", true).eq("is_test", false).order("name"),
+        supabase
+          .from("stores")
+          .select("id, name, is_active, is_test")
+          .eq("is_active", true)
+          .order("name"),
         supabase.from("menu_item_store_availability").select("item_id, store_id, is_available"),
         supabase.from("menu_category_store_availability").select("category_id, store_id, is_available"),
         supabase.from("option_group_store_availability").select("store_id, group_key, group_name, is_available"),
@@ -62,7 +89,7 @@ async function loadMenuData(mode) {
   return {
     items,
     categories,
-    stores: storeRes?.data || [],
+    stores: includeTestStores ? storeRes?.data || [] : (storeRes?.data || []).filter((store) => store.is_test !== true),
     itemStoreAvailability: availabilityRes?.data || [],
     categoryStoreAvailability: categoryAvailabilityRes?.data || [],
     optionGroupStoreAvailability: optionGroupAvailabilityRes?.data || [],
@@ -75,7 +102,11 @@ export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const mode = searchParams.get("mode") === "customer" ? "customer" : "public";
-    const data = await getCached(`menu-data:${mode}`, MENU_TTL_MS, () => loadMenuData(mode));
+    const accessToken = await getRequesterAccessToken();
+    const includeTestStores = mode === "customer" && await requesterCanSeeTestStores(accessToken);
+    const data = await getCached(`menu-data:${mode}:${includeTestStores ? "super-admin" : "public"}`, MENU_TTL_MS, () =>
+      loadMenuData(mode, { includeTestStores, accessToken })
+    );
 
     return Response.json(data, {
       headers: {
