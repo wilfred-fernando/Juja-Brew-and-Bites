@@ -2138,19 +2138,36 @@ function LoyaltyTab({ member, setMember, user }) {
     
     setLoading(true);
     try {
-      const { data, error } = await supabase.from("loyalty_members").insert([{
-        user_id: user.id, "Customer ID": genCustomerId(), customer_name: fullName,
-        Email: user.email, Phone: form.Phone, City: form.City,
-        "Points balance": 0,
-        "Available points": 0,
-        "Total visits": 0,
-        "Total spent": 0,
-        "First visit": todayISO(),
-        "Last visit": todayISO(),
-        Note: b.value,
-      }]).select().single();
-      if (error) throw error;
-      setMember(data);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      const response = await fetch("/api/customer/loyalty-member-register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({
+          first_name: firstName,
+          last_name: lastName,
+          customer_name: fullName,
+          Email: user.email,
+          Phone: form.Phone,
+          City: form.City,
+          Note: b.value,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (payload?.duplicateMatch && payload?.existingMember) {
+          setMatchedPreview(payload.existingMember);
+          setMatchChecked(true);
+          setNotice("A registered loyalty account already exists with this contact number and birthday. You can request to link that account instead.");
+          setLoading(false);
+          return;
+        }
+        throw new Error(payload?.error || "Unable to register loyalty member.");
+      }
+      setMember(payload?.member);
       setMode(null);
     } catch (err) { setNotice("❌ " + err.message); }
     setLoading(false);
@@ -2340,8 +2357,18 @@ function LoyaltyTab({ member, setMember, user }) {
           </div>
           {mode === "new" && (
             <>
-              <input placeholder="City Location" value={form.City} onChange={(e)=>setForm({...form, City: e.target.value})} className="w-full border border-slate-200 px-4 py-3 rounded-xl text-sm font-medium outline-none" />
-              <input placeholder="Mobile Contact Number" value={form.Phone} onChange={(e)=>setForm({...form, Phone: e.target.value})} className="w-full border border-slate-200 px-4 py-3 rounded-xl text-sm font-medium outline-none" />
+              <input placeholder="City Location" value={form.City} onChange={(e)=>{
+                setForm({...form, City: e.target.value});
+                setNotice("");
+                setLinkRequestSent(false);
+                setMatchChecked(false);
+              }} className="w-full border border-slate-200 px-4 py-3 rounded-xl text-sm font-medium outline-none" />
+              <input placeholder="Mobile Contact Number" value={form.Phone} onChange={(e)=>{
+                setForm({...form, Phone: e.target.value});
+                setNotice("");
+                setLinkRequestSent(false);
+                setMatchChecked(false);
+              }} className="w-full border border-slate-200 px-4 py-3 rounded-xl text-sm font-medium outline-none" />
             </>
           )}
         </div>
@@ -2359,7 +2386,7 @@ function LoyaltyTab({ member, setMember, user }) {
             </button>
           )}
         </div>
-        {matchChecked && mode === "existing" && (
+        {matchChecked && (mode === "existing" || (mode === "new" && matchedPreview)) && (
           <div className="border border-slate-100 bg-slate-50 p-4 rounded-xl mt-2 text-center text-xs">
             {linkRequestSent ? (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-800">
@@ -2370,6 +2397,14 @@ function LoyaltyTab({ member, setMember, user }) {
               </div>
             ) : matchedPreview ? (
               <div>
+                {mode === "new" && (
+                  <p className="mb-1 text-green-700 font-bold">
+                    Registered loyalty account found with this contact number and birthday.
+                  </p>
+                )}
+                {matchedPreview?.customer_code && (
+                  <p className="mb-1 text-[11px] text-slate-500">{matchedPreview.customer_code}</p>
+                )}
                 <p className="text-green-600 font-bold">Profile identified matching criteria. ✅</p>
                 <button
                   onClick={requestLink}

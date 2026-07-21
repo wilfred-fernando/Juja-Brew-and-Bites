@@ -780,7 +780,16 @@ export default function LoyaltyAdminPage() {
         }),
       });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload?.error || "Unable to register loyalty member.");
+      if (!response.ok) {
+        if (payload?.duplicateMatch && payload?.existingMember) {
+          const existing = payload.existingMember;
+          const name = existing.customer_name || "existing loyalty member";
+          const code = existing.customer_code ? ` (${existing.customer_code})` : "";
+          setNotice(`Registration blocked: ${name}${code} already matches this contact number and birthday. Use manual linking instead.`);
+          return;
+        }
+        throw new Error(payload?.error || "Unable to register loyalty member.");
+      }
 
       await fetchMembers();
       setRegistrationOpen(false);
