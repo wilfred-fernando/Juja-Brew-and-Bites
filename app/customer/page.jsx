@@ -31,6 +31,7 @@ const supabase = getSupabaseClient();
 
 const loyaltyPoints = (amount) => Number(((Number(amount) || 0) * 0.04).toFixed(2));
 const peso0 = (amount) => `₱${Number(amount || 0).toLocaleString("en-PH", { maximumFractionDigits: 0 })}`;
+const peso2 = (amount) => `₱${Number(amount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const ALERT_SOUND_SRC = "/sound/notification.mp3";
 const CUSTOMER_NOTIFICATION_ICON = "/favicon.ico";
 const isMenuItemMarkedAvailable = (item) => item?.is_available !== false && item?.available !== false;
@@ -894,6 +895,9 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
   const [fulfillmentDate, setFulfillmentDate] = useState(getManilaDateString(0));
   const [fulfillmentTime, setFulfillmentTime] = useState(getManilaTimeString(30));
   const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [deliveryQuote, setDeliveryQuote] = useState(null);
+  const [deliveryQuoteLoading, setDeliveryQuoteLoading] = useState(false);
+  const [deliveryQuoteError, setDeliveryQuoteError] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [paymentProof, setPaymentProof] = useState(null);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
@@ -911,6 +915,62 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
     }
   }, [fulfillmentTime, targetTimeOptions]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setDeliveryQuote(null);
+    setDeliveryQuoteError("");
+
+    if (!open || diningOption !== "DELIVERY") {
+      setDeliveryQuoteLoading(false);
+      return;
+    }
+
+    const address = deliveryAddress.trim();
+    if (address.length < 8 || !selectedStore?.id) {
+      setDeliveryQuoteLoading(false);
+      return;
+    }
+
+    setDeliveryQuoteLoading(true);
+    const timer = window.setTimeout(async () => {
+      try {
+        const { session } = await getStableSession(supabase);
+        const res = await fetch("/api/customer/delivery-quote", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          },
+          body: JSON.stringify({
+            storeId: selectedStore.id,
+            deliveryAddress: address,
+            subtotal,
+          }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || json?.success === false) {
+          throw new Error(json?.error || "Delivery fee estimate failed.");
+        }
+        if (!cancelled) {
+          setDeliveryQuote(json.summary || null);
+          setDeliveryQuoteError("");
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setDeliveryQuote(null);
+          setDeliveryQuoteError(error?.message || "Delivery fee estimate failed.");
+        }
+      } finally {
+        if (!cancelled) setDeliveryQuoteLoading(false);
+      }
+    }, 650);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [open, diningOption, deliveryAddress, selectedStore?.id, subtotal]);
+
   if (!open) return null;
 
   const selectedTargetAt = manilaDateTime(fulfillmentDate, fulfillmentTime);
@@ -919,9 +979,14 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
   const isValidTime = fulfillmentTime && fulfillmentTime.trim() !== "" && targetTimeOptions.some((option) => option.value === fulfillmentTime);
   const paymentOptions = diningOption === "DELIVERY" ? ["QRPH"] : diningOption === "DINEIN" ? [] : ["Cash", "Card", "QRPH"];
   const requiresPaymentProof = paymentMethod === "QRPH";
+  const deliveryFee = diningOption === "DELIVERY" ? Number(deliveryQuote?.fee || 0) : 0;
+  const orderTotal = subtotal + deliveryFee;
+  const hasDeliveryQuote = diningOption !== "DELIVERY" || Number.isFinite(deliveryFee) && deliveryFee > 0;
   const canSubmit =
     isValidTime &&
     (diningOption !== "DELIVERY" || deliveryAddress.trim().length >= 8) &&
+    hasDeliveryQuote &&
+    !deliveryQuoteLoading &&
     (!requiresPaymentProof || !!paymentProof);
   const potentialPointsEarned = loyaltyPoints(loyaltyEligibleSubtotal);
 
@@ -940,7 +1005,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
           <div className="rounded-2xl border border-cyan-100 bg-cyan-50/70 p-3">
             <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-800">Sending To Store</p>
             <p className="mt-1 text-sm font-semibold text-slate-800">{selectedStoreName || "Selected branch"}</p>
-            <p className="mt-1 text-[11px] text-slate-500">Change the branch from the store selector above the menu before checkout.</p>
+            <p className="mt-1 text-[11px] text-slate-500">Change the branch from the store selector above the menu before placing the order.</p>
           </div>
 
           <div>
@@ -1034,16 +1099,44 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
           )}
 
           {diningOption === "DELIVERY" && (
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1.5">
-                Delivery Address
-              </label>
-              <textarea
-                value={deliveryAddress}
-                onChange={(e) => setDeliveryAddress(e.target.value)}
-                className="w-full min-h-20 bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-[#FC687D]"
-                placeholder="House number, street, barangay, city, landmark"
-              />
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1.5">
+                  Delivery Address
+                </label>
+                <textarea
+                  value={deliveryAddress}
+                  onChange={(e) => setDeliveryAddress(e.target.value)}
+                  className="w-full min-h-20 bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-[#FC687D]"
+                  placeholder="House number, street, barangay, city, landmark"
+                />
+              </div>
+              <div className="rounded-2xl border border-cyan-100 bg-cyan-50/80 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-800">Delivery Fee Preview</p>
+                    <p className="mt-1 text-[11px] font-semibold text-slate-600">
+                      Lalamove motorcycle estimate. Final rider booking is confirmed by the cashier.
+                    </p>
+                  </div>
+                  <p className="text-lg font-black text-cyan-900">
+                    {deliveryQuoteLoading ? "..." : deliveryQuote ? peso2(deliveryFee) : "--"}
+                  </p>
+                </div>
+                {deliveryQuote?.distanceMeters ? (
+                  <p className="mt-2 text-[10px] font-bold text-cyan-700">
+                    Estimated distance: {(Number(deliveryQuote.distanceMeters) / 1000).toFixed(2)} km
+                  </p>
+                ) : null}
+                {deliveryQuoteError ? (
+                  <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] font-bold text-amber-800">
+                    {deliveryQuoteError}
+                  </p>
+                ) : null}
+                {deliveryAddress.trim().length >= 8 && !deliveryQuote && !deliveryQuoteLoading && !deliveryQuoteError ? (
+                  <p className="mt-2 text-[10px] font-bold text-slate-500">Delivery fee will appear here before you place the order.</p>
+                ) : null}
+              </div>
             </div>
           )}
 
@@ -1110,8 +1203,18 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
               ))}
             </div>
             <div className="border-t border-rose-100/60 pt-2.5 mt-2 flex justify-between items-baseline">
+              <span className="text-xs font-bold text-slate-700">Items Amount</span>
+              <span className="text-base font-black text-slate-800">{peso0(subtotal)}</span>
+            </div>
+            {diningOption === "DELIVERY" && (
+              <div className="flex justify-between items-baseline">
+                <span className="text-xs font-bold text-slate-700">Delivery Fee</span>
+                <span className="text-base font-black text-cyan-800">{deliveryQuote ? peso2(deliveryFee) : "--"}</span>
+              </div>
+            )}
+            <div className="border-t border-rose-100/60 pt-2 flex justify-between items-baseline">
               <span className="text-xs font-bold text-slate-700">Total Amount</span>
-              <span className="text-xl font-black text-[#FC687D]">{peso0(subtotal)}</span>
+              <span className="text-xl font-black text-[#FC687D]">{peso2(orderTotal)}</span>
             </div>
           </div>
         </div>
@@ -1132,6 +1235,8 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
               fulfillmentDate,
               fulfillmentTime,
               deliveryAddress,
+              deliveryFee,
+              deliveryQuote,
               paymentMethod,
               paymentProof,
               scheduledFor: selectedTargetAt?.toISOString() || null,
@@ -1141,7 +1246,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
             disabled={isSubmitting || !canSubmit}
             className="w-full py-3 bg-blue-400/50 hover:bg-blue-400/80 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-md disabled:opacity-40"
           >
-            {isSubmitting ? "Sending..." : "CHECKOUT ✓"}
+            {isSubmitting ? "Sending..." : "PLACE ORDER ✓"}
           </button>
         </div>
       </div>
@@ -1438,6 +1543,8 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
     }
 
     const orderStatus = fulfillmentMetadata.isScheduled ? "scheduled" : "pending";
+    const deliveryFee = fulfillmentMetadata.diningOption === "DELIVERY" ? Number(fulfillmentMetadata.deliveryFee || 0) : 0;
+    const orderTotal = Number(subtotal) + deliveryFee;
     const orderPayload = {
       user_id: user.id,
       customer_name: member?.customer_name || user?.user_metadata?.full_name || "Web Customer",
@@ -1447,7 +1554,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       order_status: orderStatus,
       items: cart, 
       subtotal: Number(subtotal),
-      total: Number(subtotal),
+      total: orderTotal,
       status: orderStatus, 
       dining_option: webDiningOptionLabel(fulfillmentMetadata.diningOption),
       fulfillment_type: fulfillmentMetadata.diningOption,
@@ -1455,6 +1562,13 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       scheduled_for: fulfillmentMetadata.scheduledFor,
       schedule_label: fulfillmentMetadata.scheduleLabel,
       delivery_address: fulfillmentMetadata.deliveryAddress || "",
+      delivery_provider: fulfillmentMetadata.diningOption === "DELIVERY" ? "lalamove" : "",
+      delivery_status: fulfillmentMetadata.diningOption === "DELIVERY" ? "quoted" : "",
+      delivery_fee: deliveryFee || null,
+      delivery_currency: fulfillmentMetadata.deliveryQuote?.currency || "PHP",
+      delivery_quote_id: fulfillmentMetadata.deliveryQuote?.quoteId || "",
+      delivery_distance_meters: fulfillmentMetadata.deliveryQuote?.distanceMeters || null,
+      delivery_quoted_at: fulfillmentMetadata.diningOption === "DELIVERY" ? new Date().toISOString() : null,
       customer_contact: member?.Phone || member?.phone || "",
       payment_method: fulfillmentMetadata.diningOption === "DINEIN" ? "" : fulfillmentMetadata.paymentMethod,
       payment_status: fulfillmentMetadata.paymentMethod === "QRPH" ? "submitted" : "pending",
@@ -1609,7 +1723,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
               onClick={handleOpenCheckoutValidation}
               className="w-full h-11 rounded-xl bg-blue-300/80 text-white text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-blue-400/80 transition"
             >
-             CHECKOUT
+             PLACE ORDER
             </button>
             <button
               onClick={() => setConfirmClear(true)}
@@ -1838,6 +1952,15 @@ function TrackerTab({ orders, loadingOrders }) {
     }
   };
 
+  const isDeliveryOrder = (order) =>
+    String(order?.fulfillment_type || "").toUpperCase() === "DELIVERY" ||
+    String(order?.dining_option || "").toLowerCase().includes("delivery");
+
+  const deliveryStatusLabel = (status) => {
+    const normalized = String(status || "").replace(/[_-]+/g, " ").trim();
+    return normalized ? normalized.toUpperCase() : "WAITING FOR RIDER BOOKING";
+  };
+
   return (
     <div className="max-w-3xl mx-auto bg-white rounded-2xl border border-slate-100 p-5 shadow-sm animate-in fade-in duration-300">
       <div className="border-b border-slate-100 pb-3 mb-5">
@@ -1880,6 +2003,35 @@ function TrackerTab({ orders, loadingOrders }) {
                 ))}
               </div>
 
+              {isDeliveryOrder(order) && (
+                <div className="rounded-xl border border-cyan-100 bg-cyan-50/80 p-3 text-xs text-slate-700">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-cyan-800">Delivery Tracking</p>
+                      <p className="mt-1 font-bold text-slate-800">{deliveryStatusLabel(order.delivery_status)}</p>
+                      {order.delivery_fee ? (
+                        <p className="mt-1 text-[11px] font-semibold text-slate-600">Delivery fee: {peso2(order.delivery_fee)}</p>
+                      ) : null}
+                    </div>
+                    {(order.delivery_tracking_link || order.delivery_share_link) && (
+                      <a
+                        href={order.delivery_tracking_link || order.delivery_share_link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="shrink-0 rounded-lg border border-cyan-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-wider text-cyan-800 shadow-sm"
+                      >
+                        Track Rider
+                      </a>
+                    )}
+                  </div>
+                  {order.delivery_last_error ? (
+                    <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] font-bold text-amber-800">
+                      {order.delivery_last_error}
+                    </p>
+                  ) : null}
+                </div>
+              )}
+
               <div className="flex items-center justify-between text-xs font-semibold text-slate-500 pt-1">
                 <div className="flex items-center gap-2">
                   <span className="uppercase tracking-wide font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-700 text-[10px]">{order.dining_option || "Takeout"}</span>
@@ -1889,7 +2041,7 @@ function TrackerTab({ orders, loadingOrders }) {
                     </span>
                   )}
                 </div>
-                <p className="text-sm font-black text-slate-800">Total Charged: {peso0(order.subtotal)}</p>
+                <p className="text-sm font-black text-slate-800">Total Charged: {peso2(order.total || order.subtotal)}</p>
               </div>
             </div>
           ))}
@@ -2846,7 +2998,7 @@ export default function Customer() {
         const orderId = order?.id || order?.receipt_number || order?.order_number;
         if (!orderId) return;
         const key = String(orderId);
-        const currentStatus = String(order?.status || "").toLowerCase();
+        const currentStatus = `${String(order?.status || "").toLowerCase()}:${String(order?.delivery_status || "").toLowerCase()}`;
         const previousStatus = orderStatusSnapshotRef.current.get(key);
         if (notifyChanges && previousStatus && previousStatus !== currentStatus) {
           notifyOrderStatus(order);
@@ -2975,13 +3127,13 @@ export default function Customer() {
 
           if (payload.eventType === "INSERT") {
             if (payload.new?.id) {
-              orderStatusSnapshotRef.current.set(String(payload.new.id), String(payload.new.status || "").toLowerCase());
+              orderStatusSnapshotRef.current.set(String(payload.new.id), `${String(payload.new.status || "").toLowerCase()}:${String(payload.new.delivery_status || "").toLowerCase()}`);
             }
             setOrders((prev) => [payload.new, ...prev]);
           } else if (payload.eventType === "UPDATE") {
             notifyOrderStatus(payload.new);
             if (payload.new?.id) {
-              orderStatusSnapshotRef.current.set(String(payload.new.id), String(payload.new.status || "").toLowerCase());
+              orderStatusSnapshotRef.current.set(String(payload.new.id), `${String(payload.new.status || "").toLowerCase()}:${String(payload.new.delivery_status || "").toLowerCase()}`);
             }
             setOrders((prev) =>
               prev.map((o) => (o.id === payload.new.id ? payload.new : o))
@@ -3113,53 +3265,66 @@ export default function Customer() {
 
   const notifyOrderStatus = async (order) => {
     const status = String(order?.status || "").toLowerCase();
+    const deliveryStatus = String(order?.delivery_status || "").toLowerCase();
     const isReady = status === "ready";
     const isDelivered = status === "delivered" || status === "completed";
-    if (!isReady && !isDelivered) return;
+    const hasDeliveryUpdate =
+      Boolean(deliveryStatus) &&
+      !["quoted", "pending", "waiting", "waiting_for_payment"].includes(deliveryStatus);
+    if (!isReady && !isDelivered && !hasDeliveryUpdate) return;
 
-    const key = `${order.id}:${status}`;
+    const key = `${order.id}:${status}:${deliveryStatus}`;
     if (alertedOrderStatusRef.current.has(key)) return;
     alertedOrderStatusRef.current.add(key);
 
     const orderIdShort = order.id.slice(0, 8).toUpperCase();
     const points = loyaltyPoints(order.total || order.subtotal).toFixed(2);
     const orderLabel = `Order #${orderIdShort}`;
+    const readableDeliveryStatus = deliveryStatus
+      .replace(/[_-]+/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
     const notificationTitle = "JUJA Brew & Bites";
     const notificationBody = isReady
       ? `Ready now - ${orderLabel} is ready for pickup or delivery.`
-      : `Completed - ${orderLabel} has been completed. Thank you!`;
+      : isDelivered
+        ? `Completed - ${orderLabel} has been completed. Thank you!`
+        : `Delivery update - ${orderLabel}: ${readableDeliveryStatus || "Rider status updated"}.`;
     const notificationLargeBody = isReady
       ? `Ready now - ${orderLabel} is ready for pickup or delivery. Tap to view your order status.`
-      : `Completed - ${orderLabel} has been completed. Loyalty points earned: +${points}.`;
+      : isDelivered
+        ? `Completed - ${orderLabel} has been completed. Loyalty points earned: +${points}.`
+        : `Delivery update - ${orderLabel}: ${readableDeliveryStatus || "Rider status updated"}. Tap to view delivery tracking.`;
 
     if (isReady) {
       startReadyAlertSound();
     } else {
       stopReadyAlertSound();
-      playCustomerAlertSound(status);
+      playCustomerAlertSound(isDelivered ? status : "delivery");
     }
     
     // 1. High Visibility In-App Toast Alert Layout Mutation Trigger
     showToast(
       "success",
-      status === "ready" ? "Order Ready! 🛎️" : "Order Completed ✅",
+      isReady ? "Order Ready" : isDelivered ? "Order Completed" : "Delivery Update",
       isReady
         ? `Order #${orderIdShort} is fresh and ready for pickup or delivery.`
-        : `Order #${orderIdShort} is delivered. Loyalty points earned: +${points}.`
+        : isDelivered
+          ? `Order #${orderIdShort} is delivered. Loyalty points earned: +${points}.`
+          : `Order #${orderIdShort}: ${readableDeliveryStatus || "Rider status updated"}.`
     );
 
     await showCustomerPanelNotification({
       title: notificationTitle,
       body: notificationBody,
       largeBody: notificationLargeBody,
-      summaryText: isReady ? "Order ready" : "Order completed",
+      summaryText: isReady ? "Order ready" : isDelivered ? "Order completed" : "Delivery update",
       group: `web-order:${order.id}`,
-      tag: `${order.id}:${status}`,
+      tag: `${order.id}:${status}:${deliveryStatus}`,
       url: "/customer?tab=history",
       data: {
         type: "order_status",
         web_order_id: String(order.id),
-        status,
+        status: isReady || isDelivered ? status : deliveryStatus,
       },
     });
   };

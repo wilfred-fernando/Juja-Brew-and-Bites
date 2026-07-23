@@ -9,6 +9,7 @@ import {
   parseOrderSummary,
   parseQuoteSummary,
 } from "@/lib/delivery/lalamove";
+import { sendCustomerOrderStatusPush } from "@/lib/push/customerPush";
 
 export const runtime = "nodejs";
 
@@ -117,6 +118,13 @@ async function saveDeliveryState(admin, webOrderId, updates) {
   if (error) throw new Error(error.message);
 }
 
+async function sendDeliveryStatusPush(webOrderId) {
+  if (!webOrderId) return;
+  await sendCustomerOrderStatusPush({ webOrderId, status: "delivery_update" }).catch((error) => {
+    console.warn("Delivery status push failed:", error?.message || error);
+  });
+}
+
 async function createQuote(admin, order, store) {
   const payload = buildLalamoveQuotePayload({ order, store });
   const response = await lalamoveRequest("POST", "/v3/quotations", payload);
@@ -200,6 +208,7 @@ export async function POST(req) {
         delivery_last_error: null,
         delivery_booked_at: new Date().toISOString(),
       });
+      await sendDeliveryStatusPush(order.id);
 
       return Response.json({ success: true, action: "book", summary: { ...summary, quote: quoteSummary }, raw: response });
     }
@@ -215,6 +224,7 @@ export async function POST(req) {
         delivery_provider_payload: response,
         delivery_last_error: null,
       });
+      await sendDeliveryStatusPush(order.id);
       return Response.json({ success: true, action: "status", summary, raw: response });
     }
 
@@ -227,6 +237,7 @@ export async function POST(req) {
         delivery_last_error: null,
         delivery_cancelled_at: new Date().toISOString(),
       });
+      await sendDeliveryStatusPush(order.id);
       return Response.json({ success: true, action: "cancel", raw: response });
     }
 
