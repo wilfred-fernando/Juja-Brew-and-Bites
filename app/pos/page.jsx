@@ -2189,7 +2189,18 @@ function SavedTicketsModal({ open, onClose, tickets, onSelect, onRefresh, onVoid
   );
 }
 
-function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onDelivered, onRemoveItem }) {
+function WebOrdersModal({
+  open,
+  onClose,
+  orders,
+  onRefresh,
+  onEdit,
+  onReady,
+  onDelivered,
+  onRemoveItem,
+  onDeliveryAction,
+  deliveryBusyId,
+}) {
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const selectedOrder = useMemo(
     () => orders.find((order) => String(order.id) === String(selectedOrderId)) || null,
@@ -2303,6 +2314,14 @@ function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onD
             selectedOrder.mobile ||
             "";
           const deliveryAddress = selectedOrder.delivery_address || selectedOrder.address || "";
+          const deliveryBusy = String(deliveryBusyId || "") === String(selectedOrder.id || "");
+          const deliveryFee =
+            selectedOrder.delivery_fee != null && selectedOrder.delivery_fee !== ""
+              ? `${selectedOrder.delivery_currency || "PHP"} ${Number(selectedOrder.delivery_fee || 0).toLocaleString("en-PH", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}`
+              : "No quote yet";
           return (
             <>
               <div className="mb-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -2333,6 +2352,62 @@ function WebOrdersModal({ open, onClose, orders, onRefresh, onEdit, onReady, onD
                       <p className="mt-1 text-xs font-bold leading-relaxed text-slate-800">{deliveryAddress}</p>
                     </div>
                   )}
+                </div>
+              )}
+              {isDeliveryOrder && (
+                <div className="mb-4 rounded-2xl border border-cyan-100 bg-cyan-50/60 p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-cyan-700">Lalamove Delivery</p>
+                      <p className="mt-1 text-xs font-bold text-slate-800">
+                        {selectedOrder.delivery_status || "Not booked"} • {deliveryFee}
+                      </p>
+                      {selectedOrder.delivery_order_id && (
+                        <p className="mt-1 text-[11px] text-slate-500">Order ID: {selectedOrder.delivery_order_id}</p>
+                      )}
+                      {selectedOrder.delivery_last_error && (
+                        <p className="mt-2 rounded-lg bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700">
+                          {selectedOrder.delivery_last_error}
+                        </p>
+                      )}
+                      {(selectedOrder.delivery_tracking_link || selectedOrder.delivery_share_link) && (
+                        <a
+                          href={selectedOrder.delivery_tracking_link || selectedOrder.delivery_share_link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-2 inline-flex text-[11px] font-bold text-cyan-700 underline"
+                        >
+                          Open tracking link
+                        </a>
+                      )}
+                    </div>
+                    <div className="grid min-w-[220px] grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        disabled={deliveryBusy}
+                        onClick={() => onDeliveryAction?.(selectedOrder, "quote")}
+                        className="h-9 rounded-lg border border-cyan-200 bg-white text-[10px] font-black uppercase tracking-wider text-cyan-800 transition hover:bg-cyan-50 disabled:opacity-40"
+                      >
+                        Quote
+                      </button>
+                      <button
+                        type="button"
+                        disabled={deliveryBusy}
+                        onClick={() => onDeliveryAction?.(selectedOrder, "book")}
+                        className="h-9 rounded-lg bg-cyan-700 text-[10px] font-black uppercase tracking-wider text-white transition hover:bg-cyan-800 disabled:opacity-40"
+                      >
+                        Book
+                      </button>
+                      <button
+                        type="button"
+                        disabled={deliveryBusy || !selectedOrder.delivery_order_id}
+                        onClick={() => onDeliveryAction?.(selectedOrder, "status")}
+                        className="h-9 rounded-lg border border-slate-200 bg-white text-[10px] font-black uppercase tracking-wider text-slate-700 transition hover:bg-slate-50 disabled:opacity-40"
+                      >
+                        Status
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
               <div className="grid grid-cols-3 gap-2 mb-4">
@@ -3433,6 +3508,7 @@ export default function POSPage() {
   const [savedMode, setSavedMode] = useState("resume");
   const [webOrdersOpen, setWebOrdersOpen] = useState(false);
   const [webOrders, setWebOrders] = useState([]);
+  const [deliveryBusyId, setDeliveryBusyId] = useState(null);
   const [splitMode, setSplitMode] = useState(false);
   const [splitSelected, setSplitSelected] = useState([]);
   const [diningOptionPickOpen, setDiningOptionPickOpen] = useState(false);
@@ -5740,6 +5816,43 @@ export default function POSPage() {
     setPaymentAmount("");
     window.setTimeout(() => setPaymentOpen(true), 0);
     showToast("info", "Charge Web Order", "Select payment details to complete this web order.");
+  }
+
+  async function runLalamoveDeliveryAction(order, action) {
+    if (!order?.id || deliveryBusyId) return;
+    const orderStoreId = getWebOrderStoreId(order) || storeId;
+    if (String(orderStoreId || "") !== String(storeId || "")) {
+      showToast("error", "Wrong Store Order", "This web order belongs to another store.");
+      await fetchAcceptedWebOrders();
+      return;
+    }
+
+    setDeliveryBusyId(order.id);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data?.session?.access_token;
+      const response = await fetch("/api/delivery/lalamove", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ webOrderId: order.id, action }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result?.success === false) {
+        throw new Error(result?.error || result?.message || "Lalamove delivery action failed.");
+      }
+
+      await fetchAcceptedWebOrders();
+      const label = action === "book" ? "Rider Booked" : action === "status" ? "Delivery Status Updated" : "Delivery Quote Ready";
+      showToast("success", label, result?.summary?.fee ? `Fee: ${peso2(result.summary.fee)}` : "Lalamove details saved to this web order.");
+    } catch (error) {
+      await fetchAcceptedWebOrders();
+      showToast("error", "Lalamove Failed", error?.message || "Unable to process Lalamove delivery.");
+    } finally {
+      setDeliveryBusyId(null);
+    }
   }
 
   async function createPointRewardVouchers(memberId, availablePoints) {
@@ -9197,6 +9310,8 @@ export default function POSPage() {
         onReady={markWebOrderReady}
         onDelivered={openWebOrderCharge}
         onRemoveItem={removeAcceptedWebOrderItem}
+        onDeliveryAction={runLalamoveDeliveryAction}
+        deliveryBusyId={deliveryBusyId}
       />
       <DiningOptionModal
         open={diningOptionPickOpen}
