@@ -1160,6 +1160,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
   const requiresPaymentProof = paymentMethod === "QRPH";
   const regularDeliveryFee = Number(deliveryQuote?.regularFee || deliveryQuote?.fee || 0);
   const priorityDeliveryFee = Number(deliveryQuote?.priorityFee || 0);
+  const priorityDeliveryAvailable = Boolean(deliveryQuote && priorityDeliveryFee > 0);
   const deliveryFee =
     diningOption === "DELIVERY"
       ? deliveryServiceLevel === "priority"
@@ -1167,7 +1168,9 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
         : regularDeliveryFee
       : 0;
   const orderTotal = subtotal + deliveryFee;
-  const hasDeliveryQuote = diningOption !== "DELIVERY" || Number.isFinite(deliveryFee) && deliveryFee > 0;
+  const hasDeliveryQuote =
+    diningOption !== "DELIVERY" ||
+    (Number.isFinite(deliveryFee) && deliveryFee > 0 && (deliveryServiceLevel !== "priority" || priorityDeliveryAvailable));
   const deliveryPinSelected = hasDeliveryPin(deliveryPin);
   const canSubmit =
     isValidTime &&
@@ -1347,28 +1350,35 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Delivery Details</p>
                 <span className="rounded-full bg-cyan-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-cyan-800">Lalamove</span>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
                 {[
                   { id: "regular", label: "Regular", help: "Standard rider booking" },
                   { id: "priority", label: "Priority", help: "Higher rider matching fee" },
                 ].map((speed) => {
                   const fee = speed.id === "priority" ? regularDeliveryFee + priorityDeliveryFee : regularDeliveryFee;
                   const selected = deliveryServiceLevel === speed.id;
+                  const unavailablePriority = speed.id === "priority" && deliveryQuote && !priorityDeliveryAvailable;
                   return (
                     <button
                       key={speed.id}
                       type="button"
+                      disabled={unavailablePriority}
                       onClick={() => setDeliveryServiceLevel(speed.id)}
-                      className={`rounded-2xl border p-3 text-left transition ${
+                      className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-3 py-3 text-left transition ${
+                        unavailablePriority
+                          ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+                          :
                         selected
                           ? "border-cyan-500 bg-cyan-50 text-cyan-950 shadow-sm shadow-cyan-900/10"
                           : "border-slate-200 bg-slate-50 text-slate-700 hover:border-cyan-200 hover:bg-cyan-50/60"
                       }`}
                     >
-                      <span className="block text-xs font-black uppercase tracking-wider">{speed.label}</span>
-                      <span className="mt-1 block text-[10px] font-semibold leading-snug text-slate-500">{speed.help}</span>
-                      <span className="mt-2 block text-sm font-black text-cyan-900">
-                        {deliveryQuoteLoading ? "..." : deliveryQuote ? peso2(fee) : "--"}
+                      <span className="min-w-0">
+                        <span className="block text-xs font-black uppercase tracking-wider">{speed.label}</span>
+                        <span className="mt-0.5 block text-[10px] font-semibold leading-snug text-slate-500">{speed.help}</span>
+                      </span>
+                      <span className={`shrink-0 text-right text-sm font-black ${unavailablePriority ? "text-slate-400" : "text-cyan-900"}`}>
+                        {deliveryQuoteLoading ? "..." : unavailablePriority ? "Not available" : deliveryQuote ? peso2(fee) : "--"}
                       </span>
                     </button>
                   );
@@ -1425,11 +1435,15 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Delivery Fee Preview</p>
                     <p className="mt-1 text-[11px] font-semibold text-slate-600">
-                      {deliveryServiceLevel === "priority" ? "Priority includes the regular fee plus the rider matching priority fee." : "Regular Lalamove motorcycle estimate. Final rider booking is confirmed by the cashier."}
+                      {deliveryServiceLevel === "priority"
+                        ? priorityDeliveryAvailable
+                          ? "Priority includes the regular fee plus the rider matching priority fee."
+                          : "Priority fee is not available from Lalamove yet. Please use Regular delivery."
+                        : "Regular Lalamove motorcycle estimate. Final rider booking is confirmed by the cashier."}
                     </p>
                   </div>
                   <p className="text-lg font-black text-cyan-900">
-                    {deliveryQuoteLoading ? "..." : deliveryQuote ? peso2(deliveryFee) : "--"}
+                    {deliveryQuoteLoading ? "..." : deliveryQuote && deliveryServiceLevel === "priority" && !priorityDeliveryAvailable ? "Not available" : deliveryQuote ? peso2(deliveryFee) : "--"}
                   </p>
                 </div>
                 {deliveryServiceLevel === "priority" && deliveryQuote ? (
