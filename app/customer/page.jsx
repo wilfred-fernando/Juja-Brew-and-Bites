@@ -325,14 +325,15 @@ function hasDeliveryPin(pin) {
 }
 
 function deliveryMapPreviewUrl({ pin, address } = {}) {
-  const lat = Number(pin?.lat);
-  const lng = Number(pin?.lng);
-  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+  if (hasDeliveryPin(pin)) {
+    const lat = normalizePinCoordinate(pin?.lat, -90, 90);
+    const lng = normalizePinCoordinate(pin?.lng, -180, 180);
     return `https://maps.google.com/maps?q=${encodeURIComponent(`${lat},${lng}`)}&z=17&output=embed`;
   }
   const q = String(address || "").trim();
   if (q.length >= 4) {
-    return `https://maps.google.com/maps?q=${encodeURIComponent(q)}&z=16&output=embed`;
+    const query = /philippines/i.test(q) ? q : `${q}, Philippines`;
+    return `https://www.google.com/maps?q=${encodeURIComponent(query)}&z=16&output=embed`;
   }
   return "";
 }
@@ -1420,7 +1421,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                       type="button"
                       onClick={useDeliveryCurrentLocation}
                       disabled={deliveryLocationLoading}
-                      className="shrink-0 rounded-xl bg-cyan-700 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white shadow-lg shadow-cyan-900/10 transition hover:bg-cyan-800 disabled:bg-slate-200 disabled:text-slate-500"
+                      className="shrink-0 rounded-xl bg-sky-300 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-900 shadow-lg shadow-sky-500/20 transition hover:bg-sky-400 disabled:bg-slate-200 disabled:text-slate-500"
                     >
                       {deliveryLocationLoading ? "Locating..." : "Use Phone Location"}
                     </button>
@@ -1483,10 +1484,10 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                       setPaymentMethod(method);
                       if (method !== "QRPH") setPaymentProof(null);
                     }}
-                    className={`h-11 rounded-xl border text-xs font-bold uppercase tracking-wider transition ${
+                      className={`h-11 rounded-xl border text-xs font-bold uppercase tracking-wider transition ${
                       paymentMethod === method
-                        ? "border-cyan-500 bg-cyan-700 text-white shadow-sm shadow-cyan-900/10"
-                      : "border-slate-200 bg-slate-50 text-slate-700 hover:border-cyan-200 hover:bg-cyan-50"
+                        ? "border-sky-300 bg-sky-300 text-slate-900 shadow-sm shadow-sky-500/20"
+                      : "border-slate-200 bg-sky-50 text-slate-700 hover:border-sky-200 hover:bg-sky-100"
                     }`}
                   >
                     {method}
@@ -1606,7 +1607,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
               isScheduled: isScheduledOrder,
             })}
             disabled={isSubmitting || !canSubmit}
-            className="w-full py-3 bg-cyan-700 hover:bg-cyan-800 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-cyan-900/15 transition disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
+            className="w-full py-3 bg-sky-300 hover:bg-sky-400 text-slate-900 font-bold rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-sky-500/20 transition disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
           >
             {isSubmitting ? "Sending..." : "Place Order"}
           </button>
