@@ -1074,6 +1074,8 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
   const [deliveryQuoteError, setDeliveryQuoteError] = useState("");
   const [deliveryLocationLoading, setDeliveryLocationLoading] = useState(false);
   const [deliveryLocationError, setDeliveryLocationError] = useState("");
+  const [deliveryLocationPermissionPrompt, setDeliveryLocationPermissionPrompt] = useState(false);
+  const [deliveryLocationPromptDismissed, setDeliveryLocationPromptDismissed] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [paymentProof, setPaymentProof] = useState(null);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
@@ -1081,7 +1083,15 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
   const targetTimeOptions = useMemo(() => buildTargetTimeOptions(fulfillmentDate, selectedStore), [fulfillmentDate, selectedStore]);
   const selectedTimeOption = targetTimeOptions.find((option) => option.value === fulfillmentTime);
 
+  const askDeliveryLocationPermission = () => {
+    if (hasDeliveryPin(deliveryPin)) return;
+    setDeliveryLocationError("");
+    setDeliveryLocationPermissionPrompt(true);
+  };
+
   const requestDeliveryCurrentLocation = () => {
+    setDeliveryLocationPermissionPrompt(false);
+    setDeliveryLocationPromptDismissed(true);
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       setDeliveryLocationError("Location access is not available on this device.");
       return;
@@ -1118,12 +1128,18 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
   useEffect(() => {
     if (!open || diningOption !== "DELIVERY") {
       autoDeliveryLocationRequestedRef.current = false;
+      setDeliveryLocationPermissionPrompt(false);
+      setDeliveryLocationPromptDismissed(false);
       return;
     }
-    if (autoDeliveryLocationRequestedRef.current || hasDeliveryPin(deliveryPin)) return;
+    if (hasDeliveryPin(deliveryPin)) {
+      setDeliveryLocationPermissionPrompt(false);
+      return;
+    }
+    if (autoDeliveryLocationRequestedRef.current || deliveryLocationPromptDismissed) return;
     autoDeliveryLocationRequestedRef.current = true;
-    requestDeliveryCurrentLocation();
-  }, [open, diningOption, deliveryPin.lat, deliveryPin.lng]);
+    setDeliveryLocationPermissionPrompt(true);
+  }, [open, diningOption, deliveryPin.lat, deliveryPin.lng, deliveryLocationPromptDismissed]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1448,6 +1464,41 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                   </div>
                 ) : null}
               </div>
+              {deliveryLocationPermissionPrompt ? (
+                <div className="rounded-2xl border border-sky-200 bg-sky-50 p-3 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-200 text-sky-900">
+                      <MapPin className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-slate-900">Enable location for delivery?</p>
+                      <p className="mt-1 text-xs font-semibold leading-relaxed text-slate-600">
+                        We will use your phone location only to place the delivery pin and estimate the Lalamove fee.
+                      </p>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={requestDeliveryCurrentLocation}
+                          disabled={deliveryLocationLoading}
+                          className="rounded-xl bg-sky-300 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-900 shadow-lg shadow-sky-500/20 transition hover:bg-sky-400 disabled:bg-slate-200 disabled:text-slate-500"
+                        >
+                          {deliveryLocationLoading ? "Locating..." : "Enable Location"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDeliveryLocationPermissionPrompt(false);
+                            setDeliveryLocationPromptDismissed(true);
+                          }}
+                          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-700 transition hover:bg-slate-100"
+                        >
+                          Not Now
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
               <div className="overflow-hidden rounded-2xl border border-cyan-100 bg-white shadow-sm">
                 {deliveryMapUrl ? (
                   <iframe title="Delivery address map" src={deliveryMapUrl} className="h-60 w-full border-0 bg-cyan-50" loading="lazy" />
@@ -1457,7 +1508,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                     <p className="text-xs font-bold uppercase tracking-widest">
                       {deliveryLocationLoading ? "Loading current location" : "Map preview"}
                     </p>
-                    <p className="max-w-xs text-xs">Allow location access or select an address suggestion to show the delivery pin.</p>
+                    <p className="max-w-xs text-xs">Tap Use Phone Location or select an address suggestion to show the delivery pin.</p>
                   </div>
                 )}
                 <div className="border-t border-cyan-100 bg-slate-50 p-3">
@@ -1470,7 +1521,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                     </div>
                     <button
                       type="button"
-                      onClick={requestDeliveryCurrentLocation}
+                      onClick={askDeliveryLocationPermission}
                       disabled={deliveryLocationLoading}
                       className="shrink-0 rounded-xl bg-sky-300 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-900 shadow-lg shadow-sky-500/20 transition hover:bg-sky-400 disabled:bg-slate-200 disabled:text-slate-500"
                     >
