@@ -324,18 +324,14 @@ function hasDeliveryPin(pin) {
   return Boolean(normalizePinCoordinate(pin?.lat, -90, 90) && normalizePinCoordinate(pin?.lng, -180, 180));
 }
 
-function deliveryMapPreviewUrl({ pin, address } = {}) {
-  if (hasDeliveryPin(pin)) {
-    const lat = normalizePinCoordinate(pin?.lat, -90, 90);
-    const lng = normalizePinCoordinate(pin?.lng, -180, 180);
-    return `https://maps.google.com/maps?q=${encodeURIComponent(`${lat},${lng}`)}&z=17&output=embed`;
-  }
-  const q = String(address || "").trim();
-  if (q.length >= 4) {
-    const query = /philippines/i.test(q) ? q : `${q}, Philippines`;
-    return `https://www.google.com/maps?q=${encodeURIComponent(query)}&z=16&output=embed`;
-  }
-  return "";
+function deliveryMapPreviewUrl({ pin } = {}) {
+  if (!hasDeliveryPin(pin)) return "";
+  const lat = Number(normalizePinCoordinate(pin?.lat, -90, 90));
+  const lng = Number(normalizePinCoordinate(pin?.lng, -180, 180));
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return "";
+  const span = 0.006;
+  const bbox = [lng - span, lat - span, lng + span, lat + span].map((value) => value.toFixed(7)).join(",");
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat.toFixed(7)},${lng.toFixed(7)}`;
 }
 
 function genCustomerId() {
@@ -1217,11 +1213,13 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
     !deliveryQuoteLoading &&
     (!requiresPaymentProof || !!paymentProof);
   const potentialPointsEarned = loyaltyPoints(loyaltyEligibleSubtotal);
-  const deliveryMapUrl = deliveryMapPreviewUrl({ pin: deliveryPin, address: deliveryAddress });
+  const deliveryAddressSearchTerm = deliveryAddress.trim();
+  const deliveryMapUrl = deliveryMapPreviewUrl({ pin: deliveryPin });
   const showDeliveryAddressSuggestions =
     diningOption === "DELIVERY" &&
     deliveryAddressFocused &&
-    (deliveryAddressLoading || deliveryAddressSearchError || deliveryAddressSuggestions.length > 0);
+    deliveryAddressSearchTerm.length >= 3 &&
+    !deliveryPinSelected;
 
   const useDeliveryCurrentLocation = () => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -1417,11 +1415,15 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                   placeholder="Type building, street, landmark, or city"
                 />
                 {showDeliveryAddressSuggestions ? (
-                  <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/15">
+                  <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[240] max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/15">
                     {deliveryAddressLoading ? (
                       <div className="px-3 py-3 text-xs font-bold text-slate-500">Searching address...</div>
                     ) : deliveryAddressSearchError ? (
                       <div className="px-3 py-3 text-xs font-bold text-amber-700">{deliveryAddressSearchError}</div>
+                    ) : !deliveryAddressSuggestions.length ? (
+                      <div className="px-3 py-3 text-xs font-bold text-slate-500">
+                        No matching address found. Add a landmark, street, city, or barangay.
+                      </div>
                     ) : (
                       deliveryAddressSuggestions.map((suggestion) => (
                         <button
@@ -1450,8 +1452,8 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                 ) : (
                   <div className="flex h-52 flex-col items-center justify-center gap-2 text-center text-slate-500">
                     <MapPin className="h-8 w-8 text-cyan-700" />
-                    <p className="text-xs font-bold uppercase tracking-widest">Type delivery address</p>
-                    <p className="max-w-xs text-xs">The map preview updates as the address is entered.</p>
+                    <p className="text-xs font-bold uppercase tracking-widest">Select delivery address</p>
+                    <p className="max-w-xs text-xs">Choose a suggestion above or use phone location to load the map preview.</p>
                   </div>
                 )}
                 <div className="border-t border-cyan-100 bg-white/75 p-3">
@@ -1459,7 +1461,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-800">Map Preview</p>
                       <p className="mt-1 text-[11px] font-semibold text-slate-600">
-                        {deliveryPinSelected ? `Using phone location: ${deliveryPin.lat}, ${deliveryPin.lng}` : "Address-based preview. Use phone location if the pin needs higher accuracy."}
+                        {deliveryPinSelected ? `Selected pin: ${deliveryPin.lat}, ${deliveryPin.lng}` : "Search and select an address, or use phone location for higher accuracy."}
                       </p>
                     </div>
                     <button
