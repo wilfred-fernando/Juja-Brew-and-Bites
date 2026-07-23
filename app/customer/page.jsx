@@ -324,13 +324,17 @@ function hasDeliveryPin(pin) {
   return Boolean(normalizePinCoordinate(pin?.lat, -90, 90) && normalizePinCoordinate(pin?.lng, -180, 180));
 }
 
-function deliveryMapPreviewUrl(pin) {
+function deliveryMapPreviewUrl({ pin, address } = {}) {
   const lat = Number(pin?.lat);
   const lng = Number(pin?.lng);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return "";
-  const spread = 0.004;
-  const bbox = `${lng - spread}%2C${lat - spread}%2C${lng + spread}%2C${lat + spread}`;
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lng}`;
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    return `https://maps.google.com/maps?q=${encodeURIComponent(`${lat},${lng}`)}&z=17&output=embed`;
+  }
+  const q = String(address || "").trim();
+  if (q.length >= 4) {
+    return `https://maps.google.com/maps?q=${encodeURIComponent(q)}&z=16&output=embed`;
+  }
+  return "";
 }
 
 function genCustomerId() {
@@ -924,7 +928,7 @@ function DeliveryPinPickerModal({ open, address, pin, onAddressChange, onPinChan
 
   if (!open) return null;
 
-  const previewUrl = deliveryMapPreviewUrl(draftPin);
+  const previewUrl = deliveryMapPreviewUrl({ pin: draftPin, address: draftAddress });
   const pinIsValid = hasDeliveryPin(draftPin);
   const saveDisabled = !pinIsValid || draftAddress.trim().length < 8;
 
@@ -1064,10 +1068,12 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
   const [fulfillmentTime, setFulfillmentTime] = useState(getManilaTimeString(30));
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryPin, setDeliveryPin] = useState({ lat: "", lng: "" });
-  const [pinPickerOpen, setPinPickerOpen] = useState(false);
+  const [deliveryServiceLevel, setDeliveryServiceLevel] = useState("regular");
   const [deliveryQuote, setDeliveryQuote] = useState(null);
   const [deliveryQuoteLoading, setDeliveryQuoteLoading] = useState(false);
   const [deliveryQuoteError, setDeliveryQuoteError] = useState("");
+  const [deliveryLocationLoading, setDeliveryLocationLoading] = useState(false);
+  const [deliveryLocationError, setDeliveryLocationError] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [paymentProof, setPaymentProof] = useState(null);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
@@ -1116,6 +1122,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
             deliveryAddress: address,
             deliveryLatitude: deliveryPin.lat || null,
             deliveryLongitude: deliveryPin.lng || null,
+            deliveryServiceLevel,
             subtotal,
           }),
         });
@@ -1141,7 +1148,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [open, diningOption, deliveryAddress, deliveryPin.lat, deliveryPin.lng, selectedStore?.id, subtotal]);
+  }, [open, diningOption, deliveryAddress, deliveryPin.lat, deliveryPin.lng, deliveryServiceLevel, selectedStore?.id, subtotal]);
 
   if (!open) return null;
 
@@ -1151,7 +1158,14 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
   const isValidTime = fulfillmentTime && fulfillmentTime.trim() !== "" && targetTimeOptions.some((option) => option.value === fulfillmentTime);
   const paymentOptions = diningOption === "DELIVERY" ? ["QRPH"] : diningOption === "DINEIN" ? [] : ["Cash", "Card", "QRPH"];
   const requiresPaymentProof = paymentMethod === "QRPH";
-  const deliveryFee = diningOption === "DELIVERY" ? Number(deliveryQuote?.fee || 0) : 0;
+  const regularDeliveryFee = Number(deliveryQuote?.regularFee || deliveryQuote?.fee || 0);
+  const priorityDeliveryFee = Number(deliveryQuote?.priorityFee || 0);
+  const deliveryFee =
+    diningOption === "DELIVERY"
+      ? deliveryServiceLevel === "priority"
+        ? regularDeliveryFee + priorityDeliveryFee
+        : regularDeliveryFee
+      : 0;
   const orderTotal = subtotal + deliveryFee;
   const hasDeliveryQuote = diningOption !== "DELIVERY" || Number.isFinite(deliveryFee) && deliveryFee > 0;
   const deliveryPinSelected = hasDeliveryPin(deliveryPin);
@@ -1162,6 +1176,30 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
     !deliveryQuoteLoading &&
     (!requiresPaymentProof || !!paymentProof);
   const potentialPointsEarned = loyaltyPoints(loyaltyEligibleSubtotal);
+  const deliveryMapUrl = deliveryMapPreviewUrl({ pin: deliveryPin, address: deliveryAddress });
+
+  const useDeliveryCurrentLocation = () => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setDeliveryLocationError("Location access is not available on this device.");
+      return;
+    }
+    setDeliveryLocationLoading(true);
+    setDeliveryLocationError("");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = normalizePinCoordinate(position.coords.latitude, -90, 90);
+        const lng = normalizePinCoordinate(position.coords.longitude, -180, 180);
+        setDeliveryPin({ lat, lng });
+        setDeliveryAddress((current) => current.trim() || `Pinned location: ${lat}, ${lng}`);
+        setDeliveryLocationLoading(false);
+      },
+      (error) => {
+        setDeliveryLocationError(error?.message || "Location permission was denied.");
+        setDeliveryLocationLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
+    );
+  };
 
   return (
     <div className="fixed inset-0 z-[150] bg-slate-950/55 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4">
@@ -1309,32 +1347,77 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Delivery Details</p>
                 <span className="rounded-full bg-cyan-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-cyan-800">Lalamove</span>
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: "regular", label: "Regular", help: "Standard rider booking" },
+                  { id: "priority", label: "Priority", help: "Higher rider matching fee" },
+                ].map((speed) => {
+                  const fee = speed.id === "priority" ? regularDeliveryFee + priorityDeliveryFee : regularDeliveryFee;
+                  const selected = deliveryServiceLevel === speed.id;
+                  return (
+                    <button
+                      key={speed.id}
+                      type="button"
+                      onClick={() => setDeliveryServiceLevel(speed.id)}
+                      className={`rounded-2xl border p-3 text-left transition ${
+                        selected
+                          ? "border-cyan-500 bg-cyan-50 text-cyan-950 shadow-sm shadow-cyan-900/10"
+                          : "border-slate-200 bg-slate-50 text-slate-700 hover:border-cyan-200 hover:bg-cyan-50/60"
+                      }`}
+                    >
+                      <span className="block text-xs font-black uppercase tracking-wider">{speed.label}</span>
+                      <span className="mt-1 block text-[10px] font-semibold leading-snug text-slate-500">{speed.help}</span>
+                      <span className="mt-2 block text-sm font-black text-cyan-900">
+                        {deliveryQuoteLoading ? "..." : deliveryQuote ? peso2(fee) : "--"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
               <div>
                 <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1.5">
                   Delivery Address
                 </label>
                 <textarea
                   value={deliveryAddress}
-                  onChange={(e) => setDeliveryAddress(e.target.value)}
+                  onChange={(e) => {
+                    setDeliveryAddress(e.target.value);
+                    setDeliveryPin({ lat: "", lng: "" });
+                  }}
                   className="w-full min-h-20 bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-cyan-600 focus:ring-2 focus:ring-cyan-100"
                   placeholder="House number, street, barangay, city, landmark"
                 />
               </div>
-              <div className="rounded-2xl border border-cyan-100 bg-cyan-50/70 p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-800">Pin Location</p>
-                    <p className="mt-1 text-[11px] font-semibold text-slate-600">
-                      {deliveryPinSelected ? `Pin set: ${deliveryPin.lat}, ${deliveryPin.lng}` : "Select a map pin for accurate rider pickup and delivery fee."}
-                    </p>
+              <div className="overflow-hidden rounded-2xl border border-cyan-100 bg-cyan-50/70">
+                {deliveryMapUrl ? (
+                  <iframe title="Delivery address map" src={deliveryMapUrl} className="h-52 w-full border-0" loading="lazy" />
+                ) : (
+                  <div className="flex h-52 flex-col items-center justify-center gap-2 text-center text-slate-500">
+                    <MapPin className="h-8 w-8 text-cyan-700" />
+                    <p className="text-xs font-bold uppercase tracking-widest">Type delivery address</p>
+                    <p className="max-w-xs text-xs">The map preview updates as the address is entered.</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setPinPickerOpen(true)}
-                    className="shrink-0 rounded-xl bg-cyan-700 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white shadow-lg shadow-cyan-900/10 transition hover:bg-cyan-800"
-                  >
-                    {deliveryPinSelected ? "Change Pin" : "Select Pin"}
-                  </button>
+                )}
+                <div className="border-t border-cyan-100 bg-white/75 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-800">Map Preview</p>
+                      <p className="mt-1 text-[11px] font-semibold text-slate-600">
+                        {deliveryPinSelected ? `Using phone location: ${deliveryPin.lat}, ${deliveryPin.lng}` : "Address-based preview. Use phone location if the pin needs higher accuracy."}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={useDeliveryCurrentLocation}
+                      disabled={deliveryLocationLoading}
+                      className="shrink-0 rounded-xl bg-cyan-700 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white shadow-lg shadow-cyan-900/10 transition hover:bg-cyan-800 disabled:bg-slate-200 disabled:text-slate-500"
+                    >
+                      {deliveryLocationLoading ? "Locating..." : "Use Phone Location"}
+                    </button>
+                  </div>
+                  {deliveryLocationError ? (
+                    <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] font-bold text-amber-800">{deliveryLocationError}</p>
+                  ) : null}
                 </div>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
@@ -1342,13 +1425,19 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Delivery Fee Preview</p>
                     <p className="mt-1 text-[11px] font-semibold text-slate-600">
-                      Lalamove motorcycle estimate. Final rider booking is confirmed by the cashier.
+                      {deliveryServiceLevel === "priority" ? "Priority includes the regular fee plus the rider matching priority fee." : "Regular Lalamove motorcycle estimate. Final rider booking is confirmed by the cashier."}
                     </p>
                   </div>
                   <p className="text-lg font-black text-cyan-900">
                     {deliveryQuoteLoading ? "..." : deliveryQuote ? peso2(deliveryFee) : "--"}
                   </p>
                 </div>
+                {deliveryServiceLevel === "priority" && deliveryQuote ? (
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] font-bold text-slate-600">
+                    <span>Regular fee: {peso2(regularDeliveryFee)}</span>
+                    <span className="text-right">Priority fee: {peso2(priorityDeliveryFee)}</span>
+                  </div>
+                ) : null}
                 {deliveryQuote?.distanceMeters ? (
                   <p className="mt-2 text-[10px] font-bold text-cyan-700">
                     Estimated distance: {(Number(deliveryQuote.distanceMeters) / 1000).toFixed(2)} km
@@ -1493,6 +1582,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
               fulfillmentTime,
               deliveryAddress,
               deliveryPin,
+              deliveryServiceLevel,
               deliveryFee,
               deliveryQuote,
               paymentMethod,
@@ -1509,14 +1599,6 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
         </div>
       </div>
       </div>
-      <DeliveryPinPickerModal
-        open={pinPickerOpen}
-        address={deliveryAddress}
-        pin={deliveryPin}
-        onAddressChange={setDeliveryAddress}
-        onPinChange={setDeliveryPin}
-        onClose={() => setPinPickerOpen(false)}
-      />
     </div>
   );
 }
@@ -1833,6 +1915,8 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       delivery_longitude: fulfillmentMetadata.deliveryPin?.lng ? Number(fulfillmentMetadata.deliveryPin.lng) : null,
       delivery_provider: fulfillmentMetadata.diningOption === "DELIVERY" ? "lalamove" : "",
       delivery_status: fulfillmentMetadata.diningOption === "DELIVERY" ? "quoted" : "",
+      delivery_service_level: fulfillmentMetadata.diningOption === "DELIVERY" ? fulfillmentMetadata.deliveryServiceLevel || "regular" : "regular",
+      delivery_priority_fee: fulfillmentMetadata.diningOption === "DELIVERY" ? Number(fulfillmentMetadata.deliveryQuote?.priorityFee || 0) : 0,
       delivery_fee: deliveryFee || null,
       delivery_currency: fulfillmentMetadata.deliveryQuote?.currency || "PHP",
       delivery_quote_id: fulfillmentMetadata.deliveryQuote?.quoteId || "",

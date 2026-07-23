@@ -88,6 +88,7 @@ export async function POST(req) {
       delivery_address: deliveryAddress,
       delivery_latitude: body?.deliveryLatitude,
       delivery_longitude: body?.deliveryLongitude,
+      delivery_service_level: body?.deliveryServiceLevel,
       customer_name: body?.customerName || user?.user_metadata?.full_name || "Web Customer",
       customer_contact: body?.customerContact || "",
       total: Number(body?.subtotal || 0),
@@ -96,12 +97,20 @@ export async function POST(req) {
     const payload = buildLalamoveQuotePayload({ order: quoteOrder, store });
     const raw = await lalamoveRequest("POST", "/v3/quotations", payload);
     const summary = parseQuoteSummary(raw);
+    const selectedServiceLevel = String(body?.deliveryServiceLevel || "regular").toLowerCase() === "priority" ? "priority" : "regular";
+    const configuredPriorityFee = Number(config.priorityFee || 0);
+    const priorityFee = Number(summary.priorityFee || configuredPriorityFee || 0);
+    const regularFee = Number(summary.regularFee || summary.fee || 0);
+    const selectedFee = selectedServiceLevel === "priority" ? regularFee + priorityFee : regularFee;
 
     return Response.json({
       success: true,
       summary: {
         ...summary,
-        fee: Number(summary.fee || 0),
+        fee: Number(selectedFee || 0),
+        regularFee,
+        priorityFee,
+        selectedServiceLevel,
         currency: summary.currency || "PHP",
       },
     });

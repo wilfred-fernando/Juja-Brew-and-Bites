@@ -130,11 +130,17 @@ async function createQuote(admin, order, store) {
   const response = await lalamoveRequest("POST", "/v3/quotations", payload);
   const summary = parseQuoteSummary(response);
   if (!summary.quoteId) throw new Error("Lalamove quote response did not include a quotation ID.");
+  const config = getLalamoveConfig();
+  const serviceLevel = String(order?.delivery_service_level || "regular").toLowerCase() === "priority" ? "priority" : "regular";
+  const priorityFee = serviceLevel === "priority" ? Number(summary.priorityFee || config.priorityFee || 0) : 0;
+  const regularFee = Number(summary.regularFee || summary.fee || 0);
+  const selectedFee = serviceLevel === "priority" ? regularFee + priorityFee : regularFee;
 
   await saveDeliveryState(admin, order.id, {
     delivery_status: "quoted",
     delivery_quote_id: summary.quoteId,
-    delivery_fee: summary.fee,
+    delivery_fee: selectedFee,
+    delivery_priority_fee: priorityFee,
     delivery_currency: summary.currency,
     delivery_distance_meters: summary.distanceMeters,
     delivery_provider_payload: response,
@@ -198,19 +204,30 @@ export async function POST(req) {
       const response = await lalamoveRequest("POST", "/v3/orders", payload);
       const summary = parseOrderSummary(response);
       if (!summary.orderId) throw new Error("Lalamove order response did not include an order ID.");
+      const priorityFee = String(order.delivery_service_level || "").toLowerCase() === "priority"
+        ? Number(order.delivery_priority_fee || 0)
+        : 0;
+      let finalResponse = response;
+      if (priorityFee > 0) {
+        finalResponse = await lalamoveRequest(
+          "POST",
+          `/v3/orders/${encodeURIComponent(summary.orderId)}/priority-fee`,
+          { data: { priorityFee: String(priorityFee) } }
+        );
+      }
 
       await saveDeliveryState(admin, order.id, {
         delivery_status: summary.status || "booked",
         delivery_order_id: summary.orderId,
         delivery_share_link: summary.shareLink,
         delivery_tracking_link: summary.trackingLink,
-        delivery_provider_payload: response,
+        delivery_provider_payload: finalResponse,
         delivery_last_error: null,
         delivery_booked_at: new Date().toISOString(),
       });
       await sendDeliveryStatusPush(order.id);
 
-      return Response.json({ success: true, action: "book", summary: { ...summary, quote: quoteSummary }, raw: response });
+      return Response.json({ success: true, action: "book", summary: { ...summary, quote: quoteSummary, priorityFee }, raw: finalResponse });
     }
 
     if (normalizedAction === "status") {
