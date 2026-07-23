@@ -1077,8 +1077,32 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [paymentProof, setPaymentProof] = useState(null);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
+  const autoDeliveryLocationRequestedRef = useRef(false);
   const targetTimeOptions = useMemo(() => buildTargetTimeOptions(fulfillmentDate, selectedStore), [fulfillmentDate, selectedStore]);
   const selectedTimeOption = targetTimeOptions.find((option) => option.value === fulfillmentTime);
+
+  const requestDeliveryCurrentLocation = () => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setDeliveryLocationError("Location access is not available on this device.");
+      return;
+    }
+    setDeliveryLocationLoading(true);
+    setDeliveryLocationError("");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = normalizePinCoordinate(position.coords.latitude, -90, 90);
+        const lng = normalizePinCoordinate(position.coords.longitude, -180, 180);
+        setDeliveryPin({ lat, lng });
+        setDeliveryAddress((current) => current.trim() || `Pinned location: ${lat}, ${lng}`);
+        setDeliveryLocationLoading(false);
+      },
+      (error) => {
+        setDeliveryLocationError(error?.message || "Location permission was denied.");
+        setDeliveryLocationLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
+    );
+  };
 
   useEffect(() => {
     if (!targetTimeOptions.length) {
@@ -1090,6 +1114,16 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
       setFulfillmentTime(targetTimeOptions[0].value);
     }
   }, [fulfillmentTime, targetTimeOptions]);
+
+  useEffect(() => {
+    if (!open || diningOption !== "DELIVERY") {
+      autoDeliveryLocationRequestedRef.current = false;
+      return;
+    }
+    if (autoDeliveryLocationRequestedRef.current || hasDeliveryPin(deliveryPin)) return;
+    autoDeliveryLocationRequestedRef.current = true;
+    requestDeliveryCurrentLocation();
+  }, [open, diningOption, deliveryPin.lat, deliveryPin.lng]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1220,29 +1254,6 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
     deliveryAddressFocused &&
     deliveryAddressSearchTerm.length >= 3 &&
     !deliveryPinSelected;
-
-  const useDeliveryCurrentLocation = () => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setDeliveryLocationError("Location access is not available on this device.");
-      return;
-    }
-    setDeliveryLocationLoading(true);
-    setDeliveryLocationError("");
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const lat = normalizePinCoordinate(position.coords.latitude, -90, 90);
-        const lng = normalizePinCoordinate(position.coords.longitude, -180, 180);
-        setDeliveryPin({ lat, lng });
-        setDeliveryAddress((current) => current.trim() || `Pinned location: ${lat}, ${lng}`);
-        setDeliveryLocationLoading(false);
-      },
-      (error) => {
-        setDeliveryLocationError(error?.message || "Location permission was denied.");
-        setDeliveryLocationLoading(false);
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
-    );
-  };
 
   return (
     <div className="fixed inset-0 z-[150] bg-slate-950/55 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4">
@@ -1390,15 +1401,6 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Delivery Details</p>
                 <span className="rounded-full bg-cyan-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-cyan-800">Lalamove</span>
               </div>
-              <div className="flex items-center justify-between gap-3 rounded-2xl border border-cyan-100 bg-cyan-50 px-3 py-3">
-                <span className="min-w-0">
-                  <span className="block text-xs font-black uppercase tracking-wider text-slate-900">Regular Delivery</span>
-                  <span className="mt-0.5 block text-[10px] font-semibold leading-snug text-slate-600">Lalamove motorcycle estimate</span>
-                </span>
-                <span className="shrink-0 text-right text-sm font-black text-cyan-900">
-                  {deliveryQuoteLoading ? "..." : deliveryQuote ? peso2(regularDeliveryFee) : "--"}
-                </span>
-              </div>
               <div className="relative">
                 <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1.5">
                   Search Delivery Address
@@ -1446,17 +1448,19 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                   </div>
                 ) : null}
               </div>
-              <div className="overflow-hidden rounded-2xl border border-cyan-100 bg-cyan-50/70">
+              <div className="overflow-hidden rounded-2xl border border-cyan-100 bg-white shadow-sm">
                 {deliveryMapUrl ? (
-                  <iframe title="Delivery address map" src={deliveryMapUrl} className="h-52 w-full border-0" loading="lazy" />
+                  <iframe title="Delivery address map" src={deliveryMapUrl} className="h-60 w-full border-0 bg-cyan-50" loading="lazy" />
                 ) : (
-                  <div className="flex h-52 flex-col items-center justify-center gap-2 text-center text-slate-500">
-                    <MapPin className="h-8 w-8 text-cyan-700" />
-                    <p className="text-xs font-bold uppercase tracking-widest">Select delivery address</p>
-                    <p className="max-w-xs text-xs">Choose a suggestion above or use phone location to load the map preview.</p>
+                  <div className="flex h-60 flex-col items-center justify-center gap-2 bg-cyan-50 text-center text-slate-500">
+                    <MapPin className="h-9 w-9 text-sky-500" />
+                    <p className="text-xs font-bold uppercase tracking-widest">
+                      {deliveryLocationLoading ? "Loading current location" : "Map preview"}
+                    </p>
+                    <p className="max-w-xs text-xs">Allow location access or select an address suggestion to show the delivery pin.</p>
                   </div>
                 )}
-                <div className="border-t border-cyan-100 bg-white/75 p-3">
+                <div className="border-t border-cyan-100 bg-slate-50 p-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-800">Map Preview</p>
@@ -1466,7 +1470,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                     </div>
                     <button
                       type="button"
-                      onClick={useDeliveryCurrentLocation}
+                      onClick={requestDeliveryCurrentLocation}
                       disabled={deliveryLocationLoading}
                       className="shrink-0 rounded-xl bg-sky-300 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-900 shadow-lg shadow-sky-500/20 transition hover:bg-sky-400 disabled:bg-slate-200 disabled:text-slate-500"
                     >
