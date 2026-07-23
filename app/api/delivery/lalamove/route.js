@@ -134,7 +134,8 @@ async function createQuote(admin, order, store) {
   const serviceLevel = String(order?.delivery_service_level || "regular").toLowerCase() === "priority" ? "priority" : "regular";
   const priorityFee = serviceLevel === "priority" ? Number(summary.priorityFee || config.priorityFee || 0) : 0;
   const regularFee = Number(summary.regularFee || summary.fee || 0);
-  const selectedFee = serviceLevel === "priority" ? regularFee + priorityFee : regularFee;
+  const priorityTotalFee = serviceLevel === "priority" ? Number(summary.priorityTotalFee || (priorityFee > 0 ? regularFee + priorityFee : 0)) : 0;
+  const selectedFee = serviceLevel === "priority" ? priorityTotalFee : regularFee;
 
   await saveDeliveryState(admin, order.id, {
     delivery_status: "quoted",

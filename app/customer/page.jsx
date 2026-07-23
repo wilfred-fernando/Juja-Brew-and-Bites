@@ -1161,11 +1161,12 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
   const requiresPaymentProof = paymentMethod === "QRPH";
   const regularDeliveryFee = Number(deliveryQuote?.regularFee || deliveryQuote?.fee || 0);
   const priorityDeliveryFee = Number(deliveryQuote?.priorityFee || 0);
-  const priorityDeliveryAvailable = Boolean(deliveryQuote && priorityDeliveryFee > 0);
+  const priorityDeliveryTotalFee = Number(deliveryQuote?.priorityTotalFee || (priorityDeliveryFee > 0 ? regularDeliveryFee + priorityDeliveryFee : 0));
+  const priorityDeliveryAvailable = Boolean(deliveryQuote && priorityDeliveryTotalFee > 0);
   const deliveryFee =
     diningOption === "DELIVERY"
       ? deliveryServiceLevel === "priority"
-        ? regularDeliveryFee + priorityDeliveryFee
+        ? priorityDeliveryTotalFee
         : regularDeliveryFee
       : 0;
   const orderTotal = subtotal + deliveryFee;
@@ -1354,9 +1355,9 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
               <div className="space-y-2">
                 {[
                   { id: "regular", label: "Regular", help: "Standard rider booking" },
-                  { id: "priority", label: "Priority", help: "Higher rider matching fee" },
+                  { id: "priority", label: "Delivery Fee (Priority)", help: "Priority rider matching" },
                 ].map((speed) => {
-                  const fee = speed.id === "priority" ? regularDeliveryFee + priorityDeliveryFee : regularDeliveryFee;
+                  const fee = speed.id === "priority" ? priorityDeliveryTotalFee : regularDeliveryFee;
                   const selected = deliveryServiceLevel === speed.id;
                   const unavailablePriority = speed.id === "priority" && deliveryQuote && !priorityDeliveryAvailable;
                   return (
@@ -1450,7 +1451,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                 {deliveryServiceLevel === "priority" && deliveryQuote ? (
                   <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] font-bold text-slate-600">
                     <span>Regular fee: {peso2(regularDeliveryFee)}</span>
-                    <span className="text-right">Priority fee: {peso2(priorityDeliveryFee)}</span>
+                    <span className="text-right">Priority total: {peso2(priorityDeliveryTotalFee)}</span>
                   </div>
                 ) : null}
                 {deliveryQuote?.distanceMeters ? (

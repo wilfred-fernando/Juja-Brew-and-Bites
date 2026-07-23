@@ -101,8 +101,9 @@ export async function POST(req) {
     const configuredPriorityFee = Number(config.priorityFee || 0);
     const priorityFee = Number(summary.priorityFee || configuredPriorityFee || 0);
     const regularFee = Number(summary.regularFee || summary.fee || 0);
-    const selectedFee = selectedServiceLevel === "priority" ? regularFee + priorityFee : regularFee;
-    const priorityAvailable = priorityFee > 0;
+    const priorityTotalFee = Number(summary.priorityTotalFee || (priorityFee > 0 ? regularFee + priorityFee : 0));
+    const selectedFee = selectedServiceLevel === "priority" ? priorityTotalFee : regularFee;
+    const priorityAvailable = priorityTotalFee > 0;
 
     return Response.json({
       success: true,
@@ -111,6 +112,7 @@ export async function POST(req) {
         fee: Number(selectedFee || 0),
         regularFee,
         priorityFee,
+        priorityTotalFee,
         priorityAvailable,
         selectedServiceLevel,
         currency: summary.currency || "PHP",
