@@ -314,6 +314,25 @@ function formatOrderScheduleLabel(dateString, timeString) {
   }).format(date);
 }
 
+function normalizePinCoordinate(value, min, max) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < min || number > max) return "";
+  return number.toFixed(7);
+}
+
+function hasDeliveryPin(pin) {
+  return Boolean(normalizePinCoordinate(pin?.lat, -90, 90) && normalizePinCoordinate(pin?.lng, -180, 180));
+}
+
+function deliveryMapPreviewUrl(pin) {
+  const lat = Number(pin?.lat);
+  const lng = Number(pin?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return "";
+  const spread = 0.004;
+  const bbox = `${lng - spread}%2C${lat - spread}%2C${lng + spread}%2C${lat + spread}`;
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lng}`;
+}
+
 function genCustomerId() {
   return String(Math.floor(1000000 + Math.random() * 9000000));
 }
@@ -890,11 +909,162 @@ function AddToCartModal({ item, onClose, onAdd }) {
 /* ──────────────────────────────────────────────────────────────
     Interactive Checkout Confirmation Drawer
 ────────────────────────────────────────────────────────────── */
+function DeliveryPinPickerModal({ open, address, pin, onAddressChange, onPinChange, onClose }) {
+  const [draftAddress, setDraftAddress] = useState(address || "");
+  const [draftPin, setDraftPin] = useState({ lat: pin?.lat || "", lng: pin?.lng || "" });
+  const [pinLoading, setPinLoading] = useState(false);
+  const [pinError, setPinError] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setDraftAddress(address || "");
+    setDraftPin({ lat: pin?.lat || "", lng: pin?.lng || "" });
+    setPinError("");
+  }, [address, open, pin?.lat, pin?.lng]);
+
+  if (!open) return null;
+
+  const previewUrl = deliveryMapPreviewUrl(draftPin);
+  const pinIsValid = hasDeliveryPin(draftPin);
+  const saveDisabled = !pinIsValid || draftAddress.trim().length < 8;
+
+  const useCurrentLocation = () => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setPinError("Location access is not available on this device.");
+      return;
+    }
+    setPinLoading(true);
+    setPinError("");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = normalizePinCoordinate(position.coords.latitude, -90, 90);
+        const lng = normalizePinCoordinate(position.coords.longitude, -180, 180);
+        setDraftPin({ lat, lng });
+        setDraftAddress((current) => current.trim() || `Pinned location: ${lat}, ${lng}`);
+        setPinLoading(false);
+      },
+      (error) => {
+        setPinError(error?.message || "Location permission was denied.");
+        setPinLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
+    );
+  };
+
+  const savePin = () => {
+    if (saveDisabled) return;
+    onAddressChange(draftAddress.trim());
+    onPinChange({
+      lat: normalizePinCoordinate(draftPin.lat, -90, 90),
+      lng: normalizePinCoordinate(draftPin.lng, -180, 180),
+    });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[190] bg-black/55 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4">
+      <div className="w-full max-w-lg rounded-t-[28px] md:rounded-[24px] bg-white p-5 shadow-2xl max-h-[92vh] overflow-y-auto">
+        <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-700">Delivery Pin</p>
+            <h3 className="mt-1 text-xl font-bold text-slate-900">Select Pin Location</h3>
+            <p className="mt-1 text-xs font-semibold text-slate-500">Use the exact drop-off point plus the written address or landmark.</p>
+          </div>
+          <button type="button" onClick={onClose} className="h-10 w-10 rounded-full border border-slate-200 bg-white text-xl font-bold text-slate-700 shadow-sm">
+            x
+          </button>
+        </div>
+
+        <div className="mt-4 space-y-4">
+          <div className="overflow-hidden rounded-2xl border border-cyan-100 bg-cyan-50/80">
+            {previewUrl ? (
+              <iframe title="Delivery pin preview" src={previewUrl} className="h-56 w-full border-0" loading="lazy" />
+            ) : (
+              <div className="flex h-56 flex-col items-center justify-center gap-2 text-center text-slate-500">
+                <MapPin className="h-8 w-8 text-cyan-700" />
+                <p className="text-xs font-bold uppercase tracking-widest">No pin selected</p>
+                <p className="max-w-xs text-xs">Tap use current location or manually enter latitude and longitude.</p>
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={useCurrentLocation}
+            disabled={pinLoading}
+            className="w-full rounded-xl bg-cyan-700 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-cyan-900/10 transition active:scale-[0.98] disabled:opacity-60"
+          >
+            {pinLoading ? "Getting Location..." : "Use My Current Location"}
+          </button>
+
+          {pinError ? <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">{pinError}</div> : null}
+
+          <div>
+            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-500">Delivery Address / Landmark</label>
+            <textarea
+              value={draftAddress}
+              onChange={(e) => setDraftAddress(e.target.value)}
+              className="min-h-20 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-cyan-600"
+              placeholder="House number, street, barangay, city, landmark"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-500">Latitude</label>
+              <input
+                value={draftPin.lat}
+                onChange={(e) => setDraftPin((current) => ({ ...current, lat: e.target.value }))}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-cyan-600"
+                inputMode="decimal"
+                placeholder="14.6754858"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-500">Longitude</label>
+              <input
+                value={draftPin.lng}
+                onChange={(e) => setDraftPin((current) => ({ ...current, lng: e.target.value }))}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-cyan-600"
+                inputMode="decimal"
+                placeholder="121.0438648"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-4">
+            <button
+              type="button"
+              onClick={() => {
+                setDraftPin({ lat: "", lng: "" });
+                onPinChange({ lat: "", lng: "" });
+              }}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700"
+            >
+              Clear Pin
+            </button>
+            <button
+              type="button"
+              onClick={savePin}
+              disabled={saveDisabled}
+              className="rounded-xl bg-cyan-700 px-4 py-3 text-xs font-bold uppercase tracking-wider text-white disabled:bg-slate-200 disabled:text-slate-500"
+            >
+              Save Pin
+            </button>
+        </div>
+      </div>
+    </div>
+    </div>
+  );
+}
+
 function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEligibleSubtotal, cartItems, isSubmitting, selectedStore, selectedStoreName }) {
   const [diningOption, setDiningOption] = useState("TAKEOUT");
   const [fulfillmentDate, setFulfillmentDate] = useState(getManilaDateString(0));
   const [fulfillmentTime, setFulfillmentTime] = useState(getManilaTimeString(30));
   const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [deliveryPin, setDeliveryPin] = useState({ lat: "", lng: "" });
+  const [pinPickerOpen, setPinPickerOpen] = useState(false);
   const [deliveryQuote, setDeliveryQuote] = useState(null);
   const [deliveryQuoteLoading, setDeliveryQuoteLoading] = useState(false);
   const [deliveryQuoteError, setDeliveryQuoteError] = useState("");
@@ -944,6 +1114,8 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
           body: JSON.stringify({
             storeId: selectedStore.id,
             deliveryAddress: address,
+            deliveryLatitude: deliveryPin.lat || null,
+            deliveryLongitude: deliveryPin.lng || null,
             subtotal,
           }),
         });
@@ -969,7 +1141,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [open, diningOption, deliveryAddress, selectedStore?.id, subtotal]);
+  }, [open, diningOption, deliveryAddress, deliveryPin.lat, deliveryPin.lng, selectedStore?.id, subtotal]);
 
   if (!open) return null;
 
@@ -982,6 +1154,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
   const deliveryFee = diningOption === "DELIVERY" ? Number(deliveryQuote?.fee || 0) : 0;
   const orderTotal = subtotal + deliveryFee;
   const hasDeliveryQuote = diningOption !== "DELIVERY" || Number.isFinite(deliveryFee) && deliveryFee > 0;
+  const deliveryPinSelected = hasDeliveryPin(deliveryPin);
   const canSubmit =
     isValidTime &&
     (diningOption !== "DELIVERY" || deliveryAddress.trim().length >= 8) &&
@@ -991,27 +1164,49 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
   const potentialPointsEarned = loyaltyPoints(loyaltyEligibleSubtotal);
 
   return (
-    <div className="fixed inset-0 z-[150] bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4">
+    <div className="fixed inset-0 z-[150] bg-slate-950/55 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4">
       <div 
-        className="w-full max-w-md bg-white rounded-t-[32px] md:rounded-[24px] p-6 shadow-2xl max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom duration-300"
+        className="w-full max-w-xl bg-slate-50 rounded-t-[30px] md:rounded-[28px] shadow-2xl max-h-[94vh] overflow-hidden flex flex-col animate-in slide-in-from-bottom duration-300"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="border-b border-slate-100 pb-3 mb-4">
-          <p className="text-[10px] uppercase font-bold tracking-widest text-[#FC687D]"></p>
-          <h3 className="text-xl font-bold text-slate-800 mt-0.5">Confirm Your Order</h3>
+        <div className="sticky top-0 z-10 bg-white px-5 py-4 border-b border-slate-200/80">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] uppercase font-bold tracking-[0.28em] text-cyan-700">Checkout</p>
+              <h3 className="mt-0.5 text-xl font-bold text-slate-900">Place Order</h3>
+              <p className="mt-1 text-xs font-semibold text-slate-500">Review branch, schedule, payment, and total before sending.</p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="h-10 w-10 shrink-0 rounded-full border border-slate-200 bg-slate-50 text-lg font-bold text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:opacity-50"
+              aria-label="Close checkout"
+            >
+              x
+            </button>
+          </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-cyan-100 bg-cyan-50/70 p-3">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-800">Sending To Store</p>
-            <p className="mt-1 text-sm font-semibold text-slate-800">{selectedStoreName || "Selected branch"}</p>
-            <p className="mt-1 text-[11px] text-slate-500">Change the branch from the store selector above the menu before placing the order.</p>
+        <div className="flex-1 overflow-y-auto p-4 md:p-5 space-y-3">
+          <div className="rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-800">Sending to</p>
+                <p className="mt-1 text-base font-bold text-slate-900">{selectedStoreName || "Selected branch"}</p>
+                <p className="mt-1 text-[11px] font-semibold text-slate-500">Change the branch from the store selector above the menu before placing the order.</p>
+              </div>
+              <span className="rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-cyan-800">Store</span>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-500">
               ORDER TYPE
-            </label>
+              </label>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Required</span>
+            </div>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { id: "TAKEOUT", label: "Self Pickup", icon: "🛍️" },
@@ -1022,69 +1217,78 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                   key={opt.id}
                   type="button"
                   onClick={() => { setDiningOption(opt.id); setPaymentProof(null); if (opt.id === "DELIVERY") setPaymentMethod("QRPH"); else if (opt.id === "DINEIN") setPaymentMethod(""); else setPaymentMethod("Cash"); }}
-                  className={`py-3 rounded-xl border flex flex-col items-center justify-center gap-1.5 font-bold text-xs transition ${
+                  className={`min-h-20 rounded-2xl border px-2 py-3 flex flex-col items-center justify-center gap-2 font-bold text-xs transition ${
                     diningOption === opt.id
-                      ? "border-[#FC687D] bg-blue-300/50 text-[#FC687D]"
-                      : "border-slate-200 bg-blue-100/50 text-slate-600 hover:bg-blue-300/80"
+                      ? "border-cyan-500 bg-cyan-50 text-cyan-900 shadow-sm shadow-cyan-900/10"
+                      : "border-slate-200 bg-slate-50 text-slate-600 hover:border-cyan-200 hover:bg-cyan-50/60"
                   }`}
                 >
-                  <span className="text-base">{opt.icon}</span>
+                  <span className={`rounded-full px-3 py-1 text-[10px] uppercase tracking-wider ${diningOption === opt.id ? "bg-cyan-700 text-white" : "bg-white text-slate-500"}`}>
+                    {opt.id === "TAKEOUT" ? "Pickup" : opt.id === "DINEIN" ? "Table" : "Rider"}
+                  </span>
                   <span>{opt.label}</span>
                 </button>
               ))}
             </div>
-          </div>
+          </section>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1.5">
-                Target Date
-              </label>
-              <input
-                type="date"
-                min={getManilaDateString(0)}
-                value={fulfillmentDate}
-                onChange={(e) => setFulfillmentDate(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-[#FC687D]"
-              />
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Target Time</p>
+              <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${isScheduledOrder ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>
+                {isScheduledOrder ? "Scheduled" : "Soonest"}
+              </span>
             </div>
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1.5">
-                Target Time
-              </label>
-              <div className="relative">
-                <button
-                  type="button"
-                  disabled={!targetTimeOptions.length}
-                  onClick={() => setTimePickerOpen((current) => !current)}
-                  className="w-full bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-xl text-left text-xs font-bold text-slate-700 outline-none transition focus:border-[#FC687D] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-                >
-                  {selectedTimeOption?.label || "Select time"}
-                </button>
-                {timePickerOpen && targetTimeOptions.length > 0 && (
-                  <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[170] max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
-                    {targetTimeOptions.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => {
-                          setFulfillmentTime(option.value);
-                          setTimePickerOpen(false);
-                        }}
-                        className={`w-full rounded-lg px-3 py-2 text-left text-xs font-bold transition ${
-                          fulfillmentTime === option.value
-                            ? "border-[#FC687D] bg-blue-300/50 text-[#FC687D]"
-                            : "border-slate-200 bg-blue-100/50 text-slate-600 hover:bg-blue-300/80"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1.5">
+                  Target Date
+                </label>
+                <input
+                  type="date"
+                  min={getManilaDateString(0)}
+                  value={fulfillmentDate}
+                  onChange={(e) => setFulfillmentDate(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 px-3 py-3 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-cyan-600 focus:ring-2 focus:ring-cyan-100"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1.5">
+                  Target Time
+                </label>
+                <div className="relative">
+                  <button
+                    type="button"
+                    disabled={!targetTimeOptions.length}
+                    onClick={() => setTimePickerOpen((current) => !current)}
+                    className="w-full bg-slate-50 border border-slate-200 px-3 py-3 rounded-xl text-left text-xs font-bold text-slate-800 outline-none transition focus:border-cyan-600 focus:ring-2 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                  >
+                    {selectedTimeOption?.label || "Select time"}
+                  </button>
+                  {timePickerOpen && targetTimeOptions.length > 0 && (
+                    <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[170] max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
+                      {targetTimeOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => {
+                            setFulfillmentTime(option.value);
+                            setTimePickerOpen(false);
+                          }}
+                          className={`w-full rounded-lg px-3 py-2 text-left text-xs font-bold transition ${
+                            fulfillmentTime === option.value
+                              ? "bg-cyan-700 text-white"
+                              : "text-slate-700 hover:bg-cyan-50"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
           {!targetTimeOptions.length && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800">
@@ -1097,9 +1301,14 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
               {formatOrderScheduleLabel(fulfillmentDate, fulfillmentTime)}
             </div>
           )}
+          </section>
 
           {diningOption === "DELIVERY" && (
-            <div className="space-y-3">
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Delivery Details</p>
+                <span className="rounded-full bg-cyan-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-cyan-800">Lalamove</span>
+              </div>
               <div>
                 <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1.5">
                   Delivery Address
@@ -1107,14 +1316,31 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                 <textarea
                   value={deliveryAddress}
                   onChange={(e) => setDeliveryAddress(e.target.value)}
-                  className="w-full min-h-20 bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-[#FC687D]"
+                  className="w-full min-h-20 bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-cyan-600 focus:ring-2 focus:ring-cyan-100"
                   placeholder="House number, street, barangay, city, landmark"
                 />
               </div>
-              <div className="rounded-2xl border border-cyan-100 bg-cyan-50/80 p-3">
+              <div className="rounded-2xl border border-cyan-100 bg-cyan-50/70 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-800">Pin Location</p>
+                    <p className="mt-1 text-[11px] font-semibold text-slate-600">
+                      {deliveryPinSelected ? `Pin set: ${deliveryPin.lat}, ${deliveryPin.lng}` : "Select a map pin for accurate rider pickup and delivery fee."}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPinPickerOpen(true)}
+                    className="shrink-0 rounded-xl bg-cyan-700 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white shadow-lg shadow-cyan-900/10 transition hover:bg-cyan-800"
+                  >
+                    {deliveryPinSelected ? "Change Pin" : "Select Pin"}
+                  </button>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-800">Delivery Fee Preview</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Delivery Fee Preview</p>
                     <p className="mt-1 text-[11px] font-semibold text-slate-600">
                       Lalamove motorcycle estimate. Final rider booking is confirmed by the cashier.
                     </p>
@@ -1137,12 +1363,12 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                   <p className="mt-2 text-[10px] font-bold text-slate-500">Delivery fee will appear here before you place the order.</p>
                 ) : null}
               </div>
-            </div>
+            </section>
           )}
 
           {paymentOptions.length > 0 && (
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2">
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-3">
                 Payment Option
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -1154,51 +1380,65 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                       setPaymentMethod(method);
                       if (method !== "QRPH") setPaymentProof(null);
                     }}
-                    className={`h-10 rounded-xl border text-xs font-bold uppercase tracking-wider ${
+                    className={`h-11 rounded-xl border text-xs font-bold uppercase tracking-wider transition ${
                       paymentMethod === method
-                        ? "border-[#FC687D] bg-blue-300/50 text-[#FC687D]"
-                      : "border-slate-200 bg-blue-100/50 text-slate-600 hover:bg-blue-300/80"
+                        ? "border-cyan-500 bg-cyan-700 text-white shadow-sm shadow-cyan-900/10"
+                      : "border-slate-200 bg-slate-50 text-slate-700 hover:border-cyan-200 hover:bg-cyan-50"
                     }`}
                   >
                     {method}
                   </button>
                 ))}
               </div>
-            </div>
+            </section>
           )}
 
           {paymentMethod === "QRPH" && (
-            <div className="rounded-2xl border border-rose-100 bg-rose-50/50 p-3 space-y-3">
+            <section className="rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm space-y-3">
+              <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500">QRPH Payment Proof</p>
               <img src="/images/qrph.jpg" alt="QRPH payment code" className="w-full rounded-xl border border-white bg-white object-contain max-h-72" />
               <div>
-                <label className="block text-[10px] uppercase tracking-widest font-bold text-rose-500 mb-1.5">
+                <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-1.5">
                   Upload Payment Screenshot
                 </label>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={(e) => setPaymentProof(e.target.files?.[0] || null)}
-                  className="w-full text-xs font-semibold text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-[#FC687D] file:px-3 file:py-2 file:text-xs file:font-bold file:text-white"
+                  className="w-full text-xs font-semibold text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-3 file:py-2 file:text-xs file:font-bold file:text-white"
                 />
                 <p className="text-[10px] font-semibold text-slate-500 mt-2">
                   Cashier will review the proof amount before accepting the order.
                 </p>
               </div>
-            </div>
+            </section>
           )}
 
-          <div className="bg-emerald-50/60 border border-emerald-100 rounded-xl p-3 flex items-center justify-between text-xs text-emerald-800 font-medium">
+          <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 flex items-center justify-between text-xs text-emerald-800 font-medium shadow-sm">
             <span className="flex items-center gap-2">⭐ <span>Points Earned</span></span>
             <span className="font-extrabold text-sm text-emerald-700">+{potentialPointsEarned.toFixed(2)} pts</span>
           </div>
 
-          <div className="bg-[#FFF9FA] border border-rose-50/60 p-4 rounded-2xl space-y-2 mt-2">
-            <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1">Items Summary</p>
-            <div className="max-h-24 overflow-y-auto space-y-1.5 pr-1">
+          <section className="bg-white border border-slate-200 p-4 rounded-2xl space-y-3 shadow-sm">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500">Order Summary</p>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{cartItems.length} line(s)</span>
+            </div>
+            <div className="max-h-52 overflow-y-auto divide-y divide-slate-100 pr-1">
               {cartItems.map((line, idx) => (
-                <div key={line.cartItemId || idx} className="flex justify-between text-xs font-medium text-slate-600">
-                  <span className="truncate max-w-[75%]">{line.name} <span className="text-[#FC687D]">x{line.quantity}</span></span>
-                  <span className="font-semibold text-slate-800">{peso0(line.unitPrice * line.quantity)}</span>
+                <div key={line.cartItemId || idx} className="flex justify-between gap-3 py-2 text-xs font-medium text-slate-700">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-slate-900 leading-snug whitespace-normal break-words">
+                      {line.quantity} x {line.name}
+                    </p>
+                    {line.variantDetails ? (
+                      <p className="mt-0.5 text-[11px] font-semibold italic leading-snug text-slate-500 whitespace-normal break-words">{line.variantDetails}</p>
+                    ) : null}
+                    {line.specialInstructions ? (
+                      <p className="mt-1 rounded-lg bg-cyan-50 px-2 py-1 text-[11px] font-semibold leading-snug text-cyan-900">Note: {line.specialInstructions}</p>
+                    ) : null}
+                  </div>
+                  <span className="shrink-0 font-bold text-slate-900">{peso0(line.unitPrice * line.quantity)}</span>
                 </div>
               ))}
             </div>
@@ -1214,17 +1454,34 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
             )}
             <div className="border-t border-rose-100/60 pt-2 flex justify-between items-baseline">
               <span className="text-xs font-bold text-slate-700">Total Amount</span>
-              <span className="text-xl font-black text-[#FC687D]">{peso2(orderTotal)}</span>
+              <span className="text-xl font-black text-cyan-800">{peso2(orderTotal)}</span>
             </div>
-          </div>
+          </section>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mt-6 pt-4 border-t border-slate-100">
+        <div className="sticky bottom-0 z-10 border-t border-slate-200 bg-white p-4 shadow-[0_-10px_30px_rgba(15,23,42,0.08)]">
+          <div className="mb-3 space-y-1.5">
+            <div className="flex justify-between text-xs font-semibold text-slate-600">
+              <span>Items Amount</span>
+              <span className="text-slate-900">{peso0(subtotal)}</span>
+            </div>
+            {diningOption === "DELIVERY" && (
+              <div className="flex justify-between text-xs font-semibold text-slate-600">
+                <span>Delivery Fee</span>
+                <span className="text-cyan-800">{deliveryQuote ? peso2(deliveryFee) : "--"}</span>
+              </div>
+            )}
+            <div className="flex justify-between border-t border-slate-100 pt-2 text-sm font-bold text-slate-900">
+              <span>Total Amount</span>
+              <span className="text-xl text-cyan-800">{peso2(orderTotal)}</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-[0.8fr_1.2fr] gap-3">
           <button
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="w-full py-3 bg-slate-50 border border-slate-200 text-slate-600 font-bold rounded-xl text-xs uppercase tracking-wider"
+            className="w-full py-3 bg-slate-50 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs uppercase tracking-wider transition hover:bg-slate-100 disabled:opacity-50"
           >
             Cancel
           </button>
@@ -1235,6 +1492,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
               fulfillmentDate,
               fulfillmentTime,
               deliveryAddress,
+              deliveryPin,
               deliveryFee,
               deliveryQuote,
               paymentMethod,
@@ -1244,12 +1502,21 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
               isScheduled: isScheduledOrder,
             })}
             disabled={isSubmitting || !canSubmit}
-            className="w-full py-3 bg-blue-400/50 hover:bg-blue-400/80 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-md disabled:opacity-40"
+            className="w-full py-3 bg-cyan-700 hover:bg-cyan-800 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-cyan-900/15 transition disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
           >
-            {isSubmitting ? "Sending..." : "PLACE ORDER ✓"}
+            {isSubmitting ? "Sending..." : "Place Order"}
           </button>
         </div>
       </div>
+      </div>
+      <DeliveryPinPickerModal
+        open={pinPickerOpen}
+        address={deliveryAddress}
+        pin={deliveryPin}
+        onAddressChange={setDeliveryAddress}
+        onPinChange={setDeliveryPin}
+        onClose={() => setPinPickerOpen(false)}
+      />
     </div>
   );
 }
@@ -1562,6 +1829,8 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       scheduled_for: fulfillmentMetadata.scheduledFor,
       schedule_label: fulfillmentMetadata.scheduleLabel,
       delivery_address: fulfillmentMetadata.deliveryAddress || "",
+      delivery_latitude: fulfillmentMetadata.deliveryPin?.lat ? Number(fulfillmentMetadata.deliveryPin.lat) : null,
+      delivery_longitude: fulfillmentMetadata.deliveryPin?.lng ? Number(fulfillmentMetadata.deliveryPin.lng) : null,
       delivery_provider: fulfillmentMetadata.diningOption === "DELIVERY" ? "lalamove" : "",
       delivery_status: fulfillmentMetadata.diningOption === "DELIVERY" ? "quoted" : "",
       delivery_fee: deliveryFee || null,
@@ -1723,7 +1992,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
               onClick={handleOpenCheckoutValidation}
               className="w-full h-11 rounded-xl bg-blue-300/80 text-white text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-blue-400/80 transition"
             >
-             PLACE ORDER
+            {isSubmitting ? "Sending..." : "Place Order"}
             </button>
             <button
               onClick={() => setConfirmClear(true)}

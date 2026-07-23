@@ -86,6 +86,8 @@ export async function POST(req) {
 
     const quoteOrder = {
       delivery_address: deliveryAddress,
+      delivery_latitude: body?.deliveryLatitude,
+      delivery_longitude: body?.deliveryLongitude,
       customer_name: body?.customerName || user?.user_metadata?.full_name || "Web Customer",
       customer_contact: body?.customerContact || "",
       total: Number(body?.subtotal || 0),
