@@ -4036,7 +4036,6 @@ export default function POSPage() {
       if (isPartialRefund(r)) return itemRefund || Math.abs(Number(r.refund_amount || 0));
       return Math.abs(Number(r.refund_amount || itemRefund || (isFullRefund(r) ? (r.net_sales || r.total_collected || 0) : 0)));
     };
-    const saleRows = rows.filter((r) => !isFullRefund(r));
     const refundRows = rows.filter((r) => rowRefundAmount(r) > 0);
     const normalizePaymentKey = (value) => String(value || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
     const paymentMatches = (value, keys) => keys.map(normalizePaymentKey).includes(normalizePaymentKey(value));
@@ -4046,9 +4045,8 @@ export default function POSPage() {
         row?.payment_type,
         Number(row?.total_collected || row?.net_sales || 0)
       );
-    const paymentTotal = (...keys) =>
+    const paymentGrossTotal = (...keys) =>
       rows
-        .filter((r) => !isFullRefund(r))
         .reduce(
           (sum, r) =>
             sum +
@@ -4057,13 +4055,27 @@ export default function POSPage() {
               .reduce((entrySum, entry) => entrySum + Number(entry.amount || 0), 0),
           0
         );
+    const paymentNetTotal = (...keys) =>
+      rows.reduce((sum, r) => {
+        const entries = rowPaymentEntries(r);
+        const paidTotal = entries.reduce((entrySum, entry) => entrySum + Number(entry.amount || 0), 0) || Number(r.total_collected || r.net_sales || 0) || 1;
+        const refundAmount = rowRefundAmount(r);
+        return (
+          sum +
+          entries
+            .filter((entry) => paymentMatches(entry.method, keys))
+            .reduce((entrySum, entry) => {
+              const amount = Number(entry.amount || 0);
+              const refundShare = refundAmount * (amount / paidTotal);
+              return entrySum + Math.max(0, amount - refundShare);
+            }, 0)
+        );
+      }, 0);
     const paymentCount = (...keys) =>
-      rows
-        .filter((r) => !isFullRefund(r))
-        .reduce((sum, r) => {
-          const entries = rowPaymentEntries(r);
-          return sum + (entries.some((entry) => paymentMatches(entry.method, keys)) ? 1 : 0);
-        }, 0);
+      rows.reduce((sum, r) => {
+        const entries = rowPaymentEntries(r);
+        return sum + (entries.some((entry) => paymentMatches(entry.method, keys)) ? 1 : 0);
+      }, 0);
     const paymentRefundTotal = (...keys) =>
       rows.reduce((sum, r) => {
         const refundAmount = rowRefundAmount(r);
@@ -4077,12 +4089,13 @@ export default function POSPage() {
             .reduce((entrySum, entry) => entrySum + refundAmount * (Number(entry.amount || 0) / paidTotal), 0)
         );
       }, 0);
-    const cashPayments = paymentTotal("cash");
+    const cashPayments = paymentGrossTotal("cash");
     const cashRefunds = paymentRefundTotal("cash");
-    const grossSales = saleRows.reduce((sum, r) => sum + Number(r.gross_sales || r.total_collected || r.net_sales || 0), 0);
-    const discounts = saleRows.reduce((sum, r) => sum + Number(r.discounts || r.discount || 0), 0);
+    const grossSales = rows.reduce((sum, r) => sum + Number(r.gross_sales || r.total_collected || r.net_sales || 0), 0);
+    const discounts = rows.reduce((sum, r) => sum + Number(r.discounts || r.discount || 0), 0);
     const refunds = refundRows.reduce((sum, r) => sum + rowRefundAmount(r), 0);
-    const netSales = saleRows.reduce((sum, r) => sum + Number(r.net_sales || r.total_collected || 0), 0) - refunds;
+    const collectedSales = rows.reduce((sum, r) => sum + Number(r.total_collected || r.net_sales || 0), 0);
+    const netSales = collectedSales - refunds;
     return {
       grossSales,
       refunds,
@@ -4092,14 +4105,14 @@ export default function POSPage() {
       cashRefunds,
       expectedCash: Number(startingCash || 0) + cashPayments - cashRefunds,
       payments: {
-        Cash: cashPayments,
-        Gcash: paymentTotal("gcash"),
-        QRPH: paymentTotal("qrph"),
-        GrabFood: paymentTotal("grabfood"),
-        "Grab Dine Out": paymentTotal("grab dine out", "grabdineout"),
-        Card: paymentTotal("card"),
-        Panda: paymentTotal("panda", "foodpanda"),
-        "No Payment Required": paymentTotal("no payment required", "nopaymentrequired"),
+        Cash: paymentNetTotal("cash"),
+        Gcash: paymentNetTotal("gcash"),
+        QRPH: paymentNetTotal("qrph"),
+        GrabFood: paymentNetTotal("grabfood"),
+        "Grab Dine Out": paymentNetTotal("grab dine out", "grabdineout"),
+        Card: paymentNetTotal("card"),
+        Panda: paymentNetTotal("panda", "foodpanda"),
+        "No Payment Required": paymentNetTotal("no payment required", "nopaymentrequired"),
       },
       paymentTransactions: {
         Cash: paymentCount("cash"),
