@@ -1,7 +1,7 @@
 {
   "app": "customer",
-  "latestVersion": "1.0.9",
-  "latestBuild": 10,
-  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-customer-v1.0.9.apk",
-  "releaseNotes": "Updates customer mobile notification icons to use the JUJA favicon/app icon."
+  "latestVersion": "1.0.10",
+  "latestBuild": 11,
+  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-customer-v1.0.10.apk",
+  "releaseNotes": "Adds the delivery location permission prompt before requesting phone location access."
 }
