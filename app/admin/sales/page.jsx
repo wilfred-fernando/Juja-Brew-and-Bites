@@ -275,6 +275,7 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
     const rowDate = safeManilaDate(openedAt || closedAt || record.created_at);
     const storeName = storeById.get(storeId) || storeId || "Store";
     const paymentValue = (...names) => names.reduce((sum, name) => sum + num(payments[name]), 0);
+    const cashNetSales = paymentValue("Cash", "CASH") || Math.max(0, cashPayments - cashRefunds);
     const nonCashPaymentTotal = Object.entries(payments).reduce((sum, [key, value]) => {
       return String(key).toLowerCase() === "cash" ? sum : sum + num(value);
     }, 0);
@@ -303,7 +304,7 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
       discounts: num(summary.discounts),
       netSales: num(summary.netSales, cashPayments + nonCashPaymentTotal - cashRefunds),
       payments: {
-        Cash: cashPayments,
+        Cash: cashNetSales,
         CARD: paymentValue("Card", "CARD"),
         GCASH: paymentValue("Gcash", "GCash", "GCASH"),
         GRABFOOD: paymentValue("GrabFood", "GRABFOOD"),
