@@ -80,7 +80,7 @@ function Nav({ active }) {
             href={loginUrl}
             className="text-[11px] font-semibold uppercase tracking-widest px-5 py-2.5 rounded-full border border-slate-200 text-slate-500 hover:border-[#FC687D] hover:text-[#FC687D] transition-colors"
           >
-            Login
+            Login / Signup
           </Link>
         </div>
 
@@ -122,7 +122,7 @@ function Nav({ active }) {
             onClick={() => setOpen(false)}
             className="py-3.5 rounded-full border border-[#087830]/50 bg-white/80 text-[#087830] font-semibold text-sm text-center"
           >
-            Login
+            Login / Signup
           </Link>
         </div>
       )}

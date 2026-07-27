@@ -17,6 +17,10 @@ export default function TicketPanel({
   grabOrderNumber = "",
   setGrabOrderNumber,
   showGrabOrderNumber = false,
+  diningReferenceLabel = "GRAB Order Number",
+  diningReferencePrefix = "GRAB",
+  diningReferencePlaceholder = "335",
+  diningReferenceAllowSpaces = false,
   subtotal = 0,
   attachedCustomer,
   onRemoveCustomer,
@@ -224,14 +228,19 @@ const isWelcomeVoucher = (voucher) => {
         {showGrabOrderNumber && (
           <label className="mt-2 block">
             <span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400">
-              GRAB Order Number
+              {diningReferenceLabel}
             </span>
             <div className="flex items-center rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-100">
-              <span className="mr-2 shrink-0 text-xs font-black uppercase tracking-wide text-slate-500">GRAB</span>
+              <span className="mr-2 shrink-0 text-xs font-black uppercase tracking-wide text-slate-500">{diningReferencePrefix}</span>
               <input
                 value={grabOrderNumber}
-                onChange={(event) => setGrabOrderNumber?.(event.target.value.replace(/[^\w-]/g, ""))}
-                placeholder="335"
+                onChange={(event) => {
+                  const clean = diningReferenceAllowSpaces
+                    ? event.target.value.replace(/[^a-z0-9 -]/gi, "").replace(/\s{2,}/g, " ")
+                    : event.target.value.replace(/[^\w-]/g, "");
+                  setGrabOrderNumber?.(clean);
+                }}
+                placeholder={diningReferencePlaceholder}
                 className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-300"
               />
             </div>

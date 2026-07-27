@@ -3434,6 +3434,10 @@ function isTableDiningOption(value) {
   return Boolean(tableDiningKey(value));
 }
 
+function isVipRoomDiningOptionName(value) {
+  return /^vip\s*room\b/i.test(String(value || "").trim());
+}
+
 // ================= MAIN TERMINAL SCREEN =================
 
 export default function POSPage() {
@@ -3554,11 +3558,16 @@ export default function POSPage() {
   const diningOptionName = selectedDining?.name || "";
   const isGrabDiningOption = /grab/i.test(diningOptionName || "");
   const isPandaDiningOption = /panda|foodpanda/i.test(diningOptionName || "");
+  const isVipRoomDiningOption = isVipRoomDiningOptionName(diningOptionName);
   const activeMenuChannel = isGrabDiningOption ? "grab" : isPandaDiningOption ? "panda" : "standard";
   const trimmedGrabOrderNumber = String(grabOrderNumber || "")
     .trim()
-    .replace(/^grab[\s-]*/i, "");
-  const ticketDiningLabel = isGrabDiningOption && trimmedGrabOrderNumber ? `${diningOptionName} ${trimmedGrabOrderNumber}` : diningOptionName;
+    .replace(isGrabDiningOption ? /^grab[\s-]*/i : isVipRoomDiningOption ? /^vip\s*room[\s-]*/i : "", "");
+  const requiresDiningReference = isGrabDiningOption || isVipRoomDiningOption;
+  const diningReferenceLabel = isGrabDiningOption ? "GRAB Order Number" : isVipRoomDiningOption ? "VIP Room Reference" : "";
+  const diningReferencePrefix = isGrabDiningOption ? "GRAB" : isVipRoomDiningOption ? "VIP ROOM" : "";
+  const diningReferencePlaceholder = isGrabDiningOption ? "335" : "A1 / Private Event";
+  const ticketDiningLabel = requiresDiningReference && trimmedGrabOrderNumber ? `${diningOptionName} ${trimmedGrabOrderNumber}` : diningOptionName;
   const itemPriceForChannel = (item, channel = activeMenuChannel) => {
     const basePrice = Number(item?.price || 0);
     if (channel === "grab" && item?.grab_price !== null && item?.grab_price !== undefined && item?.grab_price !== "") {
@@ -5352,7 +5361,7 @@ export default function POSPage() {
     if (!changed) return;
 
     setDiningOption(optionId);
-    if (!/grab/i.test(name)) setGrabOrderNumber("");
+    if (!/grab/i.test(name) && !isVipRoomDiningOptionName(name)) setGrabOrderNumber("");
   }
 
   async function saveTableOrder() {
@@ -7392,7 +7401,7 @@ export default function POSPage() {
     const name = t.order_type || t.ticket_name || "";
     const opt = (diningOptions || []).find((d) => d.name === name || (name.toLowerCase().startsWith(`${String(d.name || "").toLowerCase()} `)));
     setDiningOption(opt?.id || "");
-    if (opt?.name && /grab/i.test(opt.name)) {
+    if (opt?.name && (/grab/i.test(opt.name) || isVipRoomDiningOptionName(opt.name))) {
       setGrabOrderNumber(name.slice(String(opt.name).length).trim());
     } else {
       setGrabOrderNumber("");
@@ -7431,8 +7440,8 @@ export default function POSPage() {
     if (savingTicket) return;
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before saving.");
     if (!activeWebOrderId && !diningOption) return showToast("error", "Dining Option Required", "Please select a dining option.");
-    if (!activeWebOrderId && isGrabDiningOption && !trimmedGrabOrderNumber) {
-      return showToast("error", "GRAB Order Number Required", "Enter the GRAB order number before saving.");
+    if (!activeWebOrderId && requiresDiningReference && !trimmedGrabOrderNumber) {
+      return showToast("error", `${diningReferencePrefix} Reference Required`, `Enter the ${diningReferenceLabel.toLowerCase()} before saving.`);
     }
     if (!activeWebOrderId && !originalTicketId && isTableDiningOption(ticketDiningLabel) && isDiningOptionOccupied(ticketDiningLabel)) {
       return showToast("error", "Table Occupied", `${ticketDiningLabel} already has a saved ticket or active kitchen order.`);
@@ -7462,8 +7471,8 @@ export default function POSPage() {
   async function handlePrintBill() {
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before printing a bill.");
     if (!activeWebOrderId && !diningOptionName) return showToast("error", "Dining Option Required", "Please select a dining option.");
-    if (!activeWebOrderId && isGrabDiningOption && !trimmedGrabOrderNumber) {
-      return showToast("error", "GRAB Order Number Required", "Enter the GRAB order number before printing the bill.");
+    if (!activeWebOrderId && requiresDiningReference && !trimmedGrabOrderNumber) {
+      return showToast("error", `${diningReferencePrefix} Reference Required`, `Enter the ${diningReferenceLabel.toLowerCase()} before printing the bill.`);
     }
 
     const grossTotal = cart.reduce((sum, line) => sum + lineGrossAmount(line), 0);
@@ -7560,8 +7569,8 @@ export default function POSPage() {
     if (!activeWebOrderId && (!diningOption || !diningOptionName)) {
       return showToast("error", "Dining Option Required", "Please select a dining option.");
     }
-    if (!activeWebOrderId && isGrabDiningOption && !trimmedGrabOrderNumber) {
-      return showToast("error", "GRAB Order Number Required", "Enter the GRAB order number before charging.");
+    if (!activeWebOrderId && requiresDiningReference && !trimmedGrabOrderNumber) {
+      return showToast("error", `${diningReferencePrefix} Reference Required`, `Enter the ${diningReferenceLabel.toLowerCase()} before charging.`);
     }
     if (!activeWebOrderId && !originalTicketId && isTableDiningOption(ticketDiningLabel) && isDiningOptionOccupied(ticketDiningLabel)) {
       return showToast("error", "Table Occupied", `${ticketDiningLabel} already has a saved ticket or active kitchen order.`);
@@ -9117,7 +9126,11 @@ export default function POSPage() {
               occupiedDiningOptionIds={occupiedDiningOptionIds}
               grabOrderNumber={grabOrderNumber}
               setGrabOrderNumber={setGrabOrderNumber}
-              showGrabOrderNumber={isGrabDiningOption && !activeWebOrderId}
+              showGrabOrderNumber={requiresDiningReference && !activeWebOrderId}
+              diningReferenceLabel={diningReferenceLabel}
+              diningReferencePrefix={diningReferencePrefix}
+              diningReferencePlaceholder={diningReferencePlaceholder}
+              diningReferenceAllowSpaces={isVipRoomDiningOption}
               subtotal={totalDue}
               ticketTitle={ticketTitle}
               ticketSubtitle={ticketSubtitle}
@@ -9230,7 +9243,11 @@ export default function POSPage() {
                 occupiedDiningOptionIds={occupiedDiningOptionIds}
                 grabOrderNumber={grabOrderNumber}
                 setGrabOrderNumber={setGrabOrderNumber}
-                showGrabOrderNumber={isGrabDiningOption && !activeWebOrderId}
+                showGrabOrderNumber={requiresDiningReference && !activeWebOrderId}
+                diningReferenceLabel={diningReferenceLabel}
+                diningReferencePrefix={diningReferencePrefix}
+                diningReferencePlaceholder={diningReferencePlaceholder}
+                diningReferenceAllowSpaces={isVipRoomDiningOption}
                 subtotal={totalDue}
                 ticketTitle={ticketTitle}
                 ticketSubtitle={ticketSubtitle}

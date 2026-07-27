@@ -10,6 +10,7 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { webDiningOptionLabel } from "@/lib/kds";
 import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib/loyalty/annualReset";
+import { isBirthdayVoucher } from "@/lib/loyalty/birthdayVoucher";
 import { isWelcomeVoucher, WELCOME_VOUCHER_REWARD_TEXT } from "@/lib/loyalty/welcomeVoucher";
 import { findVoucherForMenuItem, isPromoCategoryName, isPromoMenuItem, isVoucherAvailable, loyaltyEligibleLineTotal } from "@/lib/menuPromos";
 import { ensureNativeNotificationPermission, isNativeApp, registerNativeCustomerPush, showNativeNotification } from "@/lib/nativeNotifications";
@@ -2600,6 +2601,7 @@ function LoyaltyTab({ member, setMember, user }) {
   const [editingDetails, setEditingDetails] = useState(false);
   const [savingDetails, setSavingDetails] = useState(false);
   const [detailsForm, setDetailsForm] = useState({ customer_name: "", Phone: "" });
+  const birthdayVoucherCheckRef = useRef("");
 
   const available = Number(member?.["Available points"] || 0);
   const progress = ((available % 100) / 100) * 100;
@@ -2616,13 +2618,6 @@ function LoyaltyTab({ member, setMember, user }) {
     const d = setInterval(() => setNowTick(Date.now()), 60 * 1000);
     return () => clearInterval(d);
   }, []);
-
-  const isBirthdayVoucher = (v) => {
-    const rt = String(v?.reward_text || "").toLowerCase();
-    const code = String(v?.code || "").toUpperCase();
-    if (v?.reward_type) return v.reward_type === "birthday";
-    return rt.includes("birthday") || code.startsWith("BDAY");
-  };
 
   const isPointsVoucher = (v) => {
     const rt = String(v?.reward_text || "").toLowerCase();
@@ -2642,34 +2637,33 @@ function LoyaltyTab({ member, setMember, user }) {
 
   useEffect(() => {
     async function createBirthdayVoucherIfNeeded() {
-      if (!member?.id || !member?.Note) return;
-      const today = new Date();
-      const todayStr = today.toISOString().slice(5, 10); 
-      const birth = member.Note; 
-      const [, mon, day] = birth.split("-");
-      const monthIndex = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].indexOf(mon);
-      if (monthIndex === -1) return;
+      if (!member?.id || !member?.Note || !user?.id) return;
+      const todayKey = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Manila",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+      const checkKey = `${member.id}:${todayKey}`;
+      if (birthdayVoucherCheckRef.current === checkKey) return;
+      birthdayVoucherCheckRef.current = checkKey;
 
-      const bdayFormatted = `${String(monthIndex + 1).padStart(2, "0")}-${day}`;
-      if (bdayFormatted !== todayStr) return;
-
-      const year = today.getFullYear();
-      const { data: existing } = await supabase.from("vouchers").select("id").eq("member_id", member.id);
-      const alreadyHas = (existing || []).some(v => v.code?.startsWith(`BDAY${year}`));
-      if (alreadyHas) return;
-
-      await supabase.from("vouchers").insert({
-        member_id: member.id,
-        code: `BDAY${year}-${Math.floor(Math.random()*10000)}`,
-        reward_text: "FREE 16oz Drink or Waffle (Birthday Reward)",
-        issued_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + 7 * 86400000).toISOString(), 
-        status: "active",
-        reward_type: "birthday",
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      const response = await fetch("/api/customer/birthday-voucher", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ memberId: member.id }),
       });
+      if (!response.ok) return;
+      const result = await response.json().catch(() => null);
+      if (result?.created) setNowTick(Date.now());
     }
     createBirthdayVoucherIfNeeded();
-  }, [member]);
+  }, [member?.id, member?.Note, user?.id]);
 
   useEffect(() => {
     async function createPointsVouchersIfNeeded() {

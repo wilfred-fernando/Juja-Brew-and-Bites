@@ -282,7 +282,7 @@ function Nav({ active }) {
           href={loginUrl}
           className="hidden rounded-full border border-[#087830]/45 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-widest text-[#087830] transition hover:bg-[#087830] hover:text-white md:inline-flex"
         >
-          Login
+          Login / Signup
         </Link>
 
         <button
@@ -323,7 +323,7 @@ function Nav({ active }) {
             onClick={() => setOpen(false)}
             className="rounded-full border border-[#087830]/50 bg-white/80 py-3.5 text-center text-sm font-semibold text-[#087830]"
           >
-            Login
+            Login / Signup
           </Link>
         </div>
       )}
