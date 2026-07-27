@@ -1151,7 +1151,7 @@ export default function BookingForm({ user, member }) {
       confirmed: { text: "Confirmed", color: "bg-green-100 text-green-700" },
       pending: { text: "Pending", color: "bg-blue-100 text-blue-700" },
       expired: { text: "Expired", color: "bg-slate-200 text-slate-700" },
-      rejected: { text: "Rejected", color: "bg-red-100 text-red-700" },
+      rejected: { text: "Cancelled", color: "bg-slate-100 text-slate-700" },
       cancelled_gc: { text: "Gift Certificate", color: "bg-yellow-100 text-yellow-700" },
       cancelled: { text: "Cancelled", color: "bg-slate-100 text-slate-700" },
       cancellation_requested: { text: "Cancel Request", color: "bg-orange-100 text-orange-700" },

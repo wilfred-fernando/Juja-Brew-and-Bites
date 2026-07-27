@@ -129,7 +129,7 @@ function statusPill(status) {
     confirmed: "bg-green-100 text-green-700 border-green-200",
     pending: "bg-blue-100 text-blue-700 border-blue-200",
     expired: "bg-slate-200 text-slate-700 border-slate-300",
-    rejected: "bg-red-100 text-red-700 border-red-200",
+    rejected: "bg-slate-100 text-slate-700 border-slate-200",
     cancelled_gc: "bg-yellow-100 text-yellow-700 border-yellow-200",
     cancelled: "bg-slate-100 text-slate-700 border-slate-200",
     cancellation_requested: "bg-orange-100 text-orange-700 border-orange-200",
@@ -140,7 +140,7 @@ function niceStatus(status) {
   if (status === "confirmed") return "Confirmed";
   if (status === "pending") return "Pending";
   if (status === "expired") return "Expired";
-  if (status === "rejected") return "Rejected";
+  if (status === "rejected") return "Cancelled";
   if (status === "cancelled_gc") return "Gift Cert";
   if (status === "cancelled") return "Cancelled";
   if (status === "cancellation_requested") return "Cancel Request";
@@ -332,7 +332,7 @@ export default function AdminBookingsDashboard() {
     if (booking?.status === "cancellation_requested") {
       return approving ? { status: "cancelled_gc" } : { status: "confirmed" };
     }
-    const nextStatus = approving ? "confirmed" : "rejected";
+    const nextStatus = approving ? "confirmed" : "cancelled";
     return approving
       ? { status: nextStatus, payment_status: "approved" }
       : { status: nextStatus };
@@ -440,9 +440,8 @@ export default function AdminBookingsDashboard() {
     const total = bookings.length;
     const pending = bookings.filter((b) => b.status === "pending" || b.status === "cancellation_requested").length;
     const confirmed = bookings.filter((b) => b.status === "confirmed").length;
-    const rejected = bookings.filter((b) => b.status === "rejected").length;
     const expired = bookings.filter((b) => b.status === EXPIRED_BOOKING_STATUS).length;
-    const cancelled = bookings.filter((b) => b.status === "cancelled_gc" || b.status === "cancelled").length;
+    const cancelled = bookings.filter((b) => b.status === "rejected" || b.status === "cancelled_gc" || b.status === "cancelled").length;
 
     const revenueConfirmed = bookings
       .filter((b) => b.status === "confirmed")
@@ -461,7 +460,7 @@ export default function AdminBookingsDashboard() {
       return s >= now && s <= next7;
     }).length;
 
-    return { total, pending, confirmed, rejected, expired, cancelled, revenueConfirmed, depositRevenue, upcoming7 };
+    return { total, pending, confirmed, expired, cancelled, revenueConfirmed, depositRevenue, upcoming7 };
   }, [bookings, pkgById, now]);
 
   const last14DaysCharts = useMemo(() => {
@@ -499,7 +498,6 @@ export default function AdminBookingsDashboard() {
     return [
       { label: "Pending", value: stats.pending, color: "#93C5FD" },
       { label: "Confirmed", value: stats.confirmed, color: "#86EFAC" },
-      { label: "Rejected", value: stats.rejected, color: "#FCA5A5" },
       { label: "Expired", value: stats.expired, color: "#CBD5E1" },
       { label: "Cancelled", value: stats.cancelled, color: "#FDE68A" },
     ];
@@ -1206,7 +1204,7 @@ export default function AdminBookingsDashboard() {
                     <option value="pending">Pending</option>
                     <option value="confirmed">Confirmed</option>
                     <option value="expired">Expired</option>
-                    <option value="rejected">Rejected</option>
+                    <option value="rejected">Cancelled (old rejected)</option>
                     <option value="cancelled">Cancelled</option>
                     <option value="cancellation_requested">Cancel Request</option>
                     <option value="cancelled_gc">Cancelled (GC)</option>

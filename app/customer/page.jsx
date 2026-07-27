@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { Barcode as BarcodeIcon, CalendarDays, DollarSign, MapPin, Phone, ShoppingBasket, Star } from "lucide-react";
+import { Barcode as BarcodeIcon, CalendarDays, MapPin, Phone, ShoppingBasket, Star } from "lucide-react";
 
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
@@ -485,8 +485,6 @@ function AppNavigation({ tab, setTab }) {
 ────────────────────────────────────────────────────────────── */
 function HomeTab({ member, user, setTab }) {
   const availablePts = parseFloat(member?.["Available points"] ?? 0) || 0;
-  const totalPts = parseFloat(member?.["Points balance"] ?? 0) || 0;
-  const visits = parseFloat(member?.["Total visits"] ?? 0) || 0;
 
   const [branch, setBranch] = useState("pasongtamo");
 
@@ -550,24 +548,12 @@ function HomeTab({ member, user, setTab }) {
             </div>
 
             {member && (
-              <div className="grid grid-cols-3 gap-2 mt-8 bg-[#FFF9FA] p-4 rounded-2xl border border-rose-50">
+              <div className="mt-8 bg-[#FFF9FA] p-4 rounded-2xl border border-rose-50">
                 <div className="text-center md:text-left">
                   <p className="text-[#FC687D] font-bold text-xl md:text-2xl lg:text-3xl leading-none">
                     {availablePts.toFixed(2)}
                   </p>
-                  <p className="text-slate-500 text-[9px] uppercase font-semibold tracking-widest mt-1.5">Available</p>
-                </div>
-                <div className="text-center md:text-left border-l border-rose-100 pl-2">
-                  <p className="text-slate-800 font-bold text-xl md:text-2xl lg:text-3xl leading-none">
-                    {totalPts.toFixed(2)}
-                  </p>
-                  <p className="text-slate-500 text-[9px] uppercase font-semibold tracking-widest mt-1.5">Total</p>
-                </div>
-                <div className="text-center md:text-left border-l border-rose-100 pl-2">
-                  <p className="text-slate-800 font-bold text-xl md:text-2xl lg:text-3xl leading-none">
-                    {visits.toFixed(0)}
-                  </p>
-                  <p className="text-slate-500 text-[9px] uppercase font-semibold tracking-widest mt-1.5">Visits</p>
+                  <p className="text-slate-500 text-[9px] uppercase font-semibold tracking-widest mt-1.5">Available Points</p>
                 </div>
               </div>
             )}
@@ -3076,18 +3062,10 @@ function LoyaltyTab({ member, setMember, user }) {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm grid grid-cols-3 md:grid-cols-1 gap-2">
+        <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
           <div className="p-2 bg-rose-50/40 border border-rose-100/50 rounded-lg text-center md:text-left md:flex md:justify-between md:items-center">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block md:inline">Balance</span>
+            <span className="text-[10px] uppercase font-bold text-slate-400 block md:inline">Available Points</span>
             <span className="text-lg font-extrabold text-[#FC687D] block">{available.toFixed(2)} pts</span>
-          </div>
-          <div className="p-2 bg-slate-50 border border-slate-100 rounded-lg text-center md:text-left md:flex md:justify-between md:items-center">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block md:inline">Total Points</span>
-            <span className="text-sm font-bold text-slate-700 block">{Number(member?.["Points Balance"] ?? member?.["Points balance"] ?? 0).toFixed(2)}</span>
-          </div>
-          <div className="p-2 bg-slate-50 border border-slate-100 rounded-lg text-center md:text-left md:flex md:justify-between md:items-center">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block md:inline">Visit</span>
-            <span className="text-xs font-bold text-slate-700 block truncate max-w-[80px] md:max-w-none">{member?.["Total visits"] || "—"}</span>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -3310,14 +3288,9 @@ function LoyaltyTab({ member, setMember, user }) {
                 label: "Visits",
               },
               {
-                icon: DollarSign,
-                value: `PHP ${Number(member?.["Total spent"] || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                label: "Total spent",
-              },
-              {
                 icon: Star,
-                value: Number(member?.["Points balance"] ?? member?.["Points Balance"] ?? 0).toLocaleString("en-PH", { maximumFractionDigits: 2 }),
-                label: "Points",
+                value: Number(member?.["Available points"] ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                label: "Available points",
               },
             ].map(({ icon: Icon, value, label }) => (
               <div key={label} className="grid grid-cols-[22px_1fr] gap-3">
