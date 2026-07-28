@@ -854,7 +854,7 @@ function buildCt221bCupLabelBytes(text) {
     "GAP 2 mm,0 mm",
     "DENSITY 7",
     "SPEED 2",
-    "DIRECTION 1",
+    "DIRECTION 0",
     "REFERENCE 0,0",
     "CLS",
     `BITMAP 0,0,${stride},${height},0,`,
