@@ -103,7 +103,7 @@ const PACKAGE_POLICIES = {
     food_beverages: {
       policy: "Outside food and beverages are subject to corkage fees:",
       corkage: [
-        "Alcoholic drinks: ₱250",
+        "Alcoholic & Non-alcoholic drinks: ₱250",
         "Cakes & Lechon: FREE",
         "Other food items: ₱200 per dish",
       ],
@@ -137,7 +137,7 @@ const PACKAGE_POLICIES = {
     food_beverages: {
       policy: "Outside food and beverages are subject to corkage fees:",
       corkage: [
-        "Alcoholic drinks: ₱500",
+        "Alcoholic & Non-alcoholic drinks: ₱500",
         "Cakes & Lechon: FREE",
         "Other food items: ₱200 per dish",
       ],
@@ -172,7 +172,7 @@ const PACKAGE_POLICIES = {
     food_beverages: {
       policy: "Outside food and beverages are subject to corkage fees:",
       corkage: [
-        "Alcoholic drinks: ₱1,000",
+        "Alcoholic & Non-alcoholic drinks: ₱1,000",
         "Cakes & Lechon: FREE",
         "Other food items: ₱200 per dish",
       ],
