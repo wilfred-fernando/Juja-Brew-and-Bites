@@ -3,6 +3,7 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies, headers } from "next/headers";
 import { createMissingPointRewardVouchers } from "@/lib/loyalty/pointVouchers";
 import { createWelcomeVoucherIfNeeded } from "@/lib/loyalty/welcomeVoucher";
+import { sendCustomerVoucherPush } from "@/lib/push/customerPush";
 import {
   findLoyaltyMemberByPhoneBirthday,
   loyaltyDuplicatePayload,
@@ -82,6 +83,16 @@ function numberValue(value) {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
+async function notifyCreatedVouchers(admin, voucherIds, warnings) {
+  for (const voucherId of (voucherIds || []).filter(Boolean)) {
+    try {
+      await sendCustomerVoucherPush({ voucherId, eventType: "earned", adminClient: admin });
+    } catch (error) {
+      warnings.push(`Voucher push skipped: ${error?.message || "Unknown error"}`);
+    }
+  }
+}
+
 export async function POST(req) {
   try {
     const { url, serviceRoleKey } = supabaseConfig();
@@ -148,23 +159,23 @@ export async function POST(req) {
 
     let pointVouchersCreated = 0;
     let welcomeVoucherCreated = 0;
-    let voucherWarning = "";
+    const voucherWarnings = [];
     if (availablePoints >= 100) {
       try {
         const voucherResult = await createMissingPointRewardVouchers(admin, created.id);
         pointVouchersCreated = Number(voucherResult?.created || 0);
+        await notifyCreatedVouchers(admin, voucherResult?.voucherIds, voucherWarnings);
       } catch (voucherError) {
-        voucherWarning = voucherError?.message || "Point voucher allocation skipped.";
+        voucherWarnings.push(voucherError?.message || "Point voucher allocation skipped.");
       }
     }
 
     try {
       const welcomeResult = await createWelcomeVoucherIfNeeded(admin, created.id);
       welcomeVoucherCreated = Number(welcomeResult?.created || 0);
+      await notifyCreatedVouchers(admin, [welcomeResult?.voucherId], voucherWarnings);
     } catch (welcomeError) {
-      voucherWarning = [voucherWarning, welcomeError?.message || "Welcome voucher allocation skipped."]
-        .filter(Boolean)
-        .join(" ");
+      voucherWarnings.push(welcomeError?.message || "Welcome voucher allocation skipped.");
     }
 
     const { data: member, error: memberError } = await admin
@@ -180,7 +191,7 @@ export async function POST(req) {
       member: member || created,
       pointVouchersCreated,
       welcomeVoucherCreated,
-      voucherWarning,
+      voucherWarning: voucherWarnings.join(" "),
     });
   } catch (error) {
     return Response.json({ error: error?.message || "Unable to register loyalty member." }, { status: 500 });

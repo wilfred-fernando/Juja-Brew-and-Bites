@@ -3,6 +3,7 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies, headers } from "next/headers";
 import { createMissingPointRewardVouchers } from "@/lib/loyalty/pointVouchers";
 import { createWelcomeVoucherIfNeeded } from "@/lib/loyalty/welcomeVoucher";
+import { sendCustomerVoucherPush } from "@/lib/push/customerPush";
 
 function supabaseConfig() {
   return {
@@ -65,6 +66,16 @@ async function requireAdmin(adminClient) {
   return { allowed: true };
 }
 
+async function notifyCreatedVouchers(admin, voucherIds, warnings) {
+  for (const voucherId of (voucherIds || []).filter(Boolean)) {
+    try {
+      await sendCustomerVoucherPush({ voucherId, eventType: "earned", adminClient: admin });
+    } catch (error) {
+      warnings.push(`Voucher push skipped: ${error?.message || "Unknown error"}`);
+    }
+  }
+}
+
 export async function POST(req) {
   try {
     const { url, serviceRoleKey } = supabaseConfig();
@@ -92,12 +103,14 @@ export async function POST(req) {
 
     try {
       pointResult = await createMissingPointRewardVouchers(admin, memberId);
+      await notifyCreatedVouchers(admin, pointResult.voucherIds, warnings);
     } catch (error) {
       warnings.push(`Point voucher allocation skipped: ${error?.message || "Unknown error"}`);
     }
 
     try {
       welcomeResult = await createWelcomeVoucherIfNeeded(admin, memberId);
+      await notifyCreatedVouchers(admin, [welcomeResult.voucherId], warnings);
     } catch (error) {
       warnings.push(`Welcome voucher allocation skipped: ${error?.message || "Unknown error"}`);
     }

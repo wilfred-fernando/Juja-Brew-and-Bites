@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies, headers } from "next/headers";
 import { createBirthdayVoucherIfNeeded } from "@/lib/loyalty/birthdayVoucher";
+import { sendCustomerVoucherPush } from "@/lib/push/customerPush";
 
 function supabaseConfig() {
   return {
@@ -67,7 +68,15 @@ export async function POST(req) {
     }
 
     const result = await createBirthdayVoucherIfNeeded(admin, memberId);
-    return Response.json({ success: true, ...result });
+    let pushWarning = "";
+    if (result?.created && result?.voucherId && result?.status !== "expired") {
+      try {
+        await sendCustomerVoucherPush({ voucherId: result.voucherId, eventType: "earned", adminClient: admin });
+      } catch (error) {
+        pushWarning = error?.message || "Voucher push skipped.";
+      }
+    }
+    return Response.json({ success: true, ...result, pushWarning });
   } catch (error) {
     return Response.json({ error: error?.message || "Unable to create birthday voucher." }, { status: 500 });
   }
