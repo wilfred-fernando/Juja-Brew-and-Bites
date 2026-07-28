@@ -81,7 +81,8 @@ const CT221B_53X40_LABEL_SIZE = {
   h_mm: 40,
   w_dots: 424,
   h_dots: 320,
-  margin_dots: 24,
+  left_margin_dots: 0,
+  right_margin_dots: 24,
 };
 const THERMAL_PAPER_WIDTH_MM = 50;
 const RECEIPT_COLUMNS = 32;
@@ -790,8 +791,9 @@ function createCt221bCupLabelCanvas(text) {
   ctx.fillStyle = "#000000";
   ctx.textBaseline = "top";
 
-  const margin = CT221B_53X40_LABEL_SIZE.margin_dots;
-  const contentWidth = canvas.width - margin * 2;
+  const leftMargin = CT221B_53X40_LABEL_SIZE.left_margin_dots;
+  const rightMargin = CT221B_53X40_LABEL_SIZE.right_margin_dots;
+  const contentWidth = canvas.width - leftMargin - rightMargin;
   let y = 5;
   const fitSingleLine = (value, weight, startSize, minSize, lineHeight) => {
     const clean = normalizeLabelLine(value);
@@ -801,18 +803,18 @@ function createCt221bCupLabelCanvas(text) {
       if (ctx.measureText(clean).width <= contentWidth || size <= minSize) break;
       size -= 1;
     } while (size >= minSize);
-    ctx.fillText(clean, margin, y);
+    ctx.fillText(clean, leftMargin, y);
     y += lineHeight;
   };
   const drawWrapped = (value, font, lineHeight, maxLines = 1) => {
     ctx.font = font;
     wrapLabelCanvasText(ctx, normalizeLabelLine(value), contentWidth).slice(0, maxLines).forEach((line) => {
-      ctx.fillText(line, margin, y);
+      ctx.fillText(line, leftMargin, y);
       y += lineHeight;
     });
   };
   const drawRule = (ruleY) => {
-    ctx.fillRect(margin, ruleY, contentWidth, 2);
+    ctx.fillRect(leftMargin, ruleY, contentWidth, 2);
   };
 
   fitSingleLine(storeName, 500, 18, 13, 22);
@@ -836,9 +838,10 @@ function createCt221bCupLabelCanvas(text) {
   const footerRuleY = 284;
   drawRule(footerRuleY);
   ctx.font = '500 20px "Arial Narrow", Arial, sans-serif';
-  ctx.fillText(footerLeft, margin, 289);
+  ctx.fillText(footerLeft, leftMargin, 289);
   const footerRightWidth = ctx.measureText(footerRight).width;
-  ctx.fillText(footerRight, canvas.width - margin - footerRightWidth, 289);
+  const footerDateOffset = 16;
+  ctx.fillText(footerRight, canvas.width - rightMargin - footerRightWidth - footerDateOffset, 289);
   return canvas;
 }
 
