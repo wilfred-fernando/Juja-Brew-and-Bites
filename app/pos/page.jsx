@@ -764,56 +764,103 @@ function fitTsplSingleLine(value, maxChars) {
   return `${clean.slice(0, Math.max(0, maxChars - 1)).trimEnd()}.`;
 }
 
-function buildCt221bCupLabelBytes(text) {
-  const encoder = new TextEncoder();
+function createCt221bCupLabelCanvas(text) {
+  if (typeof document === "undefined") throw new Error("Label rendering is only available in the browser.");
+  const canvas = document.createElement("canvas");
+  canvas.width = 400;
+  canvas.height = 320;
+  canvas.style.width = `${CT221B_50X40_LABEL_SIZE.w_mm}mm`;
+  canvas.style.height = `${CT221B_50X40_LABEL_SIZE.h_mm}mm`;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Unable to create Clabel cup label canvas.");
+
   const lines = String(text || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const storeName = lines[0] || "JUJA BREW & BITES";
   const dining = lines[1] || "ORDER";
   const itemName = lines[2] || "Item";
   const footerRaw = lines[lines.length - 1] || `#ORDER|${formatCupLabelDateTime(new Date())}`;
   const [footerLeftRaw, footerRightRaw] = footerRaw.split("|");
-  const footerLeft = fitTsplSingleLine(footerLeftRaw || "", 24);
-  const footerRight = fitTsplSingleLine(footerRightRaw || "", 16);
+  const footerLeft = normalizeLabelLine(footerLeftRaw || "");
+  const footerRight = normalizeLabelLine(footerRightRaw || "");
   const detailLines = lines.slice(3, -1).filter((line) => line !== "---");
-  const commands = [
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#000000";
+  ctx.textBaseline = "top";
+
+  const margin = 8;
+  const contentWidth = canvas.width - margin * 2;
+  let y = 5;
+  const fitSingleLine = (value, weight, startSize, minSize, lineHeight) => {
+    const clean = normalizeLabelLine(value);
+    let size = startSize;
+    do {
+      ctx.font = `${weight} ${size}px "Arial Narrow", Arial, sans-serif`;
+      if (ctx.measureText(clean).width <= contentWidth || size <= minSize) break;
+      size -= 1;
+    } while (size >= minSize);
+    ctx.fillText(clean, margin, y);
+    y += lineHeight;
+  };
+  const drawWrapped = (value, font, lineHeight, maxLines = 1) => {
+    ctx.font = font;
+    wrapLabelCanvasText(ctx, normalizeLabelLine(value), contentWidth).slice(0, maxLines).forEach((line) => {
+      ctx.fillText(line, margin, y);
+      y += lineHeight;
+    });
+  };
+  const drawRule = (ruleY) => {
+    ctx.fillRect(margin, ruleY, contentWidth, 2);
+  };
+
+  fitSingleLine(storeName, 500, 14, 10, 17);
+  fitSingleLine(dining, 700, 25, 18, 29);
+  drawRule(y + 1);
+  y += 10;
+
+  drawWrapped(itemName, '700 22px "Arial Narrow", Arial, sans-serif', 25, 2);
+  y += 2;
+  detailLines.forEach((line) => {
+    if (y > 265) return;
+    const isNote = /^note:/i.test(line);
+    drawWrapped(
+      line,
+      `${isNote ? 700 : 500} ${isNote ? 15 : 17}px "Arial Narrow", Arial, sans-serif`,
+      isNote ? 18 : 20,
+      isNote ? 2 : 1
+    );
+  });
+
+  const footerRuleY = 284;
+  drawRule(footerRuleY);
+  ctx.font = '500 15px "Arial Narrow", Arial, sans-serif';
+  ctx.fillText(footerLeft, margin, 293);
+  const footerRightWidth = ctx.measureText(footerRight).width;
+  ctx.fillText(footerRight, canvas.width - margin - footerRightWidth, 293);
+  return canvas;
+}
+
+function buildCt221bCupLabelBytes(text) {
+  const encoder = new TextEncoder();
+  const canvas = createCt221bCupLabelCanvas(text);
+  const { buf, stride, height } = niimbotCanvasToPacked(canvas);
+  const prefix = encoder.encode([
     `SIZE ${CT221B_50X40_LABEL_SIZE.w_mm} mm,${CT221B_50X40_LABEL_SIZE.h_mm} mm`,
     "GAP 2 mm,0 mm",
-    "DENSITY 8",
-    "SPEED 3",
+    "DENSITY 7",
+    "SPEED 2",
     "DIRECTION 1",
     "REFERENCE 0,0",
     "CLS",
-  ];
-
-  let y = 4;
-  commands.push(`TEXT 4,${y},"1",0,1,1,"${fitTsplSingleLine(storeName, 48)}"`);
-  y += 17;
-  commands.push(`TEXT 4,${y},"3",0,1,1,"${fitTsplSingleLine(dining, 24)}"`);
-  y += 30;
-  commands.push(`BAR 4,${y},388,2`);
-  y += 10;
-
-  wrapTsplText(itemName, 32).slice(0, 2).forEach((line) => {
-    commands.push(`TEXT 4,${y},"2",0,1,1,"${line}"`);
-    y += 23;
-  });
-
-  detailLines.forEach((line) => {
-    if (y > 272) return;
-    const isNote = /^note:/i.test(line);
-    const wrapped = wrapTsplText(line, isNote ? 46 : 48).slice(0, isNote ? 2 : 1);
-    wrapped.forEach((wrappedLine) => {
-      if (y > 272) return;
-      commands.push(`TEXT 4,${y},"1",0,1,1,"${wrappedLine}"`);
-      y += 15;
-    });
-  });
-
-  commands.push("BAR 4,290,388,2");
-  commands.push(`TEXT 4,300,"1",0,1,1,"${footerLeft}"`);
-  commands.push(`TEXT 264,300,"1",0,1,1,"${footerRight}"`);
-  commands.push("PRINT 1,1");
-  return encoder.encode(`${commands.join("\r\n")}\r\n`);
+    `BITMAP 0,0,${stride},${height},0,`,
+  ].join("\r\n"));
+  const suffix = encoder.encode("\r\nPRINT 1,1\r\n");
+  const bytes = new Uint8Array(prefix.length + buf.length + suffix.length);
+  bytes.set(prefix, 0);
+  bytes.set(buf, prefix.length);
+  bytes.set(suffix, prefix.length + buf.length);
+  return bytes;
 }
 
 async function printCt221bCupLabel(text, cfg) {
