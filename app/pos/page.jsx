@@ -27,6 +27,7 @@ const DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID = "000018f0-0000-1000-8000-00805f9b
 const DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID = "00002af1-0000-1000-8000-00805f9b34fb";
 const NIIMBOT_BLE_SERVICE_UUID = "e7810a71-73ae-499d-8c15-faa9aef0c3f2";
 const NIIMBOT_BLE_CHARACTERISTIC_UUID = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f";
+const CLABEL_CT221B_MODEL_NAME = "Clabel CT221B label printer";
 const NIIMBOT_B1_PRO_MODEL = {
   label: "Niimbot B1 Pro",
   id: 4097,
@@ -47,6 +48,12 @@ const NIIMBOT_50X40_LABEL_SIZE = {
   h_px: 472,
   margin: 10,
   dpi: 300,
+};
+const CT221B_50X40_LABEL_SIZE = {
+  w_mm: 50,
+  h_mm: 40,
+  w_dots: 400,
+  h_dots: 320,
 };
 const THERMAL_PAPER_WIDTH_MM = 50;
 const RECEIPT_COLUMNS = 32;
@@ -69,7 +76,7 @@ const PRINTER_ROLE_DEFAULT_WIDTH = {
 const PRINTER_ROLE_HINTS = {
   receipt: "Receipt printer for bills and final receipts.",
   order_slip: "Kitchen order slip printer.",
-  cup_label: "Niimbot B1 Pro cup label printer, 50mm x 40mm thermal sticker. The Android app prints through native Bluetooth; browser use still requires Chrome or Edge.",
+  cup_label: "50mm x 40mm drink label printer. Select Niimbot B1 Pro for Niimbot labels, or Clabel CT221B for TSPL-style thermal labels.",
 };
 const PRINTER_ROLE_STATUS = {
   receipt: "Final receipts",
@@ -81,13 +88,23 @@ const POS_OFFLINE_CHARGE_QUEUE_KEY = "juja_pos_offline_charge_queue_v1";
 const optionGroupKey = (value) => String(value || "").trim().toLowerCase();
 const optionSelectionKey = (value) => String(value || "").trim().toLowerCase();
 
+function inferPrinterModel(role, source = {}) {
+  const marker = `${source?.model || ""} ${source?.ble_device_name || ""} ${source?.name || ""}`.toLowerCase();
+  if (role === "cup_label") {
+    if (marker.includes("clabel") || marker.includes("ct221b") || marker.includes("ct-221b")) return CLABEL_CT221B_MODEL_NAME;
+    if (marker.includes("niimbot") || marker.includes("b1 pro") || marker.includes("b1")) return "Niimbot B1 Pro label printer";
+    return source?.model || "Niimbot B1 Pro label printer";
+  }
+  return source?.model || "Other model";
+}
+
 function createPrinterProfile(role, source = {}) {
   const isCupLabel = role === "cup_label";
   return {
     id: source?.id || null,
     enabled: Boolean(source?.id || source?.is_active),
     name: source?.ble_device_name || source?.name || (isCupLabel ? "NIIMBOT B1 Pro" : `${PRINTER_ROLE_LABELS[role] || "POS"} Printer`),
-    model: source?.model || (isCupLabel ? "Niimbot B1 Pro label printer" : "Other model"),
+    model: inferPrinterModel(role, source),
     interface: source?.interface || "Bluetooth",
     paper_width_mm: isCupLabel ? 50 : Number(source?.paper_width_mm || PRINTER_ROLE_DEFAULT_WIDTH[role] || THERMAL_PAPER_WIDTH_MM),
     service_uuid: source?.ble_service_uuid || (isCupLabel ? NIIMBOT_BLE_SERVICE_UUID : DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID),
@@ -462,6 +479,12 @@ async function blePrint(characteristic, text, role = "receipt") {
   }
 }
 
+function isClabelCt221bCupLabelConfig(role, cfg = {}) {
+  if (role !== "cup_label") return false;
+  const marker = `${cfg?.model || ""} ${cfg?.ble_device_name || ""} ${cfg?.name || ""}`.toLowerCase();
+  return marker.includes("clabel") || marker.includes("ct221b") || marker.includes("ct-221b");
+}
+
 function isNiimbotCupLabelConfig(role, cfg = {}) {
   if (role !== "cup_label") return false;
   const marker = `${cfg?.model || ""} ${cfg?.ble_device_name || ""} ${cfg?.name || ""}`.toLowerCase();
@@ -573,6 +596,94 @@ function createNiimbotCupLabelCanvas(text) {
 function renderNiimbotCupLabelImage(text) {
   const canvas = createNiimbotCupLabelCanvas(text);
   return canvas.toDataURL("image/png");
+}
+
+function tsplEscape(value) {
+  return String(value || "").replace(/["\\]/g, " ").replace(/[^\x20-\x7e]/g, " ").trim();
+}
+
+function wrapTsplText(value, maxChars) {
+  const words = tsplEscape(value).split(/\s+/).filter(Boolean);
+  const lines = [];
+  let current = "";
+  words.forEach((word) => {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length > maxChars && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = next;
+    }
+  });
+  if (current) lines.push(current);
+  return lines;
+}
+
+function fitTsplSingleLine(value, maxChars) {
+  const clean = tsplEscape(value);
+  if (clean.length <= maxChars) return clean;
+  return `${clean.slice(0, Math.max(0, maxChars - 1)).trimEnd()}.`;
+}
+
+function buildCt221bCupLabelBytes(text) {
+  const encoder = new TextEncoder();
+  const lines = String(text || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const storeName = lines[0] || "JUJA BREW & BITES";
+  const dining = lines[1] || "ORDER";
+  const itemName = lines[2] || "Item";
+  const footerRaw = lines[lines.length - 1] || `#ORDER|${formatCupLabelDateTime(new Date())}`;
+  const [footerLeftRaw, footerRightRaw] = footerRaw.split("|");
+  const footerLeft = fitTsplSingleLine(footerLeftRaw || "", 17);
+  const footerRight = fitTsplSingleLine(footerRightRaw || "", 16);
+  const detailLines = lines.slice(3, -1).filter((line) => line !== "---");
+  const commands = [
+    `SIZE ${CT221B_50X40_LABEL_SIZE.w_mm} mm,${CT221B_50X40_LABEL_SIZE.h_mm} mm`,
+    "GAP 2 mm,0 mm",
+    "DENSITY 8",
+    "SPEED 3",
+    "DIRECTION 1",
+    "REFERENCE 0,0",
+    "CLS",
+  ];
+
+  let y = 8;
+  commands.push(`TEXT 16,${y},"0",0,1,1,"${fitTsplSingleLine(storeName, 33)}"`);
+  y += 28;
+  commands.push(`TEXT 16,${y},"0",0,2,2,"${fitTsplSingleLine(dining, 16)}"`);
+  y += 52;
+  commands.push(`BAR 16,${y},368,2`);
+  y += 14;
+
+  wrapTsplText(itemName, 18).slice(0, 2).forEach((line) => {
+    commands.push(`TEXT 16,${y},"0",0,2,2,"${line}"`);
+    y += 45;
+  });
+
+  detailLines.forEach((line) => {
+    if (y > 250) return;
+    const isNote = /^note:/i.test(line);
+    const wrapped = wrapTsplText(line, isNote ? 27 : 23).slice(0, isNote ? 2 : 1);
+    wrapped.forEach((wrappedLine) => {
+      if (y > 250) return;
+      commands.push(`TEXT 16,${y},"0",0,1,1,"${wrappedLine}"`);
+      y += 26;
+    });
+  });
+
+  commands.push("BAR 16,276,368,2");
+  commands.push(`TEXT 16,288,"0",0,1,1,"${footerLeft}"`);
+  commands.push(`TEXT 224,288,"0",0,1,1,"${footerRight}"`);
+  commands.push("PRINT 1,1");
+  return encoder.encode(`${commands.join("\r\n")}\r\n`);
+}
+
+async function printCt221bCupLabel(text, cfg) {
+  const characteristic = await bleConnect(cfg);
+  const bytes = buildCt221bCupLabelBytes(text);
+  for (let i = 0; i < bytes.length; i += 180) {
+    await characteristic.writeValueWithoutResponse(bytes.slice(i, i + 180));
+  }
+  return true;
 }
 
 function niimbotPackFrame(cmd, data = []) {
@@ -830,6 +941,9 @@ async function printByRole(role, text, printerConfig, opts = {}) {
   }
 
   try {
+    if (isClabelCt221bCupLabelConfig(role, cfg)) {
+      return await printCt221bCupLabel(text, cfg);
+    }
     if (isNiimbotCupLabelConfig(role, cfg)) {
       return await printNiimbotCupLabel(text, cfg);
     }
@@ -6902,6 +7016,35 @@ export default function POSPage() {
     }));
   }
 
+  function printerUuidDefaultsForModel(role, model) {
+    const marker = String(model || "").toLowerCase();
+    if (role === "cup_label" && (marker.includes("niimbot") || marker.includes("b1"))) {
+      return { service_uuid: NIIMBOT_BLE_SERVICE_UUID, characteristic_uuid: NIIMBOT_BLE_CHARACTERISTIC_UUID };
+    }
+    return {
+      service_uuid: DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID,
+      characteristic_uuid: DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID,
+    };
+  }
+
+  function updatePrinterModel(role, model) {
+    const defaults = printerUuidDefaultsForModel(role, model);
+    const isCupLabel = role === "cup_label";
+    setPrinterForm((prev) => {
+      const current = prev?.[role] || createPrinterProfile(role);
+      const defaultCupNames = new Set(["NIIMBOT B1 Pro", "Cup Labels Printer", "Cup Labels", ""]);
+      return {
+        ...prev,
+        [role]: {
+          ...current,
+          model,
+          ...defaults,
+          name: isCupLabel && defaultCupNames.has(String(current.name || "").trim()) ? model.replace(" label printer", "") : current.name,
+        },
+      };
+    });
+  }
+
   function resetPrinterProfile(role) {
     setPrinterForm((prev) => ({
       ...prev,
@@ -6981,6 +7124,7 @@ export default function POSPage() {
     const form = printerForm?.[role] || createPrinterProfile(role);
     const sample = role === "cup_label"
       ? [
+          "Juja Brew & Bites - Pasong Tamo",
           "TABLE 1",
           "Cheesecake Nutella MT",
           "Iced (R)",
@@ -7000,8 +7144,8 @@ export default function POSPage() {
         ].join("\n");
 
     try {
-      await printByRole(role, sample, { ...printerConfig, [role]: buildPrinterConfigFromForm(role) }, { fallbackToBrowser: false });
-      showToast("success", "Print Test Sent", `Check the ${role === "cup_label" ? "Niimbot B1 Pro" : "printer"} output.`);
+      await printByRole(role, sample, { ...printerConfig, [role]: { ...buildPrinterConfigFromForm(role), model: form.model, name: form.name } }, { fallbackToBrowser: false });
+      showToast("success", "Print Test Sent", `Check the ${role === "cup_label" ? form.model || "cup label printer" : "printer"} output.`);
     } catch (error) {
       showToast("error", "Print Test Failed", error?.message || "Unable to print the test receipt.");
     }
@@ -8860,11 +9004,12 @@ export default function POSPage() {
                         <PrinterEditField label="Printer model">
                           <select
                             value={roleForm.model}
-                            onChange={(e) => updatePrinterProfile(role, { model: e.target.value })}
+                            onChange={(e) => updatePrinterModel(role, e.target.value)}
                             className="h-10 w-full bg-transparent text-sm font-semibold text-slate-900 outline-none"
                           >
                             <option>Other model</option>
                             <option>Niimbot B1 Pro label printer</option>
+                            <option>{CLABEL_CT221B_MODEL_NAME}</option>
                             <option>XP-Z58C thermal label printer</option>
                             <option>Xprinter thermal printer</option>
                             <option>ESC/POS compatible</option>
@@ -8937,8 +9082,7 @@ export default function POSPage() {
                             <button
                               type="button"
                               onClick={() => updatePrinterProfile(role, {
-                                service_uuid: isCupLabel ? NIIMBOT_BLE_SERVICE_UUID : DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID,
-                                characteristic_uuid: isCupLabel ? NIIMBOT_BLE_CHARACTERISTIC_UUID : DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID,
+                                ...printerUuidDefaultsForModel(role, roleForm.model),
                               })}
                               className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[10px] font-black uppercase tracking-wider text-slate-600 transition hover:bg-slate-100"
                             >
@@ -8965,9 +9109,9 @@ export default function POSPage() {
 
                         {isCupLabel ? (
                           <div className="space-y-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-[11px] font-semibold leading-4 text-amber-900">
-                            <p className="font-black uppercase tracking-wider">Niimbot B1 Pro setup</p>
-                            <p>Pair the printer first in the device Bluetooth settings, then tap Search once in POS to grant browser permission. POS can remember the allowed device and reconnect after refresh when the browser supports remembered Bluetooth devices.</p>
-                            <p>Browser Bluetooth cannot stay physically connected after logout, refresh, or closing the installed app. If the Niimbot rejects ESC/POS text, it needs a Niimbot-specific label protocol encoder.</p>
+                            <p className="font-black uppercase tracking-wider">Cup label setup</p>
+                            <p>For Niimbot B1 Pro, use the Niimbot model option. For Clabel CT221B, use the Clabel CT221B option so POS sends a 50mm x 40mm TSPL label command.</p>
+                            <p>Pair the printer first in the device Bluetooth settings, then tap Search once in POS to grant permission. If a test does not print, verify the Service UUID and Characteristic UUID shown above.</p>
                           </div>
                         ) : (
                           <div className="rounded-2xl border border-cyan-100 bg-cyan-50 p-3 text-[11px] font-semibold leading-4 text-cyan-900">
