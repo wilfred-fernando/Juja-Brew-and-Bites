@@ -814,30 +814,30 @@ function createCt221bCupLabelCanvas(text) {
     ctx.fillRect(margin, ruleY, contentWidth, 2);
   };
 
-  fitSingleLine(storeName, 500, 14, 10, 17);
-  fitSingleLine(dining, 700, 25, 18, 29);
+  fitSingleLine(storeName, 500, 16, 12, 20);
+  fitSingleLine(dining, 700, 32, 23, 36);
   drawRule(y + 1);
-  y += 10;
+  y += 12;
 
-  drawWrapped(itemName, '700 22px "Arial Narrow", Arial, sans-serif', 25, 2);
-  y += 2;
+  drawWrapped(itemName, '700 28px "Arial Narrow", Arial, sans-serif', 32, 2);
+  y += 3;
   detailLines.forEach((line) => {
-    if (y > 265) return;
+    if (y > 260) return;
     const isNote = /^note:/i.test(line);
     drawWrapped(
       line,
-      `${isNote ? 700 : 500} ${isNote ? 15 : 17}px "Arial Narrow", Arial, sans-serif`,
-      isNote ? 18 : 20,
+      `${isNote ? 700 : 500} ${isNote ? 19 : 22}px "Arial Narrow", Arial, sans-serif`,
+      isNote ? 23 : 25,
       isNote ? 2 : 1
     );
   });
 
   const footerRuleY = 284;
   drawRule(footerRuleY);
-  ctx.font = '500 15px "Arial Narrow", Arial, sans-serif';
-  ctx.fillText(footerLeft, margin, 293);
+  ctx.font = '500 18px "Arial Narrow", Arial, sans-serif';
+  ctx.fillText(footerLeft, margin, 291);
   const footerRightWidth = ctx.measureText(footerRight).width;
-  ctx.fillText(footerRight, canvas.width - margin - footerRightWidth, 293);
+  ctx.fillText(footerRight, canvas.width - margin - footerRightWidth, 291);
   return canvas;
 }
 
@@ -845,6 +845,10 @@ function buildCt221bCupLabelBytes(text) {
   const encoder = new TextEncoder();
   const canvas = createCt221bCupLabelCanvas(text);
   const { buf, stride, height } = niimbotCanvasToPacked(canvas);
+  const invertedBitmap = new Uint8Array(buf.length);
+  for (let index = 0; index < buf.length; index += 1) {
+    invertedBitmap[index] = buf[index] ^ 0xff;
+  }
   const prefix = encoder.encode([
     `SIZE ${CT221B_50X40_LABEL_SIZE.w_mm} mm,${CT221B_50X40_LABEL_SIZE.h_mm} mm`,
     "GAP 2 mm,0 mm",
@@ -856,10 +860,10 @@ function buildCt221bCupLabelBytes(text) {
     `BITMAP 0,0,${stride},${height},0,`,
   ].join("\r\n"));
   const suffix = encoder.encode("\r\nPRINT 1,1\r\n");
-  const bytes = new Uint8Array(prefix.length + buf.length + suffix.length);
+  const bytes = new Uint8Array(prefix.length + invertedBitmap.length + suffix.length);
   bytes.set(prefix, 0);
-  bytes.set(buf, prefix.length);
-  bytes.set(suffix, prefix.length + buf.length);
+  bytes.set(invertedBitmap, prefix.length);
+  bytes.set(suffix, prefix.length + invertedBitmap.length);
   return bytes;
 }
 
