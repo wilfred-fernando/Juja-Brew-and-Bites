@@ -76,11 +76,12 @@ const NIIMBOT_50X40_LABEL_SIZE = {
   margin: 10,
   dpi: 300,
 };
-const CT221B_50X40_LABEL_SIZE = {
-  w_mm: 50,
+const CT221B_53X40_LABEL_SIZE = {
+  w_mm: 53,
   h_mm: 40,
-  w_dots: 400,
+  w_dots: 424,
   h_dots: 320,
+  margin_dots: 24,
 };
 const THERMAL_PAPER_WIDTH_MM = 50;
 const RECEIPT_COLUMNS = 32;
@@ -767,10 +768,10 @@ function fitTsplSingleLine(value, maxChars) {
 function createCt221bCupLabelCanvas(text) {
   if (typeof document === "undefined") throw new Error("Label rendering is only available in the browser.");
   const canvas = document.createElement("canvas");
-  canvas.width = 400;
-  canvas.height = 320;
-  canvas.style.width = `${CT221B_50X40_LABEL_SIZE.w_mm}mm`;
-  canvas.style.height = `${CT221B_50X40_LABEL_SIZE.h_mm}mm`;
+  canvas.width = CT221B_53X40_LABEL_SIZE.w_dots;
+  canvas.height = CT221B_53X40_LABEL_SIZE.h_dots;
+  canvas.style.width = `${CT221B_53X40_LABEL_SIZE.w_mm}mm`;
+  canvas.style.height = `${CT221B_53X40_LABEL_SIZE.h_mm}mm`;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Unable to create Clabel cup label canvas.");
 
@@ -789,7 +790,7 @@ function createCt221bCupLabelCanvas(text) {
   ctx.fillStyle = "#000000";
   ctx.textBaseline = "top";
 
-  const margin = 0;
+  const margin = CT221B_53X40_LABEL_SIZE.margin_dots;
   const contentWidth = canvas.width - margin * 2;
   let y = 5;
   const fitSingleLine = (value, weight, startSize, minSize, lineHeight) => {
@@ -850,11 +851,11 @@ function buildCt221bCupLabelBytes(text) {
     invertedBitmap[index] = buf[index] ^ 0xff;
   }
   const prefix = encoder.encode([
-    `SIZE ${CT221B_50X40_LABEL_SIZE.w_mm} mm,${CT221B_50X40_LABEL_SIZE.h_mm} mm`,
+    `SIZE ${CT221B_53X40_LABEL_SIZE.w_mm} mm,${CT221B_53X40_LABEL_SIZE.h_mm} mm`,
     "GAP 2 mm,0 mm",
     "DENSITY 7",
     "SPEED 2",
-    "DIRECTION 0",
+    "DIRECTION 1",
     "REFERENCE 0,0",
     "CLS",
     `BITMAP 0,0,${stride},${height},0,`,
