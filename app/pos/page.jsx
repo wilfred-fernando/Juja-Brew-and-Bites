@@ -772,7 +772,7 @@ function buildCt221bCupLabelBytes(text) {
   const itemName = lines[2] || "Item";
   const footerRaw = lines[lines.length - 1] || `#ORDER|${formatCupLabelDateTime(new Date())}`;
   const [footerLeftRaw, footerRightRaw] = footerRaw.split("|");
-  const footerLeft = fitTsplSingleLine(footerLeftRaw || "", 17);
+  const footerLeft = fitTsplSingleLine(footerLeftRaw || "", 24);
   const footerRight = fitTsplSingleLine(footerRightRaw || "", 16);
   const detailLines = lines.slice(3, -1).filter((line) => line !== "---");
   const commands = [
@@ -785,33 +785,33 @@ function buildCt221bCupLabelBytes(text) {
     "CLS",
   ];
 
-  let y = 8;
-  commands.push(`TEXT 16,${y},"0",0,1,1,"${fitTsplSingleLine(storeName, 31)}"`);
-  y += 28;
-  commands.push(`TEXT 16,${y},"0",0,2,2,"${fitTsplSingleLine(dining, 16)}"`);
-  y += 52;
-  commands.push(`BAR 16,${y},368,2`);
-  y += 14;
+  let y = 4;
+  commands.push(`TEXT 4,${y},"1",0,1,1,"${fitTsplSingleLine(storeName, 48)}"`);
+  y += 17;
+  commands.push(`TEXT 4,${y},"3",0,1,1,"${fitTsplSingleLine(dining, 24)}"`);
+  y += 30;
+  commands.push(`BAR 4,${y},388,2`);
+  y += 10;
 
-  wrapTsplText(itemName, 30).slice(0, 2).forEach((line) => {
-    commands.push(`TEXT 16,${y},"0",0,1,2,"${line}"`);
-    y += 42;
+  wrapTsplText(itemName, 32).slice(0, 2).forEach((line) => {
+    commands.push(`TEXT 4,${y},"2",0,1,1,"${line}"`);
+    y += 23;
   });
 
   detailLines.forEach((line) => {
-    if (y > 250) return;
+    if (y > 272) return;
     const isNote = /^note:/i.test(line);
-    const wrapped = wrapTsplText(line, isNote ? 27 : 23).slice(0, isNote ? 2 : 1);
+    const wrapped = wrapTsplText(line, isNote ? 46 : 48).slice(0, isNote ? 2 : 1);
     wrapped.forEach((wrappedLine) => {
-      if (y > 250) return;
-      commands.push(`TEXT 16,${y},"0",0,1,1,"${wrappedLine}"`);
-      y += 26;
+      if (y > 272) return;
+      commands.push(`TEXT 4,${y},"1",0,1,1,"${wrappedLine}"`);
+      y += 15;
     });
   });
 
-  commands.push("BAR 16,276,368,2");
-  commands.push(`TEXT 16,288,"0",0,1,1,"${footerLeft}"`);
-  commands.push(`TEXT 224,288,"0",0,1,1,"${footerRight}"`);
+  commands.push("BAR 4,290,388,2");
+  commands.push(`TEXT 4,300,"1",0,1,1,"${footerLeft}"`);
+  commands.push(`TEXT 264,300,"1",0,1,1,"${footerRight}"`);
   commands.push("PRINT 1,1");
   return encoder.encode(`${commands.join("\r\n")}\r\n`);
 }
