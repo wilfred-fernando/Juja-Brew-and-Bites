@@ -789,7 +789,7 @@ function createCt221bCupLabelCanvas(text) {
   ctx.fillStyle = "#000000";
   ctx.textBaseline = "top";
 
-  const margin = 8;
+  const margin = 0;
   const contentWidth = canvas.width - margin * 2;
   let y = 5;
   const fitSingleLine = (value, weight, startSize, minSize, lineHeight) => {
@@ -814,30 +814,30 @@ function createCt221bCupLabelCanvas(text) {
     ctx.fillRect(margin, ruleY, contentWidth, 2);
   };
 
-  fitSingleLine(storeName, 500, 16, 12, 20);
-  fitSingleLine(dining, 700, 32, 23, 36);
+  fitSingleLine(storeName, 500, 18, 13, 22);
+  fitSingleLine(dining, 700, 36, 26, 40);
   drawRule(y + 1);
   y += 12;
 
-  drawWrapped(itemName, '700 28px "Arial Narrow", Arial, sans-serif', 32, 2);
+  drawWrapped(itemName, '700 32px "Arial Narrow", Arial, sans-serif', 36, 2);
   y += 3;
   detailLines.forEach((line) => {
     if (y > 260) return;
     const isNote = /^note:/i.test(line);
     drawWrapped(
       line,
-      `${isNote ? 700 : 500} ${isNote ? 19 : 22}px "Arial Narrow", Arial, sans-serif`,
-      isNote ? 23 : 25,
+      `${isNote ? 700 : 500} ${isNote ? 22 : 25}px "Arial Narrow", Arial, sans-serif`,
+      isNote ? 26 : 28,
       isNote ? 2 : 1
     );
   });
 
   const footerRuleY = 284;
   drawRule(footerRuleY);
-  ctx.font = '500 18px "Arial Narrow", Arial, sans-serif';
-  ctx.fillText(footerLeft, margin, 291);
+  ctx.font = '500 20px "Arial Narrow", Arial, sans-serif';
+  ctx.fillText(footerLeft, margin, 289);
   const footerRightWidth = ctx.measureText(footerRight).width;
-  ctx.fillText(footerRight, canvas.width - margin - footerRightWidth, 291);
+  ctx.fillText(footerRight, canvas.width - margin - footerRightWidth, 289);
   return canvas;
 }
 
