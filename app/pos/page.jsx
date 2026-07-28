@@ -786,16 +786,16 @@ function buildCt221bCupLabelBytes(text) {
   ];
 
   let y = 8;
-  commands.push(`TEXT 16,${y},"0",0,1,1,"${fitTsplSingleLine(storeName, 33)}"`);
+  commands.push(`TEXT 16,${y},"0",0,1,1,"${fitTsplSingleLine(storeName, 31)}"`);
   y += 28;
   commands.push(`TEXT 16,${y},"0",0,2,2,"${fitTsplSingleLine(dining, 16)}"`);
   y += 52;
   commands.push(`BAR 16,${y},368,2`);
   y += 14;
 
-  wrapTsplText(itemName, 18).slice(0, 2).forEach((line) => {
-    commands.push(`TEXT 16,${y},"0",0,2,2,"${line}"`);
-    y += 45;
+  wrapTsplText(itemName, 30).slice(0, 2).forEach((line) => {
+    commands.push(`TEXT 16,${y},"0",0,1,2,"${line}"`);
+    y += 42;
   });
 
   detailLines.forEach((line) => {

@@ -1,7 +1,7 @@
 {
   "app": "pos",
-  "latestVersion": "1.0.10",
-  "latestBuild": 11,
-  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-pos-v1.0.10.apk",
-  "releaseNotes": "Adds expanded BLE printer UUID support and Clabel CT221B defaults for cup label printing."
+  "latestVersion": "1.0.11",
+  "latestBuild": 12,
+  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-pos-v1.0.11.apk",
+  "releaseNotes": "Improves the Clabel CT221B 50 x 40 mm cup-label layout with smaller item text and cleaner wrapping."
 }
