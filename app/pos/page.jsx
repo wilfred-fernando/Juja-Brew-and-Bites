@@ -27,6 +27,19 @@ const DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID = "000018f0-0000-1000-8000-00805f9b
 const DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID = "00002af1-0000-1000-8000-00805f9b34fb";
 const NIIMBOT_BLE_SERVICE_UUID = "e7810a71-73ae-499d-8c15-faa9aef0c3f2";
 const NIIMBOT_BLE_CHARACTERISTIC_UUID = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f";
+const BLE_PRINTER_SERVICE_UUID_CANDIDATES = [
+  DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID,
+  "0000ff00-0000-1000-8000-00805f9b34fb",
+  "0000ffe0-0000-1000-8000-00805f9b34fb",
+  NIIMBOT_BLE_SERVICE_UUID,
+];
+const BLE_PRINTER_CHARACTERISTIC_UUID_CANDIDATES = [
+  DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID,
+  "0000ff01-0000-1000-8000-00805f9b34fb",
+  "0000ff02-0000-1000-8000-00805f9b34fb",
+  "0000ffe1-0000-1000-8000-00805f9b34fb",
+  NIIMBOT_BLE_CHARACTERISTIC_UUID,
+];
 const CLABEL_CT221B_MODEL_NAME = "Clabel CT221B label printer";
 const NIIMBOT_B1_PRO_MODEL = {
   label: "Niimbot B1 Pro",
@@ -124,6 +137,15 @@ function normalizeBluetoothUuid(value, fallback = "") {
   return String(value || fallback).trim().toLowerCase();
 }
 
+function uniqueBluetoothUuids(...groups) {
+  return [...new Set(groups.flat().map((value) => normalizeBluetoothUuid(value)).filter(Boolean))];
+}
+
+function isWritableBleCharacteristic(characteristic) {
+  const props = characteristic?.properties || {};
+  return Boolean(props.write || props.writeWithoutResponse);
+}
+
 function isNativeBluetoothApp() {
   return Boolean(Capacitor?.isNativePlatform?.());
 }
@@ -192,10 +214,52 @@ function getCachedNativeBluetoothPrinterDevice(cfg = {}) {
   return null;
 }
 
-function createNativeBleCharacteristicAdapter(device, cfg = {}) {
-  const serviceUuid = normalizeBluetoothUuid(cfg?.ble_service_uuid, DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID);
-  const characteristicUuid = normalizeBluetoothUuid(
+async function resolveNativeBleWriteTarget(deviceId, cfg = {}) {
+  const preferredServiceUuid = normalizeBluetoothUuid(cfg?.ble_service_uuid, DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID);
+  const preferredCharacteristicUuid = normalizeBluetoothUuid(
     cfg?.ble_characteristic_uuid,
+    DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID
+  );
+  const serviceCandidates = uniqueBluetoothUuids(preferredServiceUuid, BLE_PRINTER_SERVICE_UUID_CANDIDATES);
+  const characteristicCandidates = uniqueBluetoothUuids(preferredCharacteristicUuid, BLE_PRINTER_CHARACTERISTIC_UUID_CANDIDATES);
+
+  try {
+    const services = await BleClient.getServices(deviceId);
+    const serviceRows = Array.isArray(services) ? services : [];
+
+    for (const serviceUuid of serviceCandidates) {
+      const service = serviceRows.find((row) => normalizeBluetoothUuid(row.uuid) === serviceUuid);
+      const characteristics = service?.characteristics || [];
+      for (const characteristicUuid of characteristicCandidates) {
+        const characteristic = characteristics.find((row) => normalizeBluetoothUuid(row.uuid) === characteristicUuid);
+        if (characteristic && isWritableBleCharacteristic(characteristic)) {
+          return { serviceUuid, characteristicUuid };
+        }
+      }
+      const writable = characteristics.find(isWritableBleCharacteristic);
+      if (writable?.uuid) return { serviceUuid, characteristicUuid: normalizeBluetoothUuid(writable.uuid) };
+    }
+
+    for (const service of serviceRows) {
+      const writable = (service?.characteristics || []).find(isWritableBleCharacteristic);
+      if (service?.uuid && writable?.uuid) {
+        return {
+          serviceUuid: normalizeBluetoothUuid(service.uuid),
+          characteristicUuid: normalizeBluetoothUuid(writable.uuid),
+        };
+      }
+    }
+  } catch (error) {
+    console.warn("Native BLE service discovery failed; using configured UUIDs.", error);
+  }
+
+  return { serviceUuid: preferredServiceUuid, characteristicUuid: preferredCharacteristicUuid };
+}
+
+function createNativeBleCharacteristicAdapter(device, cfg = {}, target = {}) {
+  const serviceUuid = normalizeBluetoothUuid(target.serviceUuid || cfg?.ble_service_uuid, DEFAULT_BLUETOOTH_PRINTER_SERVICE_UUID);
+  const characteristicUuid = normalizeBluetoothUuid(
+    target.characteristicUuid || cfg?.ble_characteristic_uuid,
     DEFAULT_BLUETOOTH_PRINTER_CHARACTERISTIC_UUID
   );
 
@@ -254,7 +318,8 @@ async function connectNativeBluetoothPrinter(cfg = {}) {
   }
 
   cacheNativeBluetoothPrinterDevice(device, cfg);
-  return createNativeBleCharacteristicAdapter(device, cfg);
+  const target = await resolveNativeBleWriteTarget(device.deviceId, cfg);
+  return createNativeBleCharacteristicAdapter(device, cfg, target);
 }
 
 function bluetoothDeviceCacheKeys(device, cfg = {}) {
@@ -417,6 +482,42 @@ async function findSavedBluetoothDevice(cfg, serviceUuid) {
   throw new Error("Bluetooth printer permission is not available in this browser. Open POS Settings, choose the printer once, then save it. Browsers cannot keep a live Bluetooth connection after refresh or app close.");
 }
 
+async function resolveWebBluetoothWriteCharacteristic(server, preferredServiceUuid, preferredCharacteristicUuid) {
+  const serviceCandidates = uniqueBluetoothUuids(preferredServiceUuid, BLE_PRINTER_SERVICE_UUID_CANDIDATES);
+  const characteristicCandidates = uniqueBluetoothUuids(preferredCharacteristicUuid, BLE_PRINTER_CHARACTERISTIC_UUID_CANDIDATES);
+
+  for (const serviceUuid of serviceCandidates) {
+    let service = null;
+    try {
+      service = await server?.getPrimaryService(serviceUuid);
+    } catch {
+      service = null;
+    }
+    if (!service) continue;
+
+    for (const characteristicUuid of characteristicCandidates) {
+      try {
+        const characteristic = await service.getCharacteristic(characteristicUuid);
+        if (characteristic) return { serviceUuid, characteristicUuid, characteristic };
+      } catch {}
+    }
+
+    try {
+      const characteristics = await service.getCharacteristics();
+      const writable = characteristics.find(isWritableBleCharacteristic);
+      if (writable) {
+        return {
+          serviceUuid,
+          characteristicUuid: normalizeBluetoothUuid(writable.uuid),
+          characteristic: writable,
+        };
+      }
+    } catch {}
+  }
+
+  throw new Error("Bluetooth printer write characteristic was not found. Select the printer again, then tap Test. If it still fails, try UUID defaults or another printer model.");
+}
+
 async function bleConnect(cfg) {
   if (isNativeBluetoothApp()) {
     const characteristic = await connectNativeBluetoothPrinter(cfg);
@@ -435,11 +536,15 @@ async function bleConnect(cfg) {
   const device = await findSavedBluetoothDevice(cfg, serviceUuid);
 
   const server = await device.gatt?.connect();
-  const service = await server?.getPrimaryService(serviceUuid);
-  const characteristic = await service?.getCharacteristic(characteristicUuid);
+  const { serviceUuid: resolvedServiceUuid, characteristicUuid: resolvedCharacteristicUuid, characteristic } =
+    await resolveWebBluetoothWriteCharacteristic(server, serviceUuid, characteristicUuid);
 
   cacheBluetoothPrinterDevice(device, cfg);
-  cacheBluetoothPrinterCharacteristic(cfg, characteristic);
+  cacheBluetoothPrinterCharacteristic({
+    ...cfg,
+    ble_service_uuid: resolvedServiceUuid,
+    ble_characteristic_uuid: resolvedCharacteristicUuid,
+  }, characteristic);
   return characteristic;
 }
 
@@ -473,9 +578,29 @@ function buildEscPosPrintBytes(text, role) {
 
 async function blePrint(characteristic, text, role = "receipt") {
   const bytes = buildEscPosPrintBytes(text, role);
+  await writeBleBytes(characteristic, bytes);
+}
 
-  for (let i = 0; i < bytes.length; i += 180) {
-    await characteristic.writeValueWithoutResponse(bytes.slice(i, i + 180));
+async function writeBleChunk(characteristic, bytes) {
+  const chunk = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || []);
+  if (characteristic?.writeValueWithoutResponse) {
+    try {
+      await characteristic.writeValueWithoutResponse(chunk);
+      return;
+    } catch (error) {
+      console.warn("BLE writeWithoutResponse failed; trying writeValue.", error);
+    }
+  }
+  if (characteristic?.writeValue) {
+    await characteristic.writeValue(chunk);
+    return;
+  }
+  throw new Error("Bluetooth printer characteristic cannot write. Reconnect the printer and try again.");
+}
+
+async function writeBleBytes(characteristic, bytes, chunkSize = 180) {
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    await writeBleChunk(characteristic, bytes.slice(i, i + chunkSize));
   }
 }
 
@@ -680,9 +805,7 @@ function buildCt221bCupLabelBytes(text) {
 async function printCt221bCupLabel(text, cfg) {
   const characteristic = await bleConnect(cfg);
   const bytes = buildCt221bCupLabelBytes(text);
-  for (let i = 0; i < bytes.length; i += 180) {
-    await characteristic.writeValueWithoutResponse(bytes.slice(i, i + 180));
-  }
+  await writeBleBytes(characteristic, bytes);
   return true;
 }
 
@@ -774,7 +897,7 @@ async function printNativeNiimbotCupLabel(text, cfg) {
   const writeRaw = async (bytes) => {
     for (let tries = 0; tries < 30; tries++) {
       try {
-        await characteristic.writeValueWithoutResponse(bytes);
+        await writeBleChunk(characteristic, bytes);
         return;
       } catch (error) {
         await sleep(4);
@@ -7207,11 +7330,16 @@ export default function POSPage() {
           ble_service_uuid: serviceUuid,
           ble_characteristic_uuid: characteristicUuid,
         });
+        const target = await resolveNativeBleWriteTarget(device.deviceId, {
+          ...form,
+          ble_service_uuid: serviceUuid,
+          ble_characteristic_uuid: characteristicUuid,
+        });
         updatePrinterProfile(role, {
           enabled: true,
           name: device.name || form.name?.trim() || `${PRINTER_ROLE_LABELS[role]} Printer`,
-          service_uuid: serviceUuid,
-          characteristic_uuid: characteristicUuid,
+          service_uuid: target.serviceUuid,
+          characteristic_uuid: target.characteristicUuid,
           device_id: device.deviceId || "",
         });
         showToast("success", "Bluetooth Printer Selected", "The printer was selected through the Android Bluetooth picker.");
@@ -7231,21 +7359,24 @@ export default function POSPage() {
 
       const device = await navigator.bluetooth.requestDevice({
         acceptAllDevices: true,
-        optionalServices: [serviceUuid],
+        optionalServices: uniqueBluetoothUuids(serviceUuid, BLE_PRINTER_SERVICE_UUID_CANDIDATES),
       });
 
       let connectionVerified = false;
+      let resolvedServiceUuid = serviceUuid;
+      let resolvedCharacteristicUuid = characteristicUuid;
       try {
         const server = await device.gatt?.connect();
-        const service = await server?.getPrimaryService(serviceUuid);
-        const characteristic = await service?.getCharacteristic(characteristicUuid);
+        const resolved = await resolveWebBluetoothWriteCharacteristic(server, serviceUuid, characteristicUuid);
+        resolvedServiceUuid = resolved.serviceUuid;
+        resolvedCharacteristicUuid = resolved.characteristicUuid;
         cacheBluetoothPrinterCharacteristic({
           ...form,
           ble_device_id: device.id,
           ble_device_name: device.name || form.name,
-          ble_service_uuid: serviceUuid,
-          ble_characteristic_uuid: characteristicUuid,
-        }, characteristic);
+          ble_service_uuid: resolvedServiceUuid,
+          ble_characteristic_uuid: resolvedCharacteristicUuid,
+        }, resolved.characteristic);
         connectionVerified = true;
       } catch (err) {
         console.warn("Bluetooth printer validation skipped or failed", err);
@@ -7254,8 +7385,8 @@ export default function POSPage() {
       updatePrinterProfile(role, {
         enabled: true,
         name: device.name || form.name?.trim() || `${PRINTER_ROLE_LABELS[role]} Printer`,
-        service_uuid: serviceUuid,
-        characteristic_uuid: characteristicUuid,
+        service_uuid: resolvedServiceUuid,
+        characteristic_uuid: resolvedCharacteristicUuid,
         device_id: device.id || "",
       });
       cacheBluetoothPrinterDevice(device, {
