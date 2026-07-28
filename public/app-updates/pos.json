@@ -1,7 +1,7 @@
 {
   "app": "pos",
-  "latestVersion": "1.0.9",
-  "latestBuild": 10,
-  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-pos-v1.0.9.apk",
-  "releaseNotes": "Improves Bluetooth printer characteristic detection for Clabel CT221B and other BLE printers."
+  "latestVersion": "1.0.10",
+  "latestBuild": 11,
+  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-pos-v1.0.10.apk",
+  "releaseNotes": "Adds expanded BLE printer UUID support and Clabel CT221B defaults for cup label printing."
 }
