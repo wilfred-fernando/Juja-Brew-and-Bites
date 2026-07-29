@@ -1,7 +1,7 @@
 {
   "app": "pos",
-  "latestVersion": "1.0.11",
-  "latestBuild": 12,
-  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-pos-v1.0.11.apk",
-  "releaseNotes": "Improves the Clabel CT221B 50 x 40 mm cup-label layout with smaller item text and cleaner wrapping."
+  "latestVersion": "1.0.12",
+  "latestBuild": 13,
+  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-pos-v1.0.12.apk",
+  "releaseNotes": "Improves native Bluetooth printer reconnection and restores already paired Clabel CT221B devices after POS refresh or restart."
 }
