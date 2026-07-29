@@ -1,7 +1,7 @@
 {
   "app": "pos",
-  "latestVersion": "1.0.12",
-  "latestBuild": 13,
-  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-pos-v1.0.12.apk",
-  "releaseNotes": "Improves native Bluetooth printer reconnection and restores already paired Clabel CT221B devices after POS refresh or restart."
+  "latestVersion": "1.0.13",
+  "latestBuild": 14,
+  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-pos-v1.0.13.apk",
+  "releaseNotes": "Fixes Clabel CT221B Bluetooth discovery, clears stale NIIMBOT UUID defaults, and selects the writable characteristic exposed by the printer."
 }
