@@ -55,6 +55,7 @@ const BLE_PRINTER_CHARACTERISTIC_UUID_CANDIDATES = [
   NIIMBOT_BLE_CHARACTERISTIC_UUID,
 ];
 const CLABEL_CT221B_MODEL_NAME = "Clabel CT221B label printer";
+const CLABEL_CT221B_BLUETOOTH_NAME_PREFIX = "CT221B-";
 const NIIMBOT_B1_PRO_MODEL = {
   label: "Niimbot B1 Pro",
   id: 4097,
@@ -100,17 +101,17 @@ const PRINTER_ROLE_LABELS = {
 const PRINTER_ROLE_DEFAULT_WIDTH = {
   receipt: THERMAL_PAPER_WIDTH_MM,
   order_slip: 58,
-  cup_label: 50,
+  cup_label: 53,
 };
 const PRINTER_ROLE_HINTS = {
   receipt: "Receipt printer for bills and final receipts.",
   order_slip: "Kitchen order slip printer.",
-  cup_label: "50mm x 40mm drink label printer. Select Niimbot B1 Pro for Niimbot labels, or Clabel CT221B for TSPL-style thermal labels.",
+  cup_label: "53mm x 40mm drink label printer. Select Niimbot B1 Pro for Niimbot labels, or Clabel CT221B for TSPL-style gap labels.",
 };
 const PRINTER_ROLE_STATUS = {
   receipt: "Final receipts",
   order_slip: "Kitchen tickets",
-  cup_label: "50x40 labels",
+  cup_label: "53x40 labels",
 };
 const POS_OFFLINE_CACHE_KEY = "juja_pos_cached_payload_v1";
 const POS_OFFLINE_CHARGE_QUEUE_KEY = "juja_pos_offline_charge_queue_v1";
@@ -856,10 +857,11 @@ function buildCt221bCupLabelBytes(text) {
   const prefix = encoder.encode([
     `SIZE ${CT221B_53X40_LABEL_SIZE.w_mm} mm,${CT221B_53X40_LABEL_SIZE.h_mm} mm`,
     "GAP 2 mm,0 mm",
-    "DENSITY 7",
+    "DENSITY 8",
     "SPEED 2",
     "DIRECTION 1",
     "REFERENCE 0,0",
+    "OFFSET 0",
     "CLS",
     `BITMAP 0,0,${stride},${height},0,`,
   ].join("\r\n"));
@@ -9258,7 +9260,7 @@ export default function POSPage() {
                         <PrinterEditField label={isCupLabel ? "Sticker size" : "Paper width"}>
                           {isCupLabel ? (
                             <div className="flex min-h-10 items-center justify-between gap-2 text-sm font-semibold text-slate-900">
-                              <span>50mm W x 40mm H</span>
+                              <span>53mm W x 40mm H</span>
                               <span className="rounded-full bg-cyan-100 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-cyan-700">Thermal sticker</span>
                             </div>
                           ) : (
@@ -9313,7 +9315,8 @@ export default function POSPage() {
                         {isCupLabel ? (
                           <div className="space-y-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-[11px] font-semibold leading-4 text-amber-900">
                             <p className="font-black uppercase tracking-wider">Cup label setup</p>
-                            <p>For Niimbot B1 Pro, use the Niimbot model option. For Clabel CT221B, use the Clabel CT221B option so POS sends a 50mm x 40mm TSPL label command.</p>
+                            <p>For Niimbot B1 Pro, use the Niimbot model option. For Clabel CT221B V2.0, use the Clabel option so POS sends a 53mm x 40mm gap-label command at density 8 and offset 0mm.</p>
+                            <p>The Clabel Bluetooth name should begin with {CLABEL_CT221B_BLUETOOTH_NAME_PREFIX} (for example, CT221B-7500).</p>
                             <p>Pair the printer first in the device Bluetooth settings, then tap Search once in POS to grant permission. If a test does not print, verify the Service UUID and Characteristic UUID shown above.</p>
                           </div>
                         ) : (
