@@ -491,29 +491,16 @@ function classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings }
     if (!shouldBlockBookingSlot(b, now)) continue;
 
     const bStart = new Date(b.start_at);
-    let bEnd = new Date(b.end_at);
-
-    if (
-      bEnd.getMinutes() === 0 &&
-      bEnd.getSeconds() === 0 &&
-      bEnd.getMilliseconds() === 0
-    ) {
-      bEnd = new Date(bEnd.getTime() - 1);
-    }
-
-    const endHourBlock = new Date(bEnd);
-    endHourBlock.setMinutes(0, 0, 0);
-
+    const bEnd = new Date(b.end_at);
     const bufferBefore = new Date(bStart.getTime() - BUFFER_HOURS * 3600000);
-    const bufferAfter = new Date(endHourBlock.getTime() + BUFFER_HOURS * 3600000);
+    const bufferAfter = new Date(bEnd.getTime() + BUFFER_HOURS * 3600000);
 
-    if (slotStart >= bStart && slotStart <= endHourBlock) {
+    // Compare complete half-open intervals. Checking slotStart alone allowed a
+    // three-hour slot to begin before, but finish inside, another booking's buffer.
+    if (slotStart < bEnd && slotEnd > bStart) {
       return { available: false, reason: "booked" };
     }
-    if (slotStart.getTime() === bufferBefore.getTime()) {
-      return { available: false, reason: "buffer" };
-    }
-    if (slotStart.getTime() === bufferAfter.getTime()) {
+    if (slotStart < bufferAfter && slotEnd > bufferBefore) {
       return { available: false, reason: "buffer" };
     }
   }
