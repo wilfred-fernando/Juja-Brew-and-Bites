@@ -1,7 +1,7 @@
 {
   "app": "pos",
-  "latestVersion": "1.0.13",
-  "latestBuild": 14,
-  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-pos-v1.0.13.apk",
-  "releaseNotes": "Fixes Clabel CT221B Bluetooth discovery, clears stale NIIMBOT UUID defaults, and selects the writable characteristic exposed by the printer."
+  "latestVersion": "1.0.14",
+  "latestBuild": 15,
+  "apkUrl": "https://akbcwnafokwpceugjchq.supabase.co/storage/v1/object/public/apk-downloads/juja-pos-v1.0.14.apk",
+  "releaseNotes": "Adds native Android Bluetooth Classic printing for the Clabel CT221B. Pair CT221B-7500 in Android Bluetooth settings, then reconnect it from POS Printer Settings."
 }

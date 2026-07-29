@@ -14,7 +14,7 @@ import TicketPanel from "@/components/pos/TicketPanel";
 import PosApkUpdatePrompt from "@/components/PosApkUpdatePrompt";
 import ApkDownloadBanner from "@/components/ApkDownloadBanner";
 import { Barcode, Bluetooth, CalendarDays, DollarSign, MapPin, MessageSquare, Phone, Printer, RefreshCw, RotateCcw, Save, Search, ShoppingBasket, Star, Trash2 } from "lucide-react";
-import { Capacitor } from "@capacitor/core";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import { BleClient, ScanMode } from "@capacitor-community/bluetooth-le";
 
 // Initialize Supabase Client instance cleanly at layout bundle level
@@ -56,6 +56,7 @@ const BLE_PRINTER_CHARACTERISTIC_UUID_CANDIDATES = [
 ];
 const CLABEL_CT221B_MODEL_NAME = "Clabel CT221B label printer";
 const CLABEL_CT221B_BLUETOOTH_NAME_PREFIX = "CT221B-";
+const ClassicBluetoothPrinter = registerPlugin("ClassicBluetoothPrinter");
 const NIIMBOT_B1_PRO_MODEL = {
   label: "Niimbot B1 Pro",
   id: 4097,
@@ -211,6 +212,37 @@ function supportsBleWrite(characteristic) {
 
 function isNativeBluetoothApp() {
   return Boolean(Capacitor?.isNativePlatform?.());
+}
+
+function bytesToBase64(bytes) {
+  const value = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || []);
+  let binary = "";
+  const blockSize = 0x8000;
+  for (let offset = 0; offset < value.length; offset += blockSize) {
+    binary += String.fromCharCode(...value.subarray(offset, offset + blockSize));
+  }
+  return btoa(binary);
+}
+
+async function connectNativeClassicCt221b(cfg = {}) {
+  if (!isNativeBluetoothApp()) throw new Error("Native Bluetooth is only available in the POS Android app.");
+  const result = await ClassicBluetoothPrinter.connect({
+    address: cfg?.ble_device_id || "",
+    name: cfg?.ble_device_name || cfg?.name || "",
+    namePrefix: CLABEL_CT221B_BLUETOOTH_NAME_PREFIX,
+  });
+  return {
+    deviceId: result?.address || cfg?.ble_device_id || "",
+    name: result?.name || cfg?.ble_device_name || cfg?.name || CLABEL_CT221B_MODEL_NAME,
+  };
+}
+
+async function printNativeClassicCt221b(bytes, cfg = {}) {
+  const device = await connectNativeClassicCt221b(cfg);
+  await ClassicBluetoothPrinter.write({
+    data: bytesToBase64(bytes),
+  });
+  return device;
 }
 
 function isBleAlreadyConnectedError(error) {
@@ -974,8 +1006,12 @@ function buildCt221bCupLabelBytes(text) {
 }
 
 async function printCt221bCupLabel(text, cfg) {
-  const characteristic = await bleConnect(cfg);
   const bytes = buildCt221bCupLabelBytes(text);
+  if (isNativeBluetoothApp()) {
+    await printNativeClassicCt221b(bytes, cfg);
+    return true;
+  }
+  const characteristic = await bleConnect(cfg);
   await writeBleBytes(characteristic, bytes);
   return true;
 }
@@ -5604,8 +5640,12 @@ export default function POSPage() {
     if (getCachedBluetoothPrinterCharacteristic(cfg)) return true;
 
     if (isNativeBluetoothApp()) {
-      if (!cfg?.ble_device_id) return false;
       try {
+        if (isClabelCt221bCupLabelConfig(role, cfg)) {
+          await connectNativeClassicCt221b(cfg);
+          return true;
+        }
+        if (!cfg?.ble_device_id) return false;
         const characteristic = await bleConnect(cfg);
         cacheBluetoothPrinterCharacteristic(cfg, characteristic);
         return true;
@@ -7477,6 +7517,17 @@ export default function POSPage() {
   async function reconnectPrinter(role = "receipt") {
     const cfg = buildPrinterConfigFromForm(role);
     try {
+      const form = printerForm?.[role] || createPrinterProfile(role);
+      if (isNativeBluetoothApp() && isClabelCt221bCupLabelConfig(role, { ...cfg, model: form.model, name: form.name })) {
+        const device = await connectNativeClassicCt221b(cfg);
+        updatePrinterProfile(role, {
+          enabled: true,
+          device_id: device.deviceId || cfg.ble_device_id || "",
+          name: device.name || cfg.ble_device_name || cfg.name || CLABEL_CT221B_MODEL_NAME,
+        });
+        showToast("success", "Printer Reconnected", `${device.name || "CT221B"} is connected through Android Bluetooth.`);
+        return;
+      }
       const characteristic = await bleConnect(cfg);
       const device = characteristic?.service?.device;
       if (device) {
@@ -7525,6 +7576,27 @@ export default function POSPage() {
 
     try {
       if (isNativeBluetoothApp()) {
+        if (isClabelCt221bCupLabelConfig(role, form)) {
+          const device = await connectNativeClassicCt221b({
+            ...form,
+            ble_device_id: form.device_id || "",
+            ble_device_name: form.name || "",
+          });
+          updatePrinterProfile(role, {
+            enabled: true,
+            name: device.name || CLABEL_CT221B_MODEL_NAME,
+            service_uuid: CLABEL_CT221B_SERVICE_UUID,
+            characteristic_uuid: CLABEL_CT221B_CHARACTERISTIC_UUID,
+            device_id: device.deviceId || "",
+          });
+          showToast(
+            "success",
+            "Bluetooth Printer Selected",
+            `${device.name || "CT221B"} is connected through Android Classic Bluetooth.`
+          );
+          setPrinterPermissionRole(null);
+          return true;
+        }
         const device = await requestNativeBluetoothPrinterDevice({
           ...form,
           ble_service_uuid: serviceUuid,
