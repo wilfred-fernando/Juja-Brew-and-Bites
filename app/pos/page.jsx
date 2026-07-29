@@ -167,6 +167,11 @@ function isNativeBluetoothApp() {
   return Boolean(Capacitor?.isNativePlatform?.());
 }
 
+function isBleAlreadyConnectedError(error) {
+  const message = String(error?.message || error || "").toLowerCase();
+  return message.includes("already connected") || message.includes("connection already exists");
+}
+
 async function resolvePosStoreIdForProfile(profile, supabaseClient) {
   const role = String(profile?.role || "").toLowerCase();
 
@@ -310,6 +315,10 @@ async function requestNativeBluetoothPrinterDevice(cfg = {}) {
   try {
     await BleClient.connect(device.deviceId);
   } catch (error) {
+    if (isBleAlreadyConnectedError(error)) {
+      cacheNativeBluetoothPrinterDevice(device, cfg);
+      return device;
+    }
     throw new Error(
       `${device?.name || "Selected Bluetooth device"} was found, but POS could not connect. Make sure the printer supports BLE mode, is turned on, and is not connected to another device.`
     );
@@ -329,8 +338,21 @@ async function connectNativeBluetoothPrinter(cfg = {}) {
     try {
       await BleClient.connect(device.deviceId);
     } catch (error) {
-      if (!cfg?.ble_device_id) throw error;
-      device = await requestNativeBluetoothPrinterDevice(cfg);
+      if (!isBleAlreadyConnectedError(error)) {
+        if (!cfg?.ble_device_id) throw error;
+        try {
+          await BleClient.disconnect(device.deviceId);
+        } catch {
+          // A stale Android GATT session may already be gone.
+        }
+        try {
+          await BleClient.connect(device.deviceId);
+        } catch (retryError) {
+          if (!isBleAlreadyConnectedError(retryError)) {
+            device = await requestNativeBluetoothPrinterDevice(cfg);
+          }
+        }
+      }
     }
   }
 
@@ -5502,6 +5524,18 @@ export default function POSPage() {
     const cfg = printerConfig?.[role];
     if (!cfg || cfg.transport === "browser") return true;
     if (getCachedBluetoothPrinterCharacteristic(cfg)) return true;
+
+    if (isNativeBluetoothApp()) {
+      if (!cfg?.ble_device_id) return false;
+      try {
+        const characteristic = await bleConnect(cfg);
+        cacheBluetoothPrinterCharacteristic(cfg, characteristic);
+        return true;
+      } catch (error) {
+        console.warn(`Native ${role} printer reconnect failed`, error);
+        return false;
+      }
+    }
 
     const cachedDevice = getCachedBluetoothPrinterDevice(cfg);
     if (cachedDevice?.gatt?.connected) return true;
