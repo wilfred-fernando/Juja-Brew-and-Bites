@@ -487,21 +487,38 @@ function classifySlot({ slotStart, slotEnd, operatingEnd, minAllowed, bookings }
   if (slotEnd > operatingEnd) return { available: false, reason: "closed-hours" };
 
   const now = new Date();
-  for (const b of bookings || []) {
-    if (!shouldBlockBookingSlot(b, now)) continue;
+  const blockingBookings = (bookings || []).filter((booking) =>
+    shouldBlockBookingSlot(booking, now)
+  );
 
+  // Label the selected hour by its direct relationship to an existing booking.
+  // Earlier start times that merely run into this interval are handled as closed
+  // in the second pass.
+  for (const b of blockingBookings) {
     const bStart = new Date(b.start_at);
     const bEnd = new Date(b.end_at);
     const bufferBefore = new Date(bStart.getTime() - BUFFER_HOURS * 3600000);
     const bufferAfter = new Date(bEnd.getTime() + BUFFER_HOURS * 3600000);
 
-    // Compare complete half-open intervals. Checking slotStart alone allowed a
-    // three-hour slot to begin before, but finish inside, another booking's buffer.
-    if (slotStart < bEnd && slotEnd > bStart) {
+    if (slotStart >= bStart && slotStart < bEnd) {
       return { available: false, reason: "booked" };
     }
-    if (slotStart < bufferAfter && slotEnd > bufferBefore) {
+    if (
+      (slotStart >= bufferBefore && slotStart < bStart) ||
+      (slotStart >= bEnd && slotStart < bufferAfter)
+    ) {
       return { available: false, reason: "buffer" };
+    }
+  }
+
+  for (const b of blockingBookings) {
+    const bStart = new Date(b.start_at);
+    const bEnd = new Date(b.end_at);
+    const bufferBefore = new Date(bStart.getTime() - BUFFER_HOURS * 3600000);
+    const bufferAfter = new Date(bEnd.getTime() + BUFFER_HOURS * 3600000);
+
+    if (slotStart < bufferAfter && slotEnd > bufferBefore) {
+      return { available: false, reason: "closed-conflict" };
     }
   }
 
