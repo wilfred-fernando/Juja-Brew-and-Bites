@@ -543,13 +543,17 @@ export default function AdminBookingsDashboard() {
   const bookingSections = useMemo(() => {
     const pending = [];
     const upcoming = [];
-    const expired = [];
+    const expiredAndCancelled = [];
     const past = [];
+    const cancelledStatuses = new Set(["rejected", "cancelled", "cancelled_gc"]);
 
     for (const booking of filteredBookings) {
       const normalized = withExpiredBookingStatus(booking, now);
-      if (normalized.status === EXPIRED_BOOKING_STATUS) {
-        expired.push(normalized);
+      if (
+        normalized.status === EXPIRED_BOOKING_STATUS ||
+        cancelledStatuses.has(normalized.status)
+      ) {
+        expiredAndCancelled.push(normalized);
       } else if (normalized.status === "pending" || normalized.status === "cancellation_requested") {
         pending.push(normalized);
       } else if (new Date(normalized.start_at) < now) {
@@ -559,10 +563,16 @@ export default function AdminBookingsDashboard() {
       }
     }
 
+    upcoming.sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
+
     return [
       { key: "pending", title: "Pending for Approval", rows: pending },
       { key: "upcoming", title: "Upcoming Bookings", rows: upcoming },
-      { key: "expired", title: "Expired Bookings", rows: expired },
+      {
+        key: "expired-cancelled",
+        title: "Expired & Cancelled Bookings",
+        rows: expiredAndCancelled,
+      },
       { key: "past", title: "Past Bookings", rows: past },
     ].filter((section) => section.rows.length > 0);
   }, [filteredBookings, now]);
