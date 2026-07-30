@@ -18,6 +18,7 @@ import BookingTab from "@/components/BookingForm";
 import CustomerApkUpdatePrompt from "@/components/CustomerApkUpdatePrompt";
 import ApkDownloadBanner from "@/components/ApkDownloadBanner";
 import { getStableSession } from "@/lib/supabase/session";
+import { uploadProofFile } from "@/lib/storage/uploadProof";
 
 const hasMenuOptions = (item) =>
   Array.isArray(item?.variants) &&
@@ -1971,18 +1972,19 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
 
     let paymentProofUrl = "";
     if (fulfillmentMetadata.paymentProof) {
-      const ext = fulfillmentMetadata.paymentProof.name?.split(".").pop() || "jpg";
-      const filePath = `${user.id}/${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from("payment-proofs")
-        .upload(filePath, fulfillmentMetadata.paymentProof, { upsert: false });
-      if (uploadError) {
+      try {
+        paymentProofUrl = await uploadProofFile({
+          supabase,
+          file: fulfillmentMetadata.paymentProof,
+          purpose: "payment-proofs",
+          fallbackBucket: "payment-proofs",
+          ownerId: user.id,
+        });
+      } catch (uploadError) {
         setIsSubmitting(false);
         alert(`Payment screenshot upload failed: ${uploadError.message}`);
         return;
       }
-      const { data: publicUrl } = supabase.storage.from("payment-proofs").getPublicUrl(filePath);
-      paymentProofUrl = publicUrl?.publicUrl || "";
     }
 
     const orderStatus = fulfillmentMetadata.isScheduled ? "scheduled" : "pending";

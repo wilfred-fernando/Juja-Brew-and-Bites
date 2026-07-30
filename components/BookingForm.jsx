@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
+import { uploadProofFile } from "@/lib/storage/uploadProof";
 
 const supabase = getSupabaseClient();
 
@@ -801,27 +802,13 @@ export default function BookingForm({ user, member }) {
 
   async function uploadBookingProof(bookingId) {
     if (!proofFile) return null;
-
-    const fileExt = (proofFile.name.split(".").pop() || "jpg").toLowerCase();
-    const path = `${user?.id || "guest"}/${bookingId || Date.now()}_${Math.random()
-      .toString(16)
-      .slice(2)}.${fileExt}`;
-
-    const { data: uploadData, error: uploadErr } = await supabase.storage
-      .from("booking_proofs")
-      .upload(path, proofFile, {
-        cacheControl: "3600",
-        upsert: false,
-        contentType: proofFile.type || "image/jpeg",
-      });
-
-    if (uploadErr) throw uploadErr;
-
-    const { data: pub } = supabase.storage
-      .from("booking_proofs")
-      .getPublicUrl(uploadData.path);
-
-    return pub?.publicUrl || null;
+    return uploadProofFile({
+      supabase,
+      file: proofFile,
+      purpose: "booking_proofs",
+      fallbackBucket: "booking_proofs",
+      ownerId: user?.id || bookingId,
+    });
   }
 
   function bookingNotifyPayload(booking, overrides = {}) {
@@ -1002,26 +989,13 @@ export default function BookingForm({ user, member }) {
     setNotice(null);
 
     try {
-      const fileExt = (proofFile.name.split(".").pop() || "jpg").toLowerCase();
-      const path = `${user?.id || "guest"}/${Date.now()}_${Math.random()
-        .toString(16)
-        .slice(2)}.${fileExt}`;
-
-      const { data: uploadData, error: uploadErr } = await supabase.storage
-        .from("booking_proofs")
-        .upload(path, proofFile, {
-          cacheControl: "3600",
-          upsert: false,
-          contentType: proofFile.type || "image/jpeg",
-        });
-
-      if (uploadErr) throw uploadErr;
-
-      const { data: pub } = supabase.storage
-        .from("booking_proofs")
-        .getPublicUrl(uploadData.path);
-
-      const proofUrl = pub?.publicUrl || null;
+      const proofUrl = await uploadProofFile({
+        supabase,
+        file: proofFile,
+        purpose: "booking_proofs",
+        fallbackBucket: "booking_proofs",
+        ownerId: user?.id,
+      });
 
       const payload = {
         user_id: user?.id || null,
