@@ -2982,7 +2982,7 @@ function VouchersModal({ open, onClose, vouchers, appliedVoucher, selectedCartIt
       )}
       <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
         {vouchers.length === 0 ? (
-          <div className="p-4 rounded-xl border border-slate-200 bg-white text-slate-400 text-xs font-medium text-center">No structural active vouchers found.</div>
+          <div className="p-4 rounded-xl border border-slate-200 bg-white text-slate-500 text-xs font-medium text-center">No active vouchers available for this customer.</div>
         ) : (
           vouchers.map((v) => {
             const disabled = !selectedCartItem;
@@ -5371,6 +5371,21 @@ export default function POSPage() {
   }
 
   async function fetchActiveVouchers(memberId) {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      await fetch("/api/customer/birthday-voucher", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ memberId }),
+      });
+    } catch (error) {
+      console.warn("Birthday voucher check skipped", error);
+    }
+
     const now = Date.now();
     let res = await supabase
       .from("vouchers")

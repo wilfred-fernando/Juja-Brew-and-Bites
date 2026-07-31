@@ -63,7 +63,18 @@ export async function POST(req) {
 
     if (memberError) throw memberError;
     if (!member?.id) return Response.json({ error: "Loyalty member was not found." }, { status: 404 });
-    if (String(member.user_id || "") !== String(user.id)) {
+    let canManageMember = String(member.user_id || "") === String(user.id);
+    if (!canManageMember) {
+      const { data: profile, error: profileError } = await admin
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (profileError) throw profileError;
+      canManageMember = ["cashier", "admin", "super_admin"].includes(String(profile?.role || "").toLowerCase());
+    }
+
+    if (!canManageMember) {
       return Response.json({ error: "This loyalty account is not linked to your customer login." }, { status: 403 });
     }
 
