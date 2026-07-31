@@ -1,0 +1,223 @@
+{
+  "startedAt": "2026-07-30T16:41:20.827Z",
+  "mode": "dry-run",
+  "planned": [
+    {
+      "source": "supabase://payment-proofs/0c496243-e192-4849-879e-cf6504bf7cbf/1783663531416-fd0b0332f4a54.jpeg",
+      "destinationKey": "payment-proofs/0c496243-e192-4849-879e-cf6504bf7cbf/1783663531416-fd0b0332f4a54.jpeg",
+      "url": "(R2 public URL)/payment-proofs/0c496243-e192-4849-879e-cf6504bf7cbf/1783663531416-fd0b0332f4a54.jpeg"
+    },
+    {
+      "source": "supabase://payment-proofs/194232eb-83b7-4ef8-bfed-a4ff215b2366/1784548215651-b7cdfd7417cb08.png",
+      "destinationKey": "payment-proofs/194232eb-83b7-4ef8-bfed-a4ff215b2366/1784548215651-b7cdfd7417cb08.png",
+      "url": "(R2 public URL)/payment-proofs/194232eb-83b7-4ef8-bfed-a4ff215b2366/1784548215651-b7cdfd7417cb08.png"
+    },
+    {
+      "source": "supabase://payment-proofs/a71a6b53-11f3-4a9d-add1-5dfa2aac87e1/1783910304236-8c55b5f515b3f8.jpg",
+      "destinationKey": "payment-proofs/a71a6b53-11f3-4a9d-add1-5dfa2aac87e1/1783910304236-8c55b5f515b3f8.jpg",
+      "url": "(R2 public URL)/payment-proofs/a71a6b53-11f3-4a9d-add1-5dfa2aac87e1/1783910304236-8c55b5f515b3f8.jpg"
+    },
+    {
+      "source": "supabase://payment-proofs/b02ff31c-9537-4ebd-b74b-895c505b2a59/1784168917338-927d6875a480a.jpg",
+      "destinationKey": "payment-proofs/b02ff31c-9537-4ebd-b74b-895c505b2a59/1784168917338-927d6875a480a.jpg",
+      "url": "(R2 public URL)/payment-proofs/b02ff31c-9537-4ebd-b74b-895c505b2a59/1784168917338-927d6875a480a.jpg"
+    },
+    {
+      "source": "supabase://payment-proofs/d68e18bc-5585-4353-b83a-d682dd2ae0bb/1783238049071-c32f0aeddf6318.jpeg",
+      "destinationKey": "payment-proofs/d68e18bc-5585-4353-b83a-d682dd2ae0bb/1783238049071-c32f0aeddf6318.jpeg",
+      "url": "(R2 public URL)/payment-proofs/d68e18bc-5585-4353-b83a-d682dd2ae0bb/1783238049071-c32f0aeddf6318.jpeg"
+    },
+    {
+      "source": "supabase://payment-proofs/d68e18bc-5585-4353-b83a-d682dd2ae0bb/1785331791926-6bb6cda7d3862.jpeg",
+      "destinationKey": "payment-proofs/d68e18bc-5585-4353-b83a-d682dd2ae0bb/1785331791926-6bb6cda7d3862.jpeg",
+      "url": "(R2 public URL)/payment-proofs/d68e18bc-5585-4353-b83a-d682dd2ae0bb/1785331791926-6bb6cda7d3862.jpeg"
+    },
+    {
+      "source": "supabase://booking_proofs/043492cf-810c-4ad1-923d-8a99a7916537/a3beb14a-ca5d-43eb-a71e-d203d85bca1f_d3bf1f21aa7c78.jpg",
+      "destinationKey": "booking_proofs/043492cf-810c-4ad1-923d-8a99a7916537/a3beb14a-ca5d-43eb-a71e-d203d85bca1f_d3bf1f21aa7c78.jpg",
+      "url": "(R2 public URL)/booking_proofs/043492cf-810c-4ad1-923d-8a99a7916537/a3beb14a-ca5d-43eb-a71e-d203d85bca1f_d3bf1f21aa7c78.jpg"
+    },
+    {
+      "source": "supabase://booking_proofs/33a99fbd-3f06-42f9-9c8e-e4fd73eca383/afd19b59-c8b3-4b6a-83ba-05c6f0e2a9d8_9db247b62e5c4.jpeg",
+      "destinationKey": "booking_proofs/33a99fbd-3f06-42f9-9c8e-e4fd73eca383/afd19b59-c8b3-4b6a-83ba-05c6f0e2a9d8_9db247b62e5c4.jpeg",
+      "url": "(R2 public URL)/booking_proofs/33a99fbd-3f06-42f9-9c8e-e4fd73eca383/afd19b59-c8b3-4b6a-83ba-05c6f0e2a9d8_9db247b62e5c4.jpeg"
+    },
+    {
+      "source": "supabase://booking_proofs/3d1c0862-ef9d-43b7-a684-bd803b69b101/70c97578-bfaf-4ccc-ae4f-c6ce322b1da3_b0e704d2720a8.jpg",
+      "destinationKey": "booking_proofs/3d1c0862-ef9d-43b7-a684-bd803b69b101/70c97578-bfaf-4ccc-ae4f-c6ce322b1da3_b0e704d2720a8.jpg",
+      "url": "(R2 public URL)/booking_proofs/3d1c0862-ef9d-43b7-a684-bd803b69b101/70c97578-bfaf-4ccc-ae4f-c6ce322b1da3_b0e704d2720a8.jpg"
+    },
+    {
+      "source": "supabase://booking_proofs/56925b1e-3ed9-492c-b183-0e425a511eaa/.emptyFolderPlaceholder",
+      "destinationKey": "booking_proofs/56925b1e-3ed9-492c-b183-0e425a511eaa/.emptyFolderPlaceholder",
+      "url": "(R2 public URL)/booking_proofs/56925b1e-3ed9-492c-b183-0e425a511eaa/.emptyFolderPlaceholder"
+    },
+    {
+      "source": "supabase://booking_proofs/63c3b8a7-528a-430a-b1c0-a614a15416d7/.emptyFolderPlaceholder",
+      "destinationKey": "booking_proofs/63c3b8a7-528a-430a-b1c0-a614a15416d7/.emptyFolderPlaceholder",
+      "url": "(R2 public URL)/booking_proofs/63c3b8a7-528a-430a-b1c0-a614a15416d7/.emptyFolderPlaceholder"
+    },
+    {
+      "source": "supabase://booking_proofs/85043781-4f51-4c12-a29b-d08a7733b66c/a60f2eab-d6fa-44ed-8489-1192f9a66fde_468c69e694ea28.jpg",
+      "destinationKey": "booking_proofs/85043781-4f51-4c12-a29b-d08a7733b66c/a60f2eab-d6fa-44ed-8489-1192f9a66fde_468c69e694ea28.jpg",
+      "url": "(R2 public URL)/booking_proofs/85043781-4f51-4c12-a29b-d08a7733b66c/a60f2eab-d6fa-44ed-8489-1192f9a66fde_468c69e694ea28.jpg"
+    },
+    {
+      "source": "supabase://booking_proofs/918bd4b5-27db-4829-a618-17c1f875b875/c551660c-7e5b-4eaa-b590-c14827a2b963_bbe4091a3b8098.png",
+      "destinationKey": "booking_proofs/918bd4b5-27db-4829-a618-17c1f875b875/c551660c-7e5b-4eaa-b590-c14827a2b963_bbe4091a3b8098.png",
+      "url": "(R2 public URL)/booking_proofs/918bd4b5-27db-4829-a618-17c1f875b875/c551660c-7e5b-4eaa-b590-c14827a2b963_bbe4091a3b8098.png"
+    },
+    {
+      "source": "supabase://booking_proofs/b02ff31c-9537-4ebd-b74b-895c505b2a59/a81abfd2-eb30-4ebd-a2f3-fec23c88ef3c_478b70fdad8768.png",
+      "destinationKey": "booking_proofs/b02ff31c-9537-4ebd-b74b-895c505b2a59/a81abfd2-eb30-4ebd-a2f3-fec23c88ef3c_478b70fdad8768.png",
+      "url": "(R2 public URL)/booking_proofs/b02ff31c-9537-4ebd-b74b-895c505b2a59/a81abfd2-eb30-4ebd-a2f3-fec23c88ef3c_478b70fdad8768.png"
+    },
+    {
+      "source": "supabase://booking_proofs/b86c9b5d-48e4-45ee-bfc8-96625679e2c6/.emptyFolderPlaceholder",
+      "destinationKey": "booking_proofs/b86c9b5d-48e4-45ee-bfc8-96625679e2c6/.emptyFolderPlaceholder",
+      "url": "(R2 public URL)/booking_proofs/b86c9b5d-48e4-45ee-bfc8-96625679e2c6/.emptyFolderPlaceholder"
+    },
+    {
+      "source": "supabase://booking_proofs/c612e4b1-05a0-44bb-9b27-2b34226121f6/3a57a8c4-7765-410b-9803-26558d7aed71_7ec2134107f0b.jpg",
+      "destinationKey": "booking_proofs/c612e4b1-05a0-44bb-9b27-2b34226121f6/3a57a8c4-7765-410b-9803-26558d7aed71_7ec2134107f0b.jpg",
+      "url": "(R2 public URL)/booking_proofs/c612e4b1-05a0-44bb-9b27-2b34226121f6/3a57a8c4-7765-410b-9803-26558d7aed71_7ec2134107f0b.jpg"
+    },
+    {
+      "source": "supabase://booking_proofs/e0d769d4-02f7-4292-bbf4-1c49645dafca/9bb6cd7e-deef-4cec-8883-7f5aa5fb95c2_c07a34297998c.jpg",
+      "destinationKey": "booking_proofs/e0d769d4-02f7-4292-bbf4-1c49645dafca/9bb6cd7e-deef-4cec-8883-7f5aa5fb95c2_c07a34297998c.jpg",
+      "url": "(R2 public URL)/booking_proofs/e0d769d4-02f7-4292-bbf4-1c49645dafca/9bb6cd7e-deef-4cec-8883-7f5aa5fb95c2_c07a34297998c.jpg"
+    },
+    {
+      "source": "supabase://payment-proofs/a71a6b53-11f3-4a9d-add1-5dfa2aac87e1/1783910304236-8c55b5f515b3f8.jpg",
+      "destinationKey": "payment-proofs/a71a6b53-11f3-4a9d-add1-5dfa2aac87e1/1783910304236-8c55b5f515b3f8.jpg",
+      "url": "(R2 public URL)/payment-proofs/a71a6b53-11f3-4a9d-add1-5dfa2aac87e1/1783910304236-8c55b5f515b3f8.jpg"
+    },
+    {
+      "source": "supabase://payment-proofs/d68e18bc-5585-4353-b83a-d682dd2ae0bb/1783238049071-c32f0aeddf6318.jpeg",
+      "destinationKey": "payment-proofs/d68e18bc-5585-4353-b83a-d682dd2ae0bb/1783238049071-c32f0aeddf6318.jpeg",
+      "url": "(R2 public URL)/payment-proofs/d68e18bc-5585-4353-b83a-d682dd2ae0bb/1783238049071-c32f0aeddf6318.jpeg"
+    },
+    {
+      "source": "supabase://payment-proofs/d68e18bc-5585-4353-b83a-d682dd2ae0bb/1785331791926-6bb6cda7d3862.jpeg",
+      "destinationKey": "payment-proofs/d68e18bc-5585-4353-b83a-d682dd2ae0bb/1785331791926-6bb6cda7d3862.jpeg",
+      "url": "(R2 public URL)/payment-proofs/d68e18bc-5585-4353-b83a-d682dd2ae0bb/1785331791926-6bb6cda7d3862.jpeg"
+    },
+    {
+      "source": "supabase://payment-proofs/b02ff31c-9537-4ebd-b74b-895c505b2a59/1784168917338-927d6875a480a.jpg",
+      "destinationKey": "payment-proofs/b02ff31c-9537-4ebd-b74b-895c505b2a59/1784168917338-927d6875a480a.jpg",
+      "url": "(R2 public URL)/payment-proofs/b02ff31c-9537-4ebd-b74b-895c505b2a59/1784168917338-927d6875a480a.jpg"
+    },
+    {
+      "source": "supabase://payment-proofs/0c496243-e192-4849-879e-cf6504bf7cbf/1783663531416-fd0b0332f4a54.jpeg",
+      "destinationKey": "payment-proofs/0c496243-e192-4849-879e-cf6504bf7cbf/1783663531416-fd0b0332f4a54.jpeg",
+      "url": "(R2 public URL)/payment-proofs/0c496243-e192-4849-879e-cf6504bf7cbf/1783663531416-fd0b0332f4a54.jpeg"
+    },
+    {
+      "source": "supabase://payment-proofs/194232eb-83b7-4ef8-bfed-a4ff215b2366/1784548215651-b7cdfd7417cb08.png",
+      "destinationKey": "payment-proofs/194232eb-83b7-4ef8-bfed-a4ff215b2366/1784548215651-b7cdfd7417cb08.png",
+      "url": "(R2 public URL)/payment-proofs/194232eb-83b7-4ef8-bfed-a4ff215b2366/1784548215651-b7cdfd7417cb08.png"
+    },
+    {
+      "source": "supabase://booking_proofs/043492cf-810c-4ad1-923d-8a99a7916537/a3beb14a-ca5d-43eb-a71e-d203d85bca1f_d3bf1f21aa7c78.jpg",
+      "destinationKey": "booking_proofs/043492cf-810c-4ad1-923d-8a99a7916537/a3beb14a-ca5d-43eb-a71e-d203d85bca1f_d3bf1f21aa7c78.jpg",
+      "url": "(R2 public URL)/booking_proofs/043492cf-810c-4ad1-923d-8a99a7916537/a3beb14a-ca5d-43eb-a71e-d203d85bca1f_d3bf1f21aa7c78.jpg"
+    },
+    {
+      "source": "supabase://booking_proofs/918bd4b5-27db-4829-a618-17c1f875b875/c551660c-7e5b-4eaa-b590-c14827a2b963_bbe4091a3b8098.png",
+      "destinationKey": "booking_proofs/918bd4b5-27db-4829-a618-17c1f875b875/c551660c-7e5b-4eaa-b590-c14827a2b963_bbe4091a3b8098.png",
+      "url": "(R2 public URL)/booking_proofs/918bd4b5-27db-4829-a618-17c1f875b875/c551660c-7e5b-4eaa-b590-c14827a2b963_bbe4091a3b8098.png"
+    },
+    {
+      "source": "supabase://booking_proofs/c612e4b1-05a0-44bb-9b27-2b34226121f6/3a57a8c4-7765-410b-9803-26558d7aed71_7ec2134107f0b.jpg",
+      "destinationKey": "booking_proofs/c612e4b1-05a0-44bb-9b27-2b34226121f6/3a57a8c4-7765-410b-9803-26558d7aed71_7ec2134107f0b.jpg",
+      "url": "(R2 public URL)/booking_proofs/c612e4b1-05a0-44bb-9b27-2b34226121f6/3a57a8c4-7765-410b-9803-26558d7aed71_7ec2134107f0b.jpg"
+    },
+    {
+      "source": "supabase://booking_proofs/63c3b8a7-528a-430a-b1c0-a614a15416d7/1779778030891_d4878282dad0c8.jpg",
+      "destinationKey": "booking_proofs/63c3b8a7-528a-430a-b1c0-a614a15416d7/1779778030891_d4878282dad0c8.jpg",
+      "url": "(R2 public URL)/booking_proofs/63c3b8a7-528a-430a-b1c0-a614a15416d7/1779778030891_d4878282dad0c8.jpg"
+    },
+    {
+      "source": "supabase://booking_proofs/b86c9b5d-48e4-45ee-bfc8-96625679e2c6/1780936153464_8a7d1363d28a.jpg",
+      "destinationKey": "booking_proofs/b86c9b5d-48e4-45ee-bfc8-96625679e2c6/1780936153464_8a7d1363d28a.jpg",
+      "url": "(R2 public URL)/booking_proofs/b86c9b5d-48e4-45ee-bfc8-96625679e2c6/1780936153464_8a7d1363d28a.jpg"
+    },
+    {
+      "source": "supabase://booking_proofs/b86c9b5d-48e4-45ee-bfc8-96625679e2c6/1781164394772_4db030e7b249f8.jpg",
+      "destinationKey": "booking_proofs/b86c9b5d-48e4-45ee-bfc8-96625679e2c6/1781164394772_4db030e7b249f8.jpg",
+      "url": "(R2 public URL)/booking_proofs/b86c9b5d-48e4-45ee-bfc8-96625679e2c6/1781164394772_4db030e7b249f8.jpg"
+    },
+    {
+      "source": "supabase://booking_proofs/56925b1e-3ed9-492c-b183-0e425a511eaa/a537fb29-2749-4304-bd76-df2770f3f825_cbb3b86cc67d3.jpeg",
+      "destinationKey": "booking_proofs/56925b1e-3ed9-492c-b183-0e425a511eaa/a537fb29-2749-4304-bd76-df2770f3f825_cbb3b86cc67d3.jpeg",
+      "url": "(R2 public URL)/booking_proofs/56925b1e-3ed9-492c-b183-0e425a511eaa/a537fb29-2749-4304-bd76-df2770f3f825_cbb3b86cc67d3.jpeg"
+    },
+    {
+      "source": "supabase://booking_proofs/b86c9b5d-48e4-45ee-bfc8-96625679e2c6/1780815610940_22b904490d7e1.jpg",
+      "destinationKey": "booking_proofs/b86c9b5d-48e4-45ee-bfc8-96625679e2c6/1780815610940_22b904490d7e1.jpg",
+      "url": "(R2 public URL)/booking_proofs/b86c9b5d-48e4-45ee-bfc8-96625679e2c6/1780815610940_22b904490d7e1.jpg"
+    },
+    {
+      "source": "supabase://booking_proofs/3d1c0862-ef9d-43b7-a684-bd803b69b101/70c97578-bfaf-4ccc-ae4f-c6ce322b1da3_b0e704d2720a8.jpg",
+      "destinationKey": "booking_proofs/3d1c0862-ef9d-43b7-a684-bd803b69b101/70c97578-bfaf-4ccc-ae4f-c6ce322b1da3_b0e704d2720a8.jpg",
+      "url": "(R2 public URL)/booking_proofs/3d1c0862-ef9d-43b7-a684-bd803b69b101/70c97578-bfaf-4ccc-ae4f-c6ce322b1da3_b0e704d2720a8.jpg"
+    },
+    {
+      "source": "supabase://booking_proofs/e0d769d4-02f7-4292-bbf4-1c49645dafca/9bb6cd7e-deef-4cec-8883-7f5aa5fb95c2_c07a34297998c.jpg",
+      "destinationKey": "booking_proofs/e0d769d4-02f7-4292-bbf4-1c49645dafca/9bb6cd7e-deef-4cec-8883-7f5aa5fb95c2_c07a34297998c.jpg",
+      "url": "(R2 public URL)/booking_proofs/e0d769d4-02f7-4292-bbf4-1c49645dafca/9bb6cd7e-deef-4cec-8883-7f5aa5fb95c2_c07a34297998c.jpg"
+    },
+    {
+      "source": "supabase://booking_proofs/85043781-4f51-4c12-a29b-d08a7733b66c/a60f2eab-d6fa-44ed-8489-1192f9a66fde_468c69e694ea28.jpg",
+      "destinationKey": "booking_proofs/85043781-4f51-4c12-a29b-d08a7733b66c/a60f2eab-d6fa-44ed-8489-1192f9a66fde_468c69e694ea28.jpg",
+      "url": "(R2 public URL)/booking_proofs/85043781-4f51-4c12-a29b-d08a7733b66c/a60f2eab-d6fa-44ed-8489-1192f9a66fde_468c69e694ea28.jpg"
+    },
+    {
+      "source": "supabase://booking_proofs/b02ff31c-9537-4ebd-b74b-895c505b2a59/a81abfd2-eb30-4ebd-a2f3-fec23c88ef3c_478b70fdad8768.png",
+      "destinationKey": "booking_proofs/b02ff31c-9537-4ebd-b74b-895c505b2a59/a81abfd2-eb30-4ebd-a2f3-fec23c88ef3c_478b70fdad8768.png",
+      "url": "(R2 public URL)/booking_proofs/b02ff31c-9537-4ebd-b74b-895c505b2a59/a81abfd2-eb30-4ebd-a2f3-fec23c88ef3c_478b70fdad8768.png"
+    },
+    {
+      "source": "releases\\juja-pos-v1.0.14.apk",
+      "destinationKey": "apk-downloads/juja-pos-v1.0.14.apk",
+      "size": 105498487,
+      "url": "(R2 public URL)/apk-downloads/juja-pos-v1.0.14.apk"
+    },
+    {
+      "source": "releases\\juja-customer-v1.0.10.apk",
+      "destinationKey": "apk-downloads/juja-customer-v1.0.10.apk",
+      "size": 100341507,
+      "url": "(R2 public URL)/apk-downloads/juja-customer-v1.0.10.apk"
+    },
+    {
+      "source": "public\\images\\event-cart-milk-tea.jpg",
+      "destinationKey": "public-media/event-cart-milk-tea.jpg",
+      "size": 6473427,
+      "url": "(R2 public URL)/public-media/event-cart-milk-tea.jpg"
+    },
+    {
+      "source": "public\\images\\event-cart-picapica.jpg",
+      "destinationKey": "public-media/event-cart-picapica.jpg",
+      "size": 2294038,
+      "url": "(R2 public URL)/public-media/event-cart-picapica.jpg"
+    },
+    {
+      "source": "public\\images\\qrph.jpg",
+      "destinationKey": "public-media/qrph.jpg",
+      "size": 739223,
+      "url": "(R2 public URL)/public-media/qrph.jpg"
+    },
+    {
+      "source": "public\\images\\loyalty-card-bg.jpg",
+      "destinationKey": "public-media/loyalty-card-bg.jpg",
+      "size": 659107,
+      "url": "(R2 public URL)/public-media/loyalty-card-bg.jpg"
+    }
+  ],
+  "copied": [],
+  "existing": [],
+  "failed": [],
+  "databaseUpdates": [],
+  "rollback": [],
+  "finishedAt": "2026-07-30T16:41:26.039Z"
+}

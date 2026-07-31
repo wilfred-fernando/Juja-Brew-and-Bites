@@ -1,0 +1,15 @@
+{
+  "startedAt": "2026-07-30T16:38:34.540Z",
+  "mode": "dry-run",
+  "copied": [],
+  "existing": [],
+  "failed": [
+    {
+      "table": "bookings",
+      "error": "Could not find the table 'public.bookings' in the schema cache"
+    }
+  ],
+  "databaseUpdates": [],
+  "rollback": [],
+  "finishedAt": "2026-07-30T16:38:39.216Z"
+}
