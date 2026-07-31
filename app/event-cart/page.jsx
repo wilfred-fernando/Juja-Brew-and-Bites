@@ -554,12 +554,12 @@ export default function EventCartPage() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <img
-              src="/images/event-cart-milk-tea.jpg"
+              src="https://files.jujabrewandbites.com/public-media/event-cart-milk-tea.jpg"
               alt="Juja Milk Tea Package poster"
               className="h-full max-h-[520px] w-full rounded-[28px] object-cover shadow-[0_20px_45px_rgba(15,23,42,0.16)]"
             />
             <img
-              src="/images/event-cart-picapica.jpg"
+              src="https://files.jujabrewandbites.com/public-media/event-cart-picapica.jpg"
               alt="Juja Picapica Package poster"
               className="h-full max-h-[520px] w-full rounded-[28px] object-cover shadow-[0_20px_45px_rgba(15,23,42,0.16)]"
             />

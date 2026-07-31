@@ -1,4 +1,8 @@
 import { sendCustomerVoucherPush, serviceSupabase } from "@/lib/push/customerPush";
+import {
+  createBirthdayVoucherIfNeeded,
+  isBirthdayVoucherWindowActive,
+} from "@/lib/loyalty/birthdayVoucher";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,6 +44,40 @@ async function notifyVoucher(admin, voucherId, eventType) {
   }
 }
 
+async function ensureBirthdayVouchers(admin, now) {
+  const pageSize = 1000;
+  const members = [];
+
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await admin
+      .from("loyalty_members")
+      .select('id,"Note"')
+      .not("Note", "is", null)
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    members.push(...(data || []));
+    if ((data || []).length < pageSize) break;
+  }
+
+  const candidates = members.filter((member) => isBirthdayVoucherWindowActive(member.Note, now));
+  const created = [];
+  const failures = [];
+
+  for (const member of candidates) {
+    try {
+      const result = await createBirthdayVoucherIfNeeded(admin, member.id, now);
+      if (result.created && result.voucherId) {
+        const push = await notifyVoucher(admin, result.voucherId, "earned");
+        created.push({ memberId: member.id, ...result, push });
+      }
+    } catch (error) {
+      failures.push({ memberId: member.id, error: error?.message || "Birthday voucher creation failed." });
+    }
+  }
+
+  return { checked: candidates.length, created, failures };
+}
+
 async function runVoucherNotifications(req) {
   if (!isAuthorized(req)) {
     return Response.json({ error: "Voucher notification cron is not authorized." }, { status: 401 });
@@ -48,6 +86,7 @@ async function runVoucherNotifications(req) {
   const admin = serviceSupabase();
   const now = new Date();
   const nowIso = now.toISOString();
+  const birthdayVouchers = await ensureBirthdayVouchers(admin, now);
   const upperIso = new Date(now.getTime() + 4 * 86400000).toISOString();
   const lowerIso = new Date(now.getTime() - 7 * 86400000).toISOString();
 
@@ -106,6 +145,13 @@ async function runVoucherNotifications(req) {
   return Response.json({
     success: true,
     checkedAt: nowIso,
+    birthdayVouchers: {
+      checked: birthdayVouchers.checked,
+      created: birthdayVouchers.created.length,
+      failed: birthdayVouchers.failures.length,
+      results: birthdayVouchers.created,
+      failures: birthdayVouchers.failures,
+    },
     jobs: uniqueJobs.length,
     sent: results.reduce((sum, result) => sum + Number(result.sent || 0), 0),
     failed: results.reduce((sum, result) => sum + Number(result.failed || 0), 0),

@@ -933,7 +933,28 @@ export default function AdminSalesPage() {
     setLoading(true);
     setError("");
     const comparisonRange = previousRange(nextFilters.startDate, nextFilters.endDate);
-    const start = `${comparisonRange.startDate}T00:00:00+08:00`;
+    const requestedStart = comparisonRange.startDate;
+    const includeItems = ["items", "categories", "modifiers", "receipts", "exports"].includes(reportTab);
+    let archiveData = null;
+    try {
+      const archiveParams = new URLSearchParams({
+        from: requestedStart,
+        to: nextFilters.endDate,
+        includeItems: includeItems ? "1" : "0",
+      });
+      const archiveResponse = await fetch(`/api/archive/sales?${archiveParams}`, { cache: "no-store" });
+      if (archiveResponse.ok) {
+        const payload = await archiveResponse.json();
+        if (payload?.archiveThrough) archiveData = payload;
+      }
+    } catch {
+      archiveData = null;
+    }
+    const archiveThrough = archiveData?.archiveThrough || "";
+    const liveStartDate = archiveThrough && archiveThrough >= requestedStart
+      ? addDays(archiveThrough, 1)
+      : requestedStart;
+    const start = `${liveStartDate}T00:00:00+08:00`;
     const fetchEnd = `${addDays(nextFilters.endDate, 1)}T12:00:00+08:00`;
     try {
       const [orders, webOrders, menuRes, storesRes, profilesRes, loyaltyRes, shiftRecords] = await Promise.all([
@@ -948,24 +969,28 @@ export default function AdminSalesPage() {
       const errors = [menuRes.error, storesRes.error, profilesRes.error, loyaltyRes.error].filter(Boolean);
       if (errors.length) throw errors[0];
 
-      const orderItems = ["items", "categories", "modifiers", "receipts", "exports"].includes(reportTab)
+      const liveOrderItems = includeItems
         ? await fetchOrderItems(orders.map((row) => row.id))
         : [];
+      const mergedOrders = [...(archiveData?.orders || []), ...orders];
+      const mergedWebOrders = [...(archiveData?.webOrders || []), ...webOrders];
+      const mergedOrderItems = [...(archiveData?.orderItems || []), ...liveOrderItems];
+      const mergedShiftRecords = [...(archiveData?.shiftRecords || []), ...shiftRecords];
 
       const normalized = normalizeSalesData({
-        orders,
-        orderItems,
-        webOrders,
+        orders: mergedOrders,
+        orderItems: mergedOrderItems,
+        webOrders: mergedWebOrders,
         menuItems: menuRes.data || [],
         profiles: profilesRes.data || [],
         stores: storesRes.data || [],
         loyaltyMembers: loyaltyRes.data || [],
-        shiftRecords,
+        shiftRecords: mergedShiftRecords,
       });
       setRawData({
         ...normalized,
         stores: storesRes.data || [],
-        shiftRecords,
+        shiftRecords: mergedShiftRecords,
       });
     } catch (err) {
       setError(err.message || "Unable to load sales report. Please try again.");

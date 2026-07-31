@@ -21,7 +21,7 @@ const BASE_BOOKING_MINUTES = 2 * 60 + 59; // 179 mins
 
 const DEPOSIT_AMOUNT = 1000;
 const PAYMENT_HOLD_HOURS = 24;
-const QR_IMAGE_PATH = "/images/qrph.jpg";
+const QR_IMAGE_PATH = "https://files.jujabrewandbites.com/public-media/qrph.jpg";
 const ADMIN_EMAIL = "jujabrewandbites@gmail.com";
 const EXPIRED_BOOKING_STATUS = "expired";
 
@@ -806,8 +806,6 @@ export default function BookingForm({ user, member }) {
       supabase,
       file: proofFile,
       purpose: "booking_proofs",
-      fallbackBucket: "booking_proofs",
-      ownerId: user?.id || bookingId,
     });
   }
 
@@ -993,8 +991,6 @@ export default function BookingForm({ user, member }) {
         supabase,
         file: proofFile,
         purpose: "booking_proofs",
-        fallbackBucket: "booking_proofs",
-        ownerId: user?.id,
       });
 
       const payload = {

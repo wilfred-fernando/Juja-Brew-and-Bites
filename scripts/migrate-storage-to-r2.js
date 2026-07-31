@@ -96,6 +96,7 @@ const report = {
   existing: [],
   verified: [],
   failed: [],
+  unresolvedLegacy: [],
   databaseUpdates: [],
   rollback: [],
 };
@@ -141,6 +142,15 @@ async function verifyPublicUrl(url) {
   }
   report.verified.push({ url, status: response.status });
   return true;
+}
+
+async function sourceUrlExists(url) {
+  try {
+    const response = await fetch(url, { method: "HEAD", redirect: "follow" });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 async function copySupabaseObject(bucket, objectPath, destinationKey) {
@@ -259,6 +269,16 @@ async function migrateDatabaseProofUrls(table) {
         newUrl,
       });
     } catch (error) {
+      if (VERIFY_ONLY && !(await sourceUrlExists(row.payment_proof_url))) {
+        report.unresolvedLegacy.push({
+          table,
+          id: row.id,
+          column: "payment_proof_url",
+          sourceUrl: row.payment_proof_url,
+          reason: "The source object is no longer available in Supabase Storage.",
+        });
+        continue;
+      }
       report.failed.push({ table, id: row.id, error: error.message });
     }
   }
@@ -405,7 +425,7 @@ async function main() {
   fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
   console.log(`Report: ${reportPath}`);
   console.log(
-    `Planned ${report.planned.length}; copied ${report.copied.length}; existing ${report.existing.length}; verified ${report.verified.length}; DB updates ${report.databaseUpdates.length}; failures ${report.failed.length}.`
+    `Planned ${report.planned.length}; copied ${report.copied.length}; existing ${report.existing.length}; verified ${report.verified.length}; DB updates ${report.databaseUpdates.length}; unresolved legacy ${report.unresolvedLegacy.length}; failures ${report.failed.length}.`
   );
   if (report.failed.length) process.exitCode = 2;
 }

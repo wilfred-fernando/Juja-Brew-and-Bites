@@ -1,0 +1,8 @@
+name = "juja-history-archive"
+main = "src/index.js"
+compatibility_date = "2026-07-31"
+
+[[d1_databases]]
+binding = "ARCHIVE_DB"
+database_name = "juja-history-archive"
+database_id = "d9ee4f34-99d3-4b1c-9df5-5937e062564c"

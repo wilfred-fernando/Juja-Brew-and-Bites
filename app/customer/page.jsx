@@ -1580,7 +1580,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
           {paymentMethod === "QRPH" && (
             <section className="rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm space-y-3">
               <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500">QRPH Payment Proof</p>
-              <img src="/images/qrph.jpg" alt="QRPH payment code" className="w-full rounded-xl border border-white bg-white object-contain max-h-72" />
+              <img src="https://files.jujabrewandbites.com/public-media/qrph.jpg" alt="QRPH payment code" className="w-full rounded-xl border border-white bg-white object-contain max-h-72" />
               <div>
                 <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-1.5">
                   Upload Payment Screenshot
@@ -1977,8 +1977,6 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
           supabase,
           file: fulfillmentMetadata.paymentProof,
           purpose: "payment-proofs",
-          fallbackBucket: "payment-proofs",
-          ownerId: user.id,
         });
       } catch (uploadError) {
         setIsSubmitting(false);
@@ -3048,7 +3046,7 @@ function LoyaltyTab({ member, setMember, user }) {
       <div className="md:col-span-1 space-y-4">
         <div
           className="rounded-2xl p-5 text-white relative overflow-hidden shadow-md bg-rose-950 bg-cover bg-center bg-no-repeat aspect-[1.7/1]"
-          style={{ backgroundImage: "url('/images/loyalty-card-bg.jpg')" }}
+          style={{ backgroundImage: "url('https://files.jujabrewandbites.com/public-media/loyalty-card-bg.jpg')" }}
         >
           <div className="relative z-10 flex flex-col justify-between h-full min-h-[150px]">
             

@@ -20,7 +20,7 @@
 # production
 /build
 
-# Android APK binaries are hosted in Supabase Storage, not GitHub.
+# Android APK binaries are hosted in Cloudflare R2, not GitHub.
 /releases/*.apk
 /public/downloads/*.apk
 /android/app/build/outputs/**/*.apk
@@ -40,6 +40,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+/tmp/storage-migration/
 
 # env files (can opt-in for committing if needed)
 .env*

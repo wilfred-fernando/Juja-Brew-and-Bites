@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { createClient } = require("@supabase/supabase-js");
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -143,7 +144,7 @@ async function main() {
     const row = {
       member_id: member.id,
       reward_index: nextRewardIndex,
-      code: `BDAY${currentYear}-${Math.floor(1000 + Math.random() * 9000)}`,
+      code: `BDAY${currentYear}-${crypto.randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase()}`,
       reward_text: REWARD_TEXT,
       issued_at: (isActive ? now : window.windowStart).toISOString(),
       expires_at: window.windowEnd.toISOString(),
