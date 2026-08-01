@@ -3,35 +3,140 @@
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
-function usePosStoreId() {
-  return useMemo(() => {
-    if (typeof window === "undefined") return null;
-    return (
-      localStorage.getItem("pos_store_id") ||
-      localStorage.getItem("admin_store_id") ||
-      null
-    );
-  }, []);
+function getSavedAdminStoreId() {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("admin_store_id") || null;
 }
 
 export default function KitchenPrintersPage() {
   const supabase = getSupabaseClient();
-  const storeId = usePosStoreId();
 
   const [groups, setGroups] = useState([]);
   const [categories, setCategories] = useState([]);
   const [mapping, setMapping] = useState([]); // rows from pos_printer_group_categories
+  const [stores, setStores] = useState([]);
+  const [selectedStoreId, setSelectedStoreId] = useState(null);
+  const [userRole, setUserRole] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const [newGroupName, setNewGroupName] = useState("");
   const [activeGroupId, setActiveGroupId] = useState(null);
 
-  useEffect(() => {
-    if (!storeId) return;
-    loadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId]);
+  const isSuperAdmin = useMemo(
+    () => String(userRole || "").toLowerCase() === "super_admin",
+    [userRole]
+  );
 
-  async function loadAll() {
+  useEffect(() => {
+    let cancelled = false;
+
+    async function initialize() {
+      setLoading(true);
+      setErrorMessage("");
+
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData?.session?.user) {
+        if (!cancelled) {
+          setErrorMessage(sessionError?.message || "Admin session was not found.");
+          setLoading(false);
+        }
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role, store_id")
+        .eq("id", sessionData.session.user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        if (!cancelled) {
+          setErrorMessage(profileError.message);
+          setLoading(false);
+        }
+        return;
+      }
+
+      const role = String(profile?.role || "").toLowerCase();
+      const assignedStoreId = profile?.store_id || null;
+      let storeList = [];
+
+      if (role === "super_admin") {
+        const { data, error } = await supabase
+          .from("stores")
+          .select("id, name, is_active, is_test")
+          .order("name");
+
+        if (error) {
+          if (!cancelled) {
+            setErrorMessage(error.message);
+            setLoading(false);
+          }
+          return;
+        }
+        storeList = data || [];
+      } else if (assignedStoreId) {
+        const { data, error } = await supabase
+          .from("stores")
+          .select("id, name, is_active, is_test")
+          .eq("id", assignedStoreId)
+          .maybeSingle();
+
+        if (error) {
+          if (!cancelled) {
+            setErrorMessage(error.message);
+            setLoading(false);
+          }
+          return;
+        }
+        storeList = data ? [data] : [];
+      }
+
+      const savedAdminStoreId = getSavedAdminStoreId();
+      const savedStoreExists = storeList.some((store) => store.id === savedAdminStoreId);
+      const assignedStoreExists = storeList.some((store) => store.id === assignedStoreId);
+      const defaultStore =
+        storeList.find((store) => store.is_active && !store.is_test) ||
+        storeList.find((store) => store.is_active) ||
+        storeList[0] ||
+        null;
+      const initialStoreId =
+        (role !== "super_admin" && assignedStoreExists && assignedStoreId) ||
+        (savedStoreExists && savedAdminStoreId) ||
+        (assignedStoreExists && assignedStoreId) ||
+        defaultStore?.id ||
+        null;
+
+      if (!cancelled) {
+        setUserRole(role);
+        setStores(storeList);
+        setSelectedStoreId(initialStoreId);
+        if (initialStoreId) localStorage.setItem("admin_store_id", initialStoreId);
+        if (!initialStoreId) {
+          setErrorMessage("No store is assigned to this admin account.");
+          setLoading(false);
+        }
+      }
+    }
+
+    initialize();
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase]);
+
+  useEffect(() => {
+    if (!selectedStoreId) return;
+    loadAll(selectedStoreId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStoreId]);
+
+  async function loadAll(storeId = selectedStoreId) {
+    if (!storeId) return;
+    setLoading(true);
+    setErrorMessage("");
+
     const [g, c, m] = await Promise.all([
       supabase
         .from("pos_printer_groups")
@@ -48,42 +153,69 @@ export default function KitchenPrintersPage() {
         .eq("store_id", storeId),
     ]);
 
+    const loadError = g.error || c.error || m.error;
+    if (loadError) {
+      setGroups([]);
+      setCategories([]);
+      setMapping([]);
+      setActiveGroupId(null);
+      setErrorMessage(loadError.message || "Kitchen printer settings could not be loaded.");
+      setLoading(false);
+      return;
+    }
+
     setGroups(g.data || []);
     setCategories(c.data || []);
     setMapping(m.data || []);
-
-    if (!activeGroupId && (g.data || []).length) {
-      setActiveGroupId(g.data[0].id);
-    }
+    setActiveGroupId((currentId) =>
+      (g.data || []).some((group) => group.id === currentId)
+        ? currentId
+        : g.data?.[0]?.id || null
+    );
+    setLoading(false);
   }
 
   async function addGroup() {
     const name = newGroupName.trim();
-    if (!name || !storeId) return;
+    if (!name || !selectedStoreId) return;
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("pos_printer_groups")
-      .insert([{ store_id: storeId, name, is_active: true }])
+      .insert([{ store_id: selectedStoreId, name, is_active: true }])
       .select("*")
       .maybeSingle();
 
+    if (error) {
+      setErrorMessage(error.message);
+      return;
+    }
+
     setNewGroupName("");
-    await loadAll();
+    await loadAll(selectedStoreId);
     if (data?.id) setActiveGroupId(data.id);
   }
 
   async function toggleGroup(group) {
-    await supabase
+    const { error } = await supabase
       .from("pos_printer_groups")
       .update({ is_active: !group.is_active })
       .eq("id", group.id);
-    loadAll();
+    if (error) {
+      setErrorMessage(error.message);
+      return;
+    }
+    loadAll(selectedStoreId);
   }
 
   async function deleteGroup(group) {
-    await supabase.from("pos_printer_groups").delete().eq("id", group.id);
+    if (!confirm(`Delete printer group "${group.name}"?`)) return;
+    const { error } = await supabase.from("pos_printer_groups").delete().eq("id", group.id);
+    if (error) {
+      setErrorMessage(error.message);
+      return;
+    }
     if (activeGroupId === group.id) setActiveGroupId(null);
-    loadAll();
+    loadAll(selectedStoreId);
   }
 
   function isCatSelected(catId) {
@@ -93,28 +225,79 @@ export default function KitchenPrintersPage() {
   }
 
   async function toggleCategory(catId) {
-    if (!storeId || !activeGroupId) return;
+    if (!selectedStoreId || !activeGroupId) return;
 
     const existing = mapping.find(
       (x) => x.printer_group_id === activeGroupId && x.menu_category_id === catId
     );
 
     if (existing) {
-      await supabase.from("pos_printer_group_categories").delete().eq("id", existing.id);
+      const { error } = await supabase
+        .from("pos_printer_group_categories")
+        .delete()
+        .eq("id", existing.id);
+      if (error) {
+        setErrorMessage(error.message);
+        return;
+      }
     } else {
-      await supabase.from("pos_printer_group_categories").insert([
-        { store_id: storeId, printer_group_id: activeGroupId, menu_category_id: catId },
+      const { error } = await supabase.from("pos_printer_group_categories").insert([
+        { store_id: selectedStoreId, printer_group_id: activeGroupId, menu_category_id: catId },
       ]);
+      if (error) {
+        setErrorMessage(error.message);
+        return;
+      }
     }
 
-    loadAll();
+    loadAll(selectedStoreId);
   }
 
-  if (!storeId) return <div className="p-6">No store selected for POS.</div>;
+  const selectedStore = stores.find((store) => store.id === selectedStoreId);
 
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-xl font-bold">Kitchen Printers</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-xl font-bold">Kitchen Printers</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Configure printer groups and category routing for each store.
+          </p>
+        </div>
+
+        <label className="min-w-64 text-xs font-semibold uppercase tracking-wider text-slate-600">
+          Store
+          <select
+            value={selectedStoreId || ""}
+            disabled={!isSuperAdmin || stores.length === 0}
+            onChange={(event) => {
+              const nextStoreId = event.target.value;
+              setSelectedStoreId(nextStoreId);
+              setActiveGroupId(null);
+              localStorage.setItem("admin_store_id", nextStoreId);
+            }}
+            className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium normal-case tracking-normal text-slate-900 disabled:bg-slate-100"
+          >
+            {stores.map((store) => (
+              <option key={store.id} value={store.id}>
+                {store.name}{store.is_test ? " (Test)" : ""}{!store.is_active ? " (Inactive)" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      {errorMessage && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          Kitchen printer settings failed to load: {errorMessage}
+        </div>
+      )}
+
+      {!selectedStoreId && !loading && !errorMessage && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          No store is available for this admin account.
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-[360px_1fr] gap-4">
         {/* Groups */}
@@ -170,7 +353,13 @@ export default function KitchenPrintersPage() {
                 </div>
               </button>
             ))}
-            {groups.length === 0 && <div className="text-sm text-slate-500">No groups yet.</div>}
+            {loading ? (
+              <div className="text-sm text-slate-500">Loading printer groups...</div>
+            ) : groups.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-300 p-3 text-sm text-slate-600">
+                No printer groups configured for {selectedStore?.name || "this store"}.
+              </div>
+            ) : null}
           </div>
         </div>
 
