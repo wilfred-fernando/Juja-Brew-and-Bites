@@ -65,6 +65,7 @@ export default function AdminPromos() {
   const [voucherCampaigns, setVoucherCampaigns] = useState([]);
   const [voucherCampaignLoading, setVoucherCampaignLoading] = useState(true);
   const [addingVoucherCampaign, setAddingVoucherCampaign] = useState(false);
+  const [editingVoucherCampaignId, setEditingVoucherCampaignId] = useState(null);
   const [voucherCampaignSubmitting, setVoucherCampaignSubmitting] = useState(false);
   const [form, setForm] = useState({ code: "", title: "", description: "", discount: "", type: "percent", min_order: "", active: true });
   const [voucherCampaignForm, setVoucherCampaignForm] = useState(defaultVoucherCampaignForm);
@@ -127,22 +128,60 @@ export default function AdminPromos() {
     await supabase.from("promotions").delete().eq("id", id);
   };
 
-  const handleAddVoucherCampaign = async (e) => {
+  const closeVoucherCampaignForm = () => {
+    setAddingVoucherCampaign(false);
+    setEditingVoucherCampaignId(null);
+    setVoucherCampaignForm({ ...defaultVoucherCampaignForm });
+  };
+
+  const openNewVoucherCampaign = () => {
+    setEditingVoucherCampaignId(null);
+    setVoucherCampaignForm({ ...defaultVoucherCampaignForm });
+    setAddingVoucherCampaign(true);
+  };
+
+  const populateVoucherCampaignForm = (campaign, overrides = {}) => {
+    setVoucherCampaignForm({
+      code: String(campaign.code || "VOUCHER").toUpperCase(),
+      title: campaign.title || "",
+      reward_text: campaign.reward_text || "",
+      reward_type: campaign.reward_type || "welcome",
+      voucher_prefix: campaign.voucher_prefix || "VOUCHER",
+      validity_days: String(campaign.validity_days || 15),
+      starts_at: toDateInput(campaign.starts_at),
+      ends_at: toDateInput(campaign.ends_at),
+      is_active: Boolean(campaign.is_active),
+      auto_create_on_signup: Boolean(campaign.auto_create_on_signup),
+      auto_create_on_link: Boolean(campaign.auto_create_on_link),
+      ...overrides,
+    });
+  };
+
+  const editVoucherCampaign = (campaign) => {
+    setEditingVoucherCampaignId(campaign.id);
+    populateVoucherCampaignForm(campaign);
+    setAddingVoucherCampaign(true);
+  };
+
+  const handleSaveVoucherCampaign = async (e) => {
     e.preventDefault();
     setVoucherCampaignSubmitting(true);
     try {
       const response = await fetch("/api/admin/voucher-campaigns", {
-        method: "POST",
+        method: editingVoucherCampaignId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(voucherCampaignForm),
+        body: JSON.stringify(editingVoucherCampaignId
+          ? { id: editingVoucherCampaignId, ...voucherCampaignForm }
+          : voucherCampaignForm),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload?.error || "Unable to create voucher campaign.");
-      setVoucherCampaigns([payload.campaign, ...voucherCampaigns].filter(Boolean));
-      setVoucherCampaignForm(defaultVoucherCampaignForm);
-      setAddingVoucherCampaign(false);
+      if (!response.ok) throw new Error(payload?.error || `Unable to ${editingVoucherCampaignId ? "update" : "create"} voucher campaign.`);
+      setVoucherCampaigns((rows) => editingVoucherCampaignId
+        ? rows.map((row) => row.id === editingVoucherCampaignId ? payload.campaign : row)
+        : [payload.campaign, ...rows].filter(Boolean));
+      closeVoucherCampaignForm();
     } catch (error) {
-      alert(error?.message || "Unable to create voucher campaign.");
+      alert(error?.message || `Unable to ${editingVoucherCampaignId ? "update" : "create"} voucher campaign.`);
     } finally {
       setVoucherCampaignSubmitting(false);
     }
@@ -164,18 +203,10 @@ export default function AdminPromos() {
   };
 
   const duplicateVoucherCampaign = (campaign) => {
-    setVoucherCampaignForm({
+    setEditingVoucherCampaignId(null);
+    populateVoucherCampaignForm(campaign, {
       code: `${String(campaign.code || "VOUCHER").toUpperCase()}-COPY`,
-      title: campaign.title || "",
-      reward_text: campaign.reward_text || "",
-      reward_type: campaign.reward_type || "welcome",
-      voucher_prefix: campaign.voucher_prefix || "VOUCHER",
-      validity_days: String(campaign.validity_days || 15),
-      starts_at: toDateInput(campaign.starts_at),
-      ends_at: toDateInput(campaign.ends_at),
       is_active: true,
-      auto_create_on_signup: Boolean(campaign.auto_create_on_signup),
-      auto_create_on_link: Boolean(campaign.auto_create_on_link),
     });
     setAddingVoucherCampaign(true);
   };
@@ -241,10 +272,7 @@ export default function AdminPromos() {
             </p>
           </div>
           <button
-            onClick={() => {
-              setVoucherCampaignForm(defaultVoucherCampaignForm);
-              setAddingVoucherCampaign(true);
-            }}
+            onClick={openNewVoucherCampaign}
             className="rounded-full bg-slate-600 px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-sky-500"
           >
             + Create Voucher Campaign
@@ -285,6 +313,12 @@ export default function AdminPromos() {
                     </div>
                   </div>
                   <div className="flex gap-3 md:shrink-0">
+                    <button
+                      onClick={() => editVoucherCampaign(campaign)}
+                      className="rounded-full border border-sky-200 bg-sky-50 px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-700 transition-colors hover:border-sky-400 hover:bg-sky-100"
+                    >
+                      Edit
+                    </button>
                     <button
                       onClick={() => toggleVoucherCampaign(campaign)}
                       className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 transition-colors hover:border-sky-400 hover:bg-sky-50 hover:text-slate-800"
@@ -365,17 +399,19 @@ export default function AdminPromos() {
             <div className="flex items-center justify-between border-b border-sky-50 p-8">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-slate-500">Voucher Campaign</p>
-                <h2 className="mt-2 text-xl font-extrabold tracking-tight text-slate-800">Create Promo Voucher Rule</h2>
+                <h2 className="mt-2 text-xl font-extrabold tracking-tight text-slate-800">
+                  {editingVoucherCampaignId ? "Edit Promo Voucher Rule" : "Create Promo Voucher Rule"}
+                </h2>
               </div>
               <button
-                onClick={() => setAddingVoucherCampaign(false)}
+                onClick={closeVoucherCampaignForm}
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-50 pb-1 text-xl font-bold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
               >
                 ×
               </button>
             </div>
 
-            <form onSubmit={handleAddVoucherCampaign} className="space-y-6 p-8">
+            <form onSubmit={handleSaveVoucherCampaign} className="space-y-6 p-8">
               <div className="grid gap-5 md:grid-cols-2">
                 <div>
                   <label className="mb-2 ml-1 block text-[10px] font-bold uppercase tracking-widest text-slate-500">Campaign Code *</label>
@@ -486,7 +522,7 @@ export default function AdminPromos() {
               <div className="mt-6 flex gap-4 border-t border-sky-50 pt-6">
                 <button
                   type="button"
-                  onClick={() => setAddingVoucherCampaign(false)}
+                  onClick={closeVoucherCampaignForm}
                   className="flex-1 rounded-full border border-slate-200 bg-white py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 transition-colors hover:border-sky-500 hover:bg-sky-50 hover:text-slate-700"
                 >
                   Cancel
@@ -496,7 +532,7 @@ export default function AdminPromos() {
                   disabled={voucherCampaignSubmitting}
                   className="flex-1 rounded-full bg-slate-600 py-4 text-[10px] font-bold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-sky-500 disabled:opacity-50"
                 >
-                  {voucherCampaignSubmitting ? "Saving..." : "Create Campaign"}
+                  {voucherCampaignSubmitting ? "Saving..." : editingVoucherCampaignId ? "Save Changes" : "Create Campaign"}
                 </button>
               </div>
             </form>
