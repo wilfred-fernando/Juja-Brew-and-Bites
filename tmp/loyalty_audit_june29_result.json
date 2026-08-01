@@ -2,15 +2,16 @@
   "range": {
     "startManila": "2026-06-29T00:00:00+08:00",
     "startIso": "2026-06-28T16:00:00.000Z",
-    "generatedAt": "2026-07-13T06:39:58.453Z"
+    "generatedAt": "2026-07-31T17:54:09.129Z"
   },
   "counts": {
-    "orders": 1144,
-    "webOrders": 13,
-    "auditedTransactions": 300,
-    "duplicateWebOrderPairs": 11,
+    "orders": 2667,
+    "webOrders": 25,
+    "auditedTransactions": 691,
+    "duplicateWebOrderPairs": 21,
     "missingOrWrongAwards": 0,
-    "affectedMembers": 0
+    "affectedMembers": 0,
+    "unresolvedNamedOrders": 0
   },
   "duplicateWebOrderPairs": [
     {
@@ -111,8 +112,99 @@
       "posStatus": "paid",
       "customer": "Marie Ann Torregoza",
       "total": 258
+    },
+    {
+      "webOrderId": "c73fee44-2e72-407e-9eb4-0af564ce39ff",
+      "receipt": "P2084064",
+      "webStatus": "completed",
+      "posOrderId": "cbfe2fd3-824c-4a87-a1a0-eb69f90bbe8c",
+      "posStatus": "paid",
+      "customer": "Lyka Tano",
+      "total": 238
+    },
+    {
+      "webOrderId": "a56af1d0-5bdd-4ec8-a420-4403925a0af0",
+      "receipt": "D0311753",
+      "webStatus": "completed",
+      "posOrderId": "49a3abbe-82f9-4d3b-9c88-61157fa2ffed",
+      "posStatus": "paid",
+      "customer": "REYMOND CALALANG",
+      "total": 149
+    },
+    {
+      "webOrderId": "12ea7a5e-e06c-412f-b05a-cc376edd2bdf",
+      "receipt": "P9075269",
+      "webStatus": "completed",
+      "posOrderId": "d46e7e76-7ab1-408e-9a86-1f1d3a5e4cc6",
+      "posStatus": "paid",
+      "customer": "Lyka Tano",
+      "total": 438
+    },
+    {
+      "webOrderId": "2807c752-2d88-469c-8af4-7e535279d38f",
+      "receipt": "P2718253",
+      "webStatus": "completed",
+      "posOrderId": "b70c86b9-1674-4efc-b33c-f1d0d002aba3",
+      "posStatus": "paid",
+      "customer": "Lyka Tano",
+      "total": 15
+    },
+    {
+      "webOrderId": "f124b4a0-3914-4434-93b2-b4cd4637284b",
+      "receipt": "P4282481",
+      "webStatus": "completed",
+      "posOrderId": "458640ab-8713-449b-b986-de5d47eabb1f",
+      "posStatus": "paid",
+      "customer": "Therese Francisco",
+      "total": 407
+    },
+    {
+      "webOrderId": "2a8200d4-3f3c-42be-83d2-31afbd00d0f7",
+      "receipt": "P0369406",
+      "webStatus": "completed",
+      "posOrderId": "d2062936-e7ef-4d3a-a6ab-ec5297241f90",
+      "posStatus": "paid",
+      "customer": "Daniel Velasco",
+      "total": 318
+    },
+    {
+      "webOrderId": "eb30b48b-7cc0-41d2-ac28-d068494e1b56",
+      "receipt": "D8679751",
+      "webStatus": "completed",
+      "posOrderId": "4fa0d87b-789a-4311-862b-f0d99288c705",
+      "posStatus": "paid",
+      "customer": "REYMOND CALALANG",
+      "total": 149
+    },
+    {
+      "webOrderId": "73d5c82d-82a2-4912-be91-1af4f3d88011",
+      "receipt": "P3020900",
+      "webStatus": "completed",
+      "posOrderId": "87a7cd23-483e-44ed-97db-e78ac5cfe0fc",
+      "posStatus": "paid",
+      "customer": "Bryan Barcenas",
+      "total": 139
+    },
+    {
+      "webOrderId": "569e1867-8507-4f5f-b94f-10b6eb0402ed",
+      "receipt": "P0065998",
+      "webStatus": "completed",
+      "posOrderId": "ff57d9a0-c130-4b77-930f-90fd659b2e62",
+      "posStatus": "paid",
+      "customer": "Jessica Alegre",
+      "total": 805
+    },
+    {
+      "webOrderId": "f9db86ae-5ec0-418b-80a1-d9e9cacef572",
+      "receipt": "D8039858",
+      "webStatus": "completed",
+      "posOrderId": "4a1f12e4-922a-4e57-a04b-3ddafba93e56",
+      "posStatus": "paid",
+      "customer": "REYMOND CALALANG",
+      "total": 149
     }
   ],
   "missingOrWrongAwards": [],
-  "affectedMembers": []
+  "affectedMembers": [],
+  "unresolvedNamedOrders": []
 }

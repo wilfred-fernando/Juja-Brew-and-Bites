@@ -1,0 +1,38 @@
+{
+  "columns": [
+    {
+      "column_name": "id",
+      "data_type": "bigint"
+    },
+    {
+      "column_name": "store_id",
+      "data_type": "uuid"
+    },
+    {
+      "column_name": "actor_user_id",
+      "data_type": "uuid"
+    },
+    {
+      "column_name": "entity",
+      "data_type": "text"
+    },
+    {
+      "column_name": "entity_id",
+      "data_type": "text"
+    },
+    {
+      "column_name": "action",
+      "data_type": "text"
+    },
+    {
+      "column_name": "diff",
+      "data_type": "jsonb"
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone"
+    }
+  ],
+  "count": 0,
+  "rows": []
+}

@@ -816,9 +816,6 @@ export default function LoyaltyAdminPage() {
   setNotice("");
 
   try {
-    const currentTotal = Number(form["Points balance"] || 0);
-    const currentAvail = Number(form["Available points"] || 0);
-
     const add = Number(pointsAdd) || 0;
     const deduct = Number(pointsDeduct) || 0;
 
@@ -831,24 +828,17 @@ export default function LoyaltyAdminPage() {
 
     const delta = add - deduct;
 
-    const newTotal = roundPoints(Math.max(0, currentTotal + delta));
-    const newAvail = roundPoints(Math.max(0, currentAvail + delta));
+    const visitsDelta = Math.trunc(Number(form["Total visits"] || 0))
+      - Math.trunc(Number(editingMember["Total visits"] || 0));
 
-    const updatePayload = {
-      customer_name: form.customer_name,
-      Phone: form.Phone,
-      "Points balance": newTotal,
-      "Available points": newAvail,
-      "Total visits": Number(form["Total visits"] || 0),
-      Note: form.Note,
-    };
-
-    const { data, error } = await supabase
-      .from("loyalty_members")
-      .update(updatePayload)
-      .eq("id", editingMember.id)
-      .select()
-      .single();
+    const { data, error } = await supabase.rpc("update_loyalty_member_admin", {
+      p_member_id: editingMember.id,
+      p_customer_name: form.customer_name,
+      p_phone: form.Phone,
+      p_note: form.Note,
+      p_points_delta: roundPoints(delta),
+      p_visits_delta: visitsDelta,
+    });
 
     if (error) {
       console.error("UPDATE ERROR:", error);

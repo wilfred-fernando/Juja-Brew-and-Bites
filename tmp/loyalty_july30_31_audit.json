@@ -1,0 +1,3173 @@
+{
+  "window": {
+    "start": "2026-07-30T00:00:00+08:00",
+    "endExclusive": "2026-08-01T00:00:00+08:00"
+  },
+  "counts": {
+    "allOrders": 162,
+    "loyaltyOrders": 42,
+    "loyaltyWebOrdersNotConverted": 0,
+    "affectedMembers": 31,
+    "expectedPoints": 534.05
+  },
+  "members": [
+    {
+      "memberId": "baa6fe4b-f767-44f0-8aa1-5da4d65278e6",
+      "customerCode": "JUJA2026000753",
+      "customerName": "Anna Isaguine",
+      "currentPointsBalance": 246.93,
+      "currentAvailablePoints": 38.4,
+      "currentVisits": 13,
+      "currentSpent": 6173.2,
+      "periodAwardTotal": 4.76,
+      "lifetimeCurrentOrderAwardTotal": 42.12,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "3d6a5e4a-40a0-4d5f-b4f6-0dab615854f3",
+          "receipt": "P1432976",
+          "paidAt": "2026-07-31T17:48:20.89+08:00",
+          "status": "paid",
+          "total": 119,
+          "refundAmount": 0,
+          "points": 4.76,
+          "event": {
+            "id": 578,
+            "member_id": "baa6fe4b-f767-44f0-8aa1-5da4d65278e6",
+            "source_type": "order",
+            "source_id": "3d6a5e4a-40a0-4d5f-b4f6-0dab615854f3",
+            "receipt_number": "P1432976",
+            "points_awarded": 4.76,
+            "sale_total": 119,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-31T17:48:23.523761+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 2,
+        "live": 0,
+        "backfilled": 2
+      },
+      "repairs": [
+        {
+          "id": "cd32d33a-645e-498a-ad0a-f7c4b7cacb13",
+          "repair_key": "july30-31-missing-available:3d6a5e4a-40a0-4d5f-b4f6-0dab615854f3",
+          "member_id": "baa6fe4b-f767-44f0-8aa1-5da4d65278e6",
+          "points_balance_delta": 0,
+          "available_points_delta": 4.76,
+          "points_balance_before": 246.93,
+          "available_points_before": 38.4,
+          "points_balance_after": 246.93,
+          "available_points_after": 43.16,
+          "reason": "Receipt P1432976 earned 4.76 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "670b4b51-f12b-422a-958a-fd1aaacb10db",
+          "repair_key": "rollback-july30-31-unverified:baa6fe4b-f767-44f0-8aa1-5da4d65278e6",
+          "member_id": "baa6fe4b-f767-44f0-8aa1-5da4d65278e6",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 38.4,
+          "points_balance_after": null,
+          "available_points_after": 38.4,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "12faed8d-0fc4-494c-bc60-4a9eaddf71ac",
+          "code": "WELCOME-9193",
+          "status": "expired",
+          "createdAt": "2026-07-10T15:54:48.343469",
+          "redeemedAt": null
+        },
+        {
+          "id": "3debfbf7-0e38-42c9-a4db-572a2ad38503",
+          "code": "PTS100-2-04701180",
+          "status": "active",
+          "createdAt": "2026-07-13T14:38:48.29669",
+          "redeemedAt": null
+        },
+        {
+          "id": "5d77ca7d-47ae-439b-8b9e-2190faca8b78",
+          "code": "BDAY2026-6473",
+          "status": "expired",
+          "createdAt": "2026-07-28T00:02:53.496055",
+          "redeemedAt": null
+        }
+      ]
+    },
+    {
+      "memberId": "5f51fe15-7610-4aeb-b867-de056f70902b",
+      "customerCode": "JUJA2026001038",
+      "customerName": "Anna Jean Marie Bañas",
+      "currentPointsBalance": 349.72,
+      "currentAvailablePoints": 49.72,
+      "currentVisits": 33,
+      "currentSpent": 8743,
+      "periodAwardTotal": 29.04,
+      "lifetimeCurrentOrderAwardTotal": 349.72,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "9901caa4-0f98-4a79-80e4-a48faa4fc480",
+          "receipt": "P6050159",
+          "paidAt": "2026-07-30T18:05:30.08+08:00",
+          "status": "paid",
+          "total": 398,
+          "refundAmount": 0,
+          "points": 15.92,
+          "event": {
+            "id": 619,
+            "member_id": "5f51fe15-7610-4aeb-b867-de056f70902b",
+            "source_type": "order",
+            "source_id": "9901caa4-0f98-4a79-80e4-a48faa4fc480",
+            "receipt_number": "P6050159",
+            "points_awarded": 15.92,
+            "sale_total": 398,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-30T18:05:32.599232+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        },
+        {
+          "source": "order",
+          "id": "b1a8459a-413e-49ac-9e21-b063a37db164",
+          "receipt": "P8665927",
+          "paidAt": "2026-07-31T18:09:16.543+08:00",
+          "status": "paid",
+          "total": 328,
+          "refundAmount": 0,
+          "points": 13.12,
+          "event": {
+            "id": 583,
+            "member_id": "5f51fe15-7610-4aeb-b867-de056f70902b",
+            "source_type": "order",
+            "source_id": "b1a8459a-413e-49ac-9e21-b063a37db164",
+            "receipt_number": "P8665927",
+            "points_awarded": 13.12,
+            "sale_total": 328,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-31T18:09:18.747338+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 32,
+        "live": 0,
+        "backfilled": 32
+      },
+      "repairs": [
+        {
+          "id": "36e04b82-672d-4404-a710-fa0b8606e010",
+          "repair_key": "july30-31-missing-available:9901caa4-0f98-4a79-80e4-a48faa4fc480",
+          "member_id": "5f51fe15-7610-4aeb-b867-de056f70902b",
+          "points_balance_delta": 0,
+          "available_points_delta": 15.92,
+          "points_balance_before": 349.72,
+          "available_points_before": 49.72,
+          "points_balance_after": 349.72,
+          "available_points_after": 65.64,
+          "reason": "Receipt P6050159 earned 15.92 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "84353b99-09c2-411c-93a3-a570c2e34cf9",
+          "repair_key": "july30-31-missing-available:b1a8459a-413e-49ac-9e21-b063a37db164",
+          "member_id": "5f51fe15-7610-4aeb-b867-de056f70902b",
+          "points_balance_delta": 0,
+          "available_points_delta": 13.12,
+          "points_balance_before": 349.72,
+          "available_points_before": 65.64,
+          "points_balance_after": 349.72,
+          "available_points_after": 78.76,
+          "reason": "Receipt P8665927 earned 13.12 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "840b8493-0ff8-44f9-9940-baa321d08646",
+          "repair_key": "rollback-july30-31-unverified:5f51fe15-7610-4aeb-b867-de056f70902b",
+          "member_id": "5f51fe15-7610-4aeb-b867-de056f70902b",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 49.72,
+          "points_balance_after": null,
+          "available_points_after": 49.72,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "1896201a-d564-4bdd-b264-d98b10b6ea67",
+          "code": "WELCOME-8968",
+          "status": "redeemed",
+          "createdAt": "2026-07-03T19:26:20.45048",
+          "redeemedAt": "2026-07-03T11:45:40.357"
+        },
+        {
+          "id": "05c5919b-da78-41f4-b604-abc941c8aae7",
+          "code": "PTS100-2-202A8D8E",
+          "status": "redeemed",
+          "createdAt": "2026-07-13T14:38:48.777249",
+          "redeemedAt": "2026-07-20T06:09:07.814"
+        },
+        {
+          "id": "1193ae8e-8af1-43a5-89c3-40febd3f9e09",
+          "code": "PTS100-3-97BA4AAD",
+          "status": "redeemed",
+          "createdAt": "2026-07-18T16:11:52.52126",
+          "redeemedAt": "2026-07-21T10:21:27.613"
+        },
+        {
+          "id": "823cd6a2-dd29-4579-9d9a-1479cca9c2c4",
+          "code": "PTS100-4-3B958405",
+          "status": "redeemed",
+          "createdAt": "2026-07-28T17:57:51.624758",
+          "redeemedAt": "2026-07-29T10:27:31.877"
+        }
+      ]
+    },
+    {
+      "memberId": "af11215d-39a8-41e4-bee7-09c3db6347ee",
+      "customerCode": "JUJA2025000524",
+      "customerName": "Bianca Lopez",
+      "currentPointsBalance": 14.68,
+      "currentAvailablePoints": 5.16,
+      "currentVisits": 3,
+      "currentSpent": 367,
+      "periodAwardTotal": 5.16,
+      "lifetimeCurrentOrderAwardTotal": 5.16,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "07c8cab8-0831-4409-8084-f93d1559f70d",
+          "receipt": "D2853417",
+          "paidAt": "2026-07-31T13:55:19.346+08:00",
+          "status": "paid",
+          "total": 129,
+          "refundAmount": 0,
+          "points": 5.16,
+          "event": {
+            "id": 532,
+            "member_id": "af11215d-39a8-41e4-bee7-09c3db6347ee",
+            "source_type": "order",
+            "source_id": "07c8cab8-0831-4409-8084-f93d1559f70d",
+            "receipt_number": "D2853417",
+            "points_awarded": 5.16,
+            "sale_total": 129,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-31T13:55:52.277424+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 1,
+        "live": 0,
+        "backfilled": 1
+      },
+      "repairs": [
+        {
+          "id": "880311f4-a134-4e60-9131-d6e9191563f9",
+          "repair_key": "july30-31-missing-available:07c8cab8-0831-4409-8084-f93d1559f70d",
+          "member_id": "af11215d-39a8-41e4-bee7-09c3db6347ee",
+          "points_balance_delta": 0,
+          "available_points_delta": 5.16,
+          "points_balance_before": 14.68,
+          "available_points_before": 5.16,
+          "points_balance_after": 14.68,
+          "available_points_after": 10.32,
+          "reason": "Receipt D2853417 earned 5.16 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "fa16c6a4-0562-460f-9eb8-bffdfc9b8919",
+          "repair_key": "rollback-july30-31-unverified:af11215d-39a8-41e4-bee7-09c3db6347ee",
+          "member_id": "af11215d-39a8-41e4-bee7-09c3db6347ee",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 5.16,
+          "points_balance_after": null,
+          "available_points_after": 5.16,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": []
+    },
+    {
+      "memberId": "540e29ee-e5ca-45fa-a8cc-1e427e99f717",
+      "customerCode": "JUJA2026000859",
+      "customerName": "Camille A. Chica",
+      "currentPointsBalance": 91.24,
+      "currentAvailablePoints": 17.04,
+      "currentVisits": 9,
+      "currentSpent": 2281,
+      "periodAwardTotal": 28.56,
+      "lifetimeCurrentOrderAwardTotal": 72.2,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "9879471d-147c-42ae-ae75-298996c76f76",
+          "receipt": "D4865177",
+          "paidAt": "2026-07-30T20:16:13.021+08:00",
+          "status": "paid",
+          "total": 645,
+          "refundAmount": 0,
+          "points": 25.8,
+          "event": {
+            "id": 381,
+            "member_id": "540e29ee-e5ca-45fa-a8cc-1e427e99f717",
+            "source_type": "order",
+            "source_id": "9879471d-147c-42ae-ae75-298996c76f76",
+            "receipt_number": "D4865177",
+            "points_awarded": 25.8,
+            "sale_total": 645,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-30T20:16:42.888414+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        },
+        {
+          "source": "order",
+          "id": "fff01c1a-a1d2-4a9b-ab9f-4f102b992539",
+          "receipt": "D0132269",
+          "paidAt": "2026-07-30T21:08:35.415+08:00",
+          "status": "paid",
+          "total": 69,
+          "refundAmount": 0,
+          "points": 2.76,
+          "event": {
+            "id": 461,
+            "member_id": "540e29ee-e5ca-45fa-a8cc-1e427e99f717",
+            "source_type": "order",
+            "source_id": "fff01c1a-a1d2-4a9b-ab9f-4f102b992539",
+            "receipt_number": "D0132269",
+            "points_awarded": 2.76,
+            "sale_total": 69,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-30T21:09:06.224642+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 7,
+        "live": 0,
+        "backfilled": 7
+      },
+      "repairs": [
+        {
+          "id": "eb08dee1-6aa1-401f-889a-162a1af064f4",
+          "repair_key": "july30-31-missing-available:9879471d-147c-42ae-ae75-298996c76f76",
+          "member_id": "540e29ee-e5ca-45fa-a8cc-1e427e99f717",
+          "points_balance_delta": 0,
+          "available_points_delta": 25.8,
+          "points_balance_before": 91.24,
+          "available_points_before": 91.24,
+          "points_balance_after": 91.24,
+          "available_points_after": 117.04,
+          "reason": "Receipt D4865177 earned 25.80 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "db20098a-0ba4-4be5-928a-61d18284da07",
+          "repair_key": "july30-31-missing-available:fff01c1a-a1d2-4a9b-ab9f-4f102b992539",
+          "member_id": "540e29ee-e5ca-45fa-a8cc-1e427e99f717",
+          "points_balance_delta": 0,
+          "available_points_delta": 2.76,
+          "points_balance_before": 91.24,
+          "available_points_before": 17.04,
+          "points_balance_after": 91.24,
+          "available_points_after": 19.8,
+          "reason": "Receipt D0132269 earned 2.76 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "bed9bbf6-8859-41cd-948e-b6ab518f5358",
+          "repair_key": "rollback-july30-31-unverified:540e29ee-e5ca-45fa-a8cc-1e427e99f717",
+          "member_id": "540e29ee-e5ca-45fa-a8cc-1e427e99f717",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 17.04,
+          "points_balance_after": null,
+          "available_points_after": 17.04,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "912a7595-3fd7-4d8e-b70d-171b77c3e0d5",
+          "code": "WELCOME-7715",
+          "status": "expired",
+          "createdAt": "2026-07-01T10:33:29.608662",
+          "redeemedAt": null
+        },
+        {
+          "id": "f77cee05-03e4-4f14-be64-f65b215e3d33",
+          "code": "BDAY2026-3378",
+          "status": "expired",
+          "createdAt": "2026-07-28T00:03:04.980897",
+          "redeemedAt": null
+        }
+      ]
+    },
+    {
+      "memberId": "42da278b-1119-4009-9372-6415c2515f52",
+      "customerCode": "JUJA2025000132",
+      "customerName": "Chelsea Tuazon",
+      "currentPointsBalance": 485.71,
+      "currentAvailablePoints": 9.83,
+      "currentVisits": 20,
+      "currentSpent": 12142.6,
+      "periodAwardTotal": 46.12,
+      "lifetimeCurrentOrderAwardTotal": 209.13,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "36956afb-24fb-497c-92e2-bae043076e04",
+          "receipt": "P5804594",
+          "paidAt": "2026-07-31T20:45:29.86+08:00",
+          "status": "paid",
+          "total": 1153,
+          "refundAmount": 0,
+          "points": 46.12,
+          "event": {
+            "id": 615,
+            "member_id": "42da278b-1119-4009-9372-6415c2515f52",
+            "source_type": "order",
+            "source_id": "36956afb-24fb-497c-92e2-bae043076e04",
+            "receipt_number": "P5804594",
+            "points_awarded": 46.12,
+            "sale_total": 1153,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-31T20:45:33.343459+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 7,
+        "live": 0,
+        "backfilled": 7
+      },
+      "repairs": [
+        {
+          "id": "d57893d9-84e0-4d95-9e88-5a436f35cf97",
+          "repair_key": "july30-31-missing-available:36956afb-24fb-497c-92e2-bae043076e04",
+          "member_id": "42da278b-1119-4009-9372-6415c2515f52",
+          "points_balance_delta": 0,
+          "available_points_delta": 46.12,
+          "points_balance_before": 485.71,
+          "available_points_before": 9.83,
+          "points_balance_after": 485.71,
+          "available_points_after": 55.95,
+          "reason": "Receipt P5804594 earned 46.12 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "d93b073c-154d-4d5b-bd24-b47215c2c107",
+          "repair_key": "rollback-july30-31-unverified:42da278b-1119-4009-9372-6415c2515f52",
+          "member_id": "42da278b-1119-4009-9372-6415c2515f52",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 9.83,
+          "points_balance_after": null,
+          "available_points_after": 9.83,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "825538e7-b015-4b12-9183-de7bd1520ee7",
+          "code": "PTS100-1-085127ED",
+          "status": "redeemed",
+          "createdAt": "2026-06-30T00:13:08.632123",
+          "redeemedAt": "2026-07-09T13:01:06.456"
+        },
+        {
+          "id": "4d06bf88-58e5-42fd-a350-907942b4aa4e",
+          "code": "PTS100-2-60D92365",
+          "status": "redeemed",
+          "createdAt": "2026-06-30T00:13:08.632123",
+          "redeemedAt": "2026-07-09T13:01:08.026"
+        },
+        {
+          "id": "6469833e-b2f5-4b41-b60e-5f3a8d0faf23",
+          "code": "WELCOME-5838",
+          "status": "expired",
+          "createdAt": "2026-07-07T01:39:03.270051",
+          "redeemedAt": null
+        },
+        {
+          "id": "f3fbd0fd-9273-4971-84c2-058b4b35f001",
+          "code": "PTS100-4-957E55D7",
+          "status": "active",
+          "createdAt": "2026-07-13T14:38:47.836265",
+          "redeemedAt": null
+        },
+        {
+          "id": "a879e4b7-2947-4ff6-85bb-42cad7c7192b",
+          "code": "BDAY2026-4630",
+          "status": "expired",
+          "createdAt": "2026-07-28T00:02:04.428884",
+          "redeemedAt": null
+        },
+        {
+          "id": "e615b4d0-4069-4dc6-9ab0-ed4e92ae476b",
+          "code": "PTS100-6-EEDD19D6",
+          "status": "active",
+          "createdAt": "2026-07-31T20:45:33.343459",
+          "redeemedAt": null
+        }
+      ]
+    },
+    {
+      "memberId": "7843db11-de1c-47ce-b608-d09598e840ec",
+      "customerCode": "JUJA2026000839",
+      "customerName": "Colene Mae B. Niño",
+      "currentPointsBalance": 152.2,
+      "currentAvailablePoints": 68.88,
+      "currentVisits": 23,
+      "currentSpent": 3805,
+      "periodAwardTotal": 11.12,
+      "lifetimeCurrentOrderAwardTotal": 64.52,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "0366f077-3cdd-44df-8919-e9e304f9b01c",
+          "receipt": "D9166731",
+          "paidAt": "2026-07-30T13:04:50.045+08:00",
+          "status": "paid",
+          "total": 278,
+          "refundAmount": 0,
+          "points": 11.12,
+          "event": {
+            "id": 611,
+            "member_id": "7843db11-de1c-47ce-b608-d09598e840ec",
+            "source_type": "order",
+            "source_id": "0366f077-3cdd-44df-8919-e9e304f9b01c",
+            "receipt_number": "D9166731",
+            "points_awarded": 11.12,
+            "sale_total": 278,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-30T13:05:18.25206+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 10,
+        "live": 0,
+        "backfilled": 10
+      },
+      "repairs": [
+        {
+          "id": "8896af37-6806-4950-a55f-df31febf5427",
+          "repair_key": "july30-31-missing-available:0366f077-3cdd-44df-8919-e9e304f9b01c",
+          "member_id": "7843db11-de1c-47ce-b608-d09598e840ec",
+          "points_balance_delta": 0,
+          "available_points_delta": 11.12,
+          "points_balance_before": 152.2,
+          "available_points_before": 68.88,
+          "points_balance_after": 152.2,
+          "available_points_after": 80,
+          "reason": "Receipt D9166731 earned 11.12 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "964ea627-7c48-43bc-b2c3-972431101fa9",
+          "repair_key": "rollback-july30-31-unverified:7843db11-de1c-47ce-b608-d09598e840ec",
+          "member_id": "7843db11-de1c-47ce-b608-d09598e840ec",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 68.88,
+          "points_balance_after": null,
+          "available_points_after": 68.88,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "5649b161-f2ec-49f7-859b-d49c014ab6d0",
+          "code": "WELCOME-7698",
+          "status": "redeemed",
+          "createdAt": "2026-07-01T12:37:32.184922",
+          "redeemedAt": "2026-07-01T13:38:10.315"
+        }
+      ]
+    },
+    {
+      "memberId": "7ee3ea8f-5e31-4c03-ad4e-7b1ac18d7e76",
+      "customerCode": "JUJA2025000256",
+      "customerName": "Danilo Anos",
+      "currentPointsBalance": 166,
+      "currentAvailablePoints": 92.76,
+      "currentVisits": 6,
+      "currentSpent": 4150,
+      "periodAwardTotal": 52.28,
+      "lifetimeCurrentOrderAwardTotal": 92.76,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "966eb839-66b7-457a-b03e-8371b7ab622f",
+          "receipt": "P9478275",
+          "paidAt": "2026-07-31T22:55:41.157+08:00",
+          "status": "paid",
+          "total": 1307,
+          "refundAmount": 0,
+          "points": 52.28,
+          "event": {
+            "id": 417,
+            "member_id": "7ee3ea8f-5e31-4c03-ad4e-7b1ac18d7e76",
+            "source_type": "order",
+            "source_id": "966eb839-66b7-457a-b03e-8371b7ab622f",
+            "receipt_number": "P9478275",
+            "points_awarded": 52.28,
+            "sale_total": 1307,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-31T22:55:44.141834+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 4,
+        "live": 0,
+        "backfilled": 4
+      },
+      "repairs": [
+        {
+          "id": "5fee756c-65b4-4288-ad60-72baec70e552",
+          "repair_key": "july30-31-missing-available:966eb839-66b7-457a-b03e-8371b7ab622f",
+          "member_id": "7ee3ea8f-5e31-4c03-ad4e-7b1ac18d7e76",
+          "points_balance_delta": 0,
+          "available_points_delta": 52.28,
+          "points_balance_before": 166,
+          "available_points_before": 92.76,
+          "points_balance_after": 166,
+          "available_points_after": 145.04,
+          "reason": "Receipt P9478275 earned 52.28 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "7d4e929c-f5b3-45f5-9a8a-f00bfe4cbbc3",
+          "repair_key": "rollback-july30-31-unverified:7ee3ea8f-5e31-4c03-ad4e-7b1ac18d7e76",
+          "member_id": "7ee3ea8f-5e31-4c03-ad4e-7b1ac18d7e76",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 92.76,
+          "points_balance_after": null,
+          "available_points_after": 92.76,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": []
+    },
+    {
+      "memberId": "d80ccef6-1b31-4766-949b-812b226c311d",
+      "customerCode": "JUJA2025000272",
+      "customerName": "Dhoren Ruiz",
+      "currentPointsBalance": 418.93,
+      "currentAvailablePoints": 88.36,
+      "currentVisits": 19,
+      "currentSpent": 10582.35,
+      "periodAwardTotal": 41.96,
+      "lifetimeCurrentOrderAwardTotal": 92.48,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "3715427c-d12d-4d0e-bd02-703816759691",
+          "receipt": "P9030458",
+          "paidAt": "2026-07-30T10:45:14.865+08:00",
+          "status": "paid",
+          "total": 417,
+          "refundAmount": 0,
+          "points": 16.68,
+          "event": {
+            "id": 609,
+            "member_id": "d80ccef6-1b31-4766-949b-812b226c311d",
+            "source_type": "order",
+            "source_id": "3715427c-d12d-4d0e-bd02-703816759691",
+            "receipt_number": "P9030458",
+            "points_awarded": 16.68,
+            "sale_total": 417,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-30T10:45:17.483814+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        },
+        {
+          "source": "order",
+          "id": "c6db4f92-cc55-49e7-98e0-cc334a7c5062",
+          "receipt": "P8233880",
+          "paidAt": "2026-07-31T17:04:39.267+08:00",
+          "status": "paid",
+          "total": 602,
+          "refundAmount": 0,
+          "points": 19.72,
+          "event": {
+            "id": 563,
+            "member_id": "d80ccef6-1b31-4766-949b-812b226c311d",
+            "source_type": "order",
+            "source_id": "c6db4f92-cc55-49e7-98e0-cc334a7c5062",
+            "receipt_number": "P8233880",
+            "points_awarded": 19.72,
+            "sale_total": 602,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-31T17:04:45.566871+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        },
+        {
+          "source": "order",
+          "id": "9fcebc1c-be3b-495c-a6f7-51cf96e4489c",
+          "receipt": "P2962045",
+          "paidAt": "2026-07-31T17:07:04.294+08:00",
+          "status": "paid",
+          "total": 139,
+          "refundAmount": 0,
+          "points": 5.56,
+          "event": {
+            "id": 557,
+            "member_id": "d80ccef6-1b31-4766-949b-812b226c311d",
+            "source_type": "order",
+            "source_id": "9fcebc1c-be3b-495c-a6f7-51cf96e4489c",
+            "receipt_number": "P2962045",
+            "points_awarded": 5.56,
+            "sale_total": 139,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-31T17:07:06.387621+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 5,
+        "live": 0,
+        "backfilled": 5
+      },
+      "repairs": [
+        {
+          "id": "de6c9065-d58e-4687-a636-65f678cbb08a",
+          "repair_key": "july30-31-missing-available:3715427c-d12d-4d0e-bd02-703816759691",
+          "member_id": "d80ccef6-1b31-4766-949b-812b226c311d",
+          "points_balance_delta": 0,
+          "available_points_delta": 16.68,
+          "points_balance_before": 418.93,
+          "available_points_before": 51.96,
+          "points_balance_after": 418.93,
+          "available_points_after": 68.64,
+          "reason": "Receipt P9030458 earned 16.68 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "f178ac21-2b2d-4e00-ad5d-55b326d5e1e4",
+          "repair_key": "july30-31-missing-available:c6db4f92-cc55-49e7-98e0-cc334a7c5062",
+          "member_id": "d80ccef6-1b31-4766-949b-812b226c311d",
+          "points_balance_delta": 0,
+          "available_points_delta": 19.72,
+          "points_balance_before": 418.93,
+          "available_points_before": 68.64,
+          "points_balance_after": 418.93,
+          "available_points_after": 88.36,
+          "reason": "Receipt P8233880 earned 19.72 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "5014b93f-f809-4d70-8f86-25cc04f1dfdf",
+          "repair_key": "july30-31-missing-available:9fcebc1c-be3b-495c-a6f7-51cf96e4489c",
+          "member_id": "d80ccef6-1b31-4766-949b-812b226c311d",
+          "points_balance_delta": 0,
+          "available_points_delta": 5.56,
+          "points_balance_before": 418.93,
+          "available_points_before": 88.36,
+          "points_balance_after": 418.93,
+          "available_points_after": 93.92,
+          "reason": "Receipt P2962045 earned 5.56 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "05312164-7fb3-47a1-a790-dfdc3f2f214f",
+          "repair_key": "rollback-july30-31-unverified:d80ccef6-1b31-4766-949b-812b226c311d",
+          "member_id": "d80ccef6-1b31-4766-949b-812b226c311d",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 88.36,
+          "points_balance_after": null,
+          "available_points_after": 88.36,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "3c078fdb-37ce-4112-8987-602f5ad5438f",
+          "code": "PTS100-2-9A9D1A5A",
+          "status": "active",
+          "createdAt": "2026-06-30T00:13:08.632123",
+          "redeemedAt": null
+        },
+        {
+          "id": "5eb99724-c6ef-4a6a-ab8e-f004e1fe1940",
+          "code": "PTS100-1-F8509D54",
+          "status": "redeemed",
+          "createdAt": "2026-06-30T00:13:08.632123",
+          "redeemedAt": "2026-07-10T07:11:33.939"
+        },
+        {
+          "id": "55aae107-5f1b-4934-99fc-6d5723de109c",
+          "code": "PTS100-3-71D462A2",
+          "status": "active",
+          "createdAt": "2026-07-12T23:17:55.173301",
+          "redeemedAt": null
+        },
+        {
+          "id": "d8a85f0a-3c8d-44cc-9afd-84e6e53befba",
+          "code": "WELCOME-6122",
+          "status": "redeemed",
+          "createdAt": "2026-07-12T23:19:40.56206",
+          "redeemedAt": "2026-07-31T09:04:42.671"
+        }
+      ]
+    },
+    {
+      "memberId": "bcdbf799-7977-4446-a07b-d5ae09162481",
+      "customerCode": "JUJA2026000800",
+      "customerName": "Ed Christian Lumabi",
+      "currentPointsBalance": 203.72,
+      "currentAvailablePoints": 14.44,
+      "currentVisits": 19,
+      "currentSpent": 5093,
+      "periodAwardTotal": 19.44,
+      "lifetimeCurrentOrderAwardTotal": 85,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "28c65aa1-6e31-4ace-9012-ac2bd1b4e386",
+          "receipt": "P8982235",
+          "paidAt": "2026-07-30T22:09:52.403+08:00",
+          "status": "paid",
+          "total": 268,
+          "refundAmount": 0,
+          "points": 10.72,
+          "event": {
+            "id": 466,
+            "member_id": "bcdbf799-7977-4446-a07b-d5ae09162481",
+            "source_type": "order",
+            "source_id": "28c65aa1-6e31-4ace-9012-ac2bd1b4e386",
+            "receipt_number": "P8982235",
+            "points_awarded": 10.72,
+            "sale_total": 268,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-30T22:09:55.806044+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        },
+        {
+          "source": "order",
+          "id": "ab8508aa-548a-419f-8509-5104281785d6",
+          "receipt": "P6939495",
+          "paidAt": "2026-07-30T22:12:41.832+08:00",
+          "status": "paid",
+          "total": 218,
+          "refundAmount": 0,
+          "points": 8.72,
+          "event": {
+            "id": 465,
+            "member_id": "bcdbf799-7977-4446-a07b-d5ae09162481",
+            "source_type": "order",
+            "source_id": "ab8508aa-548a-419f-8509-5104281785d6",
+            "receipt_number": "P6939495",
+            "points_awarded": 8.72,
+            "sale_total": 218,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-30T22:12:44.197622+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 6,
+        "live": 0,
+        "backfilled": 6
+      },
+      "repairs": [
+        {
+          "id": "48480cae-3935-412e-9ccd-7a0da4c32f88",
+          "repair_key": "july30-31-missing-available:28c65aa1-6e31-4ace-9012-ac2bd1b4e386",
+          "member_id": "bcdbf799-7977-4446-a07b-d5ae09162481",
+          "points_balance_delta": 0,
+          "available_points_delta": 10.72,
+          "points_balance_before": 203.72,
+          "available_points_before": 3.72,
+          "points_balance_after": 203.72,
+          "available_points_after": 14.44,
+          "reason": "Receipt P8982235 earned 10.72 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "27f79c78-bf96-4f3e-8f00-79ac3741ba3f",
+          "repair_key": "july30-31-missing-available:ab8508aa-548a-419f-8509-5104281785d6",
+          "member_id": "bcdbf799-7977-4446-a07b-d5ae09162481",
+          "points_balance_delta": 0,
+          "available_points_delta": 8.72,
+          "points_balance_before": 203.72,
+          "available_points_before": 14.44,
+          "points_balance_after": 203.72,
+          "available_points_after": 23.16,
+          "reason": "Receipt P6939495 earned 8.72 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "c3a2a590-8d7a-43d6-9e52-b6700f0f9381",
+          "repair_key": "rollback-july30-31-unverified:bcdbf799-7977-4446-a07b-d5ae09162481",
+          "member_id": "bcdbf799-7977-4446-a07b-d5ae09162481",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 14.44,
+          "points_balance_after": null,
+          "available_points_after": 14.44,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "e9d5a924-9e30-4d11-aa25-90df67faaaa7",
+          "code": "PTS100-1-296C717F",
+          "status": "active",
+          "createdAt": "2026-07-30T22:12:44.197622",
+          "redeemedAt": null
+        }
+      ]
+    },
+    {
+      "memberId": "6145d50a-3b97-4c4d-8fb9-e59e4c46772e",
+      "customerCode": "JUJA2025000154",
+      "customerName": "Errin Kaw",
+      "currentPointsBalance": 139.77,
+      "currentAvailablePoints": 3.65,
+      "currentVisits": 7,
+      "currentSpent": 3494.2,
+      "periodAwardTotal": 17.81,
+      "lifetimeCurrentOrderAwardTotal": 78.61,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "ef9da0aa-641c-44c8-91eb-57b04ece3c9c",
+          "receipt": "P6583918",
+          "paidAt": "2026-07-31T16:46:44.56+08:00",
+          "status": "paid",
+          "total": 445.2,
+          "refundAmount": 0,
+          "points": 17.81,
+          "event": {
+            "id": 549,
+            "member_id": "6145d50a-3b97-4c4d-8fb9-e59e4c46772e",
+            "source_type": "order",
+            "source_id": "ef9da0aa-641c-44c8-91eb-57b04ece3c9c",
+            "receipt_number": "P6583918",
+            "points_awarded": 17.81,
+            "sale_total": 445.2,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-31T16:46:47.21456+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 3,
+        "live": 0,
+        "backfilled": 3
+      },
+      "repairs": [
+        {
+          "id": "dd8b87d8-8670-46a6-ac01-3a232b8b3981",
+          "repair_key": "july30-31-missing-available:ef9da0aa-641c-44c8-91eb-57b04ece3c9c",
+          "member_id": "6145d50a-3b97-4c4d-8fb9-e59e4c46772e",
+          "points_balance_delta": 0,
+          "available_points_delta": 17.81,
+          "points_balance_before": 139.77,
+          "available_points_before": 3.65,
+          "points_balance_after": 139.77,
+          "available_points_after": 21.46,
+          "reason": "Receipt P6583918 earned 17.81 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "40509b09-93be-4ac4-8dbe-189bdc1b5027",
+          "repair_key": "rollback-july30-31-unverified:6145d50a-3b97-4c4d-8fb9-e59e4c46772e",
+          "member_id": "6145d50a-3b97-4c4d-8fb9-e59e4c46772e",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 3.65,
+          "points_balance_after": null,
+          "available_points_after": 3.65,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "b2144664-d9d0-47ba-a8cf-4cf32276fb8e",
+          "code": "BDAY2026-8645",
+          "status": "expired",
+          "createdAt": "2026-07-28T00:02:05.107094",
+          "redeemedAt": null
+        },
+        {
+          "id": "334a097d-6aa8-4fb4-8ba1-19fc96f1bcfa",
+          "code": "WELCOME-7304",
+          "status": "active",
+          "createdAt": "2026-07-30T11:48:25.314665",
+          "redeemedAt": null
+        },
+        {
+          "id": "19f11037-b85e-4960-92f5-75bd710c387b",
+          "code": "PTS100-3-2D8B440E",
+          "status": "active",
+          "createdAt": "2026-07-31T16:46:47.21456",
+          "redeemedAt": null
+        }
+      ]
+    },
+    {
+      "memberId": "f0b273ab-70ac-41cc-b055-f4c5bea83665",
+      "customerCode": "JUJA2025000033",
+      "customerName": "Eva Santos",
+      "currentPointsBalance": 224.96,
+      "currentAvailablePoints": 36.8,
+      "currentVisits": 16,
+      "currentSpent": 5624,
+      "periodAwardTotal": 6.36,
+      "lifetimeCurrentOrderAwardTotal": 68.72,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "58f3c2a6-cd9b-44a1-8c89-46d78078a6cd",
+          "receipt": "P9539132",
+          "paidAt": "2026-07-31T17:10:08.156+08:00",
+          "status": "paid",
+          "total": 159,
+          "refundAmount": 0,
+          "points": 6.36,
+          "event": {
+            "id": 568,
+            "member_id": "f0b273ab-70ac-41cc-b055-f4c5bea83665",
+            "source_type": "order",
+            "source_id": "58f3c2a6-cd9b-44a1-8c89-46d78078a6cd",
+            "receipt_number": "P9539132",
+            "points_awarded": 6.36,
+            "sale_total": 159,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-31T17:10:10.991256+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 4,
+        "live": 0,
+        "backfilled": 4
+      },
+      "repairs": [
+        {
+          "id": "1fba5cdf-d4e8-4bf7-a150-112989e2f679",
+          "repair_key": "july30-31-missing-available:58f3c2a6-cd9b-44a1-8c89-46d78078a6cd",
+          "member_id": "f0b273ab-70ac-41cc-b055-f4c5bea83665",
+          "points_balance_delta": 0,
+          "available_points_delta": 6.36,
+          "points_balance_before": 224.96,
+          "available_points_before": 36.8,
+          "points_balance_after": 224.96,
+          "available_points_after": 43.16,
+          "reason": "Receipt P9539132 earned 6.36 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "93f9e743-f6b7-4630-a362-1305f8f0d025",
+          "repair_key": "rollback-july30-31-unverified:f0b273ab-70ac-41cc-b055-f4c5bea83665",
+          "member_id": "f0b273ab-70ac-41cc-b055-f4c5bea83665",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 36.8,
+          "points_balance_after": null,
+          "available_points_after": 36.8,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "2ab06401-444b-4ec0-a43d-ad45213d4ee9",
+          "code": "WELCOME-3557",
+          "status": "expired",
+          "createdAt": "2026-07-13T23:30:58.518603",
+          "redeemedAt": null
+        },
+        {
+          "id": "f6b4ca4d-e257-4a9a-bdbf-886b395f0063",
+          "code": "PTS100-2-A804C309",
+          "status": "active",
+          "createdAt": "2026-07-17T17:50:33.215187",
+          "redeemedAt": null
+        },
+        {
+          "id": "b418cefe-5481-4d6a-aa4f-c528d1d5551a",
+          "code": "BDAY2026-3054",
+          "status": "expired",
+          "createdAt": "2026-07-28T00:01:50.965673",
+          "redeemedAt": null
+        }
+      ]
+    },
+    {
+      "memberId": "87329c08-5af8-41de-9928-a13fbe754ed9",
+      "customerCode": "JUJA2025000322",
+      "customerName": "Glizel Grace Tomas",
+      "currentPointsBalance": 74.08,
+      "currentAvailablePoints": 40.08,
+      "currentVisits": 5,
+      "currentSpent": 1852,
+      "periodAwardTotal": 12.72,
+      "lifetimeCurrentOrderAwardTotal": 12.72,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "cb442ac5-06ee-4fc2-9979-761bb0a4eb14",
+          "receipt": "P7895442",
+          "paidAt": "2026-07-31T17:08:58.384+08:00",
+          "status": "paid",
+          "total": 318,
+          "refundAmount": 0,
+          "points": 12.72,
+          "event": {
+            "id": 566,
+            "member_id": "87329c08-5af8-41de-9928-a13fbe754ed9",
+            "source_type": "order",
+            "source_id": "cb442ac5-06ee-4fc2-9979-761bb0a4eb14",
+            "receipt_number": "P7895442",
+            "points_awarded": 12.72,
+            "sale_total": 318,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-31T17:09:00.697162+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 1,
+        "live": 0,
+        "backfilled": 1
+      },
+      "repairs": [
+        {
+          "id": "289abb28-6ca2-4298-9888-a468cc0d4ab4",
+          "repair_key": "july30-31-missing-available:cb442ac5-06ee-4fc2-9979-761bb0a4eb14",
+          "member_id": "87329c08-5af8-41de-9928-a13fbe754ed9",
+          "points_balance_delta": 0,
+          "available_points_delta": 12.72,
+          "points_balance_before": 74.08,
+          "available_points_before": 40.08,
+          "points_balance_after": 74.08,
+          "available_points_after": 52.8,
+          "reason": "Receipt P7895442 earned 12.72 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "6aa7a230-22f9-4dba-908e-30ac0fcde379",
+          "repair_key": "rollback-july30-31-unverified:87329c08-5af8-41de-9928-a13fbe754ed9",
+          "member_id": "87329c08-5af8-41de-9928-a13fbe754ed9",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 40.08,
+          "points_balance_after": null,
+          "available_points_after": 40.08,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "5a4bb72d-2576-4ba4-ac87-f445c606c84e",
+          "code": "BDAY2026-4593",
+          "status": "expired",
+          "createdAt": "2026-07-28T00:02:16.884591",
+          "redeemedAt": null
+        }
+      ]
+    },
+    {
+      "memberId": "a1758c09-de7f-43aa-b8bf-4e4b06bab552",
+      "customerCode": "JUJA2026000836",
+      "customerName": "Grachell E. Danao-Cura",
+      "currentPointsBalance": 153.92,
+      "currentAvailablePoints": 53.92,
+      "currentVisits": 21,
+      "currentSpent": 3848,
+      "periodAwardTotal": 6.76,
+      "lifetimeCurrentOrderAwardTotal": 17.48,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "858c5500-4b3b-4430-92aa-89a0e37a6369",
+          "receipt": "D8976065",
+          "paidAt": "2026-07-30T14:56:52.049+08:00",
+          "status": "paid",
+          "total": 169,
+          "refundAmount": 0,
+          "points": 6.76,
+          "event": {
+            "id": 613,
+            "member_id": "a1758c09-de7f-43aa-b8bf-4e4b06bab552",
+            "source_type": "order",
+            "source_id": "858c5500-4b3b-4430-92aa-89a0e37a6369",
+            "receipt_number": "D8976065",
+            "points_awarded": 6.76,
+            "sale_total": 169,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-30T14:57:19.585335+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 3,
+        "live": 0,
+        "backfilled": 3
+      },
+      "repairs": [
+        {
+          "id": "5cf80152-9757-48c2-805b-358ee79120b3",
+          "repair_key": "july30-31-missing-available:858c5500-4b3b-4430-92aa-89a0e37a6369",
+          "member_id": "a1758c09-de7f-43aa-b8bf-4e4b06bab552",
+          "points_balance_delta": 0,
+          "available_points_delta": 6.76,
+          "points_balance_before": 153.92,
+          "available_points_before": 53.92,
+          "points_balance_after": 153.92,
+          "available_points_after": 60.68,
+          "reason": "Receipt D8976065 earned 6.76 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "8acbdb5c-0544-4b4f-9783-babb1f274d11",
+          "repair_key": "rollback-july30-31-unverified:a1758c09-de7f-43aa-b8bf-4e4b06bab552",
+          "member_id": "a1758c09-de7f-43aa-b8bf-4e4b06bab552",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 53.92,
+          "points_balance_after": null,
+          "available_points_after": 53.92,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "0b594837-ff4c-40d5-a30d-709d4eac47cb",
+          "code": "WELCOME-7446",
+          "status": "active",
+          "createdAt": "2026-07-23T10:20:06.127074",
+          "redeemedAt": null
+        },
+        {
+          "id": "7f5cbed6-67a1-4b4c-94f1-41ef27d8fe4a",
+          "code": "BDAY2026-5950",
+          "status": "expired",
+          "createdAt": "2026-07-28T00:03:02.29279",
+          "redeemedAt": null
+        }
+      ]
+    },
+    {
+      "memberId": "4f64206d-b667-49d7-b6b0-02ea69f0ad4c",
+      "customerCode": "JUJA2025000515",
+      "customerName": "Irene Siblang",
+      "currentPointsBalance": 632.48,
+      "currentAvailablePoints": 53.8,
+      "currentVisits": 136,
+      "currentSpent": 15812,
+      "periodAwardTotal": 10.32,
+      "lifetimeCurrentOrderAwardTotal": 33.4,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "1dfcb109-f34e-48cb-96c4-480bf5d259de",
+          "receipt": "P8659193",
+          "paidAt": "2026-07-30T18:49:31.181+08:00",
+          "status": "paid",
+          "total": 119,
+          "refundAmount": 0,
+          "points": 4.76,
+          "event": {
+            "id": 616,
+            "member_id": "4f64206d-b667-49d7-b6b0-02ea69f0ad4c",
+            "source_type": "order",
+            "source_id": "1dfcb109-f34e-48cb-96c4-480bf5d259de",
+            "receipt_number": "P8659193",
+            "points_awarded": 4.76,
+            "sale_total": 119,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-30T18:49:33.550931+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        },
+        {
+          "source": "order",
+          "id": "c1760e07-2012-4370-85bb-fece994caef0",
+          "receipt": "P7915314",
+          "paidAt": "2026-07-31T19:35:08.877+08:00",
+          "status": "paid",
+          "total": 139,
+          "refundAmount": 0,
+          "points": 5.56,
+          "event": {
+            "id": 592,
+            "member_id": "4f64206d-b667-49d7-b6b0-02ea69f0ad4c",
+            "source_type": "order",
+            "source_id": "c1760e07-2012-4370-85bb-fece994caef0",
+            "receipt_number": "P7915314",
+            "points_awarded": 5.56,
+            "sale_total": 139,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-31T19:35:11.71208+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 5,
+        "live": 0,
+        "backfilled": 5
+      },
+      "repairs": [
+        {
+          "id": "985a4bbe-1535-4356-b673-ac8bae32e87b",
+          "repair_key": "july30-31-missing-available:1dfcb109-f34e-48cb-96c4-480bf5d259de",
+          "member_id": "4f64206d-b667-49d7-b6b0-02ea69f0ad4c",
+          "points_balance_delta": 0,
+          "available_points_delta": 4.76,
+          "points_balance_before": 632.48,
+          "available_points_before": 49.04,
+          "points_balance_after": 632.48,
+          "available_points_after": 53.8,
+          "reason": "Receipt P8659193 earned 4.76 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "1c621a9c-ea97-4752-adff-f074464bf092",
+          "repair_key": "july30-31-missing-available:c1760e07-2012-4370-85bb-fece994caef0",
+          "member_id": "4f64206d-b667-49d7-b6b0-02ea69f0ad4c",
+          "points_balance_delta": 0,
+          "available_points_delta": 5.56,
+          "points_balance_before": 632.48,
+          "available_points_before": 53.8,
+          "points_balance_after": 632.48,
+          "available_points_after": 59.36,
+          "reason": "Receipt P7915314 earned 5.56 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "2cc32e2b-0364-4560-8997-b6fbf70cca55",
+          "repair_key": "rollback-july30-31-unverified:4f64206d-b667-49d7-b6b0-02ea69f0ad4c",
+          "member_id": "4f64206d-b667-49d7-b6b0-02ea69f0ad4c",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 53.8,
+          "points_balance_after": null,
+          "available_points_after": 53.8,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "9f3746a0-a64f-462a-88c9-6432bf479103",
+          "code": "PTS100-1-7022CB96",
+          "status": "active",
+          "createdAt": "2026-06-30T00:13:08.632123",
+          "redeemedAt": null
+        }
+      ]
+    },
+    {
+      "memberId": "ece03576-d467-4289-9a10-3a1079cf1836",
+      "customerCode": "JUJA2025000028",
+      "customerName": "James Rudolph Javier",
+      "currentPointsBalance": 2903.78,
+      "currentAvailablePoints": 60.74,
+      "currentVisits": 484,
+      "currentSpent": 72703,
+      "periodAwardTotal": 17.8,
+      "lifetimeCurrentOrderAwardTotal": 248.12,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "f0bb8337-bde4-4a9f-ba7b-3ddd80daae04",
+          "receipt": "P0420269",
+          "paidAt": "2026-07-30T19:41:05.184+08:00",
+          "status": "paid",
+          "total": 222.4,
+          "refundAmount": 0,
+          "points": 8.9,
+          "event": {
+            "id": 314,
+            "member_id": "ece03576-d467-4289-9a10-3a1079cf1836",
+            "source_type": "order",
+            "source_id": "f0bb8337-bde4-4a9f-ba7b-3ddd80daae04",
+            "receipt_number": "P0420269",
+            "points_awarded": 8.9,
+            "sale_total": 222.4,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-30T19:41:07.355032+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        },
+        {
+          "source": "order",
+          "id": "1be42ada-f4af-4e3b-891a-a8cf86bcd065",
+          "receipt": "P8871077",
+          "paidAt": "2026-07-31T19:18:02.898+08:00",
+          "status": "paid",
+          "total": 222.4,
+          "refundAmount": 0,
+          "points": 8.9,
+          "event": {
+            "id": 589,
+            "member_id": "ece03576-d467-4289-9a10-3a1079cf1836",
+            "source_type": "order",
+            "source_id": "1be42ada-f4af-4e3b-891a-a8cf86bcd065",
+            "receipt_number": "P8871077",
+            "points_awarded": 8.9,
+            "sale_total": 222.4,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-31T19:18:05.663296+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 34,
+        "live": 0,
+        "backfilled": 34
+      },
+      "repairs": [
+        {
+          "id": "e17b5734-29e0-4781-aa39-5b10f982199d",
+          "repair_key": "july30-31-missing-available:f0bb8337-bde4-4a9f-ba7b-3ddd80daae04",
+          "member_id": "ece03576-d467-4289-9a10-3a1079cf1836",
+          "points_balance_delta": 0,
+          "available_points_delta": 8.9,
+          "points_balance_before": 2903.78,
+          "available_points_before": 51.84,
+          "points_balance_after": 2903.78,
+          "available_points_after": 60.74,
+          "reason": "Receipt P0420269 earned 8.90 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "0294d636-a54f-4b8d-9a73-00d3a0b3d1b9",
+          "repair_key": "july30-31-missing-available:1be42ada-f4af-4e3b-891a-a8cf86bcd065",
+          "member_id": "ece03576-d467-4289-9a10-3a1079cf1836",
+          "points_balance_delta": 0,
+          "available_points_delta": 8.9,
+          "points_balance_before": 2903.78,
+          "available_points_before": 60.74,
+          "points_balance_after": 2903.78,
+          "available_points_after": 69.64,
+          "reason": "Receipt P8871077 earned 8.90 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "19a9c3b9-3de6-40ce-8dee-e911c563a527",
+          "repair_key": "rollback-july30-31-unverified:ece03576-d467-4289-9a10-3a1079cf1836",
+          "member_id": "ece03576-d467-4289-9a10-3a1079cf1836",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 60.74,
+          "points_balance_after": null,
+          "available_points_after": 60.74,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "a24f9266-56dc-48ff-92dd-6c61e6993588",
+          "code": "PTS100-2-0633202E",
+          "status": "redeemed",
+          "createdAt": "2026-06-30T00:13:08.632123",
+          "redeemedAt": "2026-07-25T11:41:52.831"
+        },
+        {
+          "id": "26a799e8-c008-4c9a-934b-56331b7c0398",
+          "code": "PTS100-3-EE464F31",
+          "status": "active",
+          "createdAt": "2026-06-30T00:13:08.632123",
+          "redeemedAt": null
+        },
+        {
+          "id": "9ab97fd1-f8e4-46bd-8db2-ac95d668c835",
+          "code": "PTS100-1-FD2AC477",
+          "status": "redeemed",
+          "createdAt": "2026-06-30T00:13:08.632123",
+          "redeemedAt": "2026-07-01T13:30:58.686"
+        },
+        {
+          "id": "a2a1100a-d482-47e2-80a5-a0c6ede04339",
+          "code": "WELCOME-9671",
+          "status": "redeemed",
+          "createdAt": "2026-07-09T22:42:11.647149",
+          "redeemedAt": "2026-07-24T11:36:57.423"
+        },
+        {
+          "id": "233edb76-5107-43be-ab74-e6fed1b5f3cb",
+          "code": "PTS100-5-6B48CD65",
+          "status": "redeemed",
+          "createdAt": "2026-07-13T14:38:47.365411",
+          "redeemedAt": "2026-07-13T11:43:20.565"
+        },
+        {
+          "id": "d45eb189-750b-4678-94d4-a5df604c85b5",
+          "code": "PTS100-6-C7E604F1",
+          "status": "active",
+          "createdAt": "2026-07-25T19:41:54.599279",
+          "redeemedAt": null
+        },
+        {
+          "id": "0f070b2c-1109-44dd-802c-26aba4f6e4e7",
+          "code": "BDAY2026-7081",
+          "status": "redeemed",
+          "createdAt": "2026-07-28T00:01:59.243748",
+          "redeemedAt": "2026-07-27T16:28:04.173"
+        }
+      ]
+    },
+    {
+      "memberId": "b1e2567a-8e23-4306-82c1-6dba1f4bb59f",
+      "customerCode": "JUJA2025000633",
+      "customerName": "Jazzerick Morales",
+      "currentPointsBalance": 81.24,
+      "currentAvailablePoints": 56.28,
+      "currentVisits": 8,
+      "currentSpent": 2031,
+      "periodAwardTotal": 17.32,
+      "lifetimeCurrentOrderAwardTotal": 17.32,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "eb7a2ffe-ba1f-42e4-bb02-5b99d2c587a4",
+          "receipt": "P7980433",
+          "paidAt": "2026-07-30T20:39:12.848+08:00",
+          "status": "paid",
+          "total": 433,
+          "refundAmount": 0,
+          "points": 17.32,
+          "event": {
+            "id": 430,
+            "member_id": "b1e2567a-8e23-4306-82c1-6dba1f4bb59f",
+            "source_type": "order",
+            "source_id": "eb7a2ffe-ba1f-42e4-bb02-5b99d2c587a4",
+            "receipt_number": "P7980433",
+            "points_awarded": 17.32,
+            "sale_total": 433,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-30T20:39:15.201175+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 1,
+        "live": 0,
+        "backfilled": 1
+      },
+      "repairs": [
+        {
+          "id": "a9ff3e92-5b77-4315-83c1-61ac22c29545",
+          "repair_key": "july30-31-missing-available:eb7a2ffe-ba1f-42e4-bb02-5b99d2c587a4",
+          "member_id": "b1e2567a-8e23-4306-82c1-6dba1f4bb59f",
+          "points_balance_delta": 0,
+          "available_points_delta": 17.32,
+          "points_balance_before": 81.24,
+          "available_points_before": 56.28,
+          "points_balance_after": 81.24,
+          "available_points_after": 73.6,
+          "reason": "Receipt P7980433 earned 17.32 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "d94be8c7-5fe4-4d86-9cce-728e4eea4f4c",
+          "repair_key": "rollback-july30-31-unverified:b1e2567a-8e23-4306-82c1-6dba1f4bb59f",
+          "member_id": "b1e2567a-8e23-4306-82c1-6dba1f4bb59f",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 56.28,
+          "points_balance_after": null,
+          "available_points_after": 56.28,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "6907b5a9-4d47-45a0-ae63-3e3de7da559c",
+          "code": "BDAY2026-4642",
+          "status": "expired",
+          "createdAt": "2026-07-28T00:02:42.657102",
+          "redeemedAt": null
+        }
+      ]
+    },
+    {
+      "memberId": "93fe1807-3ba8-4d30-82b5-ae18a4586262",
+      "customerCode": "JUJA2025000012",
+      "customerName": "Jeffrey Espinosa",
+      "currentPointsBalance": 39.54,
+      "currentAvailablePoints": 2.85,
+      "currentVisits": 45,
+      "currentSpent": 988.4,
+      "periodAwardTotal": 2.85,
+      "lifetimeCurrentOrderAwardTotal": 2.85,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "5154321d-39b4-4306-b035-5973dfc67a76",
+          "receipt": "P4413778",
+          "paidAt": "2026-07-30T15:48:25.814+08:00",
+          "status": "paid",
+          "total": 71.2,
+          "refundAmount": 0,
+          "points": 2.85,
+          "event": {
+            "id": 614,
+            "member_id": "93fe1807-3ba8-4d30-82b5-ae18a4586262",
+            "source_type": "order",
+            "source_id": "5154321d-39b4-4306-b035-5973dfc67a76",
+            "receipt_number": "P4413778",
+            "points_awarded": 2.85,
+            "sale_total": 71.2,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-30T15:48:27.826465+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 1,
+        "live": 0,
+        "backfilled": 1
+      },
+      "repairs": [
+        {
+          "id": "21110ab3-6f95-4e74-9fb3-f63a912c111a",
+          "repair_key": "july30-31-missing-available:5154321d-39b4-4306-b035-5973dfc67a76",
+          "member_id": "93fe1807-3ba8-4d30-82b5-ae18a4586262",
+          "points_balance_delta": 0,
+          "available_points_delta": 2.85,
+          "points_balance_before": 39.54,
+          "available_points_before": 2.85,
+          "points_balance_after": 39.54,
+          "available_points_after": 5.7,
+          "reason": "Receipt P4413778 earned 2.85 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "16e368a7-7273-446c-bd42-71cc6808bcc6",
+          "repair_key": "rollback-july30-31-unverified:93fe1807-3ba8-4d30-82b5-ae18a4586262",
+          "member_id": "93fe1807-3ba8-4d30-82b5-ae18a4586262",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 2.85,
+          "points_balance_after": null,
+          "available_points_after": 2.85,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": []
+    },
+    {
+      "memberId": "242ad48d-8cf1-48b0-838d-fef91f9e614f",
+      "customerCode": "JUJA2026000855",
+      "customerName": "Jerome M. Bautista",
+      "currentPointsBalance": 104.52,
+      "currentAvailablePoints": 4.52,
+      "currentVisits": 11,
+      "currentSpent": 2613,
+      "periodAwardTotal": 28.96,
+      "lifetimeCurrentOrderAwardTotal": 72.4,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "fbe32808-7108-4e5b-a9a6-c723c2439b83",
+          "receipt": "D1392386",
+          "paidAt": "2026-07-31T11:31:19.391+08:00",
+          "status": "paid",
+          "total": 248,
+          "refundAmount": 0,
+          "points": 9.92,
+          "event": {
+            "id": 501,
+            "member_id": "242ad48d-8cf1-48b0-838d-fef91f9e614f",
+            "source_type": "order",
+            "source_id": "fbe32808-7108-4e5b-a9a6-c723c2439b83",
+            "receipt_number": "D1392386",
+            "points_awarded": 9.92,
+            "sale_total": 248,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-31T11:31:49.388249+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        },
+        {
+          "source": "order",
+          "id": "ef468c5e-f575-4d81-b9b3-c089744de267",
+          "receipt": "D4525791",
+          "paidAt": "2026-07-31T11:46:48.76+08:00",
+          "status": "paid",
+          "total": 476,
+          "refundAmount": 0,
+          "points": 19.04,
+          "event": {
+            "id": 517,
+            "member_id": "242ad48d-8cf1-48b0-838d-fef91f9e614f",
+            "source_type": "order",
+            "source_id": "ef468c5e-f575-4d81-b9b3-c089744de267",
+            "receipt_number": "D4525791",
+            "points_awarded": 19.04,
+            "sale_total": 476,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-31T11:47:20.286252+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 7,
+        "live": 0,
+        "backfilled": 7
+      },
+      "repairs": [
+        {
+          "id": "0f3fda17-5abc-4f3a-ae96-c5237ef9ac06",
+          "repair_key": "july30-31-missing-available:fbe32808-7108-4e5b-a9a6-c723c2439b83",
+          "member_id": "242ad48d-8cf1-48b0-838d-fef91f9e614f",
+          "points_balance_delta": 0,
+          "available_points_delta": 9.92,
+          "points_balance_before": 104.52,
+          "available_points_before": 4.52,
+          "points_balance_after": 104.52,
+          "available_points_after": 14.44,
+          "reason": "Receipt D1392386 earned 9.92 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "6d5d15d1-3231-4901-833c-5cf16b8fcdd7",
+          "repair_key": "july30-31-missing-available:ef468c5e-f575-4d81-b9b3-c089744de267",
+          "member_id": "242ad48d-8cf1-48b0-838d-fef91f9e614f",
+          "points_balance_delta": 0,
+          "available_points_delta": 19.04,
+          "points_balance_before": 104.52,
+          "available_points_before": 14.44,
+          "points_balance_after": 104.52,
+          "available_points_after": 33.48,
+          "reason": "Receipt D4525791 earned 19.04 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "0cb2b126-f927-4b5a-9d95-d033db256ce4",
+          "repair_key": "rollback-july30-31-unverified:242ad48d-8cf1-48b0-838d-fef91f9e614f",
+          "member_id": "242ad48d-8cf1-48b0-838d-fef91f9e614f",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 4.52,
+          "points_balance_after": null,
+          "available_points_after": 4.52,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "a700731d-363b-4702-b5be-2554ab5e5b29",
+          "code": "WELCOME-8353",
+          "status": "expired",
+          "createdAt": "2026-07-01T11:34:48.707927",
+          "redeemedAt": null
+        },
+        {
+          "id": "71545c2d-2f35-4fca-8a2d-4f65f18338e8",
+          "code": "PTS100-2-F1828F59",
+          "status": "active",
+          "createdAt": "2026-07-31T11:47:20.286252",
+          "redeemedAt": null
+        }
+      ]
+    },
+    {
+      "memberId": "4e62962d-004b-437d-afb2-39abb08b0d62",
+      "customerCode": "JUJA2026000858",
+      "customerName": "Jessica Corpili",
+      "currentPointsBalance": 63.85,
+      "currentAvailablePoints": 72.97,
+      "currentVisits": 9,
+      "currentSpent": 1596.2,
+      "periodAwardTotal": 13.48,
+      "lifetimeCurrentOrderAwardTotal": 44.05,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "a50735c2-3900-472d-87ef-d2e6c8a04357",
+          "receipt": "D9251357",
+          "paidAt": "2026-07-30T18:57:05.053+08:00",
+          "status": "paid",
+          "total": 228,
+          "refundAmount": 0,
+          "points": 9.12,
+          "event": {
+            "id": 620,
+            "member_id": "4e62962d-004b-437d-afb2-39abb08b0d62",
+            "source_type": "order",
+            "source_id": "a50735c2-3900-472d-87ef-d2e6c8a04357",
+            "receipt_number": "D9251357",
+            "points_awarded": 9.12,
+            "sale_total": 228,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-30T18:57:33.676293+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        },
+        {
+          "source": "order",
+          "id": "3cbfd062-ad9d-455a-ab17-ac4703b9170f",
+          "receipt": "D5231494",
+          "paidAt": "2026-07-30T19:11:51.729+08:00",
+          "status": "paid",
+          "total": 109,
+          "refundAmount": 0,
+          "points": 4.36,
+          "event": {
+            "id": 617,
+            "member_id": "4e62962d-004b-437d-afb2-39abb08b0d62",
+            "source_type": "order",
+            "source_id": "3cbfd062-ad9d-455a-ab17-ac4703b9170f",
+            "receipt_number": "D5231494",
+            "points_awarded": 4.36,
+            "sale_total": 109,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-30T19:12:19.913446+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 7,
+        "live": 0,
+        "backfilled": 7
+      },
+      "repairs": [
+        {
+          "id": "3e13f2ac-de50-4eb1-a7a3-f5ad14ea84c5",
+          "repair_key": "july30-31-missing-available:a50735c2-3900-472d-87ef-d2e6c8a04357",
+          "member_id": "4e62962d-004b-437d-afb2-39abb08b0d62",
+          "points_balance_delta": 0,
+          "available_points_delta": 9.12,
+          "points_balance_before": 63.85,
+          "available_points_before": 63.85,
+          "points_balance_after": 63.85,
+          "available_points_after": 72.97,
+          "reason": "Receipt D9251357 earned 9.12 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "11cfe1cf-bff8-4cad-a1e0-90f099d1a7b8",
+          "repair_key": "july30-31-missing-available:3cbfd062-ad9d-455a-ab17-ac4703b9170f",
+          "member_id": "4e62962d-004b-437d-afb2-39abb08b0d62",
+          "points_balance_delta": 0,
+          "available_points_delta": 4.36,
+          "points_balance_before": 63.85,
+          "available_points_before": 72.97,
+          "points_balance_after": 63.85,
+          "available_points_after": 77.33,
+          "reason": "Receipt D5231494 earned 4.36 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "3615e5fa-ec0e-42c9-af08-e49438d6db0c",
+          "repair_key": "rollback-july30-31-unverified:4e62962d-004b-437d-afb2-39abb08b0d62",
+          "member_id": "4e62962d-004b-437d-afb2-39abb08b0d62",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 72.97,
+          "points_balance_after": null,
+          "available_points_after": 72.97,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "ee2d2a3e-eefc-46c8-b744-4d1e5f40910d",
+          "code": "BDAY2026-9614",
+          "status": "expired",
+          "createdAt": "2026-07-28T00:03:04.812065",
+          "redeemedAt": null
+        }
+      ]
+    },
+    {
+      "memberId": "b4e4ae5e-cb99-46f3-bc3f-7c5f03862ab1",
+      "customerCode": "JUJA2025000162",
+      "customerName": "Joana Foronda",
+      "currentPointsBalance": 1075.94,
+      "currentAvailablePoints": 63.16,
+      "currentVisits": 77,
+      "currentSpent": 26898.4,
+      "periodAwardTotal": 17.88,
+      "lifetimeCurrentOrderAwardTotal": 143.44,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "fc527416-7982-45c4-a8a5-07b1da9ecddf",
+          "receipt": "P0703915",
+          "paidAt": "2026-07-30T17:22:18.937+08:00",
+          "status": "paid",
+          "total": 149,
+          "refundAmount": 0,
+          "points": 5.96,
+          "event": {
+            "id": 471,
+            "member_id": "b4e4ae5e-cb99-46f3-bc3f-7c5f03862ab1",
+            "source_type": "order",
+            "source_id": "fc527416-7982-45c4-a8a5-07b1da9ecddf",
+            "receipt_number": "P0703915",
+            "points_awarded": 5.96,
+            "sale_total": 149,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-30T17:22:21.115236+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        },
+        {
+          "source": "order",
+          "id": "4987e619-d01c-4541-9f2d-7bd5ced01d34",
+          "receipt": "P8881489",
+          "paidAt": "2026-07-30T17:24:22.68+08:00",
+          "status": "paid",
+          "total": 20,
+          "refundAmount": 0,
+          "points": 0.8,
+          "event": {
+            "id": 618,
+            "member_id": "b4e4ae5e-cb99-46f3-bc3f-7c5f03862ab1",
+            "source_type": "order",
+            "source_id": "4987e619-d01c-4541-9f2d-7bd5ced01d34",
+            "receipt_number": "P8881489",
+            "points_awarded": 0.8,
+            "sale_total": 20,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-30T17:24:27.038899+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        },
+        {
+          "source": "order",
+          "id": "1bf92a30-98bf-4864-b378-27136953ea01",
+          "receipt": "P7358179",
+          "paidAt": "2026-07-31T16:57:24.399+08:00",
+          "status": "paid",
+          "total": 278,
+          "refundAmount": 0,
+          "points": 11.12,
+          "event": {
+            "id": 558,
+            "member_id": "b4e4ae5e-cb99-46f3-bc3f-7c5f03862ab1",
+            "source_type": "order",
+            "source_id": "1bf92a30-98bf-4864-b378-27136953ea01",
+            "receipt_number": "P7358179",
+            "points_awarded": 11.12,
+            "sale_total": 278,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-31T16:57:27.688074+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 13,
+        "live": 0,
+        "backfilled": 13
+      },
+      "repairs": [
+        {
+          "id": "1cd2fe5e-459a-45bd-aef9-92cb509b1223",
+          "repair_key": "july30-31-missing-available:fc527416-7982-45c4-a8a5-07b1da9ecddf",
+          "member_id": "b4e4ae5e-cb99-46f3-bc3f-7c5f03862ab1",
+          "points_balance_delta": 0,
+          "available_points_delta": 5.96,
+          "points_balance_before": 1075.94,
+          "available_points_before": 63.16,
+          "points_balance_after": 1075.94,
+          "available_points_after": 69.12,
+          "reason": "Receipt P0703915 earned 5.96 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "b0288d2b-387c-4d07-beae-0e27750dd2d3",
+          "repair_key": "july30-31-missing-available:4987e619-d01c-4541-9f2d-7bd5ced01d34",
+          "member_id": "b4e4ae5e-cb99-46f3-bc3f-7c5f03862ab1",
+          "points_balance_delta": 0,
+          "available_points_delta": 0.8,
+          "points_balance_before": 1075.94,
+          "available_points_before": 69.12,
+          "points_balance_after": 1075.94,
+          "available_points_after": 69.92,
+          "reason": "Receipt P8881489 earned 0.80 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "a94354a5-ae66-4938-be70-05123f5f6e47",
+          "repair_key": "july30-31-missing-available:1bf92a30-98bf-4864-b378-27136953ea01",
+          "member_id": "b4e4ae5e-cb99-46f3-bc3f-7c5f03862ab1",
+          "points_balance_delta": 0,
+          "available_points_delta": 11.12,
+          "points_balance_before": 1075.94,
+          "available_points_before": 69.92,
+          "points_balance_after": 1075.94,
+          "available_points_after": 81.04,
+          "reason": "Receipt P7358179 earned 11.12 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "5392b84a-d9cd-4590-bf09-6ff5b7fbec09",
+          "repair_key": "rollback-july30-31-unverified:b4e4ae5e-cb99-46f3-bc3f-7c5f03862ab1",
+          "member_id": "b4e4ae5e-cb99-46f3-bc3f-7c5f03862ab1",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 63.16,
+          "points_balance_after": null,
+          "available_points_after": 63.16,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "f61fecee-d181-4057-811a-db3ed7597665",
+          "code": "PTS100-2-337B9E32",
+          "status": "redeemed",
+          "createdAt": "2026-06-30T00:13:08.632123",
+          "redeemedAt": "2026-07-24T07:51:08.71"
+        },
+        {
+          "id": "53519fed-3715-4f1d-bb39-083cb2fe3165",
+          "code": "PTS100-1-1BB9514F",
+          "status": "redeemed",
+          "createdAt": "2026-06-30T00:13:08.632123",
+          "redeemedAt": "2026-07-30T09:24:24.831"
+        },
+        {
+          "id": "6059fec9-c9b2-4704-876b-282d1908ac4a",
+          "code": "WELCOME-7964",
+          "status": "redeemed",
+          "createdAt": "2026-07-11T14:05:51.134499",
+          "redeemedAt": "2026-07-20T09:13:51.009"
+        },
+        {
+          "id": "f86d9328-bfb3-4b21-aa54-38d9e5726aad",
+          "code": "PTS100-4-43BB46D7",
+          "status": "redeemed",
+          "createdAt": "2026-07-20T19:12:57.914082",
+          "redeemedAt": "2026-07-25T11:14:41.7"
+        }
+      ]
+    },
+    {
+      "memberId": "8cd49ee5-e78b-47f3-9ee2-f65eaf708943",
+      "customerCode": "JUJA2025000070",
+      "customerName": "John Sargento",
+      "currentPointsBalance": 990.78,
+      "currentAvailablePoints": 69.77,
+      "currentVisits": 33,
+      "currentSpent": 24769.6,
+      "periodAwardTotal": 4.36,
+      "lifetimeCurrentOrderAwardTotal": 40.96,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "2637eb5a-795c-464f-b1c5-b268e42a249b",
+          "receipt": "P9874269",
+          "paidAt": "2026-07-31T17:11:37.504+08:00",
+          "status": "paid",
+          "total": 109,
+          "refundAmount": 0,
+          "points": 4.36,
+          "event": {
+            "id": 564,
+            "member_id": "8cd49ee5-e78b-47f3-9ee2-f65eaf708943",
+            "source_type": "order",
+            "source_id": "2637eb5a-795c-464f-b1c5-b268e42a249b",
+            "receipt_number": "P9874269",
+            "points_awarded": 4.36,
+            "sale_total": 109,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-31T17:11:40.275786+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 3,
+        "live": 0,
+        "backfilled": 3
+      },
+      "repairs": [
+        {
+          "id": "17113f1a-f5a3-44eb-a54c-b79cd010bed5",
+          "repair_key": "july30-31-missing-available:2637eb5a-795c-464f-b1c5-b268e42a249b",
+          "member_id": "8cd49ee5-e78b-47f3-9ee2-f65eaf708943",
+          "points_balance_delta": 0,
+          "available_points_delta": 4.36,
+          "points_balance_before": 990.78,
+          "available_points_before": 69.77,
+          "points_balance_after": 990.78,
+          "available_points_after": 74.13,
+          "reason": "Receipt P9874269 earned 4.36 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "c621a093-a9d5-4564-baa3-176d55e92a8d",
+          "repair_key": "rollback-july30-31-unverified:8cd49ee5-e78b-47f3-9ee2-f65eaf708943",
+          "member_id": "8cd49ee5-e78b-47f3-9ee2-f65eaf708943",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 69.77,
+          "points_balance_after": null,
+          "available_points_after": 69.77,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "a2852caf-0bd2-4b7c-95db-40e6967e20a8",
+          "code": "PTS100-1-02297FCB",
+          "status": "redeemed",
+          "createdAt": "2026-06-30T00:13:08.632123",
+          "redeemedAt": "2026-07-23T05:17:37.44"
+        },
+        {
+          "id": "c1f1f345-d8fb-4815-accd-5db47c666bf4",
+          "code": "PTS100-2-9A24346E",
+          "status": "redeemed",
+          "createdAt": "2026-06-30T00:13:08.632123",
+          "redeemedAt": "2026-07-28T11:05:44.54"
+        },
+        {
+          "id": "7f4f6dff-8d15-4bcd-afe2-df72398a4911",
+          "code": "WELCOME-5773",
+          "status": "redeemed",
+          "createdAt": "2026-07-23T13:05:23.825688",
+          "redeemedAt": "2026-07-27T16:29:57.52"
+        },
+        {
+          "id": "760cb629-c865-4594-a7ca-1eb09351a660",
+          "code": "BDAY2026-8935",
+          "status": "expired",
+          "createdAt": "2026-07-28T00:02:02.353618",
+          "redeemedAt": null
+        }
+      ]
+    },
+    {
+      "memberId": "82711287-dbca-43c2-a858-7e3bc9379879",
+      "customerCode": "JUJA2026000874",
+      "customerName": "Leizel Dela Cruz",
+      "currentPointsBalance": 53.96,
+      "currentAvailablePoints": 53.96,
+      "currentVisits": 5,
+      "currentSpent": 1349,
+      "periodAwardTotal": 21.04,
+      "lifetimeCurrentOrderAwardTotal": 53.96,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "6a92825c-9728-4e17-8232-84dc47999cc4",
+          "receipt": "P2631742",
+          "paidAt": "2026-07-30T19:22:16.048+08:00",
+          "status": "paid",
+          "total": 526,
+          "refundAmount": 0,
+          "points": 21.04,
+          "event": {
+            "id": 298,
+            "member_id": "82711287-dbca-43c2-a858-7e3bc9379879",
+            "source_type": "order",
+            "source_id": "6a92825c-9728-4e17-8232-84dc47999cc4",
+            "receipt_number": "P2631742",
+            "points_awarded": 21.04,
+            "sale_total": 526,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-30T19:22:18.234469+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 5,
+        "live": 0,
+        "backfilled": 5
+      },
+      "repairs": [
+        {
+          "id": "b22b9389-4480-4293-9832-b3cc8a65292a",
+          "repair_key": "july30-31-missing-available:6a92825c-9728-4e17-8232-84dc47999cc4",
+          "member_id": "82711287-dbca-43c2-a858-7e3bc9379879",
+          "points_balance_delta": 0,
+          "available_points_delta": 21.04,
+          "points_balance_before": 53.96,
+          "available_points_before": 53.96,
+          "points_balance_after": 53.96,
+          "available_points_after": 75,
+          "reason": "Receipt P2631742 earned 21.04 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "0f7d8f80-6544-4a0d-b6f8-4f4beb3d6237",
+          "repair_key": "rollback-july30-31-unverified:82711287-dbca-43c2-a858-7e3bc9379879",
+          "member_id": "82711287-dbca-43c2-a858-7e3bc9379879",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 53.96,
+          "points_balance_after": null,
+          "available_points_after": 53.96,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "b2ac5e50-bf5e-4c29-abc6-249ae74abecb",
+          "code": "WELCOME-2100",
+          "status": "active",
+          "createdAt": "2026-07-24T19:24:04.250642",
+          "redeemedAt": null
+        }
+      ]
+    },
+    {
+      "memberId": "ebdf4484-0e52-4c21-a39a-dfab74132e95",
+      "customerCode": "JUJA2026001069",
+      "customerName": "Lolita De Guzman",
+      "currentPointsBalance": 13.66,
+      "currentAvailablePoints": 13.66,
+      "currentVisits": 1,
+      "currentSpent": 341.6,
+      "periodAwardTotal": 13.66,
+      "lifetimeCurrentOrderAwardTotal": 13.66,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "fc86e03d-2d45-403f-891e-950c041a9659",
+          "receipt": "P8342255",
+          "paidAt": "2026-07-31T16:43:43.692+08:00",
+          "status": "paid",
+          "total": 341.6,
+          "refundAmount": 0,
+          "points": 13.66,
+          "event": {
+            "id": 538,
+            "member_id": "ebdf4484-0e52-4c21-a39a-dfab74132e95",
+            "source_type": "order",
+            "source_id": "fc86e03d-2d45-403f-891e-950c041a9659",
+            "receipt_number": "P8342255",
+            "points_awarded": 13.66,
+            "sale_total": 341.6,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-31T16:43:46.423937+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 1,
+        "live": 0,
+        "backfilled": 1
+      },
+      "repairs": [
+        {
+          "id": "fc3d2b73-98b1-47e0-9f20-f2a81a811f2b",
+          "repair_key": "july30-31-missing-available:fc86e03d-2d45-403f-891e-950c041a9659",
+          "member_id": "ebdf4484-0e52-4c21-a39a-dfab74132e95",
+          "points_balance_delta": 0,
+          "available_points_delta": 13.66,
+          "points_balance_before": 13.66,
+          "available_points_before": 13.66,
+          "points_balance_after": 13.66,
+          "available_points_after": 27.32,
+          "reason": "Receipt P8342255 earned 13.66 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "f8fc5195-0b77-4674-b87f-04f84f18012e",
+          "repair_key": "rollback-july30-31-unverified:ebdf4484-0e52-4c21-a39a-dfab74132e95",
+          "member_id": "ebdf4484-0e52-4c21-a39a-dfab74132e95",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 13.66,
+          "points_balance_after": null,
+          "available_points_after": 13.66,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "03b27e80-28d8-4b24-87ec-93713866e8be",
+          "code": "WELCOME-1284",
+          "status": "active",
+          "createdAt": "2026-07-19T16:29:31.116179",
+          "redeemedAt": null
+        },
+        {
+          "id": "8916cd28-80b4-4d43-b596-896d2aeb26d8",
+          "code": "BDAY2026-9394",
+          "status": "redeemed",
+          "createdAt": "2026-07-31T17:07:28.348503",
+          "redeemedAt": "2026-07-31T11:25:20.775"
+        }
+      ]
+    },
+    {
+      "memberId": "cfa1e309-0779-454e-9835-0b53a235c19e",
+      "customerCode": "JUJA2025000049",
+      "customerName": "Ma. Velez Liwag",
+      "currentPointsBalance": 423.18,
+      "currentAvailablePoints": 59.5,
+      "currentVisits": 43,
+      "currentSpent": 10579.4,
+      "periodAwardTotal": 13.02,
+      "lifetimeCurrentOrderAwardTotal": 34.63,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "d081fd50-a8b1-4c34-b04d-76be84a5944d",
+          "receipt": "P2510421",
+          "paidAt": "2026-07-31T17:17:50.779+08:00",
+          "status": "paid",
+          "total": 325.6,
+          "refundAmount": 0,
+          "points": 13.02,
+          "event": {
+            "id": 567,
+            "member_id": "cfa1e309-0779-454e-9835-0b53a235c19e",
+            "source_type": "order",
+            "source_id": "d081fd50-a8b1-4c34-b04d-76be84a5944d",
+            "receipt_number": "P2510421",
+            "points_awarded": 13.02,
+            "sale_total": 325.6,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-31T17:17:56.987185+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 4,
+        "live": 0,
+        "backfilled": 4
+      },
+      "repairs": [
+        {
+          "id": "a497d5c8-3ef9-4a97-99c8-4da31a49fa76",
+          "repair_key": "july30-31-missing-available:d081fd50-a8b1-4c34-b04d-76be84a5944d",
+          "member_id": "cfa1e309-0779-454e-9835-0b53a235c19e",
+          "points_balance_delta": 0,
+          "available_points_delta": 13.02,
+          "points_balance_before": 423.18,
+          "available_points_before": 59.5,
+          "points_balance_after": 423.18,
+          "available_points_after": 72.52,
+          "reason": "Receipt P2510421 earned 13.02 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "f8e59715-b961-4468-b026-a929f789820a",
+          "repair_key": "rollback-july30-31-unverified:cfa1e309-0779-454e-9835-0b53a235c19e",
+          "member_id": "cfa1e309-0779-454e-9835-0b53a235c19e",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 59.5,
+          "points_balance_after": null,
+          "available_points_after": 59.5,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "9aa94d23-6c61-4ff8-97bc-18e4864025a5",
+          "code": "PTS100-1-6DFA19CB",
+          "status": "redeemed",
+          "createdAt": "2026-06-30T00:13:08.632123",
+          "redeemedAt": "2026-07-31T09:17:53.527"
+        }
+      ]
+    },
+    {
+      "memberId": "ff12a9ec-db86-4c63-9efa-bfabf6be17c3",
+      "customerCode": "JUJA2026000834",
+      "customerName": "Maricris T. Reyes",
+      "currentPointsBalance": 189.91,
+      "currentAvailablePoints": 89.93,
+      "currentVisits": 27,
+      "currentSpent": 4747.6,
+      "periodAwardTotal": 10.49,
+      "lifetimeCurrentOrderAwardTotal": 53.31,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "071035f1-c56b-47bd-aaa0-8529527a631e",
+          "receipt": "D0318627",
+          "paidAt": "2026-07-30T14:10:00.183+08:00",
+          "status": "paid",
+          "total": 262.2,
+          "refundAmount": 0,
+          "points": 10.49,
+          "event": {
+            "id": 612,
+            "member_id": "ff12a9ec-db86-4c63-9efa-bfabf6be17c3",
+            "source_type": "order",
+            "source_id": "071035f1-c56b-47bd-aaa0-8529527a631e",
+            "receipt_number": "D0318627",
+            "points_awarded": 10.49,
+            "sale_total": 262.2,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-30T14:10:28.785636+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 7,
+        "live": 0,
+        "backfilled": 7
+      },
+      "repairs": [
+        {
+          "id": "7104b81a-051c-45f8-b8c3-373cf3ea6429",
+          "repair_key": "july30-31-missing-available:071035f1-c56b-47bd-aaa0-8529527a631e",
+          "member_id": "ff12a9ec-db86-4c63-9efa-bfabf6be17c3",
+          "points_balance_delta": 0,
+          "available_points_delta": 10.49,
+          "points_balance_before": 189.91,
+          "available_points_before": 89.93,
+          "points_balance_after": 189.91,
+          "available_points_after": 100.42,
+          "reason": "Receipt D0318627 earned 10.49 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "152b5d73-e886-4e05-a31d-af1525ac095a",
+          "repair_key": "rollback-july30-31-unverified:ff12a9ec-db86-4c63-9efa-bfabf6be17c3",
+          "member_id": "ff12a9ec-db86-4c63-9efa-bfabf6be17c3",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 89.93,
+          "points_balance_after": null,
+          "available_points_after": 89.93,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "9faca1a4-4a83-4d40-b11c-729266dbd725",
+          "code": "BDAY2026-6264",
+          "status": "expired",
+          "createdAt": "2026-07-28T00:03:01.279523",
+          "redeemedAt": null
+        }
+      ]
+    },
+    {
+      "memberId": "e86e368e-7159-4194-a7d0-5c63b16ef29c",
+      "customerCode": "JUJA2025000010",
+      "customerName": "Maryjo Flores",
+      "currentPointsBalance": 891.84,
+      "currentAvailablePoints": 86.12,
+      "currentVisits": 49,
+      "currentSpent": 22295.8,
+      "periodAwardTotal": 16.02,
+      "lifetimeCurrentOrderAwardTotal": 40.89,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "43daa921-f4ad-4820-a66f-cf3c46ba5295",
+          "receipt": "P2848876",
+          "paidAt": "2026-07-31T17:45:44.01+08:00",
+          "status": "paid",
+          "total": 400.4,
+          "refundAmount": 0,
+          "points": 16.02,
+          "event": {
+            "id": 575,
+            "member_id": "e86e368e-7159-4194-a7d0-5c63b16ef29c",
+            "source_type": "order",
+            "source_id": "43daa921-f4ad-4820-a66f-cf3c46ba5295",
+            "receipt_number": "P2848876",
+            "points_awarded": 16.02,
+            "sale_total": 400.4,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-31T17:45:47.029443+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 4,
+        "live": 0,
+        "backfilled": 4
+      },
+      "repairs": [
+        {
+          "id": "69bec004-9e40-488a-8177-baea857bcab1",
+          "repair_key": "july30-31-missing-available:43daa921-f4ad-4820-a66f-cf3c46ba5295",
+          "member_id": "e86e368e-7159-4194-a7d0-5c63b16ef29c",
+          "points_balance_delta": 0,
+          "available_points_delta": 16.02,
+          "points_balance_before": 891.84,
+          "available_points_before": 86.12,
+          "points_balance_after": 891.84,
+          "available_points_after": 102.14,
+          "reason": "Receipt P2848876 earned 16.02 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "b95298b2-a6ec-4d87-81e1-5bb65584e389",
+          "repair_key": "rollback-july30-31-unverified:e86e368e-7159-4194-a7d0-5c63b16ef29c",
+          "member_id": "e86e368e-7159-4194-a7d0-5c63b16ef29c",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 86.12,
+          "points_balance_after": null,
+          "available_points_after": 86.12,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "1b18506a-8389-4255-a03e-7cc6416d58b9",
+          "code": "PTS100-1-BF4C3F10",
+          "status": "active",
+          "createdAt": "2026-06-30T00:13:08.632123",
+          "redeemedAt": null
+        },
+        {
+          "id": "37a809f8-6d72-481c-a1f6-785005269084",
+          "code": "PTS100-2-B04FA5D9",
+          "status": "active",
+          "createdAt": "2026-06-30T00:13:08.632123",
+          "redeemedAt": null
+        }
+      ]
+    },
+    {
+      "memberId": "f6a57a33-7ea6-42b2-ac65-457b4952755d",
+      "customerCode": "JUJA2025000287",
+      "customerName": "Merasol Mijares",
+      "currentPointsBalance": 293.32,
+      "currentAvailablePoints": 20.92,
+      "currentVisits": 25,
+      "currentSpent": 7333,
+      "periodAwardTotal": 16.28,
+      "lifetimeCurrentOrderAwardTotal": 34,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "bbd67b8f-b3fe-43eb-beaf-513b5298fdd9",
+          "receipt": "P7999753",
+          "paidAt": "2026-07-30T12:28:34.546+08:00",
+          "status": "paid",
+          "total": 407,
+          "refundAmount": 0,
+          "points": 16.28,
+          "event": {
+            "id": 610,
+            "member_id": "f6a57a33-7ea6-42b2-ac65-457b4952755d",
+            "source_type": "order",
+            "source_id": "bbd67b8f-b3fe-43eb-beaf-513b5298fdd9",
+            "receipt_number": "P7999753",
+            "points_awarded": 16.28,
+            "sale_total": 407,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-30T12:28:37.261845+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 3,
+        "live": 0,
+        "backfilled": 3
+      },
+      "repairs": [
+        {
+          "id": "8dff5235-3fe4-4565-9702-46188d24347a",
+          "repair_key": "july30-31-missing-available:bbd67b8f-b3fe-43eb-beaf-513b5298fdd9",
+          "member_id": "f6a57a33-7ea6-42b2-ac65-457b4952755d",
+          "points_balance_delta": 0,
+          "available_points_delta": 16.28,
+          "points_balance_before": 293.32,
+          "available_points_before": 20.92,
+          "points_balance_after": 293.32,
+          "available_points_after": 37.2,
+          "reason": "Receipt P7999753 earned 16.28 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "8da30abf-f772-4b40-9dd5-a7493d7809bc",
+          "repair_key": "rollback-july30-31-unverified:f6a57a33-7ea6-42b2-ac65-457b4952755d",
+          "member_id": "f6a57a33-7ea6-42b2-ac65-457b4952755d",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 20.92,
+          "points_balance_after": null,
+          "available_points_after": 20.92,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "f052f5ce-3634-4578-b95b-f1520e241adb",
+          "code": "PTS100-2-0B2CC3CC",
+          "status": "active",
+          "createdAt": "2026-07-16T15:07:00.45932",
+          "redeemedAt": null
+        }
+      ]
+    },
+    {
+      "memberId": "491a58d5-c6d2-4e45-9a41-9202888065c9",
+      "customerCode": "JUJA2026001064",
+      "customerName": "REYMOND CALALANG",
+      "currentPointsBalance": 41.72,
+      "currentAvailablePoints": 41.72,
+      "currentVisits": 7,
+      "currentSpent": 1043,
+      "periodAwardTotal": 5.96,
+      "lifetimeCurrentOrderAwardTotal": 29.8,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "4a1f12e4-922a-4e57-a04b-3ddafba93e56",
+          "receipt": "D8039858",
+          "paidAt": "2026-07-31T10:42:45.489+08:00",
+          "status": "paid",
+          "total": 149,
+          "refundAmount": 0,
+          "points": 5.96,
+          "event": {
+            "id": 500,
+            "member_id": "491a58d5-c6d2-4e45-9a41-9202888065c9",
+            "source_type": "order",
+            "source_id": "4a1f12e4-922a-4e57-a04b-3ddafba93e56",
+            "receipt_number": "D8039858",
+            "points_awarded": 5.96,
+            "sale_total": 149,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-31T10:43:18.903891+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 7,
+        "live": 0,
+        "backfilled": 7
+      },
+      "repairs": [
+        {
+          "id": "5cfdc44f-57ad-488f-84af-eaef97a33512",
+          "repair_key": "july30-31-missing-available:4a1f12e4-922a-4e57-a04b-3ddafba93e56",
+          "member_id": "491a58d5-c6d2-4e45-9a41-9202888065c9",
+          "points_balance_delta": 0,
+          "available_points_delta": 5.96,
+          "points_balance_before": 41.72,
+          "available_points_before": 41.72,
+          "points_balance_after": 41.72,
+          "available_points_after": 47.68,
+          "reason": "Receipt D8039858 earned 5.96 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "e83ca56c-c17e-431d-9ade-98e60aec0ce8",
+          "repair_key": "rollback-july30-31-unverified:491a58d5-c6d2-4e45-9a41-9202888065c9",
+          "member_id": "491a58d5-c6d2-4e45-9a41-9202888065c9",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 41.72,
+          "points_balance_after": null,
+          "available_points_after": 41.72,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "080bbc99-8523-4e3e-adc3-5d664fe0242d",
+          "code": "WELCOME-8564",
+          "status": "expired",
+          "createdAt": "2026-07-13T11:13:31.236098",
+          "redeemedAt": null
+        }
+      ]
+    },
+    {
+      "memberId": "50ae46df-b149-40f9-bf50-3eb348468cd6",
+      "customerCode": "JUJA2025000461",
+      "customerName": "Reynaline Mahinay",
+      "currentPointsBalance": 432.56,
+      "currentAvailablePoints": 94.4,
+      "currentVisits": 33,
+      "currentSpent": 10814,
+      "periodAwardTotal": 22.64,
+      "lifetimeCurrentOrderAwardTotal": 154.36,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "39538b35-40e5-4f92-bf7c-5eae9f6db3d1",
+          "receipt": "P5803330",
+          "paidAt": "2026-07-30T23:54:46.533+08:00",
+          "status": "paid",
+          "total": 566,
+          "refundAmount": 0,
+          "points": 22.64,
+          "event": {
+            "id": 472,
+            "member_id": "50ae46df-b149-40f9-bf50-3eb348468cd6",
+            "source_type": "order",
+            "source_id": "39538b35-40e5-4f92-bf7c-5eae9f6db3d1",
+            "receipt_number": "P5803330",
+            "points_awarded": 22.64,
+            "sale_total": 566,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-30T23:54:52.562324+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 12,
+        "live": 0,
+        "backfilled": 12
+      },
+      "repairs": [
+        {
+          "id": "69660383-1345-483a-884b-e1466aab5824",
+          "repair_key": "july30-31-missing-available:39538b35-40e5-4f92-bf7c-5eae9f6db3d1",
+          "member_id": "50ae46df-b149-40f9-bf50-3eb348468cd6",
+          "points_balance_delta": 0,
+          "available_points_delta": 22.64,
+          "points_balance_before": 432.56,
+          "available_points_before": 94.4,
+          "points_balance_after": 432.56,
+          "available_points_after": 117.04,
+          "reason": "Receipt P5803330 earned 22.64 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "46193c7c-dfe6-4a4f-982f-4549076a8bf4",
+          "repair_key": "rollback-july30-31-unverified:50ae46df-b149-40f9-bf50-3eb348468cd6",
+          "member_id": "50ae46df-b149-40f9-bf50-3eb348468cd6",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 94.4,
+          "points_balance_after": null,
+          "available_points_after": 94.4,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "9f6b1ec3-73aa-40df-a7b5-c7a72316853d",
+          "code": "PTS100-1-0096F49A",
+          "status": "active",
+          "createdAt": "2026-06-30T00:13:08.632123",
+          "redeemedAt": null
+        },
+        {
+          "id": "c18aee13-b5b5-42e5-a2d1-da7e188ba2ae",
+          "code": "PTS100-3-93F0DD52",
+          "status": "active",
+          "createdAt": "2026-07-15T18:40:16.365231",
+          "redeemedAt": null
+        },
+        {
+          "id": "a1302055-bf58-43cd-80dd-8c778ce5c097",
+          "code": "BDAY2026-4424",
+          "status": "expired",
+          "createdAt": "2026-07-28T00:02:03.311816",
+          "redeemedAt": null
+        }
+      ]
+    },
+    {
+      "memberId": "89230b96-4893-4721-986d-a8de007ae182",
+      "customerCode": "JUJA2025000089",
+      "customerName": "Rossenie De La Torre",
+      "currentPointsBalance": 335.48,
+      "currentAvailablePoints": 91.2,
+      "currentVisits": 20,
+      "currentSpent": 8546,
+      "periodAwardTotal": 14.72,
+      "lifetimeCurrentOrderAwardTotal": 83.72,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "b87e1f35-3ba0-4b5b-8281-55129c097328",
+          "receipt": "P0335264",
+          "paidAt": "2026-07-31T20:23:34.916+08:00",
+          "status": "paid",
+          "total": 368,
+          "refundAmount": 0,
+          "points": 14.72,
+          "event": {
+            "id": 602,
+            "member_id": "89230b96-4893-4721-986d-a8de007ae182",
+            "source_type": "order",
+            "source_id": "b87e1f35-3ba0-4b5b-8281-55129c097328",
+            "receipt_number": "P0335264",
+            "points_awarded": 14.72,
+            "sale_total": 368,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-31T20:23:37.123604+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 5,
+        "live": 0,
+        "backfilled": 5
+      },
+      "repairs": [
+        {
+          "id": "f0df30ff-e69e-4924-a720-337724799d08",
+          "repair_key": "rossenie-p0335264-missing-available-award",
+          "member_id": "89230b96-4893-4721-986d-a8de007ae182",
+          "points_balance_delta": 0,
+          "available_points_delta": 14.72,
+          "points_balance_before": 335.48,
+          "available_points_before": 76.48,
+          "points_balance_after": 335.48,
+          "available_points_after": 91.2,
+          "reason": "Receipt P0335264 earned 14.72 points, but Available points remained at the P7049879 balance.",
+          "created_at": "2026-08-01T11:54:08.404749+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "45a91df6-341c-44eb-aef6-ae0a67be82a9",
+          "code": "PTS100-1-D2AF5D2A",
+          "status": "redeemed",
+          "createdAt": "2026-06-30T00:13:08.632123",
+          "redeemedAt": "2026-07-03T12:45:23.568"
+        },
+        {
+          "id": "c089574e-177f-4609-8611-8a6462067281",
+          "code": "WELCOME-1393",
+          "status": "redeemed",
+          "createdAt": "2026-07-10T22:22:13.084448",
+          "redeemedAt": "2026-07-24T12:49:14.603"
+        }
+      ]
+    },
+    {
+      "memberId": "0c299cf9-1167-4165-bf21-0b24b3f5fb1b",
+      "customerCode": "JUJA2025000166",
+      "customerName": "Victoria Uy",
+      "currentPointsBalance": 310.32,
+      "currentAvailablePoints": 49.92,
+      "currentVisits": 27,
+      "currentSpent": 7758,
+      "periodAwardTotal": 5.16,
+      "lifetimeCurrentOrderAwardTotal": 53.6,
+      "periodOrders": [
+        {
+          "source": "order",
+          "id": "b0f4a96f-a2b7-474c-b549-bb35c8424ea3",
+          "receipt": "P1028344",
+          "paidAt": "2026-07-31T17:01:53.844+08:00",
+          "status": "paid",
+          "total": 129,
+          "refundAmount": 0,
+          "points": 5.16,
+          "event": {
+            "id": 560,
+            "member_id": "0c299cf9-1167-4165-bf21-0b24b3f5fb1b",
+            "source_type": "order",
+            "source_id": "b0f4a96f-a2b7-474c-b549-bb35c8424ea3",
+            "receipt_number": "P1028344",
+            "points_awarded": 5.16,
+            "sale_total": 129,
+            "points_balance_after": null,
+            "available_points_after": null,
+            "awarded_at": "2026-07-31T17:01:56.809236+08:00",
+            "metadata": {
+              "backfilled": true
+            }
+          }
+        }
+      ],
+      "periodWebOrders": [],
+      "eventSummary": {
+        "total": 6,
+        "live": 0,
+        "backfilled": 6
+      },
+      "repairs": [
+        {
+          "id": "c387ffb8-35a0-4934-adc1-57599ce420fb",
+          "repair_key": "july30-31-missing-available:b0f4a96f-a2b7-474c-b549-bb35c8424ea3",
+          "member_id": "0c299cf9-1167-4165-bf21-0b24b3f5fb1b",
+          "points_balance_delta": 0,
+          "available_points_delta": 5.16,
+          "points_balance_before": 310.32,
+          "available_points_before": 49.92,
+          "points_balance_after": 310.32,
+          "available_points_after": 55.08,
+          "reason": "Receipt P1028344 earned 5.16 points, but the award was not added to Available points.",
+          "created_at": "2026-08-01T12:30:28.594233+08:00"
+        },
+        {
+          "id": "678ff05f-b6de-498d-9974-13fd82f76627",
+          "repair_key": "rollback-july30-31-unverified:0c299cf9-1167-4165-bf21-0b24b3f5fb1b",
+          "member_id": "0c299cf9-1167-4165-bf21-0b24b3f5fb1b",
+          "points_balance_delta": 0,
+          "available_points_delta": 0,
+          "points_balance_before": null,
+          "available_points_before": 49.92,
+          "points_balance_after": null,
+          "available_points_after": 49.92,
+          "reason": "Restored pre-repair Available points after member-level verification found false positives",
+          "created_at": "2026-08-01T13:02:05.48759+08:00"
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "122c3a06-e6da-4528-8367-c8551ec735af",
+          "code": "PTS100-1-3D590C25",
+          "status": "redeemed",
+          "createdAt": "2026-07-02T10:12:45.098718",
+          "redeemedAt": "2026-07-09T08:44:32.208"
+        },
+        {
+          "id": "63032d17-26ca-40cc-89d8-4407112b0a37",
+          "code": "BDAY2026-4398",
+          "status": "expired",
+          "createdAt": "2026-07-28T00:02:08.569502",
+          "redeemedAt": null
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,581 @@
+{
+  "generatedAt": "2026-08-01T06:32:36.720Z",
+  "reports": [
+    {
+      "member": {
+        "id": "ece03576-d467-4289-9a10-3a1079cf1836",
+        "userId": "b91ae253-d78e-456b-923e-5548adc64828",
+        "name": "James Rudolph Javier",
+        "code": "JUJA2025000028",
+        "pointsBalance": 2903.78,
+        "availablePoints": 60.74,
+        "totalSpent": 72703,
+        "visits": 484,
+        "firstVisit": "5/5/25 7:00 PM",
+        "lastVisit": "2026-07-31 19:18:05.663296+08"
+      },
+      "receiptMarkedPointTotal": 248.12,
+      "receipts": [
+        {
+          "source": "POS",
+          "id": "68b23293-7c49-4e0f-af38-7cbd7bbffdc4",
+          "receipt": "P4278725",
+          "date": "2026-06-28T19:35:31.69+08:00",
+          "status": "paid",
+          "total": 130,
+          "pointsPrintedOrMarked": 0,
+          "pointsAwardedAt": null,
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "6379aa70-a4d0-43b0-b43f-5ef07c0824d7",
+          "receipt": "P8432097",
+          "date": "2026-06-29T19:23:47.91+08:00",
+          "status": "paid",
+          "total": 215.2,
+          "pointsPrintedOrMarked": 8.61,
+          "pointsAwardedAt": "2026-06-29T19:23:49.671+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "ccaca31d-9a7d-4134-9bed-3c04662d4fde",
+          "receipt": "P2264909",
+          "date": "2026-06-30T19:38:22.888+08:00",
+          "status": "paid",
+          "total": 211.2,
+          "pointsPrintedOrMarked": 8.45,
+          "pointsAwardedAt": "2026-06-30T19:38:24.365+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "047ff7d4-8f87-4465-97fa-8130b8bd7225",
+          "receipt": "P1865696",
+          "date": "2026-07-01T19:10:52.447+08:00",
+          "status": "paid",
+          "total": 215.2,
+          "pointsPrintedOrMarked": 8.61,
+          "pointsAwardedAt": "2026-07-01T19:10:53.417+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "983b1874-9de0-4170-b051-f2b37c39379e",
+          "receipt": "P5108127",
+          "date": "2026-07-01T21:30:54.89+08:00",
+          "status": "paid",
+          "total": 0,
+          "pointsPrintedOrMarked": 0,
+          "pointsAwardedAt": null,
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "349166a1-1a18-4ef1-89b7-7bd93b69aa88",
+          "receipt": "P4669692",
+          "date": "2026-07-02T19:50:08.295+08:00",
+          "status": "paid",
+          "total": 104,
+          "pointsPrintedOrMarked": 4.16,
+          "pointsAwardedAt": "2026-07-02T19:50:09.899+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "b52ec436-d595-4dd8-9772-0c871dfa2294",
+          "receipt": "P7271114",
+          "date": "2026-07-02T23:32:33.447+08:00",
+          "status": "paid",
+          "total": 405,
+          "pointsPrintedOrMarked": 16.2,
+          "pointsAwardedAt": "2026-07-02T23:32:34.985+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "dbc9ed00-b46f-4acb-82f3-de9fef5b1f68",
+          "receipt": "P9963148",
+          "date": "2026-07-03T19:36:57.744+08:00",
+          "status": "paid",
+          "total": 104,
+          "pointsPrintedOrMarked": 4.16,
+          "pointsAwardedAt": "2026-07-03T19:36:59.233+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "dbbc9bf4-42f2-48f0-a3f4-5954760617b9",
+          "receipt": "P9764699",
+          "date": "2026-07-04T19:33:21.682+08:00",
+          "status": "paid",
+          "total": 215.2,
+          "pointsPrintedOrMarked": 8.61,
+          "pointsAwardedAt": "2026-07-04T19:33:23.473+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "e3827b92-8cc5-4b86-80e8-e2cf58f17d7e",
+          "receipt": "P2718434",
+          "date": "2026-07-05T19:20:25.179+08:00",
+          "status": "paid",
+          "total": 199.2,
+          "pointsPrintedOrMarked": 7.97,
+          "pointsAwardedAt": "2026-07-05T19:20:26.934+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "59dbda6a-babf-4e5d-9c2c-db6637bec6d9",
+          "receipt": "D5724959",
+          "date": "2026-07-07T17:26:51.665+08:00",
+          "status": "paid",
+          "total": 130,
+          "pointsPrintedOrMarked": 5.2,
+          "pointsAwardedAt": "2026-07-07T17:26:53.363+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "d2f0d039-7c00-4345-b3d5-455ab3b1e640",
+          "receipt": "P2590978",
+          "date": "2026-07-07T19:31:53.422+08:00",
+          "status": "paid",
+          "total": 199.2,
+          "pointsPrintedOrMarked": 7.97,
+          "pointsAwardedAt": "2026-07-07T19:31:54.658+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "baf7719c-911d-4175-a3a7-744ec1e02fe1",
+          "receipt": "P7227444",
+          "date": "2026-07-08T19:14:52.899+08:00",
+          "status": "paid",
+          "total": 183.2,
+          "pointsPrintedOrMarked": 7.33,
+          "pointsAwardedAt": "2026-07-08T19:14:54.946+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "db9e9713-7cdc-4e83-a6f0-f7e68d1e47bf",
+          "receipt": "P4067617",
+          "date": "2026-07-09T19:24:40.823+08:00",
+          "status": "paid",
+          "total": 203.2,
+          "pointsPrintedOrMarked": 8.13,
+          "pointsAwardedAt": "2026-07-09T19:24:42.731+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "98dfac48-0360-474f-a819-58cd88fc0abd",
+          "receipt": "P5895538",
+          "date": "2026-07-10T19:11:48.899+08:00",
+          "status": "paid",
+          "total": 183.2,
+          "pointsPrintedOrMarked": 7.33,
+          "pointsAwardedAt": "2026-07-13T14:38:47.365411+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "0fe1a5f3-718a-460f-b3e9-0486f9467a3e",
+          "receipt": "P3520386",
+          "date": "2026-07-11T19:10:53.413+08:00",
+          "status": "paid",
+          "total": 104,
+          "pointsPrintedOrMarked": 4.16,
+          "pointsAwardedAt": "2026-07-13T14:38:49.686582+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "ec058b1d-69b9-4a26-a877-74151a52635e",
+          "receipt": "P0109353",
+          "date": "2026-07-12T19:03:16.7+08:00",
+          "status": "paid",
+          "total": 183.2,
+          "pointsPrintedOrMarked": 7.33,
+          "pointsAwardedAt": "2026-07-13T14:38:51.042811+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "1b8f698c-74a4-4b83-ad38-82aa2c4edf18",
+          "receipt": "P6798328",
+          "date": "2026-07-13T19:26:32.775+08:00",
+          "status": "paid",
+          "total": 104,
+          "pointsPrintedOrMarked": 4.16,
+          "pointsAwardedAt": "2026-07-13T19:26:34.209+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "b4199151-d319-4821-85e5-8d5c8bd25178",
+          "receipt": "P9235954",
+          "date": "2026-07-13T19:43:16.842+08:00",
+          "status": "paid",
+          "total": 0,
+          "pointsPrintedOrMarked": 0,
+          "pointsAwardedAt": null,
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "b013c6ba-81a8-4950-9c3c-9e103c16ef3c",
+          "receipt": "P9234274",
+          "date": "2026-07-14T19:43:57.371+08:00",
+          "status": "paid",
+          "total": 199.2,
+          "pointsPrintedOrMarked": 7.97,
+          "pointsAwardedAt": "2026-07-14T19:44:00.892285+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "db37a3f9-568a-470c-a652-30bba62466ea",
+          "receipt": "P1181989",
+          "date": "2026-07-15T19:41:23.506+08:00",
+          "status": "paid",
+          "total": 215.2,
+          "pointsPrintedOrMarked": 8.61,
+          "pointsAwardedAt": "2026-07-15T19:41:25.298598+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "e80cd423-9e10-4d91-b564-43d83dc0e8f4",
+          "receipt": "P0785134",
+          "date": "2026-07-16T19:46:36.128+08:00",
+          "status": "paid",
+          "total": 104,
+          "pointsPrintedOrMarked": 4.16,
+          "pointsAwardedAt": "2026-07-16T19:46:38.255614+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "7a3c43b4-9fab-4a0a-8375-2b16b97dfd7b",
+          "receipt": "P1664332",
+          "date": "2026-07-17T11:39:52.197+08:00",
+          "status": "paid",
+          "total": 207.2,
+          "pointsPrintedOrMarked": 8.29,
+          "pointsAwardedAt": "2026-07-17T11:39:54.605026+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "ade552dd-993f-4b62-b094-d27ca9e0ea2f",
+          "receipt": "P2905481",
+          "date": "2026-07-18T19:07:07.068+08:00",
+          "status": "paid",
+          "total": 111.2,
+          "pointsPrintedOrMarked": 4.45,
+          "pointsAwardedAt": "2026-07-18T19:07:09.528028+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "8a57023d-52e2-4ca4-9ab0-b0836263b8a0",
+          "receipt": "P1864646",
+          "date": "2026-07-19T19:24:43.002+08:00",
+          "status": "paid",
+          "total": 111.2,
+          "pointsPrintedOrMarked": 4.45,
+          "pointsAwardedAt": "2026-07-19T19:24:45.825243+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "895665d2-a8a5-4c53-9f85-629f15c330f1",
+          "receipt": "P0616507",
+          "date": "2026-07-20T19:20:44.622+08:00",
+          "status": "paid",
+          "total": 206.4,
+          "pointsPrintedOrMarked": 8.26,
+          "pointsAwardedAt": "2026-07-20T19:20:47.88888+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "6fb3505a-a6e8-4e21-923e-b5d0e67ece05",
+          "receipt": "P2698273",
+          "date": "2026-07-21T19:13:41.257+08:00",
+          "status": "paid",
+          "total": 199.2,
+          "pointsPrintedOrMarked": 7.97,
+          "pointsAwardedAt": "2026-07-21T19:13:44.332465+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "82884d16-ff70-42e8-bf68-cf6be2e46ae9",
+          "receipt": "P5062279",
+          "date": "2026-07-22T19:30:59.077+08:00",
+          "status": "paid",
+          "total": 215.2,
+          "pointsPrintedOrMarked": 8.61,
+          "pointsAwardedAt": "2026-07-22T19:31:07.46125+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "985b212a-dd1e-45b1-8dd8-b41d7334d1b1",
+          "receipt": "P8648183",
+          "date": "2026-07-23T19:35:56.922+08:00",
+          "status": "paid",
+          "total": 211.2,
+          "pointsPrintedOrMarked": 8.45,
+          "pointsAwardedAt": "2026-07-23T19:36:00.168555+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "382f0c32-6cc7-4ec6-af5b-a3930f323886",
+          "receipt": "P9389578",
+          "date": "2026-07-24T19:36:52.918+08:00",
+          "status": "paid",
+          "total": 130,
+          "pointsPrintedOrMarked": 0.8,
+          "pointsAwardedAt": "2026-07-24T19:36:59.742677+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "f14bbab7-c98a-43f6-ac08-b66ab51b696b",
+          "receipt": "P2651459",
+          "date": "2026-07-25T19:41:50.914+08:00",
+          "status": "paid",
+          "total": 199.2,
+          "pointsPrintedOrMarked": 7.97,
+          "pointsAwardedAt": "2026-07-25T19:41:54.599279+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "c0e596a6-0729-42d7-9f65-ebb5f50d3c1e",
+          "receipt": "P4119781",
+          "date": "2026-07-26T19:43:55.805+08:00",
+          "status": "paid",
+          "total": 222.4,
+          "pointsPrintedOrMarked": 8.9,
+          "pointsAwardedAt": "2026-07-26T19:43:58.684359+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "57de6b9b-2a1c-4626-b226-40bc4fc32373",
+          "receipt": "P3487769",
+          "date": "2026-07-27T19:21:38.094+08:00",
+          "status": "paid",
+          "total": 131.2,
+          "pointsPrintedOrMarked": 5.25,
+          "pointsAwardedAt": "2026-07-27T19:21:40.698353+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "b27b5e25-cdc4-4b86-a810-6599385143a1",
+          "receipt": "P3540753",
+          "date": "2026-07-28T19:35:19.315+08:00",
+          "status": "paid",
+          "total": 222.4,
+          "pointsPrintedOrMarked": 8.9,
+          "pointsAwardedAt": "2026-07-28T19:35:21.356915+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "79a62106-5fac-4fd9-8ecd-10fa806e1f87",
+          "receipt": "P1544969",
+          "date": "2026-07-29T19:41:40.18+08:00",
+          "status": "paid",
+          "total": 222.4,
+          "pointsPrintedOrMarked": 8.9,
+          "pointsAwardedAt": "2026-07-29T19:41:42.83537+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "f0bb8337-bde4-4a9f-ba7b-3ddd80daae04",
+          "receipt": "P0420269",
+          "date": "2026-07-30T19:41:05.184+08:00",
+          "status": "paid",
+          "total": 222.4,
+          "pointsPrintedOrMarked": 8.9,
+          "pointsAwardedAt": "2026-07-30T19:41:07.355032+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "1be42ada-f4af-4e3b-891a-a8cf86bcd065",
+          "receipt": "P8871077",
+          "date": "2026-07-31T19:18:02.898+08:00",
+          "status": "paid",
+          "total": 222.4,
+          "pointsPrintedOrMarked": 8.9,
+          "pointsAwardedAt": "2026-07-31T19:18:05.663296+08:00",
+          "sourceWebOrderId": null
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "a24f9266-56dc-48ff-92dd-6c61e6993588",
+          "code": "PTS100-2-0633202E",
+          "status": "redeemed",
+          "createdAt": "2026-06-30T00:13:08.632123",
+          "redeemedAt": "2026-07-25T11:41:52.831"
+        },
+        {
+          "id": "26a799e8-c008-4c9a-934b-56331b7c0398",
+          "code": "PTS100-3-EE464F31",
+          "status": "active",
+          "createdAt": "2026-06-30T00:13:08.632123",
+          "redeemedAt": null
+        },
+        {
+          "id": "9ab97fd1-f8e4-46bd-8db2-ac95d668c835",
+          "code": "PTS100-1-FD2AC477",
+          "status": "redeemed",
+          "createdAt": "2026-06-30T00:13:08.632123",
+          "redeemedAt": "2026-07-01T13:30:58.686"
+        },
+        {
+          "id": "233edb76-5107-43be-ab74-e6fed1b5f3cb",
+          "code": "PTS100-5-6B48CD65",
+          "status": "redeemed",
+          "createdAt": "2026-07-13T14:38:47.365411",
+          "redeemedAt": "2026-07-13T11:43:20.565"
+        },
+        {
+          "id": "a2a1100a-d482-47e2-80a5-a0c6ede04339",
+          "code": "WELCOME-9671",
+          "status": "redeemed",
+          "createdAt": "2026-07-09T22:42:11.647149",
+          "redeemedAt": "2026-07-24T11:36:57.423"
+        },
+        {
+          "id": "0f070b2c-1109-44dd-802c-26aba4f6e4e7",
+          "code": "BDAY2026-7081",
+          "status": "redeemed",
+          "createdAt": "2026-07-28T00:01:59.243748",
+          "redeemedAt": "2026-07-27T16:28:04.173"
+        },
+        {
+          "id": "d45eb189-750b-4678-94d4-a5df604c85b5",
+          "code": "PTS100-6-C7E604F1",
+          "status": "active",
+          "createdAt": "2026-07-25T19:41:54.599279",
+          "redeemedAt": null
+        }
+      ],
+      "pointTransactions": []
+    },
+    {
+      "member": {
+        "id": "89230b96-4893-4721-986d-a8de007ae182",
+        "userId": "316df1ab-a76c-4109-80ad-91801cc95a48",
+        "name": "Rossenie De La Torre",
+        "code": "JUJA2025000089",
+        "pointsBalance": 335.48,
+        "availablePoints": 91.2,
+        "totalSpent": 8546,
+        "visits": 20,
+        "firstVisit": "5/17/25 6:49 PM",
+        "lastVisit": "2026-07-31 20:23:37.123604+08"
+      },
+      "receiptMarkedPointTotal": 83.72,
+      "receipts": [
+        {
+          "source": "POS",
+          "id": "865515d3-9409-4649-8e7c-6fc6a867e754",
+          "receipt": "P7367505",
+          "date": "2026-07-03T20:45:19.327+08:00",
+          "status": "paid",
+          "total": 437,
+          "pointsPrintedOrMarked": 17.48,
+          "pointsAwardedAt": "2026-07-03T20:45:23.957+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "be785796-a08f-49a4-bf62-9b534953db6e",
+          "receipt": "P9509631",
+          "date": "2026-07-10T19:56:43.021+08:00",
+          "status": "paid",
+          "total": 462,
+          "pointsPrintedOrMarked": 18.48,
+          "pointsAwardedAt": "2026-07-10T19:56:44.986+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "2d4c21de-415c-4106-ba19-220ca60eb82c",
+          "receipt": "P3394555",
+          "date": "2026-07-17T20:31:00.635+08:00",
+          "status": "paid",
+          "total": 508,
+          "pointsPrintedOrMarked": 20.32,
+          "pointsAwardedAt": "2026-07-17T20:31:02.809013+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "f2f1855d-bb73-48e9-a490-dd4b46b7b6d4",
+          "receipt": "P7049879",
+          "date": "2026-07-24T20:49:09.097+08:00",
+          "status": "paid",
+          "total": 427,
+          "pointsPrintedOrMarked": 12.72,
+          "pointsAwardedAt": "2026-07-24T20:49:16.400526+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "95de34ac-b44c-40a9-9654-979e8d38625e",
+          "receipt": "P5487821",
+          "date": "2026-07-31T20:18:16.244+08:00",
+          "status": "refunded",
+          "total": 368,
+          "pointsPrintedOrMarked": 0,
+          "pointsAwardedAt": "2026-07-31T20:18:19.0005+08:00",
+          "sourceWebOrderId": null
+        },
+        {
+          "source": "POS",
+          "id": "b87e1f35-3ba0-4b5b-8281-55129c097328",
+          "receipt": "P0335264",
+          "date": "2026-07-31T20:23:34.916+08:00",
+          "status": "paid",
+          "total": 368,
+          "pointsPrintedOrMarked": 14.72,
+          "pointsAwardedAt": "2026-07-31T20:23:37.123604+08:00",
+          "sourceWebOrderId": null
+        }
+      ],
+      "vouchers": [
+        {
+          "id": "45a91df6-341c-44eb-aef6-ae0a67be82a9",
+          "code": "PTS100-1-D2AF5D2A",
+          "status": "redeemed",
+          "createdAt": "2026-06-30T00:13:08.632123",
+          "redeemedAt": "2026-07-03T12:45:23.568"
+        },
+        {
+          "id": "c089574e-177f-4609-8611-8a6462067281",
+          "code": "WELCOME-1393",
+          "status": "redeemed",
+          "createdAt": "2026-07-10T22:22:13.084448",
+          "redeemedAt": "2026-07-24T12:49:14.603"
+        }
+      ],
+      "pointTransactions": []
+    }
+  ]
+}

@@ -46,16 +46,10 @@ function isPromoCategoryName(categoryName) {
   return ["promo", "promos", "promotion", "promotions"].includes(normalized);
 }
 
-function isWelcomeVoucher(voucher) {
-  const text = normalizeText([
-    voucher?.code,
-    voucher?.reward_text,
-    voucher?.reward_type,
-    voucher?.description,
-    voucher?.title,
-    voucher?.type,
-  ].filter(Boolean).join(" "));
-  return text.includes("welcome") || text.includes("b1t1") || text.includes("buy 1 get 1");
+function hasAppliedVoucher(voucher) {
+  return Boolean(voucher && typeof voucher === "object" && (
+    voucher.id || voucher.code || voucher.reward_text || voucher.reward_type || voucher.title
+  ));
 }
 
 function lineNetAmount(line) {
@@ -64,13 +58,14 @@ function lineNetAmount(line) {
     return numberValue(explicitTotal);
   }
   const unitPrice = line?.price ?? line?.unit_price ?? line?.unitPrice ?? line?.basePrice ?? line?.selectedPrice;
-  return numberValue(unitPrice) * numberValue(line?.quantity || line?.qty || 1);
+  const gross = numberValue(unitPrice) * numberValue(line?.quantity || line?.qty || 1);
+  return Math.max(gross - numberValue(line?.discount_amount ?? line?.discountAmount), 0);
 }
 
 function lineEligibleAmount(line) {
   const category = line?.category_name || line?.categoryName || line?.category || "";
   if (isPromoCategoryName(category)) return 0;
-  if (isWelcomeVoucher(line?.appliedVoucher || line?.applied_voucher)) return 0;
+  if (hasAppliedVoucher(line?.appliedVoucher || line?.applied_voucher)) return 0;
   return lineNetAmount(line);
 }
 
@@ -79,7 +74,7 @@ function expectedPointsForOrder(order, items = []) {
   const orderTotal = numberValue(order.net_amount ?? order.total);
   const hasDetectableNonEarningLine = sourceItems.some((item) => {
     const category = item?.category_name || item?.categoryName || item?.category || "";
-    return isPromoCategoryName(category) || isWelcomeVoucher(item?.appliedVoucher || item?.applied_voucher);
+    return isPromoCategoryName(category) || hasAppliedVoucher(item?.appliedVoucher || item?.applied_voucher);
   });
   const computedEligible = sourceItems.reduce((sum, item) => sum + lineEligibleAmount(item), 0);
   const eligible = hasDetectableNonEarningLine ? computedEligible : orderTotal;
@@ -144,21 +139,33 @@ async function main() {
     itemsByOrder.get(key).push(item);
   }
 
-  const memberIds = new Set();
-  for (const row of [...orders, ...webOrders]) {
-    [row.customer_id, row.loyalty_member_id].filter(Boolean).forEach((id) => memberIds.add(String(id)));
-  }
-
   console.error("Loading loyalty members...");
-  const members = [];
-  for (const ids of chunk(Array.from(memberIds), 100)) {
-    members.push(...await fetchAll(() => supabase
-      .from("loyalty_members")
-      .select('id,customer_name,customer_code,"Phone","Available points","Points balance","Total spent","Total visits","First visit","Last visit"')
-      .in("id", ids)));
-  }
+  const members = await fetchAll(() => supabase
+    .from("loyalty_members")
+    .select('id,user_id,customer_name,customer_code,"Phone","Available points","Points balance","Total spent","Total visits","First visit","Last visit"'));
   console.error(`Loaded ${members.length} loyalty members.`);
   const memberById = new Map(members.map((member) => [String(member.id), member]));
+  const memberByUserId = new Map(members.filter((member) => member.user_id).map((member) => [String(member.user_id), member]));
+  const membersByName = new Map();
+  for (const member of members) {
+    const key = normalizeText(member.customer_name);
+    if (!key) continue;
+    if (!membersByName.has(key)) membersByName.set(key, []);
+    membersByName.get(key).push(member);
+  }
+
+  function resolveMember(row) {
+    const explicitId = row.loyalty_member_id || row.customer_id;
+    if (explicitId && memberById.has(String(explicitId))) {
+      return { member: memberById.get(String(explicitId)), match: "explicit_id" };
+    }
+    if (row.user_id && memberByUserId.has(String(row.user_id))) {
+      return { member: memberByUserId.get(String(row.user_id)), match: "user_id" };
+    }
+    const nameMatches = membersByName.get(normalizeText(row.customer_name)) || [];
+    if (nameMatches.length === 1) return { member: nameMatches[0], match: "unique_name" };
+    return { member: null, match: nameMatches.length > 1 ? "ambiguous_name" : "unmatched" };
+  }
 
   const orderByWebId = new Map();
   const orderByReceipt = new Map();
@@ -169,12 +176,19 @@ async function main() {
 
   const ledger = [];
   const duplicates = [];
+  const unresolvedNamedOrders = [];
 
   for (const order of orders) {
     const status = normalizeText(order.status);
     if (!ACTIVE_ORDER_STATUSES.has(status) || REFUND_STATUSES.has(status)) continue;
-    const memberId = order.loyalty_member_id || order.customer_id;
-    if (!memberId) continue;
+    const resolution = resolveMember(order);
+    const memberId = resolution.member?.id;
+    if (!memberId) {
+      if (normalizeText(order.customer_name) && normalizeText(order.customer_name) !== "walk-in") {
+        unresolvedNamedOrders.push({ source: "orders", receipt: order.receipt_number, customer: order.customer_name, date: order.paid_at || order.created_at, total: round2(order.net_amount ?? order.total), reason: resolution.match });
+      }
+      continue;
+    }
     const { eligibleTotal, points } = expectedPointsForOrder(order, itemsByOrder.get(String(order.id)) || []);
     ledger.push({
       source: "orders",
@@ -192,6 +206,7 @@ async function main() {
       expectedPoints: points,
       storedAwarded: round2(order.loyalty_points_awarded),
       awardedAt: order.loyalty_points_awarded_at || "",
+      memberMatch: resolution.match,
     });
   }
 
@@ -213,8 +228,14 @@ async function main() {
 
     const status = normalizeText(webOrder.status || webOrder.order_status);
     if (!ACTIVE_ORDER_STATUSES.has(status) || REFUND_STATUSES.has(status)) continue;
-    const memberId = webOrder.loyalty_member_id || webOrder.customer_id;
-    if (!memberId) continue;
+    const resolution = resolveMember(webOrder);
+    const memberId = resolution.member?.id;
+    if (!memberId) {
+      if (normalizeText(webOrder.customer_name) && normalizeText(webOrder.customer_name) !== "walk-in") {
+        unresolvedNamedOrders.push({ source: "web_orders", receipt: webOrder.receipt_number, customer: webOrder.customer_name, date: webOrder.completed_at || webOrder.created_at, total: round2(webOrder.total || webOrder.subtotal), reason: resolution.match });
+      }
+      continue;
+    }
     const { eligibleTotal, points } = expectedPointsForOrder(webOrder, []);
     ledger.push({
       source: "web_orders",
@@ -230,8 +251,9 @@ async function main() {
       total: round2(webOrder.total || webOrder.subtotal),
       eligibleTotal,
       expectedPoints: points,
-      storedAwarded: 0,
-      awardedAt: "",
+      storedAwarded: round2(webOrder.loyalty_points_awarded),
+      awardedAt: webOrder.loyalty_points_awarded_at || "",
+      memberMatch: resolution.match,
     });
   }
 
@@ -285,10 +307,12 @@ async function main() {
       duplicateWebOrderPairs: duplicates.length,
       missingOrWrongAwards: missingOrWrongAwards.length,
       affectedMembers: memberSummaries.length,
+      unresolvedNamedOrders: unresolvedNamedOrders.length,
     },
     duplicateWebOrderPairs: duplicates,
     missingOrWrongAwards,
     affectedMembers: memberSummaries,
+    unresolvedNamedOrders,
   };
 
   const outputPath = path.join(process.cwd(), "tmp", "loyalty_audit_june29_result.json");
@@ -326,6 +350,7 @@ async function main() {
       currentAvailablePoints: row.currentAvailablePoints,
       currentPointsBalance: row.currentPointsBalance,
     })),
+    unresolvedNamedOrders,
   }, null, 2));
 }
 

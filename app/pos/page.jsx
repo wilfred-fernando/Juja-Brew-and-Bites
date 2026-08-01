@@ -6536,6 +6536,36 @@ export default function POSPage() {
       return null;
     }
 
+    if (orderId) {
+      const { data: reversedMember, error: reverseErr } = await supabase.rpc("reverse_loyalty_points_for_order", {
+        p_order_id: orderId,
+        p_member_id: member.id,
+        p_points: Number(points.toFixed(2)),
+        p_sale_total: Number(saleTotal || 0),
+      });
+
+      if (!reverseErr && reversedMember?.id) {
+        const normalizedMember = {
+          ...reversedMember,
+          name: reversedMember.customer_name || reversedMember.name || "",
+          code: reversedMember.customer_code || reversedMember.code || "",
+          availablePoints: reversedMember["Available points"] ?? 0,
+          pointsBalance: reversedMember["Points balance"] ?? 0,
+        };
+        setCustomers((prev) => prev.map((row) => (row.id === member.id ? { ...row, ...normalizedMember } : row)));
+        setAttachedCustomer((prev) => (prev?.id === member.id ? { ...prev, ...normalizedMember } : prev));
+        return normalizedMember;
+      }
+
+      const canFallbackToLegacyReversal =
+        reverseErr?.message?.includes("Could not find the function") ||
+        reverseErr?.message?.includes("schema cache");
+      if (!canFallbackToLegacyReversal) {
+        console.warn("Loyalty point reversal skipped:", reverseErr?.message || "Atomic reversal failed");
+        return null;
+      }
+    }
+
     const currentBalance = Number(member["Points balance"] || 0);
     const currentAvailable = Number(member["Available points"] || 0);
     const currentSpent = Number(member["Total spent"] || 0);
@@ -6657,9 +6687,34 @@ export default function POSPage() {
     if (!pointsEarned) return null;
 
     try {
+      const sourceOrderId = order?.pos_order_id || order?.source_order_id || null;
       const directMemberId = fallbackMemberId || order?.loyalty_member_id || order?.customer_id || null;
-      const sourceOrderId = order?.pos_order_id || order?.order_id || null;
       const awardViaWebOrder = async (memberId) => {
+        if (sourceOrderId) {
+          const awardedMember = await awardMemberLoyaltyPoints(
+            memberId,
+            pointsEarned,
+            order?.total || order?.subtotal || 0,
+            sourceOrderId
+          );
+
+          if (order?.id) {
+            const awardStamp = new Date().toISOString();
+            const { error: webMarkerError } = await supabase
+              .from("web_orders")
+              .update({
+                loyalty_member_id: memberId,
+                loyalty_points_awarded: Number(pointsEarned.toFixed(2)),
+                loyalty_points_awarded_at: awardStamp,
+                loyalty_sale_total: Number(order?.total || order?.subtotal || 0),
+              })
+              .eq("id", order.id);
+            if (webMarkerError) console.warn("Web order loyalty marker was not updated:", webMarkerError.message);
+          }
+
+          return awardedMember;
+        }
+
         if (!order?.id) return await awardMemberLoyaltyPoints(memberId, pointsEarned, order?.total || order?.subtotal || 0, null);
         const { data: awardedMember, error: awardErr } = await supabase.rpc("award_loyalty_points_for_web_order", {
           p_web_order_id: order.id,
@@ -6673,7 +6728,6 @@ export default function POSPage() {
       };
 
       if (directMemberId) {
-        if (sourceOrderId) return await awardMemberLoyaltyPoints(directMemberId, pointsEarned, order?.total || order?.subtotal || 0, sourceOrderId);
         return await awardViaWebOrder(directMemberId);
       }
 
@@ -6704,7 +6758,6 @@ export default function POSPage() {
       }
 
       if (!member?.id) return null;
-      if (sourceOrderId) return await awardMemberLoyaltyPoints(member.id, pointsEarned, order?.total || order?.subtotal || 0, sourceOrderId);
       return await awardViaWebOrder(member.id);
     } catch (err) {
       console.warn("Loyalty point update skipped:", err);

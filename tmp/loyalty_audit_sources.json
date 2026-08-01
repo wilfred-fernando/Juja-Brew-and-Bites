@@ -1,0 +1,214 @@
+{
+  "tables": [
+    {
+      "table_name": "audit_log"
+    },
+    {
+      "table_name": "loyalty_link_requests"
+    },
+    {
+      "table_name": "loyalty_members"
+    },
+    {
+      "table_name": "loyalty_point_award_events"
+    },
+    {
+      "table_name": "loyalty_point_balance_repairs"
+    },
+    {
+      "table_name": "loyalty_repair_voucher_backup_20260801"
+    }
+  ],
+  "columns": [
+    {
+      "table_name": "deleted_unlinked_welcome_vouchers_backup_20260719",
+      "column_name": "points_consumed",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "deleted_unlinked_welcome_vouchers_backup_20260719",
+      "column_name": "points_consumed_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "kds_tickets",
+      "column_name": "receipt_number",
+      "data_type": "text"
+    },
+    {
+      "table_name": "loyalty_members",
+      "column_name": "Points balance",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "loyalty_members",
+      "column_name": "Available points",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "loyalty_members",
+      "column_name": "points_reset_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "loyalty_point_award_events",
+      "column_name": "receipt_number",
+      "data_type": "text"
+    },
+    {
+      "table_name": "loyalty_point_award_events",
+      "column_name": "points_awarded",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "loyalty_point_award_events",
+      "column_name": "points_balance_after",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "loyalty_point_award_events",
+      "column_name": "available_points_after",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "loyalty_point_balance_repairs",
+      "column_name": "points_balance_delta",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "loyalty_point_balance_repairs",
+      "column_name": "available_points_delta",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "loyalty_point_balance_repairs",
+      "column_name": "points_balance_before",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "loyalty_point_balance_repairs",
+      "column_name": "available_points_before",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "loyalty_point_balance_repairs",
+      "column_name": "points_balance_after",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "loyalty_point_balance_repairs",
+      "column_name": "available_points_after",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "loyalty_repair_voucher_backup_20260801",
+      "column_name": "points_consumed",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "loyalty_repair_voucher_backup_20260801",
+      "column_name": "points_consumed_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "source_receipt_number",
+      "data_type": "text"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "receipt_number",
+      "data_type": "text"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "receipt_sequence",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "receipt_date",
+      "data_type": "date"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "source_receipt_number",
+      "data_type": "text"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "loyalty_member_id",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "loyalty_points_awarded",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "loyalty_points_awarded_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "loyalty_account_id",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "receipt_counters",
+      "column_name": "receipt_date",
+      "data_type": "date"
+    },
+    {
+      "table_name": "stock_items",
+      "column_name": "reorder_point",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "vouchers",
+      "column_name": "points_consumed",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "vouchers",
+      "column_name": "points_consumed_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "web_orders",
+      "column_name": "receipt_number",
+      "data_type": "text"
+    },
+    {
+      "table_name": "web_orders",
+      "column_name": "receipt_sequence",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "web_orders",
+      "column_name": "receipt_date",
+      "data_type": "date"
+    },
+    {
+      "table_name": "web_orders",
+      "column_name": "loyalty_member_id",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "web_orders",
+      "column_name": "loyalty_points_awarded",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "web_orders",
+      "column_name": "loyalty_points_awarded_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "web_orders",
+      "column_name": "loyalty_sale_total",
+      "data_type": "numeric"
+    }
+  ]
+}

@@ -1,0 +1,695 @@
+{
+  "pointColumns": [
+    {
+      "table_name": "deleted_unlinked_welcome_vouchers_backup_20260719",
+      "column_name": "id",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "deleted_unlinked_welcome_vouchers_backup_20260719",
+      "column_name": "member_id",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "deleted_unlinked_welcome_vouchers_backup_20260719",
+      "column_name": "reward_index",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "deleted_unlinked_welcome_vouchers_backup_20260719",
+      "column_name": "code",
+      "data_type": "text"
+    },
+    {
+      "table_name": "deleted_unlinked_welcome_vouchers_backup_20260719",
+      "column_name": "reward_text",
+      "data_type": "text"
+    },
+    {
+      "table_name": "deleted_unlinked_welcome_vouchers_backup_20260719",
+      "column_name": "issued_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "deleted_unlinked_welcome_vouchers_backup_20260719",
+      "column_name": "expires_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "deleted_unlinked_welcome_vouchers_backup_20260719",
+      "column_name": "status",
+      "data_type": "text"
+    },
+    {
+      "table_name": "deleted_unlinked_welcome_vouchers_backup_20260719",
+      "column_name": "redeemed_at",
+      "data_type": "timestamp without time zone"
+    },
+    {
+      "table_name": "deleted_unlinked_welcome_vouchers_backup_20260719",
+      "column_name": "reward_type",
+      "data_type": "text"
+    },
+    {
+      "table_name": "deleted_unlinked_welcome_vouchers_backup_20260719",
+      "column_name": "created_at",
+      "data_type": "timestamp without time zone"
+    },
+    {
+      "table_name": "deleted_unlinked_welcome_vouchers_backup_20260719",
+      "column_name": "store_id",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "deleted_unlinked_welcome_vouchers_backup_20260719",
+      "column_name": "points_consumed",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "deleted_unlinked_welcome_vouchers_backup_20260719",
+      "column_name": "points_consumed_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "deleted_unlinked_welcome_vouchers_backup_20260719",
+      "column_name": "campaign_id",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "deleted_unlinked_welcome_vouchers_backup_20260719",
+      "column_name": "campaign_code",
+      "data_type": "text"
+    },
+    {
+      "table_name": "deleted_unlinked_welcome_vouchers_backup_20260719",
+      "column_name": "backed_up_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "deleted_unlinked_welcome_vouchers_backup_20260719",
+      "column_name": "backup_reason",
+      "data_type": "text"
+    },
+    {
+      "table_name": "kds_tickets",
+      "column_name": "receipt_number",
+      "data_type": "text"
+    },
+    {
+      "table_name": "loyalty_members",
+      "column_name": "Points balance",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "loyalty_members",
+      "column_name": "Available points",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "loyalty_members",
+      "column_name": "points_reset_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "open_tickets",
+      "column_name": "applied_voucher",
+      "data_type": "jsonb"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "applied_voucher_code",
+      "data_type": "text"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "source_receipt_number",
+      "data_type": "text"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "refund_amount",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "refunded_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "refunded_by",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "order_items",
+      "column_name": "refund_reason",
+      "data_type": "text"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "refunded_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "refunded_by",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "refund_reason",
+      "data_type": "text"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "refund_amount",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "receipt_number",
+      "data_type": "text"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "receipt_sequence",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "receipt_date",
+      "data_type": "date"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "source_receipt_number",
+      "data_type": "text"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "loyalty_points_awarded",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "orders",
+      "column_name": "loyalty_points_awarded_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "pos_receipt_settings",
+      "column_name": "id",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "pos_receipt_settings",
+      "column_name": "store_id",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "pos_receipt_settings",
+      "column_name": "header_text",
+      "data_type": "text"
+    },
+    {
+      "table_name": "pos_receipt_settings",
+      "column_name": "footer_text",
+      "data_type": "text"
+    },
+    {
+      "table_name": "pos_receipt_settings",
+      "column_name": "show_store_name",
+      "data_type": "boolean"
+    },
+    {
+      "table_name": "pos_receipt_settings",
+      "column_name": "show_cashier",
+      "data_type": "boolean"
+    },
+    {
+      "table_name": "pos_receipt_settings",
+      "column_name": "show_order_number",
+      "data_type": "boolean"
+    },
+    {
+      "table_name": "pos_receipt_settings",
+      "column_name": "show_datetime",
+      "data_type": "boolean"
+    },
+    {
+      "table_name": "pos_receipt_settings",
+      "column_name": "show_payment_type",
+      "data_type": "boolean"
+    },
+    {
+      "table_name": "pos_receipt_settings",
+      "column_name": "auto_print",
+      "data_type": "boolean"
+    },
+    {
+      "table_name": "pos_receipt_settings",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "pos_receipt_settings",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "receipt_counters",
+      "column_name": "id",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "receipt_counters",
+      "column_name": "store_id",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "receipt_counters",
+      "column_name": "receipt_date",
+      "data_type": "date"
+    },
+    {
+      "table_name": "receipt_counters",
+      "column_name": "last_sequence",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "receipt_counters",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "receipt_counters",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "refunds",
+      "column_name": "id",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "refunds",
+      "column_name": "order_id",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "refunds",
+      "column_name": "amount",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "refunds",
+      "column_name": "reason",
+      "data_type": "text"
+    },
+    {
+      "table_name": "refunds",
+      "column_name": "created_by",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "refunds",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "stock_items",
+      "column_name": "reorder_point",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "voucher_campaigns",
+      "column_name": "id",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "voucher_campaigns",
+      "column_name": "code",
+      "data_type": "text"
+    },
+    {
+      "table_name": "voucher_campaigns",
+      "column_name": "title",
+      "data_type": "text"
+    },
+    {
+      "table_name": "voucher_campaigns",
+      "column_name": "reward_text",
+      "data_type": "text"
+    },
+    {
+      "table_name": "voucher_campaigns",
+      "column_name": "reward_type",
+      "data_type": "text"
+    },
+    {
+      "table_name": "voucher_campaigns",
+      "column_name": "voucher_prefix",
+      "data_type": "text"
+    },
+    {
+      "table_name": "voucher_campaigns",
+      "column_name": "validity_days",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "voucher_campaigns",
+      "column_name": "starts_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "voucher_campaigns",
+      "column_name": "ends_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "voucher_campaigns",
+      "column_name": "is_active",
+      "data_type": "boolean"
+    },
+    {
+      "table_name": "voucher_campaigns",
+      "column_name": "auto_create_on_signup",
+      "data_type": "boolean"
+    },
+    {
+      "table_name": "voucher_campaigns",
+      "column_name": "auto_create_on_link",
+      "data_type": "boolean"
+    },
+    {
+      "table_name": "voucher_campaigns",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "voucher_campaigns",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "voucher_push_notifications",
+      "column_name": "id",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "voucher_push_notifications",
+      "column_name": "voucher_id",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "voucher_push_notifications",
+      "column_name": "member_id",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "voucher_push_notifications",
+      "column_name": "event_type",
+      "data_type": "text"
+    },
+    {
+      "table_name": "voucher_push_notifications",
+      "column_name": "sent_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "voucher_push_notifications",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "vouchers",
+      "column_name": "id",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "vouchers",
+      "column_name": "member_id",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "vouchers",
+      "column_name": "reward_index",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "vouchers",
+      "column_name": "code",
+      "data_type": "text"
+    },
+    {
+      "table_name": "vouchers",
+      "column_name": "reward_text",
+      "data_type": "text"
+    },
+    {
+      "table_name": "vouchers",
+      "column_name": "issued_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "vouchers",
+      "column_name": "expires_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "vouchers",
+      "column_name": "status",
+      "data_type": "text"
+    },
+    {
+      "table_name": "vouchers",
+      "column_name": "redeemed_at",
+      "data_type": "timestamp without time zone"
+    },
+    {
+      "table_name": "vouchers",
+      "column_name": "reward_type",
+      "data_type": "text"
+    },
+    {
+      "table_name": "vouchers",
+      "column_name": "created_at",
+      "data_type": "timestamp without time zone"
+    },
+    {
+      "table_name": "vouchers",
+      "column_name": "store_id",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "vouchers",
+      "column_name": "points_consumed",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "vouchers",
+      "column_name": "points_consumed_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "table_name": "vouchers",
+      "column_name": "campaign_id",
+      "data_type": "uuid"
+    },
+    {
+      "table_name": "vouchers",
+      "column_name": "campaign_code",
+      "data_type": "text"
+    },
+    {
+      "table_name": "web_orders",
+      "column_name": "receipt_number",
+      "data_type": "text"
+    },
+    {
+      "table_name": "web_orders",
+      "column_name": "receipt_sequence",
+      "data_type": "integer"
+    },
+    {
+      "table_name": "web_orders",
+      "column_name": "receipt_date",
+      "data_type": "date"
+    },
+    {
+      "table_name": "web_orders",
+      "column_name": "loyalty_points_awarded",
+      "data_type": "numeric"
+    },
+    {
+      "table_name": "web_orders",
+      "column_name": "loyalty_points_awarded_at",
+      "data_type": "timestamp with time zone"
+    }
+  ],
+  "audits": [],
+  "vouchers": [
+    {
+      "id": "0f070b2c-1109-44dd-802c-26aba4f6e4e7",
+      "member_id": "ece03576-d467-4289-9a10-3a1079cf1836",
+      "reward_index": 7,
+      "code": "BDAY2026-7081",
+      "reward_text": "FREE 16oz Drink or Waffle (Birthday Reward)",
+      "issued_at": "2026-07-22T16:00:00.000Z",
+      "expires_at": "2026-07-27T15:59:59.999Z",
+      "status": "redeemed",
+      "redeemed_at": "2026-07-27T08:28:04.173Z",
+      "reward_type": "birthday",
+      "created_at": "2026-07-27T16:01:59.243Z",
+      "store_id": null,
+      "points_consumed": "0",
+      "points_consumed_at": null,
+      "campaign_id": null,
+      "campaign_code": null
+    },
+    {
+      "id": "d45eb189-750b-4678-94d4-a5df604c85b5",
+      "member_id": "ece03576-d467-4289-9a10-3a1079cf1836",
+      "reward_index": 6,
+      "code": "PTS100-6-C7E604F1",
+      "reward_text": "FREE 16oz Drink, Waffle, or Mini Donuts (100 Points Reward)",
+      "issued_at": "2026-07-25T11:41:54.599Z",
+      "expires_at": "2026-10-23T11:41:54.599Z",
+      "status": "active",
+      "redeemed_at": null,
+      "reward_type": "points",
+      "created_at": "2026-07-25T11:41:54.599Z",
+      "store_id": null,
+      "points_consumed": "100",
+      "points_consumed_at": "2026-07-25T11:41:54.599Z",
+      "campaign_id": null,
+      "campaign_code": null
+    },
+    {
+      "id": "a24f9266-56dc-48ff-92dd-6c61e6993588",
+      "member_id": "ece03576-d467-4289-9a10-3a1079cf1836",
+      "reward_index": 2,
+      "code": "PTS100-2-0633202E",
+      "reward_text": "FREE 16oz Drink, Waffle, or Mini Donuts (100 Points Reward)",
+      "issued_at": "2026-06-29T16:13:08.632Z",
+      "expires_at": "2026-09-27T16:13:08.632Z",
+      "status": "redeemed",
+      "redeemed_at": "2026-07-25T03:41:52.831Z",
+      "reward_type": "points",
+      "created_at": "2026-06-29T16:13:08.632Z",
+      "store_id": null,
+      "points_consumed": "100",
+      "points_consumed_at": "2026-06-29T16:13:08.632Z",
+      "campaign_id": null,
+      "campaign_code": null
+    },
+    {
+      "id": "c089574e-177f-4609-8611-8a6462067281",
+      "member_id": "89230b96-4893-4721-986d-a8de007ae182",
+      "reward_index": 2,
+      "code": "WELCOME-1393",
+      "reward_text": "B1T1 16oz Cheesecake Milk Tea (Welcome Voucher)",
+      "issued_at": "2026-07-10T14:22:12.556Z",
+      "expires_at": "2026-07-25T14:22:12.556Z",
+      "status": "redeemed",
+      "redeemed_at": "2026-07-24T04:49:14.603Z",
+      "reward_type": "welcome",
+      "created_at": "2026-07-10T14:22:13.084Z",
+      "store_id": null,
+      "points_consumed": "0",
+      "points_consumed_at": null,
+      "campaign_id": null,
+      "campaign_code": null
+    },
+    {
+      "id": "a2a1100a-d482-47e2-80a5-a0c6ede04339",
+      "member_id": "ece03576-d467-4289-9a10-3a1079cf1836",
+      "reward_index": 4,
+      "code": "WELCOME-9671",
+      "reward_text": "B1T1 16oz Cheesecake Milk Tea (Welcome Voucher)",
+      "issued_at": "2026-07-09T14:42:11.527Z",
+      "expires_at": "2026-07-24T14:42:11.527Z",
+      "status": "redeemed",
+      "redeemed_at": "2026-07-24T03:36:57.423Z",
+      "reward_type": "welcome",
+      "created_at": "2026-07-09T14:42:11.647Z",
+      "store_id": null,
+      "points_consumed": "0",
+      "points_consumed_at": null,
+      "campaign_id": null,
+      "campaign_code": null
+    },
+    {
+      "id": "233edb76-5107-43be-ab74-e6fed1b5f3cb",
+      "member_id": "ece03576-d467-4289-9a10-3a1079cf1836",
+      "reward_index": 5,
+      "code": "PTS100-5-6B48CD65",
+      "reward_text": "FREE 16oz Drink, Waffle, or Mini Donuts (100 Points Reward)",
+      "issued_at": "2026-07-13T06:38:47.365Z",
+      "expires_at": "2026-10-11T06:38:47.365Z",
+      "status": "redeemed",
+      "redeemed_at": "2026-07-13T03:43:20.565Z",
+      "reward_type": "points",
+      "created_at": "2026-07-13T06:38:47.365Z",
+      "store_id": null,
+      "points_consumed": "100",
+      "points_consumed_at": "2026-07-13T06:38:47.365Z",
+      "campaign_id": null,
+      "campaign_code": null
+    },
+    {
+      "id": "45a91df6-341c-44eb-aef6-ae0a67be82a9",
+      "member_id": "89230b96-4893-4721-986d-a8de007ae182",
+      "reward_index": 1,
+      "code": "PTS100-1-D2AF5D2A",
+      "reward_text": "FREE 16oz Drink, Waffle, or Mini Donuts (100 Points Reward)",
+      "issued_at": "2026-06-29T16:13:08.632Z",
+      "expires_at": "2026-09-27T16:13:08.632Z",
+      "status": "redeemed",
+      "redeemed_at": "2026-07-03T04:45:23.568Z",
+      "reward_type": "points",
+      "created_at": "2026-06-29T16:13:08.632Z",
+      "store_id": null,
+      "points_consumed": "100",
+      "points_consumed_at": "2026-06-29T16:13:08.632Z",
+      "campaign_id": null,
+      "campaign_code": null
+    },
+    {
+      "id": "9ab97fd1-f8e4-46bd-8db2-ac95d668c835",
+      "member_id": "ece03576-d467-4289-9a10-3a1079cf1836",
+      "reward_index": 1,
+      "code": "PTS100-1-FD2AC477",
+      "reward_text": "FREE 16oz Drink, Waffle, or Mini Donuts (100 Points Reward)",
+      "issued_at": "2026-06-29T16:13:08.632Z",
+      "expires_at": "2026-09-27T16:13:08.632Z",
+      "status": "redeemed",
+      "redeemed_at": "2026-07-01T05:30:58.686Z",
+      "reward_type": "points",
+      "created_at": "2026-06-29T16:13:08.632Z",
+      "store_id": null,
+      "points_consumed": "100",
+      "points_consumed_at": "2026-06-29T16:13:08.632Z",
+      "campaign_id": null,
+      "campaign_code": null
+    },
+    {
+      "id": "26a799e8-c008-4c9a-934b-56331b7c0398",
+      "member_id": "ece03576-d467-4289-9a10-3a1079cf1836",
+      "reward_index": 3,
+      "code": "PTS100-3-EE464F31",
+      "reward_text": "FREE 16oz Drink, Waffle, or Mini Donuts (100 Points Reward)",
+      "issued_at": "2026-06-29T16:13:08.632Z",
+      "expires_at": "2026-09-27T16:13:08.632Z",
+      "status": "active",
+      "redeemed_at": null,
+      "reward_type": "points",
+      "created_at": "2026-06-29T16:13:08.632Z",
+      "store_id": null,
+      "points_consumed": "100",
+      "points_consumed_at": "2026-06-29T16:13:08.632Z",
+      "campaign_id": null,
+      "campaign_code": null
+    }
+  ],
+  "refunds": []
+}

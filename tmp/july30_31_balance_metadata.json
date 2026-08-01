@@ -1,0 +1,420 @@
+[
+  {
+    "receipt": "D9761446",
+    "customer": "Celyn Jane Legaspi",
+    "paidAt": "2026-07-30T10:36:35.514+08:00",
+    "awarded": null,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P9030458",
+    "customer": "Dhoren Ruiz",
+    "paidAt": "2026-07-30T10:45:14.865+08:00",
+    "awarded": 16.68,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P7999753",
+    "customer": "Merasol Mijares",
+    "paidAt": "2026-07-30T12:28:34.546+08:00",
+    "awarded": 16.28,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "D5147507",
+    "customer": "John Harold F. Ambrosio",
+    "paidAt": "2026-07-30T12:57:19.528+08:00",
+    "awarded": null,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "D9166731",
+    "customer": "Colene Mae B. Niño",
+    "paidAt": "2026-07-30T13:04:50.045+08:00",
+    "awarded": 11.12,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "D0318627",
+    "customer": "Maricris T. Reyes",
+    "paidAt": "2026-07-30T14:10:00.183+08:00",
+    "awarded": 10.49,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "D8976065",
+    "customer": "Grachell E. Danao-Cura",
+    "paidAt": "2026-07-30T14:56:52.049+08:00",
+    "awarded": 6.76,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P4413778",
+    "customer": "Jeffrey Espinosa",
+    "paidAt": "2026-07-30T15:48:25.814+08:00",
+    "awarded": 2.85,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P0703915",
+    "customer": "Joana Foronda",
+    "paidAt": "2026-07-30T17:22:18.937+08:00",
+    "awarded": 5.96,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P8881489",
+    "customer": "Joana Foronda",
+    "paidAt": "2026-07-30T17:24:22.68+08:00",
+    "awarded": 0.8,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P6050159",
+    "customer": "Anna Jean Marie Bañas",
+    "paidAt": "2026-07-30T18:05:30.08+08:00",
+    "awarded": 15.92,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P8659193",
+    "customer": "Irene Siblang",
+    "paidAt": "2026-07-30T18:49:31.181+08:00",
+    "awarded": 4.76,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "D9251357",
+    "customer": "Jessica Corpili",
+    "paidAt": "2026-07-30T18:57:05.053+08:00",
+    "awarded": 9.12,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "D5231494",
+    "customer": "Jessica Corpili",
+    "paidAt": "2026-07-30T19:11:51.729+08:00",
+    "awarded": 4.36,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P2631742",
+    "customer": "Leizel Dela Cruz",
+    "paidAt": "2026-07-30T19:22:16.048+08:00",
+    "awarded": 21.04,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P0420269",
+    "customer": "James Rudolph Javier",
+    "paidAt": "2026-07-30T19:41:05.184+08:00",
+    "awarded": 8.9,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P5092224",
+    "customer": "Gink Orduña",
+    "paidAt": "2026-07-30T20:01:41.203+08:00",
+    "awarded": null,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "D4865177",
+    "customer": "Camille A. Chica",
+    "paidAt": "2026-07-30T20:16:13.021+08:00",
+    "awarded": 25.8,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P7980433",
+    "customer": "Jazzerick Morales",
+    "paidAt": "2026-07-30T20:39:12.848+08:00",
+    "awarded": 17.32,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P8419255",
+    "customer": "Lira Tano",
+    "paidAt": "2026-07-30T21:06:10.569+08:00",
+    "awarded": null,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P5588828",
+    "customer": "Elizabeth sy",
+    "paidAt": "2026-07-30T21:06:26.211+08:00",
+    "awarded": null,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P8273765",
+    "customer": "Sarrah jane Bermejo",
+    "paidAt": "2026-07-30T21:06:39.467+08:00",
+    "awarded": null,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "D0132269",
+    "customer": "Camille A. Chica",
+    "paidAt": "2026-07-30T21:08:35.415+08:00",
+    "awarded": 2.76,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P0057353",
+    "customer": "Glory Joy Bermejo",
+    "paidAt": "2026-07-30T21:27:08.957+08:00",
+    "awarded": null,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P4851815",
+    "customer": "Evelyn Fvor",
+    "paidAt": "2026-07-30T21:27:36.285+08:00",
+    "awarded": null,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P8982235",
+    "customer": "Ed Christian Lumabi",
+    "paidAt": "2026-07-30T22:09:52.403+08:00",
+    "awarded": 10.72,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P6939495",
+    "customer": "Ed Christian Lumabi",
+    "paidAt": "2026-07-30T22:12:41.832+08:00",
+    "awarded": 8.72,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P5803330",
+    "customer": "Reynaline Mahinay",
+    "paidAt": "2026-07-30T23:54:46.533+08:00",
+    "awarded": 22.64,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "D8039858",
+    "customer": "REYMOND CALALANG",
+    "paidAt": "2026-07-31T10:42:45.489+08:00",
+    "awarded": 5.96,
+    "metadata": {},
+    "itemFields": {
+      "0.loyaltyPointsEligible": true
+    }
+  },
+  {
+    "receipt": "D1392386",
+    "customer": "Jerome M. Bautista",
+    "paidAt": "2026-07-31T11:31:19.391+08:00",
+    "awarded": 9.92,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "D4525791",
+    "customer": "Jerome M. Bautista",
+    "paidAt": "2026-07-31T11:46:48.76+08:00",
+    "awarded": 19.04,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "D2853417",
+    "customer": "Bianca Lopez",
+    "paidAt": "2026-07-31T13:55:19.346+08:00",
+    "awarded": 5.16,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P8342255",
+    "customer": "Lolita De Guzman",
+    "paidAt": "2026-07-31T16:43:43.692+08:00",
+    "awarded": 13.66,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P6583918",
+    "customer": "Errin Kaw",
+    "paidAt": "2026-07-31T16:46:44.56+08:00",
+    "awarded": 17.81,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P7358179",
+    "customer": "Joana Foronda",
+    "paidAt": "2026-07-31T16:57:24.399+08:00",
+    "awarded": 11.12,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P1028344",
+    "customer": "Victoria Uy",
+    "paidAt": "2026-07-31T17:01:53.844+08:00",
+    "awarded": 5.16,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P8233880",
+    "customer": "Dhoren Ruiz",
+    "paidAt": "2026-07-31T17:04:39.267+08:00",
+    "awarded": 19.72,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P2962045",
+    "customer": "Dhoren Ruiz",
+    "paidAt": "2026-07-31T17:07:04.294+08:00",
+    "awarded": 5.56,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P7895442",
+    "customer": "Glizel Grace Tomas",
+    "paidAt": "2026-07-31T17:08:58.384+08:00",
+    "awarded": 12.72,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P9539132",
+    "customer": "Eva Santos",
+    "paidAt": "2026-07-31T17:10:08.156+08:00",
+    "awarded": 6.36,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P9874269",
+    "customer": "John Sargento",
+    "paidAt": "2026-07-31T17:11:37.504+08:00",
+    "awarded": 4.36,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P2510421",
+    "customer": "Ma. Velez Liwag",
+    "paidAt": "2026-07-31T17:17:50.779+08:00",
+    "awarded": 13.02,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P2848876",
+    "customer": "Maryjo Flores",
+    "paidAt": "2026-07-31T17:45:44.01+08:00",
+    "awarded": 16.02,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P1432976",
+    "customer": "Anna Isaguine",
+    "paidAt": "2026-07-31T17:48:20.89+08:00",
+    "awarded": 4.76,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P8665927",
+    "customer": "Anna Jean Marie Bañas",
+    "paidAt": "2026-07-31T18:09:16.543+08:00",
+    "awarded": 13.12,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P8871077",
+    "customer": "James Rudolph Javier",
+    "paidAt": "2026-07-31T19:18:02.898+08:00",
+    "awarded": 8.9,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P7915314",
+    "customer": "Irene Siblang",
+    "paidAt": "2026-07-31T19:35:08.877+08:00",
+    "awarded": 5.56,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P1079253",
+    "customer": "Alexis Ople",
+    "paidAt": "2026-07-31T19:50:47.454+08:00",
+    "awarded": null,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P5487821",
+    "customer": "Rossenie De La Torre",
+    "paidAt": "2026-07-31T20:18:16.244+08:00",
+    "awarded": 0,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P0335264",
+    "customer": "Rossenie De La Torre",
+    "paidAt": "2026-07-31T20:23:34.916+08:00",
+    "awarded": 14.72,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P5804594",
+    "customer": "Chelsea Tuazon",
+    "paidAt": "2026-07-31T20:45:29.86+08:00",
+    "awarded": 46.12,
+    "metadata": {},
+    "itemFields": {}
+  },
+  {
+    "receipt": "P9478275",
+    "customer": "Danilo Anos",
+    "paidAt": "2026-07-31T22:55:41.157+08:00",
+    "awarded": 52.28,
+    "metadata": {},
+    "itemFields": {}
+  }
+]

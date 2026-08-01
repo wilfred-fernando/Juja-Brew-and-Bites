@@ -1,0 +1,243 @@
+{
+  "generatedAt": "2026-07-31T17:07:57.381Z",
+  "counts": {
+    "audited": 691,
+    "balanceDeficits": 1,
+    "july1": 20,
+    "august1": 0
+  },
+  "balanceDeficits": [
+    {
+      "memberId": "35143813-5fb4-4c2b-9a42-fc2c346476b4",
+      "customer": "Lyka Tano",
+      "code": "JUJA2026001057",
+      "currentPointsBalance": 127.64,
+      "awardedSinceJune29": 143.16,
+      "minimumMissing": 15.52,
+      "transactions": 7
+    }
+  ],
+  "july1": [
+    {
+      "source": "orders",
+      "id": "54f632da-8362-4d24-8a0e-ea9fa808ef59",
+      "receipt": "D3281077",
+      "date": "2026-07-01T11:02:27.124+08:00",
+      "memberId": "e96130d8-ce98-4228-ac5c-16cccc9feb24",
+      "memberName": "John Harold F. Ambrosio",
+      "total": 109,
+      "awarded": 4.36,
+      "awardedAt": "2026-07-01T11:02:28.559+08:00"
+    },
+    {
+      "source": "orders",
+      "id": "f7f0c711-cfcf-4042-a5ec-f5086491caf1",
+      "receipt": "D9460500",
+      "date": "2026-07-01T11:46:46.445+08:00",
+      "memberId": "242ad48d-8cf1-48b0-838d-fef91f9e614f",
+      "memberName": "Jerome M. Bautista",
+      "total": 218,
+      "awarded": 8.72,
+      "awardedAt": "2026-07-01T11:46:48.234+08:00"
+    },
+    {
+      "source": "orders",
+      "id": "5f9c904d-23bd-4523-93b3-e37cec2d8af8",
+      "receipt": "D4246328",
+      "date": "2026-07-01T11:54:45.941+08:00",
+      "memberId": "540e29ee-e5ca-45fa-a8cc-1e427e99f717",
+      "memberName": "Camille A. Chica",
+      "total": 248,
+      "awarded": 9.92,
+      "awardedAt": "2026-07-01T11:54:47.662+08:00"
+    },
+    {
+      "source": "orders",
+      "id": "adb8f07d-1809-4570-9e22-b4a9666d0429",
+      "receipt": "P0586800",
+      "date": "2026-07-01T14:08:12.656+08:00",
+      "memberId": "a52834d2-8581-4173-a3b2-03269569bb20",
+      "memberName": "Mitch Beñosa",
+      "total": 149,
+      "awarded": 5.96,
+      "awardedAt": "2026-07-01T14:08:14.571+08:00"
+    },
+    {
+      "source": "orders",
+      "id": "cddd8277-8d31-49c6-97ff-e3087e189e80",
+      "receipt": "P9628470",
+      "date": "2026-07-01T14:15:53.347+08:00",
+      "memberId": "39091c87-06fd-4ab3-b5c5-c1392eb8c62a",
+      "memberName": "Jonalyn Platilla",
+      "total": 1524,
+      "awarded": 60.96,
+      "awardedAt": "2026-07-01T14:15:54.209+08:00"
+    },
+    {
+      "source": "orders",
+      "id": "a4d0be32-6dd1-45ef-a9ca-47009b27195c",
+      "receipt": "P4961890",
+      "date": "2026-07-01T15:49:57.342+08:00",
+      "memberId": "04059d6f-5df9-4388-9be5-6ef4bdb81287",
+      "memberName": "Eduardo Lorenzo Joson",
+      "total": 159,
+      "awarded": 6.36,
+      "awardedAt": "2026-07-01T15:49:59.003+08:00"
+    },
+    {
+      "source": "orders",
+      "id": "51e94693-b801-4393-981b-f4b56f248599",
+      "receipt": "P4639763",
+      "date": "2026-07-01T16:10:28.955+08:00",
+      "memberId": "e913d983-1bca-41d3-8874-1867dca47b00",
+      "memberName": "Annlorein Delos",
+      "total": 288,
+      "awarded": 11.52,
+      "awardedAt": "2026-07-01T16:10:30.4+08:00"
+    },
+    {
+      "source": "orders",
+      "id": "4e54a302-7b4e-4040-9bb2-aec6d62fc4a2",
+      "receipt": "D9981576",
+      "date": "2026-07-01T17:00:07.697+08:00",
+      "memberId": "67c08d05-7bed-407b-a7a9-5ebfcd399ce6",
+      "memberName": "Ian Mariquit",
+      "total": 129,
+      "awarded": 5.16,
+      "awardedAt": "2026-07-01T17:00:09.29+08:00"
+    },
+    {
+      "source": "orders",
+      "id": "715c0640-b7e3-48a1-afa8-a08422f272a2",
+      "receipt": "P4600889",
+      "date": "2026-07-01T17:37:33.189+08:00",
+      "memberId": "002c7893-e7ba-4051-9227-5dc9c3e16b5c",
+      "memberName": "Mary Grace N. Icaranum",
+      "total": 228.2,
+      "awarded": 9.13,
+      "awardedAt": "2026-07-01T17:37:34.568+08:00"
+    },
+    {
+      "source": "orders",
+      "id": "b354d040-3014-4180-8357-6cb73748a673",
+      "receipt": "P9493783",
+      "date": "2026-07-01T18:07:20.43+08:00",
+      "memberId": "c370ffd1-7481-4fe5-bcd0-acdc94117d69",
+      "memberName": "Alvin Dela Rosa",
+      "total": 129,
+      "awarded": 5.16,
+      "awardedAt": "2026-07-01T18:07:22.263+08:00"
+    },
+    {
+      "source": "orders",
+      "id": "4773354b-c971-4eb6-97b0-36db44f57894",
+      "receipt": "P9981303",
+      "date": "2026-07-01T18:50:15.992+08:00",
+      "memberId": "e414540f-3e8d-45da-9e01-e04e48fe65f4",
+      "memberName": "Allysa Gabrielle Dagsa",
+      "total": 139,
+      "awarded": 5.56,
+      "awardedAt": "2026-07-01T18:50:17.504+08:00"
+    },
+    {
+      "source": "orders",
+      "id": "19249201-cda8-4f4f-8dac-d735eb78388a",
+      "receipt": "P5255583",
+      "date": "2026-07-01T19:07:34.745+08:00",
+      "memberId": "626ef0c6-6308-4bc9-b986-ce40490ad9cb",
+      "memberName": "Grace Cruz",
+      "total": 139,
+      "awarded": 5.56,
+      "awardedAt": "2026-07-01T19:07:36.05+08:00"
+    },
+    {
+      "source": "orders",
+      "id": "98e1e252-7913-4004-932f-fb9c3e89dcc3",
+      "receipt": "P3250077",
+      "date": "2026-07-01T19:08:14.37+08:00",
+      "memberId": "e3f8fb4a-5984-4d85-93d9-5cc00de4f6ea",
+      "memberName": "Carlo Chua",
+      "total": 358,
+      "awarded": 14.32,
+      "awardedAt": "2026-07-01T19:08:15.448+08:00"
+    },
+    {
+      "source": "orders",
+      "id": "047ff7d4-8f87-4465-97fa-8130b8bd7225",
+      "receipt": "P1865696",
+      "date": "2026-07-01T19:10:52.447+08:00",
+      "memberId": "ece03576-d467-4289-9a10-3a1079cf1836",
+      "memberName": "James Rudolph Javier",
+      "total": 215.2,
+      "awarded": 8.61,
+      "awardedAt": "2026-07-01T19:10:53.417+08:00"
+    },
+    {
+      "source": "orders",
+      "id": "a0fda717-dc6a-4cd6-840e-7874a85cc70c",
+      "receipt": "P2041075",
+      "date": "2026-07-01T19:34:19.93+08:00",
+      "memberId": "531ccd67-705c-4ef6-8f83-62ade2c3aa5c",
+      "memberName": "Isobea Mil Shimada",
+      "total": 139,
+      "awarded": 5.56,
+      "awardedAt": "2026-07-01T19:34:22.163+08:00"
+    },
+    {
+      "source": "orders",
+      "id": "cc7a84c9-d91c-4b76-9fc6-638702c45085",
+      "receipt": "D3214362",
+      "date": "2026-07-01T20:02:34.501+08:00",
+      "memberId": "4e62962d-004b-437d-afb2-39abb08b0d62",
+      "memberName": "Jessica Corpili",
+      "total": 119,
+      "awarded": 4.76,
+      "awardedAt": "2026-07-01T20:02:36.739+08:00"
+    },
+    {
+      "source": "orders",
+      "id": "983b1874-9de0-4170-b051-f2b37c39379e",
+      "receipt": "P5108127",
+      "date": "2026-07-01T21:30:54.89+08:00",
+      "memberId": "ece03576-d467-4289-9a10-3a1079cf1836",
+      "memberName": "James Rudolph Javier",
+      "total": 0,
+      "awarded": 0,
+      "awardedAt": null
+    },
+    {
+      "source": "orders",
+      "id": "ee202f2d-2a0a-4fe8-9c52-c694d08f22ad",
+      "receipt": "D6475043",
+      "date": "2026-07-01T21:38:07.863+08:00",
+      "memberId": "7843db11-de1c-47ce-b608-d09598e840ec",
+      "memberName": "Colene Mae B. Niño",
+      "total": 109,
+      "awarded": 0,
+      "awardedAt": null
+    },
+    {
+      "source": "orders",
+      "id": "940d368e-397c-48f5-84da-fe7a6086ca9a",
+      "receipt": "P1234226",
+      "date": "2026-07-01T23:08:52.877+08:00",
+      "memberId": "e86e368e-7159-4194-a7d0-5c63b16ef29c",
+      "memberName": "Maryjo Flores",
+      "total": 88,
+      "awarded": 3.52,
+      "awardedAt": "2026-07-01T23:08:54.1+08:00"
+    },
+    {
+      "source": "orders",
+      "id": "6a2a1478-5962-42ce-a6ee-1fe25143830a",
+      "receipt": "P4089046",
+      "date": "2026-07-01T23:30:15.34+08:00",
+      "memberId": "07afe422-72aa-4bc4-a86f-c2c61e3066a8",
+      "memberName": "Jenny Parma",
+      "total": 453,
+      "awarded": 18.12,
+      "awardedAt": "2026-07-01T23:30:16.729+08:00"
+    }
+  ],
+  "august1": []
+}
