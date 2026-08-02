@@ -3286,7 +3286,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
   const splitDraftInitializedRef = useRef(false);
   const [useSplitPayment, setUseSplitPayment] = useState(false);
   const [splitPayments, setSplitPayments] = useState([]);
-  const isCash = String(selectedPayment || "").toLowerCase().includes("cash");
+  const isCash = normalizePaymentMethodName(selectedPayment) === "Cash";
   const amt = Number(paymentAmount || 0);
   const due = Number(total || 0);
   const availableTypes = paymentTypes || [];
