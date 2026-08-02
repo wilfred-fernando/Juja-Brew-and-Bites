@@ -3454,7 +3454,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
                     onClick={() => setPaymentAmount(Number(suggestion).toFixed(2))}
                     className="h-8 rounded-lg border border-rose-100 bg-white text-[10px] font-black text-[#FC687D] hover:bg-rose-50"
                   >
-                    {idx === 0 && Number(suggestion) === due ? "Exact" : peso0(suggestion)}
+                    {idx === 0 && Number(suggestion) === due ? "Exact" : peso2(suggestion)}
                   </button>
                 ))}
               </div>
@@ -3492,7 +3492,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
             : { amountPaid: isZeroDue ? 0 : amt, changeDue: isZeroDue ? 0 : change })}
           className="w-full h-12 rounded-xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-wider shadow-sm transition disabled:opacity-40"
         >
-          Finalize Transaction • {peso0(total)}
+          Finalize Transaction • {peso2(total)}
         </button>
       </div>
     </ModalShell>
