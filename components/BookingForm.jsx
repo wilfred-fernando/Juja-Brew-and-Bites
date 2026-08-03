@@ -24,6 +24,20 @@ const PAYMENT_HOLD_HOURS = 24;
 const QR_IMAGE_PATH = "https://files.jujabrewandbites.com/public-media/qrph.jpg";
 const ADMIN_EMAIL = "jujabrewandbites@gmail.com";
 const EXPIRED_BOOKING_STATUS = "expired";
+const CUSTOMER_READ_ONLY_BOOKING_STATUSES = new Set([
+  "expired",
+  "cancelled",
+  "canceled",
+  "rejected",
+  "cancelled_gc",
+  "cancellation_requested",
+]);
+
+function isCustomerBookingReadOnly(booking) {
+  return CUSTOMER_READ_ONLY_BOOKING_STATUSES.has(
+    String(booking?.status || "").trim().toLowerCase()
+  );
+}
 
 /* =====================================================
  Cleaner: Strip citations + OneDrive/SharePoint URLs
@@ -831,17 +845,20 @@ export default function BookingForm({ user, member }) {
 
   async function notifyBookingAdmin(booking, overrides = {}) {
     try {
-      await fetch("/api/booking-notify", {
+      const response = await fetch("/api/booking-notify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bookingNotifyPayload(booking, overrides)),
-      }).then(async (res) => {
-        if (!res.ok) {
-          console.warn("Booking email notification failed:", await res.text());
-        }
       });
+      if (!response.ok) {
+        const error = await response.text();
+        console.warn("Booking email notification failed:", error);
+        return { sent: false, error };
+      }
+      return { sent: true };
     } catch (error) {
       console.warn("Booking email notification failed:", error);
+      return { sent: false, error: error?.message || "Email notification failed." };
     }
   }
 
@@ -949,7 +966,7 @@ export default function BookingForm({ user, member }) {
 
       const updatedBooking = data || { ...paymentBooking, ...updatePayload };
       setMyBookings((prev) => prev.map((x) => (x.id === paymentBooking.id ? updatedBooking : x)));
-      await notifyBookingAdmin(updatedBooking, {
+      const notification = await notifyBookingAdmin(updatedBooking, {
         notificationType: paymentChoice === "cash" ? "cash_payment_request" : "payment_proof",
         paymentMethod: paymentChoice,
         proofUrl,
@@ -961,7 +978,9 @@ export default function BookingForm({ user, member }) {
       setProofFile(null);
       setProofPreview(null);
       setNotice(
-        paymentChoice === "cash"
+        !notification.sent
+          ? `Payment details were saved, but the admin email could not be sent: ${notification.error}`
+          : paymentChoice === "cash"
           ? "Cash payment request sent. Admin will confirm your payment."
           : "Payment proof sent. Admin will review and approve your booking."
       );
@@ -1118,8 +1137,9 @@ export default function BookingForm({ user, member }) {
     const isPending = b.status === "pending";
     const isConfirmed = b.status === "confirmed";
     const isExpired = b.status === EXPIRED_BOOKING_STATUS;
-    const allowChange = !isExpired && !isPast && (isPending || canChangeBooking(b.start_at));
-    const canCancel = !isExpired && !isPast && (isPending || isConfirmed);
+    const isReadOnly = isCustomerBookingReadOnly(b);
+    const allowChange = !isReadOnly && !isPast && (isPending || canChangeBooking(b.start_at));
+    const canCancel = !isReadOnly && !isPast && (isPending || isConfirmed);
 
     const statusMap = {
       confirmed: { text: "Confirmed", color: "bg-green-100 text-green-700" },
@@ -1193,7 +1213,7 @@ export default function BookingForm({ user, member }) {
               )}
             </div>
 
-            {!isPast && !allowChange && (
+            {!isPast && !allowChange && !isReadOnly && (
               <p className="text-[11px] text-slate-500 mt-2">
                 Changes disabled — must be at least {RESCHEDULE_MIN_DAYS} days before booking.
               </p>
@@ -1205,6 +1225,12 @@ export default function BookingForm({ user, member }) {
               </p>
             )}
 
+            {isReadOnly && !isExpired && (
+              <p className="text-[11px] text-slate-500 mt-2">
+                This booking is read-only and can no longer be updated.
+              </p>
+            )}
+
             {isPast && (
               <p className="text-[11px] text-slate-500 mt-2">
                 Past booking — actions are disabled.
@@ -1212,7 +1238,7 @@ export default function BookingForm({ user, member }) {
             )}
           </div>
 
-          {!isPast && !isExpired && (
+          {!isPast && !isReadOnly && (
             <div className="flex flex-col gap-2 min-w-[140px]">
               {canSubmitPayment && (
                 <button
@@ -1765,6 +1791,11 @@ export default function BookingForm({ user, member }) {
                 type="button"
                 disabled={editLoading}
                 onClick={async () => {
+                  if (isCustomerBookingReadOnly(editBooking)) {
+                    alert("Cancelled or expired bookings can no longer be updated.");
+                    setEditBooking(null);
+                    return;
+                  }
                   const pendingEdit = editBooking.status === "pending";
                   if (!pendingEdit && !canChangeBooking(editBooking.start_at)) {
                     alert(`Updates are only allowed at least ${RESCHEDULE_MIN_DAYS} days before the booking.`);
@@ -1881,6 +1912,11 @@ export default function BookingForm({ user, member }) {
                 disabled={reschedLoading || reschedHour == null}
                 onClick={async () => {
                   if (reschedHour == null) return;
+                  if (isCustomerBookingReadOnly(reschedBooking)) {
+                    setNotice("Cancelled or expired bookings can no longer be rescheduled.");
+                    setReschedOpen(false);
+                    return;
+                  }
                   if (!canChangeBooking(reschedBooking.start_at)) {
                     setNotice(
                       `Reschedule allowed only if at least ${RESCHEDULE_MIN_DAYS} days before booking.`

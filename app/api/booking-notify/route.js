@@ -1,5 +1,8 @@
 import { formatDate } from "@/lib/dateFormat";
 import { notificationRecipient, sendNotificationEmail } from "@/lib/email/notifications";
+import { normalizePublicHttpUrl } from "@/lib/storage/publicUrl";
+
+export const runtime = "nodejs";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -55,17 +58,33 @@ export async function POST(req) {
       return new Response("Missing notification recipient", { status: 400 });
     }
 
+    const normalizedProofUrl = normalizePublicHttpUrl(proofUrl);
     const attachments = [];
-    if (proofUrl) {
-      const imgRes = await fetch(proofUrl);
-      if (!imgRes.ok) {
-        return new Response("Failed to fetch proof image", { status: 400 });
+    let attachmentWarning = "";
+    if (normalizedProofUrl) {
+      try {
+        const imgRes = await fetch(normalizedProofUrl, {
+          signal: AbortSignal.timeout(10000),
+          cache: "no-store",
+        });
+        if (!imgRes.ok) throw new Error(`HTTP ${imgRes.status}`);
+        const contentType = imgRes.headers.get("content-type") || "image/jpeg";
+        const extension = contentType.includes("pdf")
+          ? "pdf"
+          : contentType.includes("png")
+            ? "png"
+            : contentType.includes("webp")
+              ? "webp"
+              : "jpg";
+        attachments.push({
+          filename: `payment-proof-${bookingId || Date.now()}.${extension}`,
+          content: Buffer.from(await imgRes.arrayBuffer()),
+          contentType,
+        });
+      } catch (error) {
+        attachmentWarning = `Proof attachment could not be downloaded: ${error?.message || "unknown error"}`;
+        console.warn("Booking proof attachment skipped:", attachmentWarning);
       }
-      const arrayBuffer = await imgRes.arrayBuffer();
-      attachments.push({
-        filename: `payment-proof-${bookingId || Date.now()}.jpg`,
-        content: Buffer.from(arrayBuffer),
-      });
     }
 
     const subject = titleForNotification(notificationType, paymentMethod, customerName);
@@ -93,7 +112,8 @@ export async function POST(req) {
       <p><b>Payment Method:</b> ${escapeHtml(paymentMethod || "Waiting for payment")}</p>
       <p><b>Contact:</b> ${escapeHtml(contactNumber || "-")}</p>
       <p><b>Email:</b> ${escapeHtml(customerEmail || "-")}</p>
-      ${proofUrl ? `<p><b>Proof URL:</b> ${escapeHtml(proofUrl)}</p>` : ""}
+      ${normalizedProofUrl ? `<p><b>Proof URL:</b> <a href="${escapeHtml(normalizedProofUrl)}">View payment proof</a></p>` : ""}
+      ${attachmentWarning ? `<p><i>The proof remains available through the link above.</i></p>` : ""}
     `;
 
     const email = await sendNotificationEmail({
@@ -107,7 +127,7 @@ export async function POST(req) {
       return new Response(email.publicError || "Email notification is not configured.", { status: 503 });
     }
 
-    return new Response("OK", { status: 200 });
+    return Response.json({ sent: true, attachmentIncluded: attachments.length > 0 });
   } catch (e) {
     return new Response(e?.message || "Server error", { status: 500 });
   }
