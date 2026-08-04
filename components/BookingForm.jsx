@@ -15,6 +15,8 @@ const BUFFER_HOURS = 1; // 1 hour buffer before & after
 const MAX_EXTENSION_HOURS = 5; // extension max 5 hours
 const MIN_ADVANCE_HOURS = 3; // must be at least 3 hours in advance
 const RESCHEDULE_MIN_DAYS = 2; // update/reschedule allowed only if >= 2 days before start
+const DECEMBER_SLOT_HOURS = [10, 14, 18, 22];
+const DECEMBER_BOOKING_MINUTES = 3 * 60;
 
 // ✅ NEW BASE DURATION: 2 hours 59 minutes
 const BASE_BOOKING_MINUTES = 2 * 60 + 59; // 179 mins
@@ -295,7 +297,12 @@ function formatPeso(n) {
 function toISODate(d) {
   return d.toISOString().split("T")[0];
 }
-function buildSlotHours() {
+function isDecemberDate(dateISO) {
+  const month = Number(String(dateISO || "").split("-")[1]);
+  return month === 12;
+}
+function buildSlotHours(dateISO) {
+  if (isDecemberDate(dateISO)) return DECEMBER_SLOT_HOURS;
   const hours = [];
   for (let h = OPERATING_START_HOUR; h <= 23; h++) hours.push(h);
   hours.push(24, 25); // 12AM, 1AM next day
@@ -307,6 +314,18 @@ function labelHour(h) {
   const ampm = hh >= 12 ? "PM" : "AM";
   const disp = ((hh + 11) % 12) + 1;
   return `${disp}:00 ${ampm}${dayOffset}`;
+}
+function labelBookingSlot(dateISO, hour) {
+  if (!isDecemberDate(dateISO)) return labelHour(hour);
+  return `${labelHour(hour).replace(" (+1)", "")} - ${labelHour(hour + 3)}`;
+}
+function bookingExtensionHours(dateISO, extensionEnabled, extensionHours) {
+  if (isDecemberDate(dateISO)) return 0;
+  return extensionEnabled ? Number(extensionHours || 0) : 0;
+}
+function bookingDurationMinutes(dateISO, extensionHours = 0) {
+  if (isDecemberDate(dateISO)) return DECEMBER_BOOKING_MINUTES;
+  return BASE_BOOKING_MINUTES + Number(extensionHours || 0) * 60;
 }
 function computeDateTime(businessDateISO, hourLike) {
   const [year, month, day] = String(businessDateISO).split("-").map(Number);
@@ -375,7 +394,7 @@ export function BookingAvailabilityOnly({
   const [loadingBookings, setLoadingBookings] = useState(false);
   const [notice, setNotice] = useState(null);
 
-  const slotHours = useMemo(() => buildSlotHours(), []);
+  const slotHours = useMemo(() => buildSlotHours(dateISO), [dateISO]);
 
   useEffect(() => {
     async function fetchBookingsForDate() {
@@ -409,8 +428,8 @@ export function BookingAvailabilityOnly({
   }, [dateISO]);
 
   const availability = useMemo(() => {
-    const ext = extensionEnabled ? Number(extensionHours || 0) : 0;
-    const totalMinutes = BASE_BOOKING_MINUTES + ext * 60;
+    const ext = bookingExtensionHours(dateISO, extensionEnabled, extensionHours);
+    const totalMinutes = bookingDurationMinutes(dateISO, ext);
 
     const now = new Date();
     const minAllowed = new Date(now.getTime() + MIN_ADVANCE_HOURS * 3600000);
@@ -428,7 +447,7 @@ export function BookingAvailabilityOnly({
         bookings,
       });
 
-      return { hour: h, label: labelHour(h), ...verdict };
+      return { hour: h, label: labelBookingSlot(dateISO, h), ...verdict };
     });
   }, [slotHours, dateISO, bookings, extensionEnabled, extensionHours]);
 
@@ -636,11 +655,38 @@ export default function BookingForm({ user, member }) {
     fetchBookingsForDate();
   }, [dateISO]);
 
-  const slotHours = useMemo(() => buildSlotHours(), []);
+  const slotHours = useMemo(() => buildSlotHours(dateISO), [dateISO]);
+  const reschedSlotHours = useMemo(
+    () => buildSlotHours(reschedDateISO),
+    [reschedDateISO]
+  );
+
+  useEffect(() => {
+    if (selectedHour != null && !slotHours.includes(selectedHour)) {
+      setSelectedHour(null);
+    }
+    if (isDecemberDate(dateISO)) {
+      setForm((current) => ({
+        ...current,
+        extend: "no",
+        extension_hours: 0,
+      }));
+    }
+  }, [dateISO, selectedHour, slotHours]);
+
+  useEffect(() => {
+    if (reschedHour != null && !reschedSlotHours.includes(reschedHour)) {
+      setReschedHour(null);
+    }
+  }, [reschedDateISO, reschedHour, reschedSlotHours]);
 
   const availability = useMemo(() => {
-    const ext = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
-    const totalMinutes = BASE_BOOKING_MINUTES + ext * 60;
+    const ext = bookingExtensionHours(
+      dateISO,
+      form.extend === "yes",
+      form.extension_hours
+    );
+    const totalMinutes = bookingDurationMinutes(dateISO, ext);
 
     const now = new Date();
     const minAllowed = new Date(now.getTime() + MIN_ADVANCE_HOURS * 3600000);
@@ -657,7 +703,7 @@ export default function BookingForm({ user, member }) {
         minAllowed,
         bookings,
       });
-      return { hour: h, label: labelHour(h), ...verdict };
+      return { hour: h, label: labelBookingSlot(dateISO, h), ...verdict };
     });
   }, [slotHours, dateISO, bookings, form.extend, form.extension_hours]);
 
@@ -750,14 +796,18 @@ export default function BookingForm({ user, member }) {
   const reschedAvailability = useMemo(() => {
     if (!reschedOpen || !reschedBooking) return [];
 
-    const ext = Number(reschedBooking.extension_hours || 0);
-    const totalMinutes = BASE_BOOKING_MINUTES + ext * 60;
+    const ext = bookingExtensionHours(
+      reschedDateISO,
+      true,
+      reschedBooking.extension_hours
+    );
+    const totalMinutes = bookingDurationMinutes(reschedDateISO, ext);
 
     const now = new Date();
     const minAllowed = new Date(now.getTime() + MIN_ADVANCE_HOURS * 3600000);
     const operatingEnd = computeDateTime(reschedDateISO, 26);
 
-    return slotHours.map((h) => {
+    return reschedSlotHours.map((h) => {
       const slotStart = computeDateTime(reschedDateISO, h);
       const slotEnd = new Date(slotStart.getTime() + totalMinutes * 60000);
 
@@ -769,9 +819,9 @@ export default function BookingForm({ user, member }) {
         bookings: reschedBookings,
       });
 
-      return { hour: h, label: labelHour(h), ...verdict };
+      return { hour: h, label: labelBookingSlot(reschedDateISO, h), ...verdict };
     });
-  }, [reschedOpen, reschedBooking, reschedDateISO, reschedBookings, slotHours]);
+  }, [reschedOpen, reschedBooking, reschedDateISO, reschedBookings, reschedSlotHours]);
 
   function validateBookingInputs() {
     setNotice(null);
@@ -780,6 +830,9 @@ export default function BookingForm({ user, member }) {
     if (!form.event_type.trim()) return "Event type is required.";
     if (!dateISO) return "Date is required.";
     if (selectedHour == null) return "Time is required.";
+    if (!buildSlotHours(dateISO).includes(selectedHour)) {
+      return "Please select one of the available booking slots for this date.";
+    }
     if (!form.package_id) return "Please select a package.";
     if (!form.contact_number.trim()) return "Contact number is required.";
     if (!form.email.trim()) return "Email address is required.";
@@ -787,7 +840,11 @@ export default function BookingForm({ user, member }) {
     const guests = Number(form.guest_count || 0);
     if (!guests || guests < 1) return "No. of guests must be at least 1.";
 
-    const extensionHours = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
+    const extensionHours = bookingExtensionHours(
+      dateISO,
+      form.extend === "yes",
+      form.extension_hours
+    );
     if (extensionHours < 0 || extensionHours > MAX_EXTENSION_HOURS) {
       return `Extension must be 0–${MAX_EXTENSION_HOURS} hours.`;
     }
@@ -866,9 +923,13 @@ export default function BookingForm({ user, member }) {
     const err = validateBookingInputs();
     if (err) return setNotice(err);
 
-    const extensionHours = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
+    const extensionHours = bookingExtensionHours(
+      dateISO,
+      form.extend === "yes",
+      form.extension_hours
+    );
     const start = computeDateTime(dateISO, selectedHour);
-    const totalMinutes = BASE_BOOKING_MINUTES + extensionHours * 60;
+    const totalMinutes = bookingDurationMinutes(dateISO, extensionHours);
     const end = new Date(start.getTime() + totalMinutes * 60000);
 
     setSubmitting(true);
@@ -997,9 +1058,13 @@ export default function BookingForm({ user, member }) {
     if (err) return setNotice(err);
     if (!proofFile) return setNotice("Please attach a screenshot of your payment confirmation.");
 
-    const extensionHours = form.extend === "yes" ? Number(form.extension_hours || 0) : 0;
+    const extensionHours = bookingExtensionHours(
+      dateISO,
+      form.extend === "yes",
+      form.extension_hours
+    );
     const start = computeDateTime(dateISO, selectedHour);
-    const totalMinutes = BASE_BOOKING_MINUTES + extensionHours * 60;
+    const totalMinutes = bookingDurationMinutes(dateISO, extensionHours);
     const end = new Date(start.getTime() + totalMinutes * 60000);
 
     setSubmitting(true);
@@ -1387,6 +1452,7 @@ export default function BookingForm({ user, member }) {
               <div className="mt-2 flex items-center gap-2 justify-end">
                 <select
                   value={form.extend}
+                  disabled={isDecemberDate(dateISO)}
                   onChange={(e) =>
                     setForm((f) => ({
                       ...f,
@@ -1394,7 +1460,7 @@ export default function BookingForm({ user, member }) {
                       extension_hours: e.target.value === "yes" ? f.extension_hours : 0,
                     }))
                   }
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm disabled:opacity-50"
                 >
                   <option value="no">No</option>
                   <option value="yes">Yes</option>
@@ -1405,7 +1471,7 @@ export default function BookingForm({ user, member }) {
                   onChange={(e) =>
                     setForm((f) => ({ ...f, extension_hours: Number(e.target.value) }))
                   }
-                  disabled={form.extend !== "yes"}
+                  disabled={isDecemberDate(dateISO) || form.extend !== "yes"}
                   className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm disabled:opacity-50"
                 >
                   <option value={0}>0 hr</option>
@@ -1413,12 +1479,26 @@ export default function BookingForm({ user, member }) {
                   <option value={2}>2 hr</option>
                 </select>
               </div>
+              {isDecemberDate(dateISO) ? (
+                <p className="mt-1 text-[10px] text-slate-500">
+                  December uses fixed 3-hour slots; extensions are unavailable.
+                </p>
+              ) : null}
             </div>
           </div>
 
           <div className="text-[11px] text-slate-500">
-            Operating hours: <b>10:00 AM – 2:00 AM</b> (next day). Buffer rule:{" "}
-            <b>1 hour</b> before & after.
+            {isDecemberDate(dateISO) ? (
+              <>
+                December slots: <b>10:00 AM - 1:00 PM</b>, <b>2:00 PM - 5:00 PM</b>,{" "}
+                <b>6:00 PM - 9:00 PM</b>, and <b>10:00 PM - 1:00 AM</b> (next day).
+              </>
+            ) : (
+              <>
+                Operating hours: <b>10:00 AM - 2:00 AM</b> (next day). Buffer rule:{" "}
+                <b>1 hour</b> before & after.
+              </>
+            )}
           </div>
 
           {loadingBookings ? (
@@ -1526,7 +1606,11 @@ export default function BookingForm({ user, member }) {
               <p className="text-[10px] uppercase tracking-widest text-slate-500">Selected</p>
               <p className="text-[12px] text-slate-800 mt-1">
                 Date: <b>{formatDate(dateISO)}</b> / Time:{" "}
-                <b>{selectedHour != null ? labelHour(selectedHour) : "Not selected"}</b>
+                <b>
+                  {selectedHour != null
+                    ? labelBookingSlot(dateISO, selectedHour)
+                    : "Not selected"}
+                </b>
               </p>
             </div>
 
@@ -1927,8 +2011,12 @@ export default function BookingForm({ user, member }) {
                   setReschedLoading(true);
                   setNotice(null);
 
-                  const ext = Number(reschedBooking.extension_hours || 0);
-                  const totalMinutes = BASE_BOOKING_MINUTES + ext * 60;
+                  const ext = bookingExtensionHours(
+                    reschedDateISO,
+                    true,
+                    reschedBooking.extension_hours
+                  );
+                  const totalMinutes = bookingDurationMinutes(reschedDateISO, ext);
 
                   const newStart = computeDateTime(reschedDateISO, reschedHour);
                   const newEnd = new Date(newStart.getTime() + totalMinutes * 60000);
@@ -1939,6 +2027,7 @@ export default function BookingForm({ user, member }) {
                       business_date: reschedDateISO,
                       start_at: toManilaOffsetISOString(newStart),
                       end_at: toManilaOffsetISOString(newEnd),
+                      extension_hours: ext,
                       status: "pending",
                     })
                     .eq("id", reschedBooking.id);
@@ -1957,6 +2046,7 @@ export default function BookingForm({ user, member }) {
                             business_date: reschedDateISO,
                             start_at: toManilaOffsetISOString(newStart),
                             end_at: toManilaOffsetISOString(newEnd),
+                            extension_hours: ext,
                             status: "pending",
                           }
                         : x
