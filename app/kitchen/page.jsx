@@ -10,6 +10,30 @@ import { getStableSession } from "@/lib/supabase/session";
 const supabase = getSupabaseClient();
 const ALERT_SOUND_SRC = "/sound/notification.mp3";
 const KDS_HISTORY_STATUSES = ["completed", "voided", "rejected"];
+const KDS_REPAIR_POLL_MS = 300000;
+const KDS_TICKET_COLUMNS = [
+  "id",
+  "source_type",
+  "source_id",
+  "web_order_id",
+  "store_id",
+  "ticket_number",
+  "customer_name",
+  "dining_option",
+  "items",
+  "total",
+  "status",
+  "source_created_at",
+  "started_at",
+  "ready_at",
+  "completed_at",
+  "voided_at",
+  "created_at",
+  "scheduled_for",
+  "fulfillment_time",
+  "fulfillment_type",
+  "schedule_label",
+].join(",");
 
 const peso = (n) =>
   `PHP ${Number(n || 0).toLocaleString("en-PH", {
@@ -575,10 +599,10 @@ export default function KitchenDisplay() {
     if (!silent) setLoading(true);
     let query = supabase
       .from("kds_tickets")
-      .select("*")
+      .select(KDS_TICKET_COLUMNS)
       .in("status", allowedStatuses)
       .order("created_at", { ascending: false })
-      .limit(200);
+      .limit(showHistory ? 100 : 60);
 
     if (assignedStoreId) query = query.eq("store_id", assignedStoreId);
 
@@ -686,10 +710,11 @@ export default function KitchenDisplay() {
       })
       .subscribe();
 
+    // Realtime handles normal updates; this slower poll repairs missed events.
     const timer = setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       fetchTickets({ silent: true });
-    }, 15000);
+    }, KDS_REPAIR_POLL_MS);
 
     return () => {
       cancelled = true;

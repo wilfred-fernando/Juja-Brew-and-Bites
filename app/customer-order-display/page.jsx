@@ -82,7 +82,7 @@ export default function CustomerOrderDisplayPage() {
   async function loadOrders({ silent = false } = {}) {
     if (!silent) setLoading(true);
     try {
-      const res = await fetch("/api/customer-order-display", { cache: "no-store" });
+      const res = await fetch("/api/customer-order-display");
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || "Unable to load display.");
       setOrders(Array.isArray(json.orders) ? json.orders : []);
@@ -96,7 +96,7 @@ export default function CustomerOrderDisplayPage() {
 
   useEffect(() => {
     loadOrders();
-    const refresh = setInterval(() => loadOrders({ silent: true }), 10000);
+    const refresh = setInterval(() => loadOrders({ silent: true }), 30000);
     const clock = setInterval(() => setNow(new Date()), 2000);
     const slide = setInterval(() => {
       setSlideIndex((current) => (current + 1) % DISPLAY_SLIDES.length);

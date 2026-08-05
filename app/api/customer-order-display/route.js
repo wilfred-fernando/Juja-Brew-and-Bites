@@ -6,6 +6,7 @@ const DISPLAY_STATUSES = [...ACTIVE_STATUSES, "completed"];
 const SERVED_VISIBLE_MS = 60 * 1000;
 const KITCHEN_RULES_TTL_MS = 5 * 60 * 1000;
 const PASONG_TAMO_STORE_TTL_MS = 10 * 60 * 1000;
+const DISPLAY_TICKETS_TTL_MS = 15 * 1000;
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -134,6 +135,27 @@ async function loadPasongTamoStoreIds(supabase) {
   );
 }
 
+async function loadDisplayTicketsUncached(supabase, storeIds) {
+  const { data, error } = await supabase
+    .from("kds_tickets")
+    .select("id, status, store_id, dining_option, ticket_number, customer_name, items, created_at, started_at, ready_at, completed_at, source_created_at")
+    .in("status", DISPLAY_STATUSES)
+    .in("store_id", storeIds)
+    .order("created_at", { ascending: false })
+    .limit(60);
+  if (error) throw error;
+  return data || [];
+}
+
+async function loadDisplayTickets(supabase, storeIds) {
+  const storeKey = [...storeIds].sort().join(",");
+  return getCached(
+    `customer-order-display:tickets:${storeKey}`,
+    DISPLAY_TICKETS_TTL_MS,
+    () => loadDisplayTicketsUncached(supabase, storeIds)
+  );
+}
+
 export async function GET() {
   try {
     const supabase = getAdminClient();
@@ -154,15 +176,7 @@ export async function GET() {
       );
     }
 
-    const { data: tickets, error: ticketError } = await supabase
-      .from("kds_tickets")
-      .select("id, status, store_id, dining_option, ticket_number, customer_name, items, created_at, started_at, ready_at, completed_at, source_created_at")
-      .in("status", DISPLAY_STATUSES)
-      .in("store_id", pasongTamoStoreIds)
-      .order("created_at", { ascending: false })
-      .limit(120);
-
-    if (ticketError) throw ticketError;
+    const tickets = await loadDisplayTickets(supabase, pasongTamoStoreIds);
 
     const now = Date.now();
     const orders = (tickets || [])
@@ -194,7 +208,7 @@ export async function GET() {
       { orders, generated_at: new Date().toISOString(), branch: "Pasong Tamo" },
       {
         headers: {
-          ...cacheHeaders(3, 9),
+          ...cacheHeaders(15, 30),
           "X-Juja-Cache": "customer-order-display",
         },
       }

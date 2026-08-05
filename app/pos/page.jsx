@@ -89,8 +89,10 @@ const CT221B_53X40_LABEL_SIZE = {
 const THERMAL_PAPER_WIDTH_MM = 50;
 const RECEIPT_COLUMNS = 32;
 const RECEIPT_LOGO_URL = "https://images.jujabrewandbites.com/SIGNAGE%20light%20with%20korean%20letters%203.png";
-const POS_AUTO_REFRESH_MS = 30000;
-const POS_CATALOG_REFRESH_MS = 300000;
+// Realtime subscriptions are the primary update path; polling only recovers missed events.
+const POS_AUTO_REFRESH_MS = 300000;
+const POS_WEB_ORDER_FALLBACK_MS = 300000;
+const POS_CATALOG_REFRESH_MS = 3600000;
 const bluetoothPrinterDeviceCache = new Map();
 const bluetoothPrinterCharacteristicCache = new Map();
 const nativeBluetoothPrinterDeviceCache = new Map();
@@ -4859,7 +4861,7 @@ export default function POSPage() {
       .select("*")
       .eq("store_id", sid)
       .order("created_at", { ascending: false })
-      .limit(50);
+      .limit(20);
 
     if (error) {
       applyShiftState(localRows, sid, cashierId);
@@ -5026,7 +5028,7 @@ export default function POSPage() {
     };
 
     pollIncomingOrders();
-    const pollTimer = window.setInterval(pollIncomingOrders, 15000);
+    const pollTimer = window.setInterval(pollIncomingOrders, POS_WEB_ORDER_FALLBACK_MS);
 
     return () => {
       window.clearInterval(pollTimer);
@@ -5160,28 +5162,6 @@ export default function POSPage() {
 
   // ================= CORE BACKGROUND LOGISTICS FUNCTIONS =================
   useEffect(() => {
-    if (!storeId || shiftStatus !== "open") return;
-
-    const channel = supabase
-      .channel("pos-global-debug")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "web_orders" },
-        (payload) => {
-          console.log("🚨 DEBUG SNOOPER INTERCEPTED ROW:", payload.new);
-          const orderStore = getWebOrderStoreId(payload.new);
-          if (String(orderStore) === String(storeId)) {
-            fetchPendingCount(storeId);
-            fetchAcceptedWebOrders();
-          }
-        }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [storeId, shiftStatus]);
-
-  useEffect(() => {
     if (!storeId) {
       setSavedTickets([]);
       return;
@@ -5232,6 +5212,26 @@ export default function POSPage() {
 
     return () => { isActive = false; };
   }, [attachedCustomer?.id]);
+
+  useEffect(() => {
+    const query = String(customerSearch || "").trim();
+    if (query.length < 2 || attachedCustomer?.id) return undefined;
+
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      try {
+        const matches = await searchCustomersRemote(query, 8);
+        if (!cancelled) mergeCustomerMatches(matches);
+      } catch (error) {
+        console.warn("Customer lookup failed", error);
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [customerSearch, attachedCustomer?.id]);
 
   useEffect(() => {
     const init = async () => {
@@ -5488,15 +5488,50 @@ export default function POSPage() {
     }
   }
 
+  function normalizePosCustomer(row) {
+    return {
+      ...row,
+      name: row?.customer_name || row?.name || row?.full_name || "",
+      code: row?.customer_code || row?.code || "",
+      availablePoints: row?.["Available points"] ?? row?.available_points ?? 0,
+      pointsBalance: row?.["Points balance"] ?? row?.points_balance ?? 0,
+    };
+  }
+
+  function mergeCustomerMatches(rows) {
+    const normalized = (rows || []).map(normalizePosCustomer).filter((row) => row.id);
+    if (normalized.length === 0) return;
+    setCustomers((current) => {
+      const byId = new Map(current.map((row) => [String(row.id), row]));
+      normalized.forEach((row) => byId.set(String(row.id), { ...byId.get(String(row.id)), ...row }));
+      return Array.from(byId.values()).slice(-100);
+    });
+  }
+
+  async function searchCustomersRemote(rawQuery, limit = 8) {
+    const query = String(rawQuery || "").trim();
+    if (!query) return [];
+    const escaped = query.replace(/[,%()]/g, " ").replace(/\s+/g, " ").trim();
+    if (!escaped) return [];
+
+    const { data, error } = await supabase
+      .from("loyalty_members")
+      .select("*")
+      .or(`customer_name.ilike.%${escaped}%,customer_code.ilike.%${escaped}%`)
+      .limit(limit);
+    if (error) throw error;
+    return data || [];
+  }
+
   async function fetchData(sid, opts = {}) {
     if (!sid) return;
     const showLoadingState = opts.showLoading !== false;
     if (showLoadingState) setLoading(true);
     try {
-      const [iRes, catRes, cRes, itemStoreAvailabilityRes, optionGroupAvailabilityRes, optionSelectionAvailabilityRes] = await Promise.all([
+      const cachedSnapshot = readJsonStorage(POS_OFFLINE_CACHE_KEY, null);
+      const [iRes, catRes, itemStoreAvailabilityRes, optionGroupAvailabilityRes, optionSelectionAvailabilityRes] = await Promise.all([
         supabase.from("menu_items").select("*").order("name"),
         supabase.from("menu_categories").select("*").order("name", { ascending: true }),
-        supabase.from("loyalty_members").select("*"),
         supabase.from("menu_item_store_availability").select("item_id, store_id, is_available").eq("store_id", sid),
         supabase.from("option_group_store_availability").select("store_id, group_key, group_name, is_available").eq("store_id", sid),
         supabase.from("option_selection_store_availability").select("store_id, group_key, option_key, group_name, option_name, is_available").eq("store_id", sid),
@@ -5568,28 +5603,15 @@ export default function POSPage() {
       });
       setItems(itemRows);
       setCategories(cats);
-      const loyaltyRows = await Promise.all((cRes.data || []).map(async (row) => {
-        try {
-          const result = await resetMemberPointsIfExpired(supabase, row);
-          return result.member || row;
-        } catch (err) {
-          console.warn("Annual loyalty point reset skipped:", err);
-          return applyAnnualPointResetToMember(row);
-        }
-      }));
-      const customerRows = loyaltyRows.map((row) => ({
-        ...row,
-        name: row.customer_name || row.name || row.full_name || "",
-        code: row.customer_code || row.code || "",
-        availablePoints: row["Available points"] ?? row.available_points ?? 0,
-        pointsBalance: row["Points balance"] ?? row.points_balance ?? 0,
-      }));
-      setCustomers(customerRows);
+      const cachedCustomers = Array.isArray(cachedSnapshot?.customers) ? cachedSnapshot.customers : [];
+      if (cachedCustomers.length > 0) {
+        setCustomers((current) => (current.length > 0 ? current : cachedCustomers));
+      }
       writeJsonStorage(POS_OFFLINE_CACHE_KEY, {
         cached_at: new Date().toISOString(),
         items: itemRows,
         categories: cats,
-        customers: customerRows,
+        customers: customers.length > 0 ? customers.slice(0, 100) : cachedCustomers.slice(0, 100),
         recipeRows: recipeRes.error ? [] : recipeRes.data || [],
         recipeInventoryItems: recipeInventoryRes.error ? [] : recipeInventoryRes.data || [],
       });
@@ -6030,14 +6052,16 @@ export default function POSPage() {
       .from("open_tickets")
       .select("id, store_id, ticket_name, order_type, customer_id, items, total_amount, applied_voucher, created_at")
       .eq("store_id", sid)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(100);
 
     if (res.error && /applied_voucher/i.test(res.error.message || "")) {
       res = await supabase
           .from("open_tickets")
           .select("id, store_id, ticket_name, order_type, customer_id, items, total_amount, created_at")
           .eq("store_id", sid)
-          .order("created_at", { ascending: false });
+          .order("created_at", { ascending: false })
+          .limit(100);
     }
 
     if (res.error) {
@@ -6076,7 +6100,8 @@ export default function POSPage() {
       .from("kds_tickets")
       .select("source_id, dining_option, status, items")
       .eq("store_id", String(sid))
-      .in("status", ["pending", "scheduled", "accepted", "preparing", "ready"]);
+      .in("status", ["pending", "scheduled", "accepted", "preparing", "ready"])
+      .limit(100);
 
     if (error) {
       console.warn("Active kitchen table load failed:", error);
@@ -6106,7 +6131,8 @@ export default function POSPage() {
       .select("*")
       .in("status", TARGET_WEB_STATUSES)
       .or(buildStoreOrderFilter(storeId))
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(100);
 
     if (error) {
       showToast("error", "Web Orders Failed", error.message);
@@ -8607,7 +8633,7 @@ export default function POSPage() {
     }
   }
 
-  const handleCodeInput = (raw) => {
+  const handleCodeInput = async (raw) => {
     const q = String(raw || "").trim().toLowerCase();
     if (!q) return;
 
@@ -8618,11 +8644,25 @@ export default function POSPage() {
       return;
     }
 
-    const matchCust = customers.find(
+    let matchCust = customers.find(
       (c) =>
         (c.code && String(c.code).toLowerCase() === q) ||
         (c.name && String(c.name).toLowerCase().includes(q))
     );
+
+    if (!matchCust) {
+      try {
+        const remoteMatches = await searchCustomersRemote(raw, 8);
+        mergeCustomerMatches(remoteMatches);
+        matchCust = remoteMatches.map(normalizePosCustomer).find(
+          (c) =>
+            (c.code && String(c.code).toLowerCase() === q) ||
+            (c.name && String(c.name).toLowerCase().includes(q))
+        );
+      } catch (error) {
+        console.warn("Customer scan lookup failed", error);
+      }
+    }
 
     if (matchCust) {
       setAttachedCustomer(matchCust);

@@ -3612,7 +3612,8 @@ export default function Customer() {
       }
     };
 
-    const pollTimer = window.setInterval(pollCustomerOrders, 30000);
+    // Native push and Realtime are primary; polling is a missed-event fallback.
+    const pollTimer = window.setInterval(pollCustomerOrders, 300000);
 
     return () => window.clearInterval(pollTimer);
   }, [user?.id]);
