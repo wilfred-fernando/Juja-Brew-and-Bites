@@ -3587,16 +3587,32 @@ export default function Customer() {
     let pollInFlight = false;
     const pollCustomerOrders = async () => {
       if (pollInFlight) return;
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       pollInFlight = true;
       try {
-        await fetchOrderHistory(user.id, { silent: true, notifyChanges: true });
+        const { data, error } = await supabase
+          .from("web_orders")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(20);
+        if (error) throw error;
+
+        const recentRows = data || [];
+        recentRows.forEach((order) => notifyOrderStatus(order));
+        setOrders((previous) => {
+          const byId = new Map(previous.map((order) => [String(order.id), order]));
+          recentRows.forEach((order) => byId.set(String(order.id), order));
+          return Array.from(byId.values()).sort(
+            (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+          );
+        });
       } finally {
         pollInFlight = false;
       }
     };
 
-    const pollTimer = window.setInterval(pollCustomerOrders, 3000);
-    pollCustomerOrders();
+    const pollTimer = window.setInterval(pollCustomerOrders, 30000);
 
     return () => window.clearInterval(pollTimer);
   }, [user?.id]);

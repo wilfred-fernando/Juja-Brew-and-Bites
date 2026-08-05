@@ -683,11 +683,13 @@ export default function KitchenDisplay() {
         if (assignedStoreId && String(changed.store_id || "") !== String(assignedStoreId)) return;
         mergeRealtimeTicket(payload);
         if (payload.eventType === "INSERT") showNewTicketAlert(payload.new);
-        fetchTickets({ silent: true });
       })
       .subscribe();
 
-    const timer = setInterval(() => fetchTickets({ silent: true }), 5000);
+    const timer = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      fetchTickets({ silent: true });
+    }, 15000);
 
     return () => {
       cancelled = true;

@@ -96,7 +96,7 @@ export default function CustomerOrderDisplayPage() {
 
   useEffect(() => {
     loadOrders();
-    const refresh = setInterval(() => loadOrders({ silent: true }), 6000);
+    const refresh = setInterval(() => loadOrders({ silent: true }), 10000);
     const clock = setInterval(() => setNow(new Date()), 2000);
     const slide = setInterval(() => {
       setSlideIndex((current) => (current + 1) % DISPLAY_SLIDES.length);

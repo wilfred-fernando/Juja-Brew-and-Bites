@@ -89,7 +89,8 @@ const CT221B_53X40_LABEL_SIZE = {
 const THERMAL_PAPER_WIDTH_MM = 50;
 const RECEIPT_COLUMNS = 32;
 const RECEIPT_LOGO_URL = "https://images.jujabrewandbites.com/SIGNAGE%20light%20with%20korean%20letters%203.png";
-const POS_AUTO_REFRESH_MS = 5000;
+const POS_AUTO_REFRESH_MS = 30000;
+const POS_CATALOG_REFRESH_MS = 300000;
 const bluetoothPrinterDeviceCache = new Map();
 const bluetoothPrinterCharacteristicCache = new Map();
 const nativeBluetoothPrinterDeviceCache = new Map();
@@ -5001,6 +5002,7 @@ export default function POSPage() {
     let pollInFlight = false;
     const pollIncomingOrders = async () => {
       if (pollInFlight) return;
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       pollInFlight = true;
       try {
         const { data, error } = await supabase
@@ -5024,7 +5026,7 @@ export default function POSPage() {
     };
 
     pollIncomingOrders();
-    const pollTimer = window.setInterval(pollIncomingOrders, 3000);
+    const pollTimer = window.setInterval(pollIncomingOrders, 15000);
 
     return () => {
       window.clearInterval(pollTimer);
@@ -6143,13 +6145,13 @@ export default function POSPage() {
     let cancelled = false;
     const refreshPos = async () => {
       if (autoRefreshInFlightRef.current || cancelled) return;
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       autoRefreshInFlightRef.current = true;
 
       try {
         await Promise.all([
           fetchPendingCount(storeId),
           loadShiftState(storeId, currentUserId),
-          fetchData(storeId, { showLoading: false }),
           fetchSavedTickets(storeId),
           fetchActiveKitchenTables(),
           fetchAcceptedWebOrders(),
@@ -6168,6 +6170,20 @@ export default function POSPage() {
       window.clearInterval(timer);
     };
   }, [storeId, shiftStatus, managementOpen, currentUserId]);
+
+  useEffect(() => {
+    if (!storeId || shiftStatus === "loading") return undefined;
+
+    const refreshCatalog = () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      fetchData(storeId, { showLoading: false }).catch((err) => {
+        console.warn("POS catalog refresh failed", err);
+      });
+    };
+
+    const timer = window.setInterval(refreshCatalog, POS_CATALOG_REFRESH_MS);
+    return () => window.clearInterval(timer);
+  }, [storeId, shiftStatus]);
 
   async function openAcceptedWebOrders() {
     await fetchAcceptedWebOrders();
