@@ -1,0 +1,26 @@
+# Dependencies and local build output
+node_modules/
+.next/
+out/
+build/
+
+# Native Android project and generated APK releases
+android/
+releases/
+public/downloads/
+
+# Local tooling, migration scratch files, and secrets
+.git/
+.vercel/
+.agents/
+.codex/
+.codex-remote-attachments/
+.vscode/
+tmp/
+.env*
+*.jks
+*.keystore
+*.apk
+*.aab
+*.tsbuildinfo
+

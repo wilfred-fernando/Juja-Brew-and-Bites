@@ -146,3 +146,32 @@ CREATE TABLE IF NOT EXISTS archive_sync_runs (
   error_text TEXT
 );
 
+CREATE TABLE IF NOT EXISTS archive_shift_batches (
+  shift_id TEXT PRIMARY KEY,
+  store_id TEXT,
+  cashier_id TEXT,
+  opened_at TEXT NOT NULL,
+  closed_at TEXT NOT NULL,
+  business_date TEXT NOT NULL,
+  expected_counts_json TEXT NOT NULL DEFAULT '{}',
+  expected_totals_json TEXT NOT NULL DEFAULT '{}',
+  expected_checksum TEXT NOT NULL,
+  actual_counts_json TEXT,
+  actual_totals_json TEXT,
+  actual_checksum TEXT,
+  status TEXT NOT NULL DEFAULT 'uploading',
+  verified_at TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_archive_shift_batches_status ON archive_shift_batches(status, business_date);
+
+CREATE TABLE IF NOT EXISTS archive_shift_batch_records (
+  shift_id TEXT NOT NULL,
+  table_name TEXT NOT NULL,
+  source_id TEXT NOT NULL,
+  row_hash TEXT NOT NULL,
+  PRIMARY KEY (shift_id, table_name, source_id),
+  FOREIGN KEY (shift_id) REFERENCES archive_shift_batches(shift_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_archive_shift_records_shift ON archive_shift_batch_records(shift_id, table_name);

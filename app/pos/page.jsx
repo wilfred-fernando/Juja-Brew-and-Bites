@@ -6781,7 +6781,16 @@ export default function POSPage() {
       return name || code ? { ...(linked || {}), name, customer_name: name, code, customer_code: code } : null;
     };
 
-    const [receiptRes, webReceiptRes] = await Promise.all([
+    const archiveDateKey = (value) => new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(new Date(value));
+    const { data: sessionData } = await supabase.auth.getSession();
+    const archiveRequest = fetch(`/api/archive/pos-receipts?from=${encodeURIComponent(archiveDateKey(receiptCutoffIso))}&to=${encodeURIComponent(archiveDateKey(new Date()))}&storeId=${encodeURIComponent(storeId || "")}`, {
+      headers: sessionData?.session?.access_token ? { authorization: `Bearer ${sessionData.session.access_token}` } : {},
+      cache: "no-store",
+    }).then(async (response) => response.ok ? response.json() : ({ orders: [], webOrders: [], orderItems: [] }))
+      .catch(() => ({ orders: [], webOrders: [], orderItems: [] }));
+    const [receiptRes, webReceiptRes, archived] = await Promise.all([
       supabase
       .from("orders")
       .select("*")
@@ -6797,6 +6806,7 @@ export default function POSPage() {
         .or(buildStoreOrderFilter(storeId))
         .order("created_at", { ascending: false })
         .limit(receiptLimit),
+      archiveRequest,
     ]);
     if (receiptRes.error) {
       showToast("error", "Receipts Failed", receiptRes.error.message);
@@ -6828,7 +6838,12 @@ export default function POSPage() {
       return refunds[receiptNumber]?.items?.[fallbackKey] || "Closed";
     };
 
-    const posRows = (receiptRes.data || []).map((order) => {
+    const mergeById = (archivedRows, liveRows) => Array.from(new Map(
+      [...(archivedRows || []), ...(liveRows || [])].filter((row) => row?.id).map((row) => [String(row.id), row])
+    ).values());
+    const receiptData = mergeById(archived?.orders, receiptRes.data);
+    const webReceiptData = mergeById(archived?.webOrders, webReceiptRes.data);
+    const posRows = receiptData.map((order) => {
       const customer = resolveOrderCustomer(order);
       const displayTimestamp = receiptDisplayTimestamp(order);
       const receiptKey = order.receipt_number || order.order_number || String(order.id);
@@ -6856,12 +6871,12 @@ export default function POSPage() {
       };
     });
     const chargedWebOrderIds = new Set(
-      (receiptRes.data || [])
+      receiptData
         .map((order) => order.source_web_order_id)
         .filter(Boolean)
         .map((id) => String(id))
     );
-    const webRows = (webReceiptRes.data || [])
+    const webRows = webReceiptData
       .filter((order) => !chargedWebOrderIds.has(String(order.id)))
       .map((order) => {
         const displayTimestamp = receiptDisplayTimestamp(order);
@@ -6929,7 +6944,8 @@ export default function POSPage() {
       .select("*")
       .in("order_id", posOrderIds);
     if (!itemRes.error) {
-      const posItems = (itemRes.data || []).map((item) => {
+      const itemData = mergeById(archived?.orderItems, itemRes.data);
+      const posItems = itemData.filter((item) => receiptNumberByOrderId.has(String(item.order_id))).map((item) => {
         const sourceLine = findReceiptSourceLine(item);
         return ({
           ...item,
@@ -7836,6 +7852,22 @@ export default function POSPage() {
       showToast("info", shiftCashMode === "open" ? "Shift Opened Locally" : isEndDay ? "End Day Saved Locally" : "Shift Closed Locally", "Create or alter cashier_pos in Supabase to store shift records online.");
     } else {
       showToast("success", shiftCashMode === "open" ? "Shift Opened" : isEndDay ? "End Day Closed" : "Shift Closed", isEndDay ? "All POS accounts for this store will show closed after refresh." : "Shift record saved.");
+      if (shiftCashMode !== "open") {
+        const { data: sessionData } = await supabase.auth.getSession();
+        fetch("/api/archive/shift", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            ...(sessionData?.session?.access_token ? { authorization: `Bearer ${sessionData.session.access_token}` } : {}),
+          },
+          body: JSON.stringify({ shiftId: record.id }),
+        }).then(async (response) => {
+          if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            console.warn("Shift archive queued for retry:", payload?.error || response.status);
+          }
+        }).catch((archiveError) => console.warn("Shift archive queued for retry:", archiveError));
+      }
     }
 
     if (shiftCashMode !== "open") {

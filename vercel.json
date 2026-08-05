@@ -3,6 +3,14 @@
     {
       "path": "/api/customer/voucher-notifications",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/archive/retry",
+      "schedule": "17 17 * * *"
+    },
+    {
+      "path": "/api/archive/purge",
+      "schedule": "47 17 * * *"
     }
   ]
 }

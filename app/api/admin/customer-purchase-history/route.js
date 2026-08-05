@@ -112,6 +112,26 @@ async function safeQuery(query, mapper) {
   return (data || []).map(mapper);
 }
 
+async function fetchArchivedHistory({ memberId, userId, customerCode, posMapper, webMapper }) {
+  const apiUrl = String(process.env.D1_ARCHIVE_API_URL || "").replace(/\/$/, "");
+  const token = process.env.D1_ARCHIVE_API_TOKEN;
+  if (!apiUrl || !token) return [];
+
+  const target = new URL(`${apiUrl}/v1/customer-history`);
+  if (memberId) target.searchParams.set("memberId", String(memberId));
+  if (userId) target.searchParams.set("userId", String(userId));
+  if (customerCode) target.searchParams.set("customerCode", String(customerCode));
+  const response = await fetch(target, {
+    headers: { authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (!response.ok) return [];
+  const payload = await response.json().catch(() => ({ rows: [] }));
+  return (payload.rows || []).map((row) =>
+    String(row?._archive_source_type || "").toUpperCase() === "WEB" ? webMapper(row) : posMapper(row)
+  );
+}
+
 export async function POST(req) {
   try {
     const { url, serviceRoleKey } = supabaseConfig();
@@ -181,7 +201,17 @@ export async function POST(req) {
       ...(userId ? [safeQuery(admin.from("web_orders").select(webSelect).eq("user_id", userId).order("created_at", { ascending: false }).limit(250), webMapper)] : []),
     ];
 
-    const rows = dedupeRows((await Promise.all([...posQueries, ...webQueries])).flat());
+    const [liveRows, archivedRows] = await Promise.all([
+      Promise.all([...posQueries, ...webQueries]),
+      fetchArchivedHistory({
+        memberId: member.id,
+        userId,
+        customerCode: codes[0] || "",
+        posMapper,
+        webMapper,
+      }),
+    ]);
+    const rows = dedupeRows([...archivedRows, ...liveRows.flat()]);
     return Response.json({ rows });
   } catch (error) {
     return Response.json({ error: error?.message || "Unable to load purchase history." }, { status: 500 });

@@ -63,7 +63,119 @@ async function upsertBatch(request, env) {
     ON CONFLICT (${conflictColumns.join(",")}) DO UPDATE SET ${updates}`;
   const statements = rows.map((row) => env.ARCHIVE_DB.prepare(sql).bind(...columns.map((column) => row[column] ?? null)));
   await env.ARCHIVE_DB.batch(statements);
+  if (body.shiftId && Array.isArray(body.hashes) && body.hashes.length === rows.length) {
+    const hashSql = `INSERT INTO archive_shift_batch_records (shift_id, table_name, source_id, row_hash)
+      VALUES (?, ?, ?, ?) ON CONFLICT (shift_id, table_name, source_id)
+      DO UPDATE SET row_hash=excluded.row_hash`;
+    await env.ARCHIVE_DB.batch(rows.map((row, index) => env.ARCHIVE_DB
+      .prepare(hashSql)
+      .bind(String(body.shiftId), body.manifestTable || body.table, String(row.source_id), String(body.hashes[index]))));
+  }
   return json({ ok: true, count: rows.length });
+}
+
+function stableValue(value) {
+  if (Array.isArray(value)) return value.map(stableValue);
+  if (value && typeof value === "object") {
+    return Object.keys(value).sort().reduce((result, key) => {
+      result[key] = stableValue(value[key]);
+      return result;
+    }, {});
+  }
+  return value;
+}
+
+async function sha256(value) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function startShiftBatch(request, env) {
+  const body = await request.json();
+  if (!body.shiftId || !body.openedAt || !body.closedAt || !body.businessDate || !body.expectedChecksum) {
+    return json({ error: "Shift manifest is incomplete." }, 400);
+  }
+  await env.ARCHIVE_DB.prepare(`INSERT INTO archive_shift_batches
+    (shift_id, store_id, cashier_id, opened_at, closed_at, business_date,
+     expected_counts_json, expected_totals_json, expected_checksum, status, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'uploading', CURRENT_TIMESTAMP)
+    ON CONFLICT (shift_id) DO UPDATE SET
+      store_id=excluded.store_id, cashier_id=excluded.cashier_id,
+      opened_at=excluded.opened_at, closed_at=excluded.closed_at,
+      business_date=excluded.business_date, expected_counts_json=excluded.expected_counts_json,
+      expected_totals_json=excluded.expected_totals_json,
+      expected_checksum=excluded.expected_checksum, status='uploading', updated_at=CURRENT_TIMESTAMP`)
+    .bind(String(body.shiftId), body.storeId || null, body.cashierId || null, body.openedAt, body.closedAt,
+      body.businessDate, JSON.stringify(body.expectedCounts || {}), JSON.stringify(body.expectedTotals || {}), body.expectedChecksum)
+    .run();
+  return json({ ok: true, shiftId: body.shiftId });
+}
+
+async function finalizeShiftBatch(request, env) {
+  const body = await request.json();
+  const shiftId = String(body.shiftId || "");
+  const batch = await env.ARCHIVE_DB.prepare("SELECT * FROM archive_shift_batches WHERE shift_id = ?").bind(shiftId).first();
+  if (!batch) return json({ error: "Shift batch was not started." }, 404);
+  const records = await env.ARCHIVE_DB.prepare(
+    "SELECT table_name, source_id, row_hash FROM archive_shift_batch_records WHERE shift_id = ? ORDER BY table_name, source_id"
+  ).bind(shiftId).all();
+  const counts = {};
+  for (const row of records.results) counts[row.table_name] = (counts[row.table_name] || 0) + 1;
+  const checksumInput = records.results.map((row) => `${row.table_name}:${row.source_id}:${row.row_hash}`).join("\n");
+  const checksum = await sha256(checksumInput);
+  const expectedCounts = JSON.parse(batch.expected_counts_json || "{}");
+  for (const tableName of Object.keys(expectedCounts)) {
+    if (!(tableName in counts)) counts[tableName] = 0;
+  }
+  const expectedTotals = JSON.parse(batch.expected_totals_json || "{}");
+  const totalsRow = await env.ARCHIVE_DB.prepare(`SELECT
+      ROUND(COALESCE(SUM(o.gross_amount), 0), 2) AS gross,
+      ROUND(COALESCE(SUM(o.discount_amount), 0), 2) AS discounts,
+      ROUND(COALESCE(SUM(o.refund_amount), 0), 2) AS refunds,
+      ROUND(COALESCE(SUM(o.net_amount), 0), 2) AS net
+    FROM archive_shift_batch_records r
+    JOIN archive_orders o ON o.source_id = r.source_id
+    WHERE r.shift_id = ? AND r.table_name IN ('archive_orders', 'archive_web_orders')`)
+    .bind(shiftId).first();
+  const totals = {
+    gross: Number(totalsRow?.gross || 0),
+    discounts: Number(totalsRow?.discounts || 0),
+    refunds: Number(totalsRow?.refunds || 0),
+    net: Number(totalsRow?.net || 0),
+  };
+  const countsMatch = JSON.stringify(stableValue(counts)) === JSON.stringify(stableValue(expectedCounts));
+  const checksumMatch = checksum === batch.expected_checksum;
+  const totalsMatch = JSON.stringify(stableValue(totals)) === JSON.stringify(stableValue(expectedTotals));
+  const status = countsMatch && checksumMatch && totalsMatch ? "verified" : "mismatch";
+  await env.ARCHIVE_DB.prepare(`UPDATE archive_shift_batches SET actual_counts_json=?, actual_totals_json=?,
+    actual_checksum=?, status=?, verified_at=CASE WHEN ?='verified' THEN CURRENT_TIMESTAMP ELSE NULL END,
+    updated_at=CURRENT_TIMESTAMP WHERE shift_id=?`)
+    .bind(JSON.stringify(counts), JSON.stringify(totals), checksum, status, status, shiftId).run();
+  return json({ ok: status === "verified", status, shiftId, counts, expectedCounts,
+    totals, expectedTotals, checksum, expectedChecksum: batch.expected_checksum,
+    countsMatch, totalsMatch, checksumMatch }, status === "verified" ? 200 : 409);
+}
+
+async function shiftBatchStatus(url, env) {
+  const shiftId = decodeURIComponent(url.pathname.split("/").pop() || "");
+  const batch = await env.ARCHIVE_DB.prepare("SELECT * FROM archive_shift_batches WHERE shift_id = ?").bind(shiftId).first();
+  return batch ? json(batch) : json({ error: "Shift batch not found." }, 404);
+}
+
+async function customerHistory(url, env) {
+  const memberId = String(url.searchParams.get("memberId") || "").trim();
+  const userId = String(url.searchParams.get("userId") || "").trim();
+  const customerCode = String(url.searchParams.get("customerCode") || "").trim();
+  if (!memberId && !userId && !customerCode) return json({ rows: [] });
+  const result = await env.ARCHIVE_DB.prepare(`SELECT source_id, source_type, payload_json
+    FROM archive_orders
+    WHERE (? <> '' AND loyalty_member_id = ?)
+       OR (? <> '' AND customer_id = ?)
+       OR json_extract(payload_json, '$.user_id') = ?
+    ORDER BY created_at DESC LIMIT 1000`)
+    .bind(memberId, memberId, customerCode, customerCode, userId).all();
+  return json({ rows: result.results.map((row) => ({ ...JSON.parse(row.payload_json), _archive_source_type: row.source_type })) });
 }
 
 async function salesHistory(url, env) {
@@ -125,7 +237,11 @@ export default {
     if (url.pathname === "/health") return json({ ok: true, service: "juja-history-archive" });
     if (!authorized(request, env)) return json({ error: "Unauthorized" }, 401);
     if (request.method === "POST" && url.pathname === "/v1/archive/batch") return upsertBatch(request, env);
+    if (request.method === "POST" && url.pathname === "/v1/archive/shift/start") return startShiftBatch(request, env);
+    if (request.method === "POST" && url.pathname === "/v1/archive/shift/finalize") return finalizeShiftBatch(request, env);
+    if (request.method === "GET" && url.pathname.startsWith("/v1/archive/shift/")) return shiftBatchStatus(url, env);
     if (request.method === "GET" && url.pathname === "/v1/sales") return salesHistory(url, env);
+    if (request.method === "GET" && url.pathname === "/v1/customer-history") return customerHistory(url, env);
     if (request.method === "GET" && url.pathname === "/v1/validate") return validation(url, env);
     if (request.method === "POST" && url.pathname === "/v1/archive/complete") {
       const body = await request.json();
