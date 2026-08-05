@@ -1,7 +1,7 @@
 {
   "app": "pos",
-  "latestVersion": "1.0.14",
-  "latestBuild": 15,
-  "apkUrl": "https://files.jujabrewandbites.com/apk-downloads/juja-pos-v1.0.14.apk",
-  "releaseNotes": "Adds native Android Bluetooth Classic printing for the Clabel CT221B. Pair CT221B-7500 in Android Bluetooth settings, then reconnect it from POS Printer Settings."
+  "latestVersion": "2.0",
+  "latestBuild": 16,
+  "apkUrl": "https://files.jujabrewandbites.com/apk-downloads/juja-pos-v2.0.apk",
+  "releaseNotes": "Adds durable local SQLite storage, offline sales synchronization, cached catalog and current-shift data, idempotent uploads, and reduced Supabase network usage."
 }

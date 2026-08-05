@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { uploadProofFile } from "@/lib/storage/uploadProof";
+import { getLocalSnapshot, isLocalSnapshotFresh, setLocalSnapshot } from "@/lib/localData";
 
 const supabase = getSupabaseClient();
 
@@ -723,6 +724,15 @@ export default function BookingForm({ user, member }) {
       setLoadingMyBookings(true);
       setNotice(null);
 
+      const cachedSnapshot = await getLocalSnapshot("customer_bookings", { userId: user.id });
+      const cached = cachedSnapshot?.data;
+      if (Array.isArray(cached)) {
+        setMyBookings(cached.map((booking) => withExpiredBookingStatus(booking)));
+        setLoadingMyBookings(false);
+      }
+
+      if (Array.isArray(cached) && isLocalSnapshotFresh(cachedSnapshot, 2 * 60 * 1000)) return;
+
       await fetch("/api/bookings/expire-stale", { method: "POST" }).catch(() => null);
 
       const { data, error } = await supabase
@@ -731,8 +741,13 @@ export default function BookingForm({ user, member }) {
         .eq("user_id", user.id)
         .order("start_at", { ascending: false });
 
-      if (error) setNotice(error.message);
-      else setMyBookings((data || []).map((booking) => withExpiredBookingStatus(booking)));
+      if (error) {
+        if (!Array.isArray(cached)) setNotice(error.message);
+      } else {
+        const normalized = (data || []).map((booking) => withExpiredBookingStatus(booking));
+        setMyBookings(normalized);
+        await setLocalSnapshot("customer_bookings", normalized, { userId: user.id });
+      }
 
       setLoadingMyBookings(false);
     }

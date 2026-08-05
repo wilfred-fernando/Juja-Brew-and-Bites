@@ -3,7 +3,7 @@ import { cacheHeaders, getCached } from "@/lib/serverCache";
 import { isPromoCategoryName, isPromoMenuItem } from "@/lib/menuPromos";
 import { headers } from "next/headers";
 
-const MENU_TTL_MS = 30 * 1000;
+const MENU_TTL_MS = 5 * 60 * 1000;
 
 function supabaseConfig() {
   return {
@@ -129,7 +129,7 @@ export async function GET(req) {
 
     return Response.json(data, {
       headers: {
-        ...(includeTestStores ? { "Cache-Control": "no-store" } : cacheHeaders(30, 120)),
+        ...(includeTestStores ? { "Cache-Control": "no-store" } : cacheHeaders(300, 900)),
         "X-Juja-Cache": "menu-data",
         "X-Juja-Test-Stores": includeTestStores ? "included" : "hidden",
       },

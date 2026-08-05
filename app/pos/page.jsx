@@ -10,6 +10,18 @@ import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib
 import { isWelcomeVoucher, WELCOME_VOUCHER_REWARD_TEXT } from "@/lib/loyalty/welcomeVoucher";
 import { loyaltyEligibleLineTotal } from "@/lib/menuPromos";
 import { ensureNativeNotificationPermission, isNativeApp, showNativeNotification } from "@/lib/nativeNotifications";
+import {
+  countPendingOutbox,
+  enqueueOutbox,
+  getLocalSnapshot,
+  initializeLocalData,
+  isLocalSnapshotFresh,
+  listPendingOutbox,
+  markOutboxFailed,
+  markOutboxSynced,
+  migrateLegacyLocalStorage,
+  setLocalSnapshot,
+} from "@/lib/localData";
 import TicketPanel from "@/components/pos/TicketPanel";
 import PosApkUpdatePrompt from "@/components/PosApkUpdatePrompt";
 import ApkDownloadBanner from "@/components/ApkDownloadBanner";
@@ -93,6 +105,7 @@ const RECEIPT_LOGO_URL = "https://images.jujabrewandbites.com/SIGNAGE%20light%20
 const POS_AUTO_REFRESH_MS = 300000;
 const POS_WEB_ORDER_FALLBACK_MS = 300000;
 const POS_CATALOG_REFRESH_MS = 3600000;
+const POS_CATALOG_FULL_RECONCILE_MS = 7 * 24 * 60 * 60 * 1000;
 const bluetoothPrinterDeviceCache = new Map();
 const bluetoothPrinterCharacteristicCache = new Map();
 const nativeBluetoothPrinterDeviceCache = new Map();
@@ -4245,17 +4258,23 @@ export default function POSPage() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const readOfflineChargeQueue = () => readJsonStorage(POS_OFFLINE_CHARGE_QUEUE_KEY, []);
-
-  const writeOfflineChargeQueue = (queue) => {
-    const safeQueue = Array.isArray(queue) ? queue : [];
-    writeJsonStorage(POS_OFFLINE_CHARGE_QUEUE_KEY, safeQueue);
-    setOfflineQueueCount(safeQueue.length);
+  const refreshOfflineQueueCount = async () => {
+    const count = await countPendingOutbox({ entityType: "pos_sale" });
+    setOfflineQueueCount(count);
+    return count;
   };
 
-  const queueOfflineCharge = (draft) => {
-    const queue = readOfflineChargeQueue();
-    writeOfflineChargeQueue([...queue, draft]);
+  const queueOfflineCharge = async (draft) => {
+    const idempotencyKey = draft?.idempotency_key || draft?.offline_id || `pos-${crypto.randomUUID()}`;
+    await enqueueOutbox({
+      operation: "create",
+      entityType: "pos_sale",
+      payload: { ...draft, idempotency_key: idempotencyKey, offline_id: idempotencyKey },
+      storeId: draft?.store_id || draft?.branch_id || getResolvedBranchId(),
+      userId: draft?.cashier_id || currentUserId || "",
+      idempotencyKey,
+    });
+    await refreshOfflineQueueCount();
   };
 
   async function replayOfflineCharge(draft) {
@@ -4263,6 +4282,17 @@ export default function POSPage() {
     const draftCart = Array.isArray(draft?.cart) ? draft.cart : [];
     if (!resolvedBranchId || draftCart.length === 0) {
       throw new Error("Offline sale is missing branch or item details.");
+    }
+
+    const offlineIdempotencyKey = draft?.idempotency_key || draft?.offline_id;
+    if (offlineIdempotencyKey) {
+      const { data: existingOrder, error: existingError } = await supabase
+        .from("orders")
+        .select("id, order_number, receipt_number")
+        .contains("source_metadata", { offline_idempotency_key: offlineIdempotencyKey })
+        .maybeSingle();
+      if (existingError) throw existingError;
+      if (existingOrder) return { orderRow: existingOrder, generatedReceiptNumber: existingOrder.receipt_number || existingOrder.order_number };
     }
 
     const { data: receiptData, error: receiptErr } = await supabase.rpc("generate_receipt_number", {
@@ -4300,6 +4330,7 @@ export default function POSPage() {
         payment_method: draft.payment || "Offline Sync",
         source_metadata: {
           ...(draft.source_metadata || {}),
+          offline_idempotency_key: offlineIdempotencyKey || null,
           payment_splits: replayPaymentSplits,
           payment_label: draft.payment || "Offline Sync",
         },
@@ -4353,26 +4384,26 @@ export default function POSPage() {
 
   async function syncOfflineCharges({ silent = false } = {}) {
     if (typeof navigator !== "undefined" && navigator.onLine === false) return;
-    const queue = readOfflineChargeQueue();
+    const queue = await listPendingOutbox({ entityType: "pos_sale", limit: 100 });
     if (queue.length === 0) {
       setOfflineQueueCount(0);
       return;
     }
 
-    const remaining = [];
     let synced = 0;
-    for (const draft of queue) {
+    for (const queued of queue) {
       try {
-        await replayOfflineCharge(draft);
+        await replayOfflineCharge(queued.payload);
+        await markOutboxSynced(queued.id);
         synced += 1;
       } catch (error) {
-        remaining.push(draft);
+        await markOutboxFailed(queued.id, error?.message || String(error));
         console.warn("Offline sale sync failed:", error);
         if (isProbablyOfflineError(error)) break;
       }
     }
 
-    writeOfflineChargeQueue(remaining);
+    await refreshOfflineQueueCount();
     if (synced > 0) {
       fetchReceiptLogs().catch((error) => console.warn("Receipt refresh after offline sync failed:", error));
       if (!silent) showToast("success", "Offline Sales Synced", `${synced} queued sale${synced === 1 ? "" : "s"} uploaded.`);
@@ -4775,8 +4806,22 @@ export default function POSPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    setOfflineQueueCount(readOfflineChargeQueue().length);
     setIsOfflineMode(navigator.onLine === false);
+
+    initializeLocalData()
+      .then(async () => {
+        await migrateLegacyLocalStorage({
+          queues: [{
+            localStorageKey: POS_OFFLINE_CHARGE_QUEUE_KEY,
+            operation: "create",
+            entityType: "pos_sale",
+          }],
+        });
+        localStorage.removeItem(POS_OFFLINE_CHARGE_QUEUE_KEY);
+        await refreshOfflineQueueCount();
+        if (navigator.onLine !== false) await syncOfflineCharges({ silent: true });
+      })
+      .catch((error) => console.warn("Local POS database initialization failed:", error));
 
     const handleOnline = () => {
       setIsOfflineMode(false);
@@ -4786,10 +4831,6 @@ export default function POSPage() {
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-    if (navigator.onLine !== false) {
-      syncOfflineCharges({ silent: true }).catch((error) => console.warn("Offline charge sync failed:", error));
-    }
-
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
@@ -4846,15 +4887,18 @@ export default function POSPage() {
       return;
     }
 
-    let localRows = [];
+    let localRows = (await getLocalSnapshot("pos_shift", { storeId: sid, userId: cashierId }))?.data || [];
     if (typeof window !== "undefined") {
       try {
-        const parsed = JSON.parse(localStorage.getItem(shiftStorageKey(sid, cashierId, "records")) || "[]");
-        localRows = Array.isArray(parsed) ? parsed : [];
+        if (!localRows.length) {
+          const parsed = JSON.parse(localStorage.getItem(shiftStorageKey(sid, cashierId, "records")) || "[]");
+          localRows = Array.isArray(parsed) ? parsed : [];
+        }
       } catch {
-        localRows = [];
+        localRows = localRows || [];
       }
     }
+    if (localRows.length) applyShiftState(localRows, sid, cashierId);
 
     const { data, error } = await supabase
       .from("cashier_pos")
@@ -4868,7 +4912,9 @@ export default function POSPage() {
       return;
     }
 
-    applyShiftState(data || [], sid, cashierId);
+    const remoteRows = data || [];
+    applyShiftState(remoteRows, sid, cashierId);
+    await setLocalSnapshot("pos_shift", remoteRows, { storeId: sid, userId: cashierId });
   }
 
   // ================= PWA INSTALLATION EVENT HANDLER =================
@@ -5217,6 +5263,15 @@ export default function POSPage() {
     const query = String(customerSearch || "").trim();
     if (query.length < 2 || attachedCustomer?.id) return undefined;
 
+    const normalizedQuery = query.toLowerCase();
+    const hasLocalMatch = customers.some((customer) => {
+      const normalized = normalizePosCustomer(customer);
+      return String(normalized.name || "").toLowerCase().includes(normalizedQuery)
+        || String(normalized.code || "").toLowerCase().includes(normalizedQuery)
+        || String(normalized.phone || normalized.contact_number || "").toLowerCase().includes(normalizedQuery);
+    });
+    if (hasLocalMatch) return undefined;
+
     let cancelled = false;
     const timer = window.setTimeout(async () => {
       try {
@@ -5231,7 +5286,7 @@ export default function POSPage() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [customerSearch, attachedCustomer?.id]);
+  }, [customerSearch, attachedCustomer?.id, customers]);
 
   useEffect(() => {
     const init = async () => {
@@ -5287,6 +5342,11 @@ export default function POSPage() {
 
   async function loadPrinters(sid) {
     if (!sid) return;
+    const cached = (await getLocalSnapshot("pos_printers", { storeId: sid }))?.data;
+    if (cached) {
+      setPrinterConfig(cached);
+      setPrinterForm(createPrinterProfiles(cached));
+    }
     const { data, error } = await supabase
       .from("pos_printers")
       .select("*")
@@ -5300,6 +5360,7 @@ export default function POSPage() {
 
     const map = { receipt: null, order_slip: null, cup_label: null };
     (data || []).forEach((p) => { map[p.role] = p; });
+    await setLocalSnapshot("pos_printers", map, { storeId: sid });
     await warmBluetoothPrinterDeviceCache(map).catch((err) => console.warn("Bluetooth remembered-device cache skipped", err));
     setPrinterConfig(map);
     setPrinterForm(createPrinterProfiles(map));
@@ -5462,6 +5523,24 @@ export default function POSPage() {
       });
     };
 
+    const applySettings = (snapshot) => {
+      if (!snapshot) return;
+      const dining = snapshot.diningOptions || [];
+      setPaymentTypes(mergeGlobalThenStore(snapshot.paymentTypes || []));
+      setDiningOptions(dining);
+      setTicketTemplates(snapshot.ticketTemplates || []);
+      setDiscountRules(mergeDiscountRules(snapshot.discountRules || []));
+      setReceiptSettings(snapshot.receiptSettings || null);
+      setCurrentStore(snapshot.store || null);
+      if (!hasInitializedDining.current && dining.length > 0) {
+        setDiningOption(dining[0].id);
+        hasInitializedDining.current = true;
+      }
+    };
+
+    const cached = (await getLocalSnapshot("pos_settings", { storeId: sid }))?.data;
+    if (cached) applySettings(cached);
+
     const [payRes, dineRes, ticketRes, discRes, receiptRes, storeRes] = await Promise.all([
       supabase.from("pos_payment_types").select("*").or(`store_id.eq.${sid},store_id.is.null`).eq("is_active", true),
       supabase.from("pos_dining_options").select("*").eq("store_id", sid).eq("is_active", true).order("sort_order", { ascending: true }),
@@ -5474,17 +5553,17 @@ export default function POSPage() {
       supabase.from("stores").select("*").eq("id", sid).maybeSingle(),
     ]);
 
-    const mergedPaymentTypes = mergeGlobalThenStore(payRes.data || []);
-    setPaymentTypes(mergedPaymentTypes);
-    setDiningOptions(dineRes.data || []);
-    setTicketTemplates(ticketRes.data || []);
-    setDiscountRules(mergeDiscountRules(discRes.data || []));
-    setReceiptSettings(receiptRes.data || null);
-    setCurrentStore(storeRes.data || null);
-
-    if (!hasInitializedDining.current && (dineRes.data || []).length > 0) {
-      setDiningOption(dineRes.data[0].id);
-      hasInitializedDining.current = true;
+    const snapshot = {
+      paymentTypes: payRes.data || [],
+      diningOptions: dineRes.data || [],
+      ticketTemplates: ticketRes.data || [],
+      discountRules: discRes.data || [],
+      receiptSettings: receiptRes.data || null,
+      store: storeRes.data || null,
+    };
+    applySettings(snapshot);
+    if (![payRes, dineRes, ticketRes, discRes, receiptRes, storeRes].some((result) => result.error)) {
+      await setLocalSnapshot("pos_settings", snapshot, { storeId: sid });
     }
   }
 
@@ -5504,7 +5583,11 @@ export default function POSPage() {
     setCustomers((current) => {
       const byId = new Map(current.map((row) => [String(row.id), row]));
       normalized.forEach((row) => byId.set(String(row.id), { ...byId.get(String(row.id)), ...row }));
-      return Array.from(byId.values()).slice(-100);
+      const next = Array.from(byId.values()).slice(-100);
+      void setLocalSnapshot("pos_loyalty_customers", next, { storeId }).catch((error) => {
+        console.warn("Unable to persist the POS loyalty search cache", error);
+      });
+      return next;
     });
   }
 
@@ -5527,53 +5610,119 @@ export default function POSPage() {
     if (!sid) return;
     const showLoadingState = opts.showLoading !== false;
     if (showLoadingState) setLoading(true);
+    let cachedSnapshot = null;
     try {
-      const cachedSnapshot = readJsonStorage(POS_OFFLINE_CACHE_KEY, null);
+      const [durableSnapshot, loyaltySnapshot] = await Promise.all([
+        getLocalSnapshot("pos_catalog", { storeId: sid }),
+        getLocalSnapshot("pos_loyalty_customers", { storeId: sid }),
+      ]);
+      cachedSnapshot = durableSnapshot?.data || readJsonStorage(POS_OFFLINE_CACHE_KEY, null);
+      if (Array.isArray(loyaltySnapshot?.data) && loyaltySnapshot.data.length > 0) {
+        setCustomers(loyaltySnapshot.data.slice(-100));
+      }
+      if (cachedSnapshot?.items?.length) {
+        setItems(cachedSnapshot.items || []);
+        setCategories(cachedSnapshot.categories || []);
+        setRecipeRows(cachedSnapshot.recipeRows || []);
+        setRecipeInventoryItems(cachedSnapshot.recipeInventoryItems || []);
+        if (!loyaltySnapshot?.data?.length && cachedSnapshot.customers?.length) setCustomers(cachedSnapshot.customers);
+        setLoading(false);
+      }
+      if (
+        cachedSnapshot?.items?.length
+        && opts.forceRefresh !== true
+        && isLocalSnapshotFresh(durableSnapshot, 6 * 60 * 60 * 1000)
+      ) {
+        setIsOfflineMode(false);
+        await Promise.all([
+          loadPosSettings(sid),
+          loadPrinters(sid),
+          loadBarPrinterCategories(sid, cachedSnapshot.categories || []),
+        ]);
+        return;
+      }
+      const lastFullSyncAt = Date.parse(cachedSnapshot?.lastFullSyncAt || "");
+      const fullSyncExpired = !Number.isFinite(lastFullSyncAt)
+        || Date.now() - lastFullSyncAt >= POS_CATALOG_FULL_RECONCILE_MS;
+      const canDeltaSync = Boolean(
+        !fullSyncExpired
+        &&
+        cachedSnapshot?.syncCursor
+        && Array.isArray(cachedSnapshot.rawItems)
+        && Array.isArray(cachedSnapshot.itemStoreAvailability)
+        && Array.isArray(cachedSnapshot.optionGroupStoreAvailability)
+        && Array.isArray(cachedSnapshot.optionSelectionStoreAvailability)
+      );
+      const syncStartedAt = new Date().toISOString();
+      const changedSince = canDeltaSync ? cachedSnapshot.syncCursor : "";
+      const changed = (query) => (changedSince ? query.gt("updated_at", changedSince) : query);
+      const mergeRows = (current, incoming, keyOf) => {
+        if (!changedSince) return incoming || [];
+        const rows = new Map((current || []).map((row) => [keyOf(row), row]));
+        (incoming || []).forEach((row) => rows.set(keyOf(row), { ...rows.get(keyOf(row)), ...row }));
+        return Array.from(rows.values());
+      };
+
       const [iRes, catRes, itemStoreAvailabilityRes, optionGroupAvailabilityRes, optionSelectionAvailabilityRes] = await Promise.all([
-        supabase.from("menu_items").select("*").order("name"),
-        supabase.from("menu_categories").select("*").order("name", { ascending: true }),
-        supabase.from("menu_item_store_availability").select("item_id, store_id, is_available").eq("store_id", sid),
-        supabase.from("option_group_store_availability").select("store_id, group_key, group_name, is_available").eq("store_id", sid),
-        supabase.from("option_selection_store_availability").select("store_id, group_key, option_key, group_name, option_name, is_available").eq("store_id", sid),
+        changed(supabase.from("menu_items").select("*")).order("name"),
+        changed(supabase.from("menu_categories").select("*")).order("name", { ascending: true }),
+        changed(supabase.from("menu_item_store_availability").select("item_id, store_id, is_available, updated_at").eq("store_id", sid)),
+        changed(supabase.from("option_group_store_availability").select("store_id, group_key, group_name, is_available, updated_at").eq("store_id", sid)),
+        changed(supabase.from("option_selection_store_availability").select("store_id, group_key, option_key, group_name, option_name, is_available, updated_at").eq("store_id", sid)),
       ]);
       const [recipeRes, recipeInventoryRes] = await Promise.all([
-        supabase
+        changed(supabase
           .from("menu_item_ingredients")
           .select("*, inventory_items(item_name, common_name, common_name_id, current_stock, unit), common_inventory_names(common_name)")
-          .order("created_at", { ascending: false }),
-        supabase
+        ).order("created_at", { ascending: false }),
+        changed(supabase
           .from("inventory_items")
-          .select("id, item_name, common_name, common_name_id, current_stock, unit, common_inventory_names(common_name)")
-          .order("item_name", { ascending: true }),
+          .select("id, item_name, common_name, common_name_id, current_stock, unit, updated_at, common_inventory_names(common_name)")
+        ).order("item_name", { ascending: true }),
       ]);
 
-      const cats = catRes.data || [];
-      if (itemStoreAvailabilityRes.error) throw itemStoreAvailabilityRes.error;
+      const catalogError = [
+        iRes.error,
+        catRes.error,
+        itemStoreAvailabilityRes.error,
+        optionGroupAvailabilityRes.error,
+        optionSelectionAvailabilityRes.error,
+      ].find(Boolean);
+      if (catalogError) throw catalogError;
+
+      const rawItems = mergeRows(cachedSnapshot?.rawItems, iRes.data, (row) => String(row.id));
+      const cats = mergeRows(cachedSnapshot?.categories, catRes.data, (row) => String(row.id))
+        .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+      const itemStoreAvailability = mergeRows(cachedSnapshot?.itemStoreAvailability, itemStoreAvailabilityRes.data, (row) => `${row.store_id}:${row.item_id}`);
+      const optionGroupStoreAvailability = mergeRows(cachedSnapshot?.optionGroupStoreAvailability, optionGroupAvailabilityRes.data, (row) => `${row.store_id}:${row.group_key || optionGroupKey(row.group_name)}`);
+      const optionSelectionStoreAvailability = mergeRows(cachedSnapshot?.optionSelectionStoreAvailability, optionSelectionAvailabilityRes.data, (row) => `${row.store_id}:${row.group_key || optionGroupKey(row.group_name)}:${row.option_key || optionSelectionKey(row.option_name)}`);
+      const recipeRows = mergeRows(cachedSnapshot?.recipeRows, recipeRes.data, (row) => String(row.id));
+      const recipeInventoryItems = mergeRows(cachedSnapshot?.recipeInventoryItems, recipeInventoryRes.data, (row) => String(row.id));
       if (recipeRes.error) {
         console.warn("POS recipes unavailable:", recipeRes.error.message);
         setRecipeRows([]);
       } else {
-        setRecipeRows(recipeRes.data || []);
+        setRecipeRows(recipeRows);
       }
       if (recipeInventoryRes.error) {
         console.warn("POS recipe inventory unavailable:", recipeInventoryRes.error.message);
         setRecipeInventoryItems([]);
       } else {
-        setRecipeInventoryItems(recipeInventoryRes.data || []);
+        setRecipeInventoryItems(recipeInventoryItems);
       }
       const storeAvailabilityByItem = new Map(
-        (itemStoreAvailabilityRes.data || []).map((row) => [String(row.item_id), row.is_available !== false])
+        itemStoreAvailability.map((row) => [String(row.item_id), row.is_available !== false])
       );
       const optionGroupAvailabilityByGroup = new Map(
-        (optionGroupAvailabilityRes.data || []).map((row) => [row.group_key || optionGroupKey(row.group_name), row.is_available !== false])
+        optionGroupStoreAvailability.map((row) => [row.group_key || optionGroupKey(row.group_name), row.is_available !== false])
       );
       const optionAvailabilityBySelection = new Map(
-        (optionSelectionAvailabilityRes.data || []).map((row) => [
+        optionSelectionStoreAvailability.map((row) => [
           `${row.group_key || optionGroupKey(row.group_name)}::${row.option_key || optionSelectionKey(row.option_name)}`,
           row.is_available !== false,
         ])
       );
-      const itemRows = (iRes.data || []).map((item) => {
+      const itemRows = rawItems.map((item) => {
         const hasStoreOverride = storeAvailabilityByItem.has(String(item.id));
         const storeAvailable = hasStoreOverride ? storeAvailabilityByItem.get(String(item.id)) : item.is_available !== false;
         const variants = Array.isArray(item.variants)
@@ -5607,21 +5756,28 @@ export default function POSPage() {
       if (cachedCustomers.length > 0) {
         setCustomers((current) => (current.length > 0 ? current : cachedCustomers));
       }
-      writeJsonStorage(POS_OFFLINE_CACHE_KEY, {
+      await setLocalSnapshot("pos_catalog", {
         cached_at: new Date().toISOString(),
+        syncCursor: syncStartedAt,
+        lastFullSyncAt: changedSince ? cachedSnapshot?.lastFullSyncAt : syncStartedAt,
+        rawItems,
         items: itemRows,
         categories: cats,
+        itemStoreAvailability,
+        optionGroupStoreAvailability,
+        optionSelectionStoreAvailability,
         customers: customers.length > 0 ? customers.slice(0, 100) : cachedCustomers.slice(0, 100),
-        recipeRows: recipeRes.error ? [] : recipeRes.data || [],
-        recipeInventoryItems: recipeInventoryRes.error ? [] : recipeInventoryRes.data || [],
-      });
+        recipeRows: recipeRes.error ? cachedSnapshot?.recipeRows || [] : recipeRows,
+        recipeInventoryItems: recipeInventoryRes.error ? cachedSnapshot?.recipeInventoryItems || [] : recipeInventoryItems,
+      }, { storeId: sid });
+      localStorage.removeItem(POS_OFFLINE_CACHE_KEY);
       setIsOfflineMode(false);
 
       await loadPosSettings(sid);
       await loadPrinters(sid);
       await loadBarPrinterCategories(sid, cats);
     } catch (e) {
-      const cached = readJsonStorage(POS_OFFLINE_CACHE_KEY, null);
+      const cached = cachedSnapshot || (await getLocalSnapshot("pos_catalog", { storeId: sid }))?.data;
       if (cached?.items?.length) {
         setItems(cached.items || []);
         setCategories(cached.categories || []);
@@ -6048,6 +6204,9 @@ export default function POSPage() {
       setSavedTickets([]);
       return;
     }
+    const cached = (await getLocalSnapshot("pos_open_tickets", { storeId: sid }))?.data;
+    if (Array.isArray(cached)) setSavedTickets(cached);
+
     let res = await supabase
       .from("open_tickets")
       .select("id, store_id, ticket_name, order_type, customer_id, items, total_amount, applied_voucher, created_at")
@@ -6066,7 +6225,7 @@ export default function POSPage() {
 
     if (res.error) {
       showToast("error", "Load Failed", res.error.message);
-      setSavedTickets([]);
+      if (!Array.isArray(cached)) setSavedTickets([]);
       return;
     }
 
@@ -6082,6 +6241,7 @@ export default function POSPage() {
     });
 
     setSavedTickets(enriched);
+    await setLocalSnapshot("pos_open_tickets", enriched, { storeId: sid });
   }
 
   async function fetchActiveKitchenTables(sid = storeId, printerGroups = orderSlipPrinterGroups) {
@@ -6151,7 +6311,7 @@ export default function POSPage() {
       await Promise.all([
         fetchPendingCount(storeId),
         currentUserId ? loadShiftState(storeId, currentUserId) : Promise.resolve(),
-        fetchData(storeId, { showLoading: false }),
+        fetchData(storeId, { showLoading: false, forceRefresh: true }),
         fetchSavedTickets(storeId),
         fetchActiveKitchenTables(),
         fetchAcceptedWebOrders(),
@@ -6210,6 +6370,36 @@ export default function POSPage() {
     const timer = window.setInterval(refreshCatalog, POS_CATALOG_REFRESH_MS);
     return () => window.clearInterval(timer);
   }, [storeId, shiftStatus]);
+
+  useEffect(() => {
+    if (!storeId || shiftStatus === "loading") return undefined;
+
+    let refreshTimer = null;
+    const queueCatalogRefresh = (payload) => {
+      const row = payload?.new || payload?.old || {};
+      if (row.store_id && String(row.store_id) !== String(storeId)) return;
+      window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => {
+        fetchData(storeId, { showLoading: false, forceRefresh: true }).catch((err) => {
+          console.warn("POS Realtime catalog refresh failed", err);
+        });
+      }, 500);
+    };
+
+    const channel = supabase
+      .channel(`pos-catalog:${storeId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "menu_items" }, queueCatalogRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "menu_categories" }, queueCatalogRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "menu_item_store_availability" }, queueCatalogRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "option_group_store_availability" }, queueCatalogRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "option_selection_store_availability" }, queueCatalogRefresh)
+      .subscribe();
+
+    return () => {
+      window.clearTimeout(refreshTimer);
+      supabase.removeChannel(channel);
+    };
+  }, [storeId, shiftStatus, supabase]);
 
   async function openAcceptedWebOrders() {
     await fetchAcceptedWebOrders();
@@ -6808,6 +6998,16 @@ export default function POSPage() {
   }
 
   async function fetchReceiptLogs() {
+    const cachedReceiptLog = (await getLocalSnapshot("pos_receipts", { storeId }))?.data;
+    if (cachedReceiptLog?.rows?.length) {
+      setReceiptRows(cachedReceiptLog.rows);
+      setReceiptItemRows(cachedReceiptLog.itemRows || []);
+      setSelectedReceiptNumber((current) =>
+        cachedReceiptLog.rows.some((row) => row.receipt_number === current)
+          ? current
+          : cachedReceiptLog.rows[0]?.receipt_number || ""
+      );
+    }
     const receiptCutoff = new Date();
     receiptCutoff.setDate(receiptCutoff.getDate() - POS_RECEIPT_HISTORY_DAYS);
     const shiftCutoff = activeShiftStartMs ? new Date(activeShiftStartMs) : null;
@@ -6960,7 +7160,7 @@ export default function POSPage() {
       }) || null;
     };
     if (posOrderIds.length === 0) {
-      setReceiptItemRows(webRows.flatMap((order) =>
+      const webOnlyItems = webRows.flatMap((order) =>
         (order.web_items || []).map((item, idx) => ({
           id: `${order.receipt_number}-${idx}`,
           receipt_number: order.receipt_number,
@@ -6977,7 +7177,9 @@ export default function POSPage() {
           instructions: item.instructions || item.note || item.specialInstructions || item.special_instructions || "",
           status: "Closed",
         }))
-      ));
+      );
+      setReceiptItemRows(webOnlyItems);
+      await setLocalSnapshot("pos_receipts", { rows, itemRows: webOnlyItems }, { storeId });
       return;
     }
 
@@ -7026,7 +7228,9 @@ export default function POSPage() {
           status: refunds[order.receipt_number]?.items?.[`${order.receipt_number}-${idx}`] || "Closed",
         }))
       );
-      setReceiptItemRows([...posItems, ...webItems]);
+      const allItems = [...posItems, ...webItems];
+      setReceiptItemRows(allItems);
+      await setLocalSnapshot("pos_receipts", { rows, itemRows: allItems }, { storeId });
     }
   }
 
@@ -8581,7 +8785,7 @@ export default function POSPage() {
     } catch (err) {
       console.error("Execution failed:", err);
       if (!createdOrderRow && !activeWebOrderId && appliedCartVouchers.length === 0 && isProbablyOfflineError(err)) {
-        queueOfflineCharge(offlineDraft);
+        await queueOfflineCharge(offlineDraft);
         setIsOfflineMode(true);
 
         const offlineReceipt = buildReceiptText({

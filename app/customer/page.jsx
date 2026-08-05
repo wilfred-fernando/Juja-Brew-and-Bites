@@ -19,6 +19,16 @@ import CustomerApkUpdatePrompt from "@/components/CustomerApkUpdatePrompt";
 import ApkDownloadBanner from "@/components/ApkDownloadBanner";
 import { getStableSession } from "@/lib/supabase/session";
 import { uploadProofFile } from "@/lib/storage/uploadProof";
+import {
+  enqueueOutbox,
+  getLocalSnapshot,
+  initializeLocalData,
+  isLocalSnapshotFresh,
+  listPendingOutbox,
+  markOutboxFailed,
+  markOutboxSynced,
+  setLocalSnapshot,
+} from "@/lib/localData";
 
 const hasMenuOptions = (item) =>
   Array.isArray(item?.variants) &&
@@ -39,6 +49,59 @@ const CUSTOMER_NOTIFICATION_ICON = "/favicon.ico";
 const isMenuItemMarkedAvailable = (item) => item?.is_available !== false && item?.available !== false;
 const optionGroupKey = (value) => String(value || "").trim().toLowerCase();
 const optionSelectionKey = (value) => String(value || "").trim().toLowerCase();
+
+const customerOrderIdempotencyKey = () => {
+  if (globalThis.crypto?.randomUUID) return `customer-${globalThis.crypto.randomUUID()}`;
+  return `customer-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
+
+const isConnectivityFailure = (error) => {
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return true;
+  return /fetch|network|connection|offline|timeout|failed to fetch/i.test(String(error?.message || error || ""));
+};
+
+async function insertCustomerWebOrder(orderPayload) {
+  const { data, error } = await supabase
+    .from("web_orders")
+    .insert([orderPayload])
+    .select()
+    .single();
+  if (!error) return { row: data, created: true };
+  if (error.code !== "23505" || !orderPayload.client_idempotency_key) throw error;
+
+  const { data: existing, error: lookupError } = await supabase
+    .from("web_orders")
+    .select("*")
+    .eq("client_idempotency_key", orderPayload.client_idempotency_key)
+    .maybeSingle();
+  if (lookupError) throw lookupError;
+  if (!existing) throw error;
+  return { row: existing, created: false };
+}
+
+async function notifyStoreOfCustomerOrder(order, { itemCount = 0, items = [], storeName = "" } = {}) {
+  if (!order?.id || !order?.store_id) return;
+  const channel = supabase.channel(`store-alerts:${order.store_id}`);
+  channel.subscribe((status, error) => {
+    if (error || status !== "SUBSCRIBED") return;
+    channel.send({
+      type: "broadcast",
+      event: "NEW_CUSTOMER_ORDER",
+      payload: {
+        ...order,
+        order_id: order.id,
+        item_count: itemCount,
+        timestamp: new Date().toISOString(),
+      },
+    }).finally(() => supabase.removeChannel(channel));
+  });
+
+  fetch("/api/web-order-notify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ order: { ...order, items }, storeName: storeName || order.store_id }),
+  }).catch((error) => console.warn("Web order email notification failed:", error));
+}
 
 function customerLineGross(line) {
   return Number(line?.unitPrice || line?.price || 0) * Number(line?.quantity || line?.qty || 0);
@@ -1756,10 +1819,48 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
   const [cartOpen, setCartOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmationOpen, setConfirmationOpen] = useState(false);
+  const [cartHydrated, setCartHydrated] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function hydrateCart() {
+      await initializeLocalData();
+      const cached = (await getLocalSnapshot("customer_cart", { userId: user?.id || "guest" }))?.data;
+      if (cancelled) return;
+      if (Array.isArray(cached?.items)) setCart(cached.items);
+      if (cached?.selectedBranch) setSelectedBranch(cached.selectedBranch);
+      setCartHydrated(true);
+    }
+    hydrateCart().catch(() => setCartHydrated(true));
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!cartHydrated) return;
+    setLocalSnapshot("customer_cart", { items: cart, selectedBranch }, { userId: user?.id || "guest" })
+      .catch((error) => console.warn("Unable to cache basket:", error));
+  }, [cart, selectedBranch, cartHydrated, user?.id]);
 
   useEffect(() => {
     async function fetchMenu() {
       setLoading(true);
+      const applyMenu = (json) => {
+        setItems(json.items || []);
+        setCategories([...(json.categories || [])].sort((a, b) => (a.name || "").localeCompare(b.name || "")));
+        const activeStores = json.stores || [];
+        setStores(activeStores);
+        setSelectedBranch((current) => (activeStores.some((store) => String(store.id) === String(current)) ? current : activeStores[0]?.id || current));
+        setItemStoreAvailability(json.itemStoreAvailability || []);
+        setCategoryStoreAvailability(json.categoryStoreAvailability || []);
+        setOptionGroupStoreAvailability(json.optionGroupStoreAvailability || []);
+        setOptionSelectionStoreAvailability(json.optionSelectionStoreAvailability || []);
+      };
+      const cachedSnapshot = await getLocalSnapshot("customer_menu", { userId: user?.id || "guest" });
+      if (cachedSnapshot?.data) {
+        applyMenu(cachedSnapshot.data);
+        setLoading(false);
+      }
+      if (isLocalSnapshotFresh(cachedSnapshot, 6 * 60 * 60 * 1000)) return;
       const { session } = await getStableSession(supabase);
       const accessToken = session?.access_token;
       const res = await fetch("/api/menu-data?mode=customer", {
@@ -1773,20 +1874,16 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
         return;
       }
 
-      setItems(json.items || []);
-      setCategories([...(json.categories || [])].sort((a, b) => (a.name || "").localeCompare(b.name || "")));
-      const activeStores = json.stores || [];
-      setStores(activeStores);
-      setSelectedBranch((current) => (activeStores.some((store) => String(store.id) === String(current)) ? current : activeStores[0]?.id || current));
+      applyMenu(json);
       setAvailabilityNotice("");
-      setItemStoreAvailability(json.itemStoreAvailability || []);
-      setCategoryStoreAvailability(json.categoryStoreAvailability || []);
-      setOptionGroupStoreAvailability(json.optionGroupStoreAvailability || []);
-      setOptionSelectionStoreAvailability(json.optionSelectionStoreAvailability || []);
+      await setLocalSnapshot("customer_menu", json, { userId: user?.id || "guest" });
       setLoading(false);
     }
-    fetchMenu();
-  }, []);
+    fetchMenu().catch((error) => {
+      console.warn("Unable to refresh menu:", error);
+      setLoading(false);
+    });
+  }, [user?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1795,6 +1892,10 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
         setActiveVouchers([]);
         return;
       }
+      const cachedSnapshot = await getLocalSnapshot("customer_vouchers", { userId: user?.id || "", storeId: member.id });
+      const cached = cachedSnapshot?.data;
+      if (!cancelled && Array.isArray(cached)) setActiveVouchers(cached.filter((voucher) => isVoucherAvailable(voucher)));
+      if (isLocalSnapshotFresh(cachedSnapshot, 2 * 60 * 1000)) return;
       const { data, error } = await supabase
         .from("vouchers")
         .select("id, code, reward_text, reward_type, status, expires_at, redeemed_at, member_id")
@@ -1803,18 +1904,31 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       if (cancelled) return;
       if (error) {
         console.warn("Unable to load promo vouchers:", error.message);
-        setActiveVouchers([]);
         return;
       }
-      setActiveVouchers((data || []).filter((voucher) => isVoucherAvailable(voucher)));
+      const available = (data || []).filter((voucher) => isVoucherAvailable(voucher));
+      setActiveVouchers(available);
+      await setLocalSnapshot("customer_vouchers", available, { userId: user?.id || "", storeId: member.id });
     }
     fetchActiveVouchers();
     return () => {
       cancelled = true;
     };
-  }, [member?.id]);
+  }, [member?.id, user?.id]);
 
   useEffect(() => {
+    const upsertRealtimeRow = (setter, payload, keyOf) => {
+      const incoming = payload.new || {};
+      const previous = payload.old || {};
+      const key = keyOf(incoming) || keyOf(previous);
+      if (!key) return;
+      setter((current) => {
+        if (payload.eventType === "DELETE") return current.filter((row) => keyOf(row) !== key);
+        return current.some((row) => keyOf(row) === key)
+          ? current.map((row) => (keyOf(row) === key ? { ...row, ...incoming } : row))
+          : [...current, incoming];
+      });
+    };
     const channel = supabase
       .channel("customer-menu-item-availability")
       .on(
@@ -1836,12 +1950,51 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
           setSelectedItemForModal((current) => (current?.id === rowId && !isMenuItemMarkedAvailable(nextItem) ? null : current));
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "menu_item_store_availability" },
+        (payload) => upsertRealtimeRow(setItemStoreAvailability, payload, (row) => row?.item_id && row?.store_id ? `${row.store_id}:${row.item_id}` : "")
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "menu_category_store_availability" },
+        (payload) => upsertRealtimeRow(setCategoryStoreAvailability, payload, (row) => row?.category_id && row?.store_id ? `${row.store_id}:${row.category_id}` : "")
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "option_group_store_availability" },
+        (payload) => upsertRealtimeRow(setOptionGroupStoreAvailability, payload, (row) => row?.store_id && (row?.group_key || row?.group_name) ? `${row.store_id}:${row.group_key || row.group_name}` : "")
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "option_selection_store_availability" },
+        (payload) => upsertRealtimeRow(setOptionSelectionStoreAvailability, payload, (row) => row?.store_id && (row?.group_key || row?.group_name) && (row?.option_key || row?.option_name) ? `${row.store_id}:${row.group_key || row.group_name}:${row.option_key || row.option_name}` : "")
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  useEffect(() => {
+    if (loading || items.length === 0) return;
+    const timer = window.setTimeout(() => {
+      setLocalSnapshot("customer_menu", {
+        items,
+        categories: cats,
+        stores,
+        itemStoreAvailability,
+        categoryStoreAvailability,
+        optionGroupStoreAvailability,
+        optionSelectionStoreAvailability,
+        generatedAt: new Date().toISOString(),
+      }, { userId: user?.id || "guest" }).catch((error) => {
+        console.warn("Unable to persist live menu changes:", error);
+      });
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [loading, items, cats, stores, itemStoreAvailability, categoryStoreAvailability, optionGroupStoreAvailability, optionSelectionStoreAvailability, user?.id]);
 
   const q = itemSearch.trim().toLowerCase();
   const selectedStore = useMemo(
@@ -1988,6 +2141,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
     const orderStatus = fulfillmentMetadata.isScheduled ? "scheduled" : "pending";
     const deliveryFee = fulfillmentMetadata.diningOption === "DELIVERY" ? Number(fulfillmentMetadata.deliveryFee || 0) : 0;
     const orderTotal = Number(subtotal) + deliveryFee;
+    const idempotencyKey = customerOrderIdempotencyKey();
     const orderPayload = {
       user_id: user.id,
       customer_name: member?.customer_name || user?.user_metadata?.full_name || "Web Customer",
@@ -2021,59 +2175,18 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       payment_status: fulfillmentMetadata.paymentMethod === "QRPH" ? "submitted" : "pending",
       payment_proof_url: paymentProofUrl,
       payment_review_note: fulfillmentMetadata.paymentMethod === "QRPH" ? "Cashier must verify screenshot amount against order total." : "",
+      client_idempotency_key: idempotencyKey,
     };
 
     try {
-      const { data, error } = await supabase
-        .from("web_orders")
-        .insert([orderPayload])
-        .select();
-
-      if (error) throw error;
-      const freshWebOrderRow = data[0];
-
-      const alertBroadcastChannelInstance = supabase.channel(`store-alerts:${selectedBranch}`);
-      alertBroadcastChannelInstance.subscribe((status, err) => {
-        if (!err && status === "SUBSCRIBED") {
-          alertBroadcastChannelInstance.send({
-            type: "broadcast",
-            event: "NEW_CUSTOMER_ORDER",
-            payload: {
-              ...freshWebOrderRow,
-              order_id: freshWebOrderRow.id,
-              store_id: freshWebOrderRow.store_id,
-              customer_name: freshWebOrderRow.customer_name,
-              subtotal: freshWebOrderRow.subtotal,
-              item_count: itemCount,
-              dining_option: freshWebOrderRow.dining_option,
-              fulfillment_time: freshWebOrderRow.fulfillment_time,
-              scheduled_for: freshWebOrderRow.scheduled_for,
-              schedule_label: freshWebOrderRow.schedule_label,
-              timestamp: new Date().toISOString()
-            }
-          }).then(() => {
-            supabase.removeChannel(alertBroadcastChannelInstance);
-          });
-        }
-      });
-
-      fetch("/api/web-order-notify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          order: { ...freshWebOrderRow, items: cart },
+      const { row: freshWebOrderRow, created } = await insertCustomerWebOrder(orderPayload);
+      if (created) {
+        notifyStoreOfCustomerOrder(freshWebOrderRow, {
+          itemCount,
+          items: cart,
           storeName: selectedStore?.name || selectedBranch,
-        }),
-      })
-        .then(async (res) => {
-          if (!res.ok) {
-            const details = await res.json().catch(() => ({}));
-            console.warn("Web order email notification failed:", details?.error || details?.publicError || res.status);
-          }
-        })
-        .catch((emailError) => {
-          console.warn("Web order email notification failed:", emailError);
         });
+      }
 
       alert(`🎉 Order sent to POS! Method: ${fulfillmentMetadata.diningOption} @ ${fulfillmentMetadata.fulfillmentTime}\nEstimated loyalty points: +${loyaltyPoints(loyaltyEligibleSubtotal).toFixed(2)} upon payment collection.`);
       setCart([]);
@@ -2082,12 +2195,90 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       if (onCheckoutSuccess) onCheckoutSuccess();
     } catch (err) {
       console.error("Critical submission failure loop trace:", err);
+      if (isConnectivityFailure(err) && !paymentProofUrl) {
+        const queuedOrder = {
+          ...orderPayload,
+          id: `offline:${idempotencyKey}`,
+          created_at: new Date().toISOString(),
+          offline_pending: true,
+        };
+        await enqueueOutbox({
+          entityType: "customer_web_order",
+          operation: "insert",
+          idempotencyKey,
+          payload: {
+            orderPayload,
+            userId: user.id,
+            notification: {
+              itemCount,
+              items: cart,
+              storeName: selectedStore?.name || selectedBranch,
+            },
+          },
+        });
+        const snapshot = await getLocalSnapshot("customer_orders", { userId: user.id });
+        const previous = Array.isArray(snapshot?.data) ? snapshot.data : [];
+        await setLocalSnapshot("customer_orders", [queuedOrder, ...previous], { userId: user.id });
+        window.dispatchEvent(new CustomEvent("juja:customer-orders-changed", { detail: { queuedOrder } }));
+        setCart([]);
+        setCartOpen(false);
+        alert("Order saved offline. It will be sent automatically when your connection returns.");
+        if (onCheckoutSuccess) onCheckoutSuccess();
+        return;
+      }
       alert(`❌ Submission Error: ${err.message || "Network Connection Failure"}`);
     } finally {
       setConfirmationOpen(false);
       setIsSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (!user?.id) return undefined;
+
+    let disposed = false;
+    let running = false;
+    const flushCustomerOrders = async () => {
+      if (running || disposed || (typeof navigator !== "undefined" && navigator.onLine === false)) return;
+      running = true;
+      try {
+        await initializeLocalData();
+        const pending = await listPendingOutbox({ entityType: "customer_web_order", limit: 50 });
+        for (const entry of pending) {
+          if (disposed) break;
+          const payload = entry?.payload || {};
+          if (payload.userId && String(payload.userId) !== String(user.id)) continue;
+          try {
+            const { row, created } = await insertCustomerWebOrder(payload.orderPayload || {});
+            if (created) notifyStoreOfCustomerOrder(row, payload.notification || {});
+            await markOutboxSynced(entry.id);
+
+            const snapshot = await getLocalSnapshot("customer_orders", { userId: user.id });
+            const previous = Array.isArray(snapshot?.data) ? snapshot.data : [];
+            const offlineId = `offline:${entry.idempotency_key}`;
+            const next = [
+              row,
+              ...previous.filter((order) => order?.id !== row.id && order?.id !== offlineId),
+            ].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+            await setLocalSnapshot("customer_orders", next, { userId: user.id });
+            window.dispatchEvent(new CustomEvent("juja:customer-orders-changed", { detail: { syncedOrder: row } }));
+          } catch (error) {
+            await markOutboxFailed(entry.id, error);
+            if (isConnectivityFailure(error)) break;
+          }
+        }
+      } finally {
+        running = false;
+      }
+    };
+
+    flushCustomerOrders();
+    window.addEventListener("online", flushCustomerOrders);
+    return () => {
+      disposed = true;
+      window.removeEventListener("online", flushCustomerOrders);
+    };
+  }, [user?.id]);
 
   const CartInnerListing = () => (
     <div className="flex flex-col h-full justify-between">
@@ -3362,22 +3553,39 @@ export default function Customer() {
     setTimeout(() => setToast(null), 4500);
   };
 
+  const updateOrdersAndCache = (updater) => {
+    setOrders((previous) => {
+      const next = typeof updater === "function" ? updater(previous) : updater;
+      if (user?.id) setLocalSnapshot("customer_orders", next, { userId: user.id }).catch(() => {});
+      return next;
+    });
+  };
+
   const fetchOrderHistory = async (userId, options = {}) => {
     if (!userId) return;
-    const { silent = false, notifyChanges = false } = options;
+    const { silent = false, notifyChanges = false, force = false } = options;
     if (!silent) setLoadingOrders(true);
     try {
+      const cachedSnapshot = await getLocalSnapshot("customer_orders", { userId });
+      const cached = cachedSnapshot?.data;
+      if (Array.isArray(cached)) {
+        setOrders(cached);
+        if (!silent) setLoadingOrders(false);
+      }
+      if (!force && isLocalSnapshotFresh(cachedSnapshot, 60_000)) return;
       const { data: webRows, error: webError } = await supabase
         .from("web_orders")
         .select("*")
         .eq("user_id", userId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(100);
 
       const { data: posRows, error: posError } = await supabase
         .from("orders")
         .select("id,created_at,status,items,subtotal,total,net_amount,dining_option,order_type,payment_method,source_system,receipt_number,order_number")
         .eq("user_id", userId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(100);
 
       if (webError || posError) throw webError || posError;
 
@@ -3434,6 +3642,7 @@ export default function Customer() {
       });
 
       setOrders(combinedRows);
+      await setLocalSnapshot("customer_orders", combinedRows, { userId });
     } catch (err) {
       console.warn("Unable to sync log metrics:", err);
     } finally {
@@ -3494,26 +3703,35 @@ export default function Customer() {
         }
 
         setUser(session.user);
+        const cachedMemberSnapshot = await getLocalSnapshot("customer_profile", { userId: session.user.id });
+        const cachedMember = cachedMemberSnapshot?.data;
+        if (cachedMember) setMember(applyAnnualPointResetToMember(cachedMember));
         await fetchOrderHistory(session.user.id);
 
-        try {
-          const { data: mData } = await supabase
-            .from("loyalty_members")
-            .select("*")
-            .eq("user_id", session.user.id)
-            .maybeSingle();
+        if (!isLocalSnapshotFresh(cachedMemberSnapshot, 5 * 60 * 1000)) {
+          try {
+            const { data: mData } = await supabase
+              .from("loyalty_members")
+              .select("*")
+              .eq("user_id", session.user.id)
+              .maybeSingle();
 
-          if (mData) {
-            try {
-              const resetResult = await resetMemberPointsIfExpired(supabase, mData);
-              setMember(resetResult.member || mData);
-            } catch (resetErr) {
-              console.warn("Annual loyalty point reset skipped:", resetErr);
-              setMember(applyAnnualPointResetToMember(mData));
+            if (mData) {
+              try {
+                const resetResult = await resetMemberPointsIfExpired(supabase, mData);
+                const currentMember = resetResult.member || mData;
+                setMember(currentMember);
+                await setLocalSnapshot("customer_profile", currentMember, { userId: session.user.id });
+              } catch (resetErr) {
+                console.warn("Annual loyalty point reset skipped:", resetErr);
+                const currentMember = applyAnnualPointResetToMember(mData);
+                setMember(currentMember);
+                await setLocalSnapshot("customer_profile", currentMember, { userId: session.user.id });
+              }
             }
+          } catch (e) {
+            console.warn("No active member profiles registered.", e);
           }
-        } catch (e) {
-          console.warn("No active member profiles registered.", e);
         }
       } catch (err) {
         console.warn("Customer session load failed:", err);
@@ -3535,7 +3753,9 @@ export default function Customer() {
         { event: "UPDATE", schema: "public", table: "loyalty_members" },
         (payload) => {
           if (payload?.new && String(payload.new.user_id) === String(user.id)) {
-            setMember(applyAnnualPointResetToMember(payload.new));
+            const currentMember = applyAnnualPointResetToMember(payload.new);
+            setMember(currentMember);
+            setLocalSnapshot("customer_profile", currentMember, { userId: user.id }).catch(() => {});
           }
         }
       )
@@ -3556,20 +3776,20 @@ export default function Customer() {
             if (payload.new?.id) {
               orderStatusSnapshotRef.current.set(String(payload.new.id), `${String(payload.new.status || "").toLowerCase()}:${String(payload.new.delivery_status || "").toLowerCase()}`);
             }
-            setOrders((prev) => [payload.new, ...prev]);
+            updateOrdersAndCache((prev) => [payload.new, ...prev.filter((order) => order.id !== payload.new.id)]);
           } else if (payload.eventType === "UPDATE") {
             notifyOrderStatus(payload.new);
             if (payload.new?.id) {
               orderStatusSnapshotRef.current.set(String(payload.new.id), `${String(payload.new.status || "").toLowerCase()}:${String(payload.new.delivery_status || "").toLowerCase()}`);
             }
-            setOrders((prev) =>
+            updateOrdersAndCache((prev) =>
               prev.map((o) => (o.id === payload.new.id ? payload.new : o))
             );
           } else if (payload.eventType === "DELETE") {
             if (payload.old?.id) {
               orderStatusSnapshotRef.current.delete(String(payload.old.id));
             }
-            setOrders((prev) => prev.filter((o) => o.id !== payload.old.id));
+            updateOrdersAndCache((prev) => prev.filter((o) => o.id !== payload.old.id));
           }
         }
       )
@@ -3582,6 +3802,31 @@ export default function Customer() {
   }, [user]);
 
   useEffect(() => {
+    if (!user?.id) return undefined;
+    const handleLocalOrderChange = (event) => {
+      const queuedOrder = event?.detail?.queuedOrder;
+      const syncedOrder = event?.detail?.syncedOrder;
+      if (queuedOrder) {
+        updateOrdersAndCache((previous) => [
+          queuedOrder,
+          ...previous.filter((order) => order.id !== queuedOrder.id),
+        ]);
+      } else if (syncedOrder) {
+        updateOrdersAndCache((previous) => [
+          syncedOrder,
+          ...previous.filter(
+            (order) => order.id !== syncedOrder.id && order.client_idempotency_key !== syncedOrder.client_idempotency_key
+          ),
+        ].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)));
+      } else {
+        fetchOrderHistory(user.id, { silent: true, notifyChanges: true, force: true });
+      }
+    };
+    window.addEventListener("juja:customer-orders-changed", handleLocalOrderChange);
+    return () => window.removeEventListener("juja:customer-orders-changed", handleLocalOrderChange);
+  }, [user?.id]);
+
+  useEffect(() => {
     if (!user?.id) return;
 
     let pollInFlight = false;
@@ -3592,7 +3837,7 @@ export default function Customer() {
       try {
         const { data, error } = await supabase
           .from("web_orders")
-          .select("*")
+          .select("id,created_at,updated_at,status,order_status,delivery_status")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false })
           .limit(20);
@@ -3600,9 +3845,12 @@ export default function Customer() {
 
         const recentRows = data || [];
         recentRows.forEach((order) => notifyOrderStatus(order));
-        setOrders((previous) => {
+        updateOrdersAndCache((previous) => {
           const byId = new Map(previous.map((order) => [String(order.id), order]));
-          recentRows.forEach((order) => byId.set(String(order.id), order));
+          recentRows.forEach((order) => {
+            const key = String(order.id);
+            byId.set(key, { ...(byId.get(key) || {}), ...order });
+          });
           return Array.from(byId.values()).sort(
             (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
           );
@@ -3613,7 +3861,7 @@ export default function Customer() {
     };
 
     // Native push and Realtime are primary; polling is a missed-event fallback.
-    const pollTimer = window.setInterval(pollCustomerOrders, 300000);
+    const pollTimer = window.setInterval(pollCustomerOrders, 15 * 60 * 1000);
 
     return () => window.clearInterval(pollTimer);
   }, [user?.id]);
