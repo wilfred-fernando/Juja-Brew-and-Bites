@@ -1298,7 +1298,11 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
   const minImmediateAt = roundUpToQuarter(new Date(Date.now() + 30 * 60 * 1000));
   const isScheduledOrder = Boolean(selectedTargetAt && selectedTargetAt > minImmediateAt);
   const isValidTime = fulfillmentTime && fulfillmentTime.trim() !== "" && targetTimeOptions.some((option) => option.value === fulfillmentTime);
-  const paymentOptions = diningOption === "DELIVERY" ? ["QRPH"] : diningOption === "DINEIN" ? [] : ["Cash", "Card", "QRPH"];
+  const paymentOptions = diningOption === "DELIVERY"
+    ? ["PayMongo", "QRPH"]
+    : diningOption === "DINEIN"
+      ? []
+      : ["Cash", "Card", "QRPH", "PayMongo"];
   const requiresPaymentProof = paymentMethod === "QRPH";
   const regularDeliveryFee = Number(deliveryQuote?.regularFee || deliveryQuote?.fee || 0);
   const deliveryFee = diningOption === "DELIVERY" ? regularDeliveryFee : 0;
@@ -1375,7 +1379,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                 <button
                   key={opt.id}
                   type="button"
-                  onClick={() => { setDiningOption(opt.id); setPaymentProof(null); if (opt.id === "DELIVERY") setPaymentMethod("QRPH"); else if (opt.id === "DINEIN") setPaymentMethod(""); else setPaymentMethod("Cash"); }}
+                  onClick={() => { setDiningOption(opt.id); setPaymentProof(null); if (opt.id === "DELIVERY") setPaymentMethod("PayMongo"); else if (opt.id === "DINEIN") setPaymentMethod(""); else setPaymentMethod("Cash"); }}
                   className={`min-h-20 rounded-2xl border px-2 py-3 flex flex-col items-center justify-center gap-2 font-bold text-xs transition ${
                     diningOption === opt.id
                       ? "border-cyan-500 bg-cyan-50 text-cyan-900 shadow-sm shadow-cyan-900/10"
@@ -2123,6 +2127,8 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
   const executeOrderSubmission = async (fulfillmentMetadata) => {
     setIsSubmitting(true);
 
+    const isPaymongo = fulfillmentMetadata.paymentMethod === "PayMongo";
+
     let paymentProofUrl = "";
     if (fulfillmentMetadata.paymentProof) {
       try {
@@ -2138,7 +2144,8 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       }
     }
 
-    const orderStatus = fulfillmentMetadata.isScheduled ? "scheduled" : "pending";
+    const releaseStatus = fulfillmentMetadata.isScheduled ? "scheduled" : "pending";
+    const orderStatus = isPaymongo ? "payment_pending" : releaseStatus;
     const deliveryFee = fulfillmentMetadata.diningOption === "DELIVERY" ? Number(fulfillmentMetadata.deliveryFee || 0) : 0;
     const orderTotal = Number(subtotal) + deliveryFee;
     const idempotencyKey = customerOrderIdempotencyKey();
@@ -2172,7 +2179,9 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       delivery_quoted_at: fulfillmentMetadata.diningOption === "DELIVERY" ? new Date().toISOString() : null,
       customer_contact: member?.Phone || member?.phone || "",
       payment_method: fulfillmentMetadata.diningOption === "DINEIN" ? "" : fulfillmentMetadata.paymentMethod,
-      payment_status: fulfillmentMetadata.paymentMethod === "QRPH" ? "submitted" : "pending",
+      payment_status: isPaymongo
+        ? "checkout_pending"
+        : fulfillmentMetadata.paymentMethod === "QRPH" ? "submitted" : "pending",
       payment_proof_url: paymentProofUrl,
       payment_review_note: fulfillmentMetadata.paymentMethod === "QRPH" ? "Cashier must verify screenshot amount against order total." : "",
       client_idempotency_key: idempotencyKey,
@@ -2180,6 +2189,36 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
 
     try {
       const { row: freshWebOrderRow, created } = await insertCustomerWebOrder(orderPayload);
+      if (isPaymongo) {
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+        const accessToken = sessionData?.session?.access_token;
+        if (!accessToken) throw new Error("Customer login is required to continue payment.");
+
+        const response = await fetch("/api/payments/paymongo/checkout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            entityType: "web_order",
+            entityId: freshWebOrderRow.id,
+            releaseStatus,
+          }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result?.checkoutUrl) {
+          throw new Error(result?.error || "Unable to open PayMongo checkout.");
+        }
+
+        setCart([]);
+        setConfirmationOpen(false);
+        setCartOpen(false);
+        window.location.assign(result.checkoutUrl);
+        return;
+      }
+
       if (created) {
         notifyStoreOfCustomerOrder(freshWebOrderRow, {
           itemCount,
@@ -2195,7 +2234,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       if (onCheckoutSuccess) onCheckoutSuccess();
     } catch (err) {
       console.error("Critical submission failure loop trace:", err);
-      if (isConnectivityFailure(err) && !paymentProofUrl) {
+      if (isConnectivityFailure(err) && !paymentProofUrl && !isPaymongo) {
         const queuedOrder = {
           ...orderPayload,
           id: `offline:${idempotencyKey}`,
@@ -3552,6 +3591,30 @@ export default function Customer() {
     setToast({ type, title, message });
     setTimeout(() => setToast(null), 4500);
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("payment");
+    if (!result) return;
+
+    if (result === "success") {
+      setToast({
+        type: "success",
+        title: "Payment Submitted",
+        message: "PayMongo received your payment. Your booking or order status will update shortly.",
+      });
+    } else if (result === "cancelled") {
+      setToast({
+        type: "warning",
+        title: "Payment Not Completed",
+        message: "The PayMongo checkout was cancelled. You can try the payment again.",
+      });
+    }
+
+    window.history.replaceState({}, "", window.location.pathname);
+    const timer = window.setTimeout(() => setToast(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const updateOrdersAndCache = (updater) => {
     setOrders((previous) => {

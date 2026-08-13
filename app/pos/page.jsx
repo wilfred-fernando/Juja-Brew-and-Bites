@@ -5023,13 +5023,22 @@ export default function POSPage() {
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "web_orders",
         },
         (payload) => {
           const incomingStore = getWebOrderStoreId(payload.new);
-          if (String(incomingStore) === String(storeId)) {
+          const nextStatus = String(payload.new?.status || payload.new?.order_status || "").toLowerCase();
+          const isNewOrder = payload.eventType === "INSERT";
+          // Supabase does not always include old row values for UPDATE events.
+          // The seen-order guard in showIncomingOrder prevents repeat alerts.
+          const isReleasedOrder = payload.eventType === "UPDATE";
+          if (
+            String(incomingStore) === String(storeId) &&
+            ["pending", "scheduled"].includes(nextStatus) &&
+            (isNewOrder || isReleasedOrder)
+          ) {
             showIncomingOrder(payload.new || {});
           }
         }

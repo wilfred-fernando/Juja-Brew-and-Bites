@@ -14,6 +14,9 @@ function escapeHtml(value) {
 }
 
 function titleForNotification(type, paymentMethod, customerName) {
+  if (type === "payment_received" || paymentMethod === "PayMongo") {
+    return `Function Room Reservation Fee Paid - ${customerName || "Customer"}`;
+  }
   if (type === "cancellation_request") {
     return `Function Room Booking Cancellation Request - ${customerName || "Customer"}`;
   }
@@ -89,7 +92,9 @@ export async function POST(req) {
 
     const subject = titleForNotification(notificationType, paymentMethod, customerName);
     const actionLabel =
-      notificationType === "cancellation_request"
+      notificationType === "payment_received" || paymentMethod === "PayMongo"
+        ? "PayMongo confirmed the reservation fee. The booking is ready for admin review and approval."
+      : notificationType === "cancellation_request"
         ? "Customer requested cancellation of an approved booking. Admin approval is required before converting the reservation fee to gift certificate."
         : notificationType === "booking_request"
         ? "New booking request is waiting for customer payment."

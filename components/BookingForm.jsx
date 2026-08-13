@@ -1015,7 +1015,7 @@ export default function BookingForm({ user, member }) {
 
   async function submitBookingPayment() {
     if (!paymentBooking?.id) return setNotice("Booking record was not found.");
-    if (!paymentChoice) return setNotice("Please choose Cash or Online payment.");
+    if (!paymentChoice) return setNotice("Please choose a payment method.");
     if (paymentChoice === "online" && !proofFile) {
       return setNotice("Please attach a screenshot of your online payment confirmation.");
     }
@@ -1024,6 +1024,28 @@ export default function BookingForm({ user, member }) {
     setNotice(null);
 
     try {
+      if (paymentChoice === "paymongo") {
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+        const accessToken = sessionData?.session?.access_token;
+        if (!accessToken) throw new Error("Customer login is required to continue payment.");
+
+        const response = await fetch("/api/payments/paymongo/checkout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ entityType: "booking", entityId: paymentBooking.id }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result?.checkoutUrl) {
+          throw new Error(result?.error || "Unable to open PayMongo checkout.");
+        }
+        window.location.assign(result.checkoutUrl);
+        return;
+      }
+
       const proofUrl = paymentChoice === "online" ? await uploadBookingProof(paymentBooking.id) : null;
       const updatePayload = {
         payment_method: paymentChoice,
@@ -2121,17 +2143,18 @@ export default function BookingForm({ user, member }) {
                 )}
               </p>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
-                  ["cash", "Cash"],
-                  ["online", "Online"],
+                  ["cash", "Cash In-Store"],
+                  ["online", "Manual QRPH"],
+                  ["paymongo", "PayMongo"],
                 ].map(([value, label]) => (
                   <button
                     key={value}
                     type="button"
                     onClick={() => {
                       setPaymentChoice(value);
-                      if (value === "cash") setProofFile(null);
+                      if (value !== "online") setProofFile(null);
                     }}
                     disabled={submitting}
                     className={`rounded-xl border px-4 py-3 text-sm font-medium transition ${
@@ -2193,13 +2216,22 @@ export default function BookingForm({ user, member }) {
               </div>
               )}
 
+              {paymentChoice === "paymongo" && (
+                <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-slate-700">
+                  Continue to PayMongo for secure online payment. Your reservation payment will be
+                  confirmed automatically after PayMongo completes the transaction.
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={submitBookingPayment}
                 disabled={submitting || !paymentChoice || (paymentChoice === "online" && !proofFile)}
                 className="w-full py-3.5 rounded-xl bg-white text-slate-700 font-bold text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-sky-500 active:scale-95 disabled:opacity-60"
               >
-                {submitting ? "Submitting..." : "Send Payment Details"}
+                {submitting
+                  ? paymentChoice === "paymongo" ? "Opening PayMongo..." : "Submitting..."
+                  : paymentChoice === "paymongo" ? "Continue to PayMongo" : "Send Payment Details"}
               </button>
             </div>
           </div>
