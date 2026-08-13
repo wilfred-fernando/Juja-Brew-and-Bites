@@ -122,7 +122,7 @@ const PACKAGE_POLICIES = {
       policy: "Outside food and beverages are subject to corkage fees:",
       corkage: [
         "Alcoholic & Non-alcoholic drinks: ₱250",
-        "Cakes & Lechon: FREE",
+        "Cakes: FREE",
         "Other food items: ₱200 per dish",
       ],
       notes: "Customized menus and special requests must be arranged in advance.",
@@ -156,7 +156,7 @@ const PACKAGE_POLICIES = {
       policy: "Outside food and beverages are subject to corkage fees:",
       corkage: [
         "Alcoholic & Non-alcoholic drinks: ₱500",
-        "Cakes & Lechon: FREE",
+        "Cakes: FREE",
         "Other food items: ₱200 per dish",
       ],
       notes: "Customized menus and special requests must be arranged in advance.",
@@ -191,7 +191,7 @@ const PACKAGE_POLICIES = {
       policy: "Outside food and beverages are subject to corkage fees:",
       corkage: [
         "Alcoholic & Non-alcoholic drinks: ₱1,000",
-        "Cakes & Lechon: FREE",
+        "Cakes: FREE",
         "Other food items: ₱200 per dish",
       ],
       notes: "Customized menus and special requests must be arranged in advance.",
