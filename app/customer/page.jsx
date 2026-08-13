@@ -1299,11 +1299,8 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
   const isScheduledOrder = Boolean(selectedTargetAt && selectedTargetAt > minImmediateAt);
   const isValidTime = fulfillmentTime && fulfillmentTime.trim() !== "" && targetTimeOptions.some((option) => option.value === fulfillmentTime);
   const paymentOptions = diningOption === "DELIVERY"
-    ? ["PayMongo", "QRPH"]
-    : diningOption === "DINEIN"
-      ? []
-      : ["Cash", "Card", "QRPH", "PayMongo"];
-  const requiresPaymentProof = paymentMethod === "QRPH";
+    ? ["PayMongo"]
+    : ["Cash", "PayMongo"];
   const regularDeliveryFee = Number(deliveryQuote?.regularFee || deliveryQuote?.fee || 0);
   const deliveryFee = diningOption === "DELIVERY" ? regularDeliveryFee : 0;
   const orderTotal = subtotal + deliveryFee;
@@ -1316,7 +1313,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
     (diningOption !== "DELIVERY" || deliveryAddress.trim().length >= 8) &&
     hasDeliveryQuote &&
     !deliveryQuoteLoading &&
-    (!requiresPaymentProof || !!paymentProof);
+    paymentOptions.includes(paymentMethod);
   const potentialPointsEarned = loyaltyPoints(loyaltyEligibleSubtotal);
   const deliveryAddressSearchTerm = deliveryAddress.trim();
   const deliveryMapUrl = deliveryMapPreviewUrl({ pin: deliveryPin });
@@ -1379,7 +1376,11 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                 <button
                   key={opt.id}
                   type="button"
-                  onClick={() => { setDiningOption(opt.id); setPaymentProof(null); if (opt.id === "DELIVERY") setPaymentMethod("PayMongo"); else if (opt.id === "DINEIN") setPaymentMethod(""); else setPaymentMethod("Cash"); }}
+                  onClick={() => {
+                    setDiningOption(opt.id);
+                    setPaymentProof(null);
+                    setPaymentMethod(opt.id === "DELIVERY" ? "PayMongo" : "Cash");
+                  }}
                   className={`min-h-20 rounded-2xl border px-2 py-3 flex flex-col items-center justify-center gap-2 font-bold text-xs transition ${
                     diningOption === opt.id
                       ? "border-cyan-500 bg-cyan-50 text-cyan-900 shadow-sm shadow-cyan-900/10"
@@ -1622,7 +1623,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
               <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-3">
                 Payment Option
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {paymentOptions.map((method) => (
                   <button
                     key={method}
@@ -1640,27 +1641,6 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                     {method}
                   </button>
                 ))}
-              </div>
-            </section>
-          )}
-
-          {paymentMethod === "QRPH" && (
-            <section className="rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm space-y-3">
-              <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500">QRPH Payment Proof</p>
-              <img src="https://files.jujabrewandbites.com/public-media/qrph.jpg" alt="QRPH payment code" className="w-full rounded-xl border border-white bg-white object-contain max-h-72" />
-              <div>
-                <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-1.5">
-                  Upload Payment Screenshot
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setPaymentProof(e.target.files?.[0] || null)}
-                  className="w-full text-xs font-semibold text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-700 file:px-3 file:py-2 file:text-xs file:font-bold file:text-white"
-                />
-                <p className="text-[10px] font-semibold text-slate-500 mt-2">
-                  Cashier will review the proof amount before accepting the order.
-                </p>
               </div>
             </section>
           )}
@@ -2127,6 +2107,15 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
   const executeOrderSubmission = async (fulfillmentMetadata) => {
     setIsSubmitting(true);
 
+    const allowedPaymentMethods = fulfillmentMetadata.diningOption === "DELIVERY"
+      ? ["PayMongo"]
+      : ["Cash", "PayMongo"];
+    if (!allowedPaymentMethods.includes(fulfillmentMetadata.paymentMethod)) {
+      setIsSubmitting(false);
+      alert("Please select an available payment method for this order type.");
+      return;
+    }
+
     const isPaymongo = fulfillmentMetadata.paymentMethod === "PayMongo";
 
     let paymentProofUrl = "";
@@ -2178,12 +2167,10 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       delivery_distance_meters: fulfillmentMetadata.deliveryQuote?.distanceMeters || null,
       delivery_quoted_at: fulfillmentMetadata.diningOption === "DELIVERY" ? new Date().toISOString() : null,
       customer_contact: member?.Phone || member?.phone || "",
-      payment_method: fulfillmentMetadata.diningOption === "DINEIN" ? "" : fulfillmentMetadata.paymentMethod,
-      payment_status: isPaymongo
-        ? "checkout_pending"
-        : fulfillmentMetadata.paymentMethod === "QRPH" ? "submitted" : "pending",
+      payment_method: fulfillmentMetadata.paymentMethod,
+      payment_status: isPaymongo ? "checkout_pending" : "pending",
       payment_proof_url: paymentProofUrl,
-      payment_review_note: fulfillmentMetadata.paymentMethod === "QRPH" ? "Cashier must verify screenshot amount against order total." : "",
+      payment_review_note: "",
       client_idempotency_key: idempotencyKey,
     };
 

@@ -1015,9 +1015,8 @@ export default function BookingForm({ user, member }) {
 
   async function submitBookingPayment() {
     if (!paymentBooking?.id) return setNotice("Booking record was not found.");
-    if (!paymentChoice) return setNotice("Please choose a payment method.");
-    if (paymentChoice === "online" && !proofFile) {
-      return setNotice("Please attach a screenshot of your online payment confirmation.");
+    if (!["cash", "paymongo"].includes(paymentChoice)) {
+      return setNotice("Please choose Cash In-Store or PayMongo.");
     }
 
     setSubmitting(true);
@@ -2143,10 +2142,9 @@ export default function BookingForm({ user, member }) {
                 )}
               </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
-                  ["cash", "Cash In-Store"],
-                  ["online", "Manual QRPH"],
+                  ["cash", "Cash"],
                   ["paymongo", "PayMongo"],
                 ].map(([value, label]) => (
                   <button
@@ -2154,7 +2152,7 @@ export default function BookingForm({ user, member }) {
                     type="button"
                     onClick={() => {
                       setPaymentChoice(value);
-                      if (value !== "online") setProofFile(null);
+                      setProofFile(null);
                     }}
                     disabled={submitting}
                     className={`rounded-xl border px-4 py-3 text-sm font-medium transition ${
@@ -2174,48 +2172,6 @@ export default function BookingForm({ user, member }) {
                 </div>
               )}
 
-              {paymentChoice === "online" && (
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                <p className="text-[11px] uppercase tracking-widest text-slate-500 mb-2">
-                  Scan QR to Pay
-                </p>
-                <img
-                  src={QR_IMAGE_PATH}
-                  alt="Payment QR Code"
-                  className="w-full max-w-[320px] mx-auto rounded-xl border border-slate-200 bg-white"
-                />
-
-                <p className="text-[12px] text-slate-700 mt-3">
-                  After payment, attach screenshot of your payment confirmation to lock in your
-                  reservation!
-                </p>
-
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="mt-3 w-full font-bold text-sm"
-                  onChange={(e) => setProofFile(e.target.files?.[0] || null)}
-                  disabled={submitting}
-                />
-
-                {proofPreview && (
-                  <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden">
-                    <img
-                      src={proofPreview}
-                      alt="Payment proof preview"
-                      className="w-full object-cover"
-                    />
-                  </div>
-                )}
-
-                {!proofFile && (
-                  <p className="mt-2 text-[11px] font-italic text-sky-500">
-                    Please upload your proof of payment before submitting.
-                  </p>
-                )}
-              </div>
-              )}
-
               {paymentChoice === "paymongo" && (
                 <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-slate-700">
                   Continue to PayMongo for secure online payment. Your reservation payment will be
@@ -2226,12 +2182,12 @@ export default function BookingForm({ user, member }) {
               <button
                 type="button"
                 onClick={submitBookingPayment}
-                disabled={submitting || !paymentChoice || (paymentChoice === "online" && !proofFile)}
+                disabled={submitting || !["cash", "paymongo"].includes(paymentChoice)}
                 className="w-full py-3.5 rounded-xl bg-white text-slate-700 font-bold text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-sky-500 active:scale-95 disabled:opacity-60"
               >
                 {submitting
                   ? paymentChoice === "paymongo" ? "Opening PayMongo..." : "Submitting..."
-                  : paymentChoice === "paymongo" ? "Continue to PayMongo" : "Send Payment Details"}
+                  : paymentChoice === "paymongo" ? "Continue to PayMongo" : "Confirm Cash Payment"}
               </button>
             </div>
           </div>

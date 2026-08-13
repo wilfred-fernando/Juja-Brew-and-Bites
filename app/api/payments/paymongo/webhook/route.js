@@ -11,7 +11,19 @@ function paymentDetails(session) {
     paymentIntentId: payment?.attributes?.payment_intent_id || session?.attributes?.payment_intent?.id || null,
     paymentMethod: payment?.attributes?.source?.type || payment?.attributes?.payment_method_used || null,
     amountCentavos: Number(payment?.attributes?.amount ?? session?.attributes?.line_items?.[0]?.amount),
+    paidAt: payment?.attributes?.paid_at ?? session?.attributes?.paid_at ?? null,
   };
+}
+
+function paymongoTimestampToIso(value) {
+  if (value === null || value === undefined || value === "") return new Date().toISOString();
+
+  const numeric = Number(value);
+  const parsed = Number.isFinite(numeric)
+    ? new Date(numeric < 1_000_000_000_000 ? numeric * 1000 : numeric)
+    : new Date(value);
+
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
 }
 
 async function notifyReleasedWebOrder(request, order) {
@@ -97,7 +109,9 @@ export async function POST(request) {
       if (Number.isFinite(details.amountCentavos) && details.amountCentavos !== Number(ledger.amount_centavos)) {
         throw new Error("Paid amount does not match the expected PayMongo amount.");
       }
-      const paidAt = new Date().toISOString();
+      // PayMongo timestamps are Unix seconds. Store the exact payment instant in UTC;
+      // the database also maintains an Asia/Manila display value for operations.
+      const paidAt = paymongoTimestampToIso(details.paidAt);
       const { error: paymentUpdateError } = await admin.from("paymongo_payments").update({
         status: "paid",
         payment_id: details.paymentId,
