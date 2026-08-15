@@ -1,7 +1,7 @@
 {
   "app": "pos",
-  "latestVersion": "2.1",
-  "latestBuild": 17,
-  "apkUrl": "https://files.jujabrewandbites.com/apk-downloads/juja-pos-v2.1.apk",
-  "releaseNotes": "Adds the Senior Citizen and PWD beneficiary registry, ID verification, category eligibility, and database-enforced daily limits of one drink, one food, and one dessert per beneficiary."
+  "latestVersion": "2.2",
+  "latestBuild": 18,
+  "apkUrl": "https://files.jujabrewandbites.com/apk-downloads/juja-pos-v2.2.apk",
+  "releaseNotes": "Uses fixed three-hour booking slots year-round while retaining booking buffers, overnight handling, and extension rules."
 }

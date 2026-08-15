@@ -9,7 +9,8 @@ const supabase = getSupabaseClient();
  Rules / Config
 ======================= */
 const OPERATING_START_HOUR = 10; // 10AM
-const BASE_BOOKING_MINUTES = 2 * 60 + 59; // 2h59m
+const BOOKING_SLOT_HOURS = [10, 14, 18, 22];
+const BASE_BOOKING_MINUTES = 3 * 60;
 const MAX_EXTENSION_HOURS = 5;
 const PAYMENT_HOLD_HOURS = 24;
 const EXPIRED_BOOKING_STATUS = "expired";
@@ -41,9 +42,12 @@ function startOfWeek(date, weekStartsOn = 1) {
   return d;
 }
 function buildSlotHours() {
+  return BOOKING_SLOT_HOURS;
+}
+function buildCalendarHours() {
   const hours = [];
   for (let h = OPERATING_START_HOUR; h <= 23; h++) hours.push(h);
-  hours.push(24, 25); // 12AM+1, 1AM+1
+  hours.push(24, 25);
   return hours;
 }
 function labelHour(h) {
@@ -52,6 +56,15 @@ function labelHour(h) {
   const ampm = hh >= 12 ? "PM" : "AM";
   const disp = ((hh + 11) % 12) + 1;
   return `${disp}:00 ${ampm}${dayOffset}`;
+}
+function labelBookingSlot(hour) {
+  return `${labelHour(hour).replace(" (+1)", "")} - ${labelHour(hour + 3)}`;
+}
+function editSlotHours(currentHour) {
+  const hour = Number(currentHour);
+  return BOOKING_SLOT_HOURS.includes(hour)
+    ? BOOKING_SLOT_HOURS
+    : [...BOOKING_SLOT_HOURS, hour].sort((a, b) => a - b);
 }
 function computeDateTime(dateISO, hourLike) {
   const [year, month, day] = String(dateISO).split("-").map(Number);
@@ -308,6 +321,7 @@ export default function AdminBookingsDashboard() {
   // Calendar
   const [weekAnchorISO, setWeekAnchorISO] = useState(() => toISODate(new Date()));
   const slotHours = useMemo(() => buildSlotHours(), []);
+  const calendarHours = useMemo(() => buildCalendarHours(), []);
 
   const realtimeRef = useRef(null);
 
@@ -705,7 +719,7 @@ export default function AdminBookingsDashboard() {
       package_id: Number(b.package_id || ""),
       extension_hours: clampExtensionHours(b.extension_hours),
       dateISO,
-      hour: isNaN(hour) ? start.getHours() : hour,
+      hour: isNaN(hour) ? OPERATING_START_HOUR : hour,
     });
   }
 
@@ -870,7 +884,7 @@ export default function AdminBookingsDashboard() {
           <p className="text-[10px] uppercase tracking-widest text-slate-500">Admin</p>
           <h2 className="text-2xl font-semibold text-slate-800">Booking Dashboard</h2>
           <p className="text-xs text-slate-500 mt-1">
-            Base booking: 2h 59m • Extension max {MAX_EXTENSION_HOURS}h • Calendar + Analytics + Bulk actions
+            Fixed 3-hour slots • Extension max {MAX_EXTENSION_HOURS}h • Calendar + Analytics + Bulk actions
           </p>
         </div>
 
@@ -1068,7 +1082,7 @@ export default function AdminBookingsDashboard() {
                 <div className="grid" style={{ gridTemplateColumns: "110px repeat(7, minmax(0, 1fr))" }}>
                   {/* Time column */}
                   <div className="border-r border-slate-200">
-                    {slotHours.map((h) => (
+                    {calendarHours.map((h) => (
                       <div key={h} className="h-16 px-3 flex items-center border-b border-slate-200 bg-white">
                         <p className="text-xs text-slate-600 font-medium">{labelHour(h)}</p>
                       </div>
@@ -1092,7 +1106,7 @@ export default function AdminBookingsDashboard() {
 
                     return (
                       <div key={dayISO} className="relative">
-                        {slotHours.map((h) => {
+                        {calendarHours.map((h) => {
                           const cellBookings = (byHour.get(h) || []).sort(
                             (a, b) => new Date(a.start_at) - new Date(b.start_at)
                           );
@@ -1557,7 +1571,7 @@ export default function AdminBookingsDashboard() {
               <div>
                 <p className="text-[10px] uppercase tracking-widest text-slate-500">Admin Manual Encoding</p>
                 <h3 className="text-lg font-semibold text-slate-800">Create Booking Details</h3>
-                <p className="text-xs text-slate-500 mt-1">End time auto-calculates: 2h59 + extension.</p>
+                <p className="text-xs text-slate-500 mt-1">End time auto-calculates: 3 hours + extension.</p>
               </div>
               <button
                 className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
@@ -1662,7 +1676,7 @@ export default function AdminBookingsDashboard() {
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
                 >
                   {slotHours.map((h) => (
-                    <option key={h} value={h}>{labelHour(h)}</option>
+                    <option key={h} value={h}>{labelBookingSlot(h)}</option>
                   ))}
                 </select>
               </div>
@@ -1674,9 +1688,9 @@ export default function AdminBookingsDashboard() {
                   onChange={(e) => setManualModal((p) => ({ ...p, extension_hours: Number(e.target.value) }))}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
                 >
-                  <option value={0}>0</option>
-                  <option value={1}>1</option>
-                  <option value={2}>2</option>
+                  {Array.from({ length: MAX_EXTENSION_HOURS + 1 }, (_, hours) => (
+                    <option key={hours} value={hours}>{hours}</option>
+                  ))}
                 </select>
               </div>
 
@@ -1732,7 +1746,7 @@ export default function AdminBookingsDashboard() {
               <div>
                 <p className="text-[10px] uppercase tracking-widest text-slate-500">Admin Manual Update</p>
                 <h3 className="text-lg font-semibold text-slate-800">Update Booking Details</h3>
-                <p className="text-xs text-slate-500 mt-1">End time auto-calculates: 2h59 + extension.</p>
+                <p className="text-xs text-slate-500 mt-1">End time auto-calculates: 3 hours + extension.</p>
               </div>
               <button
                 className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center"
@@ -1787,9 +1801,9 @@ export default function AdminBookingsDashboard() {
                   onChange={(e) => setEditModal((p) => ({ ...p, extension_hours: Number(e.target.value) }))}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
                 >
-                  <option value={0}>0</option>
-                  <option value={1}>1</option>
-                  <option value={2}>2</option>
+                  {Array.from({ length: MAX_EXTENSION_HOURS + 1 }, (_, hours) => (
+                    <option key={hours} value={hours}>{hours}</option>
+                  ))}
                 </select>
               </div>
 
@@ -1854,9 +1868,11 @@ export default function AdminBookingsDashboard() {
                   onChange={(e) => setEditModal((p) => ({ ...p, hour: Number(e.target.value) }))}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
                 >
-                  {slotHours.map((h) => (
+                  {editSlotHours(editModal.hour).map((h) => (
                     <option key={h} value={h}>
-                      {labelHour(h)}
+                      {BOOKING_SLOT_HOURS.includes(h)
+                        ? labelBookingSlot(h)
+                        : `${labelHour(h)} (existing booking time)`}
                     </option>
                   ))}
                 </select>

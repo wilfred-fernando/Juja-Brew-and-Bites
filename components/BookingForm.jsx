@@ -16,11 +16,10 @@ const BUFFER_HOURS = 1; // 1 hour buffer before & after
 const MAX_EXTENSION_HOURS = 5; // extension max 5 hours
 const MIN_ADVANCE_HOURS = 3; // must be at least 3 hours in advance
 const RESCHEDULE_MIN_DAYS = 2; // update/reschedule allowed only if >= 2 days before start
-const DECEMBER_SLOT_HOURS = [10, 14, 18, 22];
-const DECEMBER_BOOKING_MINUTES = 3 * 60;
+const BOOKING_SLOT_HOURS = [10, 14, 18, 22];
 
-// ✅ NEW BASE DURATION: 2 hours 59 minutes
-const BASE_BOOKING_MINUTES = 2 * 60 + 59; // 179 mins
+// Fixed three-hour booking duration before optional extensions.
+const BASE_BOOKING_MINUTES = 3 * 60;
 
 const DEPOSIT_AMOUNT = 1000;
 const PAYMENT_HOLD_HOURS = 24;
@@ -302,12 +301,8 @@ function isDecemberDate(dateISO) {
   const month = Number(String(dateISO || "").split("-")[1]);
   return month === 12;
 }
-function buildSlotHours(dateISO) {
-  if (isDecemberDate(dateISO)) return DECEMBER_SLOT_HOURS;
-  const hours = [];
-  for (let h = OPERATING_START_HOUR; h <= 23; h++) hours.push(h);
-  hours.push(24, 25); // 12AM, 1AM next day
-  return hours;
+function buildSlotHours() {
+  return BOOKING_SLOT_HOURS;
 }
 function labelHour(h) {
   const dayOffset = h >= 24 ? " (+1)" : "";
@@ -316,16 +311,14 @@ function labelHour(h) {
   const disp = ((hh + 11) % 12) + 1;
   return `${disp}:00 ${ampm}${dayOffset}`;
 }
-function labelBookingSlot(dateISO, hour) {
-  if (!isDecemberDate(dateISO)) return labelHour(hour);
+function labelBookingSlot(_dateISO, hour) {
   return `${labelHour(hour).replace(" (+1)", "")} - ${labelHour(hour + 3)}`;
 }
 function bookingExtensionHours(dateISO, extensionEnabled, extensionHours) {
   if (isDecemberDate(dateISO)) return 0;
   return extensionEnabled ? Number(extensionHours || 0) : 0;
 }
-function bookingDurationMinutes(dateISO, extensionHours = 0) {
-  if (isDecemberDate(dateISO)) return DECEMBER_BOOKING_MINUTES;
+function bookingDurationMinutes(_dateISO, extensionHours = 0) {
   return BASE_BOOKING_MINUTES + Number(extensionHours || 0) * 60;
 }
 function computeDateTime(businessDateISO, hourLike) {
@@ -1510,9 +1503,9 @@ export default function BookingForm({ user, member }) {
                   disabled={isDecemberDate(dateISO) || form.extend !== "yes"}
                   className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm disabled:opacity-50"
                 >
-                  <option value={0}>0 hr</option>
-                  <option value={1}>1 hr</option>
-                  <option value={2}>2 hr</option>
+                  {Array.from({ length: MAX_EXTENSION_HOURS + 1 }, (_, hours) => (
+                    <option key={hours} value={hours}>{hours} hr</option>
+                  ))}
                 </select>
               </div>
               {isDecemberDate(dateISO) ? (
@@ -1524,17 +1517,9 @@ export default function BookingForm({ user, member }) {
           </div>
 
           <div className="text-[11px] text-slate-500">
-            {isDecemberDate(dateISO) ? (
-              <>
-                December slots: <b>10:00 AM - 1:00 PM</b>, <b>2:00 PM - 5:00 PM</b>,{" "}
-                <b>6:00 PM - 9:00 PM</b>, and <b>10:00 PM - 1:00 AM</b> (next day).
-              </>
-            ) : (
-              <>
-                Operating hours: <b>10:00 AM - 2:00 AM</b> (next day). Buffer rule:{" "}
-                <b>1 hour</b> before & after.
-              </>
-            )}
+            Booking slots: <b>10:00 AM - 1:00 PM</b>, <b>2:00 PM - 5:00 PM</b>,{" "}
+            <b>6:00 PM - 9:00 PM</b>, and <b>10:00 PM - 1:00 AM</b> (next day).
+            Buffer rule: <b>1 hour</b> before & after.
           </div>
 
           {loadingBookings ? (
