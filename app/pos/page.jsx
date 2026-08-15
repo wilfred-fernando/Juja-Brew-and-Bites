@@ -3038,12 +3038,13 @@ function optionGroupMaxSelection(group) {
   return Number.isFinite(value) && value >= 1 ? Math.floor(value) : null;
 }
 
-function AddToCartModal({ item, onClose, onAddToCart, discountRules = [] }) {
+function AddToCartModal({ item, onClose, onAddToCart, discountRules = [], categories = [], onRequestDiscountBeneficiary }) {
   const [quantity, setQuantity] = useState(1);
   const [selections, setSelections] = useState({});
   const [instructions, setInstructions] = useState("");
   const [itemDiscountRuleId, setItemDiscountRuleId] = useState("");
   const [itemDiscountOverride, setItemDiscountOverride] = useState(null);
+  const [itemDiscountBeneficiary, setItemDiscountBeneficiary] = useState(null);
   const [collapsed, setCollapsed] = useState({});
 
   useEffect(() => {
@@ -3054,6 +3055,12 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [] }) {
     setInstructions(source.instructions || "");
     setItemDiscountRuleId(source.discountRuleId || source.discount_rule_id || "");
     setItemDiscountOverride(null);
+    setItemDiscountBeneficiary(source.discountBeneficiary || (source.discountBeneficiaryId ? {
+      id: source.discountBeneficiaryId,
+      beneficiary_type: source.discountBeneficiaryType,
+      full_name: source.discountBeneficiaryName,
+      id_number: source.discountBeneficiaryIdNumber,
+    } : null));
 
     const selected = {};
     if (source.variantDetails && item.variants) {
@@ -3102,9 +3109,18 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [] }) {
     itemDiscountOverride && String(itemDiscountOverride.id) === String(itemDiscountRuleId)
       ? itemDiscountOverride
       : itemDiscountBaseRule;
-  const discountValue = Math.max(0, Math.min(unitPrice * Number(quantity || 1), discountAmountFromRule(itemDiscountRule, unitPrice * Number(quantity || 1))));
+  const itemCategory = categories.find((category) =>
+    String(category.id) === String(item.category_id || item.menu_category_id || "") ||
+    String(category.name || "").toLowerCase() === String(item.category || item.category_name || "").toLowerCase()
+  );
+  const discountEntitlementGroup = String(itemCategory?.discount_entitlement_group || item.discount_entitlement_group || "").toLowerCase();
+  const requiresDiscountBeneficiary = Boolean(itemDiscountRule?.requires_discount_beneficiary);
+  const lineSubtotal = unitPrice * Number(quantity || 1);
+  const discountBase = requiresDiscountBeneficiary ? unitPrice : lineSubtotal;
+  const discountValue = Math.max(0, Math.min(lineSubtotal, discountAmountFromRule(itemDiscountRule, discountBase)));
   const availableVariantGroups = (item.variants || []).filter((g) => g.isAvailable !== false && g.is_available !== false);
-  const canAdd = availableVariantGroups.every((g) => !g.isRequired || (selections[g.id] || []).length > 0);
+  const canAdd = availableVariantGroups.every((g) => !g.isRequired || (selections[g.id] || []).length > 0) &&
+    (!requiresDiscountBeneficiary || (itemDiscountBeneficiary?.id && discountEntitlementGroup));
 
   const variantDetails = Object.values(selections)
     .flat()
@@ -3139,6 +3155,13 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [] }) {
       discountName: itemDiscountRule?.name || itemDiscountRule?.discount_name || null,
       discountManualValue: itemDiscountRule?.manual_value ?? null,
       discountManualLabel: itemDiscountRule?.manual_label ?? null,
+      requiresDiscountBeneficiary,
+      discountEntitlementGroup: requiresDiscountBeneficiary ? discountEntitlementGroup : null,
+      discountBeneficiary: requiresDiscountBeneficiary ? itemDiscountBeneficiary : null,
+      discountBeneficiaryId: requiresDiscountBeneficiary ? itemDiscountBeneficiary?.id : null,
+      discountBeneficiaryType: requiresDiscountBeneficiary ? itemDiscountBeneficiary?.beneficiary_type : null,
+      discountBeneficiaryName: requiresDiscountBeneficiary ? itemDiscountBeneficiary?.full_name : null,
+      discountBeneficiaryIdNumber: requiresDiscountBeneficiary ? itemDiscountBeneficiary?.id_number : null,
       variantDetails,
       selectedOptions,
       instructions,
@@ -3200,18 +3223,29 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [] }) {
           <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1">Item Discount</label>
           <select
             value={itemDiscountRuleId}
-            onChange={(e) => {
+            onChange={async (e) => {
               const selectedId = e.target.value;
               if (!selectedId) {
                 setItemDiscountRuleId("");
                 setItemDiscountOverride(null);
+                setItemDiscountBeneficiary(null);
                 return;
               }
               const selectedRule = discountRules.find((rule) => String(rule.id) === String(selectedId));
               const resolvedRule = promptForVariableDiscount(selectedRule, unitPrice * Number(quantity || 1));
               if (!resolvedRule) return;
+              let selectedBeneficiary = null;
+              if (selectedRule?.requires_discount_beneficiary) {
+                if (!discountEntitlementGroup) {
+                  window.alert("This item's category must be classified as Drink, Food, or Dessert in Admin Menu before applying this discount.");
+                  return;
+                }
+                selectedBeneficiary = await onRequestDiscountBeneficiary?.({ rule: selectedRule, entitlementGroup: discountEntitlementGroup, item });
+                if (!selectedBeneficiary?.id) return;
+              }
               setItemDiscountRuleId(selectedId);
               setItemDiscountOverride(isVariableDiscountRule(selectedRule) ? resolvedRule : null);
+              setItemDiscountBeneficiary(selectedBeneficiary);
             }}
             className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 outline-none focus:border-[#FC687D]"
           >
@@ -3226,6 +3260,13 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [] }) {
             <p className="mt-1 text-[10px] font-semibold text-slate-500">
               Discount: -{peso2(discountValue)}
             </p>
+          )}
+          {requiresDiscountBeneficiary && itemDiscountBeneficiary?.id && (
+            <div className="mt-2 rounded-xl border border-cyan-100 bg-cyan-50 px-3 py-2 text-xs text-slate-700">
+              <span className="font-semibold">{itemDiscountBeneficiary.full_name}</span>
+              <span className="ml-2 text-slate-500">{String(itemDiscountBeneficiary.beneficiary_type || "").replace("_", " ").toUpperCase()} · {itemDiscountBeneficiary.id_number}</span>
+              <span className="block mt-1 text-[10px] uppercase tracking-wider text-cyan-800">Daily entitlement: 1 {discountEntitlementGroup}</span>
+            </div>
           )}
         </div>
       )}
@@ -3294,6 +3335,106 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [] }) {
         />
       </div>
 
+    </ModalShell>
+  );
+}
+
+function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName, requiredBeneficiaryType = "senior_citizen", onClose, onSelect, onSave }) {
+  const [search, setSearch] = useState("");
+  const [beneficiaryType, setBeneficiaryType] = useState("senior_citizen");
+  const [fullName, setFullName] = useState("");
+  const [idNumber, setIdNumber] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setSearch("");
+    setBeneficiaryType(requiredBeneficiaryType === "pwd" ? "pwd" : "senior_citizen");
+    setFullName("");
+    setIdNumber("");
+  }, [open, requiredBeneficiaryType]);
+
+  const normalizedSearch = search.trim().toLowerCase();
+  const filtered = beneficiaries.filter((entry) => {
+    if (String(entry.beneficiary_type || "") !== beneficiaryType) return false;
+    if (!normalizedSearch) return true;
+    return [entry.full_name, entry.id_number, entry.beneficiary_type]
+      .some((value) => String(value || "").toLowerCase().includes(normalizedSearch));
+  });
+
+  const saveNew = async () => {
+    if (!fullName.trim() || !idNumber.trim()) return;
+    setSaving(true);
+    try {
+      await onSave?.({ beneficiaryType, fullName: fullName.trim(), idNumber: idNumber.trim() });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ModalShell open={open} onClose={onClose} title="SC / PWD Discount" subtitle={ruleName || "Select beneficiary"} z={165}>
+      <div className="rounded-xl border border-cyan-100 bg-cyan-50 px-3 py-2 text-xs text-slate-700">
+        Select an existing beneficiary or save a new name and ID number. Daily limits are checked when the order is charged.
+      </div>
+
+      <div className="mt-4">
+        <label className="block mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-500">Saved beneficiaries</label>
+        <input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search name or ID number"
+          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
+        />
+        <div className="mt-2 max-h-48 space-y-2 overflow-y-auto pr-1">
+          {loading ? (
+            <p className="py-5 text-center text-xs text-slate-500">Loading saved beneficiaries...</p>
+          ) : filtered.length === 0 ? (
+            <p className="py-5 text-center text-xs text-slate-500">No saved beneficiary found.</p>
+          ) : filtered.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              onClick={() => onSelect?.(entry)}
+              className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left transition hover:border-cyan-400 hover:bg-cyan-50"
+            >
+              <span>
+                <span className="block text-sm font-semibold text-slate-800">{entry.full_name}</span>
+                <span className="block text-[10px] uppercase tracking-wider text-slate-500">{String(entry.beneficiary_type || "").replace("_", " ")} · {entry.id_number}</span>
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-700">Select</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="my-4 border-t border-slate-200" />
+      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Save new beneficiary</p>
+      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+        <div className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-800">
+          {beneficiaryType === "pwd" ? "PWD" : "Senior Citizen"}
+        </div>
+        <input
+          value={idNumber}
+          onChange={(event) => setIdNumber(event.target.value)}
+          placeholder="ID number"
+          className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-cyan-500"
+        />
+        <input
+          value={fullName}
+          onChange={(event) => setFullName(event.target.value)}
+          placeholder="Full name"
+          className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-cyan-500 sm:col-span-2"
+        />
+      </div>
+      <button
+        type="button"
+        disabled={saving || !fullName.trim() || !idNumber.trim()}
+        onClick={saveNew}
+        className="mt-3 h-11 w-full rounded-xl bg-slate-700 text-xs font-semibold uppercase tracking-wider text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
+      >
+        {saving ? "Saving..." : "Save and select"}
+      </button>
     </ModalShell>
   );
 }
@@ -3797,6 +3938,41 @@ function lineDiscountAmount(line) {
   return Math.max(0, Math.min(lineGrossAmount(line), Number(line?.discountAmount || line?.discount_amount || 0)));
 }
 
+function collectPosDiscountClaims(lines = []) {
+  const claims = [];
+  const seen = new Set();
+
+  (Array.isArray(lines) ? lines : []).forEach((line) => {
+    const isVoided = line?.voided || line?.isVoided || String(line?.status || "").toLowerCase() === "voided";
+    if (isVoided || !line?.requiresDiscountBeneficiary || lineDiscountAmount(line) <= 0) return;
+
+    const beneficiaryId = String(line.discountBeneficiaryId || line.discountBeneficiary?.id || "").trim();
+    const discountId = String(line.discountRuleId || line.discount_rule_id || "").trim();
+    const entitlementGroup = String(line.discountEntitlementGroup || "").trim().toLowerCase();
+    const beneficiaryName = String(line.discountBeneficiaryName || line.discountBeneficiary?.full_name || "This beneficiary").trim();
+
+    if (!beneficiaryId || !discountId) {
+      throw new Error("Select or register the Senior Citizen / PWD beneficiary before adding the discounted item.");
+    }
+    if (!["drink", "food", "dessert"].includes(entitlementGroup)) {
+      throw new Error(`${line.name || "This item"} must have a Drink, Food, or Dessert discount classification in Admin Menu.`);
+    }
+
+    const dailyKey = `${beneficiaryId}:${entitlementGroup}`;
+    if (seen.has(dailyKey)) {
+      throw new Error(`${beneficiaryName} can redeem only one ${entitlementGroup} item per day.`);
+    }
+    seen.add(dailyKey);
+    claims.push({
+      beneficiary_id: beneficiaryId,
+      discount_id: discountId,
+      entitlement_group: entitlementGroup,
+    });
+  });
+
+  return claims;
+}
+
 function lineNetAmount(line) {
   return Math.max(0, lineGrossAmount(line) - lineDiscountAmount(line));
 }
@@ -3948,6 +4124,12 @@ export default function POSPage() {
   const [attachedCustomer, setAttachedCustomer] = useState(null);
   const [customerDetailsOpen, setCustomerDetailsOpen] = useState(false);
   const [selectedItemForModal, setSelectedItemForModal] = useState(null);
+  const [discountBeneficiaryModalOpen, setDiscountBeneficiaryModalOpen] = useState(false);
+  const [discountBeneficiaries, setDiscountBeneficiaries] = useState([]);
+  const [discountBeneficiariesLoading, setDiscountBeneficiariesLoading] = useState(false);
+  const [pendingBeneficiaryRuleName, setPendingBeneficiaryRuleName] = useState("");
+  const [pendingBeneficiaryType, setPendingBeneficiaryType] = useState("senior_citizen");
+  const discountBeneficiaryResolverRef = useRef(null);
   const [diningOption, setDiningOption] = useState("");
   const [grabOrderNumber, setGrabOrderNumber] = useState("");
   const hasInitializedDining = useRef(false);
@@ -4256,6 +4438,65 @@ export default function POSPage() {
   const showToast = (type, title, message) => {
     setToast({ type, title, message });
     setTimeout(() => setToast(null), 3500);
+  };
+
+  const loadDiscountBeneficiaries = async () => {
+    setDiscountBeneficiariesLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("pos_discount_beneficiaries")
+        .select("id, beneficiary_type, full_name, id_number, is_active")
+        .eq("is_active", true)
+        .order("full_name", { ascending: true });
+      if (error) throw error;
+      setDiscountBeneficiaries(data || []);
+      return data || [];
+    } catch (error) {
+      showToast("error", "Beneficiary List Failed", error.message || "Could not load Senior Citizen / PWD records.");
+      return [];
+    } finally {
+      setDiscountBeneficiariesLoading(false);
+    }
+  };
+
+  const requestDiscountBeneficiary = ({ rule } = {}) => {
+    const ruleName = rule?.name || rule?.discount_name || "SC / PWD Discount";
+    setPendingBeneficiaryRuleName(ruleName);
+    setPendingBeneficiaryType(String(ruleName).toLowerCase().includes("pwd") ? "pwd" : "senior_citizen");
+    setDiscountBeneficiaryModalOpen(true);
+    void loadDiscountBeneficiaries();
+    return new Promise((resolve) => {
+      discountBeneficiaryResolverRef.current = resolve;
+    });
+  };
+
+  const closeDiscountBeneficiaryModal = () => {
+    discountBeneficiaryResolverRef.current?.(null);
+    discountBeneficiaryResolverRef.current = null;
+    setDiscountBeneficiaryModalOpen(false);
+  };
+
+  const selectDiscountBeneficiary = (entry) => {
+    discountBeneficiaryResolverRef.current?.(entry || null);
+    discountBeneficiaryResolverRef.current = null;
+    setDiscountBeneficiaryModalOpen(false);
+  };
+
+  const saveDiscountBeneficiary = async ({ beneficiaryType, fullName, idNumber }) => {
+    const { data, error } = await supabase.rpc("save_pos_discount_beneficiary", {
+      p_beneficiary_type: beneficiaryType,
+      p_full_name: fullName,
+      p_id_number: idNumber,
+    });
+    if (error) {
+      showToast("error", "Beneficiary Save Failed", error.message);
+      return false;
+    }
+
+    const saved = Array.isArray(data) ? data[0] : data;
+    await loadDiscountBeneficiaries();
+    if (saved?.id) selectDiscountBeneficiary(saved);
+    return !!saved?.id;
   };
 
   const refreshOfflineQueueCount = async () => {
@@ -8498,6 +8739,16 @@ export default function POSPage() {
     if (!resolvedBranchId) return showToast("error", "Branch not set", "Please sign out and sign in again so POS can load your branch.");
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before charging.");
 
+    let discountClaims = [];
+    try {
+      discountClaims = collectPosDiscountClaims(cart);
+    } catch (error) {
+      return showToast("error", "SC / PWD Discount Invalid", error.message);
+    }
+    const discountClaimKey = discountClaims.length > 0 ? crypto.randomUUID() : null;
+    let discountClaimsReserved = false;
+    let discountClaimsCompleted = false;
+
     const chargedAt = new Date().toISOString();
     const itemDiscountTotal = cart.reduce((sum, line) => sum + lineDiscountAmount(line), 0);
     const orderDiscount = Number(discountAmount || 0);
@@ -8529,6 +8780,8 @@ export default function POSPage() {
       source_metadata: {
         payment_splits: normalizedSplitPayments,
         payment_label: paymentLabel,
+        discount_claim_key: discountClaimKey,
+        discount_claims: discountClaims,
       },
       diningOption: chargedDiningLabel || "POS ORDER",
       grossTotal,
@@ -8583,6 +8836,16 @@ export default function POSPage() {
         originalTicketForCharge = ticketForCharge;
       }
 
+      if (discountClaims.length > 0) {
+        const { error: claimError } = await supabase.rpc("reserve_pos_discount_claims", {
+          p_claim_key: discountClaimKey,
+          p_store_id: resolvedBranchId,
+          p_claims: discountClaims,
+        });
+        if (claimError) throw new Error(claimError.message);
+        discountClaimsReserved = true;
+      }
+
       if (appliedCartVouchers.length > 0) {
         const { data: sessionData } = await supabase.auth.getSession();
         const accessToken = sessionData?.session?.access_token;
@@ -8598,7 +8861,7 @@ export default function POSPage() {
           });
           const redeemJson = await redeemResponse.json().catch(() => ({}));
           if (!redeemResponse.ok || !redeemJson?.success) {
-            return showToast("error", "Voucher Redeem Failed", redeemJson?.error || "Voucher is no longer active or was already used.");
+            throw new Error(redeemJson?.error || "Voucher is no longer active or was already used.");
           }
           redeemedIds.add(String(voucher.id));
         }
@@ -8608,12 +8871,12 @@ export default function POSPage() {
       const { data: receiptData, error: receiptErr } = await supabase.rpc("generate_receipt_number", {
         p_store_id: resolvedBranchId,
       });
-      if (receiptErr) return showToast("error", "Receipt Number Failed", receiptErr.message);
+      if (receiptErr) throw new Error(receiptErr.message);
 
       const receiptRow = Array.isArray(receiptData) ? receiptData[0] : receiptData;
       const generatedReceiptNumber = receiptRow?.receipt_number;
       if (!generatedReceiptNumber) {
-        return showToast("error", "Receipt Number Failed", "No receipt number was returned by the database.");
+        throw new Error("No receipt number was returned by the database.");
       }
 
       const { data: orderRow, error: orderErr } = await supabase
@@ -8647,12 +8910,14 @@ export default function POSPage() {
             open_ticket_id: originalTicketId || null,
             saved_ticket_id: originalTicketId || null,
             web_order_id: activeWebOrderId || null,
+            discount_claim_key: discountClaimKey,
+            discount_claims: discountClaims,
           },
           dining_option: chargedDiningLabel || "WEB_ORDER",
         }])
         .select("*")
         .single();
-      if (orderErr) return showToast("error", "Charge Failed", orderErr.message);
+      if (orderErr) throw new Error(orderErr.message);
       createdOrderRow = orderRow;
 
       if (!activeWebOrderId && !originalTicketId) {
@@ -8677,7 +8942,17 @@ export default function POSPage() {
         net_amount: lineNetAmount(line),
       }));
       const { error: itemsErr } = await supabase.from("order_items").insert(itemRows);
-      if (itemsErr) return showToast("error", "Charge Failed", itemsErr.message);
+      if (itemsErr) throw new Error(itemsErr.message);
+
+      if (discountClaimsReserved) {
+        const { error: claimCompleteError } = await supabase.rpc("complete_pos_discount_claims", {
+          p_claim_key: discountClaimKey,
+          p_order_id: orderRow.id,
+          p_receipt_number: generatedReceiptNumber,
+        });
+        if (claimCompleteError) throw new Error(claimCompleteError.message);
+        discountClaimsCompleted = true;
+      }
 
       try {
         const inventoryResult = await deductInventoryForOrder(supabase, orderRow.id, cart, currentUserId);
@@ -8709,7 +8984,7 @@ export default function POSPage() {
           })
           .eq("id", activeWebOrderId)
           .or(buildStoreOrderFilter(resolvedBranchId));
-        if (webCompleteErr) return showToast("error", "Web Order Update Failed", webCompleteErr.message);
+        if (webCompleteErr) throw new Error(webCompleteErr.message);
 
         await markKdsTicketStatus(supabase, { sourceType: "web", sourceId: activeWebOrderId, status: "completed" });
         await sendCustomerOrderPush(activeWebOrderId, "completed");
@@ -8793,7 +9068,13 @@ export default function POSPage() {
       ]);
     } catch (err) {
       console.error("Execution failed:", err);
-      if (!createdOrderRow && !activeWebOrderId && appliedCartVouchers.length === 0 && isProbablyOfflineError(err)) {
+      if (discountClaimsReserved && !discountClaimsCompleted && discountClaimKey) {
+        const { error: releaseError } = await supabase.rpc("release_pos_discount_claims", {
+          p_claim_key: discountClaimKey,
+        });
+        if (releaseError) console.error("Discount claim release failed:", releaseError);
+      }
+      if (!createdOrderRow && !activeWebOrderId && appliedCartVouchers.length === 0 && discountClaims.length === 0 && isProbablyOfflineError(err)) {
         await queueOfflineCharge(offlineDraft);
         setIsOfflineMode(true);
 
@@ -10283,9 +10564,22 @@ export default function POSPage() {
           onClose={() => setSelectedItemForModal(null)} 
           onAddToCart={onAddToCart} 
           discountRules={itemDiscountRules}
+          categories={categories}
+          onRequestDiscountBeneficiary={requestDiscountBeneficiary}
         />
       )}
-      
+
+      <DiscountBeneficiaryModal
+        open={discountBeneficiaryModalOpen}
+        loading={discountBeneficiariesLoading}
+        beneficiaries={discountBeneficiaries}
+        ruleName={pendingBeneficiaryRuleName}
+        requiredBeneficiaryType={pendingBeneficiaryType}
+        onClose={closeDiscountBeneficiaryModal}
+        onSelect={selectDiscountBeneficiary}
+        onSave={saveDiscountBeneficiary}
+      />
+
       <ConfirmModal open={confirmOpen} title="Clear live workspace?" message="This will remove un-saved current entries from active memory." onCancel={() => setConfirmOpen(false)} onConfirm={clearTicket} />
       <PrinterPermissionModal
         open={!!printerPermissionRole}

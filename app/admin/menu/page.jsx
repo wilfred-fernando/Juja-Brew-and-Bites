@@ -73,6 +73,7 @@ export default function MenuAdminPage() {
     name: "",
     is_active: true,
     pos_only: false,
+    discount_entitlement_group: "",
   });
   const [catSaving, setCatSaving] = useState(false);
 
@@ -404,11 +405,12 @@ export default function MenuAdminPage() {
         name: cat.name,
         is_active: cat.is_active,
         pos_only: !!cat.pos_only,
+        discount_entitlement_group: cat.discount_entitlement_group || "",
       });
     } else {
       setEditingCategory(null);
       setCategoryAvailability(Object.fromEntries(stores.map((store) => [store.id, true])));
-      setCatForm({ name: "", is_active: true, pos_only: false });
+      setCatForm({ name: "", is_active: true, pos_only: false, discount_entitlement_group: "" });
     }
     setIsCatModalOpen(true);
   };
@@ -416,11 +418,16 @@ export default function MenuAdminPage() {
   const handleCategorySave = async (e) => {
     e.preventDefault();
     if (!catForm.name.trim()) return alert("Category name is required.");
+    const categoryPayload = {
+      ...catForm,
+      name: catForm.name.trim(),
+      discount_entitlement_group: catForm.discount_entitlement_group || null,
+    };
 
     setCatSaving(true);
     try {
       if (editingCategory) {
-        const { error } = await supabase.from("menu_categories").update(catForm).eq("id", editingCategory.id);
+        const { error } = await supabase.from("menu_categories").update(categoryPayload).eq("id", editingCategory.id);
         if (error) throw error;
         await saveCategoryStoreAvailability(editingCategory.id);
 
@@ -429,7 +436,7 @@ export default function MenuAdminPage() {
           if (catFilter === editingCategory.name) setCatFilter(catForm.name);
         }
       } else {
-        const { data, error } = await supabase.from("menu_categories").insert([catForm]).select("id").maybeSingle();
+        const { data, error } = await supabase.from("menu_categories").insert([categoryPayload]).select("id").maybeSingle();
         if (error) throw error;
         if (data?.id) await saveCategoryStoreAvailability(data.id);
       }
@@ -789,6 +796,23 @@ export default function MenuAdminPage() {
                   onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
                   className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-slate-200 transition-all"
                 />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">
+                  SC / PWD Daily Entitlement
+                </label>
+                <select
+                  value={catForm.discount_entitlement_group || ""}
+                  onChange={(e) => setCatForm({ ...catForm, discount_entitlement_group: e.target.value || null })}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-slate-200 transition-all"
+                >
+                  <option value="">Not eligible</option>
+                  <option value="drink">Drink</option>
+                  <option value="food">Food</option>
+                  <option value="dessert">Dessert</option>
+                </select>
+                <p className="mt-1 text-xs text-slate-500">A beneficiary may redeem one item from each eligible group per Manila business day.</p>
               </div>
 
               <div className="pt-2">

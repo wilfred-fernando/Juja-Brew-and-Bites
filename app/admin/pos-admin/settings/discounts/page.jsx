@@ -47,6 +47,7 @@ export default function DiscountsSettingsPage() {
     scope: "receipt",
     value: 0,
     is_variable: false,
+    requires_discount_beneficiary: false,
   });
 
   useEffect(() => {
@@ -82,6 +83,7 @@ export default function DiscountsSettingsPage() {
       scope: form.scope,
       value: form.is_variable && form.type !== "comp" ? 0 : Number(form.value || 0),
       is_variable: Boolean(form.is_variable),
+      requires_discount_beneficiary: Boolean(form.requires_discount_beneficiary),
       is_active: true,
       sort_order: rows.length,
     };
@@ -106,7 +108,7 @@ export default function DiscountsSettingsPage() {
       return;
     }
 
-    setForm({ name: "", type: "percent", scope: "receipt", value: 0, is_variable: false });
+    setForm({ name: "", type: "percent", scope: "receipt", value: 0, is_variable: false, requires_discount_beneficiary: false });
     await load();
     setSaving(false);
   }
@@ -121,6 +123,17 @@ export default function DiscountsSettingsPage() {
   async function toggleVariable(row) {
     setErrorMessage("");
     const { error } = await supabase.from("pos_discounts").update({ is_variable: !row.is_variable }).eq("id", row.id);
+    if (error) setErrorMessage(error.message);
+    load();
+  }
+
+  async function toggleBeneficiary(row) {
+    setErrorMessage("");
+    const nextValue = !row.requires_discount_beneficiary;
+    const { error } = await supabase
+      .from("pos_discounts")
+      .update({ requires_discount_beneficiary: nextValue, ...(nextValue ? { scope: "item" } : {}) })
+      .eq("id", row.id);
     if (error) setErrorMessage(error.message);
     load();
   }
@@ -161,6 +174,7 @@ export default function DiscountsSettingsPage() {
           <select
             value={form.scope}
             onChange={(e) => setForm((p) => ({ ...p, scope: e.target.value }))}
+            disabled={form.requires_discount_beneficiary}
             className="border rounded px-3 py-2"
           >
             <option value="receipt">Order / Receipt</option>
@@ -194,6 +208,23 @@ export default function DiscountsSettingsPage() {
           </span>
         </label>
 
+        <label className="flex items-start gap-2 rounded-xl border border-amber-100 bg-amber-50/70 px-3 py-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={form.requires_discount_beneficiary}
+            onChange={(e) => setForm((p) => ({
+              ...p,
+              requires_discount_beneficiary: e.target.checked,
+              scope: e.target.checked ? "item" : p.scope,
+            }))}
+            className="mt-1"
+          />
+          <span>
+            <span className="block font-semibold">Senior Citizen / PWD beneficiary required</span>
+            <span className="block text-xs text-slate-500">Requires a saved name and ID number and enforces one Drink, one Food, and one Dessert redemption per day.</span>
+          </span>
+        </label>
+
         {errorMessage && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{errorMessage}</div>}
 
         <button
@@ -214,10 +245,13 @@ export default function DiscountsSettingsPage() {
               <div>
                 <div className="font-semibold">{r.name}</div>
                 <div className="text-xs text-slate-500">
-                  {r.type} | {r.scope} | {discountLabel(r)} | {r.is_variable ? "Variable" : "Fixed"} | {r.is_active ? "Active" : "Inactive"}
+                  {r.type} | {r.scope} | {discountLabel(r)} | {r.is_variable ? "Variable" : "Fixed"} | {r.requires_discount_beneficiary ? "SC/PWD controlled" : "No beneficiary"} | {r.is_active ? "Active" : "Inactive"}
                 </div>
               </div>
               <div className="flex gap-2">
+                <button onClick={() => toggleBeneficiary(r)} className="px-3 py-2 text-xs rounded border">
+                  {r.requires_discount_beneficiary ? "Remove SC/PWD Rule" : "Require SC/PWD"}
+                </button>
                 <button
                   onClick={() => toggleVariable(r)}
                   disabled={String(r.type || "").toLowerCase() === "comp"}
