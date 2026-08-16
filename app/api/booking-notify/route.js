@@ -112,7 +112,9 @@ export async function POST(req) {
       <p><b>Time:</b> ${escapeHtml(timeLabel || "-")}</p>
       <p><b>Package:</b> ${escapeHtml(packageId || "-")}</p>
       <p><b>Guests:</b> ${escapeHtml(guestCount || "-")}</p>
-      <p><b>Extension Hours:</b> ${escapeHtml(extensionHours || 0)}</p>
+      ${Number(extensionHours || 0) > 0
+        ? `<p><b>Admin Extension Hours:</b> ${escapeHtml(extensionHours)}</p>`
+        : ""}
       <p><b>Deposit:</b> PHP ${Number(depositAmount || 0).toLocaleString()}</p>
       <p><b>Payment Method:</b> ${escapeHtml(paymentMethod || "Waiting for payment")}</p>
       <p><b>Contact:</b> ${escapeHtml(contactNumber || "-")}</p>

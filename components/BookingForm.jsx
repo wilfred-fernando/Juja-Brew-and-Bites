@@ -13,12 +13,11 @@ const supabase = getSupabaseClient();
 ======================= */
 const OPERATING_START_HOUR = 10; // 10AM
 const BUFFER_HOURS = 1; // 1 hour buffer before & after
-const MAX_EXTENSION_HOURS = 5; // extension max 5 hours
 const MIN_ADVANCE_HOURS = 3; // must be at least 3 hours in advance
 const RESCHEDULE_MIN_DAYS = 2; // update/reschedule allowed only if >= 2 days before start
 const BOOKING_SLOT_HOURS = [10, 14, 18, 22];
 
-// Fixed three-hour booking duration before optional extensions.
+// Customer and public bookings use fixed three-hour slots.
 const BASE_BOOKING_MINUTES = 3 * 60;
 
 const DEPOSIT_AMOUNT = 1000;
@@ -104,7 +103,6 @@ const PACKAGE_POLICIES = {
       additional_guests:
         "Additional guests: ₱300 worth of food & drinks per person (maximum of 5 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
-      extension: ["Extension maximum of 5 hours:", "₱250 per hour."],
     },
     rental_fees_inclusions: {
       rental_fee: "Standard rental fee: ₱3,000 for 3 hours.",
@@ -138,7 +136,6 @@ const PACKAGE_POLICIES = {
       additional_guests:
         "Additional guests: ₱300 worth of food & drinks per person (maximum of 5 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
-      extension: ["Extension maximum of 5 hours:", "₱750 per hour."],
     },
     rental_fees_inclusions: {
       rental_fee: "Standard rental fee: ₱7,000 for 3 hours.",
@@ -172,7 +169,6 @@ const PACKAGE_POLICIES = {
       additional_guests:
         "Additional guests: ₱300 worth of food & drinks per person (maximum of 5 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
-      extension: ["Extension maximum of 5 hours:", "₱1,500 per hour."],
     },
     rental_fees_inclusions: {
       rental_fee: "Standard rental fee: ₱15,000 for 3 hours.",
@@ -207,7 +203,6 @@ const PACKAGE_POLICIES = {
       additional_guests:
         "Additional guests: ₱150 per person (maximum of 5 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
-      extension: ["Extension maximum of 5 hours: ₱1,000 per hour."],
     },
     rental_fees_inclusions: {
       rental_fee: "Standard rental fee: ₱2,500 for 3 hours.",
@@ -237,7 +232,6 @@ const PACKAGE_POLICIES = {
       additional_guests:
         "Additional guests: ₱150 per person (maximum of 5 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
-      extension: ["Extension maximum of 5 hours: ₱1,500 per hour."],
     },
     rental_fees_inclusions: {
       rental_fee: "Standard rental fee: ₱3,500 for 3 hours.",
@@ -266,7 +260,6 @@ const PACKAGE_POLICIES = {
         "Capacity: up to 60 Guests (children aged 4 years and below are not counted in the headcount).",
       additional_guests: "Additional guests: FREE.",
       rental_duration: "Rental duration: 3 hours.",
-      extension: ["Extension maximum of 5 hours: ₱2,500 per hour."],
     },
     rental_fees_inclusions: {
       rental_fee: "Standard rental fee: ₱8,000 for 3 hours.",
@@ -297,10 +290,6 @@ function formatPeso(n) {
 function toISODate(d) {
   return d.toISOString().split("T")[0];
 }
-function isDecemberDate(dateISO) {
-  const month = Number(String(dateISO || "").split("-")[1]);
-  return month === 12;
-}
 function buildSlotHours() {
   return BOOKING_SLOT_HOURS;
 }
@@ -314,12 +303,8 @@ function labelHour(h) {
 function labelBookingSlot(_dateISO, hour) {
   return `${labelHour(hour).replace(" (+1)", "")} - ${labelHour(hour + 3)}`;
 }
-function bookingExtensionHours(dateISO, extensionEnabled, extensionHours) {
-  if (isDecemberDate(dateISO)) return 0;
-  return extensionEnabled ? Number(extensionHours || 0) : 0;
-}
-function bookingDurationMinutes(_dateISO, extensionHours = 0) {
-  return BASE_BOOKING_MINUTES + Number(extensionHours || 0) * 60;
+function bookingDurationMinutes() {
+  return BASE_BOOKING_MINUTES;
 }
 function computeDateTime(businessDateISO, hourLike) {
   const [year, month, day] = String(businessDateISO).split("-").map(Number);
@@ -377,8 +362,6 @@ function availabilityCardClass(slot) {
 
 export function BookingAvailabilityOnly({
   initialDateISO,
-  extensionEnabled = false,
-  extensionHours = 0,
   onSelectSlot,
 }) {
   const [dateISO, setDateISO] = useState(
@@ -422,8 +405,7 @@ export function BookingAvailabilityOnly({
   }, [dateISO]);
 
   const availability = useMemo(() => {
-    const ext = bookingExtensionHours(dateISO, extensionEnabled, extensionHours);
-    const totalMinutes = bookingDurationMinutes(dateISO, ext);
+    const totalMinutes = bookingDurationMinutes();
 
     const now = new Date();
     const minAllowed = new Date(now.getTime() + MIN_ADVANCE_HOURS * 3600000);
@@ -443,7 +425,7 @@ export function BookingAvailabilityOnly({
 
       return { hour: h, label: labelBookingSlot(dateISO, h), ...verdict };
     });
-  }, [slotHours, dateISO, bookings, extensionEnabled, extensionHours]);
+  }, [slotHours, dateISO, bookings]);
 
   return (
     <div className="space-y-4">
@@ -604,8 +586,6 @@ export default function BookingForm({ user, member }) {
     email: "",
     guest_count: 1,
     package_id: "",
-    extend: "no",
-    extension_hours: 0,
   });
 
   useEffect(() => {
@@ -659,13 +639,6 @@ export default function BookingForm({ user, member }) {
     if (selectedHour != null && !slotHours.includes(selectedHour)) {
       setSelectedHour(null);
     }
-    if (isDecemberDate(dateISO)) {
-      setForm((current) => ({
-        ...current,
-        extend: "no",
-        extension_hours: 0,
-      }));
-    }
   }, [dateISO, selectedHour, slotHours]);
 
   useEffect(() => {
@@ -675,12 +648,7 @@ export default function BookingForm({ user, member }) {
   }, [reschedDateISO, reschedHour, reschedSlotHours]);
 
   const availability = useMemo(() => {
-    const ext = bookingExtensionHours(
-      dateISO,
-      form.extend === "yes",
-      form.extension_hours
-    );
-    const totalMinutes = bookingDurationMinutes(dateISO, ext);
+    const totalMinutes = bookingDurationMinutes();
 
     const now = new Date();
     const minAllowed = new Date(now.getTime() + MIN_ADVANCE_HOURS * 3600000);
@@ -699,7 +667,7 @@ export default function BookingForm({ user, member }) {
       });
       return { hour: h, label: labelBookingSlot(dateISO, h), ...verdict };
     });
-  }, [slotHours, dateISO, bookings, form.extend, form.extension_hours]);
+  }, [slotHours, dateISO, bookings]);
 
   useEffect(() => {
     if (!proofFile) {
@@ -804,12 +772,8 @@ export default function BookingForm({ user, member }) {
   const reschedAvailability = useMemo(() => {
     if (!reschedOpen || !reschedBooking) return [];
 
-    const ext = bookingExtensionHours(
-      reschedDateISO,
-      true,
-      reschedBooking.extension_hours
-    );
-    const totalMinutes = bookingDurationMinutes(reschedDateISO, ext);
+    const extensionHours = Number(reschedBooking.extension_hours || 0);
+    const totalMinutes = BASE_BOOKING_MINUTES + extensionHours * 60;
 
     const now = new Date();
     const minAllowed = new Date(now.getTime() + MIN_ADVANCE_HOURS * 3600000);
@@ -847,15 +811,6 @@ export default function BookingForm({ user, member }) {
 
     const guests = Number(form.guest_count || 0);
     if (!guests || guests < 1) return "No. of guests must be at least 1.";
-
-    const extensionHours = bookingExtensionHours(
-      dateISO,
-      form.extend === "yes",
-      form.extension_hours
-    );
-    if (extensionHours < 0 || extensionHours > MAX_EXTENSION_HOURS) {
-      return `Extension must be 0–${MAX_EXTENSION_HOURS} hours.`;
-    }
 
     const now = new Date();
     const selectedStart = computeDateTime(dateISO, selectedHour);
@@ -931,13 +886,8 @@ export default function BookingForm({ user, member }) {
     const err = validateBookingInputs();
     if (err) return setNotice(err);
 
-    const extensionHours = bookingExtensionHours(
-      dateISO,
-      form.extend === "yes",
-      form.extension_hours
-    );
     const start = computeDateTime(dateISO, selectedHour);
-    const totalMinutes = bookingDurationMinutes(dateISO, extensionHours);
+    const totalMinutes = bookingDurationMinutes();
     const end = new Date(start.getTime() + totalMinutes * 60000);
 
     setSubmitting(true);
@@ -954,7 +904,7 @@ export default function BookingForm({ user, member }) {
         start_at: toManilaOffsetISOString(start),
         end_at: toManilaOffsetISOString(end),
         duration_hours: 3,
-        extension_hours: extensionHours,
+        extension_hours: 0,
         guest_count: Number(form.guest_count),
         contact_number: form.contact_number.trim(),
         email: form.email.trim(),
@@ -1087,13 +1037,8 @@ export default function BookingForm({ user, member }) {
     if (err) return setNotice(err);
     if (!proofFile) return setNotice("Please attach a screenshot of your payment confirmation.");
 
-    const extensionHours = bookingExtensionHours(
-      dateISO,
-      form.extend === "yes",
-      form.extension_hours
-    );
     const start = computeDateTime(dateISO, selectedHour);
-    const totalMinutes = bookingDurationMinutes(dateISO, extensionHours);
+    const totalMinutes = bookingDurationMinutes();
     const end = new Date(start.getTime() + totalMinutes * 60000);
 
     setSubmitting(true);
@@ -1116,7 +1061,7 @@ export default function BookingForm({ user, member }) {
         start_at: toManilaOffsetISOString(start),
         end_at: toManilaOffsetISOString(end),
         duration_hours: 3,
-        extension_hours: extensionHours,
+        extension_hours: 0,
         guest_count: Number(form.guest_count),
         contact_number: form.contact_number.trim(),
         email: form.email.trim(),
@@ -1298,8 +1243,13 @@ export default function BookingForm({ user, member }) {
               </span>
 
               <span className="inline-block px-3 py-1 text-xs rounded-full font-medium bg-slate-50 text-slate-600 border border-slate-200">
-                Guests: {b.guest_count || 0} • Ext: {b.extension_hours || 0}h
+                Guests: {b.guest_count || 0}
               </span>
+              {Number(b.extension_hours || 0) > 0 ? (
+                <span className="inline-block px-3 py-1 text-xs rounded-full font-medium bg-slate-50 text-slate-600 border border-slate-200">
+                  Admin extension: {b.extension_hours}h
+                </span>
+              ) : null}
               {paymentStatus && (
                 <span className={`inline-block px-3 py-1 text-xs rounded-full font-medium border ${paymentStatus.color}`}>
                   {paymentStatus.text}
@@ -1430,9 +1380,7 @@ export default function BookingForm({ user, member }) {
           Function Room Booking
         </h2>
         <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">
-          {stripCitationsAndLinks(
-            `Booking is 3 hours + optional extension (max ${MAX_EXTENSION_HOURS} hours).`
-          )}
+          {stripCitationsAndLinks("Booking uses fixed 3-hour time slots.")}
         </p>
       </div>
 
@@ -1477,42 +1425,8 @@ export default function BookingForm({ user, member }) {
             </div>
 
             <div className="text-right">
-              <p className="text-[10px] uppercase tracking-widest text-slate-500">Extension</p>
-              <div className="mt-2 flex items-center gap-2 justify-end">
-                <select
-                  value={form.extend}
-                  disabled={isDecemberDate(dateISO)}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      extend: e.target.value,
-                      extension_hours: e.target.value === "yes" ? f.extension_hours : 0,
-                    }))
-                  }
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm disabled:opacity-50"
-                >
-                  <option value="no">No</option>
-                  <option value="yes">Yes</option>
-                </select>
-
-                <select
-                  value={form.extension_hours}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, extension_hours: Number(e.target.value) }))
-                  }
-                  disabled={isDecemberDate(dateISO) || form.extend !== "yes"}
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm disabled:opacity-50"
-                >
-                  {Array.from({ length: MAX_EXTENSION_HOURS + 1 }, (_, hours) => (
-                    <option key={hours} value={hours}>{hours} hr</option>
-                  ))}
-                </select>
-              </div>
-              {isDecemberDate(dateISO) ? (
-                <p className="mt-1 text-[10px] text-slate-500">
-                  December uses fixed 3-hour slots; extensions are unavailable.
-                </p>
-              ) : null}
+              <p className="text-[10px] uppercase tracking-widest text-slate-500">Duration</p>
+              <p className="mt-2 text-sm text-slate-700">3 hours</p>
             </div>
           </div>
 
@@ -2032,12 +1946,8 @@ export default function BookingForm({ user, member }) {
                   setReschedLoading(true);
                   setNotice(null);
 
-                  const ext = bookingExtensionHours(
-                    reschedDateISO,
-                    true,
-                    reschedBooking.extension_hours
-                  );
-                  const totalMinutes = bookingDurationMinutes(reschedDateISO, ext);
+                  const ext = Number(reschedBooking.extension_hours || 0);
+                  const totalMinutes = BASE_BOOKING_MINUTES + ext * 60;
 
                   const newStart = computeDateTime(reschedDateISO, reschedHour);
                   const newEnd = new Date(newStart.getTime() + totalMinutes * 60000);
@@ -2224,9 +2134,6 @@ export default function BookingForm({ user, member }) {
                       <li>• {policy.room_usage.capacity}</li>
                       <li>• {policy.room_usage.additional_guests}</li>
                       <li>• {policy.room_usage.rental_duration}</li>
-                      {policy.room_usage.extension.map((x) => (
-                        <li key={x}>• {x}</li>
-                      ))}
                     </ul>
                   </div>
 

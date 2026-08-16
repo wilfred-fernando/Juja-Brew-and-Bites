@@ -1,5 +1,6 @@
 import { checkoutSessionFromEvent, verifyPaymongoWebhook } from "@/lib/payments/paymongo";
 import { paymongoAdminClient } from "@/lib/payments/server";
+import { formatDateTime } from "@/lib/dateFormat";
 
 export const runtime = "nodejs";
 
@@ -39,17 +40,20 @@ async function notifyReleasedWebOrder(request, order) {
 async function notifyPaidBooking(request, booking) {
   if (!booking?.id) return;
   const origin = request.nextUrl.origin;
+  const timeLabel = booking.start_at
+    ? `${formatDateTime(booking.start_at)} - ${formatDateTime(booking.end_at)}`
+    : booking.time_label || booking.booking_time;
   await fetch(`${origin}/api/booking-notify`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       bookingId: booking.id,
       customerName: booking.customer_name,
-      customerEmail: booking.customer_email,
+      customerEmail: booking.email || booking.customer_email,
       contactNumber: booking.customer_contact || booking.contact_number,
       eventType: booking.event_type,
       businessDate: booking.booking_date || booking.business_date,
-      timeLabel: booking.time_label || booking.booking_time,
+      timeLabel,
       packageId: booking.package_id,
       guestCount: booking.guest_count,
       extensionHours: booking.extension_hours,

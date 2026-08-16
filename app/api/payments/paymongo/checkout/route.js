@@ -199,7 +199,7 @@ export async function POST(request) {
           attributes: {
             billing: {
               name: entity.customer_name || requester.user_metadata?.full_name || "JUJA Customer",
-              email: entity.customer_email || requester.email || undefined,
+              email: entity.email || entity.customer_email || requester.email || undefined,
               phone: normalizePayMongoPhone(entity.customer_contact || entity.contact_number),
             },
             cancel_url: `${origin}/customer?payment=cancelled&type=${entityType}&id=${entityId}`,

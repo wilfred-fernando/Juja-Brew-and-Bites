@@ -366,6 +366,17 @@ export default function AdminBookingsDashboard() {
     };
   }
 
+  async function approveBookingAndSendConfirmation(bookingId) {
+    const res = await fetch("/api/admin/booking-confirmation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bookingId }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.error || "Unable to approve booking.");
+    return json;
+  }
+
   /* =======================
     Load Data + Realtime
   ======================= */
@@ -642,6 +653,14 @@ export default function AdminBookingsDashboard() {
               const result = await approveCancellationWithGiftCertificate(id);
               return { id, payload: { status: result.status } };
             }
+            if (type === "approve_bulk") {
+              const result = await approveBookingAndSendConfirmation(id);
+              return {
+                id,
+                payload: { status: "confirmed", payment_status: "approved" },
+                emailError: result.emailSent ? "" : result.emailError,
+              };
+            }
             const payload = statusUpdatePayload(type, booking);
             const { error } = await supabase
               .from("function_room_bookings")
@@ -652,6 +671,7 @@ export default function AdminBookingsDashboard() {
           })
         );
         const updateMap = new Map(updates.map((x) => [x.id, x.payload]));
+        const emailFailures = updates.filter((x) => x.emailError);
 
         setBookings((prev) =>
           prev.map((x) => (updateMap.has(x.id) ? { ...x, ...updateMap.get(x.id) } : x))
@@ -661,6 +681,9 @@ export default function AdminBookingsDashboard() {
 
         if (skipped > 0) {
           alert(`Updated ${eligibleIds.length}. Skipped ${skipped} (past/confirmed).`);
+        }
+        if (emailFailures.length > 0) {
+          alert(`${emailFailures.length} booking(s) were approved, but their confirmation email could not be sent.`);
         }
       } else {
         // SINGLE
@@ -679,6 +702,19 @@ export default function AdminBookingsDashboard() {
           setBookings((prev) =>
             prev.map((x) => (x.id === booking.id ? { ...x, status: result.status } : x))
           );
+          setActionModal(null);
+          return;
+        }
+
+        if (type === "approve") {
+          const result = await approveBookingAndSendConfirmation(booking.id);
+          const confirmedPayload = { status: "confirmed", payment_status: "approved" };
+          setBookings((prev) =>
+            prev.map((x) => (x.id === booking.id ? { ...x, ...confirmedPayload } : x))
+          );
+          if (!result.emailSent) {
+            alert(`Booking approved, but the confirmation email could not be sent: ${result.emailError}`);
+          }
           setActionModal(null);
           return;
         }

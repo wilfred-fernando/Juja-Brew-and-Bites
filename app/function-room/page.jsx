@@ -272,7 +272,6 @@ export default function FunctionRoomPage() {
           "Private use of function room",
           "Order from the full menu catalog",
           "Use of entertainment amenities: Videoke, YouTube & Netflix",
-          "₱250 per succeeding extension hour",
         ],
       },
       {
@@ -285,7 +284,6 @@ export default function FunctionRoomPage() {
           "Private use of function room",
           "Order from the full menu catalog",
           "Use of entertainment amenities: Videoke, YouTube & Netflix",
-          "₱750 per succeeding extension hour",
         ],
       },
       {
@@ -298,7 +296,6 @@ export default function FunctionRoomPage() {
           "Exclusive use of the entire store",
           "Order from the full menu catalog",
           "Use of entertainment amenities: Videoke, YouTube & Netflix",
-          "₱1,500 per succeeding extension hour",
         ],
       },
     ],
@@ -313,7 +310,6 @@ export default function FunctionRoomPage() {
           "Private use of function room",
           "Inclusive of corkage for food and drinks",
           "Use of entertainment amenities: Videoke, YouTube & Netflix",
-          "Extension: ₱1,000 per hour",
         ],
       },
       {
@@ -326,7 +322,6 @@ export default function FunctionRoomPage() {
           "Private use of function room",
           "Inclusive of corkage for food and drinks",
           "Use of entertainment amenities: Videoke, YouTube & Netflix",
-          "Extension: ₱1,500 per hour",
         ],
       },
       {
@@ -339,7 +334,6 @@ export default function FunctionRoomPage() {
           "Exclusive use of the entire store",
           "Inclusive of corkage for food and drinks",
           "Use of entertainment amenities: Videoke, YouTube & Netflix",
-          "Extension: ₱2,500 per hour",
         ],
       },
     ],
