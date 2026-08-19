@@ -110,3 +110,11 @@ After adding Firebase credentials locally and in Vercel, verify with:
 ```bash
 npm run verify:push-config
 ```
+
+## Messenger Chatbot
+
+The Facebook Messenger webhook and setup instructions are documented in:
+
+```txt
+docs/messenger-chatbot.md
+```

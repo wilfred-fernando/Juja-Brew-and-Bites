@@ -117,7 +117,7 @@ function confirmationHtml(booking, packageRow) {
       ${corkage ? `<p><b>Corkage fees:</b></p><ul>${corkage}</ul>` : ""}
       ${advanceOrderNote}
 
-      <p>If you need to coordinate your advance order or other event details, please contact JUJA Brew &amp; Bites.</p>
+      <p>If you need to coordinate your advance order or other event details, please contact us at 0939-9228383 or at www.facebook.com/jujabrewandbites.</p>
       <p>Thank you,<br><b>JUJA Brew &amp; Bites</b></p>
     </div>
   `;

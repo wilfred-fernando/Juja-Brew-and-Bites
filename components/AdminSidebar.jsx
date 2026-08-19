@@ -11,6 +11,7 @@ import {
   DollarSign,
   Gift,
   Home,
+  MessageCircle,
   Puzzle,
   Settings,
   ShoppingCart,
@@ -93,6 +94,7 @@ export default function AdminSidebar({
         { name: "Menu", path: "/admin/menu", icon: Puzzle },
         { name: "Customers", path: "/admin/customers", icon: Star },
         { name: "Promos", path: "/admin/promos", icon: Gift },
+        { name: "Messenger", path: "/admin/messenger", icon: MessageCircle },
       ],
     },
     {
@@ -113,6 +115,7 @@ export default function AdminSidebar({
     "/admin/loyalty": "customers",
     "/admin/customers": "customers",
     "/admin/promos": "promos",
+    "/admin/messenger": "messenger",
     "/admin/sales": "sales",
     "/admin/settings": "settings",
     "/admin/accounts": "accounts",
