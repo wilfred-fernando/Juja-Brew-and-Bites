@@ -1,9 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Bot, MessageCircle, PauseCircle, PlayCircle, Plus, Save, Users } from "lucide-react";
+import { BookOpen, Bot, MessageCircle, PauseCircle, PlayCircle, Plus, Save, Users } from "lucide-react";
 
 const emptyFlow = { name: "", pattern: "", text: "", status: "draft" };
+const emptyAiSettings = {
+  instructions: "",
+  reference_notes: "",
+  include_live_menu: true,
+  include_function_room: true,
+  menu_item_count: 0,
+  function_room_package_count: 0,
+  upcoming_function_room_booking_count: 0,
+};
 
 async function api(url, options) {
   const response = await fetch(url, options);
@@ -103,6 +112,8 @@ export default function MessengerAdminPage() {
   const [flows, setFlows] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [aiStatus, setAiStatus] = useState({ configured: false, enabled: true, model: "gpt-5.6-luna" });
+  const [aiSettings, setAiSettings] = useState(emptyAiSettings);
+  const [savingAiSettings, setSavingAiSettings] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
@@ -113,13 +124,15 @@ export default function MessengerAdminPage() {
     setLoading(true);
     setError("");
     try {
-      const [flowPayload, contactPayload] = await Promise.all([
+      const [flowPayload, contactPayload, settingsPayload] = await Promise.all([
         api("/api/admin/messenger/flows"),
         api("/api/admin/messenger/contacts"),
+        api("/api/admin/messenger/settings"),
       ]);
       setFlows(flowPayload.flows || []);
       setAiStatus(flowPayload.ai || { configured: false, enabled: true, model: "gpt-5.6-luna" });
       setContacts(contactPayload.contacts || []);
+      setAiSettings(settingsPayload.settings || emptyAiSettings);
     } catch (loadError) {
       setError(loadError?.message || "Unable to load Messenger routing.");
     } finally {
@@ -154,6 +167,23 @@ export default function MessengerAdminPage() {
     }
   }
 
+  async function saveAiSettings(event) {
+    event.preventDefault();
+    setSavingAiSettings(true);
+    try {
+      const payload = await api("/api/admin/messenger/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(aiSettings),
+      });
+      setAiSettings(payload.settings || aiSettings);
+    } catch (saveError) {
+      alert(saveError?.message || "Unable to save JujaBot settings.");
+    } finally {
+      setSavingAiSettings(false);
+    }
+  }
+
   async function resumeBot(contact) {
     try {
       await api("/api/admin/messenger/contacts", {
@@ -173,7 +203,7 @@ export default function MessengerAdminPage() {
         <div>
           <div className="mb-2 flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-100 text-sky-700"><Bot className="h-6 w-6" /></span>
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-800">Messenger AI Agent</h1>
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-800">JujaBot</h1>
           </div>
           <p className="text-sm font-medium text-slate-500">AI answers customer questions by default and pauses when someone requests staff.</p>
         </div>
@@ -202,10 +232,54 @@ export default function MessengerAdminPage() {
 
       <div className={`mb-6 rounded-2xl border p-4 text-sm font-semibold ${aiStatus.configured ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
         {aiStatus.configured
-          ? `AI agent is active using ${aiStatus.model}. ${aiStatus.routingMode === "flows" ? "Conversation-flow mode is enabled." : "All normal messages go directly to the agent."}`
-          : "The AI agent is ready, but OPENAI_API_KEY must be added in Vercel before replies become active."}
+          ? `JujaBot is active using ${aiStatus.model}. ${aiStatus.routingMode === "flows" ? "Conversation-flow mode is enabled." : "All normal messages go directly to JujaBot."}`
+          : "JujaBot is ready, but OPENAI_API_KEY must be added in Vercel before replies become active."}
         {!aiStatus.enabled && " MESSENGER_AI_ENABLED is currently false."}
       </div>
+
+      <form onSubmit={saveAiSettings} className="mb-10 rounded-3xl border border-violet-100 bg-white/90 p-6 shadow-sm">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-slate-800"><BookOpen className="h-5 w-5" /><h2 className="text-lg font-extrabold">Answer instructions and references</h2></div>
+            <p className="mt-1 text-sm text-slate-500">These server-only notes guide JujaBot’s replies. Live menu prices and function-room availability are loaded from the database automatically.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span className="whitespace-nowrap rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">{aiSettings.menu_item_count || 0} public menu items</span>
+            <span className="whitespace-nowrap rounded-full bg-sky-50 px-3 py-1 text-xs font-bold text-sky-700">{aiSettings.function_room_package_count || 0} room packages</span>
+            <span className="whitespace-nowrap rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">{aiSettings.upcoming_function_room_booking_count || 0} upcoming holds</span>
+          </div>
+        </div>
+
+        <div className="grid gap-5">
+          <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            AI instructions
+            <textarea value={aiSettings.instructions || ""} maxLength={8000} onChange={(event) => setAiSettings((current) => ({ ...current, instructions: event.target.value }))} rows={5} placeholder="Example: Use friendly Taglish. Keep answers concise. Recommend staff for allergy questions." className="mt-2 w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium normal-case leading-6 tracking-normal text-slate-800 outline-none focus:border-violet-400" />
+            <span className="mt-1 block text-right text-[10px] font-medium normal-case tracking-normal text-slate-400">{(aiSettings.instructions || "").length}/8,000</span>
+          </label>
+
+          <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            Business reference notes
+            <textarea value={aiSettings.reference_notes || ""} maxLength={16000} onChange={(event) => setAiSettings((current) => ({ ...current, reference_notes: event.target.value }))} rows={7} placeholder="Add verified policies, parking details, booking rules, accepted payments, delivery notes, or other facts JujaBot may reference." className="mt-2 w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium normal-case leading-6 tracking-normal text-slate-800 outline-none focus:border-violet-400" />
+            <span className="mt-1 block text-right text-[10px] font-medium normal-case tracking-normal text-slate-400">{(aiSettings.reference_notes || "").length}/16,000</span>
+          </label>
+
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-3">
+              <label className="flex items-center gap-3 text-sm font-semibold text-slate-700">
+                <input type="checkbox" checked={aiSettings.include_live_menu !== false} onChange={(event) => setAiSettings((current) => ({ ...current, include_live_menu: event.target.checked }))} />
+                Use live menu names, descriptions, variants, and prices
+              </label>
+              <label className="flex items-center gap-3 text-sm font-semibold text-slate-700">
+                <input type="checkbox" checked={aiSettings.include_function_room !== false} onChange={(event) => setAiSettings((current) => ({ ...current, include_function_room: event.target.checked }))} />
+                Use live function-room packages and 60-day slot availability
+              </label>
+            </div>
+            <button type="submit" disabled={savingAiSettings} className="inline-flex items-center justify-center gap-2 rounded-full bg-violet-600 px-5 py-2.5 text-xs font-bold text-white transition hover:bg-violet-700 disabled:opacity-50">
+              <Save className="h-4 w-4" /> {savingAiSettings ? "Saving..." : "Save JujaBot settings"}
+            </button>
+          </div>
+        </div>
+      </form>
 
       <section className="mb-10">
         <div className="mb-4 flex items-center gap-2 text-slate-800"><MessageCircle className="h-5 w-5" /><h2 className="text-lg font-extrabold">Optional conversation flows</h2></div>

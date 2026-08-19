@@ -1,5 +1,7 @@
 # Messenger chatbot setup
 
+The customer-facing AI assistant is named **JujaBot**.
+
 The Messenger webhook is available at:
 
 ```txt
@@ -46,6 +48,11 @@ Meta must reach the callback over public HTTPS with a valid certificate. The POS
 
 - Open `/admin/messenger` as an administrator to monitor contacts, resume paused automation, and optionally manage flows.
 - In the default `agent` mode, every normal text message and postback is answered by AI using recent conversation history.
+- JujaBot loads customer-visible names, descriptions, base prices, variant prices, and availability directly from `menu_items` before each AI answer.
+- JujaBot loads active package details from `function_room_packages` and derives the next 60 days of fixed-slot availability from `function_room_bookings`. Booking customer details and booking IDs are never sent to the AI.
+- JujaBot fetches the Messenger customer profile once when needed, stores the provided first name in `messenger_contacts`, and includes that verified first name in AI replies. It does not guess names.
+- Administrators can edit AI instructions, verified business reference notes, live-menu grounding, and function-room grounding from `/admin/messenger`.
+- Menu questions include `https://www.jujabrewandbites.com/menu`, while function-room questions include `https://www.jujabrewandbites.com/function-room`.
 - An exact `staff`, `human`, `agent`, `representative`, `person`, `tao`, or `handoff` message pauses automation and confirms that staff will take over.
 - Keyword and postback triggers are used only when `MESSENGER_ROUTING_MODE=flows`.
 - Flow nodes support messages, questions, conditions, actions, handoff, flow jumps, and end nodes.
@@ -63,4 +70,4 @@ The migration seeds Welcome, Order online, Store details, Human handoff, and Fal
 npm run verify:messenger-routing
 ```
 
-The router does not create orders entirely inside Messenger. AI replies direct customers to the ordering site or staff for live prices, availability, payments, refunds, and account-specific actions.
+The router does not create orders or reservations entirely inside Messenger. Function-room availability is a live snapshot and may change before checkout, so AI replies link customers to the public booking page to reserve. Payments, refunds, and account-specific actions remain with the website or staff.
