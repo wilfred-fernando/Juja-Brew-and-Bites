@@ -173,9 +173,9 @@ export default function MessengerAdminPage() {
         <div>
           <div className="mb-2 flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-100 text-sky-700"><Bot className="h-6 w-6" /></span>
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-800">Messenger Routing</h1>
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-800">Messenger AI Agent</h1>
           </div>
-          <p className="text-sm font-medium text-slate-500">Manage automated flows, triggers, and staff handoffs.</p>
+          <p className="text-sm font-medium text-slate-500">AI answers customer questions by default and pauses when someone requests staff.</p>
         </div>
         <button type="button" onClick={() => setShowCreate((value) => !value)} className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-600 px-5 py-3 text-xs font-bold text-white shadow-sm transition hover:bg-sky-700">
           <Plus className="h-4 w-4" /> New flow
@@ -202,13 +202,13 @@ export default function MessengerAdminPage() {
 
       <div className={`mb-6 rounded-2xl border p-4 text-sm font-semibold ${aiStatus.configured ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
         {aiStatus.configured
-          ? `AI auto reply is active using ${aiStatus.model}.`
-          : "AI flow is ready, but OPENAI_API_KEY must be added in Vercel before AI replies become active."}
+          ? `AI agent is active using ${aiStatus.model}. ${aiStatus.routingMode === "flows" ? "Conversation-flow mode is enabled." : "All normal messages go directly to the agent."}`
+          : "The AI agent is ready, but OPENAI_API_KEY must be added in Vercel before replies become active."}
         {!aiStatus.enabled && " MESSENGER_AI_ENABLED is currently false."}
       </div>
 
       <section className="mb-10">
-        <div className="mb-4 flex items-center gap-2 text-slate-800"><MessageCircle className="h-5 w-5" /><h2 className="text-lg font-extrabold">Conversation flows</h2></div>
+        <div className="mb-4 flex items-center gap-2 text-slate-800"><MessageCircle className="h-5 w-5" /><h2 className="text-lg font-extrabold">Optional conversation flows</h2></div>
         {loading ? <div className="rounded-3xl bg-white/80 p-12 text-center text-sm font-semibold text-slate-500">Loading flows...</div> : (
           <div className="space-y-5">
             {flows.map((flow) => <FlowCard key={flow.id} flow={flow} onSaved={(saved) => setFlows((rows) => rows.map((row) => row.id === saved.id ? saved : row))} />)}

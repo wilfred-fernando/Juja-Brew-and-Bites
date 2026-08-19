@@ -46,6 +46,7 @@ export async function GET() {
         configured: messengerAiConfigured(),
         enabled: process.env.MESSENGER_AI_ENABLED !== "false",
         model: String(process.env.OPENAI_MESSENGER_MODEL || "gpt-5.6-luna"),
+        routingMode: clean(process.env.MESSENGER_ROUTING_MODE).toLowerCase() === "flows" ? "flows" : "agent",
       },
     });
   } catch (error) {

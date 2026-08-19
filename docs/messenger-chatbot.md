@@ -21,13 +21,14 @@ MESSENGER_ORDER_URL=https://customer.jujabrewandbites.com
 OPENAI_API_KEY=copy-from-your-openai-project
 OPENAI_MESSENGER_MODEL=gpt-5.6-luna
 MESSENGER_AI_ENABLED=true
+MESSENGER_ROUTING_MODE=agent
 ```
 
 `META_MESSENGER_VERIFY_TOKEN` is a secret value you create yourself. Enter the same value in Meta when configuring the callback URL. Keep the App Secret and Page access token out of source control and browser-exposed variables.
 
 For one Facebook Page, `META_PAGE_ACCESS_TOKEN` is enough. For multiple Pages, set `META_PAGE_ACCESS_TOKENS` to a compact JSON object mapping each Page ID to its Page token. The webhook reads the recipient Page ID on every event and selects the matching token. Never expose this JSON to the browser or commit it to source control.
 
-`OPENAI_MESSENGER_MODEL` is configurable. The default uses `gpt-5.6-luna` for lower-cost, high-volume replies. Keep `OPENAI_API_KEY` server-only. Set `MESSENGER_AI_ENABLED=false` to disable AI without unpublishing the flow.
+`OPENAI_MESSENGER_MODEL` is configurable. The default uses `gpt-5.6-luna` for lower-cost, high-volume replies. Keep `OPENAI_API_KEY` server-only. `MESSENGER_ROUTING_MODE=agent` is the default and sends every normal customer message directly to the AI agent. Set it to `flows` only when you intentionally want trigger-based conversation flows. Set `MESSENGER_AI_ENABLED=false` to disable AI replies.
 
 ## Meta configuration
 
@@ -41,10 +42,12 @@ For one Facebook Page, `META_PAGE_ACCESS_TOKEN` is enough. For multiple Pages, s
 
 Meta must reach the callback over public HTTPS with a valid certificate. The POST handler validates `X-Hub-Signature-256` against the exact raw body before processing an event.
 
-## Conversation routing
+## AI-first conversation routing
 
-- Open `/admin/messenger` as an administrator to edit, publish, or unpublish flows.
-- Keyword and postback triggers select a published flow by priority.
+- Open `/admin/messenger` as an administrator to monitor contacts, resume paused automation, and optionally manage flows.
+- In the default `agent` mode, every normal text message and postback is answered by AI using recent conversation history.
+- An exact `staff`, `human`, `agent`, `representative`, `person`, `tao`, or `handoff` message pauses automation and confirms that staff will take over.
+- Keyword and postback triggers are used only when `MESSENGER_ROUTING_MODE=flows`.
 - Flow nodes support messages, questions, conditions, actions, handoff, flow jumps, and end nodes.
 - Question answers can be stored as customer fields and used by conditional edges.
 - Inbound and outbound events are recorded, and duplicate webhook events are ignored.
