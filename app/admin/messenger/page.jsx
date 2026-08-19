@@ -227,7 +227,7 @@ export default function MessengerAdminPage() {
             <div key={contact.psid} className="flex flex-col gap-4 rounded-2xl border border-amber-100 bg-white/90 p-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-bold text-slate-800">{contact.display_name || `Messenger contact ${contact.psid.slice(-6)}`}</p>
-                <p className="mt-1 text-xs text-slate-500">{contact.pause_reason || "Waiting for staff"}</p>
+                <p className="mt-1 text-xs text-slate-500">{contact.pause_reason || "Waiting for staff"}{contact.page_id ? ` · Page ${contact.page_id}` : ""}</p>
               </div>
               <button type="button" onClick={() => resumeBot(contact)} className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100">
                 <PlayCircle className="h-4 w-4" /> Resume bot

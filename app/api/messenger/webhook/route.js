@@ -1,4 +1,4 @@
-import { verifyMessengerChallenge, verifyMessengerSignature } from "@/lib/messenger";
+import { messengerSendConfigured, verifyMessengerChallenge, verifyMessengerSignature } from "@/lib/messenger";
 import { processMessengerWebhook } from "@/lib/messenger/router";
 
 export const runtime = "nodejs";
@@ -16,7 +16,7 @@ export async function POST(request) {
     return Response.json({ received: false, error: "Messenger app secret is not configured." }, { status: 503 });
   }
 
-  if (!process.env.META_PAGE_ACCESS_TOKEN || !process.env.META_GRAPH_API_VERSION) {
+  if (!messengerSendConfigured()) {
     return Response.json({ received: false, error: "Messenger Send API is not configured." }, { status: 503 });
   }
 

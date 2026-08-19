@@ -14,6 +14,8 @@ Add these server-only variables locally and in Vercel. Do not prefix them with `
 META_MESSENGER_VERIFY_TOKEN=choose-a-long-random-value
 META_APP_SECRET=copy-from-your-meta-app-settings
 META_PAGE_ACCESS_TOKEN=copy-from-messenger-api-settings
+# For multiple Pages, use this instead of META_PAGE_ACCESS_TOKEN:
+META_PAGE_ACCESS_TOKENS={"FACEBOOK_PAGE_ID_1":"PAGE_TOKEN_1","FACEBOOK_PAGE_ID_2":"PAGE_TOKEN_2"}
 META_GRAPH_API_VERSION=copy-the-version-selected-in-your-meta-app
 MESSENGER_ORDER_URL=https://customer.jujabrewandbites.com
 OPENAI_API_KEY=copy-from-your-openai-project
@@ -22,6 +24,8 @@ MESSENGER_AI_ENABLED=true
 ```
 
 `META_MESSENGER_VERIFY_TOKEN` is a secret value you create yourself. Enter the same value in Meta when configuring the callback URL. Keep the App Secret and Page access token out of source control and browser-exposed variables.
+
+For one Facebook Page, `META_PAGE_ACCESS_TOKEN` is enough. For multiple Pages, set `META_PAGE_ACCESS_TOKENS` to a compact JSON object mapping each Page ID to its Page token. The webhook reads the recipient Page ID on every event and selects the matching token. Never expose this JSON to the browser or commit it to source control.
 
 `OPENAI_MESSENGER_MODEL` is configurable. The default uses `gpt-5.6-luna` for lower-cost, high-volume replies. Keep `OPENAI_API_KEY` server-only. Set `MESSENGER_AI_ENABLED=false` to disable AI without unpublishing the flow.
 
