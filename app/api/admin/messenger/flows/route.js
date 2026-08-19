@@ -1,4 +1,5 @@
 import { requireAdminApi } from "@/lib/server/admin-api";
+import { messengerAiConfigured } from "@/lib/messenger/ai";
 
 function clean(value) {
   return String(value || "").trim();
@@ -39,7 +40,14 @@ export async function GET() {
   try {
     const { admin, response } = await requireAdminApi();
     if (response) return response;
-    return Response.json({ flows: await loadFlows(admin) });
+    return Response.json({
+      flows: await loadFlows(admin),
+      ai: {
+        configured: messengerAiConfigured(),
+        enabled: process.env.MESSENGER_AI_ENABLED !== "false",
+        model: String(process.env.OPENAI_MESSENGER_MODEL || "gpt-5.6-luna"),
+      },
+    });
   } catch (error) {
     return Response.json({ error: error?.message || "Unable to load Messenger flows." }, { status: 500 });
   }
@@ -143,4 +151,3 @@ export async function PATCH(request) {
     return Response.json({ error: error?.message || "Unable to update Messenger flow." }, { status: 500 });
   }
 }
-

@@ -16,9 +16,14 @@ META_APP_SECRET=copy-from-your-meta-app-settings
 META_PAGE_ACCESS_TOKEN=copy-from-messenger-api-settings
 META_GRAPH_API_VERSION=copy-the-version-selected-in-your-meta-app
 MESSENGER_ORDER_URL=https://customer.jujabrewandbites.com
+OPENAI_API_KEY=copy-from-your-openai-project
+OPENAI_MESSENGER_MODEL=gpt-5.6-luna
+MESSENGER_AI_ENABLED=true
 ```
 
 `META_MESSENGER_VERIFY_TOKEN` is a secret value you create yourself. Enter the same value in Meta when configuring the callback URL. Keep the App Secret and Page access token out of source control and browser-exposed variables.
+
+`OPENAI_MESSENGER_MODEL` is configurable. The default uses `gpt-5.6-luna` for lower-cost, high-volume replies. Keep `OPENAI_API_KEY` server-only. Set `MESSENGER_AI_ENABLED=false` to disable AI without unpublishing the flow.
 
 ## Meta configuration
 
@@ -40,6 +45,9 @@ Meta must reach the callback over public HTTPS with a valid certificate. The POS
 - Question answers can be stored as customer fields and used by conditional edges.
 - Inbound and outbound events are recorded, and duplicate webhook events are ignored.
 - Human handoff pauses automation until an administrator selects **Resume bot**.
+- Unmatched text is answered by the AI assistant using recent conversation history and business guardrails.
+- The AI never receives the raw Messenger customer ID; the request uses a one-way privacy-preserving safety identifier.
+- If the AI service is disabled or unavailable, the customer receives the configured fallback message.
 - If the routing migration is unavailable, the original safe reply rules remain as a fallback.
 
 The migration seeds Welcome, Order online, Store details, Human handoff, and Fallback flows. Verify the installed routing schema with:
@@ -48,4 +56,4 @@ The migration seeds Welcome, Order online, Store details, Human handoff, and Fal
 npm run verify:messenger-routing
 ```
 
-The router does not yet create orders entirely inside Messenger or generate AI responses. Those can be layered onto the node engine after the Page webhook is connected and tested.
+The router does not create orders entirely inside Messenger. AI replies direct customers to the ordering site or staff for live prices, availability, payments, refunds, and account-specific actions.

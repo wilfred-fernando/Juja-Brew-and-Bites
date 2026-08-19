@@ -14,10 +14,11 @@ async function api(url, options) {
 
 function FlowCard({ flow, onSaved }) {
   const startNode = flow.nodes?.find((node) => node.node_key === flow.start_node_key) || flow.nodes?.[0];
+  const isAiNode = startNode?.node_type === "ai";
   const primaryTrigger = flow.triggers?.find((trigger) => trigger.trigger_type !== "fallback") || flow.triggers?.[0];
   const [name, setName] = useState(flow.name || "");
   const [description, setDescription] = useState(flow.description || "");
-  const [text, setText] = useState(startNode?.config?.text || "");
+  const [text, setText] = useState(isAiNode ? startNode?.config?.instructions || "" : startNode?.config?.text || "");
   const [pattern, setPattern] = useState(primaryTrigger?.pattern || "");
   const [saving, setSaving] = useState(false);
 
@@ -30,7 +31,7 @@ function FlowCard({ flow, onSaved }) {
         body: JSON.stringify({
           flow_id: flow.id,
           flow: { name, description, status: overrides.status || flow.status },
-          ...(startNode ? { node: { id: startNode.id, config: { ...startNode.config, text } } } : {}),
+          ...(startNode ? { node: { id: startNode.id, config: { ...startNode.config, [isAiNode ? "instructions" : "text"]: text } } } : {}),
           ...(primaryTrigger ? { trigger: { id: primaryTrigger.id, pattern } } : {}),
         }),
       });
@@ -76,8 +77,8 @@ function FlowCard({ flow, onSaved }) {
           </span>
         </label>
         <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-          Start message
-          <textarea value={text} disabled={!startNode || !["message", "question", "handoff"].includes(startNode.node_type)} onChange={(event) => setText(event.target.value)} rows={4} className="mt-2 w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium normal-case leading-6 tracking-normal text-slate-800 outline-none focus:border-sky-400 disabled:bg-slate-50" />
+          {isAiNode ? "AI instructions" : "Start message"}
+          <textarea value={text} disabled={!startNode || !["message", "question", "handoff", "ai"].includes(startNode.node_type)} onChange={(event) => setText(event.target.value)} rows={4} className="mt-2 w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium normal-case leading-6 tracking-normal text-slate-800 outline-none focus:border-sky-400 disabled:bg-slate-50" />
         </label>
       </div>
 
@@ -101,6 +102,7 @@ function FlowCard({ flow, onSaved }) {
 export default function MessengerAdminPage() {
   const [flows, setFlows] = useState([]);
   const [contacts, setContacts] = useState([]);
+  const [aiStatus, setAiStatus] = useState({ configured: false, enabled: true, model: "gpt-5.6-luna" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
@@ -116,6 +118,7 @@ export default function MessengerAdminPage() {
         api("/api/admin/messenger/contacts"),
       ]);
       setFlows(flowPayload.flows || []);
+      setAiStatus(flowPayload.ai || { configured: false, enabled: true, model: "gpt-5.6-luna" });
       setContacts(contactPayload.contacts || []);
     } catch (loadError) {
       setError(loadError?.message || "Unable to load Messenger routing.");
@@ -197,6 +200,13 @@ export default function MessengerAdminPage() {
 
       {error && <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">{error}</div>}
 
+      <div className={`mb-6 rounded-2xl border p-4 text-sm font-semibold ${aiStatus.configured ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
+        {aiStatus.configured
+          ? `AI auto reply is active using ${aiStatus.model}.`
+          : "AI flow is ready, but OPENAI_API_KEY must be added in Vercel before AI replies become active."}
+        {!aiStatus.enabled && " MESSENGER_AI_ENABLED is currently false."}
+      </div>
+
       <section className="mb-10">
         <div className="mb-4 flex items-center gap-2 text-slate-800"><MessageCircle className="h-5 w-5" /><h2 className="text-lg font-extrabold">Conversation flows</h2></div>
         {loading ? <div className="rounded-3xl bg-white/80 p-12 text-center text-sm font-semibold text-slate-500">Loading flows...</div> : (
@@ -230,4 +240,3 @@ export default function MessengerAdminPage() {
     </div>
   );
 }
-

@@ -23,10 +23,11 @@ async function main() {
         (select count(*)::int from public.messenger_flows) as flows,
         (select count(*)::int from public.messenger_flow_nodes) as nodes,
         (select count(*)::int from public.messenger_triggers) as triggers,
-        (select count(*)::int from public.messenger_flows where status = 'published') as published_flows
+        (select count(*)::int from public.messenger_flows where status = 'published') as published_flows,
+        (select count(*)::int from public.messenger_flow_nodes where node_type = 'ai') as ai_nodes
     `);
     const result = rows[0];
-    if (result.flows < 5 || result.nodes < 5 || result.triggers < 15 || result.published_flows < 5) {
+    if (result.flows < 5 || result.nodes < 5 || result.triggers < 15 || result.published_flows < 5 || result.ai_nodes < 1) {
       throw new Error(`Messenger routing seed is incomplete: ${JSON.stringify(result)}`);
     }
     console.log("Messenger routing verified:", result);
@@ -39,4 +40,3 @@ main().catch((error) => {
   console.error(error?.message || error);
   process.exit(1);
 });
-
