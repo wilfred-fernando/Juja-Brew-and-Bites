@@ -2018,6 +2018,16 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       .filter((i) => (q ? (i.name || "").toLowerCase().includes(q) : true));
   }, [items, visibleCategories, activeTab, q, activeVouchers]);
 
+  const filteredItemGroups = useMemo(() => {
+    if (q || activeTab !== "ALL") return [{ category: null, items: filteredItems }];
+    return visibleCategories
+      .map((category) => ({
+        category: category.name,
+        items: filteredItems.filter((item) => item.category === category.name),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [activeTab, filteredItems, q, visibleCategories]);
+
   const isItemAvailableForSelectedStore = (item) => {
     if (!selectedBranch) return true;
     const row = itemStoreAvailability.find(
@@ -2458,8 +2468,16 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
             ❌ No matching available products located.
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3">
-            {filteredItems.map((item) => {
+          <div className="space-y-8">
+            {filteredItemGroups.map((group) => (
+              <section key={group.category || "items"}>
+                {group.category && (
+                  <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-700">
+                    {group.category}
+                  </h3>
+                )}
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3">
+                  {group.items.map((item) => {
               const orderable = isItemOrderable(item);
 
               return (
@@ -2510,7 +2528,10 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
                 )}
               </button>
               );
-            })}
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
         )}
       </div>

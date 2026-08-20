@@ -307,6 +307,16 @@ export default function PublicMenuPage() {
     return items.filter((i) => (i.category || "Others") === selectedCategory);
   }, [items, q, selectedCategory]);
 
+  const visibleItemGroups = useMemo(() => {
+    if (q || selectedCategory !== "ALL") return [{ category: null, items: visibleItems }];
+    return categoryList
+      .map((category) => ({
+        category,
+        items: visibleItems.filter((item) => (item.category || "Others") === category),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [categoryList, q, selectedCategory, visibleItems]);
+
   // 5) Most Ordered badge (only if dataset has an order metric)
   const metricKey = useMemo(() => {
     const candidates = ["times_ordered", "order_count", "orders_count", "total_orders"];
@@ -459,8 +469,16 @@ export default function PublicMenuPage() {
                 No items found.
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
-                {visibleItems.map((item) => {
+              <div className="space-y-8">
+                {visibleItemGroups.map((group) => (
+                  <section key={group.category || "items"}>
+                    {group.category && (
+                      <h3 className="mb-3 text-base font-semibold uppercase tracking-wider text-slate-700">
+                        {group.category}
+                      </h3>
+                    )}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+                      {group.items.map((item) => {
                   const bestSeller = !!item.is_featured;
                   const mostOrdered = mostOrderedIdSet.has(item.id);
 
@@ -521,7 +539,10 @@ export default function PublicMenuPage() {
                       )}
                     </button>
                   );
-                })}
+                      })}
+                    </div>
+                  </section>
+                ))}
               </div>
             )}
           </>
