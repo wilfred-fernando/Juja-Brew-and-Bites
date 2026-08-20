@@ -4,6 +4,14 @@ export async function GET() {
   try {
     const { admin, response } = await requireAdminApi();
     if (response) return response;
+    const now = new Date().toISOString();
+    const { error: resumeError } = await admin.from("messenger_contacts").update({
+      bot_paused: false,
+      pause_reason: null,
+      paused_at: null,
+      auto_resume_at: null,
+    }).eq("bot_paused", true).not("auto_resume_at", "is", null).lte("auto_resume_at", now);
+    if (resumeError) throw resumeError;
     const { data, error } = await admin
       .from("messenger_contacts")
       .select("*")
@@ -29,6 +37,7 @@ export async function PATCH(request) {
       bot_paused: paused,
       pause_reason: paused ? String(body?.pause_reason || "Paused by admin").trim() : null,
       paused_at: paused ? new Date().toISOString() : null,
+      auto_resume_at: null,
     }).eq("psid", psid).select("*").maybeSingle();
     if (error) throw error;
     return Response.json({ success: true, contact: data });
@@ -36,4 +45,3 @@ export async function PATCH(request) {
     return Response.json({ error: error?.message || "Unable to update Messenger handoff." }, { status: 500 });
   }
 }
-

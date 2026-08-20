@@ -37,7 +37,7 @@ For one Facebook Page, `META_PAGE_ACCESS_TOKEN` is enough. For multiple Pages, s
 1. Create or open a Meta app connected to the JUJA Brew & Bites Facebook Page.
 2. Add Messenger and configure the webhook callback URL shown above.
 3. Enter the same verify token stored in `META_MESSENGER_VERIFY_TOKEN`.
-4. Subscribe the Page webhook to `messages` and `messaging_postbacks`.
+4. Subscribe the Page webhook to `messages`, `message_echoes`, and `messaging_postbacks`.
 5. Generate a Page access token and store it as `META_PAGE_ACCESS_TOKEN`.
 6. Request the permissions Meta requires for the Page and move the app to Live mode when review is complete.
 7. Send the Page a test message such as `menu`, `store hours`, or `talk to staff`.
@@ -59,6 +59,8 @@ Meta must reach the callback over public HTTPS with a valid certificate. The POS
 - Question answers can be stored as customer fields and used by conditional edges.
 - Inbound and outbound events are recorded, and duplicate webhook events are ignored.
 - Human handoff pauses automation until an administrator selects **Resume bot**.
+- A reply sent by staff from Meta Business Suite or the Page Inbox pauses JujaBot for that customer for two hours. Additional staff replies reset the two-hour window. JujaBot resumes on the first customer message after the window expires.
+- JujaBot Send API echoes carry an internal metadata marker and are also matched against recorded outbound message IDs, so the bot does not pause itself.
 - Unmatched text is answered by the AI assistant using recent conversation history and business guardrails.
 - The AI never receives the raw Messenger customer ID; the request uses a one-way privacy-preserving safety identifier.
 - If the AI service is disabled or unavailable, the customer receives the configured fallback message.
@@ -71,3 +73,12 @@ npm run verify:messenger-routing
 ```
 
 The router does not create orders or reservations entirely inside Messenger. Function-room availability is a live snapshot and may change before checkout, so AI replies link customers to the public booking page to reserve. Payments, refunds, and account-specific actions remain with the website or staff.
+
+## Meta publishing URLs
+
+Use these public production URLs in Meta App Settings:
+
+```txt
+Privacy Policy URL: https://www.jujabrewandbites.com/privacy-policy
+User Data Deletion Instructions URL: https://www.jujabrewandbites.com/data-deletion
+```
