@@ -1987,20 +1987,22 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
   );
 
   const visibleCategories = useMemo(() => {
-    return cats.filter((cat) => {
-      if (!selectedBranch) return true;
-      const row = categoryStoreAvailability.find(
-        (entry) => String(entry.category_id) === String(cat.id) && String(entry.store_id) === String(selectedBranch)
-      );
-      const storeAvailable = row ? row.is_available !== false : true;
-      if (!storeAvailable) return false;
-      if (!isPromoCategoryName(cat.name)) return true;
-      return items.some(
-        (item) =>
-          String(item.category || "").toLowerCase() === String(cat.name || "").toLowerCase() &&
-          findVoucherForMenuItem(activeVouchers, item)
-      );
-    });
+    return cats
+      .filter((cat) => {
+        if (!selectedBranch) return true;
+        const row = categoryStoreAvailability.find(
+          (entry) => String(entry.category_id) === String(cat.id) && String(entry.store_id) === String(selectedBranch)
+        );
+        const storeAvailable = row ? row.is_available !== false : true;
+        if (!storeAvailable) return false;
+        if (!isPromoCategoryName(cat.name)) return true;
+        return items.some(
+          (item) =>
+            String(item.category || "").toLowerCase() === String(cat.name || "").toLowerCase() &&
+            findVoucherForMenuItem(activeVouchers, item)
+        );
+      })
+      .sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" }));
   }, [cats, categoryStoreAvailability, selectedBranch, items, activeVouchers]);
 
   useEffect(() => {

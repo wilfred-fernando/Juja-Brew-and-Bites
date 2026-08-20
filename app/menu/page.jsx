@@ -181,7 +181,7 @@ export default function PublicMenuPage() {
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("ALL");
   
   // Promo popup
   const [promoOpen, setPromoOpen] = useState(false);
@@ -261,7 +261,7 @@ export default function PublicMenuPage() {
     const fromCats = (cats || []).map((c) => c?.name).filter(Boolean);
     const fallback = Array.from(new Set((items || []).map((i) => i.category || "Others")));
     const list = fromCats.length ? fromCats : fallback;
-    return Array.from(new Set(list));
+    return Array.from(new Set(list)).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
   }, [cats, items]);
 
   useEffect(() => {
@@ -303,9 +303,7 @@ export default function PublicMenuPage() {
     if (q) {
       return items.filter((i) => (i.name || "").toLowerCase().includes(q));
     }
-    if (!selectedCategory) {
-      return items.filter((i) => i.is_featured === true || i.featured === true);
-    }
+    if (selectedCategory === "ALL") return items;
     return items.filter((i) => (i.category || "Others") === selectedCategory);
   }, [items, q, selectedCategory]);
 
@@ -420,7 +418,7 @@ export default function PublicMenuPage() {
             disabled={!!q}
             className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 disabled:opacity-60"
           >
-            <option value="">Featured Menu Items</option>
+            <option value="ALL">All Categories</option>
             {categoryList.map((cat) => (
               <option key={cat} value={cat}>
                 {cat}
@@ -451,7 +449,7 @@ export default function PublicMenuPage() {
           <>
             <div className="flex items-end justify-between mb-3">
               <h2 className="text-lg font-semibold text-slate-800 uppercase tracking-wider">
-                {q ? "Search results" : (selectedCategory || "Featured Menu Items")}
+                {q ? "Search results" : (selectedCategory === "ALL" ? "All Categories" : selectedCategory)}
               </h2>
               <p className="text-xs text-slate-400">{visibleItems.length} item(s)</p>
             </div>
