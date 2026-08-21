@@ -12,6 +12,10 @@ export default function RootLayout({ children }) {
     // Add suppressHydrationWarning to both html and body
     <html lang="en" className="hide-scrollbar" suppressHydrationWarning>
       <head>
+        <meta
+          name="facebook-domain-verification"
+          content="8w3pau2rqx3djcblmaja0yu5bqn72u"
+        />
         <meta 
           name="viewport" 
           content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" 
