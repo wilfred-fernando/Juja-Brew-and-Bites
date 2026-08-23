@@ -44,12 +44,6 @@ function startOfWeek(date, weekStartsOn = 1) {
 function buildSlotHours() {
   return BOOKING_SLOT_HOURS;
 }
-function buildCalendarHours() {
-  const hours = [];
-  for (let h = OPERATING_START_HOUR; h <= 23; h++) hours.push(h);
-  hours.push(24, 25);
-  return hours;
-}
 function labelHour(h) {
   const dayOffset = h >= 24 ? " (+1)" : "";
   const hh = h % 24;
@@ -115,6 +109,13 @@ function bookingDateTime(value, fallback = "-") {
   const suffix = parts.hour >= 12 ? "PM" : "AM";
   return `${parts.year}-${BOOKING_MONTHS[parts.month - 1]}-${String(parts.day).padStart(2, "0")} ${String(hour12).padStart(2, "0")}:${String(parts.minute).padStart(2, "0")} ${suffix}`;
 }
+function bookingTime(value, fallback = "-") {
+  const parts = bookingParts(value);
+  if (!parts) return fallback;
+  const hour12 = ((parts.hour + 11) % 12) + 1;
+  const suffix = parts.hour >= 12 ? "PM" : "AM";
+  return `${hour12}:${String(parts.minute).padStart(2, "0")} ${suffix}`;
+}
 function isExpiredPaymentHold(booking, now = new Date()) {
   const status = String(booking?.status || "").toLowerCase();
   const paymentStatus = String(booking?.payment_status || "").toLowerCase();
@@ -158,6 +159,26 @@ function niceStatus(status) {
   if (status === "cancelled") return "Cancelled";
   if (status === "cancellation_requested") return "Cancel Request";
   return String(status || "—");
+}
+function calendarBookingTone(booking) {
+  if (booking.status === "confirmed") return "border-emerald-200 bg-emerald-50/80 hover:border-emerald-400";
+  if (booking.status === "cancellation_requested") return "border-orange-200 bg-orange-50/80 hover:border-orange-400";
+  if (booking.status === "pending" && booking.payment_status === "submitted") {
+    return "border-sky-200 bg-sky-50/80 hover:border-sky-400";
+  }
+  if (booking.status === "pending" && booking.payment_status === "cash_pending") {
+    return "border-amber-200 bg-amber-50/80 hover:border-amber-400";
+  }
+  if (booking.status === "pending") return "border-blue-200 bg-blue-50/80 hover:border-blue-400";
+  return "border-slate-200 bg-slate-50/80 hover:border-slate-400";
+}
+
+function calendarPaymentLabel(booking) {
+  if (booking.payment_status === "submitted") return booking.payment_method === "QRPH" ? "QRPH proof" : "Proof submitted";
+  if (booking.payment_status === "cash_pending") return "Cash pending";
+  if (booking.payment_status === "waiting_for_payment") return "Awaiting payment";
+  if (booking.payment_status === "approved") return "Payment approved";
+  return String(booking.payment_status || "No payment status").replace(/_/g, " ");
 }
 function safeLower(s) {
   return String(s || "").toLowerCase();
@@ -319,9 +340,8 @@ export default function AdminBookingsDashboard() {
   const [selectedIds, setSelectedIds] = useState(new Set());
 
   // Calendar
-  const [weekAnchorISO, setWeekAnchorISO] = useState(() => toISODate(new Date()));
+  const [weekAnchorISO, setWeekAnchorISO] = useState(() => bookingISODate(new Date()));
   const slotHours = useMemo(() => buildSlotHours(), []);
-  const calendarHours = useMemo(() => buildCalendarHours(), []);
 
   const realtimeRef = useRef(null);
 
@@ -840,7 +860,7 @@ export default function AdminBookingsDashboard() {
     }
   }
 
-  function openManualModal() {
+  function openManualModal(prefill = {}) {
     setManualModal({
       customer_name: "",
       event_type: "",
@@ -849,8 +869,8 @@ export default function AdminBookingsDashboard() {
       email: "",
       package_id: packages[0]?.id || "",
       extension_hours: 0,
-      dateISO: toISODate(new Date()),
-      hour: OPERATING_START_HOUR,
+      dateISO: prefill.dateISO || bookingISODate(new Date()),
+      hour: Number.isFinite(Number(prefill.hour)) ? Number(prefill.hour) : OPERATING_START_HOUR,
       deposit_amount: 0,
       status: "confirmed",
       payment_status: "submitted",
@@ -940,6 +960,31 @@ export default function AdminBookingsDashboard() {
     });
   }, [bookings, weekStart]);
 
+  const calendarRows = useMemo(() => {
+    const hours = new Set(slotHours);
+    for (const booking of bookingsInWeek) hours.add(hourLikeFromStartAt(booking.start_at));
+    return Array.from(hours).sort((a, b) => a - b);
+  }, [bookingsInWeek, slotHours]);
+
+  const calendarWeekStats = useMemo(
+    () => ({
+      total: bookingsInWeek.length,
+      confirmed: bookingsInWeek.filter((booking) => booking.status === "confirmed").length,
+      needsReview: bookingsInWeek.filter(
+        (booking) =>
+          booking.status === "cancellation_requested" ||
+          booking.payment_status === "submitted" ||
+          booking.payment_status === "cash_pending"
+      ).length,
+      guests: bookingsInWeek
+        .filter((booking) => !["expired", "rejected", "cancelled", "cancelled_gc"].includes(booking.status))
+        .reduce((sum, booking) => sum + Number(booking.guest_count || 0), 0),
+    }),
+    [bookingsInWeek]
+  );
+
+  const todayISO = bookingISODate(new Date());
+
   /* =======================
     Render
   ======================= */
@@ -957,7 +1002,7 @@ export default function AdminBookingsDashboard() {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={openManualModal}
+            onClick={() => openManualModal()}
             className="px-4 py-2 rounded-xl font-bold bg-[#0b6942] text-white text-[11px] uppercase tracking-widest hover:bg-[#095937] active:scale-95"
           >
             Manual Booking
@@ -1191,148 +1236,178 @@ export default function AdminBookingsDashboard() {
           {/* CALENDAR */}
           {view === "calendar" && (
             <div className="space-y-4">
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-                <SectionTitle
-                  title="Weekly calendar"
-                  right={
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() =>
-                          setWeekAnchorISO(toISODate(addDays(new Date(`${weekAnchorISO}T00:00:00`), -7)))
-                        }
-                        className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-[11px] uppercase tracking-widest hover:bg-slate-50 active:scale-95"
-                      >
-                        Prev
-                      </button>
-                      <input
-                        type="date"
-                        value={weekAnchorISO}
-                        onChange={(e) => setWeekAnchorISO(e.target.value)}
-                        className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm"
-                      />
-                      <button
-                        onClick={() =>
-                          setWeekAnchorISO(toISODate(addDays(new Date(`${weekAnchorISO}T00:00:00`), 7)))
-                        }
-                        className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-[11px] uppercase tracking-widest hover:bg-slate-50 active:scale-95"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  }
-                />
-                <p className="text-xs text-slate-500 mt-2">
-                  Click a booking to edit — <b>past bookings are locked</b>.
-                </p>
-              </div>
-
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                {/* Header */}
-                <div className="grid" style={{ gridTemplateColumns: "110px repeat(7, minmax(0, 1fr))" }}>
-                  <div className="p-3 border-b border-slate-200 bg-slate-50">
-                    <p className="text-[10px] uppercase tracking-widest text-slate-500">Time</p>
+              <section className="rounded-[24px] border border-emerald-950/10 bg-[#fffdf8] p-4 shadow-sm md:p-5">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#0b6942]">Manila time</p>
+                    <h3 className="mt-1 font-serif text-2xl text-slate-800">
+                      {formatDate(toISODate(weekDays[0]))} – {formatDate(toISODate(weekDays[6]))}
+                    </h3>
+                    <p className="mt-1 text-xs text-slate-500">Four standard booking windows with protected one-hour buffers.</p>
                   </div>
-                  {weekDays.map((d) => (
-                    <div key={toISODate(d)} className="p-3 border-b border-slate-200 bg-slate-50">
-                      <p className="text-[11px] font-semibold text-slate-800">
-                        {d.toLocaleDateString(undefined, { weekday: "short" })}
-                      </p>
-                      <p className="text-[10px] text-slate-500">{formatDate(toISODate(d))}</p>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setWeekAnchorISO(todayISO)}
+                      className="rounded-xl border border-[#0b6942]/20 bg-emerald-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-[#0b6942]"
+                    >
+                      Today
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Previous week"
+                      onClick={() => setWeekAnchorISO(toISODate(addDays(weekStart, -7)))}
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      ←
+                    </button>
+                    <label className="sr-only" htmlFor="booking-week-anchor">Choose week</label>
+                    <input
+                      id="booking-week-anchor"
+                      type="date"
+                      value={weekAnchorISO}
+                      onChange={(e) => setWeekAnchorISO(e.target.value)}
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                    />
+                    <button
+                      type="button"
+                      aria-label="Next week"
+                      onClick={() => setWeekAnchorISO(toISODate(addDays(weekStart, 7)))}
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      →
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                  {[
+                    ["Bookings", calendarWeekStats.total],
+                    ["Confirmed", calendarWeekStats.confirmed],
+                    ["Needs review", calendarWeekStats.needsReview],
+                    ["Expected guests", calendarWeekStats.guests],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-xl border border-emerald-950/10 bg-[#f7f4ec] px-3 py-2">
+                      <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+                      <p className="mt-0.5 font-serif text-xl text-slate-800">{value}</p>
                     </div>
                   ))}
                 </div>
 
-                {/* Grid */}
-                <div className="grid" style={{ gridTemplateColumns: "110px repeat(7, minmax(0, 1fr))" }}>
-                  {/* Time column */}
-                  <div className="border-r border-slate-200">
-                    {calendarHours.map((h) => (
-                      <div key={h} className="h-16 px-3 flex items-center border-b border-slate-200 bg-white">
-                        <p className="text-xs text-slate-600 font-medium">{labelHour(h)}</p>
-                      </div>
-                    ))}
+                <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] text-slate-500">
+                  {[
+                    ["bg-emerald-400", "Confirmed"],
+                    ["bg-sky-400", "QRPH proof"],
+                    ["bg-amber-400", "Cash pending"],
+                    ["bg-blue-400", "Awaiting payment"],
+                    ["bg-orange-400", "Cancellation request"],
+                  ].map(([color, label]) => (
+                    <span key={label} className="flex items-center gap-1.5"><span className={`h-2 w-2 rounded-full ${color}`} />{label}</span>
+                  ))}
+                  <span className="ml-auto">Select an open future slot to create a manual booking.</span>
+                </div>
+              </section>
+
+              <div className="overflow-x-auto rounded-[24px] border border-emerald-950/10 bg-[#fffdf8] shadow-sm">
+                <div className="min-w-[1180px]">
+                  <div className="grid border-b border-emerald-950/10 bg-[#f7f4ec]" style={{ gridTemplateColumns: "132px repeat(7, minmax(145px, 1fr))" }}>
+                    <div className="flex items-end p-3">
+                      <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-500">Booking window</p>
+                    </div>
+                    {weekDays.map((day) => {
+                      const dayISO = toISODate(day);
+                      const isToday = dayISO === todayISO;
+                      const dayCount = bookingsInWeek.filter((booking) => bookingISODate(booking.start_at) === dayISO).length;
+                      return (
+                        <div key={dayISO} className={`border-l border-emerald-950/10 p-3 ${isToday ? "bg-emerald-50" : ""}`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <div>
+                              <p className={`text-[10px] font-semibold uppercase tracking-wider ${isToday ? "text-[#0b6942]" : "text-slate-500"}`}>
+                                {day.toLocaleDateString(undefined, { weekday: "short" })}
+                              </p>
+                              <p className="mt-0.5 font-serif text-lg text-slate-800">{formatDate(dayISO)}</p>
+                            </div>
+                            <span className={`grid h-7 min-w-7 place-items-center rounded-full px-1 text-[10px] font-semibold ${isToday ? "bg-[#0b6942] text-white" : "bg-white text-slate-500"}`}>
+                              {dayCount}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
 
-                  {/* Day columns */}
-                  {weekDays.map((day) => {
-                    const dayISO = toISODate(day);
-                    const dayBookings = bookingsInWeek.filter(
-                      (b) => bookingISODate(b.start_at) === dayISO
-                    );
-
-                    const byHour = new Map();
-                    for (const b of dayBookings) {
-                      const startH = hourLikeFromStartAt(b.start_at);
-                      const list = byHour.get(startH) || [];
-                      list.push(b);
-                      byHour.set(startH, list);
-                    }
-
-                    return (
-                      <div key={dayISO} className="relative">
-                        {calendarHours.map((h) => {
-                          const cellBookings = (byHour.get(h) || []).sort(
-                            (a, b) => new Date(a.start_at) - new Date(b.start_at)
-                          );
-
-                          return (
-                            <div key={h} className="h-16 border-b border-slate-200 px-2 py-2">
-                              {cellBookings.slice(0, 2).map((b) => {
-                                const pkg = pkgById.get(Number(b.package_id));
-                                const ext = Number(b.extension_hours || 0);
-                                const durMin = BASE_BOOKING_MINUTES + ext * 60;
-                                const spanRows = clamp(Math.ceil(durMin / 60), 1, 5);
-
-                                const locked = disableEdit(b); // ✅ past => locked
-
-                                return (
-                                  <button
-                                    key={b.id}
-                                    type="button"
-                                    disabled={locked}
-                                    onClick={() => !locked && openEditModal(b)}
-                                    className={`w-full text-left rounded-xl border px-2 py-2 mb-1 transition ${
-                                      locked
-                                        ? "bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed"
-                                        : b.status === "pending"
-                                        ? "bg-blue-50 border-blue-200 hover:shadow-sm"
-                                        : b.status === "confirmed"
-                                        ? "bg-green-50 border-green-200 hover:shadow-sm"
-                                        : b.status === "rejected"
-                                        ? "bg-red-50 border-red-200 hover:shadow-sm"
-                                        : "bg-slate-50 border-slate-200 hover:shadow-sm"
-                                    }`}
-                                    title={locked ? "Past booking (locked)" : "Click to edit"}
-                                    style={{ minHeight: `${Math.min(spanRows, 2) * 28}px` }}
-                                  >
-                                    <div className="flex items-center justify-between gap-2">
-                                      <p className="text-[11px] font-semibold text-slate-800 truncate">
-                                        {b.customer_name || "—"}
-                                      </p>
-                                      <span
-                                        className={`text-[10px] px-2 py-0.5 rounded-full border ${statusPill(b.status)}`}
-                                      >
-                                        {niceStatus(b.status)}
-                                      </span>
-                                    </div>
-                                    <p className="text-[10px] text-slate-600 mt-1 truncate">
-                                      {pkg?.name || `Package #${b.package_id || "—"}`} • {b.guest_count || 0} pax
-                                    </p>
-                                  </button>
-                                );
-                              })}
-
-                              {cellBookings.length > 2 ? (
-                                <p className="text-[10px] text-slate-500 mt-1">
-                                  +{cellBookings.length - 2} more
-                                </p>
-                              ) : null}
-                            </div>
-                          );
-                        })}
+                  {calendarRows.map((hour) => (
+                    <div key={hour} className="grid border-b border-emerald-950/10 last:border-b-0" style={{ gridTemplateColumns: "132px repeat(7, minmax(145px, 1fr))" }}>
+                      <div className="bg-[#f7f4ec] p-3">
+                        <p className="text-xs font-semibold text-slate-800">{labelBookingSlot(hour)}</p>
+                        <p className="mt-1 text-[9px] uppercase tracking-wider text-slate-500">3 hours standard</p>
                       </div>
-                    );
-                  })}
+
+                      {weekDays.map((day) => {
+                        const dayISO = toISODate(day);
+                        const isToday = dayISO === todayISO;
+                        const cellBookings = bookingsInWeek
+                          .filter(
+                            (booking) =>
+                              bookingISODate(booking.start_at) === dayISO &&
+                              hourLikeFromStartAt(booking.start_at) === hour
+                          )
+                          .sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
+                        const slotStart = computeDateTime(dayISO, hour);
+                        const canCreate = cellBookings.length === 0 && slotStart >= now && BOOKING_SLOT_HOURS.includes(hour);
+
+                        return (
+                          <div key={dayISO} className={`min-h-[150px] border-l border-emerald-950/10 p-2 ${isToday ? "bg-emerald-50/40" : "bg-white"}`}>
+                            {cellBookings.length > 0 ? (
+                              <div className="space-y-2">
+                                {cellBookings.slice(0, 2).map((booking) => {
+                                  const pkg = pkgById.get(Number(booking.package_id));
+                                  const extensionHours = Number(booking.extension_hours || 0);
+                                  const locked = disableEdit(booking);
+                                  return (
+                                    <button
+                                      key={booking.id}
+                                      type="button"
+                                      disabled={locked}
+                                      onClick={() => !locked && openEditModal(booking)}
+                                      className={`w-full rounded-xl border p-2.5 text-left transition ${calendarBookingTone(booking)} ${locked ? "cursor-not-allowed opacity-60" : "hover:shadow-sm"}`}
+                                      title={locked ? "Past booking (locked)" : "Open booking details"}
+                                    >
+                                      <div className="flex items-start justify-between gap-2">
+                                        <p className="min-w-0 truncate text-xs font-semibold text-slate-800">{booking.customer_name || "Unnamed customer"}</p>
+                                        <span className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide ${statusPill(booking.status)}`}>
+                                          {niceStatus(booking.status)}
+                                        </span>
+                                      </div>
+                                      <p className="mt-1 truncate text-[10px] text-slate-600">{booking.event_type || "Event"} · {booking.guest_count || 0} guests</p>
+                                      <p className="mt-1 truncate text-[10px] text-slate-500">{pkg?.name || `Package ${booking.package_id || "—"}`}</p>
+                                      <div className="mt-2 flex flex-wrap gap-1">
+                                        <span className="rounded-md bg-white/80 px-1.5 py-1 text-[8px] font-medium text-slate-600">{bookingTime(booking.start_at)}–{bookingTime(booking.end_at)}</span>
+                                        <span className="rounded-md bg-white/80 px-1.5 py-1 text-[8px] font-medium text-slate-600">{calendarPaymentLabel(booking)}</span>
+                                        {extensionHours > 0 ? <span className="rounded-md bg-violet-100 px-1.5 py-1 text-[8px] font-semibold text-violet-700">+{extensionHours}h admin</span> : null}
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                                {cellBookings.length > 2 ? <p className="px-1 text-[10px] text-slate-500">+{cellBookings.length - 2} more records</p> : null}
+                              </div>
+                            ) : canCreate ? (
+                              <button
+                                type="button"
+                                onClick={() => openManualModal({ dateISO: dayISO, hour })}
+                                className="flex h-full min-h-[130px] w-full items-center justify-center rounded-xl border border-dashed border-emerald-900/15 text-[10px] font-semibold uppercase tracking-widest text-slate-400 transition hover:border-[#0b6942]/40 hover:bg-emerald-50 hover:text-[#0b6942]"
+                              >
+                                + Manual booking
+                              </button>
+                            ) : (
+                              <div className="flex h-full min-h-[130px] items-center justify-center text-[10px] text-slate-300">No booking</div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

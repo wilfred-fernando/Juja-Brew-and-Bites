@@ -34,19 +34,6 @@ const CUSTOMER_READ_ONLY_BOOKING_STATUSES = new Set([
   "cancellation_requested",
 ]);
 
-const CUSTOMER_PACKAGE_NAMES = {
-  1: "Intimate Gathering",
-  2: "Celebration",
-  3: "Full Venue Celebration",
-  4: "Intimate Room Hire",
-  5: "Celebration Room Hire",
-  6: "Full Venue Hire",
-};
-
-function customerPackageName(packageId) {
-  return CUSTOMER_PACKAGE_NAMES[Number(packageId)] || `Package ${packageId}`;
-}
-
 function isCustomerBookingReadOnly(booking) {
   return CUSTOMER_READ_ONLY_BOOKING_STATUSES.has(
     String(booking?.status || "").trim().toLowerCase()
@@ -1517,7 +1504,7 @@ export default function BookingForm({ user, member }) {
               </p>
               <h3 className="mt-1 font-serif text-2xl text-slate-800">Choose your experience</h3>
               <p className="mt-1 text-xs text-slate-500">
-                Packages 1–3 include a food and drinks allowance. Packages 4–6 are room hire only.
+                Packages 1–3 include a food and drinks allowance. Packages 4–6 are room rental only.
               </p>
             </div>
             <button
@@ -1547,10 +1534,10 @@ export default function BookingForm({ user, member }) {
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <p className="text-[10px] font-semibold uppercase tracking-widest text-[#0b6942]">
-                      {roomRentalOnly ? "Room hire only" : "Food & drinks included"} · {p.name}
+                      {roomRentalOnly ? "Room rental only" : "Food & drinks included"}
                     </p>
                     <h3 className="mt-1 font-serif text-xl font-medium text-slate-800 md:text-2xl">
-                      {customerPackageName(p.id)}
+                      {p.name}
                     </h3>
                     <p className="mt-1 text-lg font-semibold text-slate-800">₱{Number(p.rental_fee).toLocaleString()}</p>
 
@@ -1613,7 +1600,7 @@ export default function BookingForm({ user, member }) {
               </p>
               {form.package_id ? (
                 <p className="mt-1 text-xs text-slate-500">
-                  {customerPackageName(form.package_id)} · {form.guest_count || 1} guest(s)
+                  {packages.find((p) => String(p.id) === String(form.package_id))?.name || `Package ${form.package_id}`} · {form.guest_count || 1} guest(s)
                 </p>
               ) : null}
             </div>
@@ -1640,7 +1627,7 @@ export default function BookingForm({ user, member }) {
               <option value="">Select package…</option>
               {packages.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {customerPackageName(p.id)} ({p.name}) — ₱{Number(p.rental_fee).toLocaleString()} (pax {p.capacity})
+                  {p.name} — ₱{Number(p.rental_fee).toLocaleString()} (pax {p.capacity})
                 </option>
               ))}
             </select>
