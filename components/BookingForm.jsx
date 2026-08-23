@@ -34,6 +34,19 @@ const CUSTOMER_READ_ONLY_BOOKING_STATUSES = new Set([
   "cancellation_requested",
 ]);
 
+const CUSTOMER_PACKAGE_NAMES = {
+  1: "Intimate Gathering",
+  2: "Celebration",
+  3: "Full Venue Celebration",
+  4: "Intimate Room Hire",
+  5: "Celebration Room Hire",
+  6: "Full Venue Hire",
+};
+
+function customerPackageName(packageId) {
+  return CUSTOMER_PACKAGE_NAMES[Number(packageId)] || `Package ${packageId}`;
+}
+
 function isCustomerBookingReadOnly(booking) {
   return CUSTOMER_READ_ONLY_BOOKING_STATUSES.has(
     String(booking?.status || "").trim().toLowerCase()
@@ -824,7 +837,7 @@ export default function BookingForm({ user, member }) {
 
   function selectSlot(h) {
     setSelectedHour(h);
-    setTab("book");
+    setTab("packages");
     setNotice(null);
   }
 
@@ -958,39 +971,20 @@ export default function BookingForm({ user, member }) {
 
   async function submitBookingPayment() {
     if (!paymentBooking?.id) return setNotice("Booking record was not found.");
-    if (!["cash", "paymongo"].includes(paymentChoice)) {
-      return setNotice("Please choose Cash In-Store or PayMongo.");
+    if (!["cash", "qrph"].includes(paymentChoice)) {
+      return setNotice("Please choose Cash or QRPH.");
+    }
+    if (paymentChoice === "qrph" && !proofFile) {
+      return setNotice("Please attach your QRPH payment confirmation.");
     }
 
     setSubmitting(true);
     setNotice(null);
 
     try {
-      if (paymentChoice === "paymongo") {
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
-        const accessToken = sessionData?.session?.access_token;
-        if (!accessToken) throw new Error("Customer login is required to continue payment.");
-
-        const response = await fetch("/api/payments/paymongo/checkout", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({ entityType: "booking", entityId: paymentBooking.id }),
-        });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok || !result?.checkoutUrl) {
-          throw new Error(result?.error || "Unable to open PayMongo checkout.");
-        }
-        window.location.assign(result.checkoutUrl);
-        return;
-      }
-
-      const proofUrl = paymentChoice === "online" ? await uploadBookingProof(paymentBooking.id) : null;
+      const proofUrl = paymentChoice === "qrph" ? await uploadBookingProof(paymentBooking.id) : null;
       const updatePayload = {
-        payment_method: paymentChoice,
+        payment_method: paymentChoice === "qrph" ? "QRPH" : "Cash",
         payment_status: paymentChoice === "cash" ? "cash_pending" : "submitted",
         payment_proof_url: proofUrl,
       };
@@ -1008,7 +1002,7 @@ export default function BookingForm({ user, member }) {
       setMyBookings((prev) => prev.map((x) => (x.id === paymentBooking.id ? updatedBooking : x)));
       const notification = await notifyBookingAdmin(updatedBooking, {
         notificationType: paymentChoice === "cash" ? "cash_payment_request" : "payment_proof",
-        paymentMethod: paymentChoice,
+        paymentMethod: paymentChoice === "qrph" ? "QRPH" : "Cash",
         proofUrl,
       });
 
@@ -1022,7 +1016,7 @@ export default function BookingForm({ user, member }) {
           ? `Payment details were saved, but the admin email could not be sent: ${notification.error}`
           : paymentChoice === "cash"
           ? "Cash payment request sent. Admin will confirm your payment."
-          : "Payment proof sent. Admin will review and approve your booking."
+          : "QRPH payment proof sent. Admin will review and approve your booking."
       );
     } catch (e) {
       console.error("Payment update failed:", e);
@@ -1122,13 +1116,13 @@ export default function BookingForm({ user, member }) {
   if (successBooking) {
     return (
       <div className="min-h-screen bg-[#f0f7fb] flex items-center justify-center px-4">
-        <div className="bg-white rounded-[28px] border border-sky-50 shadow-sm p-6 max-w-md w-full space-y-4 animate-in fade-in">
+        <div className="bg-[#fffdf8] rounded-[28px] border border-emerald-900/10 shadow-xl shadow-emerald-950/5 p-6 max-w-md w-full space-y-5 animate-in fade-in">
           <div className="text-center space-y-1">
             <p className="text-[10px] uppercase tracking-widest text-slate-500">
               Booking Request Sent
             </p>
             <h2 className="text-xl font-semibold text-slate-800">
-              Reservation Received ✅
+              Your date is being held
             </h2>
           </div>
 
@@ -1151,18 +1145,32 @@ export default function BookingForm({ user, member }) {
             </p>
           </div>
 
-          <p className="text-[12px] text-slate-500 text-center">
-            PHP 1,000 reservation fee is required to secure your booking. Please settle it within 24 hours and send proof of payment in Manage Booking. If no proof is sent within 24 hours, this date and time will reopen automatically.
+          <p className="text-[12px] text-slate-500 text-center leading-relaxed">
+            A PHP 1,000 reservation fee is required to secure your booking. Choose Cash or QRPH
+            within 24 hours. If payment details are not submitted, the date and time will reopen
+            automatically.
           </p>
 
           <button
             onClick={() => {
+              const booking = successBooking;
+              setSuccessBooking(null);
+              setTab("manage");
+              openPaymentModal(booking);
+            }}
+            className="w-full py-3 rounded-xl bg-[#0b6942] font-bold text-white text-[11px] uppercase tracking-widest active:scale-95 hover:bg-[#095937]"
+          >
+            Pay Reservation Fee
+          </button>
+          <button
+            type="button"
+            onClick={() => {
               setSuccessBooking(null);
               setTab("manage");
             }}
-            className="w-full py-3 rounded-xl bg-slate-300/78 font-bold text-white text-[11px] uppercase tracking-widest active:scale-95 hover:bg-slate-400/78"
+            className="w-full py-2 text-xs font-medium text-slate-500 hover:text-slate-800"
           >
-            Go to Manage Booking
+            I’ll pay later
           </button>
         </div>
       </div>
@@ -1375,29 +1383,60 @@ export default function BookingForm({ user, member }) {
 
   return (
     <div className="space-y-4 md:space-y-6 animate-in fade-in duration-500">
-      <div>
-        <h2 className="text-2xl md:text-[28px] font-normal text-slate-800 tracking-tight">
-          Function Room Booking
-        </h2>
-        <p className="text-slate-500 text-xs md:text-sm mt-0.5 font-normal">
-          {stripCitationsAndLinks("Booking uses fixed 3-hour time slots.")}
-        </p>
+      <div className="overflow-hidden rounded-[28px] border border-emerald-900/10 bg-gradient-to-br from-[#fffdf8] to-[#f3f0e8] shadow-sm">
+        <div className="p-5 md:p-7">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#0b6942]">
+            Function room reservation
+          </p>
+          <h2 className="mt-2 font-serif text-3xl font-medium tracking-tight text-slate-800 md:text-4xl">
+            Make the occasion yours.
+          </h2>
+          <p className="mt-2 max-w-xl text-xs leading-relaxed text-slate-500 md:text-sm">
+            Choose an available three-hour schedule, find the right package, and complete your
+            event details. Your slot is held for 24 hours while you arrange the reservation fee.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-3 border-t border-emerald-900/10 bg-white/70">
+          {[
+            ["availability", "1", "Date & time"],
+            ["packages", "2", "Package"],
+            ["book", "3", "Event details"],
+          ].map(([key, number, label]) => {
+            const active = tab === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTab(key)}
+                className={`flex min-w-0 items-center justify-center gap-2 px-2 py-3 text-[10px] font-semibold uppercase tracking-wider transition md:text-xs ${
+                  active
+                    ? "bg-[#0b6942] text-white"
+                    : "text-slate-500 hover:bg-emerald-950/[0.04] hover:text-slate-800"
+                }`}
+              >
+                <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border text-[9px] ${active ? "border-white/50" : "border-slate-300"}`}>
+                  {number}
+                </span>
+                <span className="truncate">{label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="w-full max-w-xs">
-        <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-2">
-          Select Option
-        </label>
-        <select
-          value={tab}
-          onChange={(e) => setTab(e.target.value)}
-          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-3 text-sm text-slate-700"
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setTab("manage")}
+          className={`rounded-full border px-4 py-2 text-[10px] font-semibold uppercase tracking-widest transition ${
+            tab === "manage"
+              ? "border-[#0b6942] bg-[#0b6942] text-white"
+              : "border-slate-200 bg-white text-slate-600 hover:border-[#0b6942]/40"
+          }`}
         >
-          <option value="availability">Check Availability</option>
-          <option value="packages">Packages</option>
-          <option value="book">Book Now</option>
-          <option value="manage">Manage Booking</option>
-        </select>
+          My Bookings
+        </button>
       </div>
 
       {notice && (
@@ -1408,7 +1447,7 @@ export default function BookingForm({ user, member }) {
 
       {/* Availability */}
       {tab === "availability" && (
-        <div className="bg-white rounded-2xl md:rounded-[28px] border border-sky-50 shadow-sm p-5 md:p-6 space-y-4">
+        <div className="bg-[#fffdf8] rounded-2xl md:rounded-[28px] border border-emerald-900/10 shadow-sm p-5 md:p-6 space-y-4">
           <div className="flex items-end justify-between gap-4 flex-wrap">
             <div>
               <p className="text-[10px] uppercase tracking-widest text-slate-500">Select Date</p>
@@ -1433,7 +1472,7 @@ export default function BookingForm({ user, member }) {
           <div className="text-[11px] text-slate-500">
             Booking slots: <b>10:00 AM - 1:00 PM</b>, <b>2:00 PM - 5:00 PM</b>,{" "}
             <b>6:00 PM - 9:00 PM</b>, and <b>10:00 PM - 1:00 AM</b> (next day).
-            Buffer rule: <b>1 hour</b> before & after.
+            A one-hour preparation buffer is protected before and after every reservation.
           </div>
 
           {loadingBookings ? (
@@ -1441,7 +1480,7 @@ export default function BookingForm({ user, member }) {
               <div className="w-8 h-8 border-4 border-sky-200 border-t-[#5b7288] animate-spin rounded-full" />
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {availability.map((s) => {
                 const status = reasonToLabel(s.reason);
                 const statusClass = availabilityStatusClass(s);
@@ -1453,7 +1492,7 @@ export default function BookingForm({ user, member }) {
                     onClick={() => s.available && selectSlot(s.hour)}
                     className={`p-3 rounded-xl border text-left transition-all active:scale-95 ${
                       s.available
-                        ? "bg-[#f0f7fb] border-slate-200 hover:bg-sky-50"
+                        ? "bg-white border-emerald-900/10 hover:border-[#0b6942]/40 hover:bg-emerald-50/50"
                         : availabilityCardClass(s)
                     }`}
                     disabled={!s.available}
@@ -1470,7 +1509,26 @@ export default function BookingForm({ user, member }) {
 
       {/* Packages */}
       {tab === "packages" && (
-        <div className="space-y-3">
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#0b6942]">
+                Step 2
+              </p>
+              <h3 className="mt-1 font-serif text-2xl text-slate-800">Choose your experience</h3>
+              <p className="mt-1 text-xs text-slate-500">
+                Packages 1–3 include a food and drinks allowance. Packages 4–6 are room hire only.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTab("availability")}
+              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-slate-600"
+            >
+              Change schedule
+            </button>
+          </div>
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {packages.map((p) => {
             const pid = Number(p.id);
             const policy = PACKAGE_POLICIES[pid];
@@ -1480,16 +1538,21 @@ export default function BookingForm({ user, member }) {
             return (
               <div
                 key={p.id}
-                className="bg-white rounded-2xl md:rounded-[28px] border border-sky-50 shadow-sm p-5 md:p-6"
+                className={`rounded-2xl border bg-[#fffdf8] p-5 shadow-sm transition md:p-6 ${
+                  String(form.package_id) === String(p.id)
+                    ? "border-[#0b6942] ring-2 ring-[#0b6942]/10"
+                    : "border-emerald-900/10 hover:border-[#0b6942]/35"
+                }`}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <p className="text-[12px] uppercase tracking-widest text-slate-500">
-                      {p.name}
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-[#0b6942]">
+                      {roomRentalOnly ? "Room hire only" : "Food & drinks included"} · {p.name}
                     </p>
-                    <h3 className="text-lg md:text-xl font-semibold text-slate-800 mt-1">
-                      ₱{Number(p.rental_fee).toLocaleString()}
+                    <h3 className="mt-1 font-serif text-xl font-medium text-slate-800 md:text-2xl">
+                      {customerPackageName(p.id)}
                     </h3>
+                    <p className="mt-1 text-lg font-semibold text-slate-800">₱{Number(p.rental_fee).toLocaleString()}</p>
 
                     <div className="mt-2 space-y-1 min-w-0">
                       <p className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
@@ -1503,14 +1566,14 @@ export default function BookingForm({ user, member }) {
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex shrink-0 flex-col gap-2">
                     <button
                       type="button"
                       onClick={() => {
                         setDetailsPkg(p);
                         setDetailsOpen(true);
                       }}
-                      className="px-4 py-2 rounded-full bg-white border border-slate-200 text-slate-700 text-[10px] uppercase tracking-widest hover:bg-slate-50 active:scale-95"
+                      className="px-4 py-2 rounded-full bg-white border border-slate-200 text-slate-700 text-[10px] font-semibold uppercase tracking-widest hover:bg-slate-50 active:scale-95"
                     >
                       Full Details
                     </button>
@@ -1521,7 +1584,7 @@ export default function BookingForm({ user, member }) {
                         setForm((f) => ({ ...f, package_id: String(p.id) }));
                         setTab("book");
                       }}
-                      className="px-4 py-2 rounded-full bg-slate-200/78 font-bold text-white text-[10px] uppercase tracking-widest active:scale-95"
+                      className="px-4 py-2 rounded-full bg-[#0b6942] font-bold text-white text-[10px] uppercase tracking-widest active:scale-95"
                     >
                       Select
                     </button>
@@ -1530,23 +1593,29 @@ export default function BookingForm({ user, member }) {
               </div>
             );
           })}
+          </div>
         </div>
       )}
 
       {/* Book Now */}
       {tab === "book" && (
-        <div className="bg-white rounded-2xl md:rounded-[28px] border border-sky-50 shadow-sm p-5 md:p-6 space-y-4">
+        <div className="bg-[#fffdf8] rounded-2xl md:rounded-[28px] border border-emerald-900/10 shadow-sm p-5 md:p-6 space-y-5">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-slate-500">Selected</p>
-              <p className="text-[12px] text-slate-800 mt-1">
-                Date: <b>{formatDate(dateISO)}</b> / Time:{" "}
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-[#0b6942]">Your reservation</p>
+              <p className="mt-1 font-serif text-xl text-slate-800">
+                <b>{formatDate(dateISO)}</b> ·{" "}
                 <b>
                   {selectedHour != null
                     ? labelBookingSlot(dateISO, selectedHour)
                     : "Not selected"}
                 </b>
               </p>
+              {form.package_id ? (
+                <p className="mt-1 text-xs text-slate-500">
+                  {customerPackageName(form.package_id)} · {form.guest_count || 1} guest(s)
+                </p>
+              ) : null}
             </div>
 
             <button
@@ -1571,7 +1640,7 @@ export default function BookingForm({ user, member }) {
               <option value="">Select package…</option>
               {packages.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} — ₱{Number(p.rental_fee).toLocaleString()} (pax {p.capacity})
+                  {customerPackageName(p.id)} ({p.name}) — ₱{Number(p.rental_fee).toLocaleString()} (pax {p.capacity})
                 </option>
               ))}
             </select>
@@ -1614,13 +1683,18 @@ export default function BookingForm({ user, member }) {
             </div>
           </div>
 
+          <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-xs leading-relaxed text-amber-900">
+            <b>Reservation fee: ₱{DEPOSIT_AMOUNT.toLocaleString()}</b><br />
+            After submitting, choose Cash or QRPH within {PAYMENT_HOLD_HOURS} hours to keep this schedule.
+          </div>
+
           <button
             type="button"
             onClick={onBookNowClick}
             disabled={submitting}
-            className="w-full py-3.5 rounded-xl bg-slate-300/78 font-bold text-white text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-sky-500 active:scale-95 disabled:opacity-60"
+            className="w-full py-3.5 rounded-xl bg-[#0b6942] font-bold text-white text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-[#095937] active:scale-95 disabled:opacity-60"
           >
-            Book Now
+            Submit Reservation Request
           </button>
         </div>
       )}
@@ -2040,7 +2114,7 @@ export default function BookingForm({ user, member }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
                   ["cash", "Cash"],
-                  ["paymongo", "PayMongo"],
+                  ["qrph", "QRPH"],
                 ].map(([value, label]) => (
                   <button
                     key={value}
@@ -2052,7 +2126,7 @@ export default function BookingForm({ user, member }) {
                     disabled={submitting}
                     className={`rounded-xl border px-4 py-3 text-sm font-medium transition ${
                       paymentChoice === value
-                        ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        ? "border-[#0b6942] bg-emerald-50 text-[#0b6942] ring-2 ring-[#0b6942]/10"
                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
                   >
@@ -2067,22 +2141,59 @@ export default function BookingForm({ user, member }) {
                 </div>
               )}
 
-              {paymentChoice === "paymongo" && (
-                <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-slate-700">
-                  Continue to PayMongo for secure online payment. Your reservation payment will be
-                  confirmed automatically after PayMongo completes the transaction.
+              {paymentChoice === "qrph" && (
+                <div className="space-y-4 rounded-2xl border border-emerald-900/10 bg-[#f7f4ec] p-4">
+                  <div className="text-center">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-[#0b6942]">
+                      Scan to pay ₱{DEPOSIT_AMOUNT.toLocaleString()}
+                    </p>
+                    <img
+                      src={QR_IMAGE_PATH}
+                      alt="JUJA QRPH payment code"
+                      className="mx-auto mt-3 w-full max-w-[260px] rounded-2xl border border-slate-200 bg-white object-contain p-2"
+                    />
+                    <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                      Complete the transfer in your banking or e-wallet app, then attach the confirmation below.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+                      Payment confirmation
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      onChange={(event) => setProofFile(event.target.files?.[0] || null)}
+                      className="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-[#0b6942] file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white"
+                    />
+                    {proofFile ? (
+                      <p className="mt-2 text-xs font-medium text-[#0b6942]">Ready to submit: {proofFile.name}</p>
+                    ) : null}
+                    {proofPreview && proofFile?.type?.startsWith("image/") ? (
+                      <img
+                        src={proofPreview}
+                        alt="Selected QRPH payment confirmation"
+                        className="mt-3 max-h-48 w-full rounded-xl border border-slate-200 bg-white object-contain"
+                      />
+                    ) : null}
+                  </div>
                 </div>
               )}
 
               <button
                 type="button"
                 onClick={submitBookingPayment}
-                disabled={submitting || !["cash", "paymongo"].includes(paymentChoice)}
-                className="w-full py-3.5 rounded-xl bg-white text-slate-700 font-bold text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-sky-500 active:scale-95 disabled:opacity-60"
+                disabled={
+                  submitting ||
+                  !["cash", "qrph"].includes(paymentChoice) ||
+                  (paymentChoice === "qrph" && !proofFile)
+                }
+                className="w-full py-3.5 rounded-xl bg-[#0b6942] text-white font-bold text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-[#095937] active:scale-95 disabled:opacity-60"
               >
                 {submitting
-                  ? paymentChoice === "paymongo" ? "Opening PayMongo..." : "Submitting..."
-                  : paymentChoice === "paymongo" ? "Continue to PayMongo" : "Confirm Cash Payment"}
+                  ? "Submitting..."
+                  : paymentChoice === "qrph" ? "Submit QRPH Payment" : "Confirm Cash Payment"}
               </button>
             </div>
           </div>

@@ -14,16 +14,17 @@ function escapeHtml(value) {
 }
 
 function titleForNotification(type, paymentMethod, customerName) {
-  if (type === "payment_received" || paymentMethod === "PayMongo") {
+  const normalizedPaymentMethod = String(paymentMethod || "").trim().toLowerCase();
+  if (type === "payment_received" || normalizedPaymentMethod === "paymongo") {
     return `Function Room Reservation Fee Paid - ${customerName || "Customer"}`;
   }
   if (type === "cancellation_request") {
     return `Function Room Booking Cancellation Request - ${customerName || "Customer"}`;
   }
-  if (type === "payment_proof" || paymentMethod === "online") {
-    return `New Function Room Booking Payment Proof - ${customerName || "Customer"}`;
+  if (type === "payment_proof" || normalizedPaymentMethod === "qrph" || normalizedPaymentMethod === "online") {
+    return `New Function Room QRPH Payment Proof - ${customerName || "Customer"}`;
   }
-  if (type === "cash_payment_request" || paymentMethod === "cash") {
+  if (type === "cash_payment_request" || normalizedPaymentMethod === "cash") {
     return `New Function Room Cash Payment Request - ${customerName || "Customer"}`;
   }
   return `New Function Room Booking Request - ${customerName || "Customer"}`;
@@ -91,16 +92,17 @@ export async function POST(req) {
     }
 
     const subject = titleForNotification(notificationType, paymentMethod, customerName);
+    const normalizedPaymentMethod = String(paymentMethod || "").trim().toLowerCase();
     const actionLabel =
-      notificationType === "payment_received" || paymentMethod === "PayMongo"
+      notificationType === "payment_received" || normalizedPaymentMethod === "paymongo"
         ? "PayMongo confirmed the reservation fee. The booking is ready for admin review and approval."
       : notificationType === "cancellation_request"
         ? "Customer requested cancellation of an approved booking. Admin approval is required before converting the reservation fee to gift certificate."
         : notificationType === "booking_request"
         ? "New booking request is waiting for customer payment."
-        : paymentMethod === "cash"
+        : normalizedPaymentMethod === "cash"
           ? "Customer selected cash payment. Admin confirmation is required."
-          : "Online payment proof was submitted. Admin confirmation and approval are required.";
+          : "QRPH payment proof was submitted. Admin confirmation and approval are required.";
 
     const html = `
       <h3>${escapeHtml(subject)}</h3>
