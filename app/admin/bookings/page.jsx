@@ -952,13 +952,16 @@ export default function AdminBookingsDashboard() {
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
 
   const bookingsInWeek = useMemo(() => {
-    const start = new Date(weekStart);
-    const end = addDays(start, 7);
-    return bookings.filter((b) => {
-      const s = new Date(b.start_at);
-      return s >= start && s < end;
-    });
-  }, [bookings, weekStart]);
+    const startISO = bookingISODate(weekStart);
+    const endISO = bookingISODate(addDays(weekStart, 7));
+    return bookings
+      .map((booking) => withExpiredBookingStatus(booking, now))
+      .filter((booking) => {
+        if (!["pending", "confirmed"].includes(booking.status)) return false;
+        const bookingDateISO = bookingISODate(booking.start_at);
+        return bookingDateISO >= startISO && bookingDateISO < endISO;
+      });
+  }, [bookings, weekStart, now]);
 
   const calendarRows = useMemo(() => {
     const hours = new Set(slotHours);
@@ -972,13 +975,10 @@ export default function AdminBookingsDashboard() {
       confirmed: bookingsInWeek.filter((booking) => booking.status === "confirmed").length,
       needsReview: bookingsInWeek.filter(
         (booking) =>
-          booking.status === "cancellation_requested" ||
           booking.payment_status === "submitted" ||
           booking.payment_status === "cash_pending"
       ).length,
-      guests: bookingsInWeek
-        .filter((booking) => !["expired", "rejected", "cancelled", "cancelled_gc"].includes(booking.status))
-        .reduce((sum, booking) => sum + Number(booking.guest_count || 0), 0),
+      guests: bookingsInWeek.reduce((sum, booking) => sum + Number(booking.guest_count || 0), 0),
     }),
     [bookingsInWeek]
   );
@@ -1241,7 +1241,7 @@ export default function AdminBookingsDashboard() {
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#0b6942]">Manila time</p>
                     <h3 className="mt-1 font-serif text-2xl text-slate-800">
-                      {formatDate(toISODate(weekDays[0]))} – {formatDate(toISODate(weekDays[6]))}
+                      {formatDate(bookingISODate(weekDays[0]))} – {formatDate(bookingISODate(weekDays[6]))}
                     </h3>
                     <p className="mt-1 text-xs text-slate-500">Four standard booking windows with protected one-hour buffers.</p>
                   </div>
@@ -1257,7 +1257,7 @@ export default function AdminBookingsDashboard() {
                     <button
                       type="button"
                       aria-label="Previous week"
-                      onClick={() => setWeekAnchorISO(toISODate(addDays(weekStart, -7)))}
+                      onClick={() => setWeekAnchorISO(bookingISODate(addDays(weekStart, -7)))}
                       className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
                     >
                       ←
@@ -1273,7 +1273,7 @@ export default function AdminBookingsDashboard() {
                     <button
                       type="button"
                       aria-label="Next week"
-                      onClick={() => setWeekAnchorISO(toISODate(addDays(weekStart, 7)))}
+                      onClick={() => setWeekAnchorISO(bookingISODate(addDays(weekStart, 7)))}
                       className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
                     >
                       →
@@ -1301,7 +1301,6 @@ export default function AdminBookingsDashboard() {
                     ["bg-sky-400", "QRPH proof"],
                     ["bg-amber-400", "Cash pending"],
                     ["bg-blue-400", "Awaiting payment"],
-                    ["bg-orange-400", "Cancellation request"],
                   ].map(([color, label]) => (
                     <span key={label} className="flex items-center gap-1.5"><span className={`h-2 w-2 rounded-full ${color}`} />{label}</span>
                   ))}
@@ -1316,7 +1315,7 @@ export default function AdminBookingsDashboard() {
                       <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-500">Booking window</p>
                     </div>
                     {weekDays.map((day) => {
-                      const dayISO = toISODate(day);
+                      const dayISO = bookingISODate(day);
                       const isToday = dayISO === todayISO;
                       const dayCount = bookingsInWeek.filter((booking) => bookingISODate(booking.start_at) === dayISO).length;
                       return (
@@ -1345,7 +1344,7 @@ export default function AdminBookingsDashboard() {
                       </div>
 
                       {weekDays.map((day) => {
-                        const dayISO = toISODate(day);
+                        const dayISO = bookingISODate(day);
                         const isToday = dayISO === todayISO;
                         const cellBookings = bookingsInWeek
                           .filter(
