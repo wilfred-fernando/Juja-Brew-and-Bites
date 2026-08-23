@@ -46,6 +46,20 @@ const premiumMilkTeaFlavors = [
 
 const coffeePackages = [
   {
+    name: "Coffee Starter Package",
+    cups: "50 Cups",
+    price: "₱9,499",
+    meta: ["Good for 50 cups", "16oz iced coffee", "1.5 hours service time"],
+    includes: [
+      "Mobile coffee cart setup",
+      "Custom cup stickers",
+      "Choice of 3 coffee flavors",
+      "Uniformed barista/service staff",
+      "Cups, straws, ice, and complete serving supplies",
+      "1 hour setup before event",
+    ],
+  },
+  {
     name: "Coffee Package A",
     cups: "100 Cups",
     price: "₱16,999",
@@ -92,6 +106,54 @@ const coffeePackages = [
 ];
 
 const drinkPackages = [
+  {
+    group: "50 Cups Packages",
+    description: "A compact event-cart experience for intimate celebrations and small gatherings.",
+    items: [
+      {
+        name: "Starter Package A",
+        label: "Classic Milk Tea 50",
+        price: "₱8,499",
+        meta: ["Good for 50 cups", "16oz drinks", "1.5 hours service time"],
+        includes: [
+          "Mobile drink cart setup",
+          "Custom cup stickers",
+          "Choice of 3 milk tea flavors",
+          "Uniformed service staff",
+          "Cups, straws, ice, sinkers, and serving supplies",
+        ],
+        flavors: milkTeaFlavors,
+      },
+      {
+        name: "Starter Package B",
+        label: "Premium Milk Tea 50",
+        price: "₱9,999",
+        meta: ["Good for 50 cups", "16oz premium drinks", "1.5 hours service time"],
+        includes: [
+          "Mobile drink cart setup",
+          "Custom cup stickers",
+          "Choice of 3 premium flavors",
+          "Premium sinker options",
+          "Uniformed service staff",
+        ],
+        flavors: premiumMilkTeaFlavors,
+      },
+      {
+        name: "Starter Package C",
+        label: "Milk Tea + Coffee 50",
+        price: "₱10,499",
+        meta: ["25 cups Milk Tea", "25 cups Iced Coffee", "1.5 hours service time"],
+        includes: [
+          "Choice of 2 milk tea flavors",
+          "Choice of 2 coffee flavors",
+          "Mobile drink cart setup",
+          "Custom cup stickers",
+          "Uniformed service staff and serving supplies",
+        ],
+        flavors: coffeeFlavors,
+      },
+    ],
+  },
   {
     group: "100 Cups Packages",
     items: [
@@ -517,6 +579,46 @@ export default function EventCartPage() {
       <Nav active="event-cart" />
 
       <main className="relative min-h-0 flex-1 px-4 pb-12 sm:px-6 lg:overflow-y-auto lg:px-10">
+        <section className="relative mx-auto mb-8 max-w-7xl overflow-hidden rounded-[34px] bg-gradient-to-br from-[#075f29] via-[#087830] to-[#0a8c3a] px-6 py-9 text-white shadow-[0_24px_55px_rgba(8,120,48,0.22)] sm:px-10 sm:py-11 lg:px-14">
+          <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-[#FC687D]/25 blur-2xl" />
+          <div className="absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
+          <div className="relative grid items-end gap-8 lg:grid-cols-[1fr_auto]">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-pink-200">
+                JUJA Event Cart Packages
+              </p>
+              <h1 className="mt-3 max-w-4xl text-3xl font-semibold leading-tight sm:text-4xl lg:text-5xl">
+                Make every celebration more delicious!
+              </h1>
+              <p className="mt-4 max-w-3xl text-sm leading-7 text-emerald-50 sm:text-base">
+                Bring the JUJA experience to your special occasion with refreshing
+                milk tea, handcrafted coffee, and crowd-favorite picapica—served
+                fresh from our mobile event cart.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.15em] text-white/90">
+                {["Milk Tea", "Coffee", "Picapica"].map((item) => (
+                  <span key={item} className="rounded-full border border-white/20 bg-white/10 px-4 py-2">
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-white/20 bg-white/12 p-5 backdrop-blur-sm sm:min-w-64">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-pink-200">
+                Packages start at
+              </p>
+              <p className="mt-1 text-4xl font-bold text-white sm:text-5xl">₱8,499</p>
+              <a
+                href="#drink-packages"
+                className="mt-5 block rounded-full bg-[#FC687D] px-6 py-3 text-center text-xs font-bold uppercase tracking-widest text-white transition hover:-translate-y-0.5 hover:bg-[#f85570]"
+              >
+                View Packages
+              </a>
+            </div>
+          </div>
+        </section>
+
         <section className="mx-auto grid max-w-7xl items-center gap-8 rounded-[34px] border border-white/65 bg-white/62 p-5 shadow-[0_24px_55px_rgba(15,23,42,0.10)] backdrop-blur-md sm:p-8 lg:grid-cols-[0.9fr_1.1fr] lg:p-10">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#FC687D]">
@@ -566,11 +668,11 @@ export default function EventCartPage() {
           </div>
         </section>
 
-        <section className="mx-auto mt-10 max-w-7xl rounded-[34px] border border-white/65 bg-white/62 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.08)] backdrop-blur-md sm:p-8">
+        <section id="drink-packages" className="mx-auto mt-10 scroll-mt-28 max-w-7xl rounded-[34px] border border-white/65 bg-white/62 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.08)] backdrop-blur-md sm:p-8">
           <SectionHeading
             eyebrow="Drink Cart Packages"
             title="Milk Tea · Premium Milk Tea · Coffee"
-            subtitle="Choose from 100, 150, and 200-cup packages. Each package includes mobile drink cart setup, custom cup stickers, trained service staff, and complete serving supplies."
+            subtitle="Choose from 50, 100, 150, and 200-cup packages. Each package includes mobile drink cart setup, custom cup stickers, trained service staff, and complete serving supplies."
           />
 
           <div className="space-y-10">
@@ -579,6 +681,11 @@ export default function EventCartPage() {
                 <h3 className="mb-4 rounded-full border border-[#087830]/20 bg-white/70 px-5 py-2 text-sm font-semibold uppercase tracking-[0.18em] text-[#087830]">
                   {group.group}
                 </h3>
+                {group.description ? (
+                  <p className="-mt-1 mb-5 px-2 text-sm leading-6 text-slate-600">
+                    {group.description}
+                  </p>
+                ) : null}
                 <div className="grid gap-5 lg:grid-cols-3">
                   {group.items.map((pkg) => (
                     <PackageCard key={`${group.group}-${pkg.name}`} pkg={pkg} />
@@ -596,7 +703,7 @@ export default function EventCartPage() {
             subtitle="Coffee cart packages include iced coffee service, mobile cart setup, custom cup stickers, staff, cups, straws, ice, and setup before the event."
           />
 
-          <div className="grid gap-5 lg:grid-cols-3">
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
             {coffeePackages.map((pkg) => (
               <PackageCard key={pkg.name} pkg={pkg} />
             ))}
