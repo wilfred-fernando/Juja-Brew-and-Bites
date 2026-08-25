@@ -10,6 +10,7 @@ const supabase = getSupabaseClient();
 ======================= */
 const OPERATING_START_HOUR = 10; // 10AM
 const BOOKING_SLOT_HOURS = [10, 14, 18, 22];
+const ADMIN_MANUAL_HOURLY_STARTS = Array.from({ length: 13 }, (_, index) => OPERATING_START_HOUR + index);
 const BASE_BOOKING_MINUTES = 3 * 60;
 const MAX_EXTENSION_HOURS = 5;
 const PAYMENT_HOLD_HOURS = 24;
@@ -871,6 +872,7 @@ export default function AdminBookingsDashboard() {
       extension_hours: 0,
       dateISO: prefill.dateISO || bookingISODate(new Date()),
       hour: Number.isFinite(Number(prefill.hour)) ? Number(prefill.hour) : OPERATING_START_HOUR,
+      hourlySelection: Boolean(prefill.hourlySelection),
       deposit_amount: 0,
       status: "confirmed",
       payment_status: "submitted",
@@ -1002,7 +1004,7 @@ export default function AdminBookingsDashboard() {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => openManualModal()}
+            onClick={() => openManualModal({ hourlySelection: true })}
             className="px-4 py-2 rounded-xl font-bold bg-[#0b6942] text-white text-[11px] uppercase tracking-widest hover:bg-[#095937] active:scale-95"
           >
             Manual Booking
@@ -1907,14 +1909,18 @@ export default function AdminBookingsDashboard() {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Start Time</label>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
+                  {manualModal.hourlySelection ? "Start Time (Hourly)" : "Start Time"}
+                </label>
                 <select
                   value={manualModal.hour}
                   onChange={(e) => setManualModal((p) => ({ ...p, hour: Number(e.target.value) }))}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
                 >
-                  {slotHours.map((h) => (
-                    <option key={h} value={h}>{labelBookingSlot(h)}</option>
+                  {(manualModal.hourlySelection ? ADMIN_MANUAL_HOURLY_STARTS : slotHours).map((h) => (
+                    <option key={h} value={h}>
+                      {manualModal.hourlySelection ? labelHour(h) : labelBookingSlot(h)}
+                    </option>
                   ))}
                 </select>
               </div>
