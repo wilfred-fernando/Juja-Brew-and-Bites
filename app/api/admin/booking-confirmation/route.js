@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies, headers } from "next/headers";
 import { packageConfirmationDetails } from "@/lib/bookings/packageConfirmation";
+import { bookingUpdatedCustomerHtml } from "@/lib/bookings/updateEmails";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { escapeEmailHtml, sendNotificationEmail } from "@/lib/email/notifications";
 
@@ -134,8 +135,11 @@ export async function POST(req) {
     const guard = await requireAdmin(admin);
     if (!guard.allowed) return Response.json({ error: guard.error }, { status: guard.status });
 
-    const { bookingId } = await req.json();
+    const { bookingId, action = "approve", updates = {}, adminNote = "" } = await req.json();
     if (!bookingId) return Response.json({ error: "Booking ID is required." }, { status: 400 });
+    if (!["approve", "adjust"].includes(action)) {
+      return Response.json({ error: "Unsupported booking approval action." }, { status: 400 });
+    }
 
     const { data: booking, error: bookingError } = await admin
       .from("function_room_bookings")
@@ -150,20 +154,82 @@ export async function POST(req) {
     if (booking.status !== "pending") {
       return Response.json({ error: "Only pending bookings can be approved." }, { status: 409 });
     }
-    if (new Date(booking.start_at) < new Date()) {
-      return Response.json({ error: "Past bookings cannot be approved." }, { status: 409 });
+    const isUpdateRequest = booking.update_request_status === "pending";
+    if (action === "adjust" && !isUpdateRequest) {
+      return Response.json({ error: "Only a pending customer update request can be adjusted here." }, { status: 409 });
     }
 
+    const allowedUpdateFields = new Set([
+      "customer_name",
+      "event_type",
+      "guest_count",
+      "contact_number",
+      "email",
+      "package_id",
+      "extension_hours",
+      "business_date",
+      "start_at",
+      "end_at",
+    ]);
+    const adjustedFields = {};
+    if (action === "adjust") {
+      for (const [key, value] of Object.entries(updates || {})) {
+        if (allowedUpdateFields.has(key)) adjustedFields[key] = value;
+      }
+      for (const key of ["customer_name", "event_type", "contact_number", "email", "business_date", "start_at", "end_at"]) {
+        if (key in adjustedFields) adjustedFields[key] = String(adjustedFields[key] || "").trim();
+      }
+      for (const key of ["guest_count", "package_id", "extension_hours"]) {
+        if (key in adjustedFields) adjustedFields[key] = Number(adjustedFields[key]);
+      }
+    }
+
+    const finalStartAt = adjustedFields.start_at || booking.start_at;
+    const finalEndAt = adjustedFields.end_at || booking.end_at;
+    const finalStart = new Date(finalStartAt);
+    const finalEnd = new Date(finalEndAt);
+    if (!finalStartAt || Number.isNaN(finalStart.getTime()) || finalStart < new Date()) {
+      return Response.json({ error: "Past bookings cannot be approved." }, { status: 409 });
+    }
+    if (!finalEndAt || Number.isNaN(finalEnd.getTime()) || finalEnd <= finalStart) {
+      return Response.json({ error: "The booking end time must be after its start time." }, { status: 400 });
+    }
+    if (
+      ("guest_count" in adjustedFields && (!Number.isFinite(adjustedFields.guest_count) || adjustedFields.guest_count < 1)) ||
+      ("package_id" in adjustedFields && (!Number.isFinite(adjustedFields.package_id) || adjustedFields.package_id < 1)) ||
+      ("extension_hours" in adjustedFields && (!Number.isFinite(adjustedFields.extension_hours) || adjustedFields.extension_hours < 0))
+    ) {
+      return Response.json({ error: "The adjusted booking contains an invalid numeric value." }, { status: 400 });
+    }
+
+    const finalPackageId = adjustedFields.package_id || booking.package_id;
     const { data: packageRow, error: packageError } = await admin
       .from("function_room_packages")
       .select("*")
-      .eq("id", booking.package_id)
+      .eq("id", finalPackageId)
       .maybeSingle();
     if (packageError) throw packageError;
+    if (!packageRow) {
+      return Response.json({ error: "The selected package was not found." }, { status: 400 });
+    }
+
+    const reviewNote = String(adminNote || "").trim();
+    const updatePayload = {
+      ...adjustedFields,
+      status: "confirmed",
+      payment_status: "approved",
+      ...(isUpdateRequest
+        ? {
+            update_request_status: action === "adjust" ? "adjusted" : "approved",
+            update_reviewed_at: new Date().toISOString(),
+            update_admin_note: reviewNote || null,
+          }
+        : {}),
+    };
 
     const { data: confirmedBooking, error: updateError } = await admin
       .from("function_room_bookings")
-      .update({ status: "confirmed", payment_status: "approved" })
+      .update(updatePayload)
       .eq("id", booking.id)
       .eq("status", "pending")
       .select("*")
@@ -188,8 +254,15 @@ export async function POST(req) {
     try {
       email = await sendNotificationEmail({
         to: recipient,
-        subject: `Function Room Booking Confirmed - ${confirmedBooking.customer_name || packageName}`,
-        html: confirmationHtml(confirmedBooking, packageRow),
+        subject: isUpdateRequest
+          ? `Function Room Booking Updated - ${confirmedBooking.reference_code || confirmedBooking.id}`
+          : `Function Room Booking Confirmed - ${confirmedBooking.customer_name || packageName}`,
+        html: isUpdateRequest
+          ? bookingUpdatedCustomerHtml(confirmedBooking, packageRow, {
+              reviewResult: action === "adjust" ? "Adjusted by JUJA" : "Approved as requested",
+              adminNote: reviewNote,
+            })
+          : confirmationHtml(confirmedBooking, packageRow),
       });
     } catch (emailError) {
       console.error("Booking confirmation email failed:", emailError);

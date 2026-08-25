@@ -1,5 +1,6 @@
 import { formatDate } from "@/lib/dateFormat";
 import { notificationRecipient, sendNotificationEmail } from "@/lib/email/notifications";
+import { bookingUpdateRequestAdminHtml } from "@/lib/bookings/updateEmails";
 import { normalizePublicHttpUrl } from "@/lib/storage/publicUrl";
 
 export const runtime = "nodejs";
@@ -15,6 +16,9 @@ function escapeHtml(value) {
 
 function titleForNotification(type, paymentMethod, customerName) {
   const normalizedPaymentMethod = String(paymentMethod || "").trim().toLowerCase();
+  if (type === "booking_update_request") {
+    return `Function Room Booking Update Request - ${customerName || "Customer"}`;
+  }
   if (type === "payment_received" || normalizedPaymentMethod === "paymongo") {
     return `Function Room Reservation Fee Paid - ${customerName || "Customer"}`;
   }
@@ -104,7 +108,20 @@ export async function POST(req) {
           ? "Customer selected cash payment. Admin confirmation is required."
           : "QRPH payment proof was submitted. Admin confirmation and approval are required.";
 
-    const html = `
+    const html = notificationType === "booking_update_request"
+      ? bookingUpdateRequestAdminHtml({
+          bookingId,
+          referenceCode: body.referenceCode,
+          customerName,
+          requestType: body.updateRequestType,
+          requestedAt: body.requestedAt,
+          previousBooking: body.previousBooking,
+          requestedBooking: body.requestedBooking,
+          paymentMethod,
+          paymentStatus: body.paymentStatus,
+          depositAmount,
+        })
+      : `
       <h3>${escapeHtml(subject)}</h3>
       <p>${escapeHtml(actionLabel)}</p>
       <p><b>Booking ID:</b> ${escapeHtml(bookingId || "-")}</p>

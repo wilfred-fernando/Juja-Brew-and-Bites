@@ -370,7 +370,12 @@ export default function AdminBookingsDashboard() {
     const nextStatus = approving ? "confirmed" : "cancelled";
     return approving
       ? { status: nextStatus, payment_status: "approved" }
-      : { status: nextStatus };
+      : {
+          status: nextStatus,
+          ...(booking?.update_request_status === "pending"
+            ? { update_request_status: "rejected", update_reviewed_at: new Date().toISOString() }
+            : {}),
+        };
   }
 
   async function approveCancellationWithGiftCertificate(bookingId) {
@@ -387,11 +392,11 @@ export default function AdminBookingsDashboard() {
     };
   }
 
-  async function approveBookingAndSendConfirmation(bookingId) {
+  async function approveBookingAndSendConfirmation(bookingId, options = {}) {
     const res = await fetch("/api/admin/booking-confirmation", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bookingId }),
+      body: JSON.stringify({ bookingId, ...options }),
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json?.error || "Unable to approve booking.");
@@ -709,7 +714,7 @@ export default function AdminBookingsDashboard() {
               const result = await approveBookingAndSendConfirmation(id);
               return {
                 id,
-                payload: { status: "confirmed", payment_status: "approved" },
+                payload: result.booking || { status: "confirmed", payment_status: "approved" },
                 emailError: result.emailSent ? "" : result.emailError,
               };
             }
@@ -735,7 +740,7 @@ export default function AdminBookingsDashboard() {
           alert(`Updated ${eligibleIds.length}. Skipped ${skipped} (past/confirmed).`);
         }
         if (emailFailures.length > 0) {
-          alert(`${emailFailures.length} booking(s) were approved, but their confirmation email could not be sent.`);
+          alert(`${emailFailures.length} booking(s) were approved, but their customer email could not be sent.`);
         }
       } else {
         // SINGLE
@@ -760,12 +765,12 @@ export default function AdminBookingsDashboard() {
 
         if (type === "approve") {
           const result = await approveBookingAndSendConfirmation(booking.id);
-          const confirmedPayload = { status: "confirmed", payment_status: "approved" };
+          const confirmedPayload = result.booking || { status: "confirmed", payment_status: "approved" };
           setBookings((prev) =>
             prev.map((x) => (x.id === booking.id ? { ...x, ...confirmedPayload } : x))
           );
           if (!result.emailSent) {
-            alert(`Booking approved, but the confirmation email could not be sent: ${result.emailError}`);
+            alert(`Booking approved, but the customer email could not be sent: ${result.emailError}`);
           }
           setActionModal(null);
           return;
@@ -808,6 +813,7 @@ export default function AdminBookingsDashboard() {
       extension_hours: clampExtensionHours(b.extension_hours),
       dateISO,
       hour: isNaN(hour) ? OPERATING_START_HOUR : hour,
+      admin_note: b.update_admin_note || "",
     });
   }
 
@@ -835,12 +841,35 @@ export default function AdminBookingsDashboard() {
         email: String(editModal.email || "").trim(),
         package_id: Number(editModal.package_id),
         extension_hours: extensionHours,
+        business_date: editModal.dateISO,
         start_at: toManilaOffsetISOString(startAt),
         end_at: toManilaOffsetISOString(endAt),
-        status: "pending",
       };
 
-      const { error } = await supabase.from("function_room_bookings").update(payload).eq("id", b.id);
+      if (b.update_request_status === "pending") {
+        const result = await approveBookingAndSendConfirmation(b.id, {
+          action: "adjust",
+          updates: payload,
+          adminNote: editModal.admin_note,
+        });
+        const finalBooking = result.booking || {
+          ...b,
+          ...payload,
+          status: "confirmed",
+          payment_status: "approved",
+          update_request_status: "adjusted",
+        };
+        setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, ...finalBooking } : x)));
+        setEditModal(null);
+        if (!result.emailSent) {
+          alert(`Booking updated, but the customer email could not be sent: ${result.emailError}`);
+        }
+        return;
+      }
+
+      const pendingPayload = { ...payload, status: "pending" };
+
+      const { error } = await supabase.from("function_room_bookings").update(pendingPayload).eq("id", b.id);
 
       if (error) {
         const msg = String(error.message || "");
@@ -852,7 +881,7 @@ export default function AdminBookingsDashboard() {
         return;
       }
 
-      setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, ...payload } : x)));
+      setBookings((prev) => prev.map((x) => (x.id === b.id ? { ...x, ...pendingPayload } : x)));
       setEditModal(null);
     } catch (e) {
       alert(e?.message || "Something went wrong.");
@@ -2121,6 +2150,24 @@ export default function AdminBookingsDashboard() {
                   ))}
                 </select>
               </div>
+
+              {editModal.booking.update_request_status === "pending" && (
+                <div className="md:col-span-2">
+                  <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
+                    Note to Customer (Optional)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={editModal.admin_note}
+                    onChange={(e) => setEditModal((p) => ({ ...p, admin_note: e.target.value }))}
+                    placeholder="Explain any adjustment made to the customer's request."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm resize-y"
+                  />
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    Saving confirms the adjusted booking and emails the final details to the customer.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Preview end time */}

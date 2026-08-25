@@ -88,6 +88,21 @@ function shouldBlockBookingSlot(booking, now = new Date()) {
   return !isExpiredPaymentHold(booking, now);
 }
 
+function bookingUpdateSnapshot(booking = {}, packageName = "") {
+  return {
+    business_date: booking.business_date || null,
+    start_at: booking.start_at || null,
+    end_at: booking.end_at || null,
+    package_id: booking.package_id == null ? null : Number(booking.package_id),
+    package_name: packageName || `Package ${booking.package_id || "-"}`,
+    customer_name: booking.customer_name || "",
+    guest_count: booking.guest_count == null ? null : Number(booking.guest_count),
+    event_type: booking.event_type || "",
+    contact_number: booking.contact_number || "",
+    email: booking.email || "",
+  };
+}
+
 /* =====================================================
  PACKAGE POLICIES (1–6)
 ===================================================== */
@@ -1884,17 +1899,45 @@ export default function BookingForm({ user, member }) {
 
                   setEditLoading(true);
 
+                  const currentBooking =
+                    myBookings.find((booking) => booking.id === editBooking.id) || editBooking;
+                  const requestedAt = new Date().toISOString();
+                  const requestedBooking = {
+                    ...currentBooking,
+                    package_id: editBooking.package_id,
+                    customer_name: editBooking.customer_name,
+                    contact_number: editBooking.contact_number,
+                    email: editBooking.email,
+                    guest_count: editBooking.guest_count,
+                    event_type: editBooking.event_type,
+                    status: "pending",
+                  };
+                  const previousPackageName =
+                    packages.find((item) => Number(item.id) === Number(currentBooking.package_id))?.name;
+                  const requestedPackageName =
+                    packages.find((item) => Number(item.id) === Number(editBooking.package_id))?.name;
+                  const previousSnapshot = bookingUpdateSnapshot(currentBooking, previousPackageName);
+                  const requestedSnapshot = bookingUpdateSnapshot(requestedBooking, requestedPackageName);
+                  const updatePayload = {
+                    package_id: editBooking.package_id,
+                    customer_name: editBooking.customer_name,
+                    contact_number: editBooking.contact_number,
+                    email: editBooking.email,
+                    guest_count: editBooking.guest_count,
+                    event_type: editBooking.event_type,
+                    status: "pending",
+                    update_requested_at: requestedAt,
+                    update_request_type: "details_update",
+                    update_request_status: "pending",
+                    update_request_previous: previousSnapshot,
+                    update_request_requested: requestedSnapshot,
+                    update_reviewed_at: null,
+                    update_admin_note: null,
+                  };
+
                   const { error } = await supabase
                     .from("function_room_bookings")
-                    .update({
-                      package_id: editBooking.package_id,
-                      customer_name: editBooking.customer_name,
-                      contact_number: editBooking.contact_number,
-                      email: editBooking.email,
-                      guest_count: editBooking.guest_count,
-                      event_type: editBooking.event_type,
-                      status: "pending",
-                    })
+                    .update(updatePayload)
                     .eq("id", editBooking.id);
 
                   if (error) {
@@ -1905,13 +1948,28 @@ export default function BookingForm({ user, member }) {
 
                   setMyBookings((prev) =>
                     prev.map((x) =>
-                      x.id === editBooking.id ? { ...x, ...editBooking, status: "pending" } : x
+                      x.id === editBooking.id ? { ...x, ...updatePayload } : x
                     )
                   );
 
+                  const notification = await notifyBookingAdmin(requestedBooking, {
+                    notificationType: "booking_update_request",
+                    referenceCode: currentBooking.reference_code,
+                    updateRequestType: "details_update",
+                    requestedAt,
+                    previousBooking: previousSnapshot,
+                    requestedBooking: requestedSnapshot,
+                    paymentMethod: currentBooking.payment_method,
+                    paymentStatus: currentBooking.payment_status,
+                  });
+
                   setEditLoading(false);
                   setEditBooking(null);
-                  setNotice("✅ Booking updated. Waiting for confirmation.");
+                  setNotice(
+                    notification.sent
+                      ? "✅ Booking update requested. Waiting for confirmation."
+                      : "Booking update requested, but the admin email could not be sent. Please contact JUJA."
+                  );
                 }}
                 className="w-full py-3 rounded-xl bg-slate-600 text-white text-[11px] uppercase tracking-widest active:scale-95 disabled:opacity-60"
               >
@@ -2012,16 +2070,37 @@ export default function BookingForm({ user, member }) {
 
                   const newStart = computeDateTime(reschedDateISO, reschedHour);
                   const newEnd = new Date(newStart.getTime() + totalMinutes * 60000);
+                  const requestedAt = new Date().toISOString();
+                  const requestedBooking = {
+                    ...reschedBooking,
+                    business_date: reschedDateISO,
+                    start_at: toManilaOffsetISOString(newStart),
+                    end_at: toManilaOffsetISOString(newEnd),
+                    extension_hours: ext,
+                    status: "pending",
+                  };
+                  const packageName =
+                    packages.find((item) => Number(item.id) === Number(reschedBooking.package_id))?.name;
+                  const previousSnapshot = bookingUpdateSnapshot(reschedBooking, packageName);
+                  const requestedSnapshot = bookingUpdateSnapshot(requestedBooking, packageName);
+                  const updatePayload = {
+                    business_date: requestedBooking.business_date,
+                    start_at: requestedBooking.start_at,
+                    end_at: requestedBooking.end_at,
+                    extension_hours: ext,
+                    status: "pending",
+                    update_requested_at: requestedAt,
+                    update_request_type: "reschedule",
+                    update_request_status: "pending",
+                    update_request_previous: previousSnapshot,
+                    update_request_requested: requestedSnapshot,
+                    update_reviewed_at: null,
+                    update_admin_note: null,
+                  };
 
                   const { error } = await supabase
                     .from("function_room_bookings")
-                    .update({
-                      business_date: reschedDateISO,
-                      start_at: toManilaOffsetISOString(newStart),
-                      end_at: toManilaOffsetISOString(newEnd),
-                      extension_hours: ext,
-                      status: "pending",
-                    })
+                    .update(updatePayload)
                     .eq("id", reschedBooking.id);
 
                   if (error) {
@@ -2033,21 +2112,29 @@ export default function BookingForm({ user, member }) {
                   setMyBookings((prev) =>
                     prev.map((x) =>
                       x.id === reschedBooking.id
-                        ? {
-                            ...x,
-                            business_date: reschedDateISO,
-                            start_at: toManilaOffsetISOString(newStart),
-                            end_at: toManilaOffsetISOString(newEnd),
-                            extension_hours: ext,
-                            status: "pending",
-                          }
+                        ? { ...x, ...updatePayload }
                         : x
                     )
                   );
 
+                  const notification = await notifyBookingAdmin(requestedBooking, {
+                    notificationType: "booking_update_request",
+                    referenceCode: reschedBooking.reference_code,
+                    updateRequestType: "reschedule",
+                    requestedAt,
+                    previousBooking: previousSnapshot,
+                    requestedBooking: requestedSnapshot,
+                    paymentMethod: reschedBooking.payment_method,
+                    paymentStatus: reschedBooking.payment_status,
+                  });
+
                   setReschedLoading(false);
                   setReschedOpen(false);
-                  setNotice("✅ Booking rescheduled! Waiting for confirmation.");
+                  setNotice(
+                    notification.sent
+                      ? "✅ Reschedule requested. Waiting for confirmation."
+                      : "Reschedule requested, but the admin email could not be sent. Please contact JUJA."
+                  );
                 }}
                 className="w-full py-3.5 rounded-xl bg-slate-600 text-white font-normal text-[11px] md:text-[12px] uppercase tracking-widest hover:bg-sky-500 active:scale-95 disabled:opacity-60"
               >
