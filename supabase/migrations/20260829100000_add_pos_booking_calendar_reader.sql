@@ -72,3 +72,5 @@ $function$;
 revoke all on function public.list_pos_booking_calendar(date, date) from public;
 revoke all on function public.list_pos_booking_calendar(date, date) from anon;
 grant execute on function public.list_pos_booking_calendar(date, date) to authenticated;
+
+notify pgrst, 'reload schema';
