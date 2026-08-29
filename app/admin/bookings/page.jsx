@@ -161,6 +161,15 @@ function niceStatus(status) {
   if (status === "cancellation_requested") return "Cancel Request";
   return String(status || "—");
 }
+
+function manualBookingCreator(booking) {
+  if (!booking?.created_by_user_id) return null;
+  return {
+    name: booking.created_by_name || "Staff account",
+    email: booking.created_by_email || "",
+    source: String(booking.created_via || "manual").toUpperCase(),
+  };
+}
 function calendarBookingTone(booking) {
   if (booking.status === "confirmed") return "border-emerald-200 bg-emerald-50/80 hover:border-emerald-400";
   if (booking.status === "cancellation_requested") return "border-orange-200 bg-orange-50/80 hover:border-orange-400";
@@ -949,7 +958,9 @@ export default function AdminBookingsDashboard() {
         status: manualModal.status || "confirmed",
       };
 
-      const { data, error } = await supabase.rpc("create_booking", { data: payload });
+      const { data, error } = await supabase.rpc("create_manual_booking", {
+        data: { ...payload, created_via: "admin" },
+      });
       if (error) {
         const msg = String(error.message || "");
         if (msg.includes("no_overlap_function_room")) {
@@ -1395,6 +1406,7 @@ export default function AdminBookingsDashboard() {
                                   const pkg = pkgById.get(Number(booking.package_id));
                                   const extensionHours = Number(booking.extension_hours || 0);
                                   const locked = disableEdit(booking);
+                                  const creator = manualBookingCreator(booking);
                                   return (
                                     <button
                                       key={booking.id}
@@ -1415,6 +1427,7 @@ export default function AdminBookingsDashboard() {
                                       <div className="mt-2 flex flex-wrap gap-1">
                                         <span className="rounded-md bg-white/80 px-1.5 py-1 text-[8px] font-medium text-slate-600">{bookingTime(booking.start_at)}–{bookingTime(booking.end_at)}</span>
                                         <span className="rounded-md bg-white/80 px-1.5 py-1 text-[8px] font-medium text-slate-600">{calendarPaymentLabel(booking)}</span>
+                                        {creator ? <span className="rounded-md bg-indigo-100 px-1.5 py-1 text-[8px] font-semibold text-indigo-700">{creator.source}: {creator.name}</span> : null}
                                         {extensionHours > 0 ? <span className="rounded-md bg-violet-100 px-1.5 py-1 text-[8px] font-semibold text-violet-700">+{extensionHours}h admin</span> : null}
                                       </div>
                                     </button>
@@ -1589,6 +1602,7 @@ export default function AdminBookingsDashboard() {
                     const pkg = pkgById.get(Number(b.package_id));
                     const pkgName = pkg?.name || `Package #${b.package_id || "—"}`;
                     const fee = pkg?.rental_fee;
+                    const creator = manualBookingCreator(b);
 
                     const expired = isExpiredBooking(b);
                     const past = disableEdit(b);
@@ -1635,6 +1649,12 @@ export default function AdminBookingsDashboard() {
                                 <span className="px-2.5 py-1 rounded-full border text-[10px] font-semibold bg-slate-50 text-slate-700 border-slate-200">
                                   Payment: {String(b.payment_status).replace(/_/g, " ")}
                                   {b.payment_method ? ` / ${b.payment_method}` : ""}
+                                </span>
+                              ) : null}
+
+                              {creator ? (
+                                <span className="px-2.5 py-1 rounded-full border text-[10px] font-semibold bg-indigo-50 text-indigo-700 border-indigo-200">
+                                  Created by {creator.name}{creator.email ? ` (${creator.email})` : ""} · {creator.source}
                                 </span>
                               ) : null}
                             </div>

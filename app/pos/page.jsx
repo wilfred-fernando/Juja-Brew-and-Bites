@@ -23,6 +23,7 @@ import {
   setLocalSnapshot,
 } from "@/lib/localData";
 import TicketPanel from "@/components/pos/TicketPanel";
+import ManualBookingModal from "@/components/pos/ManualBookingModal";
 import PosApkUpdatePrompt from "@/components/PosApkUpdatePrompt";
 import ApkDownloadBanner from "@/components/ApkDownloadBanner";
 import { Barcode, Bluetooth, CalendarDays, DollarSign, MapPin, MessageSquare, Phone, Printer, RefreshCw, RotateCcw, Save, Search, ShoppingBasket, Star, Trash2 } from "lucide-react";
@@ -4159,6 +4160,7 @@ export default function POSPage() {
   const [splitSelected, setSplitSelected] = useState([]);
   const [diningOptionPickOpen, setDiningOptionPickOpen] = useState(false);
   const [posMenuOpen, setPosMenuOpen] = useState(false);
+  const [manualBookingOpen, setManualBookingOpen] = useState(false);
   const [managementOpen, setManagementOpen] = useState(false);
   const [managementView, setManagementView] = useState("receipts");
   const [itemsManagementTab, setItemsManagementTab] = useState("items");
@@ -9501,6 +9503,19 @@ export default function POSPage() {
     <div className="min-h-screen overscroll-none bg-[#FFF5F7] pb-24 lg:pb-0 font-sans antialiased text-slate-800" style={{ overscrollBehaviorY: "none" }}>
       <PosApkUpdatePrompt />
       <Toast toast={toast} onClose={() => setToast(null)} />
+      <ManualBookingModal
+        open={manualBookingOpen}
+        cashierName={cashierName}
+        onClose={() => setManualBookingOpen(false)}
+        onCreated={(booking) =>
+          showToast(
+            "success",
+            "Booking Created",
+            `${booking?.reference_code || booking?.id || "Manual booking"} was tagged to ${booking?.created_by_name || cashierName || "this account"}.`
+          )
+        }
+        onError={(message) => showToast("error", "Booking Failed", message)}
+      />
 
       <ApkDownloadBanner
         manifestUrl="/app-updates/pos.json"
@@ -9549,6 +9564,16 @@ export default function POSPage() {
                       {label}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPosMenuOpen(false);
+                      setManualBookingOpen(true);
+                    }}
+                    className="h-10 rounded-xl border border-rose-200 bg-rose-50 text-xs font-semibold uppercase tracking-wider text-[#FC687D]"
+                  >
+                    Manual Booking
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
