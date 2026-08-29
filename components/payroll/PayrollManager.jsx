@@ -466,9 +466,9 @@ export default function AdminPayrollPage() {
   const [scheduleDraftRows, setScheduleDraftRows] = useState([]);
   const [attendanceDraftRows, setAttendanceDraftRows] = useState([]);
   const [advanceForm, setAdvanceForm] = useState({ employee_id: "", advance_date: localDate(), amount: "", reason: "" });
-  const [repaymentForm, setRepaymentForm] = useState({ cash_advance_id: "", period_id: "", payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
+  const [repaymentForm, setRepaymentForm] = useState({ employee_id: "", cash_advance_id: "", period_id: "", payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
   const [loanForm, setLoanForm] = useState({ employee_id: "", loan_date: localDate(), amount: "", reason: "" });
-  const [loanRepaymentForm, setLoanRepaymentForm] = useState({ loan_id: "", period_id: "", payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
+  const [loanRepaymentForm, setLoanRepaymentForm] = useState({ employee_id: "", loan_id: "", period_id: "", payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
   const [miscDeductionForm, setMiscDeductionForm] = useState({ employee_id: "", period_id: "", deduction_date: localDate(), amount: "", description: "" });
   const [editingAdvanceId, setEditingAdvanceId] = useState("");
   const [editingRepaymentId, setEditingRepaymentId] = useState("");
@@ -499,8 +499,8 @@ export default function AdminPayrollPage() {
     if (!selectedEmployeeId && firstEmployee) setSelectedEmployeeId(firstEmployee);
     setAdvanceForm((current) => ({ ...current, employee_id: current.employee_id || firstEmployee }));
     setLoanForm((current) => ({ ...current, employee_id: current.employee_id || firstEmployee }));
-    setRepaymentForm((current) => ({ ...current, period_id: current.period_id || selectedPeriodId }));
-    setLoanRepaymentForm((current) => ({ ...current, period_id: current.period_id || selectedPeriodId }));
+    setRepaymentForm((current) => ({ ...current, employee_id: current.employee_id || firstEmployee, period_id: current.period_id || selectedPeriodId }));
+    setLoanRepaymentForm((current) => ({ ...current, employee_id: current.employee_id || firstEmployee, period_id: current.period_id || selectedPeriodId }));
     setMiscDeductionForm((current) => ({ ...current, employee_id: current.employee_id || firstEmployee, period_id: current.period_id || selectedPeriodId }));
     setRateIncreaseForm((current) => ({ ...current, employee_id: current.employee_id || firstEmployee }));
   }, [employees, selectedEmployeeId, selectedPeriodId]);
@@ -604,24 +604,45 @@ export default function AdminPayrollPage() {
     [selectedEmployeeLoanRows]
   );
 
+  const repaymentEmployeeAdvanceRows = useMemo(
+    () => advanceRows.filter((row) => row.employee_id === repaymentForm.employee_id),
+    [advanceRows, repaymentForm.employee_id]
+  );
+
+  const repaymentEmployeeOpenAdvanceRows = useMemo(
+    () => repaymentEmployeeAdvanceRows.filter((row) => row.balance > 0),
+    [repaymentEmployeeAdvanceRows]
+  );
+
+  const repaymentEmployeeLoanRows = useMemo(
+    () => loanRows.filter((row) => row.employee_id === loanRepaymentForm.employee_id),
+    [loanRepaymentForm.employee_id, loanRows]
+  );
+
+  const repaymentEmployeeOpenLoanRows = useMemo(
+    () => repaymentEmployeeLoanRows.filter((row) => row.balance > 0),
+    [repaymentEmployeeLoanRows]
+  );
+
   useEffect(() => {
     if (activeTab !== "deductions") return;
-    if (editingRepaymentId || editingLoanRepaymentId) return;
-    const currentIsVisible = selectedEmployeeOpenAdvanceRows.some((row) => row.id === repaymentForm.cash_advance_id);
+    const availableAdvances = editingRepaymentId ? repaymentEmployeeAdvanceRows : repaymentEmployeeOpenAdvanceRows;
+    const currentIsVisible = availableAdvances.some((row) => row.id === repaymentForm.cash_advance_id);
     if (!currentIsVisible) {
       setRepaymentForm((current) => ({
         ...current,
-        cash_advance_id: selectedEmployeeOpenAdvanceRows[0]?.id || "",
+        cash_advance_id: availableAdvances[0]?.id || "",
       }));
     }
-    const currentLoanIsVisible = selectedEmployeeOpenLoanRows.some((row) => row.id === loanRepaymentForm.loan_id);
+    const availableLoans = editingLoanRepaymentId ? repaymentEmployeeLoanRows : repaymentEmployeeOpenLoanRows;
+    const currentLoanIsVisible = availableLoans.some((row) => row.id === loanRepaymentForm.loan_id);
     if (!currentLoanIsVisible) {
       setLoanRepaymentForm((current) => ({
         ...current,
-        loan_id: selectedEmployeeOpenLoanRows[0]?.id || "",
+        loan_id: availableLoans[0]?.id || "",
       }));
     }
-  }, [activeTab, editingLoanRepaymentId, editingRepaymentId, loanRepaymentForm.loan_id, repaymentForm.cash_advance_id, selectedEmployeeOpenAdvanceRows, selectedEmployeeOpenLoanRows]);
+  }, [activeTab, editingLoanRepaymentId, editingRepaymentId, loanRepaymentForm.loan_id, repaymentEmployeeAdvanceRows, repaymentEmployeeLoanRows, repaymentEmployeeOpenAdvanceRows, repaymentEmployeeOpenLoanRows, repaymentForm.cash_advance_id]);
 
   const employeeAdvanceSummary = useMemo(() => {
     const map = {};
@@ -1143,7 +1164,7 @@ export default function AdminPayrollPage() {
     const { data, error } = await request.select().maybeSingle();
     if (error) return setNotice(`Cash Advance Failed: ${error.message}`);
     setAdvances((prev) => editingAdvanceId ? prev.map((row) => (row.id === data.id ? data : row)) : [data, ...prev]);
-    setRepaymentForm((current) => ({ ...current, cash_advance_id: data.id }));
+    setRepaymentForm((current) => ({ ...current, employee_id: data.employee_id, cash_advance_id: data.id }));
     setSelectedEmployeeId(data.employee_id);
     setEditingAdvanceId("");
     setAdvanceForm({ employee_id: advanceForm.employee_id, advance_date: localDate(), amount: "", reason: "" });
@@ -1179,7 +1200,7 @@ export default function AdminPayrollPage() {
       if (updated) setAdvances((prev) => prev.map((row) => (row.id === updated.id ? updated : row)));
     }
     setEditingRepaymentId("");
-    setRepaymentForm({ cash_advance_id: advance.id, period_id: repaymentForm.period_id, payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
+    setRepaymentForm({ employee_id: advance.employee_id, cash_advance_id: advance.id, period_id: repaymentForm.period_id, payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
     const synced = await syncPayrollForAffectedRows([previous, data], { repaymentRows: nextRepayments });
     setNotice(synced ? `Repayment ${editingRepaymentId ? "updated" : "recorded"} and payroll details updated.` : `Repayment ${editingRepaymentId ? "updated" : "recorded"}.`);
   }
@@ -1196,7 +1217,7 @@ export default function AdminPayrollPage() {
     const { data, error } = await request.select().maybeSingle();
     if (error) return setNotice(`Loan Failed: ${error.message}. Run supabase/migrations/20260615090000_add_payroll_loans.sql first.`);
     setLoans((prev) => editingLoanId ? prev.map((row) => (row.id === data.id ? data : row)) : [data, ...prev]);
-    setLoanRepaymentForm((current) => ({ ...current, loan_id: data.id }));
+    setLoanRepaymentForm((current) => ({ ...current, employee_id: data.employee_id, loan_id: data.id }));
     setSelectedEmployeeId(data.employee_id);
     setEditingLoanId("");
     setLoanForm({ employee_id: loanForm.employee_id, loan_date: localDate(), amount: "", reason: "" });
@@ -1233,7 +1254,7 @@ export default function AdminPayrollPage() {
       if (updated) setLoans((prev) => prev.map((row) => (row.id === updated.id ? updated : row)));
     }
     setEditingLoanRepaymentId("");
-    setLoanRepaymentForm({ loan_id: loan.id, period_id: loanRepaymentForm.period_id, payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
+    setLoanRepaymentForm({ employee_id: loan.employee_id, loan_id: loan.id, period_id: loanRepaymentForm.period_id, payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
     const synced = await syncPayrollForAffectedRows([previous, data], { loanRepaymentRows: nextLoanRepayments });
     setNotice(synced ? `Loan repayment ${editingLoanRepaymentId ? "updated" : "recorded"} and payroll details updated.` : `Loan repayment ${editingLoanRepaymentId ? "updated" : "recorded"}.`);
   }
@@ -1299,7 +1320,7 @@ export default function AdminPayrollPage() {
 
   function cancelRepaymentEdit() {
     setEditingRepaymentId("");
-    setRepaymentForm({ cash_advance_id: repaymentForm.cash_advance_id, period_id: selectedPeriodId, payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
+    setRepaymentForm({ employee_id: repaymentForm.employee_id, cash_advance_id: repaymentForm.cash_advance_id, period_id: selectedPeriodId, payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
   }
 
   function editRepayment(row) {
@@ -1307,6 +1328,7 @@ export default function AdminPayrollPage() {
     setEditingRepaymentId(row.id);
     setSelectedEmployeeId(row.employee_id || selectedEmployeeId);
     setRepaymentForm({
+      employee_id: row.employee_id || "",
       cash_advance_id: row.cash_advance_id || "",
       period_id: row.period_id || "",
       payment_date: row.payment_date || localDate(),
@@ -1336,7 +1358,7 @@ export default function AdminPayrollPage() {
 
   function cancelLoanRepaymentEdit() {
     setEditingLoanRepaymentId("");
-    setLoanRepaymentForm({ loan_id: loanRepaymentForm.loan_id, period_id: selectedPeriodId, payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
+    setLoanRepaymentForm({ employee_id: loanRepaymentForm.employee_id, loan_id: loanRepaymentForm.loan_id, period_id: selectedPeriodId, payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
   }
 
   function editLoanRepayment(row) {
@@ -1344,6 +1366,7 @@ export default function AdminPayrollPage() {
     setEditingLoanRepaymentId(row.id);
     setSelectedEmployeeId(row.employee_id || selectedEmployeeId);
     setLoanRepaymentForm({
+      employee_id: row.employee_id || "",
       loan_id: row.loan_id || "",
       period_id: row.period_id || "",
       payment_date: row.payment_date || row.repayment_date || localDate(),
@@ -2096,9 +2119,12 @@ export default function AdminPayrollPage() {
             <form onSubmit={saveRepayment} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
               <h2 className="text-sm font-semibold text-slate-950">{editingRepaymentId ? "Edit Cash Advance Deduction / Repayment" : "Cash Advance Deduction / Repayment"}</h2>
               <div className="mt-4 space-y-3">
+                <select value={repaymentForm.employee_id} onChange={(e) => setRepaymentForm((p) => ({ ...p, employee_id: e.target.value, cash_advance_id: "" }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
+                  {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}
+                </select>
                 <select value={repaymentForm.cash_advance_id} onChange={(e) => setRepaymentForm((p) => ({ ...p, cash_advance_id: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
                   <option value="">Select advance</option>
-                  {(editingRepaymentId ? selectedEmployeeAdvanceRows : selectedEmployeeOpenAdvanceRows).map((row) => <option key={row.id} value={row.id}>{dateText(row.advance_date)} / {money(Math.max(0, row.balance))}</option>)}
+                  {(editingRepaymentId ? repaymentEmployeeAdvanceRows : repaymentEmployeeOpenAdvanceRows).map((row) => <option key={row.id} value={row.id}>{dateText(row.advance_date)} / {money(Math.max(0, row.balance))}</option>)}
                 </select>
                 <select value={repaymentForm.period_id} onChange={(e) => setRepaymentForm((p) => ({ ...p, period_id: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">{sortedPeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select>
                 <input type="date" value={repaymentForm.payment_date} onChange={(e) => setRepaymentForm((p) => ({ ...p, payment_date: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
@@ -2111,9 +2137,12 @@ export default function AdminPayrollPage() {
             <form onSubmit={saveLoanRepayment} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
               <h2 className="text-sm font-semibold text-slate-950">{editingLoanRepaymentId ? "Edit Loan Deduction / Repayment" : "Loan Deduction / Repayment"}</h2>
               <div className="mt-4 space-y-3">
+                <select value={loanRepaymentForm.employee_id} onChange={(e) => setLoanRepaymentForm((p) => ({ ...p, employee_id: e.target.value, loan_id: "" }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
+                  {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}
+                </select>
                 <select value={loanRepaymentForm.loan_id} onChange={(e) => setLoanRepaymentForm((p) => ({ ...p, loan_id: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
                   <option value="">Select loan</option>
-                  {(editingLoanRepaymentId ? selectedEmployeeLoanRows : selectedEmployeeOpenLoanRows).map((row) => <option key={row.id} value={row.id}>{dateText(row.loan_date)} / {money(Math.max(0, row.balance))}</option>)}
+                  {(editingLoanRepaymentId ? repaymentEmployeeLoanRows : repaymentEmployeeOpenLoanRows).map((row) => <option key={row.id} value={row.id}>{dateText(row.loan_date)} / {money(Math.max(0, row.balance))}</option>)}
                 </select>
                 <select value={loanRepaymentForm.period_id} onChange={(e) => setLoanRepaymentForm((p) => ({ ...p, period_id: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">{sortedPeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select>
                 <input type="date" value={loanRepaymentForm.payment_date} onChange={(e) => setLoanRepaymentForm((p) => ({ ...p, payment_date: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
