@@ -24,6 +24,7 @@ import {
 } from "@/lib/localData";
 import TicketPanel from "@/components/pos/TicketPanel";
 import ManualBookingModal from "@/components/pos/ManualBookingModal";
+import BookingCalendarModal from "@/components/pos/BookingCalendarModal";
 import PosApkUpdatePrompt from "@/components/PosApkUpdatePrompt";
 import ApkDownloadBanner from "@/components/ApkDownloadBanner";
 import { Barcode, Bluetooth, CalendarDays, DollarSign, MapPin, MessageSquare, Phone, Printer, RefreshCw, RotateCcw, Save, Search, ShoppingBasket, Star, Trash2 } from "lucide-react";
@@ -4161,6 +4162,7 @@ export default function POSPage() {
   const [diningOptionPickOpen, setDiningOptionPickOpen] = useState(false);
   const [posMenuOpen, setPosMenuOpen] = useState(false);
   const [manualBookingOpen, setManualBookingOpen] = useState(false);
+  const [bookingCalendarOpen, setBookingCalendarOpen] = useState(false);
   const [managementOpen, setManagementOpen] = useState(false);
   const [managementView, setManagementView] = useState("receipts");
   const [itemsManagementTab, setItemsManagementTab] = useState("items");
@@ -9516,6 +9518,11 @@ export default function POSPage() {
         }
         onError={(message) => showToast("error", "Booking Failed", message)}
       />
+      <BookingCalendarModal
+        open={bookingCalendarOpen}
+        onClose={() => setBookingCalendarOpen(false)}
+        onError={(message) => showToast("error", "Calendar Failed", message)}
+      />
 
       <ApkDownloadBanner
         manifestUrl="/app-updates/pos.json"
@@ -9564,6 +9571,16 @@ export default function POSPage() {
                       {label}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPosMenuOpen(false);
+                      setBookingCalendarOpen(true);
+                    }}
+                    className="h-10 rounded-xl border border-slate-200 bg-white text-xs font-semibold uppercase tracking-wider text-slate-600"
+                  >
+                    Booking Calendar
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
