@@ -152,8 +152,14 @@ export async function POST(request) {
     const body = await request.json();
     const entityType = String(body?.entityType || "").trim().toLowerCase();
     const entityId = String(body?.entityId || "").trim();
-    if (!['booking', 'web_order'].includes(entityType) || !entityId) {
-      return Response.json({ error: "A valid booking or web order is required." }, { status: 400 });
+    if (entityType === "web_order") {
+      return Response.json(
+        { error: "PayMongo is no longer available for web orders. Please use QRPH." },
+        { status: 410 }
+      );
+    }
+    if (entityType !== "booking" || !entityId) {
+      return Response.json({ error: "A valid booking is required." }, { status: 400 });
     }
 
     const admin = paymongoAdminClient();

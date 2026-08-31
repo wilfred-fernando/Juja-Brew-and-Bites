@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -46,6 +47,7 @@ const peso0 = (amount) => `₱${Number(amount || 0).toLocaleString("en-PH", { ma
 const peso2 = (amount) => `₱${Number(amount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const ALERT_SOUND_SRC = "/sound/notification.mp3";
 const CUSTOMER_NOTIFICATION_ICON = "/favicon.ico";
+const QRPH_IMAGE_PATH = "https://files.jujabrewandbites.com/public-media/qrph.jpg";
 const isMenuItemMarkedAvailable = (item) => item?.is_available !== false && item?.available !== false;
 const optionGroupKey = (value) => String(value || "").trim().toLowerCase();
 const optionSelectionKey = (value) => String(value || "").trim().toLowerCase();
@@ -1299,8 +1301,8 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
   const isScheduledOrder = Boolean(selectedTargetAt && selectedTargetAt > minImmediateAt);
   const isValidTime = fulfillmentTime && fulfillmentTime.trim() !== "" && targetTimeOptions.some((option) => option.value === fulfillmentTime);
   const paymentOptions = diningOption === "DELIVERY"
-    ? ["PayMongo"]
-    : ["Cash", "PayMongo"];
+    ? ["QRPH"]
+    : ["Cash", "QRPH"];
   const regularDeliveryFee = Number(deliveryQuote?.regularFee || deliveryQuote?.fee || 0);
   const deliveryFee = diningOption === "DELIVERY" ? regularDeliveryFee : 0;
   const orderTotal = subtotal + deliveryFee;
@@ -1313,7 +1315,8 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
     (diningOption !== "DELIVERY" || deliveryAddress.trim().length >= 8) &&
     hasDeliveryQuote &&
     !deliveryQuoteLoading &&
-    paymentOptions.includes(paymentMethod);
+    paymentOptions.includes(paymentMethod) &&
+    (paymentMethod !== "QRPH" || Boolean(paymentProof));
   const potentialPointsEarned = loyaltyPoints(loyaltyEligibleSubtotal);
   const deliveryAddressSearchTerm = deliveryAddress.trim();
   const deliveryMapUrl = deliveryMapPreviewUrl({ pin: deliveryPin });
@@ -1379,7 +1382,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                   onClick={() => {
                     setDiningOption(opt.id);
                     setPaymentProof(null);
-                    setPaymentMethod(opt.id === "DELIVERY" ? "PayMongo" : "Cash");
+                    setPaymentMethod(opt.id === "DELIVERY" ? "QRPH" : "Cash");
                   }}
                   className={`min-h-20 rounded-2xl border px-2 py-3 flex flex-col items-center justify-center gap-2 font-bold text-xs transition ${
                     diningOption === opt.id
@@ -1642,6 +1645,43 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                   </button>
                 ))}
               </div>
+
+              {paymentMethod === "QRPH" && (
+                <div className="mt-4 space-y-4 rounded-2xl border border-emerald-900/10 bg-[#f7f4ec] p-4">
+                  <div className="text-center">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-[#0b6942]">
+                      Scan to pay {peso2(orderTotal)}
+                    </p>
+                    <Image
+                      src={QRPH_IMAGE_PATH}
+                      alt="JUJA QRPH payment code"
+                      width={260}
+                      height={260}
+                      className="mx-auto mt-3 w-full max-w-[260px] rounded-2xl border border-slate-200 bg-white object-contain p-2"
+                    />
+                    <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                      Complete the transfer in your banking or e-wallet app, then attach the payment confirmation below.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+                      Payment confirmation
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      onChange={(event) => setPaymentProof(event.target.files?.[0] || null)}
+                      className="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-[#0b6942] file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white"
+                    />
+                    {paymentProof ? (
+                      <p className="mt-2 text-xs font-medium text-[#0b6942]">Ready to submit: {paymentProof.name}</p>
+                    ) : (
+                      <p className="mt-2 text-xs font-medium text-amber-700">A payment confirmation is required.</p>
+                    )}
+                  </div>
+                </div>
+              )}
             </section>
           )}
 
@@ -2120,15 +2160,21 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
     setIsSubmitting(true);
 
     const allowedPaymentMethods = fulfillmentMetadata.diningOption === "DELIVERY"
-      ? ["PayMongo"]
-      : ["Cash", "PayMongo"];
+      ? ["QRPH"]
+      : ["Cash", "QRPH"];
     if (!allowedPaymentMethods.includes(fulfillmentMetadata.paymentMethod)) {
       setIsSubmitting(false);
       alert("Please select an available payment method for this order type.");
       return;
     }
 
-    const isPaymongo = fulfillmentMetadata.paymentMethod === "PayMongo";
+    const isQrph = fulfillmentMetadata.paymentMethod === "QRPH";
+
+    if (isQrph && !fulfillmentMetadata.paymentProof) {
+      setIsSubmitting(false);
+      alert("Please attach your QRPH payment confirmation.");
+      return;
+    }
 
     let paymentProofUrl = "";
     if (fulfillmentMetadata.paymentProof) {
@@ -2146,7 +2192,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
     }
 
     const releaseStatus = fulfillmentMetadata.isScheduled ? "scheduled" : "pending";
-    const orderStatus = isPaymongo ? "payment_pending" : releaseStatus;
+    const orderStatus = releaseStatus;
     const deliveryFee = fulfillmentMetadata.diningOption === "DELIVERY" ? Number(fulfillmentMetadata.deliveryFee || 0) : 0;
     const orderTotal = Number(subtotal) + deliveryFee;
     const idempotencyKey = customerOrderIdempotencyKey();
@@ -2180,7 +2226,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       delivery_quoted_at: fulfillmentMetadata.diningOption === "DELIVERY" ? new Date().toISOString() : null,
       customer_contact: member?.Phone || member?.phone || "",
       payment_method: fulfillmentMetadata.paymentMethod,
-      payment_status: isPaymongo ? "checkout_pending" : "pending",
+      payment_status: isQrph ? "submitted" : "pending",
       payment_proof_url: paymentProofUrl,
       payment_review_note: "",
       client_idempotency_key: idempotencyKey,
@@ -2188,36 +2234,6 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
 
     try {
       const { row: freshWebOrderRow, created } = await insertCustomerWebOrder(orderPayload);
-      if (isPaymongo) {
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
-        const accessToken = sessionData?.session?.access_token;
-        if (!accessToken) throw new Error("Customer login is required to continue payment.");
-
-        const response = await fetch("/api/payments/paymongo/checkout", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            entityType: "web_order",
-            entityId: freshWebOrderRow.id,
-            releaseStatus,
-          }),
-        });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok || !result?.checkoutUrl) {
-          throw new Error(result?.error || "Unable to open PayMongo checkout.");
-        }
-
-        setCart([]);
-        setConfirmationOpen(false);
-        setCartOpen(false);
-        window.location.assign(result.checkoutUrl);
-        return;
-      }
-
       if (created) {
         notifyStoreOfCustomerOrder(freshWebOrderRow, {
           itemCount,
@@ -2233,7 +2249,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       if (onCheckoutSuccess) onCheckoutSuccess();
     } catch (err) {
       console.error("Critical submission failure loop trace:", err);
-      if (isConnectivityFailure(err) && !paymentProofUrl && !isPaymongo) {
+      if (isConnectivityFailure(err) && !paymentProofUrl && !isQrph) {
         const queuedOrder = {
           ...orderPayload,
           id: `offline:${idempotencyKey}`,
