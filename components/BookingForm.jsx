@@ -5,6 +5,7 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { uploadProofFile } from "@/lib/storage/uploadProof";
 import { getLocalSnapshot, isLocalSnapshotFresh, setLocalSnapshot } from "@/lib/localData";
+import { packageExtensionPolicyText } from "@/lib/bookings/extensionPolicy";
 
 const supabase = getSupabaseClient();
 
@@ -316,7 +317,8 @@ function labelHour(h) {
   return `${disp}:00 ${ampm}${dayOffset}`;
 }
 function labelBookingSlot(_dateISO, hour) {
-  return `${labelHour(hour).replace(" (+1)", "")} - ${labelHour(hour + 3)}`;
+  const compactHour = (value) => labelHour(value).replace(":00", "").replace(" (+1)", "");
+  return `${compactHour(hour)} - ${compactHour(hour + 3)}`;
 }
 function bookingDurationMinutes() {
   return BASE_BOOKING_MINUTES;
@@ -2349,9 +2351,18 @@ export default function BookingForm({ user, member }) {
                     </p>
                   </div>
 
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+                    <p className="mb-2 text-[10px] uppercase tracking-widest text-amber-800">
+                      3. Extension Policy
+                    </p>
+                    <p className="text-[12px] leading-relaxed text-amber-950">
+                      • {packageExtensionPolicyText(policy.id)}
+                    </p>
+                  </div>
+
                   <div className="bg-white border border-sky-200 rounded-2xl p-4">
                     <p className="text-[10px] uppercase tracking-widest text-slate-600 mb-2">
-                      3. Food & Beverages
+                      4. Food & Beverages
                     </p>
                     <p className="text-[12px] text-slate-700 mb-2">
                       • {policy.food_beverages.policy}

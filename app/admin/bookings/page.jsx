@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/dateFormat";
+import { packageExtensionPolicyText } from "@/lib/bookings/extensionPolicy";
 
 const supabase = getSupabaseClient();
 
@@ -53,7 +54,8 @@ function labelHour(h) {
   return `${disp}:00 ${ampm}${dayOffset}`;
 }
 function labelBookingSlot(hour) {
-  return `${labelHour(hour).replace(" (+1)", "")} - ${labelHour(hour + 3)}`;
+  const compactHour = (value) => labelHour(value).replace(":00", "").replace(" (+1)", "");
+  return `${compactHour(hour)} - ${compactHour(hour + 3)}`;
 }
 function editSlotHours(currentHour) {
   const hour = Number(currentHour);
@@ -1985,6 +1987,7 @@ export default function AdminBookingsDashboard() {
                     <option key={hours} value={hours}>{hours}</option>
                   ))}
                 </select>
+                <p className="mt-1.5 text-[10px] leading-relaxed text-amber-700">{packageExtensionPolicyText(manualModal.package_id)}</p>
               </div>
 
               <div>
@@ -2098,6 +2101,7 @@ export default function AdminBookingsDashboard() {
                     <option key={hours} value={hours}>{hours}</option>
                   ))}
                 </select>
+                <p className="mt-1.5 text-[10px] leading-relaxed text-amber-700">{packageExtensionPolicyText(editModal.package_id)}</p>
               </div>
 
               <div>

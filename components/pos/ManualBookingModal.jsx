@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { packageExtensionPolicyText } from "@/lib/bookings/extensionPolicy";
 
 const supabase = getSupabaseClient();
 const START_HOURS = Array.from({ length: 13 }, (_, index) => 10 + index);
@@ -179,7 +180,12 @@ export default function ManualBookingModal({ open, cashierName, onClose, onCreat
           </Field>
           <Field label="Start Date"><input type="date" min={manilaDateISO()} value={form.dateISO} onChange={(e) => setForm((p) => ({ ...p, dateISO: e.target.value }))} className="field" /></Field>
           <Field label="Start Time (Hourly)"><select value={form.hour} onChange={(e) => setForm((p) => ({ ...p, hour: Number(e.target.value) }))} className="field">{START_HOURS.map((hour) => <option key={hour} value={hour}>{labelHour(hour)}</option>)}</select></Field>
-          <Field label="Extension Hours"><select value={form.extension_hours} onChange={(e) => setForm((p) => ({ ...p, extension_hours: Number(e.target.value) }))} className="field">{Array.from({ length: MAX_EXTENSION_HOURS + 1 }, (_, hours) => <option key={hours} value={hours}>{hours}</option>)}</select></Field>
+          <Field label="Extension Hours" wide>
+            <select value={form.extension_hours} onChange={(e) => setForm((p) => ({ ...p, extension_hours: Number(e.target.value) }))} className="field">
+              {Array.from({ length: MAX_EXTENSION_HOURS + 1 }, (_, hours) => <option key={hours} value={hours}>{hours}</option>)}
+            </select>
+            <span className="mt-1.5 block text-[10px] normal-case leading-relaxed tracking-normal text-amber-700">{packageExtensionPolicyText(form.package_id)}</span>
+          </Field>
           <Field label="Status"><select value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))} className="field"><option value="confirmed">Confirmed</option><option value="pending">Pending</option></select></Field>
         </div>
 

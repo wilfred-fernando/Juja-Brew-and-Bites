@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/dateFormat";
+import { packageExtensionSummary } from "@/lib/bookings/extensionPolicy";
 
 // ✅ Reuse booking system availability UI (must be exported from BookingForm.jsx)
 import { BookingAvailabilityOnly } from "@/components/BookingForm";
@@ -272,6 +273,7 @@ export default function FunctionRoomPage() {
           "Private use of function room",
           "Order from the full menu catalog",
           "Use of entertainment amenities: Videoke, YouTube & Netflix",
+          packageExtensionSummary(1),
         ],
       },
       {
@@ -284,6 +286,7 @@ export default function FunctionRoomPage() {
           "Private use of function room",
           "Order from the full menu catalog",
           "Use of entertainment amenities: Videoke, YouTube & Netflix",
+          packageExtensionSummary(2),
         ],
       },
       {
@@ -296,6 +299,7 @@ export default function FunctionRoomPage() {
           "Exclusive use of the entire store",
           "Order from the full menu catalog",
           "Use of entertainment amenities: Videoke, YouTube & Netflix",
+          packageExtensionSummary(3),
         ],
       },
     ],
@@ -310,6 +314,7 @@ export default function FunctionRoomPage() {
           "Private use of function room",
           "Inclusive of corkage for food and drinks",
           "Use of entertainment amenities: Videoke, YouTube & Netflix",
+          packageExtensionSummary(4),
         ],
       },
       {
@@ -322,6 +327,7 @@ export default function FunctionRoomPage() {
           "Private use of function room",
           "Inclusive of corkage for food and drinks",
           "Use of entertainment amenities: Videoke, YouTube & Netflix",
+          packageExtensionSummary(5),
         ],
       },
       {
@@ -334,6 +340,7 @@ export default function FunctionRoomPage() {
           "Exclusive use of the entire store",
           "Inclusive of corkage for food and drinks",
           "Use of entertainment amenities: Videoke, YouTube & Netflix",
+          packageExtensionSummary(6),
         ],
       },
     ],
