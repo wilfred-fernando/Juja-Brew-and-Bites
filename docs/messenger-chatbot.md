@@ -59,7 +59,7 @@ Meta must reach the callback over public HTTPS with a valid certificate. The POS
 - Question answers can be stored as customer fields and used by conditional edges.
 - Inbound and outbound events are recorded, and duplicate webhook events are ignored.
 - Human handoff pauses automation until an administrator selects **Resume bot**.
-- A reply sent by a Live Chat agent from Meta Business Suite or the Page Inbox pauses JujaBot for that customer for two hours. Additional agent replies reset the two-hour window. JujaBot resumes on the first customer message after the window expires.
+- A reply sent by a Live Chat agent from Meta Business Suite or the Page Inbox pauses JujaBot for that customer for one hour. Additional agent replies reset the one-hour window. JujaBot resumes on the first customer message after the window expires.
 - JujaBot Send API echoes carry an internal metadata marker and are also matched against recorded outbound message IDs, so the bot does not pause itself.
 - Unmatched text is answered by the AI assistant using recent conversation history and business guardrails.
 - The AI never receives the raw Messenger customer ID; the request uses a one-way privacy-preserving safety identifier.

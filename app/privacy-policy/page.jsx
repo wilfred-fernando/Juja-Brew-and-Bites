@@ -16,7 +16,7 @@ const sections = [
   },
   {
     title: "AI-assisted replies",
-    content: "Message text and limited conversation context may be sent securely to OpenAI to generate a response. We do not send payment card numbers, government identification, raw Messenger access tokens, or unrelated booking-customer records to the AI service. A Live Chat agent can take over a conversation, and automated replies pause for two hours after the agent responds.",
+    content: "Message text and limited conversation context may be sent securely to OpenAI to generate a response. We do not send payment card numbers, government identification, raw Messenger access tokens, or unrelated booking-customer records to the AI service. A Live Chat agent can take over a conversation, and automated replies pause for one hour after the agent responds.",
   },
   {
     title: "Service providers and disclosure",
