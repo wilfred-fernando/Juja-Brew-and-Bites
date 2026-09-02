@@ -12,11 +12,11 @@ const sections = [
   },
   {
     title: "How we use information",
-    content: "We use this information to answer questions through JujaBot, personalize replies, route conversations to staff, prevent duplicate messages, maintain conversation context, provide customer support, process requested services, protect our systems, and comply with applicable obligations. Automated replies may use current menu and function-room information from our business database.",
+    content: "We use this information to answer questions through JujaBot, personalize replies, route conversations to our Live Chat team, prevent duplicate messages, maintain conversation context, provide customer support, process requested services, protect our systems, and comply with applicable obligations. Automated replies may use current menu and function-room information from our business database.",
   },
   {
     title: "AI-assisted replies",
-    content: "Message text and limited conversation context may be sent securely to OpenAI to generate a response. We do not send payment card numbers, government identification, raw Messenger access tokens, or unrelated booking-customer records to the AI service. A staff member can take over a conversation, and automated replies pause for two hours after staff responds.",
+    content: "Message text and limited conversation context may be sent securely to OpenAI to generate a response. We do not send payment card numbers, government identification, raw Messenger access tokens, or unrelated booking-customer records to the AI service. A Live Chat agent can take over a conversation, and automated replies pause for two hours after the agent responds.",
   },
   {
     title: "Service providers and disclosure",
