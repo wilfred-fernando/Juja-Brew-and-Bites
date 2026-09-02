@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { getStableSession } from "@/lib/supabase/session";
 
 const supabase = getSupabaseClient();
 
@@ -82,9 +83,15 @@ export default function CustomerAuthCallbackPage() {
         let confirmedUser = null;
 
         if (code) {
-          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-          if (exchangeError) throw exchangeError;
-          confirmedUser = data?.user || null;
+          // The shared browser client has detectSessionInUrl enabled and owns the
+          // PKCE exchange. Wait for that exchange instead of consuming the code twice.
+          const { session, error: sessionError } = await getStableSession(supabase, {
+            attempts: 12,
+            delayMs: 250,
+          });
+          if (sessionError) throw sessionError;
+          if (!session?.user) throw new Error("Unable to establish a session from this confirmation link.");
+          confirmedUser = session.user;
         } else if (tokenHash) {
           const data = await verifyTokenHash(tokenHash, type);
           confirmedUser = data?.user || null;
@@ -111,12 +118,11 @@ export default function CustomerAuthCallbackPage() {
           throw new Error("Email was not confirmed by Supabase. Please request a new verification email.");
         }
 
-        setStatus("Email confirmed successfully. Redirecting to login...");
-        await supabase.auth.signOut();
+        setStatus("Email confirmed successfully. Opening loyalty account setup...");
 
         redirectTimer = window.setTimeout(() => {
-          window.location.href = customerPath("/login");
-        }, 2500);
+          window.location.replace(customerPath("/?loyaltySetup=1"));
+        }, 1500);
       } catch (err) {
         setError(err?.message || "Unable to confirm email.");
         setStatus("Email confirmation needs attention.");

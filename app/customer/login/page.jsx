@@ -32,7 +32,8 @@ export default function Login() {
   const router = useRouter();
 
   const [mode, setMode] = useState("signin");
-  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", birthday: "", password: "" });
+  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", birthday: "", contactNumber: "", password: "" });
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -87,8 +88,16 @@ export default function Login() {
         const firstName = form.firstName.trim();
         const lastName = form.lastName.trim();
         const fullName = [firstName, lastName].filter(Boolean).join(" ");
-        if (!firstName || !lastName || !form.birthday) {
-          throw new Error("First name, last name, and birthday are required.");
+        const contactNumber = form.contactNumber.trim();
+        const contactDigits = contactNumber.replace(/\D/g, "");
+        if (!firstName || !lastName || !form.birthday || !contactNumber) {
+          throw new Error("First name, last name, birthday, and contact number are required.");
+        }
+        if (contactDigits.length < 10 || contactDigits.length > 12) {
+          throw new Error("Please enter a valid contact number.");
+        }
+        if (!privacyAccepted) {
+          throw new Error("Please review and accept the Data Privacy consent before creating your account.");
         }
 
         const { error: authError } = await supabase.auth.signUp({
@@ -101,6 +110,10 @@ export default function Login() {
               last_name: lastName,
               full_name: fullName,
               birthday: form.birthday,
+              contact_number: contactNumber,
+              privacy_consent: true,
+              privacy_consent_version: "2026-08-20",
+              privacy_consent_at: new Date().toISOString(),
             },
             emailRedirectTo: customerLoginRedirectUrl(),
           },
@@ -109,9 +122,10 @@ export default function Login() {
         if (authError) throw authError;
 
         await supabase.auth.signOut();
-        setSuccess("Account created. Please verify your email before signing in.");
+        setSuccess("Account created. Please verify your email, then complete your loyalty account setup.");
         setMode("signin");
-        setForm({ firstName: "", lastName: "", email: form.email, birthday: "", password: "" });
+        setForm({ firstName: "", lastName: "", email: form.email, birthday: "", contactNumber: "", password: "" });
+        setPrivacyAccepted(false);
         setCaptchaToken("");
         setCaptchaResetKey((key) => key + 1);
         setLoading(false);
@@ -271,6 +285,27 @@ export default function Login() {
                 </div>
               )}
 
+              {mode === "signup" && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    Contact Number
+                  </label>
+
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    required
+                    value={form.contactNumber}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, contactNumber: e.target.value }))
+                    }
+                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-sky-500/30 transition-all text-slate-700"
+                    placeholder="09XX XXX XXXX"
+                  />
+                </div>
+              )}
+
               {/* PASSWORD */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">
@@ -317,6 +352,30 @@ export default function Login() {
                 onTokenChange={setCaptchaToken}
               />
 
+              {mode === "signup" && (
+                <label className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-4 text-xs leading-relaxed text-slate-600">
+                  <input
+                    type="checkbox"
+                    required
+                    checked={privacyAccepted}
+                    onChange={(e) => setPrivacyAccepted(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-[#FC687D]"
+                  />
+                  <span>
+                    I have read and agree to JUJA&apos;s{" "}
+                    <a
+                      href="https://www.jujabrewandbites.com/privacy-policy"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-bold text-[#FC687D] underline"
+                    >
+                      Data Privacy Policy
+                    </a>
+                    , including the collection and use of my account, birthday, and contact information for customer and loyalty services.
+                  </span>
+                </label>
+              )}
+
               {/* BUTTON */}
               <button
                 type="submit"
@@ -333,6 +392,7 @@ export default function Login() {
                   setSuccess("");
                   setCaptchaToken("");
                   setCaptchaResetKey((key) => key + 1);
+                  setPrivacyAccepted(false);
                   setMode((m) => (m === "signup" ? "signin" : "signup"));
                 }}
                 className="w-full py-2 text-xs font-bold text-[#FC687D]"

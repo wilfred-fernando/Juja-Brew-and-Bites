@@ -2832,7 +2832,7 @@ function LoyaltyPerksPanel({ compact = false }) {
   );
 }
 
-function LoyaltyTab({ member, setMember, user }) {
+function LoyaltyTab({ member, setMember, user, requiredSetup = false }) {
   const [mode, setMode] = useState(null); 
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
@@ -2858,6 +2858,42 @@ function LoyaltyTab({ member, setMember, user }) {
   const [savingDetails, setSavingDetails] = useState(false);
   const [detailsForm, setDetailsForm] = useState({ customer_name: "", Phone: "" });
   const birthdayVoucherCheckRef = useRef("");
+
+  useEffect(() => {
+    if (!user?.id || member?.id) return;
+    const metadata = user.user_metadata || {};
+    setForm((current) => ({
+      ...current,
+      first_name: current.first_name || metadata.first_name || "",
+      last_name: current.last_name || metadata.last_name || "",
+      Phone: current.Phone || metadata.contact_number || metadata.phone || "",
+      Note: current.Note || dateInputToBirthday(metadata.birthday || ""),
+    }));
+  }, [user?.id, member?.id]);
+
+  useEffect(() => {
+    if (!requiredSetup || !user?.id || member?.id) return;
+    let cancelled = false;
+
+    async function loadPendingLinkRequest() {
+      const { data } = await supabase
+        .from("loyalty_link_requests")
+        .select("id,status,created_at")
+        .eq("user_id", user.id)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (cancelled || !data?.id) return;
+      setMode("existing");
+      setMatchChecked(true);
+      setLinkRequestSent(true);
+      setNotice("Your loyalty account link request is pending admin review.");
+    }
+
+    loadPendingLinkRequest();
+    return () => { cancelled = true; };
+  }, [requiredSetup, user?.id, member?.id]);
 
   const available = Number(member?.["Available points"] || 0);
   const progress = ((available % 100) / 100) * 100;
@@ -3161,7 +3197,7 @@ function LoyaltyTab({ member, setMember, user }) {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
-          <button onClick={() => setMode("new")} className="flex-1 h-12 bg-[#FC687D] text-white font-bold text-sm rounded-xl shadow-sm hover:bg-rose-500 transition">Sign Up Program</button>
+          <button onClick={() => setMode("new")} className="flex-1 h-12 bg-[#FC687D] text-white font-bold text-sm rounded-xl shadow-sm hover:bg-rose-500 transition">Create New Loyalty Account</button>
           <button onClick={() => setMode("existing")} className="flex-1 h-12 bg-white border border-slate-200 text-slate-700 font-bold text-sm rounded-xl hover:bg-slate-50 transition">Link Existing Loyalty Card</button>
         </div>
       </div>
@@ -3608,6 +3644,7 @@ export default function Customer() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [showNotificationBanner, setShowNotificationBanner] = useState(false);
+  const [confirmedSetup, setConfirmedSetup] = useState(false);
   const readyAlertIntervalRef = useRef(null);
 
   // Application UI internal toast context states register caching memory
@@ -3620,6 +3657,7 @@ export default function Customer() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    setConfirmedSetup(params.get("loyaltySetup") === "1");
     const result = params.get("payment");
     if (!result) return;
 
@@ -4149,22 +4187,52 @@ export default function Customer() {
         </div>
       )}
 
-      <AppNavigation tab={tab} setTab={setTab} />
+      {!member && user && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center overflow-y-auto bg-slate-950/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="loyalty-setup-title">
+          <div className="my-auto w-full max-w-3xl rounded-[28px] border border-rose-100 bg-[#FFF9FA] p-4 shadow-2xl sm:p-7">
+            <div className="mb-4 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#FC687D]">Required Account Setup</p>
+              <h2 id="loyalty-setup-title" className="mt-1 text-2xl font-bold text-slate-900">
+                {confirmedSetup ? "Email confirmed — one last step" : "Connect your loyalty account"}
+              </h2>
+              <p className="mx-auto mt-2 max-w-xl text-xs leading-relaxed text-slate-600">
+                Choose whether to create a new JUJA loyalty account or link an existing one. Customer portal access opens once a loyalty account is connected.
+              </p>
+            </div>
+            <div className="max-h-[75vh] overflow-y-auto rounded-2xl p-1">
+              <LoyaltyTab member={member} setMember={setMember} user={user} requiredSetup />
+            </div>
+            <button
+              type="button"
+              onClick={logout}
+              className="mx-auto mt-4 block text-xs font-bold text-slate-500 hover:text-rose-600"
+            >
+              Sign out and finish later
+            </button>
+          </div>
+        </div>
+      )}
 
-      <main className="flex-1 overflow-x-hidden min-h-screen pb-32 pt-4 md:pt-8 px-4 sm:px-6 lg:pl-72 lg:pr-8 max-w-7xl mx-auto w-full transition-all">
-        {tab === "home" && <HomeTab member={member} user={user} setTab={setTab} />}
-        {tab === "order" && (
-          <OrderTab 
-            user={user} 
-            member={member} 
-            onCheckoutSuccess={() => setTab("history")} 
-          />
-        )}
-        {tab === "history" && <TrackerTab orders={orders} loadingOrders={loadingOrders} />}
-        {tab === "loyalty" && <LoyaltyTab member={member} setMember={setMember} user={user} />}
-        {tab === "booking" && <BookingTab user={user} member={member} />}
-        {tab === "profile" && <ProfileTab user={user} onLogout={logout} />}
-      </main>
+      {member && (
+        <>
+          <AppNavigation tab={tab} setTab={setTab} />
+
+          <main className="flex-1 overflow-x-hidden min-h-screen pb-32 pt-4 md:pt-8 px-4 sm:px-6 lg:pl-72 lg:pr-8 max-w-7xl mx-auto w-full transition-all">
+            {tab === "home" && <HomeTab member={member} user={user} setTab={setTab} />}
+            {tab === "order" && (
+              <OrderTab
+                user={user}
+                member={member}
+                onCheckoutSuccess={() => setTab("history")}
+              />
+            )}
+            {tab === "history" && <TrackerTab orders={orders} loadingOrders={loadingOrders} />}
+            {tab === "loyalty" && <LoyaltyTab member={member} setMember={setMember} user={user} />}
+            {tab === "booking" && <BookingTab user={user} member={member} />}
+            {tab === "profile" && <ProfileTab user={user} onLogout={logout} />}
+          </main>
+        </>
+      )}
 
       <ApkDownloadBanner
         manifestUrl="/app-updates/customer.json"

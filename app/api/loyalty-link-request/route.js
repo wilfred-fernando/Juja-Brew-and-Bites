@@ -104,6 +104,22 @@ export async function POST(req) {
       return Response.json({ error: "Supabase client is required." }, { status: 500 });
     }
 
+    const { data: pendingRequest, error: pendingError } = await supabaseAdmin
+      .from("loyalty_link_requests")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (pendingError) {
+      return Response.json({ error: pendingError.message }, { status: 500 });
+    }
+    if (pendingRequest?.id) {
+      return Response.json({ success: true, request: pendingRequest, alreadyPending: true, emailSent: false });
+    }
+
     const { data, error } = await supabaseAdmin
       .from("loyalty_link_requests")
       .insert({
