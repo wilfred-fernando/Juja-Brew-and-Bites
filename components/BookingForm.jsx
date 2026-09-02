@@ -482,20 +482,20 @@ export function BookingAvailabilityOnly({
           {availability.map((s) => {
             const status = reasonToLabel(s.reason);
 
-            const cls = `${availabilityCardClass(s)} ${availabilityStatusClass(s)}`;
+            const cardClass = availabilityCardClass(s);
 
             return (
               <button
                 key={s.hour}
                 disabled={!s.available}
                 onClick={() => s.available && onSelectSlot?.({ dateISO, hour: s.hour })}
-                className={`p-3 rounded-xl border text-xs font-normal transition-all text-left ${cls}`}
+                className={`min-h-[84px] rounded-xl border p-3 text-center text-xs font-normal transition-all ${cardClass}`}
                 type="button"
                 title={status}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span>{s.label}</span>
-                  <span className="text-[10px] font-normal uppercase tracking-wider text-slate-500">
+                <div className="flex h-full flex-col items-center justify-center gap-1.5">
+                  <span className="text-[11px] font-semibold leading-snug text-slate-800">{s.label}</span>
+                  <span className={`text-[10px] font-normal uppercase tracking-wider ${availabilityStatusClass(s)}`}>
                     {status}
                   </span>
                 </div>
