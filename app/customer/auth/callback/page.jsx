@@ -90,7 +90,11 @@ export default function CustomerAuthCallbackPage() {
             delayMs: 250,
           });
           if (sessionError) throw sessionError;
-          if (!session?.user) throw new Error("Unable to establish a session from this confirmation link.");
+          if (!session?.user) {
+            throw new Error(
+              "The confirmation link reached JUJA, but automatic sign-in could not finish. Continue to Login and sign in to complete your loyalty account setup."
+            );
+          }
           confirmedUser = session.user;
         } else if (tokenHash) {
           const data = await verifyTokenHash(tokenHash, type);
@@ -152,7 +156,7 @@ export default function CustomerAuthCallbackPage() {
           href={customerPath("/login")}
           className="mt-6 block text-xs font-bold text-[#FC687D] hover:text-rose-500"
         >
-          Back to Login
+          {error ? "Continue to Login" : "Back to Login"}
         </Link>
       </div>
     </div>

@@ -121,7 +121,6 @@ export default function Login() {
 
         if (authError) throw authError;
 
-        await supabase.auth.signOut();
         setSuccess("Account created. Please verify your email, then complete your loyalty account setup.");
         setMode("signin");
         setForm({ firstName: "", lastName: "", email: form.email, birthday: "", contactNumber: "", password: "" });
