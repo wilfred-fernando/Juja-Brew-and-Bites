@@ -72,7 +72,7 @@ The migration seeds Welcome, Order online, Store details, Human handoff, and Fal
 npm run verify:messenger-routing
 ```
 
-The router does not create orders or reservations entirely inside Messenger. Function-room availability is a live snapshot and may change before checkout, so AI replies link customers to the public booking page to reserve. Payments, refunds, and account-specific actions remain with the website or Live Chat team.
+JujaBot can collect a draft order in Messenger, calculate an estimated subtotal from current live-menu prices, and ask the customer to confirm the draft. After confirmation, the router automatically pauses JujaBot and marks the conversation with the `messenger-order-draft` tag for Live Chat to verify availability and the final total. The router does not create a confirmed order, collect payment, or reserve stock. Function-room availability is a live snapshot and may change before checkout, so AI replies link customers to the public booking page to reserve. Payments, refunds, and account-specific actions remain with the website or Live Chat team.
 
 ## Meta publishing URLs
 
