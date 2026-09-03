@@ -3373,7 +3373,7 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
 
   const normalizedSearch = search.trim().toLowerCase();
   const filtered = beneficiaries.filter((entry) => {
-    if (String(entry.beneficiary_type || "") !== beneficiaryType) return false;
+    if (String(entry.beneficiary_type || "") !== requiredBeneficiaryType) return false;
     if (!normalizedSearch) return true;
     return [entry.full_name, entry.id_number, entry.beneficiary_type]
       .some((value) => String(value || "").toLowerCase().includes(normalizedSearch));
@@ -3383,7 +3383,11 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
     if (!fullName.trim() || !idNumber.trim()) return;
     setSaving(true);
     try {
-      await onSave?.({ beneficiaryType, fullName: fullName.trim(), idNumber: idNumber.trim() });
+      const saved = await onSave?.({ beneficiaryType, fullName: fullName.trim(), idNumber: idNumber.trim() });
+      if (saved) {
+        setFullName("");
+        setIdNumber("");
+      }
     } finally {
       setSaving(false);
     }
@@ -3428,9 +3432,16 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
       <div className="my-4 border-t border-slate-200" />
       <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Save new beneficiary</p>
       <div className="mt-2 grid gap-2 sm:grid-cols-2">
-        <div className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-800">
-          {beneficiaryType === "pwd" ? "PWD" : "Senior Citizen"}
-        </div>
+        <select
+          aria-label="New beneficiary type"
+          value={beneficiaryType}
+          onChange={(event) => setBeneficiaryType(event.target.value)}
+          disabled={saving}
+          className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 outline-none focus:border-cyan-500"
+        >
+          <option value="senior_citizen">SC (Senior Citizen)</option>
+          <option value="pwd">PWD</option>
+        </select>
         <input
           value={idNumber}
           onChange={(event) => setIdNumber(event.target.value)}
@@ -3444,13 +3455,18 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
           className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-cyan-500 sm:col-span-2"
         />
       </div>
+      {beneficiaryType !== requiredBeneficiaryType && (
+        <p className="mt-2 text-xs text-slate-600">
+          This saves the beneficiary as {beneficiaryType === "pwd" ? "PWD" : "SC"}. Choose the matching item discount to apply this ID.
+        </p>
+      )}
       <button
         type="button"
         disabled={saving || !fullName.trim() || !idNumber.trim()}
         onClick={saveNew}
         className="mt-3 h-11 w-full rounded-xl bg-slate-700 text-xs font-semibold uppercase tracking-wider text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
       >
-        {saving ? "Saving..." : "Save and select"}
+        {saving ? "Saving..." : beneficiaryType === requiredBeneficiaryType ? "Save and select" : "Save beneficiary"}
       </button>
     </ModalShell>
   );
@@ -4514,7 +4530,13 @@ export default function POSPage() {
 
     const saved = Array.isArray(data) ? data[0] : data;
     await loadDiscountBeneficiaries();
-    if (saved?.id) selectDiscountBeneficiary(saved);
+    if (saved?.id) {
+      if (saved.beneficiary_type === pendingBeneficiaryType) {
+        selectDiscountBeneficiary(saved);
+      } else {
+        showToast("success", "Beneficiary Saved", `Saved as ${saved.beneficiary_type === "pwd" ? "PWD" : "SC"}. Choose the matching item discount to apply this ID.`);
+      }
+    }
     return !!saved?.id;
   };
 
