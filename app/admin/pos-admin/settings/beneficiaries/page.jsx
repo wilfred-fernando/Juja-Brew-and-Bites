@@ -23,6 +23,7 @@ export default function BeneficiariesPage() {
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const [type, setType] = useState("");
+  const [status, setStatus] = useState("active");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [pageSize, setPageSize] = useState(25);
@@ -38,7 +39,7 @@ export default function BeneficiariesPage() {
     const controller = new AbortController();
     setLoading(true);
     setError("");
-    const params = new URLSearchParams({ q: query, type, page: String(page) });
+    const params = new URLSearchParams({ q: query, type, status, page: String(page) });
     beneficiaryRequest(`${ENDPOINT}?${params}`, { signal: controller.signal })
       .then((result) => {
         if (controller.signal.aborted) return;
@@ -51,7 +52,7 @@ export default function BeneficiariesPage() {
       .catch((error) => { if (!controller.signal.aborted) setError(error.message); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [query, type, page, revision]);
+  }, [query, type, status, page, revision]);
 
   async function save(event) {
     event.preventDefault();
@@ -129,6 +130,12 @@ export default function BeneficiariesPage() {
             <option value="">All types</option><option value="senior_citizen">SC</option><option value="pwd">PWD</option>
           </select>
         </label>
+        <label className="space-y-1 text-sm font-semibold">
+          <span>Status</span>
+          <select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }} className={inputClass}>
+            <option value="active">Active</option><option value="inactive">Inactive</option><option value="all">All statuses</option>
+          </select>
+        </label>
         <button type="submit" disabled={loading} className={buttonClass}>Search</button>
         <button type="button" disabled={loading || saving} onClick={() => setRevision((value) => value + 1)} className={buttonClass}>Refresh</button>
       </form>
@@ -150,7 +157,7 @@ export default function BeneficiariesPage() {
                   <td className="px-4 py-3 text-slate-500">{row.is_active ? "Active" : "Inactive"}</td>
                   <td className="px-4 py-3"><button type="button" disabled={!!editing} aria-label={`Edit ${row.full_name}`} onClick={() => { setEditing({ ...row }); setSaveError(""); setSuccess(""); window.scrollTo({ top: 0, behavior: "smooth" }); }} className={buttonClass}>Edit</button></td>
                 </tr>)}
-                {!rows.length && <tr><td colSpan={5} className="p-6 text-center text-slate-500">{query || type ? "No beneficiaries match your search." : "No beneficiaries saved yet. Register them in POS when applying an SC or PWD discount."}</td></tr>}
+                {!rows.length && <tr><td colSpan={5} className="p-6 text-center text-slate-500">No beneficiaries match these filters.</td></tr>}
               </tbody>
             </table>
           </div>

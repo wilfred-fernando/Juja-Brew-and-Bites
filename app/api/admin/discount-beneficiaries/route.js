@@ -10,12 +10,17 @@ export async function GET(request) {
     const params = new URL(request.url).searchParams;
     const page = Math.max(1, Math.min(100000, Math.floor(Number(params.get("page")) || 1)));
     const type = params.get("type") || "";
+    const status = params.get("status") || "active";
+    if (!["active", "inactive", "all"].includes(status)) {
+      return Response.json({ error: "Select a valid beneficiary status." }, { status: 400 });
+    }
     if (type && !["pwd", "senior_citizen"].includes(type)) {
       return Response.json({ error: "Select SC or PWD." }, { status: 400 });
     }
     // Keep user input out of PostgREST filter syntax and wildcard operators.
     const search = (params.get("q") || "").slice(0, 120).replace(/[^\p{L}\p{N}\s'-]/gu, " ").trim();
     let query = admin.from("pos_discount_beneficiaries").select(FIELDS, { count: "exact" });
+    if (status !== "all") query = query.eq("is_active", status === "active");
     if (type) query = query.eq("beneficiary_type", type);
     if (search) {
       const normalized = search.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
@@ -60,7 +65,7 @@ export async function PATCH(request) {
       updated_at: new Date().toISOString(),
     }).eq("id", id).eq("updated_at", body.updated_at).select(FIELDS).maybeSingle();
     if (error?.code === "23505") {
-      return Response.json({ error: "This ID number already belongs to another beneficiary of the selected type." }, { status: 409 });
+      return Response.json({ error: "A beneficiary with this identity already exists. Review the saved SC and PWD records before changing these details." }, { status: 409 });
     }
     if (error) throw error;
     if (!data) {

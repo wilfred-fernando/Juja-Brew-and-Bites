@@ -990,7 +990,6 @@ export default function AdminSalesPage() {
       setRawData({
         ...normalized,
         stores: storesRes.data || [],
-        shiftRecords: mergedShiftRecords,
       });
     } catch (err) {
       setError(err.message || "Unable to load sales report. Please try again.");
