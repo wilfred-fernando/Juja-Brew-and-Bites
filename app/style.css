@@ -244,6 +244,19 @@ body > .page-transition-shell {
 }
 
 /* Core controls */
+.admin-date-range-popup button {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  transform: none;
+}
+
+.admin-date-range-popup button[data-preset] {
+  padding: 0.75rem 1rem;
+}
+
 :where(button, [role="button"], .app-button) {
   min-height: 2.4rem;
   border-radius: var(--app-button-radius);

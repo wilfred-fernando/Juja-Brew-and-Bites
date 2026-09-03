@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import {
   Area,
@@ -529,6 +530,9 @@ function SummarySelectControl({ icon: Icon, value, onChange, options, wide = fal
 
 function SummaryDateRangeControl({ startDate, endDate, preset, onRangeChange, onPresetChange, buttonClassName = "" }) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef(null);
+  const popupRef = useRef(null);
+  const [position, setPosition] = useState({ top: 16, left: 16 });
   const [activeEndpoint, setActiveEndpoint] = useState("start");
   const [viewMonth, setViewMonth] = useState((startDate || manilaDate()).slice(0, 7));
   const days = useMemo(() => calendarDays(viewMonth), [viewMonth]);
@@ -538,6 +542,40 @@ function SummaryDateRangeControl({ startDate, endDate, preset, onRangeChange, on
   useEffect(() => {
     setViewMonth((startDate || endDate || manilaDate()).slice(0, 7));
   }, [startDate, endDate]);
+
+  useEffect(() => {
+    if (!open) return;
+    function placePopup() {
+      const anchor = triggerRef.current?.getBoundingClientRect();
+      if (!anchor) return;
+      const width = Math.min(620, window.innerWidth - 32);
+      const height = Math.min(popupRef.current?.scrollHeight || 450, window.innerHeight - 32);
+      setPosition({
+        left: Math.max(16, Math.min(anchor.left, window.innerWidth - width - 16)),
+        top: Math.max(16, Math.min(anchor.bottom + 8, window.innerHeight - height - 16)),
+      });
+    }
+    function dismiss(event) {
+      if (!popupRef.current?.contains(event.target) && !triggerRef.current?.contains(event.target)) setOpen(false);
+    }
+    function onKeyDown(event) {
+      if (event.key === "Escape") { setOpen(false); triggerRef.current?.focus(); }
+    }
+    function onScroll(event) {
+      if (!popupRef.current?.contains(event.target)) placePopup();
+    }
+    placePopup();
+    window.addEventListener("resize", placePopup);
+    window.addEventListener("scroll", onScroll, true);
+    document.addEventListener("pointerdown", dismiss);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("resize", placePopup);
+      window.removeEventListener("scroll", onScroll, true);
+      document.removeEventListener("pointerdown", dismiss);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
 
   function chooseDate(date) {
     if (activeEndpoint === "start") {
@@ -563,17 +601,19 @@ function SummaryDateRangeControl({ startDate, endDate, preset, onRangeChange, on
   return (
     <div className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((value) => !value)}
         className={`inline-flex h-10 min-w-[250px] items-center gap-2 rounded-md border border-slate-200 bg-white/95 px-3 text-xs font-semibold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-200 hover:bg-cyan-50 ${buttonClassName}`}
         aria-expanded={open}
+        aria-haspopup="dialog"
       >
         <CalendarDays className="h-4 w-4 shrink-0 text-slate-500" />
         <span className="truncate">{formatRangeDate(start)} - {formatRangeDate(end)}</span>
       </button>
 
-      {open ? (
-        <div className="absolute left-0 z-40 mt-2 grid w-[620px] max-w-[calc(100vw-2rem)] grid-cols-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.2)] md:grid-cols-[1fr_170px]">
+      {open ? createPortal(
+        <div ref={popupRef} role="dialog" aria-label="Select date range" style={position} className="admin-date-range-popup fixed z-[90] grid max-h-[calc(100dvh-2rem)] w-[620px] max-w-[calc(100vw-2rem)] grid-cols-1 overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.2)] md:grid-cols-[1fr_170px]">
           <div className="p-4">
             <div className="mb-3 flex items-center justify-between">
               <button type="button" onClick={() => setViewMonth(addMonths(viewMonth, -1))} className="flex h-8 w-8 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100" aria-label="Previous month">
@@ -597,6 +637,8 @@ function SummaryDateRangeControl({ startDate, endDate, preset, onRangeChange, on
                 return (
                   <button
                     key={date}
+                    aria-label={date}
+                    aria-pressed={isStart || isEnd}
                     type="button"
                     onClick={() => chooseDate(date)}
                     className={`h-9 text-xs transition ${isCurrentMonth ? "text-slate-800" : "text-slate-300"} ${isInRange ? "bg-lime-100" : "bg-white hover:bg-cyan-50"} ${isStart || isEnd ? "font-semibold text-white" : ""}`}
@@ -641,6 +683,7 @@ function SummaryDateRangeControl({ startDate, endDate, preset, onRangeChange, on
             {SUMMARY_DATE_PRESETS.map((option) => (
               <button
                 key={option.value}
+                data-preset="true"
                 type="button"
                 onClick={() => {
                   onPresetChange(option.value);
@@ -652,7 +695,7 @@ function SummaryDateRangeControl({ startDate, endDate, preset, onRangeChange, on
               </button>
             ))}
           </div>
-        </div>
+        </div>, document.body
       ) : null}
     </div>
   );
