@@ -436,9 +436,16 @@ const isWelcomeVoucher = (voucher) => {
                   </button>
                 )}
                 </div>
+                {(line.discountBeneficiaryId || line.discountBeneficiary?.id) && (
+                  <p className="mt-1 break-words text-[11px] font-semibold text-cyan-800">
+                    {(line.discountBeneficiaryType || line.discountBeneficiary?.beneficiary_type) === "pwd" ? "PWD" : "Senior"}
+                    {" · "}{line.discountBeneficiaryName || line.discountBeneficiary?.full_name}
+                    {" · ID: "}{line.discountBeneficiaryIdNumber || line.discountBeneficiary?.id_number}
+                  </p>
+                )}
                 {itemDiscount > 0 && (
                   <div className="flex justify-between rounded-lg bg-cyan-50 px-2 py-1 text-[11px] font-semibold text-cyan-800">
-                    <span>Item discount</span>
+                    <span>{line.discountName || "Item discount"}</span>
                     <span>-₱{Number(itemDiscount).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 )}

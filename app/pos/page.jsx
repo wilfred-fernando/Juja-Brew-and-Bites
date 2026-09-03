@@ -23,6 +23,7 @@ import {
   setLocalSnapshot,
 } from "@/lib/localData";
 import TicketPanel from "@/components/pos/TicketPanel";
+import { addPosCartLine } from "@/lib/posCart";
 import ManualBookingModal from "@/components/pos/ManualBookingModal";
 import BookingCalendarModal from "@/components/pos/BookingCalendarModal";
 import PosApkUpdatePrompt from "@/components/PosApkUpdatePrompt";
@@ -3268,6 +3269,20 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [], catego
               <span className="font-semibold">{itemDiscountBeneficiary.full_name}</span>
               <span className="ml-2 text-slate-500">{String(itemDiscountBeneficiary.beneficiary_type || "").replace("_", " ").toUpperCase()} · {itemDiscountBeneficiary.id_number}</span>
               <span className="block mt-1 text-[10px] uppercase tracking-wider text-cyan-800">Daily entitlement: 1 {discountEntitlementGroup}</span>
+              <button
+                type="button"
+                onClick={async () => {
+                  const beneficiary = await onRequestDiscountBeneficiary?.({ rule: itemDiscountRule, entitlementGroup: discountEntitlementGroup, item });
+                  if (beneficiary?.id) setItemDiscountBeneficiary(beneficiary);
+                }}
+                className="mt-2 rounded-lg border border-cyan-200 bg-white px-3 py-2 font-semibold text-cyan-800"
+              >
+                Change discount ID
+              </button>
+              <p className="mt-2 text-xs text-cyan-900">
+                For group orders, add each person&apos;s item separately and select their Senior or PWD ID. Each ID stays on its own ticket line.
+                {Number(quantity) > 1 ? " Only 1 unit on this line receives this ID's discount; the remaining units are regular price." : ""}
+              </p>
             </div>
           )}
         </div>
@@ -9415,31 +9430,11 @@ export default function POSPage() {
   };
 
   const onAddToCart = (addedLineItem) => {
-    setCart((prevCart) => {
-      const existsIdx = prevCart.findIndex(
-        (x) =>
-          x.id === addedLineItem.id &&
-          x.variantDetails === addedLineItem.variantDetails &&
-          x.instructions === addedLineItem.instructions &&
-          !x.appliedVoucher
-      );
-
-      if (selectedItemForModal?.editData) {
-        return prevCart.map((item, idx) =>
-          idx === selectedItemForModal.editIndex ? addedLineItem : item
-        );
-      }
-
-      if (existsIdx > -1) {
-        return prevCart.map((item, idx) =>
-          idx === existsIdx
-            ? { ...item, quantity: item.quantity + addedLineItem.quantity }
-            : item
-        );
-      }
-
-      return [...prevCart, addedLineItem];
-    });
+    setCart((prevCart) => addPosCartLine(
+      prevCart,
+      addedLineItem,
+      selectedItemForModal?.editData ? selectedItemForModal.editIndex : null
+    ));
 
     setSelectedItemForModal(null);
     showToast("success", "Item Added", addedLineItem.name);
