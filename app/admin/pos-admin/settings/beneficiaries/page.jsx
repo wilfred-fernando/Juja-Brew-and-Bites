@@ -5,6 +5,17 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 
 const ENDPOINT = "/api/admin/discount-beneficiaries";
 
+const timestampFormat = new Intl.DateTimeFormat("en-PH", {
+  timeZone: "Asia/Manila",
+  year: "numeric", month: "short", day: "2-digit",
+  hour: "numeric", minute: "2-digit", hour12: true,
+});
+
+function beneficiaryTimestamp(value) {
+  const date = value ? new Date(value) : null;
+  return date && Number.isFinite(date.getTime()) ? timestampFormat.format(date) : "—";
+}
+
 async function beneficiaryRequest(url, options = {}) {
   const { data } = await getSupabaseClient().auth.getSession();
   const token = data?.session?.access_token;
@@ -164,7 +175,10 @@ export default function BeneficiariesPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 text-slate-600"><tr>
-                <th scope="col" className="px-4 py-3">Full name</th><th scope="col" className="px-4 py-3">Type</th><th scope="col" className="px-4 py-3">ID number</th><th scope="col" className="px-4 py-3">Status</th><th scope="col" className="px-4 py-3">Action</th>
+                <th scope="col" className="px-4 py-3">Full name</th><th scope="col" className="px-4 py-3">Type</th><th scope="col" className="px-4 py-3">ID number</th><th scope="col" className="px-4 py-3">Status</th>
+                <th scope="col" className="px-4 py-3">Created <span className="block text-xs font-normal">Philippine time</span></th>
+                <th scope="col" className="px-4 py-3">Updated <span className="block text-xs font-normal">Philippine time</span></th>
+                <th scope="col" className="px-4 py-3">Action</th>
               </tr></thead>
               <tbody className="divide-y divide-slate-100">
                 {rows.map((row) => <tr key={row.id}>
@@ -172,12 +186,14 @@ export default function BeneficiariesPage() {
                   <td className="whitespace-nowrap px-4 py-3">{row.beneficiary_type === "pwd" ? "PWD" : "SC"}</td>
                   <td className="px-4 py-3">{row.id_number}</td>
                   <td className="px-4 py-3 text-slate-500">{row.is_active ? "Active" : "Inactive"}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-500">{beneficiaryTimestamp(row.created_at)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-500">{beneficiaryTimestamp(row.updated_at)}</td>
                   <td className="px-4 py-3"><div className="flex gap-2">
                     <button type="button" disabled={!!editing || !!deletingId} aria-label={`Edit ${row.full_name}`} onClick={() => { setEditing({ ...row }); setSaveError(""); setSuccess(""); window.scrollTo({ top: 0, behavior: "smooth" }); }} className={buttonClass}>Edit</button>
                     <button type="button" disabled={!!editing || !!deletingId} aria-label={`Delete ${row.full_name}`} onClick={() => remove(row)} className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-40">{deletingId === row.id ? "Deleting..." : "Delete"}</button>
                   </div></td>
                 </tr>)}
-                {!rows.length && <tr><td colSpan={5} className="p-6 text-center text-slate-500">No beneficiaries match these filters.</td></tr>}
+                {!rows.length && <tr><td colSpan={7} className="p-6 text-center text-slate-500">No beneficiaries match these filters.</td></tr>}
               </tbody>
             </table>
           </div>
