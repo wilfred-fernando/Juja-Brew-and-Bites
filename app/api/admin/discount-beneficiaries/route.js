@@ -77,3 +77,37 @@ export async function PATCH(request) {
     return Response.json({ error: error?.message || "Unable to update beneficiary." }, { status: 500 });
   }
 }
+
+export async function DELETE(request) {
+  try {
+    const { admin, response } = await requireAdminApi();
+    if (response) return response;
+    const body = await request.json().catch(() => null);
+    const id = typeof body?.id === "string" ? body.id : "";
+    const updatedAt = body?.updated_at;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ||
+        typeof updatedAt !== "string" || !Number.isFinite(Date.parse(updatedAt))) {
+      return Response.json({ error: "Provide a valid beneficiary record to delete." }, { status: 400 });
+    }
+
+    const { count, error: linkError } = await admin.from("pos_discount_redemptions")
+      .select("id", { count: "exact", head: true }).eq("beneficiary_id", id);
+    if (linkError) throw linkError;
+    if (count > 0) {
+      return Response.json({ error: "This beneficiary has linked purchases and cannot be deleted. Edit the details instead." }, { status: 409 });
+    }
+
+    const { data, error } = await admin.from("pos_discount_beneficiaries").delete()
+      .eq("id", id).eq("updated_at", updatedAt).select(FIELDS).maybeSingle();
+    if (error?.code === "23503") {
+      return Response.json({ error: "This beneficiary now has a linked purchase and cannot be deleted." }, { status: 409 });
+    }
+    if (error) throw error;
+    if (!data) {
+      return Response.json({ error: "This record changed or is no longer available. Refresh the list and try again." }, { status: 409 });
+    }
+    return Response.json({ deleted: data.id }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) {
+    return Response.json({ error: error?.message || "Unable to delete beneficiary." }, { status: 500 });
+  }
+}

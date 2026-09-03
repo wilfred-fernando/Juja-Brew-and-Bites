@@ -30,6 +30,7 @@ export default function BeneficiariesPage() {
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState("");
   const [error, setError] = useState("");
   const [saveError, setSaveError] = useState("");
   const [success, setSuccess] = useState("");
@@ -75,6 +76,22 @@ export default function BeneficiariesPage() {
       setSaveError(error.message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function remove(row) {
+    if (deletingId || !window.confirm(`Delete ${row.full_name}? This cannot be undone.`)) return;
+    setDeletingId(row.id);
+    setError("");
+    setSuccess("");
+    try {
+      await beneficiaryRequest(ENDPOINT, { method: "DELETE", body: JSON.stringify({ id: row.id, updated_at: row.updated_at }) });
+      setSuccess(`${row.full_name} deleted.`);
+      setRevision((value) => value + 1);
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setDeletingId("");
     }
   }
 
@@ -155,7 +172,10 @@ export default function BeneficiariesPage() {
                   <td className="whitespace-nowrap px-4 py-3">{row.beneficiary_type === "pwd" ? "PWD" : "SC"}</td>
                   <td className="px-4 py-3">{row.id_number}</td>
                   <td className="px-4 py-3 text-slate-500">{row.is_active ? "Active" : "Inactive"}</td>
-                  <td className="px-4 py-3"><button type="button" disabled={!!editing} aria-label={`Edit ${row.full_name}`} onClick={() => { setEditing({ ...row }); setSaveError(""); setSuccess(""); window.scrollTo({ top: 0, behavior: "smooth" }); }} className={buttonClass}>Edit</button></td>
+                  <td className="px-4 py-3"><div className="flex gap-2">
+                    <button type="button" disabled={!!editing || !!deletingId} aria-label={`Edit ${row.full_name}`} onClick={() => { setEditing({ ...row }); setSaveError(""); setSuccess(""); window.scrollTo({ top: 0, behavior: "smooth" }); }} className={buttonClass}>Edit</button>
+                    <button type="button" disabled={!!editing || !!deletingId} aria-label={`Delete ${row.full_name}`} onClick={() => remove(row)} className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-40">{deletingId === row.id ? "Deleting..." : "Delete"}</button>
+                  </div></td>
                 </tr>)}
                 {!rows.length && <tr><td colSpan={5} className="p-6 text-center text-slate-500">No beneficiaries match these filters.</td></tr>}
               </tbody>

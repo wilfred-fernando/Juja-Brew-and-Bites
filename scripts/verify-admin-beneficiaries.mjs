@@ -7,13 +7,14 @@ const source = readFileSync(new URL("../app/api/admin/discount-beneficiaries/rou
   .replace(/^import .*;\r?\n/gm, "").replace(/export async function/g, "async function");
 let denied = null;
 let result = { data: [], count: 0, error: null };
+let resultQueue = [];
 let calls = [];
 const query = {};
-for (const method of ["select", "eq", "or", "order", "range", "update", "maybeSingle"]) {
+for (const method of ["select", "eq", "or", "order", "range", "update", "delete", "maybeSingle"]) {
   query[method] = (...args) => { calls.push([method, ...args]); return query; };
 }
-query.then = (resolve, reject) => Promise.resolve(result).then(resolve, reject);
-const handlers = vm.runInNewContext(`${source}; ({ GET, PATCH });`, {
+query.then = (resolve, reject) => Promise.resolve(resultQueue.length ? resultQueue.shift() : result).then(resolve, reject);
+const handlers = vm.runInNewContext(`${source}; ({ GET, PATCH, DELETE });`, {
   Response, URL, formatBeneficiaryName,
   requireAdminApi: async () => denied ? { response: denied } : { admin: {
     from: (table) => { calls.push(["from", table]); return query; },
@@ -26,12 +27,16 @@ const body = {
 const patch = (payload) => handlers.PATCH(new Request("http://localhost/api/admin/discount-beneficiaries", {
   method: "PATCH", body: JSON.stringify(payload), headers: { "Content-Type": "application/json" },
 }));
+const remove = (payload) => handlers.DELETE(new Request("http://localhost/api/admin/discount-beneficiaries", {
+  method: "DELETE", body: JSON.stringify(payload), headers: { "Content-Type": "application/json" },
+}));
 
 for (const status of [401, 403]) {
   denied = Response.json({ error: "Access denied" }, { status });
   calls = [];
   assert.equal((await handlers.GET(new Request("http://localhost/api/admin/discount-beneficiaries"))).status, status);
   assert.equal((await patch(body)).status, status);
+  assert.equal((await remove(body)).status, status);
   assert.equal(calls.length, 0, "Unauthorized requests must not access beneficiaries");
 }
 denied = null;
@@ -77,4 +82,24 @@ await handlers.GET(new Request("http://localhost/api/admin/discount-beneficiarie
 assert.ok(!calls.some(([method, key]) => method === "eq" && key === "is_active"));
 assert.equal((await handlers.GET(new Request("http://localhost/api/admin/discount-beneficiaries?status=invalid"))).status, 400);
 assert.equal(formatBeneficiaryName("  mARK   lESTER arCE "), "Mark Lester Arce");
+
+calls = [];
+assert.equal((await remove({ ...body, id: "bad" })).status, 400);
+assert.equal(calls.length, 0);
+result = { data: null, count: 2, error: null };
+assert.equal((await remove(body)).status, 409, "Beneficiaries with purchases cannot be deleted");
+assert.ok(!calls.some(([method]) => method === "delete"));
+calls = [];
+resultQueue = [{ data: null, count: 0, error: null }, { data: null, error: { code: "23503" } }];
+assert.equal((await remove(body)).status, 409, "A concurrent purchase prevents deletion");
+calls = [];
+resultQueue = [{ data: null, count: 0, error: null }, { data: null, error: null }];
+assert.equal((await remove(body)).status, 409, "Stale deletes must be rejected");
+calls = [];
+resultQueue = [{ data: null, count: 0, error: null }, { data: body, error: null }];
+const deleted = await remove(body);
+assert.equal(deleted.status, 200);
+assert.equal((await deleted.json()).deleted, body.id);
+assert.ok(calls.some(([method]) => method === "delete"));
+assert.ok(calls.some(([method, key, value]) => method === "eq" && key === "updated_at" && value === body.updated_at));
 console.log("Admin beneficiaries verified: access denial, pagination, filtering, validation, normalization, duplicate IDs, and stale-edit protection.");
