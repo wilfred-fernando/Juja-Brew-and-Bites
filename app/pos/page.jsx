@@ -11,7 +11,6 @@ import { isWelcomeVoucher, WELCOME_VOUCHER_REWARD_TEXT } from "@/lib/loyalty/wel
 import { loyaltyEligibleLineTotal } from "@/lib/menuPromos";
 import { ensureNativeNotificationPermission, isNativeApp, showNativeNotification } from "@/lib/nativeNotifications";
 import {
-  countPendingOutbox,
   enqueueOutbox,
   getLocalSnapshot,
   initializeLocalData,
@@ -23,7 +22,9 @@ import {
   setLocalSnapshot,
 } from "@/lib/localData";
 import TicketPanel from "@/components/pos/TicketPanel";
+import OfflineSyncNotice from "@/components/pos/OfflineSyncNotice";
 import { addPosCartLine } from "@/lib/posCart";
+import { beneficiaryMatchesRule, requiredBeneficiaryTypeForRule } from "@/lib/posDiscountBeneficiaries";
 import ManualBookingModal from "@/components/pos/ManualBookingModal";
 import BookingCalendarModal from "@/components/pos/BookingCalendarModal";
 import PosApkUpdatePrompt from "@/components/PosApkUpdatePrompt";
@@ -3356,12 +3357,13 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [], catego
   );
 }
 
-function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName, requiredBeneficiaryType = "senior_citizen", onClose, onSelect, onSave }) {
+function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName, requiredBeneficiaryType = null, onClose, onSelect, onSave }) {
   const [search, setSearch] = useState("");
   const [beneficiaryType, setBeneficiaryType] = useState("senior_citizen");
   const [fullName, setFullName] = useState("");
   const [idNumber, setIdNumber] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -3369,25 +3371,29 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
     setBeneficiaryType(requiredBeneficiaryType === "pwd" ? "pwd" : "senior_citizen");
     setFullName("");
     setIdNumber("");
+    setSaveError("");
   }, [open, requiredBeneficiaryType]);
 
   const normalizedSearch = search.trim().toLowerCase();
   const filtered = beneficiaries.filter((entry) => {
-    if (String(entry.beneficiary_type || "") !== requiredBeneficiaryType) return false;
+    if (!beneficiaryMatchesRule(entry.beneficiary_type, requiredBeneficiaryType)) return false;
     if (!normalizedSearch) return true;
     return [entry.full_name, entry.id_number, entry.beneficiary_type]
       .some((value) => String(value || "").toLowerCase().includes(normalizedSearch));
   });
 
   const saveNew = async () => {
-    if (!fullName.trim() || !idNumber.trim()) return;
+    if (saving || !fullName.trim() || !idNumber.trim()) return;
     setSaving(true);
+    setSaveError("");
     try {
       const saved = await onSave?.({ beneficiaryType, fullName: fullName.trim(), idNumber: idNumber.trim() });
       if (saved) {
         setFullName("");
         setIdNumber("");
       }
+    } catch (error) {
+      setSaveError(error?.message || "Could not save beneficiary. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -3455,18 +3461,19 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
           className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-cyan-500 sm:col-span-2"
         />
       </div>
-      {beneficiaryType !== requiredBeneficiaryType && (
+      {!beneficiaryMatchesRule(beneficiaryType, requiredBeneficiaryType) && (
         <p className="mt-2 text-xs text-slate-600">
           This saves the beneficiary as {beneficiaryType === "pwd" ? "PWD" : "SC"}. Choose the matching item discount to apply this ID.
         </p>
       )}
+      {saveError && <p role="alert" className="mt-2 rounded-lg bg-red-50 p-3 text-xs text-red-700">{saveError}</p>}
       <button
         type="button"
         disabled={saving || !fullName.trim() || !idNumber.trim()}
         onClick={saveNew}
         className="mt-3 h-11 w-full rounded-xl bg-slate-700 text-xs font-semibold uppercase tracking-wider text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
       >
-        {saving ? "Saving..." : beneficiaryType === requiredBeneficiaryType ? "Save and select" : "Save beneficiary"}
+        {saving ? "Saving..." : beneficiaryMatchesRule(beneficiaryType, requiredBeneficiaryType) ? "Save and select" : "Save beneficiary"}
       </button>
     </ModalShell>
   );
@@ -4221,6 +4228,11 @@ export default function POSPage() {
   const [moving, setMoving] = useState(false);
   const [isOfflineMode, setIsOfflineMode] = useState(false);
   const [offlineQueueCount, setOfflineQueueCount] = useState(0);
+  const [localDataReady, setLocalDataReady] = useState(false);
+  const [offlineSyncing, setOfflineSyncing] = useState(false);
+  const [offlineSyncError, setOfflineSyncError] = useState("");
+  const offlineSyncRunningRef = useRef(false);
+  const syncOfflineChargesRef = useRef(null);
 
   // New persistent pointer reference state to bind edited web orders back cleanly
   const [activeWebOrderId, setActiveWebOrderId] = useState(null);
@@ -4497,7 +4509,7 @@ export default function POSPage() {
   const requestDiscountBeneficiary = ({ rule } = {}) => {
     const ruleName = rule?.name || rule?.discount_name || "SC / PWD Discount";
     setPendingBeneficiaryRuleName(ruleName);
-    setPendingBeneficiaryType(String(ruleName).toLowerCase().includes("pwd") ? "pwd" : "senior_citizen");
+    setPendingBeneficiaryType(requiredBeneficiaryTypeForRule(rule));
     setDiscountBeneficiaryModalOpen(true);
     void loadDiscountBeneficiaries();
     return new Promise((resolve) => {
@@ -4525,25 +4537,27 @@ export default function POSPage() {
     });
     if (error) {
       showToast("error", "Beneficiary Save Failed", error.message);
-      return false;
+      throw new Error(error.message);
     }
 
     const saved = Array.isArray(data) ? data[0] : data;
     await loadDiscountBeneficiaries();
     if (saved?.id) {
-      if (saved.beneficiary_type === pendingBeneficiaryType) {
+      if (beneficiaryMatchesRule(saved.beneficiary_type, pendingBeneficiaryType)) {
         selectDiscountBeneficiary(saved);
       } else {
         showToast("success", "Beneficiary Saved", `Saved as ${saved.beneficiary_type === "pwd" ? "PWD" : "SC"}. Choose the matching item discount to apply this ID.`);
       }
     }
-    return !!saved?.id;
+    if (!saved?.id) throw new Error("No saved beneficiary was returned. Please try again.");
+    return true;
   };
 
   const refreshOfflineQueueCount = async () => {
-    const count = await countPendingOutbox({ entityType: "pos_sale" });
-    setOfflineQueueCount(count);
-    return count;
+    const pending = await listPendingOutbox({ entityType: "pos_sale", limit: 10000 });
+    setOfflineQueueCount(pending.length);
+    setOfflineSyncError(pending.find((entry) => entry.last_error)?.last_error || "");
+    return pending.length;
   };
 
   const queueOfflineCharge = async (draft) => {
@@ -4665,32 +4679,57 @@ export default function POSPage() {
   }
 
   async function syncOfflineCharges({ silent = false } = {}) {
+    if (!localDataReady || !currentUserId || !storeId || offlineSyncRunningRef.current) return;
     if (typeof navigator !== "undefined" && navigator.onLine === false) return;
-    const queue = await listPendingOutbox({ entityType: "pos_sale", limit: 100 });
-    if (queue.length === 0) {
-      setOfflineQueueCount(0);
-      return;
-    }
-
-    let synced = 0;
-    for (const queued of queue) {
-      try {
-        await replayOfflineCharge(queued.payload);
-        await markOutboxSynced(queued.id);
-        synced += 1;
-      } catch (error) {
-        await markOutboxFailed(queued.id, error?.message || String(error));
-        console.warn("Offline sale sync failed:", error);
-        if (isProbablyOfflineError(error)) break;
+    offlineSyncRunningRef.current = true;
+    setOfflineSyncing(true);
+    try {
+      const queue = await listPendingOutbox({ entityType: "pos_sale", limit: 100 });
+      if (queue.length === 0) {
+        setOfflineQueueCount(0);
+        setOfflineSyncError("");
+        setIsOfflineMode(false);
+        return;
       }
-    }
+      const { session, error: sessionError } = await getStableSession(supabase);
+      if (sessionError || !session || session.user.id !== currentUserId) {
+        throw new Error("POS session is unavailable. Sign in again on this device to sync its saved sales.");
+      }
 
-    await refreshOfflineQueueCount();
-    if (synced > 0) {
-      fetchReceiptLogs().catch((error) => console.warn("Receipt refresh after offline sync failed:", error));
-      if (!silent) showToast("success", "Offline Sales Synced", `${synced} queued sale${synced === 1 ? "" : "s"} uploaded.`);
+      let synced = 0;
+      let failed = 0;
+      for (const queued of queue) {
+        try {
+          await replayOfflineCharge(queued.payload);
+          await markOutboxSynced(queued.id);
+          synced += 1;
+        } catch (error) {
+          failed += 1;
+          await markOutboxFailed(queued.id, error?.message || String(error));
+          console.warn("Offline sale sync failed:", error);
+          if (isProbablyOfflineError(error)) break;
+        }
+      }
+
+      await refreshOfflineQueueCount();
+      setIsOfflineMode(navigator.onLine === false);
+      if (synced > 0) {
+        fetchReceiptLogs().catch((error) => console.warn("Receipt refresh after offline sync failed:", error));
+        if (!silent) showToast("success", "Offline Sales Synced", `${synced} queued sale${synced === 1 ? "" : "s"} uploaded.`);
+      }
+      if (failed > 0 && !silent) showToast("warn", "Sales Still Pending", "See the sync error above the ticket. Your queued sales remain on this device.");
+    } catch (error) {
+      setOfflineSyncError(error?.message || String(error));
+      console.warn("Offline charge sync failed:", error);
+    } finally {
+      offlineSyncRunningRef.current = false;
+      setOfflineSyncing(false);
     }
   }
+
+  useEffect(() => {
+    syncOfflineChargesRef.current = syncOfflineCharges;
+  });
 
   const calcTotal = (lines) =>
     (lines || []).reduce((sum, i) => {
@@ -5101,13 +5140,16 @@ export default function POSPage() {
         });
         localStorage.removeItem(POS_OFFLINE_CHARGE_QUEUE_KEY);
         await refreshOfflineQueueCount();
-        if (navigator.onLine !== false) await syncOfflineCharges({ silent: true });
+        setLocalDataReady(true);
       })
-      .catch((error) => console.warn("Local POS database initialization failed:", error));
+      .catch((error) => {
+        setOfflineSyncError(error?.message || "Unable to open the local sales queue.");
+        console.warn("Local POS database initialization failed:", error);
+      });
 
     const handleOnline = () => {
       setIsOfflineMode(false);
-      syncOfflineCharges().catch((error) => console.warn("Offline charge sync failed:", error));
+      void syncOfflineChargesRef.current?.();
     };
     const handleOffline = () => setIsOfflineMode(true);
 
@@ -5118,6 +5160,23 @@ export default function POSPage() {
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
+
+  useEffect(() => {
+    if (!localDataReady || !currentUserId || !storeId) return;
+    const retry = () => {
+      if (navigator.onLine !== false) void syncOfflineChargesRef.current?.({ silent: true });
+    };
+    const onVisible = () => { if (document.visibilityState === "visible") retry(); };
+    retry();
+    const timer = window.setInterval(retry, 30000);
+    window.addEventListener("focus", retry);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", retry);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [localDataReady, currentUserId, storeId]);
 
   useEffect(() => {
     if (isNativeApp()) {
@@ -10361,12 +10420,7 @@ export default function POSPage() {
 
           {/* SIDEBAR TICKET INTERACTION LAYER PANEL */}
           <div className="hidden lg:block bg-white border border-rose-100 rounded-2xl p-3 shadow-sm sticky top-4 h-[calc(100vh-2rem)] max-h-[calc(100vh-2rem)] overflow-hidden">
-            {(isOfflineMode || offlineQueueCount > 0) && (
-              <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-900">
-                {isOfflineMode ? "Offline mode: using cached POS data." : "Online: syncing offline sales."}
-                {offlineQueueCount > 0 ? ` ${offlineQueueCount} sale${offlineQueueCount === 1 ? "" : "s"} pending upload.` : ""}
-              </div>
-            )}
+            <OfflineSyncNotice offline={isOfflineMode} pending={offlineQueueCount} syncing={offlineSyncing} error={offlineSyncError} onRetry={() => void syncOfflineCharges()} />
             <TicketPanel
               cart={cart}
               customers={customers}
@@ -10478,12 +10532,7 @@ export default function POSPage() {
             </div>
             
             <div className="flex-1 overflow-y-auto">
-              {(isOfflineMode || offlineQueueCount > 0) && (
-                <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-900">
-                  {isOfflineMode ? "Offline mode: using cached POS data." : "Online: syncing offline sales."}
-                  {offlineQueueCount > 0 ? ` ${offlineQueueCount} sale${offlineQueueCount === 1 ? "" : "s"} pending upload.` : ""}
-                </div>
-              )}
+              <OfflineSyncNotice offline={isOfflineMode} pending={offlineQueueCount} syncing={offlineSyncing} error={offlineSyncError} onRetry={() => void syncOfflineCharges()} />
               <TicketPanel
                 cart={cart}
                 customers={customers}

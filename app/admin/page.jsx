@@ -98,6 +98,7 @@ export default function AdminDashboard() {
     { title: "Promo Codes", icon: Gift, desc: "Create discount campaigns and vouchers.", path: "/admin/promos" },
     { title: "Settings", icon: Settings, desc: "Store settings and configuration.", path: "/admin/settings" },
     { title: "Accounts", icon: Users, desc: "Manage staff and access control.", path: "/admin/accounts" },
+    { title: "SC / PWD Beneficiaries", icon: Users, desc: "Review and edit beneficiary names and ID details.", path: "/admin/pos-admin/settings/beneficiaries" },
   ];
 
  return (

@@ -64,6 +64,7 @@ export default function AdminSidebar({
             { name: "Kitchen Printers", path: "/admin/pos-admin/settings/kitchen-printers" },
             { name: "Dining Options", path: "/admin/pos-admin/settings/dining-options" },
             { name: "Discounts", path: "/admin/pos-admin/settings/discounts" },
+            { name: "Beneficiaries", path: "/admin/pos-admin/settings/beneficiaries" },
             { name: "Stores & Admin Accounts", path: "/admin/pos-admin/settings/stores" },            
           ],
         },
