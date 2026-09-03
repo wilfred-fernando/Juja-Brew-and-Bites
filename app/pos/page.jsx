@@ -4585,16 +4585,16 @@ export default function POSPage() {
       const { data: existingOrder, error: existingError } = await supabase
         .from("orders")
         .select("id, order_number, receipt_number")
-        .contains("source_metadata", { offline_idempotency_key: offlineIdempotencyKey })
+        .eq("client_idempotency_key", offlineIdempotencyKey)
         .maybeSingle();
-      if (existingError) throw existingError;
+      if (existingError) throw new Error(`Checking previously uploaded sale: ${existingError.message}`);
       if (existingOrder) return { orderRow: existingOrder, generatedReceiptNumber: existingOrder.receipt_number || existingOrder.order_number };
     }
 
     const { data: receiptData, error: receiptErr } = await supabase.rpc("generate_receipt_number", {
       p_store_id: resolvedBranchId,
     });
-    if (receiptErr) throw receiptErr;
+    if (receiptErr) throw new Error(`Generating receipt number: ${receiptErr.message}`);
     const receiptRow = Array.isArray(receiptData) ? receiptData[0] : receiptData;
     const generatedReceiptNumber = receiptRow?.receipt_number;
     if (!generatedReceiptNumber) throw new Error("No receipt number was returned by the database.");
@@ -4607,6 +4607,7 @@ export default function POSPage() {
         receipt_number: generatedReceiptNumber,
         receipt_sequence: receiptRow.receipt_sequence || null,
         receipt_date: receiptRow.receipt_date || null,
+        client_idempotency_key: offlineIdempotencyKey || null,
         store_id: resolvedBranchId,
         branch_id: resolvedBranchId,
         customer_id: draft.customer?.id || null,
@@ -4634,7 +4635,7 @@ export default function POSPage() {
       }])
       .select("*")
       .single();
-    if (orderErr) throw orderErr;
+    if (orderErr) throw new Error(`Saving offline sale: ${orderErr.message}`);
 
     const itemRows = draftCart.map((line) => ({
       order_id: orderRow.id,
@@ -4649,7 +4650,7 @@ export default function POSPage() {
       net_amount: lineNetAmount(line),
     }));
     const { error: itemsErr } = await supabase.from("order_items").insert(itemRows);
-    if (itemsErr) throw itemsErr;
+    if (itemsErr) throw new Error(`Saving offline sale items: ${itemsErr.message}`);
 
     try {
       await deductInventoryForOrder(supabase, orderRow.id, draftCart, draft.cashier_id || currentUserId);
