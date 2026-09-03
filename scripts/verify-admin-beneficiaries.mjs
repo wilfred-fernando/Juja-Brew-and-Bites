@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
+import { formatBeneficiaryName } from "../lib/beneficiaryName.js";
 
 const source = readFileSync(new URL("../app/api/admin/discount-beneficiaries/route.js", import.meta.url), "utf8")
   .replace(/^import .*;\r?\n/gm, "").replace(/export async function/g, "async function");
@@ -13,7 +14,7 @@ for (const method of ["select", "eq", "or", "order", "range", "update", "maybeSi
 }
 query.then = (resolve, reject) => Promise.resolve(result).then(resolve, reject);
 const handlers = vm.runInNewContext(`${source}; ({ GET, PATCH });`, {
-  Response, URL,
+  Response, URL, formatBeneficiaryName,
   requireAdminApi: async () => denied ? { response: denied } : { admin: {
     from: (table) => { calls.push(["from", table]); return query; },
   } },
@@ -34,17 +35,17 @@ for (const status of [401, 403]) {
   assert.equal(calls.length, 0, "Unauthorized requests must not access beneficiaries");
 }
 denied = null;
-for (const invalid of [{ ...body, id: "bad" }, { ...body, full_name: " " }, { ...body, beneficiary_type: "other" }, { ...body, id_number: "---" }, { ...body, updated_at: null }]) {
+for (const invalid of [{ ...body, id: "bad" }, { ...body, full_name: " " }, { ...body, full_name: {} }, { ...body, beneficiary_type: "other" }, { ...body, id_number: "---" }, { ...body, updated_at: null }]) {
   calls = [];
   assert.equal((await patch(invalid)).status, 400);
   assert.equal(calls.length, 0);
 }
 result = { data: { ...body, full_name: "Ana Cruz", id_number: "ab-123" }, error: null };
 calls = [];
-const saved = await patch({ ...body, is_active: false, created_by: "untrusted", normalized_id_number: "untrusted" });
+const saved = await patch({ ...body, full_name: "  aNA   MARIE o'CRUZ-smith  ", is_active: false, created_by: "untrusted", normalized_id_number: "untrusted" });
 assert.equal(saved.status, 200);
 const update = calls.find(([method]) => method === "update")[1];
-assert.equal(update.full_name, "Ana Cruz");
+assert.equal(update.full_name, "Ana Marie O'Cruz-Smith");
 assert.equal(update.normalized_id_number, "AB123");
 assert.equal(update.beneficiary_type, "pwd");
 assert.equal(update.id_number, "ab-123");
@@ -75,4 +76,5 @@ calls = [];
 await handlers.GET(new Request("http://localhost/api/admin/discount-beneficiaries?status=all"));
 assert.ok(!calls.some(([method, key]) => method === "eq" && key === "is_active"));
 assert.equal((await handlers.GET(new Request("http://localhost/api/admin/discount-beneficiaries?status=invalid"))).status, 400);
+assert.equal(formatBeneficiaryName("  mARK   lESTER arCE "), "Mark Lester Arce");
 console.log("Admin beneficiaries verified: access denial, pagination, filtering, validation, normalization, duplicate IDs, and stale-edit protection.");

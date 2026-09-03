@@ -1,4 +1,5 @@
 import { requireAdminApi } from "@/lib/server/admin-api";
+import { formatBeneficiaryName } from "@/lib/beneficiaryName";
 
 const FIELDS = "id, beneficiary_type, full_name, id_number, is_active, created_at, updated_at";
 const PAGE_SIZE = 25;
@@ -46,7 +47,7 @@ export async function PATCH(request) {
     const body = await request.json().catch(() => null);
     const id = typeof body?.id === "string" ? body.id : "";
     const type = body?.beneficiary_type;
-    const name = typeof body?.full_name === "string" ? body.full_name.trim().replace(/\s+/g, " ") : "";
+    const name = formatBeneficiaryName(body?.full_name);
     const idNumber = typeof body?.id_number === "string" ? body.id_number.trim() : "";
     const normalized = idNumber.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ||

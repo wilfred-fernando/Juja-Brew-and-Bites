@@ -915,7 +915,7 @@ function ReceiptDrawer({ order, items = [], onClose }) {
           </div>
 
           <div className="flex justify-between gap-3 pt-3 text-[11px] text-slate-500">
-            <span>{displayDateTime(order.createdAt)}</span>
+            <span>{order.refundedAt ? "Refunded: " : ""}{displayDateTime(order.receiptAt || order.createdAt)}</span>
             <span>№ {order.orderNumber}</span>
           </div>
         </div>
@@ -1166,7 +1166,7 @@ export default function AdminSalesPage() {
   });
 
   const salesColumns = [
-    { key: "createdAt", label: "Date / Time", render: (row) => displayDateTime(row.createdAt) },
+    { key: "receiptAt", label: "Date / Time", render: (row) => displayDateTime(row.receiptAt || row.createdAt) },
     { key: "orderNumber", label: "Order no.", emphasis: true },
     { key: "customerName", label: "Customer" },
     { key: "orderType", label: "Order type" },

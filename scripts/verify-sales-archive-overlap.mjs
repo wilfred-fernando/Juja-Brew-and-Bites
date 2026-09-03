@@ -65,4 +65,15 @@ const shifts = normalizeSalesData({ shiftRecords: [{ id: "shift", amount: 1 }, {
 assert.equal(shifts.length, 1);
 assert.equal(shifts[0].amount, 2);
 assert.equal(order.status, "paid", "Normalization must not mutate the original input rows");
+const refundTime = "2026-09-04T06:30:00.000Z";
+const refundReceipt = normalizeSalesData({ orders: [{ ...refundedOrder, refunded_at: refundTime }], orderItems: [refundedItem] }).sales[0];
+assert.equal(refundReceipt.receiptAt, refundTime);
+assert.equal(refundReceipt.salesAt, order.paid_at, "Refund display must not shift the original sales accounting date");
+const laterRefundTime = "2026-09-04T07:30:00.000Z";
+const partialReceipt = normalizeSalesData({ orders: [{ ...order, status: "partial_refund", refund_amount: 10 }], orderItems: [
+  { ...item, refunded_at: refundTime }, { ...item, id: "later-refund", refunded_at: laterRefundTime },
+] }).sales[0];
+assert.equal(partialReceipt.refundedAt, laterRefundTime, "Partial refunds use the latest item refund timestamp");
+assert.equal(overlapped.sales[0].receiptAt, order.paid_at, "Paid receipts keep the purchase timestamp");
+assert.equal(updated.sales[0].refundedAt, null, "Missing historical refund timestamps must not be fabricated");
 console.log("Verified D1936177: one receipt, one latte, PHP 129; live updates, separate ticket lines, archive-only orders, web conversion and shifts preserved.");
