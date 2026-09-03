@@ -60,6 +60,7 @@ import {
   normalizeSalesData,
 } from "@/lib/reports/salesReports";
 import { loyaltyEligibleLineTotal } from "@/lib/menuPromos";
+import { enrichReceiptItemRows, receiptItemDetails } from "@/lib/reports/receiptDetails";
 
 const supabase = getSupabaseClient();
 const DEFAULT_ROWS_PER_PAGE = 10;
@@ -856,6 +857,16 @@ function ReceiptDrawer({ order, items = [], onClose }) {
                     <p key={line} className="mt-0.5 text-[10px] leading-3 text-slate-500">{line}</p>
                   ))}
                   {instructions ? <p className="mt-0.5 text-[10px] leading-3 text-slate-500">Note: {instructions}</p> : null}
+                  {Number(item.discount || 0) > 0 && (
+                    <div className="mt-1 break-words text-[10px] leading-4 text-slate-600">
+                      <p>{item.discountName || "Item discount"}: -{receiptPeso(item.discount)}</p>
+                      {item.discountBeneficiaryName && <p>Beneficiary: {item.discountBeneficiaryName}</p>}
+                      {(item.discountBeneficiaryType || item.discountBeneficiaryIdNumber) && <p>
+                        {item.discountBeneficiaryType === "pwd" ? "PWD" : item.discountBeneficiaryType === "senior_citizen" ? "SC" : "Beneficiary"}
+                        {item.discountBeneficiaryIdNumber ? ` ID: ${item.discountBeneficiaryIdNumber}` : ""}
+                      </p>}
+                    </div>
+                  )}
                   {itemVoucherLabel ? <p className="mt-0.5 text-[10px] leading-3 text-green-600">Voucher: {itemVoucherLabel}</p> : null}
                 </div>
                 <p className="shrink-0 text-right text-slate-900">{receiptPeso(item.net)}</p>
@@ -1074,7 +1085,7 @@ export default function AdminSalesPage() {
         setReceiptDetailItems([]);
         return;
       }
-      setReceiptDetailItems((data || []).map((item) => {
+      setReceiptDetailItems(enrichReceiptItemRows(data || [], selectedOrder.raw?.items).map((item) => {
         const quantity = Number(item.quantity || 0);
         const net = Number(item.net_amount || item.line_total || 0);
         return {
@@ -1083,10 +1094,8 @@ export default function AdminSalesPage() {
           quantity,
           unitPrice: Number(item.unit_price || (quantity ? net / quantity : net)),
           net,
-          variantDetails: item.variantDetails || item.variant_details || item.variant_name || "",
-          selectedOptions: item.selectedOptions || item.selected_options || item.options || item.modifiers || [],
-          instructions: item.instructions || item.special_instructions || item.note || "",
-          appliedVoucher: item.appliedVoucher || item.applied_voucher || null,
+          discount: Number(item.discount_amount || 0),
+          ...receiptItemDetails(item),
         };
       }));
     }

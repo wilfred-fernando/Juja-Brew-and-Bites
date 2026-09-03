@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
+import { enrichReceiptItemRows, receiptItemDetails } from "../lib/reports/receiptDetails.js";
 
 // Run the actual report functions with their local date dependency, without
 // requiring Next's alias resolver or mounting the authenticated Admin page.
@@ -9,7 +10,7 @@ const { shiftBusinessDate } = vm.runInNewContext(`${businessDay}; ({ shiftBusine
 const reports = readFileSync(new URL("../lib/reports/salesReports.js", import.meta.url), "utf8")
   .replace(/^import .*;\r?\n/gm, "").replace(/^export /gm, "");
 const { normalizeSalesData, getSalesSummary, getProductSalesReport, deduplicateReportRows } = vm.runInNewContext(
-  `${reports}; ({ normalizeSalesData, getSalesSummary, getProductSalesReport, deduplicateReportRows });`, { Intl, Date, shiftBusinessDate },
+  `${reports}; ({ normalizeSalesData, getSalesSummary, getProductSalesReport, deduplicateReportRows });`, { Intl, Date, shiftBusinessDate, enrichReceiptItemRows, receiptItemDetails },
 );
 const order = {
   id: "dbfb7b5f-b722-4392-8ba7-eeaf7878c3a9", receipt_number: "D1936177", status: "paid",

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
+import { receiptLineMetadata } from "../lib/reports/receiptDetails.js";
 
 const page = readFileSync(new URL("../app/pos/page.jsx", import.meta.url), "utf8");
 const start = page.indexOf("  async function replayOfflineCharge(");
@@ -12,6 +13,7 @@ function harness({ existing = null, lookupError = null, receiptError = null, ord
   const calls = [];
   const context = {
     currentUserId: "cashier", getResolvedBranchId: () => "other-store",
+    receiptLineMetadata,
     enrichOrderItemsForKds: (items) => items, paymentSplitEntries: () => [],
     lineNetAmount: () => 100, lineGrossAmount: () => 100, lineDiscountAmount: () => 0,
     deductInventoryForOrder: async () => {}, console,

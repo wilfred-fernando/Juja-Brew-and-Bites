@@ -24,6 +24,7 @@ import {
 import TicketPanel from "@/components/pos/TicketPanel";
 import OfflineSyncNotice from "@/components/pos/OfflineSyncNotice";
 import { addPosCartLine } from "@/lib/posCart";
+import { receiptLineMetadata } from "@/lib/reports/receiptDetails";
 import { beneficiaryMatchesRule, requiredBeneficiaryTypeForRule } from "@/lib/posDiscountBeneficiaries";
 import ManualBookingModal from "@/components/pos/ManualBookingModal";
 import BookingCalendarModal from "@/components/pos/BookingCalendarModal";
@@ -4638,6 +4639,7 @@ export default function POSPage() {
     if (orderErr) throw new Error(`Saving offline sale: ${orderErr.message}`);
 
     const itemRows = draftCart.map((line) => ({
+      source_metadata: receiptLineMetadata(line),
       order_id: orderRow.id,
       menu_item_id: line.id,
       name: line.name,
@@ -9031,6 +9033,7 @@ export default function POSPage() {
       }
 
       const itemRows = cart.map((line) => ({
+        source_metadata: receiptLineMetadata(line),
         order_id: orderRow.id,
         menu_item_id: line.id,
         name: line.name,
