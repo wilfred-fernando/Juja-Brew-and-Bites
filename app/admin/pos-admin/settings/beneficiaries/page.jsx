@@ -115,6 +115,7 @@ export default function BeneficiariesPage() {
       <header>
         <h1 className="text-2xl font-bold text-slate-800">SC / PWD Beneficiaries</h1>
         <p className="mt-1 text-sm text-slate-600">Review and correct beneficiary details saved from POS across all stores.</p>
+        <p className="mt-1 text-xs text-slate-500">Times used counts completed receipts across all dates and stores. Multiple discounted items on one receipt count as one use.</p>
       </header>
 
       {success && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{success}</p>}
@@ -176,6 +177,7 @@ export default function BeneficiariesPage() {
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 text-slate-600"><tr>
                 <th scope="col" className="px-4 py-3">Full name</th><th scope="col" className="px-4 py-3">Type</th><th scope="col" className="px-4 py-3">ID number</th><th scope="col" className="px-4 py-3">Status</th>
+                <th scope="col" className="whitespace-nowrap px-4 py-3 text-right">Times used</th>
                 <th scope="col" className="px-4 py-3">Created <span className="block text-xs font-normal">Philippine time</span></th>
                 <th scope="col" className="px-4 py-3">Updated <span className="block text-xs font-normal">Philippine time</span></th>
                 <th scope="col" className="px-4 py-3">Action</th>
@@ -186,6 +188,7 @@ export default function BeneficiariesPage() {
                   <td className="whitespace-nowrap px-4 py-3">{row.beneficiary_type === "pwd" ? "PWD" : "SC"}</td>
                   <td className="px-4 py-3">{row.id_number}</td>
                   <td className="px-4 py-3 text-slate-500">{row.is_active ? "Active" : "Inactive"}</td>
+                  <td className="px-4 py-3 text-right font-semibold tabular-nums">{Number(row.times_used || 0).toLocaleString("en-PH")}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-slate-500">{beneficiaryTimestamp(row.created_at)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-slate-500">{beneficiaryTimestamp(row.updated_at)}</td>
                   <td className="px-4 py-3"><div className="flex gap-2">
@@ -193,7 +196,7 @@ export default function BeneficiariesPage() {
                     <button type="button" disabled={!!editing || !!deletingId} aria-label={`Delete ${row.full_name}`} onClick={() => remove(row)} className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-40">{deletingId === row.id ? "Deleting..." : "Delete"}</button>
                   </div></td>
                 </tr>)}
-                {!rows.length && <tr><td colSpan={7} className="p-6 text-center text-slate-500">No beneficiaries match these filters.</td></tr>}
+                {!rows.length && <tr><td colSpan={8} className="p-6 text-center text-slate-500">No beneficiaries match these filters.</td></tr>}
               </tbody>
             </table>
           </div>

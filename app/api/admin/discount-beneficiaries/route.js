@@ -1,5 +1,6 @@
 import { requireAdminApi } from "@/lib/server/admin-api";
 import { formatBeneficiaryName } from "@/lib/beneficiaryName";
+import { loadBeneficiaryUsage } from "@/lib/server/beneficiary-usage";
 
 const FIELDS = "id, beneficiary_type, full_name, id_number, is_active, created_at, updated_at";
 const PAGE_SIZE = 25;
@@ -32,7 +33,9 @@ export async function GET(request) {
     const { data, error, count } = await query.order("full_name").order("id")
       .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
     if (error) throw error;
-    return Response.json({ beneficiaries: data || [], total: count || 0, pageSize: PAGE_SIZE }, {
+    const usage = await loadBeneficiaryUsage(admin, (data || []).map((row) => row.id));
+    const beneficiaries = (data || []).map((row) => ({ ...row, times_used: usage.get(row.id) || 0 }));
+    return Response.json({ beneficiaries, total: count || 0, pageSize: PAGE_SIZE }, {
       headers: { "Cache-Control": "private, no-store" },
     });
   } catch (error) {

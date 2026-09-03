@@ -16,6 +16,7 @@ for (const method of ["select", "eq", "or", "order", "range", "update", "delete"
 query.then = (resolve, reject) => Promise.resolve(resultQueue.length ? resultQueue.shift() : result).then(resolve, reject);
 const handlers = vm.runInNewContext(`${source}; ({ GET, PATCH, DELETE });`, {
   Response, URL, formatBeneficiaryName,
+  loadBeneficiaryUsage: async () => new Map([["00000000-0000-4000-8000-000000000001", 3]]),
   requireAdminApi: async () => denied ? { response: denied } : { admin: {
     from: (table) => { calls.push(["from", table]); return query; },
   } },
@@ -68,7 +69,9 @@ result = { data: [body], count: 26, error: null };
 const listed = await handlers.GET(new Request("http://localhost/api/admin/discount-beneficiaries?q=ab-123&type=pwd&page=2"));
 assert.equal(listed.status, 200);
 assert.equal(listed.headers.get("cache-control"), "private, no-store");
-assert.equal((await listed.json()).total, 26);
+const listedBody = await listed.json();
+assert.equal(listedBody.total, 26);
+assert.equal(listedBody.beneficiaries[0].times_used, 3);
 assert.ok(calls.some(([method, from, to]) => method === "range" && from === 25 && to === 49));
 assert.ok(calls.some(([method, key, value]) => method === "eq" && key === "beneficiary_type" && value === "pwd"));
 assert.ok(calls.some(([method, key, value]) => method === "eq" && key === "is_active" && value === true));
