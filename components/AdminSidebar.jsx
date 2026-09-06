@@ -14,6 +14,7 @@ import {
   MessageCircle,
   Puzzle,
   Settings,
+  ShieldAlert,
   ShoppingCart,
   Star,
   UserCog,
@@ -52,6 +53,7 @@ export default function AdminSidebar({
       items: [
         { name: "Dashboard", path: "/admin", icon: Home },
         { name: "Bookings", path: "/admin/bookings", icon: CalendarCheck },
+        { name: "Void Logs", path: "/admin/void-logs", icon: ShieldAlert },
         {
           name: "POS Admin",
           path: "/admin/pos-admin",
@@ -110,6 +112,7 @@ export default function AdminSidebar({
   const PAGE_KEY_BY_PATH = {
     "/admin": "dashboard",
     "/admin/bookings": "bookings",
+    "/admin/void-logs": "pos_admin",
     "/admin/pos-admin": "pos_admin",
     "/admin/menu": "menu_builder",
     "/admin/inventory": "inventory",

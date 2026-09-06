@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { Gift, Globe, Puzzle, Settings, Star, Users } from "lucide-react";
+import { Gift, Globe, Puzzle, Settings, ShieldAlert, Star, Users } from "lucide-react";
 
 const supabase = getSupabaseClient();
 
@@ -99,6 +99,7 @@ export default function AdminDashboard() {
     { title: "Settings", icon: Settings, desc: "Store settings and configuration.", path: "/admin/settings" },
     { title: "Accounts", icon: Users, desc: "Manage staff and access control.", path: "/admin/accounts" },
     { title: "SC / PWD Beneficiaries", icon: Users, desc: "Review and edit beneficiary names and ID details.", path: "/admin/pos-admin/settings/beneficiaries" },
+    { title: "Saved Ticket Void Logs", icon: ShieldAlert, desc: "Review voided items, cashiers, reasons, and ticket history.", path: "/admin/void-logs" },
   ];
 
  return (
