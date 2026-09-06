@@ -2508,15 +2508,31 @@ function isVoidedLine(line) {
   return Boolean(line?.voided || line?.isVoided || line?.is_voided || status.includes("void") || status.includes("refund"));
 }
 
-function SavedTicketsModal({ open, onClose, tickets, onSelect, onRefresh, onVoid, onVoidItem, mode = "resume" }) {
+function SavedTicketsModal({
+  open,
+  onClose,
+  tickets,
+  onSelect,
+  onRefresh,
+  onVoid,
+  onVoidItem,
+  auditLogs = [],
+  auditLoading = false,
+  onRefreshAudit,
+  mode = "resume",
+}) {
   const [selectedTicketId, setSelectedTicketId] = useState(null);
+  const [showAuditHistory, setShowAuditHistory] = useState(false);
   const selectedTicket = useMemo(
     () => tickets.find((ticket) => String(ticket.id) === String(selectedTicketId)) || null,
     [tickets, selectedTicketId]
   );
 
   useEffect(() => {
-    if (!open) setSelectedTicketId(null);
+    if (!open) {
+      setSelectedTicketId(null);
+      setShowAuditHistory(false);
+    }
   }, [open]);
 
   const selectedActiveItems = useMemo(
@@ -2527,15 +2543,60 @@ function SavedTicketsModal({ open, onClose, tickets, onSelect, onRefresh, onVoid
   return (
     <>
       <ModalShell open={open} onClose={onClose} title="Saved Tickets" subtitle={mode === "move" ? "Move Items" : "Resume"} z={145}>
-        <div className="flex mb-3">
+        <div className="flex flex-wrap gap-2 mb-3">
           <button
-            onClick={onRefresh}
+            onClick={showAuditHistory ? onRefreshAudit : onRefresh}
             className="px-4 h-9 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
           >
-            ↻ Refresh List
+            ↻ Refresh {showAuditHistory ? "History" : "List"}
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              const next = !showAuditHistory;
+              setShowAuditHistory(next);
+              setSelectedTicketId(null);
+              if (next) await onRefreshAudit?.();
+            }}
+            className={`px-4 h-9 rounded-xl border text-xs font-bold transition ${showAuditHistory ? "border-red-200 bg-red-50 text-red-700" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
+          >
+            {showAuditHistory ? "Show Active Tickets" : "View Void History"}
           </button>
         </div>
-        {tickets.length === 0 ? (
+        {showAuditHistory ? (
+          auditLoading ? (
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 text-xs font-medium">Loading saved-ticket history…</div>
+          ) : auditLogs.length === 0 ? (
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 text-xs font-medium">No saved-ticket void history found for this store.</div>
+          ) : (
+            <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
+              {auditLogs.map((log) => {
+                const actionLabel = log.action === "item_voided"
+                  ? "Item voided"
+                  : log.action === "ticket_voided"
+                    ? "Ticket voided"
+                    : log.action === "ticket_items_changed"
+                      ? "Ticket items changed"
+                      : "Ticket deleted";
+                return (
+                  <div key={log.id} className="rounded-xl border border-red-100 bg-red-50/60 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-black uppercase tracking-wide text-red-700">{actionLabel}</p>
+                        <p className="mt-1 truncate text-sm font-bold text-slate-800">{log.order_type || log.ticket_name || "Saved Ticket"}</p>
+                        {log.item_name && <p className="mt-0.5 text-xs font-semibold text-slate-700">Item: {log.item_name}</p>}
+                      </div>
+                      <span className="shrink-0 text-[10px] font-semibold text-slate-500">{formatReceiptDateTime(log.created_at)}</span>
+                    </div>
+                    <p className="mt-2 text-xs text-slate-600"><span className="font-bold">Staff:</span> {log.actor_name || "Unknown staff account"}</p>
+                    <p className="mt-1 text-xs text-slate-600"><span className="font-bold">Reason:</span> {log.reason || "No reason supplied; direct mutation captured by audit trigger."}</p>
+                    <p className="mt-1 break-all text-[10px] text-slate-400">Ticket ID: {log.ticket_id}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ) : tickets.length === 0 ? (
           <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 text-xs font-medium">No parked orders located.</div>
         ) : (
           <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
@@ -4191,6 +4252,8 @@ export default function POSPage() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
   const [savedTickets, setSavedTickets] = useState([]);
+  const [savedTicketAuditLogs, setSavedTicketAuditLogs] = useState([]);
+  const [savedTicketAuditLoading, setSavedTicketAuditLoading] = useState(false);
   const [activeKitchenTables, setActiveKitchenTables] = useState([]);
   const [savedMode, setSavedMode] = useState("resume");
   const [webOrdersOpen, setWebOrdersOpen] = useState(false);
@@ -6597,6 +6660,30 @@ export default function POSPage() {
     await setLocalSnapshot("pos_open_tickets", enriched, { storeId: sid });
   }
 
+  async function fetchSavedTicketAuditLogs(sid = storeId) {
+    if (!sid) {
+      setSavedTicketAuditLogs([]);
+      return;
+    }
+
+    setSavedTicketAuditLoading(true);
+    const { data, error } = await supabase
+      .from("saved_ticket_audit_logs")
+      .select("id, ticket_id, action, reason, actor_name, ticket_name, order_type, item_name, created_at")
+      .eq("store_id", sid)
+      .in("action", ["item_voided", "ticket_voided", "ticket_deleted", "ticket_items_changed"])
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    setSavedTicketAuditLoading(false);
+    if (error) {
+      console.error("Saved ticket audit history load failed:", error);
+      showToast("error", "History Load Failed", error.message);
+      return;
+    }
+    setSavedTicketAuditLogs(data || []);
+  }
+
   async function fetchActiveKitchenTables(sid = storeId, printerGroups = orderSlipPrinterGroups) {
     if (!sid) {
       setActiveKitchenTables([]);
@@ -8557,17 +8644,27 @@ export default function POSPage() {
       showToast("error", "Wrong Store Ticket", err.message);
       return;
     }
-    const confirmVoid = confirm("Void this saved ticket? This cannot be undone.");
-    if (!confirmVoid) return;
+    const reasonInput = prompt("Reason for voiding this saved ticket (required):");
+    if (reasonInput === null) return;
+    const reason = reasonInput.trim();
+    if (!reason) {
+      showToast("error", "Void Reason Required", "Enter a reason so this action can be audited.");
+      return;
+    }
 
-    const { error } = await supabase.from("open_tickets").delete().eq("id", ticketId).eq("store_id", storeId);
+    const { error } = await supabase.rpc("void_saved_ticket", {
+      p_ticket_id: ticketId,
+      p_store_id: storeId,
+      p_reason: reason,
+    });
     if (error) {
       showToast("error", "Void Failed", error.message);
       return;
     }
     await markKdsTicketStatus(supabase, { sourceType: "pos", sourceId: ticketId, status: "voided" });
     await fetchSavedTickets(storeId);
-    showToast("success", "Ticket Voided", "Ticket removed successfully.");
+    await fetchSavedTicketAuditLogs(storeId);
+    showToast("success", "Ticket Voided", "Ticket removed and recorded in void history.");
   }
 
   async function voidSavedTicketItem(ticket, line, index) {
@@ -8578,8 +8675,13 @@ export default function POSPage() {
       showToast("error", "Wrong Store Ticket", err.message);
       return;
     }
-    const confirmVoid = confirm(`Void "${line.name}" from ${ticket.order_type || ticket.ticket_name || "saved ticket"}?`);
-    if (!confirmVoid) return;
+    const reasonInput = prompt(`Reason for voiding "${line.name}" (required):`);
+    if (reasonInput === null) return;
+    const reason = reasonInput.trim();
+    if (!reason) {
+      showToast("error", "Void Reason Required", "Enter a reason so this action can be audited.");
+      return;
+    }
 
     const timestamp = new Date().toISOString();
     const nextItems = (ticket.items || []).map((item, idx) => {
@@ -8601,18 +8703,22 @@ export default function POSPage() {
     const nextTotalRaw = calcTotal(safeNextItems);
     const nextTotal = Number.isFinite(nextTotalRaw) ? Number(nextTotalRaw.toFixed(2)) : 0;
 
-    const { error } = await supabase
-      .from("open_tickets")
-      .update({ items: safeNextItems, total_amount: nextTotal })
-      .eq("id", ticket.id)
-      .eq("store_id", storeId);
+    const { data: voidResult, error } = await supabase.rpc("void_saved_ticket_item", {
+      p_ticket_id: ticket.id,
+      p_store_id: storeId,
+      p_item_index: index,
+      p_total_amount: nextTotal,
+      p_reason: reason,
+    });
 
     if (error) {
       console.error("Saved ticket item void failed:", error);
       showToast("error", "Void Item Failed", error.message || error.details || "Open ticket update was rejected.");
       return;
     }
-    await syncOpenTicketLineItems(ticket.id, safeNextItems, storeId);
+    const auditedItems = Array.isArray(voidResult?.items) ? voidResult.items : safeNextItems;
+    const auditedTotal = Number(voidResult?.total_amount ?? nextTotal);
+    await syncOpenTicketLineItems(ticket.id, auditedItems, storeId);
 
     const { error: kdsError } = await markKdsTicketItemVoided(supabase, {
       sourceType: "pos",
@@ -8623,14 +8729,15 @@ export default function POSPage() {
     if (kdsError) showToast("warn", "KDS Void Warning", kdsError.message);
 
     setSavedTickets((prev) =>
-      prev.map((row) => (row.id === ticket.id ? { ...row, items: safeNextItems, total_amount: nextTotal } : row))
+      prev.map((row) => (row.id === ticket.id ? { ...row, items: auditedItems, total_amount: auditedTotal } : row))
     );
 
     if (String(originalTicketId || "") === String(ticket.id)) {
-      setCart(safeNextItems.filter((item) => !isVoidedLine(item)));
+      setCart(auditedItems.filter((item) => !isVoidedLine(item)));
     }
 
-    showToast("success", "Item Voided", `${line.name} marked voided.`);
+    await fetchSavedTicketAuditLogs(storeId);
+    showToast("success", "Item Voided", `${line.name} marked voided and recorded in history.`);
   }
 
   async function resumeTicket(t) {
@@ -8777,8 +8884,10 @@ export default function POSPage() {
 
     if (!diningOption) return showToast("error", "Dining Option Required", "No explicit table option linked.");
 
-    const confirmVoid = confirm(`Void entire current live ticket for "${ticketDiningLabel || diningOptionName}"? This clears all items permanently.`);
-    if (!confirmVoid) return;
+    const reasonInput = prompt(`Reason for voiding the entire ticket for "${ticketDiningLabel || diningOptionName}" (required):`);
+    if (reasonInput === null) return;
+    const reason = reasonInput.trim();
+    if (!reason) return showToast("error", "Void Reason Required", "Enter a reason so this action can be audited.");
 
     setSavingTicket(true);
     try {
@@ -8796,12 +8905,18 @@ export default function POSPage() {
         await markKdsTicketStatus(supabase, { sourceType: "pos", sourceId: originalTicketId, status: "voided" });
       }
       if (originalTicketId) {
-        await supabase.from("open_tickets").delete().eq("id", originalTicketId).eq("store_id", getTicketStoreId(ticketForVoid) || storeId);
+        const { error: voidError } = await supabase.rpc("void_saved_ticket", {
+          p_ticket_id: originalTicketId,
+          p_store_id: getTicketStoreId(ticketForVoid) || storeId,
+          p_reason: reason,
+        });
+        if (voidError) throw voidError;
+        await fetchSavedTicketAuditLogs(storeId);
       } else {
         showToast("warn", "Void Skipped", "No saved ticket id was attached. Reopen the saved ticket before voiding it.");
       }
       clearTicketSoft();
-      showToast("success", "Live Ticket Voided", "Order scrubbed successfully.");
+      showToast("success", "Live Ticket Voided", "Order removed and recorded in void history.");
     } catch (err) {
       showToast("error", "Void Failed", err.message);
     } finally {
@@ -10633,6 +10748,9 @@ export default function POSPage() {
         onClose={() => setSavedOpen(false)}
         tickets={savedTickets}
         onRefresh={fetchSavedTickets}
+        auditLogs={savedTicketAuditLogs}
+        auditLoading={savedTicketAuditLoading}
+        onRefreshAudit={fetchSavedTicketAuditLogs}
         mode={savedMode}
         onSelect={(t) => {
           if (savedMode === "move") moveItemsToSavedTicket(t);
