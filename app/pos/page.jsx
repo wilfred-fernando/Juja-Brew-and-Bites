@@ -2569,33 +2569,39 @@ function SavedTicketsModal({
             }}
             className={`px-4 h-9 rounded-xl border text-xs font-bold transition ${showAuditHistory ? "border-red-200 bg-red-50 text-red-700" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
           >
-            {showAuditHistory ? "Show Active Tickets" : "View Void History"}
+            {showAuditHistory ? "Show Active Tickets" : "View Audit History"}
           </button>
         </div>
         {showAuditHistory ? (
           auditLoading ? (
-            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 text-xs font-medium">Loading saved-ticket history…</div>
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 text-xs font-medium">Loading POS audit history…</div>
           ) : auditLogs.length === 0 ? (
-            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 text-xs font-medium">No saved-ticket void history found for this store.</div>
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 text-xs font-medium">No POS audit history found for this store.</div>
           ) : (
             <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
               {auditLogs.map((log) => {
                 const actionLabel = log.action === "item_voided"
                   ? "Item voided"
-                  : log.action === "ticket_voided"
-                    ? "Ticket voided"
-                    : log.action === "ticket_items_changed"
-                      ? "Ticket items changed"
-                      : "Ticket deleted";
+                  : log.action === "item_added"
+                    ? "Cart item added"
+                    : log.action === "item_removed"
+                      ? "Cart item removed"
+                      : log.action === "ticket_voided"
+                        ? "Ticket voided"
+                        : log.action === "ticket_items_changed"
+                          ? "Ticket items changed"
+                          : "Ticket deleted";
+                const isAddition = log.action === "item_added";
+                const isMutation = log.action === "ticket_items_changed";
                 return (
-                  <div key={log.id} className="rounded-xl border border-red-100 bg-red-50/60 p-3">
+                  <div key={log.id} className={`rounded-xl border p-3 ${isAddition ? "border-emerald-100 bg-emerald-50/60" : isMutation ? "border-amber-100 bg-amber-50/60" : "border-red-100 bg-red-50/60"}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-xs font-black uppercase tracking-wide text-red-700">{actionLabel}</p>
+                        <p className={`text-xs font-black uppercase tracking-wide ${isAddition ? "text-emerald-700" : isMutation ? "text-amber-700" : "text-red-700"}`}>{actionLabel}</p>
                         <p className="mt-1 truncate text-sm font-bold text-slate-800">{log.order_type || log.ticket_name || "Saved Ticket"}</p>
                         {log.item_name && <p className="mt-0.5 text-xs font-semibold text-slate-700">Item: {log.item_name}</p>}
                       </div>
-                      <span className="shrink-0 text-[10px] font-semibold text-slate-500">{formatReceiptDateTime(log.created_at)}</span>
+                      <span className="shrink-0 text-[10px] font-semibold text-slate-500">{formatReceiptDateTime(log.created_at)} PHT</span>
                     </div>
                     <p className="mt-2 text-xs text-slate-600"><span className="font-bold">Staff:</span> {log.actor_name || "Unknown staff account"}</p>
                     <p className="mt-1 text-xs text-slate-600"><span className="font-bold">Reason:</span> {log.reason || "No reason supplied; direct mutation captured by audit trigger."}</p>
@@ -4306,6 +4312,9 @@ export default function POSPage() {
   const [offlineSyncError, setOfflineSyncError] = useState("");
   const offlineSyncRunningRef = useRef(false);
   const syncOfflineChargesRef = useRef(null);
+  const cartAuditSyncRunningRef = useRef(false);
+  const syncCartAuditsRef = useRef(null);
+  const cartAuditSessionRef = useRef(null);
 
   // New persistent pointer reference state to bind edited web orders back cleanly
   const [activeWebOrderId, setActiveWebOrderId] = useState(null);
@@ -4633,6 +4642,84 @@ export default function POSPage() {
     return pending.length;
   };
 
+  const getCartAuditSessionId = () => {
+    if (!cartAuditSessionRef.current) cartAuditSessionRef.current = crypto.randomUUID();
+    return cartAuditSessionRef.current;
+  };
+
+  const replayCartAuditEvent = async (event) => {
+    const { error } = await supabase.rpc("log_pos_cart_event", {
+      p_client_event_id: event.client_event_id,
+      p_cart_session_id: event.cart_session_id,
+      p_store_id: event.store_id,
+      p_action: event.action,
+      p_item_data: event.item_data,
+      p_cart_context: event.cart_context || {},
+    });
+    if (error) throw new Error(`Saving POS cart audit: ${error.message}`);
+  };
+
+  const recordCartAuditEvent = async (action, line, context = {}) => {
+    const resolvedStoreId = getResolvedBranchId();
+    if (!resolvedStoreId || !currentUserId || !line) return;
+
+    const event = {
+      client_event_id: crypto.randomUUID(),
+      cart_session_id: getCartAuditSessionId(),
+      store_id: resolvedStoreId,
+      action,
+      item_data: jsonSafeValue(line),
+      cart_context: jsonSafeValue({
+        dining_option: ticketDiningLabel || diningOptionName || null,
+        saved_ticket_id: originalTicketId || null,
+        web_order_id: activeWebOrderId || null,
+        shift_id: activeShiftRecord?.id || null,
+        ...context,
+      }),
+    };
+
+    try {
+      const queued = await enqueueOutbox({
+        operation: "create",
+        entityType: "pos_cart_audit",
+        payload: event,
+        storeId: resolvedStoreId,
+        userId: currentUserId,
+        idempotencyKey: event.client_event_id,
+      });
+      try {
+        await replayCartAuditEvent(event);
+        await markOutboxSynced(queued.id);
+      } catch (error) {
+        await markOutboxFailed(queued.id, error);
+        console.warn("POS cart audit queued for retry:", error);
+      }
+    } catch (error) {
+      console.error("POS cart audit could not be queued:", error);
+    }
+  };
+
+  async function syncOfflineCartAudits() {
+    if (!localDataReady || !currentUserId || !storeId || cartAuditSyncRunningRef.current) return;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+    cartAuditSyncRunningRef.current = true;
+    try {
+      const queue = await listPendingOutbox({ entityType: "pos_cart_audit", limit: 200 });
+      for (const queued of queue) {
+        try {
+          await replayCartAuditEvent(queued.payload);
+          await markOutboxSynced(queued.id);
+        } catch (error) {
+          await markOutboxFailed(queued.id, error);
+          console.warn("POS cart audit retry failed:", error);
+          if (isProbablyOfflineError(error)) break;
+        }
+      }
+    } finally {
+      cartAuditSyncRunningRef.current = false;
+    }
+  }
+
   const queueOfflineCharge = async (draft) => {
     const idempotencyKey = draft?.idempotency_key || draft?.offline_id || `pos-${crypto.randomUUID()}`;
     await enqueueOutbox({
@@ -4759,6 +4846,7 @@ export default function POSPage() {
     offlineSyncRunningRef.current = true;
     setOfflineSyncing(true);
     try {
+      await syncOfflineCartAudits();
       const queue = await listPendingOutbox({ entityType: "pos_sale", limit: 100 });
       if (queue.length === 0) {
         setOfflineQueueCount(0);
@@ -4804,6 +4892,7 @@ export default function POSPage() {
 
   useEffect(() => {
     syncOfflineChargesRef.current = syncOfflineCharges;
+    syncCartAuditsRef.current = syncOfflineCartAudits;
   });
 
   const calcTotal = (lines) =>
@@ -4830,8 +4919,16 @@ export default function POSPage() {
   );
 
   const removeCartItemAt = (index) => {
+    const removedLine = cart[index];
     setCart((prev) => prev.filter((_, idx) => idx !== index));
     setVoucherTargetCartItemId(null);
+    if (removedLine) {
+      void recordCartAuditEvent("item_removed", removedLine, {
+        operation: "remove_button",
+        cart_line_count_before: cart.length,
+        cart_line_count_after: Math.max(0, cart.length - 1),
+      });
+    }
     showToast("info", "Item Removed", "The item was removed from the active ticket.");
   };
 
@@ -5224,6 +5321,7 @@ export default function POSPage() {
 
     const handleOnline = () => {
       setIsOfflineMode(false);
+      void syncCartAuditsRef.current?.();
       void syncOfflineChargesRef.current?.();
     };
     const handleOffline = () => setIsOfflineMode(true);
@@ -5239,7 +5337,10 @@ export default function POSPage() {
   useEffect(() => {
     if (!localDataReady || !currentUserId || !storeId) return;
     const retry = () => {
-      if (navigator.onLine !== false) void syncOfflineChargesRef.current?.({ silent: true });
+      if (navigator.onLine !== false) {
+        void syncCartAuditsRef.current?.();
+        void syncOfflineChargesRef.current?.({ silent: true });
+      }
     };
     const onVisible = () => { if (document.visibilityState === "visible") retry(); };
     retry();
@@ -6711,21 +6812,42 @@ export default function POSPage() {
     }
 
     setSavedTicketAuditLoading(true);
-    const { data, error } = await supabase
-      .from("saved_ticket_audit_logs")
-      .select("id, ticket_id, action, reason, actor_name, ticket_name, order_type, item_name, created_at")
-      .eq("store_id", sid)
-      .in("action", ["item_voided", "ticket_voided", "ticket_deleted", "ticket_items_changed"])
-      .order("created_at", { ascending: false })
-      .limit(200);
+    const [savedResult, cartResult] = await Promise.all([
+      supabase
+        .from("saved_ticket_audit_logs")
+        .select("id, ticket_id, action, reason, actor_name, ticket_name, order_type, item_name, created_at")
+        .eq("store_id", sid)
+        .in("action", ["item_voided", "ticket_voided", "ticket_deleted", "ticket_items_changed"])
+        .order("created_at", { ascending: false })
+        .limit(200),
+      supabase
+        .from("pos_cart_audit_logs")
+        .select("id, cart_session_id, action, actor_name, item_name, cart_context, created_at")
+        .eq("store_id", sid)
+        .in("action", ["item_added", "item_removed"])
+        .order("created_at", { ascending: false })
+        .limit(200),
+    ]);
 
     setSavedTicketAuditLoading(false);
-    if (error) {
-      console.error("Saved ticket audit history load failed:", error);
+    if (savedResult.error || cartResult.error) {
+      const error = savedResult.error || cartResult.error;
+      console.error("POS audit history load failed:", error);
       showToast("error", "History Load Failed", error.message);
       return;
     }
-    setSavedTicketAuditLogs(data || []);
+    const cartLogs = (cartResult.data || []).map((log) => ({
+      ...log,
+      ticket_id: log.cart_session_id,
+      ticket_name: log.cart_context?.dining_option || "Active POS Cart",
+      order_type: log.cart_context?.web_order_id
+        ? `Web Order: #${String(log.cart_context.web_order_id).slice(0, 8).toUpperCase()}`
+        : log.cart_context?.dining_option || "Active POS Cart",
+      reason: log.cart_context?.operation ? String(log.cart_context.operation).replaceAll("_", " ") : "POS cart action",
+    }));
+    setSavedTicketAuditLogs([...(savedResult.data || []), ...cartLogs]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 200));
   }
 
   async function fetchActiveKitchenTables(sid = storeId, printerGroups = orderSlipPrinterGroups) {
@@ -9559,7 +9681,16 @@ export default function POSPage() {
     showToast("info", "Voucher Removed", "Voucher discount removed.");
   };
 
-  const clearTicketSoft = () => {
+  const clearTicketSoft = ({ auditRemovalReason = "" } = {}) => {
+    if (auditRemovalReason) {
+      cart.forEach((line) => {
+        void recordCartAuditEvent("item_removed", line, {
+          operation: auditRemovalReason,
+          cart_line_count_before: cart.length,
+          cart_line_count_after: 0,
+        });
+      });
+    }
     setCart([]);
     setAttachedCustomer(null);
     setCustomerSearch("");
@@ -9573,11 +9704,12 @@ export default function POSPage() {
     setSplitMode(false);
     setSplitSelected([]);
     setOriginalTicketId(null);
+    cartAuditSessionRef.current = null;
     clearActiveWebOrderContext(); // Clear tracking target references safely
   };
 
   const clearTicket = () => {
-    clearTicketSoft();
+    clearTicketSoft({ auditRemovalReason: "cart_cleared" });
     setConfirmOpen(false);
     setTicketDrawerOpen(false);
   };
@@ -9638,6 +9770,13 @@ export default function POSPage() {
       }
       await syncOpenTicketLineItems(ticketRow.id, movingItems, storeId);
 
+      movingItems.forEach((line) => {
+        void recordCartAuditEvent("item_removed", line, {
+          operation: "moved_to_new_saved_ticket",
+          destination_ticket_id: ticketRow.id,
+        });
+      });
+
       setCart((prev) => prev.filter((x) => !splitSelected.includes(x.cartItemId)));
 
       if (appliedVoucher?.applied_to_cartItemId && splitSelected.includes(appliedVoucher.applied_to_cartItemId)) {
@@ -9692,6 +9831,13 @@ export default function POSPage() {
       }
       await syncOpenTicketLineItems(ticket.id, merged, storeId);
 
+      movingItems.forEach((line) => {
+        void recordCartAuditEvent("item_removed", line, {
+          operation: "moved_to_existing_saved_ticket",
+          destination_ticket_id: ticket.id,
+        });
+      });
+
       setCart((prev) => prev.filter((x) => !splitSelected.includes(x.cartItemId)));
 
       if (appliedVoucher?.applied_to_cartItemId && splitSelected.includes(appliedVoucher.applied_to_cartItemId)) {
@@ -9711,11 +9857,35 @@ export default function POSPage() {
   };
 
   const onAddToCart = (addedLineItem) => {
+    const editIndex = selectedItemForModal?.editData ? selectedItemForModal.editIndex : null;
+    const previousLine = editIndex === null || editIndex === undefined ? null : cart[editIndex];
     setCart((prevCart) => addPosCartLine(
       prevCart,
       addedLineItem,
-      selectedItemForModal?.editData ? selectedItemForModal.editIndex : null
+      editIndex
     ));
+
+    const previousQuantity = Number(previousLine?.quantity || 0);
+    const nextQuantity = Number(addedLineItem?.quantity || 0);
+    if (!previousLine || nextQuantity > previousQuantity) {
+      void recordCartAuditEvent("item_added", {
+        ...addedLineItem,
+        quantity: previousLine ? nextQuantity - previousQuantity : nextQuantity,
+      }, {
+        operation: previousLine ? "quantity_increased" : "add_item",
+        cart_line_count_before: cart.length,
+        cart_line_count_after: previousLine ? cart.length : cart.length + 1,
+      });
+    } else if (nextQuantity < previousQuantity) {
+      void recordCartAuditEvent("item_removed", {
+        ...previousLine,
+        quantity: previousQuantity - nextQuantity,
+      }, {
+        operation: "quantity_decreased",
+        cart_line_count_before: cart.length,
+        cart_line_count_after: cart.length,
+      });
+    }
 
     setSelectedItemForModal(null);
     showToast("success", "Item Added", addedLineItem.name);

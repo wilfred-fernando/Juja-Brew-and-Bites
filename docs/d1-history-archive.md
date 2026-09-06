@@ -10,7 +10,7 @@ does not delete or mutate source records.
 - Receipt/order items
 - Closed and end-day cashier shift records
 - Daily inventory snapshots and historical inventory transactions
-- Audit and notification history
+- Generic audit history, saved-ticket audit history, POS cart add/remove history, and notifications
 - Daily sales and payment summaries
 
 Converted web orders are de-duplicated through `orders.source_web_order_id`.
@@ -70,6 +70,15 @@ npm run archive:sync
 
 The default boundary is yesterday in Asia/Manila. Re-running the sync is safe:
 rows use source IDs and D1 upserts.
+
+To back up only audit records without reading or resending sales data:
+
+```powershell
+node scripts/sync-supabase-to-d1.js --audit-only --through=YYYY-MM-DD
+```
+
+Current POS cart and saved-ticket audit events are also included in the verified
+shift-close archive. Failed shift archives remain in the existing retry queue.
 
 ## Validation and rollback
 

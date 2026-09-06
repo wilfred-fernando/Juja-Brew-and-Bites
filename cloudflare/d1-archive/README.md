@@ -26,3 +26,9 @@ ARCHIVE_SYNC_SECRET=<different long random secret>
 ```
 
 Run `npm run archive:sync:dry-run`, then `npm run archive:sync`.
+
+Audit-only backfill (generic, saved-ticket, and POS cart audit logs):
+
+```powershell
+node scripts/sync-supabase-to-d1.js --audit-only --through=YYYY-MM-DD
+```

@@ -22,12 +22,19 @@ loadEnv(".env.d1-archive");
 const args = new Set(process.argv.slice(2));
 const throughArg = process.argv.find((arg) => arg.startsWith("--through="));
 const dryRun = args.has("--dry-run");
+const auditOnly = args.has("--audit-only");
 const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000;
 const TERMINAL = new Set(["paid", "completed", "closed", "delivered", "refunded", "voided", "cancelled"]);
 
 function manilaDate(value = new Date()) {
   const date = value instanceof Date ? value : new Date(value);
   return new Date(date.getTime() + MANILA_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+function manilaIso(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Date(date.getTime() + MANILA_OFFSET_MS).toISOString().replace(/Z$/, "+08:00");
 }
 
 function yesterdayManila() {
@@ -243,13 +250,50 @@ async function main() {
   const throughIso = `${archiveThrough}T23:59:59.999+08:00`;
   const supabase = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
-  const [allOrders, allWebOrders, shifts, inventoryDaily, inventoryTransactions, auditLogs, notifications] = await Promise.all([
+  if (auditOnly) {
+    const [auditLogs, savedTicketAuditLogs, posCartAuditLogs] = await Promise.all([
+      fetchAll(supabase, "audit_log", (query) => query.lte("created_at", throughIso).order("created_at")),
+      fetchAll(supabase, "saved_ticket_audit_logs", (query) => query.lte("created_at", throughIso).order("created_at")),
+      fetchAll(supabase, "pos_cart_audit_logs", (query) => query.lte("created_at", throughIso).order("created_at")),
+    ]);
+    const archivedAudit = auditLogs.filter((row) => manilaDate(row.created_at) <= archiveThrough).map((row) => ({
+      source_id: String(row.id), business_date: manilaDate(row.created_at), store_id: text(row.store_id),
+      actor_user_id: text(row.actor_user_id || row.user_id), entity: text(row.entity || row.entity_type),
+      action: text(row.action), created_at: manilaIso(row.created_at), payload_json: json(row),
+    })).concat(
+      savedTicketAuditLogs.filter((row) => manilaDate(row.created_at) <= archiveThrough).map((row) => ({
+        source_id: `saved_ticket:${row.id}`, business_date: manilaDate(row.created_at), store_id: text(row.store_id),
+        actor_user_id: text(row.actor_id), entity: "saved_ticket", action: text(row.action),
+        created_at: manilaIso(row.created_at), payload_json: json(row),
+      })),
+      posCartAuditLogs.filter((row) => manilaDate(row.created_at) <= archiveThrough).map((row) => ({
+        source_id: `pos_cart:${row.id}`, business_date: manilaDate(row.created_at), store_id: text(row.store_id),
+        actor_user_id: text(row.actor_id), entity: "pos_cart", action: text(row.action),
+        created_at: manilaIso(row.created_at), payload_json: json(row),
+      })),
+    );
+
+    console.log(`Audit archive through ${archiveThrough}${dryRun ? " (dry run)" : ""}`);
+    console.log(`archive_audit_logs: ${archivedAudit.length}`);
+    if (dryRun) return;
+
+    const apiUrl = String(process.env.D1_ARCHIVE_API_URL || "").replace(/\/$/, "");
+    const token = process.env.D1_ARCHIVE_API_TOKEN;
+    if (!apiUrl || !token) throw new Error("D1_ARCHIVE_API_URL or D1_ARCHIVE_API_TOKEN is missing.");
+    await sendBatch(apiUrl, token, "archive_audit_logs", archivedAudit);
+    console.log(`D1 audit archive synchronized through ${archiveThrough}.`);
+    return;
+  }
+
+  const [allOrders, allWebOrders, shifts, inventoryDaily, inventoryTransactions, auditLogs, savedTicketAuditLogs, posCartAuditLogs, notifications] = await Promise.all([
     fetchAll(supabase, "orders", (query) => query.lte("created_at", throughIso).order("created_at")),
     fetchAll(supabase, "web_orders", (query) => query.lte("created_at", throughIso).order("created_at")),
     fetchAll(supabase, "cashier_pos", (query) => query.lte("created_at", throughIso).in("mode", ["close", "end_day"]).order("created_at")),
     fetchAll(supabase, "finance_daily_inventory_entries", (query) => query.lte("inventory_date", archiveThrough).order("inventory_date")),
     fetchAll(supabase, "inventory_transactions", (query) => query.lte("created_at", throughIso).order("created_at")),
     fetchAll(supabase, "audit_log", (query) => query.lte("created_at", throughIso).order("created_at")),
+    fetchAll(supabase, "saved_ticket_audit_logs", (query) => query.lte("created_at", throughIso).order("created_at")),
+    fetchAll(supabase, "pos_cart_audit_logs", (query) => query.lte("created_at", throughIso).order("created_at")),
     fetchAll(supabase, "notifications", (query) => query.lte("created_at", throughIso).order("created_at")),
   ]);
 
@@ -285,8 +329,19 @@ async function main() {
   const archivedAudit = auditLogs.filter((row) => manilaDate(row.created_at) <= archiveThrough).map((row) => ({
     source_id: String(row.id), business_date: manilaDate(row.created_at), store_id: text(row.store_id),
     actor_user_id: text(row.actor_user_id || row.user_id), entity: text(row.entity || row.entity_type),
-    action: text(row.action), created_at: text(row.created_at), payload_json: json(row),
-  }));
+    action: text(row.action), created_at: manilaIso(row.created_at), payload_json: json(row),
+  })).concat(
+    savedTicketAuditLogs.filter((row) => manilaDate(row.created_at) <= archiveThrough).map((row) => ({
+      source_id: `saved_ticket:${row.id}`, business_date: manilaDate(row.created_at), store_id: text(row.store_id),
+      actor_user_id: text(row.actor_id), entity: "saved_ticket", action: text(row.action),
+      created_at: manilaIso(row.created_at), payload_json: json(row),
+    })),
+    posCartAuditLogs.filter((row) => manilaDate(row.created_at) <= archiveThrough).map((row) => ({
+      source_id: `pos_cart:${row.id}`, business_date: manilaDate(row.created_at), store_id: text(row.store_id),
+      actor_user_id: text(row.actor_id), entity: "pos_cart", action: text(row.action),
+      created_at: manilaIso(row.created_at), payload_json: json(row),
+    })),
+  );
   const archivedNotifications = notifications
     .filter((row) => manilaDate(row.created_at) <= archiveThrough)
     .map((row) => ({
