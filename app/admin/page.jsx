@@ -99,7 +99,7 @@ export default function AdminDashboard() {
     { title: "Settings", icon: Settings, desc: "Store settings and configuration.", path: "/admin/settings" },
     { title: "Accounts", icon: Users, desc: "Manage staff and access control.", path: "/admin/accounts" },
     { title: "SC / PWD Beneficiaries", icon: Users, desc: "Review and edit beneficiary names and ID details.", path: "/admin/pos-admin/settings/beneficiaries" },
-    { title: "Saved Ticket Void Logs", icon: ShieldAlert, desc: "Review voided items, cashiers, reasons, and ticket history.", path: "/admin/void-logs" },
+    { title: "Saved Ticket Audit Logs", icon: ShieldAlert, desc: "Review ticket changes, voided items, cashiers, reasons, and deletion history.", path: "/admin/void-logs" },
   ];
 
  return (

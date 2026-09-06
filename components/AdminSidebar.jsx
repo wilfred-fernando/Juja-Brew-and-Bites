@@ -53,7 +53,7 @@ export default function AdminSidebar({
       items: [
         { name: "Dashboard", path: "/admin", icon: Home },
         { name: "Bookings", path: "/admin/bookings", icon: CalendarCheck },
-        { name: "Void Logs", path: "/admin/void-logs", icon: ShieldAlert },
+        { name: "Ticket Audit Logs", path: "/admin/void-logs", icon: ShieldAlert },
         {
           name: "POS Admin",
           path: "/admin/pos-admin",

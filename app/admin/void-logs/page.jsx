@@ -5,7 +5,8 @@ import { AlertTriangle, RefreshCw, Search, ShieldCheck } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDateTime } from "@/lib/dateFormat";
 
-const VOID_ACTIONS = ["item_voided", "ticket_voided", "ticket_deleted"];
+const AUDIT_ACTIONS = ["item_voided", "ticket_voided", "ticket_deleted", "ticket_items_changed"];
+const VOID_ACTIONS = new Set(["item_voided", "ticket_voided", "ticket_deleted"]);
 
 function asObject(value, fallback = {}) {
   if (value && typeof value === "object") return value;
@@ -46,6 +47,30 @@ function affectedItems(log) {
     return Object.keys(item).length ? [item] : [];
   }
 
+  if (log?.action === "ticket_items_changed") {
+    const beforeItems = Array.isArray(itemData.before) ? itemData.before : [];
+    const afterItems = Array.isArray(itemData.after) ? itemData.after : [];
+    const maxLength = Math.max(beforeItems.length, afterItems.length);
+
+    return Array.from({ length: maxLength }, (_, index) => {
+      const before = beforeItems[index];
+      const after = afterItems[index];
+      if (JSON.stringify(before) === JSON.stringify(after)) return null;
+
+      const beforeQty = before ? itemQuantity(before) : 0;
+      const afterQty = after ? itemQuantity(after) : 0;
+      const change = !before
+        ? "Added"
+        : !after
+          ? "Removed"
+          : beforeQty !== afterQty
+            ? `Qty ${beforeQty} → ${afterQty}`
+            : "Details changed";
+
+      return { ...(after || before || {}), _auditChange: change };
+    }).filter(Boolean);
+  }
+
   const snapshot = asObject(log?.ticket_snapshot);
   const items = Array.isArray(snapshot.items) ? snapshot.items : [];
   const activeAtDeletion = items.filter((item) => !isVoidedItem(item));
@@ -55,6 +80,7 @@ function affectedItems(log) {
 function actionLabel(action) {
   if (action === "item_voided") return "Item voided";
   if (action === "ticket_voided") return "Whole ticket voided";
+  if (action === "ticket_items_changed") return "Ticket items changed";
   return "Ticket deleted directly";
 }
 
@@ -78,7 +104,7 @@ export default function SavedTicketVoidLogsPage() {
       supabase
         .from("saved_ticket_audit_logs")
         .select("id, ticket_id, store_id, action, reason, actor_id, actor_name, ticket_name, order_type, item_name, item_data, ticket_snapshot, created_at")
-        .in("action", VOID_ACTIONS)
+        .in("action", AUDIT_ACTIONS)
         .order("created_at", { ascending: false })
         .limit(1000),
       supabase.from("stores").select("id, name").order("name", { ascending: true }),
@@ -135,11 +161,18 @@ export default function SavedTicketVoidLogsPage() {
     let itemCount = 0;
     let amount = 0;
     filteredLogs.forEach((log) => {
-      const items = affectedItems(log);
-      itemCount += items.reduce((sum, item) => sum + itemQuantity(item), 0);
-      amount += items.reduce((sum, item) => sum + itemNetAmount(item), 0);
+      if (VOID_ACTIONS.has(log.action)) {
+        const items = affectedItems(log);
+        itemCount += items.reduce((sum, item) => sum + itemQuantity(item), 0);
+        amount += items.reduce((sum, item) => sum + itemNetAmount(item), 0);
+      }
     });
-    return { events: filteredLogs.length, itemCount, amount };
+    return {
+      events: filteredLogs.length,
+      voidEvents: filteredLogs.filter((log) => VOID_ACTIONS.has(log.action)).length,
+      itemCount,
+      amount,
+    };
   }, [filteredLogs]);
 
   return (
@@ -147,9 +180,9 @@ export default function SavedTicketVoidLogsPage() {
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.22em] text-red-600">POS accountability</p>
-          <h1 className="mt-2 text-3xl font-black text-slate-900">Saved Ticket Void Logs</h1>
+          <h1 className="mt-2 text-3xl font-black text-slate-900">Saved Ticket Audit Logs</h1>
           <p className="mt-2 max-w-3xl text-sm text-slate-600">
-            Read-only history of saved-ticket item voids, whole-ticket voids, and direct ticket deletions.
+            Read-only history of saved-ticket item changes, item voids, whole-ticket voids, and direct deletions.
           </p>
         </div>
         <button
@@ -163,10 +196,14 @@ export default function SavedTicketVoidLogsPage() {
         </button>
       </header>
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-red-100 bg-white/90 p-5 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Void events</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Audit events</p>
           <p className="mt-2 text-3xl font-black text-slate-900">{totals.events}</p>
+        </div>
+        <div className="rounded-2xl border border-red-100 bg-white/90 p-5 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Confirmed void events</p>
+          <p className="mt-2 text-3xl font-black text-slate-900">{totals.voidEvents}</p>
         </div>
         <div className="rounded-2xl border border-red-100 bg-white/90 p-5 shadow-sm">
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Item quantity voided</p>
@@ -194,10 +231,11 @@ export default function SavedTicketVoidLogsPage() {
             {stores.map((store) => <option key={store.id} value={String(store.id)}>{store.name}</option>)}
           </select>
           <select value={actionFilter} onChange={(event) => setActionFilter(event.target.value)} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700">
-            <option value="ALL">All void types</option>
+            <option value="ALL">All audit types</option>
             <option value="item_voided">Item voids</option>
             <option value="ticket_voided">Whole-ticket voids</option>
             <option value="ticket_deleted">Direct deletions</option>
+            <option value="ticket_items_changed">Ticket item changes</option>
           </select>
           <div className="grid grid-cols-2 gap-2">
             <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} aria-label="From date" className="h-11 min-w-0 rounded-xl border border-slate-200 bg-white px-2 text-xs text-slate-700" />
@@ -214,11 +252,11 @@ export default function SavedTicketVoidLogsPage() {
       )}
 
       {loading ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm font-semibold text-slate-500">Loading void history…</div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm font-semibold text-slate-500">Loading saved-ticket audit history…</div>
       ) : filteredLogs.length === 0 ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
           <ShieldCheck className="mx-auto h-10 w-10 text-emerald-500" />
-          <p className="mt-3 font-bold text-slate-800">No matching saved-ticket voids</p>
+          <p className="mt-3 font-bold text-slate-800">No matching saved-ticket audit events</p>
           <p className="mt-1 text-sm text-slate-500">Adjust the branch, date, type, or search filters.</p>
         </div>
       ) : (
@@ -231,7 +269,7 @@ export default function SavedTicketVoidLogsPage() {
                 <div className="flex flex-col gap-3 border-b border-slate-100 bg-slate-50/80 p-4 md:flex-row md:items-start md:justify-between">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${log.action === "ticket_deleted" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-700"}`}>
+                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${log.action === "ticket_items_changed" || log.action === "ticket_deleted" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-700"}`}>
                         {actionLabel(log.action)}
                       </span>
                       <span className="text-xs font-bold text-slate-500">{storeNames.get(String(log.store_id)) || "Unknown branch"}</span>
@@ -247,14 +285,14 @@ export default function SavedTicketVoidLogsPage() {
 
                 <div className="p-4">
                   <div className="rounded-xl border border-red-100 bg-red-50/60 px-3 py-2 text-sm text-red-900">
-                    <span className="font-black">Reason:</span> {log.reason || "No reason supplied; direct database mutation captured."}
+                    <span className="font-black">{log.action === "ticket_items_changed" ? "Audit note:" : "Reason:"}</span> {log.reason || "No reason supplied; direct mutation captured by audit trigger."}
                   </div>
 
                   <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200">
                     <table className="min-w-full text-left text-sm">
                       <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
                         <tr>
-                          <th className="px-4 py-3">Voided item</th>
+                          <th className="px-4 py-3">{log.action === "ticket_items_changed" ? "Affected item" : "Voided item"}</th>
                           <th className="px-4 py-3 text-center">Qty</th>
                           <th className="px-4 py-3 text-right">Unit price</th>
                           <th className="px-4 py-3 text-right">Net amount</th>
@@ -268,7 +306,8 @@ export default function SavedTicketVoidLogsPage() {
                           return (
                             <tr key={item?.cartItemId || item?.id || `${log.id}-${index}`}>
                               <td className="px-4 py-3">
-                                <p className="font-bold text-slate-900">{item?.name || item?.item_name || log.item_name || "Unnamed item"}</p>
+                                 <p className="font-bold text-slate-900">{item?.name || item?.item_name || log.item_name || "Unnamed item"}</p>
+                                {item?._auditChange && <p className="mt-1 text-xs font-bold text-amber-700">{item._auditChange}</p>}
                                 {detail && <p className="mt-1 text-xs text-slate-500">{detail}</p>}
                               </td>
                               <td className="px-4 py-3 text-center font-bold text-slate-700">{quantity}</td>
@@ -283,7 +322,7 @@ export default function SavedTicketVoidLogsPage() {
                       </tbody>
                       <tfoot className="bg-slate-50">
                         <tr>
-                          <td colSpan={3} className="px-4 py-3 text-right text-xs font-black uppercase tracking-wider text-slate-600">Recorded void value</td>
+                          <td colSpan={3} className="px-4 py-3 text-right text-xs font-black uppercase tracking-wider text-slate-600">{log.action === "ticket_items_changed" ? "Recorded affected value" : "Recorded void value"}</td>
                           <td className="px-4 py-3 text-right font-black text-slate-900">{peso(eventAmount)}</td>
                         </tr>
                       </tfoot>

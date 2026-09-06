@@ -2288,7 +2288,10 @@ function Toast({ toast, onClose }) {
   );
 }
 
-const TARGET_WEB_STATUSES = ["pending", "scheduled", "accepted", "preparing", "ready", "Pending", "Scheduled", "Accepted", "Preparing", "Ready"];
+const PENDING_WEB_STATUSES = ["pending", "scheduled", "Pending", "Scheduled"];
+const READY_WEB_STATUSES = ["accepted", "preparing", "ready", "Accepted", "Preparing", "Ready"];
+const TARGET_WEB_STATUSES = [...PENDING_WEB_STATUSES, ...READY_WEB_STATUSES];
+const CLOSED_WEB_STATUSES = new Set(["completed", "delivered", "paid", "cancelled", "canceled", "rejected", "refunded", "voided"]);
 const ACTIVE_VOUCHER_STATUSES = ["active", "available"];
 const calcLoyaltyPoints = (amount) => Number(((Number(amount) || 0) * 0.04).toFixed(2));
 const SHIFT_DENOMINATIONS = [1000, 500, 200, 100, 50, 20, 10, 5, 1];
@@ -2296,6 +2299,12 @@ const POS_RECEIPT_HISTORY_DAYS = 15;
 
 const getWebOrderStoreId = (order) => order?.store_id || order?.branch_id || null;
 const buildStoreOrderFilter = (storeId) => `store_id.eq.${storeId},branch_id.eq.${storeId}`;
+const isClosedOrChargedWebOrder = (order) => {
+  if (String(order?.receipt_number || "").trim()) return true;
+  return [order?.status, order?.order_status]
+    .map((status) => String(status || "").toLowerCase())
+    .some((status) => CLOSED_WEB_STATUSES.has(status));
+};
 const isScheduledWebOrder = (order) => {
   const status = String(order?.status || order?.order_status || "").toLowerCase();
   if (status === "scheduled") return true;
@@ -5396,6 +5405,7 @@ export default function POSPage() {
         if (data) order = data;
       }
 
+      if (isClosedOrChargedWebOrder(order) || order?.accepted_at) return;
       const currentStatus = String(order?.status || "pending").toLowerCase();
       if (!["pending", "scheduled"].includes(currentStatus)) return;
 
@@ -5509,16 +5519,29 @@ export default function POSPage() {
       if (String(incomingStoreId || "") !== String(storeId || "")) {
         throw new Error("This web order belongs to another store.");
       }
+      const { data: liveOrder, error: liveOrderError } = await supabase
+        .from("web_orders")
+        .select("*")
+        .eq("id", incomingOrder.id)
+        .or(buildStoreOrderFilter(incomingStoreId))
+        .maybeSingle();
+      if (liveOrderError) throw liveOrderError;
+      const liveStatus = String(liveOrder?.status || liveOrder?.order_status || "").toLowerCase();
+      if (!liveOrder?.id || liveOrder.accepted_at || isClosedOrChargedWebOrder(liveOrder) || !["pending", "scheduled"].includes(liveStatus)) {
+        await fetchPendingCount(storeId);
+        await fetchAcceptedWebOrders();
+        throw new Error("This web order was already accepted, charged, or closed on another POS device.");
+      }
       const acceptedAt = new Date().toISOString();
-      const scheduledOrder = isScheduledWebOrder(incomingOrder);
+      const scheduledOrder = isScheduledWebOrder(liveOrder);
       const acceptedStatus = scheduledOrder ? "scheduled" : "accepted";
-      const acceptedItems = Array.isArray(reviewItems) ? enrichOrderItemsForKds(reviewItems) : enrichOrderItemsForKds(incomingOrder.items || []);
+      const acceptedItems = Array.isArray(reviewItems) ? enrichOrderItemsForKds(reviewItems) : enrichOrderItemsForKds(liveOrder.items || []);
       if (acceptedItems.length === 0) {
         throw new Error("Remove unavailable items or reject the web order. At least one item is required to accept.");
       }
       const acceptedTotal = Number(calcTotal(acceptedItems).toFixed(2));
       const acceptedOrder = {
-        ...incomingOrder,
+        ...liveOrder,
         items: acceptedItems,
         subtotal: acceptedTotal,
         total: acceptedTotal,
@@ -5526,7 +5549,7 @@ export default function POSPage() {
         order_status: acceptedStatus,
         accepted_at: acceptedAt,
       };
-      const { error: updateErr } = await supabase
+      const { data: acceptedRow, error: updateErr } = await supabase
         .from("web_orders")
         .update({
           status: acceptedStatus,
@@ -5537,8 +5560,14 @@ export default function POSPage() {
           total: acceptedTotal,
         })
         .eq("id", incomingOrder.id)
-        .or(buildStoreOrderFilter(incomingStoreId));
+        .or(buildStoreOrderFilter(incomingStoreId))
+        .in("status", PENDING_WEB_STATUSES)
+        .is("receipt_number", null)
+        .is("accepted_at", null)
+        .select("id")
+        .maybeSingle();
       if (updateErr) throw updateErr;
+      if (!acceptedRow?.id) throw new Error("This web order changed on another POS device and was not accepted again.");
 
       const { error: kdsErr } = await upsertKdsTicket(supabase, {
         sourceType: "web",
@@ -5605,13 +5634,18 @@ export default function POSPage() {
       if (String(incomingStoreId || "") !== String(storeId || "")) {
         throw new Error("This web order belongs to another store.");
       }
-      const { error } = await supabase
+      const { data: rejectedRow, error } = await supabase
         .from("web_orders")
-        .update({ status: "rejected" })
+        .update({ status: "rejected", order_status: "rejected", rejected_at: new Date().toISOString() })
         .eq("id", incomingOrder.id)
-        .or(buildStoreOrderFilter(incomingStoreId));
+        .or(buildStoreOrderFilter(incomingStoreId))
+        .in("status", PENDING_WEB_STATUSES)
+        .is("receipt_number", null)
+        .select("id")
+        .maybeSingle();
 
       if (error) throw error;
+      if (!rejectedRow?.id) throw new Error("This web order was already accepted, charged, or closed on another POS device.");
       await fetchPendingCount(storeId);
       showToast("warn", "Order Refused", "Remote order cancelled and updated flags inside log tracking rows.");
     } catch (err) {
@@ -6442,7 +6476,7 @@ export default function POSPage() {
       const activeWebOrderStore = activeWebOrderBranchId || storeId;
       if (!activeWebOrderStore) throw new Error("Store is still loading. Please refresh POS or sign in again before saving this web order.");
       // Direct rewrite update to keep the active web order synchronized 
-      const { error } = await supabase
+      const { data: savedWebOrder, error } = await supabase
         .from("web_orders")
         .update({
           items: savedItems,
@@ -6452,8 +6486,18 @@ export default function POSPage() {
           fulfillment_type: activeWebOrderFulfillmentType || diningOptionName || null,
         })
         .eq("id", activeWebOrderId)
-        .or(buildStoreOrderFilter(activeWebOrderStore));
+        .or(buildStoreOrderFilter(activeWebOrderStore))
+        .in("status", TARGET_WEB_STATUSES)
+        .is("receipt_number", null)
+        .select("id")
+        .maybeSingle();
       if (error) throw error;
+      if (!savedWebOrder?.id) {
+        setPaymentOpen(false);
+        clearTicketSoft();
+        await fetchAcceptedWebOrders();
+        throw new Error("This web order was already charged or closed on another POS device. The stale cart was cleared.");
+      }
       await autoPrintOrderSlip({
         orderId: activeWebOrderId,
         slipCart: savedItems,
@@ -6740,7 +6784,7 @@ export default function POSPage() {
       return;
     }
 
-    setWebOrders(data || []);
+    setWebOrders((data || []).filter((order) => !isClosedOrChargedWebOrder(order)));
   }
 
   async function refreshPosNow() {
@@ -6850,7 +6894,13 @@ export default function POSPage() {
     if (String(getWebOrderStoreId(order) || "") !== String(storeId || "")) {
       showToast("error", "Wrong Store Order", "This web order belongs to another store.");
       fetchAcceptedWebOrders();
-      return;
+      return false;
+    }
+    if (isClosedOrChargedWebOrder(order)) {
+      if (String(activeWebOrderId || "") === String(order.id)) clearTicketSoft();
+      fetchAcceptedWebOrders();
+      showToast("error", "Web Order Already Charged", "This order is already closed and was removed from the active list.");
+      return false;
     }
     setCart(enrichOrderItemsForKds(order.items || []));
     setOriginalTicketId(null);
@@ -6869,10 +6919,16 @@ export default function POSPage() {
     setAttachedCustomer(customer || null);
     setWebOrdersOpen(false);
     showToast("info", "Web Order Loaded", "Edit the order in the active ticket workspace.");
+    return true;
   }
 
   async function removeAcceptedWebOrderItem(order, itemIndex) {
     if (!order?.id) return;
+    if (isClosedOrChargedWebOrder(order)) {
+      await fetchAcceptedWebOrders();
+      showToast("error", "Order Already Closed", "Items cannot be changed after a web order is charged.");
+      return;
+    }
     const orderStoreId = getWebOrderStoreId(order) || storeId;
     if (String(orderStoreId || "") !== String(storeId || "")) {
       showToast("error", "Wrong Store Order", "This web order belongs to another store.");
@@ -6891,7 +6947,7 @@ export default function POSPage() {
     const nextItems = enrichOrderItemsForKds(currentItems.filter((_, idx) => idx !== itemIndex));
     const nextTotal = Number(calcTotal(nextItems).toFixed(2));
 
-    const { error } = await supabase
+    const { data: updatedOrder, error } = await supabase
       .from("web_orders")
       .update({
         items: nextItems,
@@ -6899,10 +6955,19 @@ export default function POSPage() {
         total: nextTotal,
       })
       .eq("id", order.id)
-      .or(buildStoreOrderFilter(orderStoreId));
+      .or(buildStoreOrderFilter(orderStoreId))
+      .in("status", TARGET_WEB_STATUSES)
+      .is("receipt_number", null)
+      .select("id")
+      .maybeSingle();
 
     if (error) {
       showToast("error", "Remove Item Failed", error.message);
+      return;
+    }
+    if (!updatedOrder?.id) {
+      await fetchAcceptedWebOrders();
+      showToast("error", "Order Changed", "This web order was already charged or closed on another POS device.");
       return;
     }
 
@@ -6946,15 +7011,29 @@ export default function POSPage() {
       await fetchAcceptedWebOrders();
       return;
     }
+    if (isClosedOrChargedWebOrder(order)) {
+      await fetchAcceptedWebOrders();
+      showToast("error", "Order Already Closed", "A charged web order cannot be marked ready again.");
+      return;
+    }
 
-    const { error } = await supabase
+    const { data: readyRow, error } = await supabase
       .from("web_orders")
       .update({ status: "ready", order_status: "ready", ready_at: new Date().toISOString() })
       .eq("id", order.id)
-      .or(buildStoreOrderFilter(orderStoreId));
+      .or(buildStoreOrderFilter(orderStoreId))
+      .in("status", READY_WEB_STATUSES)
+      .is("receipt_number", null)
+      .select("id")
+      .maybeSingle();
 
     if (error) {
       showToast("error", "Ready Failed", error.message);
+      return;
+    }
+    if (!readyRow?.id) {
+      await fetchAcceptedWebOrders();
+      showToast("error", "Order Already Closed", "This web order was charged or changed on another POS device.");
       return;
     }
 
@@ -6980,7 +7059,7 @@ export default function POSPage() {
 
   function openWebOrderCharge(order) {
     if (!order?.id) return;
-    editAcceptedWebOrder(order);
+    if (!editAcceptedWebOrder(order)) return;
     setSelectedPayment("");
     setPaymentAmount("");
     window.setTimeout(() => setPaymentOpen(true), 0);
@@ -9030,6 +9109,8 @@ export default function POSPage() {
         const alreadyClosed = ["completed", "delivered", "paid", "cancelled", "canceled", "rejected", "refunded", "voided"].includes(webChargeStatus);
         if (alreadyClosed || webOrderForCharge.receipt_number) {
           await fetchAcceptedWebOrders();
+          setPaymentOpen(false);
+          clearTicketSoft();
           return showToast("error", "Web Order Already Charged", "This web order already has a receipt or is no longer active.");
         }
         activeWebOrderForCharge = webOrderForCharge;
