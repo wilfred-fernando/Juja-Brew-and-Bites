@@ -7882,7 +7882,7 @@ export default function POSPage() {
     if (view === "receipts" || view === "shift") fetchReceiptLogs();
   }
 
-  async function refundReceipt(receipt) {
+  async function refundTicket(receipt) {
     if (!receipt?.receipt_number) return;
     if (String(receipt.status || "").toLowerCase() === "refunded") {
       showToast("info", "Already Refunded", receipt.receipt_number);
@@ -7907,7 +7907,7 @@ export default function POSPage() {
           refund_amount: refundAmount,
           refunded_at: new Date().toISOString(),
           refunded_by: currentUserId || null,
-          refund_reason: "POS receipt refund",
+          refund_reason: "POS ticket refund",
         })
         .eq("id", receipt.id);
       if (refundError) {
@@ -7919,7 +7919,7 @@ export default function POSPage() {
           status: "refunded",
           refunded_at: new Date().toISOString(),
           refunded_by: currentUserId || null,
-          refund_reason: "POS receipt refund",
+          refund_reason: "POS ticket refund",
         })
         .eq("order_id", receipt.id);
       if (itemsRefundError) {
@@ -7937,7 +7937,7 @@ export default function POSPage() {
     saveReceiptRefunds(next);
     setReceiptRows((prev) => prev.map((row) => row.receipt_number === key ? { ...row, status: "Refunded" } : row));
     setReceiptItemRows((prev) => prev.map((row) => row.receipt_number === key ? { ...row, status: "Refunded" } : row));
-    showToast("success", "Receipt Refunded", receipt.receipt_number);
+    showToast("success", "Ticket Refunded", receipt.receipt_number);
   }
 
   function normalizeOrderItemRowsForReceipt(rows, receipt) {
@@ -8121,134 +8121,6 @@ export default function POSPage() {
     } finally {
       setReprintingCupLabel(false);
     }
-  }
-
-  async function refundReceiptItem(itemRow) {
-    if (!itemRow?.receipt_number || !itemRow?.item) return;
-    const receiptKey = String(itemRow.receipt_number);
-    const itemKey = itemRow.id || itemRow.item;
-    if (itemRow.refunded_at || String(itemRow.status || "").toLowerCase().includes("refund")) {
-      showToast("info", "Item Already Refunded", itemRow.item);
-      return;
-    }
-    if (itemRow.order_id || receiptKey) {
-      let nextReceiptStatus = "Partial Refund";
-      const orderId = itemRow.order_id || receiptKey;
-      const { data: orderAudit } = await supabase
-        .from("orders")
-        .select("status, refund_amount, total, net_amount, subtotal, source_metadata, loyalty_points_awarded, loyalty_member_id, customer_id")
-        .eq("id", orderId)
-        .maybeSingle();
-      const itemRefundAmount = Number(itemRow.net_sales || itemRow.gross_sales || 0);
-      const itemRefundedAt = new Date().toISOString();
-      if (itemRow.id) {
-        const { data: existingItem } = await supabase
-          .from("order_items")
-          .select("status, refunded_at")
-          .eq("id", itemRow.id)
-          .maybeSingle();
-        if (existingItem?.refunded_at || String(existingItem?.status || "").toLowerCase().includes("refund")) {
-          showToast("info", "Item Already Refunded", itemRow.item);
-          return;
-        }
-        const { error: itemRefundError } = await supabase
-          .from("order_items")
-          .update({
-            status: "refunded",
-            refund_amount: itemRefundAmount,
-            refunded_at: itemRefundedAt,
-            refunded_by: currentUserId || null,
-            refund_reason: "POS item refund",
-          })
-          .eq("id", itemRow.id);
-        if (itemRefundError) {
-          showToast("warn", "Item Refund Audit Skipped", itemRefundError.message);
-          return;
-        }
-      }
-      const { data: refundedItems } = await supabase
-        .from("order_items")
-        .select("id, refund_amount, net_amount, line_total, status, refunded_at")
-        .eq("order_id", orderId);
-      const nextRefundAmount = (refundedItems || []).reduce((sum, item) => {
-        const status = String(item?.status || "").toLowerCase();
-        if (!item?.refunded_at && !status.includes("refund")) return sum;
-        return sum + Math.abs(Number(item.refund_amount || item.net_amount || item.line_total || 0));
-      }, 0) || itemRefundAmount;
-      const allItemsRefunded =
-        (refundedItems || []).length > 0 &&
-        (refundedItems || []).every((item) => {
-          const status = String(item?.status || "").toLowerCase();
-          return Boolean(item?.refunded_at || status.includes("refund"));
-        });
-      nextReceiptStatus = allItemsRefunded ? "Refunded" : "Partial Refund";
-      const currentAwarded = Number(orderAudit?.loyalty_points_awarded || 0);
-      const calculatedPoints = calcLoyaltyPoints(itemRefundAmount);
-      const pointsToReverse = currentAwarded > 0 ? Math.min(currentAwarded, calculatedPoints) : calculatedPoints;
-      const orderRefundUpdate = allItemsRefunded
-        ? {
-            status: "refunded",
-            refund_amount: nextRefundAmount,
-            refunded_at: itemRefundedAt,
-            refunded_by: currentUserId || null,
-            refund_reason: "POS item refund",
-          }
-        : {
-            status: "partial_refund",
-            refund_amount: nextRefundAmount,
-            refunded_by: currentUserId || null,
-            refund_reason: "POS item refund",
-          };
-      const { error: refundError } = await supabase
-        .from("orders")
-        .update(orderRefundUpdate)
-        .eq("id", orderId);
-      if (refundError) {
-        showToast("warn", "Refund Audit Skipped", refundError.message);
-      }
-      const memberId = orderAudit?.loyalty_member_id || orderAudit?.customer_id || null;
-      if (memberId && pointsToReverse > 0) {
-        await reverseMemberLoyaltyPoints(memberId, pointsToReverse, itemRefundAmount, orderId);
-      }
-      const kdsVoidResult = await markKdsTicketItemVoided(supabase, {
-        sourceType: "pos",
-        sourceId: orderId,
-        itemId: itemRow.id,
-        itemName: itemRow.item,
-      });
-      const originalKdsSourceId = orderAudit?.source_metadata?.open_ticket_id || orderAudit?.source_metadata?.saved_ticket_id || null;
-      if (!kdsVoidResult?.matched && originalKdsSourceId && String(originalKdsSourceId) !== String(orderId)) {
-        await markKdsTicketItemVoided(supabase, {
-          sourceType: "pos",
-          sourceId: originalKdsSourceId,
-          itemId: itemRow.id,
-          itemName: itemRow.item,
-        });
-      }
-      const next = {
-        ...receiptRefunds,
-        [receiptKey]: {
-          ...(receiptRefunds[receiptKey] || {}),
-          receipt: nextReceiptStatus,
-          items: { ...(receiptRefunds[receiptKey]?.items || {}), [itemKey]: "Refunded" },
-        },
-      };
-      saveReceiptRefunds(next);
-      setReceiptRows((prev) => prev.map((row) => row.receipt_number === receiptKey ? { ...row, status: nextReceiptStatus, refund_amount: nextRefundAmount, net_sales: Math.max(0, Number(row.total_collected || row.net_sales || 0) - nextRefundAmount) } : row));
-    } else {
-      const next = {
-        ...receiptRefunds,
-        [receiptKey]: {
-          ...(receiptRefunds[receiptKey] || {}),
-          receipt: receiptRefunds[receiptKey]?.receipt === "Refunded" ? "Refunded" : "Partial Refund",
-          items: { ...(receiptRefunds[receiptKey]?.items || {}), [itemKey]: "Refunded" },
-        },
-      };
-      saveReceiptRefunds(next);
-      setReceiptRows((prev) => prev.map((row) => row.receipt_number === receiptKey && row.status !== "Refunded" ? { ...row, status: "Partial Refund" } : row));
-    }
-    setReceiptItemRows((prev) => prev.map((row) => row.receipt_number === receiptKey && (row.id || row.item) === itemKey ? { ...row, status: "Refunded", refunded_at: new Date().toISOString(), refund_amount: Number(row.net_sales || row.gross_sales || 0) } : row));
-    showToast("success", "Item Refunded", itemRow.item);
   }
 
   async function toggleMenuItemAvailability(item) {
@@ -10146,8 +10018,8 @@ export default function POSPage() {
                         >
                           {reprintingCupLabel ? "Printing Labels..." : "Reprint Cup Labels"}
                         </button>
-                        <button type="button" onClick={() => refundReceipt(selectedReceipt)} className="h-9 px-3 rounded-xl bg-red-50 border border-red-100 text-[10px] font-bold uppercase tracking-wider text-red-600">
-                          Refund Receipt
+                        <button type="button" onClick={() => refundTicket(selectedReceipt)} className="h-9 px-3 rounded-xl bg-red-50 border border-red-100 text-[10px] font-bold uppercase tracking-wider text-red-600">
+                          Refund Ticket
                         </button>
                       </div>
                     </div>
@@ -10183,14 +10055,6 @@ export default function POSPage() {
                               ))}
                               <p className="text-[12px] font-semibold italic text-slate-400">Qty {row.quantity} · {peso2(row.net_sales || row.gross_sales || 0)} · {row.status || "Closed"}</p>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => refundReceiptItem(row)}
-                              disabled={rowRefunded}
-                              className="h-8 px-3 rounded-lg border border-red-100 bg-red-50 text-[10px] font-bold uppercase tracking-wider text-red-600 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
-                            >
-                              {rowRefunded ? "Refunded" : "Refund Item"}
-                            </button>
                           </div>
                         );
                       })}

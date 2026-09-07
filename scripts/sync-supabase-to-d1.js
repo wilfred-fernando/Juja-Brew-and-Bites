@@ -84,8 +84,8 @@ function refundOf(row) {
 }
 
 function netOf(row) {
-  if (row.net_amount != null) return Math.max(0, number(row.net_amount));
-  return Math.max(0, grossOf(row) - discountOf(row) - refundOf(row));
+  const storedNet = row.net_amount == null ? grossOf(row) - discountOf(row) : number(row.net_amount);
+  return Math.max(0, Math.min(storedNet, grossOf(row) - discountOf(row) - refundOf(row)));
 }
 
 async function fetchAll(supabase, table, configure, pageSize = 1000) {
