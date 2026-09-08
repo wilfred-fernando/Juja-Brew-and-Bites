@@ -1601,6 +1601,8 @@ function buildReceiptText({
   copyLabel,
   store,
   cashierName,
+  cashTendered = null,
+  changeDue = null,
   loyaltyAlreadyAwarded = false,
   loyaltyEligibleTotal = null,
 }) {
@@ -1618,6 +1620,16 @@ function buildReceiptText({
   const employee = cashierName || order.cashier_name || "Owner";
   const posName = `Cashier - ${branchName}`;
   const paidBy = payment || order.payment_method || "QRPH";
+  const isCashPayment = normalizePaymentMethodName(paidBy) === "Cash";
+  const storedCashTendered = order?.source_metadata?.cash_tendered;
+  const storedCashChange = order?.source_metadata?.cash_change;
+  const cashTenderedValue = cashTendered ?? storedCashTendered;
+  const cashChangeValue = changeDue ?? storedCashChange;
+  const showCashTenderDetails = isCashPayment
+    && cashTenderedValue !== null
+    && cashTenderedValue !== undefined
+    && cashTenderedValue !== ""
+    && Number.isFinite(Number(cashTenderedValue));
   const subtotalValue = Number(subtotal || 0);
   const discountValue = Number(discount || 0);
   const totalValue = Number(total || subtotalValue - discountValue || 0);
@@ -1696,6 +1708,10 @@ function buildReceiptText({
   }
   lines.push(receiptPair("Total", receiptAmount(totalValue)));
   if (rs.show_payment_type !== false) lines.push(receiptPair(paidBy, receiptAmount(totalValue)));
+  if (showCashTenderDetails) {
+    lines.push(receiptPair("Cash tendered", receiptAmount(cashTenderedValue)));
+    lines.push(receiptPair("Change", receiptAmount(Math.max(0, Number(cashChangeValue ?? Number(cashTenderedValue) - totalValue)))));
+  }
   lines.push(receiptLine());
 
   lines.push(centerReceiptText("THIS IS NOT VALID"));
@@ -3705,7 +3721,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
 
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3 shadow-inner">
           <div>
-            <p className="text-[10px] uppercase tracking-widest font-extrabold text-slate-400">{isCash ? "Cash Collected tender" : "Processing Value"}</p>
+            <p className="text-[10px] uppercase tracking-widest font-extrabold text-slate-400">{isCash ? "Cash tendered" : "Processing Value"}</p>
             <div className="mt-1.5 flex items-center gap-2 bg-white px-3 h-11 border border-slate-200 rounded-lg">
               <span className="text-slate-400 font-bold text-sm">₱</span>
               <input
@@ -9026,6 +9042,9 @@ export default function POSPage() {
       ? normalizedSplitPayments.map((p) => `${p.method} ${peso2(p.amount)}`).join(" + ")
       : selectedPayment || (total <= 0 ? "No Payment Required" : "");
     if (!paymentLabel) return showToast("error", "Payment Required", "Select a payment type.");
+    const isCashTransaction = normalizedSplitPayments.length === 0 && normalizePaymentMethodName(paymentLabel) === "Cash";
+    const cashTendered = isCashTransaction ? Math.max(total, Number(paymentPayload.amountPaid || 0)) : null;
+    const cashChange = isCashTransaction ? Math.max(0, Number(paymentPayload.changeDue ?? cashTendered - total)) : null;
     const resolvedBranchId = getResolvedBranchId();
     if (!resolvedBranchId) return showToast("error", "Branch not set", "Please sign out and sign in again so POS can load your branch.");
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before charging.");
@@ -9071,6 +9090,8 @@ export default function POSPage() {
       source_metadata: {
         payment_splits: normalizedSplitPayments,
         payment_label: paymentLabel,
+        cash_tendered: cashTendered,
+        cash_change: cashChange,
         discount_claim_key: discountClaimKey,
         discount_claims: discountClaims,
       },
@@ -9200,6 +9221,8 @@ export default function POSPage() {
           source_metadata: {
             payment_splits: normalizedSplitPayments,
             payment_label: paymentLabel,
+            cash_tendered: cashTendered,
+            cash_change: cashChange,
             open_ticket_id: originalTicketId || null,
             saved_ticket_id: originalTicketId || null,
             web_order_id: activeWebOrderId || null,
@@ -9315,7 +9338,8 @@ export default function POSPage() {
 
       const receipt = buildReceiptText({
         receiptSettings, order: { ...orderRow, id: generatedReceiptNumber }, cart, diningOptionName: chargedDiningLabel || "WEB_ORDER", payment: paymentLabel,
-        customer: receiptCustomer, subtotal: grossTotal, discount, total, voucher: voucherToRedeem, appliedDiscount, store: currentStore, cashierName, loyaltyAlreadyAwarded, loyaltyEligibleTotal,
+        customer: receiptCustomer, subtotal: grossTotal, discount, total, voucher: voucherToRedeem, appliedDiscount, store: currentStore, cashierName,
+        cashTendered, changeDue: cashChange, loyaltyAlreadyAwarded, loyaltyEligibleTotal,
       });
 
       setReceiptText(receipt);
@@ -9396,6 +9420,8 @@ export default function POSPage() {
           appliedDiscount,
           store: currentStore,
           cashierName,
+          cashTendered,
+          changeDue: cashChange,
           loyaltyEligibleTotal,
           copyLabel: "*** OFFLINE COPY - PENDING SYNC ***",
         });
