@@ -62,6 +62,7 @@ import {
 } from "@/lib/reports/salesReports";
 import { loyaltyEligibleLineTotal } from "@/lib/menuPromos";
 import { enrichReceiptItemRows, receiptItemDetails } from "@/lib/reports/receiptDetails";
+import { buildShiftDiscountBreakdown } from "@/lib/posDiscountBreakdown";
 
 const supabase = getSupabaseClient();
 const DEFAULT_ROWS_PER_PAGE = 10;
@@ -245,7 +246,7 @@ function normalizeStoreName(store) {
   return store?.name || store?.store_name || store?.store_code || "Store";
 }
 
-function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters()) {
+function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters(), sales = [], lineItems = []) {
   const storeById = new Map(stores.map((store) => [String(store.id), normalizeStoreName(store)]));
   const sorted = [...shiftRecords].sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
   const openQueues = new Map();
@@ -276,6 +277,22 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
     const closedAt = record.created_at;
     const rowDate = safeManilaDate(openedAt || closedAt || record.created_at);
     const storeName = storeById.get(storeId) || storeId || "Store";
+    const openedAtMs = Date.parse(openedAt || "");
+    const closedAtMs = Date.parse(closedAt || "");
+    const shiftSales = (sales || []).filter((sale) => {
+      const salesAtMs = Date.parse(sale.salesAt || sale.createdAt || "");
+      if (!Number.isFinite(salesAtMs) || !Number.isFinite(openedAtMs) || !Number.isFinite(closedAtMs)) return false;
+      if (salesAtMs < openedAtMs || salesAtMs > closedAtMs || String(sale.storeId || "") !== storeId) return false;
+      return !record.cashier_id || !sale.cashierId || String(sale.cashierId) === String(record.cashier_id);
+    });
+    const shiftOrderIds = new Set(shiftSales.map((sale) => String(sale.id || "")));
+    const calculatedDiscountBreakdown = buildShiftDiscountBreakdown(
+      shiftSales,
+      (lineItems || []).filter((item) => shiftOrderIds.has(String(item.orderId || item.order_id || "")))
+    );
+    const storedDiscountBreakdown = Array.isArray(summary.discountBreakdown)
+      ? summary.discountBreakdown
+      : Array.isArray(summary.discount_breakdown) ? summary.discount_breakdown : [];
     const paymentValue = (...names) => names.reduce((sum, name) => sum + num(payments[name]), 0);
     const cashNetSales = paymentValue("Cash", "CASH") || Math.max(0, cashPayments - cashRefunds);
     const nonCashPaymentTotal = Object.entries(payments).reduce((sum, [key, value]) => {
@@ -304,6 +321,7 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
       grossSales: num(summary.grossSales, cashPayments + nonCashPaymentTotal),
       refunds: num(summary.refunds, cashRefunds),
       discounts: num(summary.discounts),
+      discountBreakdown: storedDiscountBreakdown.length ? storedDiscountBreakdown : calculatedDiscountBreakdown,
       netSales: num(summary.netSales, cashPayments + nonCashPaymentTotal - cashRefunds),
       payments: {
         Cash: cashNetSales,
@@ -427,6 +445,9 @@ function ShiftReportDrawer({ shift, onClose }) {
           <DrawerAmount label="Gross sales" value={shift.grossSales} strong />
           <DrawerAmount label="Refunds" value={shift.refunds} />
           <DrawerAmount label="Discounts" value={shift.discounts} />
+          {(shift.discountBreakdown || []).map((entry) => (
+            <DrawerAmount key={entry.label} label={`↳ ${entry.label}`} value={entry.amount} />
+          ))}
           <DrawerAmount label="Net sales" value={shift.netSales} strong />
           {Object.entries(shift.payments).filter(([, value]) => Math.abs(num(value)) > 0).map(([label, value]) => (
             <DrawerAmount
@@ -905,8 +926,9 @@ function ReceiptDrawer({ order, items = [], onClose }) {
                       <p>{item.discountName || "Item discount"}: -{receiptPeso(item.discount)}</p>
                       {item.discountBeneficiaryName && <p>Beneficiary: {item.discountBeneficiaryName}</p>}
                       {(item.discountBeneficiaryType || item.discountBeneficiaryIdNumber) && <p>
-                        {item.discountBeneficiaryType === "pwd" ? "PWD" : item.discountBeneficiaryType === "senior_citizen" ? "SC" : "Beneficiary"}
+                        {item.discountBeneficiaryType === "pwd" ? "PWD" : item.discountBeneficiaryType === "senior_citizen" ? "SC" : item.discountBeneficiaryType === "qcid" ? "QCID" : "Beneficiary"}
                         {item.discountBeneficiaryIdNumber ? ` ID: ${item.discountBeneficiaryIdNumber}` : ""}
+                        {item.discountBeneficiaryResidency === "resident" ? " · Resident" : item.discountBeneficiaryResidency === "non_resident" ? " · Non-resident" : ""}
                       </p>}
                     </div>
                   )}
@@ -988,7 +1010,7 @@ export default function AdminSalesPage() {
     setError("");
     const comparisonRange = previousRange(nextFilters.startDate, nextFilters.endDate);
     const requestedStart = comparisonRange.startDate;
-    const includeItems = ["items", "categories", "modifiers", "receipts", "exports"].includes(reportTab);
+    const includeItems = ["items", "categories", "modifiers", "receipts", "shifts", "exports"].includes(reportTab);
     let archiveData = null;
     try {
       const archiveParams = new URLSearchParams({
@@ -1096,9 +1118,15 @@ export default function AdminSalesPage() {
   const voidRows = useMemo(() => getVoidRefundReport(filtered.sales), [filtered.sales]);
   const trendRows = useMemo(() => getSalesTrend(filtered.sales, filters.startDate, filters.endDate), [filtered.sales, filters.startDate, filters.endDate]);
   const shiftRows = useMemo(() => {
-    const liveRows = buildShiftRows(rawData.shiftRecords || [], rawData.stores || [], filters);
+    const liveRows = buildShiftRows(
+      rawData.shiftRecords || [],
+      rawData.stores || [],
+      filters,
+      rawData.sales || [],
+      rawData.lineItems || []
+    );
     return liveRows.sort((a, b) => new Date(b.openedAt || b.closedAt || 0) - new Date(a.openedAt || a.closedAt || 0));
-  }, [rawData.shiftRecords, rawData.stores, filters]);
+  }, [rawData.shiftRecords, rawData.stores, rawData.sales, rawData.lineItems, filters]);
   const pageRows = useMemo(() => searchedSales.slice((page - 1) * rowsPerPage, page * rowsPerPage), [searchedSales, page, rowsPerPage]);
   const selectedReceiptItems = receiptDetailItems;
 

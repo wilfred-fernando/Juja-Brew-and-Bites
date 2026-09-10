@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { beneficiaryResidencyLabel, beneficiaryTypeLabel } from "@/lib/posDiscountBeneficiaries";
 
 export default function TicketPanel({
   cart = [],
@@ -438,9 +439,12 @@ const isWelcomeVoucher = (voucher) => {
                 </div>
                 {(line.discountBeneficiaryId || line.discountBeneficiary?.id) && (
                   <p className="mt-1 break-words text-[11px] font-semibold text-cyan-800">
-                    {(line.discountBeneficiaryType || line.discountBeneficiary?.beneficiary_type) === "pwd" ? "PWD" : "Senior"}
+                    {beneficiaryTypeLabel(line.discountBeneficiaryType || line.discountBeneficiary?.beneficiary_type)}
                     {" · "}{line.discountBeneficiaryName || line.discountBeneficiary?.full_name}
                     {" · ID: "}{line.discountBeneficiaryIdNumber || line.discountBeneficiary?.id_number}
+                    {(line.discountBeneficiaryResidency || line.discountBeneficiary?.residency_status) && (
+                      <>{" · "}{beneficiaryResidencyLabel(line.discountBeneficiaryResidency || line.discountBeneficiary?.residency_status)}</>
+                    )}
                   </p>
                 )}
                 {itemDiscount > 0 && (

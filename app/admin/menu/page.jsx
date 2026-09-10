@@ -800,7 +800,7 @@ export default function MenuAdminPage() {
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 mb-1.5 ml-1 uppercase tracking-wider">
-                  SC / PWD Daily Entitlement
+                  Beneficiary Discount Daily Entitlement
                 </label>
                 <select
                   value={catForm.discount_entitlement_group || ""}

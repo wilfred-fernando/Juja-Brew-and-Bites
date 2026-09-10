@@ -25,7 +25,13 @@ import TicketPanel from "@/components/pos/TicketPanel";
 import OfflineSyncNotice from "@/components/pos/OfflineSyncNotice";
 import { addPosCartLine } from "@/lib/posCart";
 import { receiptLineMetadata } from "@/lib/reports/receiptDetails";
-import { beneficiaryMatchesRule, requiredBeneficiaryTypeForRule } from "@/lib/posDiscountBeneficiaries";
+import { buildShiftDiscountBreakdown } from "@/lib/posDiscountBreakdown";
+import {
+  beneficiaryMatchesRule,
+  beneficiaryResidencyLabel,
+  beneficiaryTypeLabel,
+  requiredBeneficiaryTypeForRule,
+} from "@/lib/posDiscountBeneficiaries";
 import ManualBookingModal from "@/components/pos/ManualBookingModal";
 import BookingCalendarModal from "@/components/pos/BookingCalendarModal";
 import PosApkUpdatePrompt from "@/components/PosApkUpdatePrompt";
@@ -1882,6 +1888,9 @@ function buildEndDayReportText({ store, cashierName, startingCash, actualCash, d
   lines.push(receiptPair("Gross sales", receiptAmount(summary?.grossSales || 0)));
   lines.push(receiptPair("Refunds", receiptAmount(summary?.refunds || 0)));
   lines.push(receiptPair("Discounts", receiptAmount(summary?.discounts || 0)));
+  (summary?.discountBreakdown || []).forEach((entry) => {
+    if (Number(entry?.amount || 0) > 0) lines.push(receiptPair(`  ${entry.label || "Other"}`, receiptAmount(entry.amount)));
+  });
   lines.push(receiptPair("Net sales", receiptAmount(summary?.netSales || 0)));
   lines.push(receiptLine());
   Object.entries(summary?.payments || {}).forEach(([label, value]) => {
@@ -3157,6 +3166,7 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [], catego
       beneficiary_type: source.discountBeneficiaryType,
       full_name: source.discountBeneficiaryName,
       id_number: source.discountBeneficiaryIdNumber,
+      residency_status: source.discountBeneficiaryResidency,
     } : null));
 
     const selected = {};
@@ -3259,6 +3269,7 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [], catego
       discountBeneficiaryType: requiresDiscountBeneficiary ? itemDiscountBeneficiary?.beneficiary_type : null,
       discountBeneficiaryName: requiresDiscountBeneficiary ? itemDiscountBeneficiary?.full_name : null,
       discountBeneficiaryIdNumber: requiresDiscountBeneficiary ? itemDiscountBeneficiary?.id_number : null,
+      discountBeneficiaryResidency: requiresDiscountBeneficiary ? itemDiscountBeneficiary?.residency_status : null,
       variantDetails,
       selectedOptions,
       instructions,
@@ -3361,7 +3372,10 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [], catego
           {requiresDiscountBeneficiary && itemDiscountBeneficiary?.id && (
             <div className="mt-2 rounded-xl border border-cyan-100 bg-cyan-50 px-3 py-2 text-xs text-slate-700">
               <span className="font-semibold">{itemDiscountBeneficiary.full_name}</span>
-              <span className="ml-2 text-slate-500">{String(itemDiscountBeneficiary.beneficiary_type || "").replace("_", " ").toUpperCase()} · {itemDiscountBeneficiary.id_number}</span>
+              <span className="ml-2 text-slate-500">
+                {beneficiaryTypeLabel(itemDiscountBeneficiary.beneficiary_type)} · {itemDiscountBeneficiary.id_number}
+                {itemDiscountBeneficiary.residency_status ? ` · ${beneficiaryResidencyLabel(itemDiscountBeneficiary.residency_status)}` : ""}
+              </span>
               <span className="block mt-1 text-[10px] uppercase tracking-wider text-cyan-800">Daily entitlement: 1 {discountEntitlementGroup}</span>
               <button
                 type="button"
@@ -3374,7 +3388,7 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [], catego
                 Change discount ID
               </button>
               <p className="mt-2 text-xs text-cyan-900">
-                For group orders, add each person&apos;s item separately and select their Senior or PWD ID. Each ID stays on its own ticket line.
+                For group orders, add each person&apos;s item separately and select their discount ID. Each ID stays on its own ticket line.
                 {Number(quantity) > 1 ? " Only 1 unit on this line receives this ID's discount; the remaining units are regular price." : ""}
               </p>
             </div>
@@ -3453,6 +3467,7 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [], catego
 function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName, requiredBeneficiaryType = null, onClose, onSelect, onSave }) {
   const [search, setSearch] = useState("");
   const [beneficiaryType, setBeneficiaryType] = useState("senior_citizen");
+  const [residencyStatus, setResidencyStatus] = useState("resident");
   const [fullName, setFullName] = useState("");
   const [idNumber, setIdNumber] = useState("");
   const [saving, setSaving] = useState(false);
@@ -3461,7 +3476,8 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
   useEffect(() => {
     if (!open) return;
     setSearch("");
-    setBeneficiaryType(requiredBeneficiaryType === "pwd" ? "pwd" : "senior_citizen");
+    setBeneficiaryType(requiredBeneficiaryType === "qcid" ? "qcid" : requiredBeneficiaryType === "pwd" ? "pwd" : "senior_citizen");
+    setResidencyStatus("resident");
     setFullName("");
     setIdNumber("");
     setSaveError("");
@@ -3471,7 +3487,7 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
   const filtered = beneficiaries.filter((entry) => {
     if (!beneficiaryMatchesRule(entry.beneficiary_type, requiredBeneficiaryType)) return false;
     if (!normalizedSearch) return true;
-    return [entry.full_name, entry.id_number, entry.beneficiary_type]
+    return [entry.full_name, entry.id_number, entry.beneficiary_type, entry.residency_status]
       .some((value) => String(value || "").toLowerCase().includes(normalizedSearch));
   });
 
@@ -3480,7 +3496,12 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
     setSaving(true);
     setSaveError("");
     try {
-      const saved = await onSave?.({ beneficiaryType, fullName: fullName.trim(), idNumber: idNumber.trim() });
+      const saved = await onSave?.({
+        beneficiaryType,
+        residencyStatus: beneficiaryType === "qcid" ? residencyStatus : null,
+        fullName: fullName.trim(),
+        idNumber: idNumber.trim(),
+      });
       if (saved) {
         setFullName("");
         setIdNumber("");
@@ -3493,7 +3514,7 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
   };
 
   return (
-    <ModalShell open={open} onClose={onClose} title="SC / PWD Discount" subtitle={ruleName || "Select beneficiary"} z={165}>
+    <ModalShell open={open} onClose={onClose} title={requiredBeneficiaryType === "qcid" ? "QCID Promo" : "SC / PWD Discount"} subtitle={ruleName || "Select beneficiary"} z={165}>
       <div className="rounded-xl border border-cyan-100 bg-cyan-50 px-3 py-2 text-xs text-slate-700">
         Select an existing beneficiary or save a new name and ID number. Daily limits are checked when the order is charged.
       </div>
@@ -3520,7 +3541,10 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
             >
               <span>
                 <span className="block text-sm font-semibold text-slate-800">{entry.full_name}</span>
-                <span className="block text-[10px] uppercase tracking-wider text-slate-500">{String(entry.beneficiary_type || "").replace("_", " ")} · {entry.id_number}</span>
+                <span className="block text-[10px] uppercase tracking-wider text-slate-500">
+                  {beneficiaryTypeLabel(entry.beneficiary_type)} · {entry.id_number}
+                  {entry.residency_status ? ` · ${beneficiaryResidencyLabel(entry.residency_status)}` : ""}
+                </span>
               </span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-700">Select</span>
             </button>
@@ -3531,16 +3555,29 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
       <div className="my-4 border-t border-slate-200" />
       <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Save new beneficiary</p>
       <div className="mt-2 grid gap-2 sm:grid-cols-2">
-        <select
-          aria-label="New beneficiary type"
-          value={beneficiaryType}
-          onChange={(event) => setBeneficiaryType(event.target.value)}
-          disabled={saving}
-          className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 outline-none focus:border-cyan-500"
-        >
-          <option value="senior_citizen">SC (Senior Citizen)</option>
-          <option value="pwd">PWD</option>
-        </select>
+        {requiredBeneficiaryType === "qcid" ? (
+          <select
+            aria-label="QCID residency"
+            value={residencyStatus}
+            onChange={(event) => setResidencyStatus(event.target.value)}
+            disabled={saving}
+            className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 outline-none focus:border-cyan-500"
+          >
+            <option value="resident">Quezon City resident</option>
+            <option value="non_resident">Non-resident</option>
+          </select>
+        ) : (
+          <select
+            aria-label="New beneficiary type"
+            value={beneficiaryType}
+            onChange={(event) => setBeneficiaryType(event.target.value)}
+            disabled={saving}
+            className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 outline-none focus:border-cyan-500"
+          >
+            <option value="senior_citizen">SC (Senior Citizen)</option>
+            <option value="pwd">PWD</option>
+          </select>
+        )}
         <input
           value={idNumber}
           onChange={(event) => setIdNumber(event.target.value)}
@@ -3554,7 +3591,7 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
           className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-cyan-500 sm:col-span-2"
         />
       </div>
-      {!beneficiaryMatchesRule(beneficiaryType, requiredBeneficiaryType) && (
+      {requiredBeneficiaryType !== "qcid" && !beneficiaryMatchesRule(beneficiaryType, requiredBeneficiaryType) && (
         <p className="mt-2 text-xs text-slate-600">
           This saves the beneficiary as {beneficiaryType === "pwd" ? "PWD" : "SC"}. Choose the matching item discount to apply this ID.
         </p>
@@ -4085,7 +4122,7 @@ function collectPosDiscountClaims(lines = []) {
     const beneficiaryName = String(line.discountBeneficiaryName || line.discountBeneficiary?.full_name || "This beneficiary").trim();
 
     if (!beneficiaryId || !discountId) {
-      throw new Error("Select or register the Senior Citizen / PWD beneficiary before adding the discounted item.");
+      throw new Error("Select or register the discount beneficiary before adding the discounted item.");
     }
     if (!["drink", "food", "dessert"].includes(entitlementGroup)) {
       throw new Error(`${line.name || "This item"} must have a Drink, Food, or Dessert discount classification in Admin Menu.`);
@@ -4591,14 +4628,14 @@ export default function POSPage() {
     try {
       const { data, error } = await supabase
         .from("pos_discount_beneficiaries")
-        .select("id, beneficiary_type, full_name, id_number, is_active")
+        .select("id, beneficiary_type, full_name, id_number, residency_status, is_active")
         .eq("is_active", true)
         .order("full_name", { ascending: true });
       if (error) throw error;
       setDiscountBeneficiaries(data || []);
       return data || [];
     } catch (error) {
-      showToast("error", "Beneficiary List Failed", error.message || "Could not load Senior Citizen / PWD records.");
+      showToast("error", "Beneficiary List Failed", error.message || "Could not load saved discount beneficiaries.");
       return [];
     } finally {
       setDiscountBeneficiariesLoading(false);
@@ -4606,7 +4643,7 @@ export default function POSPage() {
   };
 
   const requestDiscountBeneficiary = ({ rule } = {}) => {
-    const ruleName = rule?.name || rule?.discount_name || "SC / PWD Discount";
+    const ruleName = rule?.name || rule?.discount_name || "Discount beneficiary";
     setPendingBeneficiaryRuleName(ruleName);
     setPendingBeneficiaryType(requiredBeneficiaryTypeForRule(rule));
     setDiscountBeneficiaryModalOpen(true);
@@ -4628,11 +4665,12 @@ export default function POSPage() {
     setDiscountBeneficiaryModalOpen(false);
   };
 
-  const saveDiscountBeneficiary = async ({ beneficiaryType, fullName, idNumber }) => {
+  const saveDiscountBeneficiary = async ({ beneficiaryType, residencyStatus, fullName, idNumber }) => {
     const { data, error } = await supabase.rpc("save_pos_discount_beneficiary", {
       p_beneficiary_type: beneficiaryType,
       p_full_name: fullName,
       p_id_number: idNumber,
+      p_residency_status: residencyStatus,
     });
     if (error) {
       showToast("error", "Beneficiary Save Failed", error.message);
@@ -4645,7 +4683,7 @@ export default function POSPage() {
       if (beneficiaryMatchesRule(saved.beneficiary_type, pendingBeneficiaryType)) {
         selectDiscountBeneficiary(saved);
       } else {
-        showToast("success", "Beneficiary Saved", `Saved as ${saved.beneficiary_type === "pwd" ? "PWD" : "SC"}. Choose the matching item discount to apply this ID.`);
+        showToast("success", "Beneficiary Saved", `Saved as ${beneficiaryTypeLabel(saved.beneficiary_type)}. Choose the matching item discount to apply this ID.`);
       }
     }
     if (!saved?.id) throw new Error("No saved beneficiary was returned. Please try again.");
@@ -5090,6 +5128,7 @@ export default function POSPage() {
     const cashRefunds = paymentRefundTotal("cash");
     const grossSales = rows.reduce((sum, r) => sum + Number(r.gross_sales || r.total_collected || r.net_sales || 0), 0);
     const discounts = rows.reduce((sum, r) => sum + Number(r.discounts || r.discount || 0), 0);
+    const discountBreakdown = buildShiftDiscountBreakdown(rows, receiptItemRows);
     const refunds = refundRows.reduce((sum, r) => sum + rowRefundAmount(r), 0);
     const collectedSales = rows.reduce((sum, r) => sum + Number(r.total_collected || r.net_sales || 0), 0);
     const netSales = collectedSales - refunds;
@@ -5097,6 +5136,7 @@ export default function POSPage() {
       grossSales,
       refunds,
       discounts,
+      discountBreakdown,
       netSales,
       cashPayments,
       cashRefunds,
@@ -9057,7 +9097,7 @@ export default function POSPage() {
     try {
       discountClaims = collectPosDiscountClaims(cart);
     } catch (error) {
-      return showToast("error", "SC / PWD Discount Invalid", error.message);
+      return showToast("error", "Beneficiary Discount Invalid", error.message);
     }
     const discountClaimKey = discountClaims.length > 0 ? crypto.randomUUID() : null;
     let discountClaimsReserved = false;
@@ -9098,6 +9138,13 @@ export default function POSPage() {
         cash_change: cashChange,
         discount_claim_key: discountClaimKey,
         discount_claims: discountClaims,
+        order_discount: orderDiscount > 0 && appliedDiscount ? {
+          id: appliedDiscount.id || null,
+          name: appliedDiscount.name || appliedDiscount.discount_name || "POS Discount",
+          type: appliedDiscount.type || null,
+          amount: orderDiscount,
+          manual_label: appliedDiscount.manual_label || null,
+        } : null,
       },
       diningOption: chargedDiningLabel || "POS ORDER",
       grossTotal,
@@ -9232,6 +9279,13 @@ export default function POSPage() {
             web_order_id: activeWebOrderId || null,
             discount_claim_key: discountClaimKey,
             discount_claims: discountClaims,
+            order_discount: orderDiscount > 0 && appliedDiscount ? {
+              id: appliedDiscount.id || null,
+              name: appliedDiscount.name || appliedDiscount.discount_name || "POS Discount",
+              type: appliedDiscount.type || null,
+              amount: orderDiscount,
+              manual_label: appliedDiscount.manual_label || null,
+            } : null,
           },
           dining_option: chargedDiningLabel || "WEB_ORDER",
         }])
@@ -10153,15 +10207,22 @@ export default function POSPage() {
                   ["Gross sales", shiftSummary.grossSales],
                   ["Refunds", shiftSummary.refunds],
                   ["Discounts", shiftSummary.discounts],
-                  ["Net sales", shiftSummary.netSales],
                 ].map(([label, value]) => (
                   <div key={label} className="flex justify-between rounded-lg bg-white border border-slate-100 p-2 text-xs font-bold">
                     <span className="text-slate-500">{label}</span>
-                    <span className={label === "Refunds" || label === "Discounts" ? "text-rose-600" : label === "Net sales" ? "text-cyan-700" : "text-slate-900"}>
+                    <span className={label === "Refunds" || label === "Discounts" ? "text-rose-600" : "text-slate-900"}>
                       {peso2(value)}
                     </span>
                   </div>
                 ))}
+                {shiftSummary.discountBreakdown.map((entry) => (
+                  <div key={entry.label} className="flex justify-between px-3 text-[11px] font-semibold text-slate-500">
+                    <span>↳ {entry.label}</span><span>{peso2(entry.amount)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between rounded-lg bg-white border border-slate-100 p-2 text-xs font-bold">
+                  <span className="text-slate-500">Net sales</span><span className="text-cyan-700">{peso2(shiftSummary.netSales)}</span>
+                </div>
                 <div className="border-t border-slate-200" />
                 {Object.entries(shiftSummary.payments).map(([label, value]) => (
                   <div key={label} className="flex justify-between rounded-lg bg-white border border-slate-100 p-2 text-xs font-bold">

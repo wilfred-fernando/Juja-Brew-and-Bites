@@ -13,6 +13,10 @@ const senior = (id, cartItemId) => ({
 const first = senior("Alice", 2);
 const second = senior("Bob", 3);
 const pwd = { ...senior("Carol", 4), discountRuleId: "pwd-rule", discountBeneficiaryType: "pwd" };
+const qcid = {
+  ...senior("Dina", 8), discountRuleId: "qcid-rule", discountBeneficiaryType: "qcid",
+  discountBeneficiaryResidency: "resident", discountEntitlementGroup: "food",
+};
 
 let cart = [first];
 cart = addPosCartLine(cart, second);
@@ -41,4 +45,5 @@ assert.throws(() => collectClaims(addPosCartLine([first], { ...first, cartItemId
 assert.equal(collectClaims([first, { ...first, cartItemId: 7, discountEntitlementGroup: "food" }]).length, 2);
 assert.equal(collectClaims([first, { ...first, voided: true }]).length, 1);
 assert.equal(collectClaims([{ ...first, quantity: 3 }]).length, 1);
+assert.deepEqual(JSON.parse(JSON.stringify(collectClaims([qcid]))), [{ beneficiary_id: "Dina", discount_id: "qcid-rule", entitlement_group: "food" }]);
 console.log("POS group discounts verified: separate IDs, totals, editing, regular items, saved data, and entitlement claims.");

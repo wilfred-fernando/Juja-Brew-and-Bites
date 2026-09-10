@@ -2,8 +2,9 @@ import { requireAdminApi } from "@/lib/server/admin-api";
 import { formatBeneficiaryName } from "@/lib/beneficiaryName";
 import { loadBeneficiaryUsage } from "@/lib/server/beneficiary-usage";
 
-const FIELDS = "id, beneficiary_type, full_name, id_number, is_active, created_at, updated_at";
+const FIELDS = "id, beneficiary_type, full_name, id_number, residency_status, is_active, created_at, updated_at";
 const PAGE_SIZE = 25;
+const BENEFICIARY_TYPES = ["pwd", "senior_citizen", "qcid"];
 
 export async function GET(request) {
   try {
@@ -16,8 +17,8 @@ export async function GET(request) {
     if (!["active", "inactive", "all"].includes(status)) {
       return Response.json({ error: "Select a valid beneficiary status." }, { status: 400 });
     }
-    if (type && !["pwd", "senior_citizen"].includes(type)) {
-      return Response.json({ error: "Select SC or PWD." }, { status: 400 });
+    if (type && !BENEFICIARY_TYPES.includes(type)) {
+      return Response.json({ error: "Select SC, PWD, or QCID." }, { status: 400 });
     }
     // Keep user input out of PostgREST filter syntax and wildcard operators.
     const search = (params.get("q") || "").slice(0, 120).replace(/[^\p{L}\p{N}\s'-]/gu, " ").trim();
@@ -30,7 +31,7 @@ export async function GET(request) {
       if (normalized) filters.push(`normalized_id_number.ilike.%${normalized}%`);
       query = query.or(filters.join(","));
     }
-    const { data, error, count } = await query.order("full_name").order("id")
+    const { data, error, count } = await query.order("beneficiary_category_sort").order("full_name").order("id")
       .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
     if (error) throw error;
     const usage = await loadBeneficiaryUsage(admin, (data || []).map((row) => row.id));
@@ -50,26 +51,29 @@ export async function PATCH(request) {
     const body = await request.json().catch(() => null);
     const id = typeof body?.id === "string" ? body.id : "";
     const type = body?.beneficiary_type;
+    const residencyStatus = type === "qcid" ? body?.residency_status : null;
     const name = formatBeneficiaryName(body?.full_name);
     const idNumber = typeof body?.id_number === "string" ? body.id_number.trim() : "";
     const normalized = idNumber.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ||
-        !["pwd", "senior_citizen"].includes(type) || name.length < 3 || name.length > 200 ||
+        !BENEFICIARY_TYPES.includes(type) || (type === "qcid" && !["resident", "non_resident"].includes(residencyStatus)) ||
+        name.length < 3 || name.length > 200 ||
         normalized.length < 3 || idNumber.length > 100 ||
         typeof body?.updated_at !== "string" || !Number.isFinite(Date.parse(body.updated_at))) {
-      return Response.json({ error: "Provide a valid beneficiary, SC/PWD type, full name, and ID number." }, { status: 400 });
+      return Response.json({ error: "Provide a valid beneficiary type, QCID residency when applicable, full name, and ID number." }, { status: 400 });
     }
 
     // Update by the permanent record ID to retain all redemption references.
     const { data, error } = await admin.from("pos_discount_beneficiaries").update({
       beneficiary_type: type,
+      residency_status: residencyStatus,
       full_name: name,
       id_number: idNumber,
       normalized_id_number: normalized,
       updated_at: new Date().toISOString(),
     }).eq("id", id).eq("updated_at", body.updated_at).select(FIELDS).maybeSingle();
     if (error?.code === "23505") {
-      return Response.json({ error: "A beneficiary with this identity already exists. Review the saved SC and PWD records before changing these details." }, { status: 409 });
+      return Response.json({ error: "A beneficiary with this identity already exists. Review the saved SC, PWD, and QCID records before changing these details." }, { status: 409 });
     }
     if (error) throw error;
     if (!data) {

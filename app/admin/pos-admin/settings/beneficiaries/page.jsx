@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { beneficiaryCategoryLabel } from "@/lib/posDiscountBeneficiaries";
 
 const ENDPOINT = "/api/admin/discount-beneficiaries";
 
@@ -78,6 +79,7 @@ export default function BeneficiariesPage() {
         full_name: editing.full_name,
         id_number: editing.id_number,
         beneficiary_type: editing.beneficiary_type,
+        residency_status: editing.residency_status,
         updated_at: editing.updated_at,
       }) });
       setEditing(null);
@@ -113,7 +115,7 @@ export default function BeneficiariesPage() {
   return (
     <div className="space-y-5">
       <header>
-        <h1 className="text-2xl font-bold text-slate-800">SC / PWD Beneficiaries</h1>
+        <h1 className="text-2xl font-bold text-slate-800">Discount Beneficiaries</h1>
         <p className="mt-1 text-sm text-slate-600">Review and correct beneficiary details saved from POS across all stores.</p>
         <p className="mt-1 text-xs text-slate-500">Times used counts completed receipts across all dates and stores. Multiple discounted items on one receipt count as one use.</p>
       </header>
@@ -130,11 +132,32 @@ export default function BeneficiariesPage() {
             </label>
             <label className="space-y-1 text-sm font-semibold">
               <span>Beneficiary type</span>
-              <select value={editing.beneficiary_type} onChange={(event) => setEditing({ ...editing, beneficiary_type: event.target.value })} className={inputClass}>
+              <select
+                value={editing.beneficiary_type}
+                onChange={(event) => {
+                  const beneficiaryType = event.target.value;
+                  setEditing({
+                    ...editing,
+                    beneficiary_type: beneficiaryType,
+                    residency_status: beneficiaryType === "qcid" ? editing.residency_status || "resident" : null,
+                  });
+                }}
+                className={inputClass}
+              >
                 <option value="senior_citizen">SC (Senior Citizen)</option>
                 <option value="pwd">PWD</option>
+                <option value="qcid">QCID Promo</option>
               </select>
             </label>
+            {editing.beneficiary_type === "qcid" && (
+              <label className="space-y-1 text-sm font-semibold">
+                <span>Residency</span>
+                <select value={editing.residency_status || "resident"} onChange={(event) => setEditing({ ...editing, residency_status: event.target.value })} className={inputClass}>
+                  <option value="resident">Quezon City resident</option>
+                  <option value="non_resident">Non-resident</option>
+                </select>
+              </label>
+            )}
             <label className="space-y-1 text-sm font-semibold">
               <span>ID number</span>
               <input required maxLength={100} value={editing.id_number} onChange={(event) => setEditing({ ...editing, id_number: event.target.value })} className={inputClass} />
@@ -156,7 +179,7 @@ export default function BeneficiariesPage() {
         <label className="space-y-1 text-sm font-semibold">
           <span>Type</span>
           <select value={type} onChange={(event) => { setType(event.target.value); setPage(1); }} className={inputClass}>
-            <option value="">All types</option><option value="senior_citizen">SC</option><option value="pwd">PWD</option>
+            <option value="">All types</option><option value="senior_citizen">SC</option><option value="pwd">PWD</option><option value="qcid">QCID</option>
           </select>
         </label>
         <label className="space-y-1 text-sm font-semibold">
@@ -176,7 +199,7 @@ export default function BeneficiariesPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 text-slate-600"><tr>
-                <th scope="col" className="px-4 py-3">Full name</th><th scope="col" className="px-4 py-3">Type</th><th scope="col" className="px-4 py-3">ID number</th><th scope="col" className="px-4 py-3">Status</th>
+                <th scope="col" className="px-4 py-3">Full name</th><th scope="col" className="px-4 py-3">Category</th><th scope="col" className="px-4 py-3">ID number</th><th scope="col" className="px-4 py-3">Status</th>
                 <th scope="col" className="whitespace-nowrap px-4 py-3 text-right">Times used</th>
                 <th scope="col" className="px-4 py-3">Created <span className="block text-xs font-normal">Philippine time</span></th>
                 <th scope="col" className="px-4 py-3">Updated <span className="block text-xs font-normal">Philippine time</span></th>
@@ -185,7 +208,9 @@ export default function BeneficiariesPage() {
               <tbody className="divide-y divide-slate-100">
                 {rows.map((row) => <tr key={row.id}>
                   <td className="px-4 py-3 font-semibold">{row.full_name}</td>
-                  <td className="whitespace-nowrap px-4 py-3">{row.beneficiary_type === "pwd" ? "PWD" : "SC"}</td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    {beneficiaryCategoryLabel(row.beneficiary_type, row.residency_status)}
+                  </td>
                   <td className="px-4 py-3">{row.id_number}</td>
                   <td className="px-4 py-3 text-slate-500">{row.is_active ? "Active" : "Inactive"}</td>
                   <td className="px-4 py-3 text-right font-semibold tabular-nums">{Number(row.times_used || 0).toLocaleString("en-PH")}</td>
