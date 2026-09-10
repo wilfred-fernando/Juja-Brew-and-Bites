@@ -27,6 +27,10 @@ import { addPosCartLine } from "@/lib/posCart";
 import { receiptLineMetadata } from "@/lib/reports/receiptDetails";
 import { buildShiftDiscountBreakdown } from "@/lib/posDiscountBreakdown";
 import {
+  normalizeStoreOrderingStatus,
+  STORE_ORDERING_STATUS_OPTIONS,
+} from "@/lib/storeOrderingStatus";
+import {
   beneficiaryMatchesRule,
   beneficiaryResidencyLabel,
   beneficiaryTypeLabel,
@@ -4250,6 +4254,7 @@ export default function POSPage() {
   const supabase = getSupabaseClient();
   const [storeId, setStoreId] = useState(null);
   const [currentStore, setCurrentStore] = useState(null);
+  const [storeOrderingStatusSaving, setStoreOrderingStatusSaving] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
@@ -7942,6 +7947,46 @@ export default function POSPage() {
     if (view === "receipts" || view === "shift") fetchReceiptLogs();
   }
 
+  async function updateStoreOrderingStatus(nextStatus) {
+    const sid = getResolvedBranchId();
+    const normalized = normalizeStoreOrderingStatus(nextStatus);
+    if (!sid || storeOrderingStatusSaving) return;
+
+    const previousStatus = normalizeStoreOrderingStatus(currentStore?.customer_ordering_status);
+    if (previousStatus === normalized) return;
+
+    setStoreOrderingStatusSaving(true);
+    setCurrentStore((current) => ({ ...current, customer_ordering_status: normalized }));
+    try {
+      const { data, error } = await supabase.rpc("set_store_customer_ordering_status", {
+        p_store_id: sid,
+        p_status: normalized,
+      });
+      if (error) throw error;
+
+      const savedStatus = normalizeStoreOrderingStatus(data || normalized);
+      setCurrentStore((current) => ({
+        ...current,
+        customer_ordering_status: savedStatus,
+        customer_ordering_status_updated_at: new Date().toISOString(),
+      }));
+      showToast(
+        "success",
+        `Online Ordering ${savedStatus === "open" ? "Open" : savedStatus === "busy" ? "Busy" : "Closed"}`,
+        savedStatus === "open"
+          ? "Customers can place web orders for this branch."
+          : savedStatus === "busy"
+            ? "Customers will be asked to try again after 30 minutes."
+            : "Customers will be told that the store is closed today."
+      );
+    } catch (error) {
+      setCurrentStore((current) => ({ ...current, customer_ordering_status: previousStatus }));
+      showToast("error", "Status Not Saved", error?.message || "Unable to update online ordering status.");
+    } finally {
+      setStoreOrderingStatusSaving(false);
+    }
+  }
+
   async function refundTicket(receipt) {
     if (!receipt?.receipt_number) return;
     if (String(receipt.status || "").toLowerCase() === "refunded") {
@@ -9949,6 +9994,41 @@ export default function POSPage() {
                     >
                       Sign Out
                     </button>
+                  </div>
+                </div>
+
+                <div className="mb-3 rounded-xl border border-cyan-100 bg-cyan-50/60 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-cyan-700">Customer online ordering</p>
+                      <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-600">{currentStore?.name || currentStore?.store_name || "Current branch"}</p>
+                    </div>
+                    {storeOrderingStatusSaving && <RefreshCw size={14} className="shrink-0 animate-spin text-cyan-700" />}
+                  </div>
+                  <div className="grid grid-cols-3 gap-1 rounded-xl bg-white p-1 shadow-sm">
+                    {STORE_ORDERING_STATUS_OPTIONS.map((option) => {
+                      const active = normalizeStoreOrderingStatus(currentStore?.customer_ordering_status) === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          disabled={storeOrderingStatusSaving}
+                          onClick={() => updateStoreOrderingStatus(option.value)}
+                          title={option.description}
+                          className={`h-9 rounded-lg text-[10px] font-black uppercase tracking-wider transition disabled:cursor-wait disabled:opacity-60 ${
+                            active
+                              ? option.value === "open"
+                                ? "bg-emerald-500 text-white"
+                                : option.value === "busy"
+                                  ? "bg-amber-500 text-white"
+                                  : "bg-red-500 text-white"
+                              : "text-slate-500 hover:bg-slate-100"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 

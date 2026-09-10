@@ -14,6 +14,12 @@ import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib
 import { isBirthdayVoucher } from "@/lib/loyalty/birthdayVoucher";
 import { isWelcomeVoucher, WELCOME_VOUCHER_REWARD_TEXT } from "@/lib/loyalty/welcomeVoucher";
 import { findVoucherForMenuItem, isPromoCategoryName, isPromoMenuItem, isVoucherAvailable, loyaltyEligibleLineTotal } from "@/lib/menuPromos";
+import {
+  normalizeStoreOrderingStatus,
+  STORE_ORDERING_STATUS,
+  storeOrderingStatusFromError,
+  storeOrderingStatusMessage,
+} from "@/lib/storeOrderingStatus";
 import { ensureNativeNotificationPermission, isNativeApp, registerNativeCustomerPush, showNativeNotification } from "@/lib/nativeNotifications";
 import BookingTab from "@/components/BookingForm";
 import CustomerApkUpdatePrompt from "@/components/CustomerApkUpdatePrompt";
@@ -79,6 +85,18 @@ async function insertCustomerWebOrder(orderPayload) {
   if (lookupError) throw lookupError;
   if (!existing) throw error;
   return { row: existing, created: false };
+}
+
+async function fetchStoreOrderingStatus(storeId) {
+  if (!storeId) return STORE_ORDERING_STATUS.OPEN;
+  const { data, error } = await supabase
+    .from("stores")
+    .select("customer_ordering_status")
+    .eq("id", storeId)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? normalizeStoreOrderingStatus(data.customer_ordering_status) : STORE_ORDERING_STATUS.CLOSED;
 }
 
 async function notifyStoreOfCustomerOrder(order, { itemCount = 0, items = [], storeName = "" } = {}) {
@@ -1838,6 +1856,9 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
   const [optionSelectionStoreAvailability, setOptionSelectionStoreAvailability] = useState([]);
   const [activeVouchers, setActiveVouchers] = useState([]);
   const [availabilityNotice, setAvailabilityNotice] = useState("");
+  const [orderingStatus, setOrderingStatus] = useState(STORE_ORDERING_STATUS.OPEN);
+  const [orderingStatusChecking, setOrderingStatusChecking] = useState(true);
+  const [orderingStatusDialog, setOrderingStatusDialog] = useState(null);
 
   const [selectedItemForModal, setSelectedItemForModal] = useState(null);
   const [cartOpen, setCartOpen] = useState(false);
@@ -2026,6 +2047,33 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
     [selectedBranch, stores]
   );
 
+  useEffect(() => {
+    if (!selectedBranch) return undefined;
+    let cancelled = false;
+    const cachedStatus = normalizeStoreOrderingStatus(selectedStore?.customer_ordering_status);
+    setOrderingStatus(cachedStatus);
+    setOrderingStatusChecking(true);
+    if (storeOrderingStatusMessage(cachedStatus)) setOrderingStatusDialog(cachedStatus);
+    else setOrderingStatusDialog(null);
+
+    fetchStoreOrderingStatus(selectedBranch)
+      .then((status) => {
+        if (cancelled) return;
+        setOrderingStatus(status);
+        const dialog = storeOrderingStatusMessage(status);
+        if (dialog) setOrderingStatusDialog(status);
+        else setOrderingStatusDialog(null);
+      })
+      .catch((error) => console.warn("Unable to refresh online ordering status:", error))
+      .finally(() => {
+        if (!cancelled) setOrderingStatusChecking(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedBranch, selectedStore?.customer_ordering_status]);
+
   const visibleCategories = useMemo(() => {
     return cats
       .filter((cat) => {
@@ -2149,15 +2197,37 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
     setCartOpen(false);
   };
 
-  const handleOpenCheckoutValidation = () => {
+  const handleOpenCheckoutValidation = async () => {
     if (!user?.id) return alert("❌ Session expired: Sign in to submit orders.");
     if (cart.length === 0) return alert("❌ Basket selection empty.");
     if (!selectedBranch) return alert("Please select a store before sending your order.");
+    try {
+      const status = await fetchStoreOrderingStatus(selectedBranch);
+      setOrderingStatus(status);
+      if (storeOrderingStatusMessage(status)) {
+        setOrderingStatusDialog(status);
+        return;
+      }
+    } catch (error) {
+      console.warn("Unable to verify online ordering status before checkout:", error);
+    }
     setConfirmationOpen(true);
   };
 
   const executeOrderSubmission = async (fulfillmentMetadata) => {
     setIsSubmitting(true);
+
+    try {
+      const status = await fetchStoreOrderingStatus(selectedBranch);
+      setOrderingStatus(status);
+      if (storeOrderingStatusMessage(status)) {
+        setOrderingStatusDialog(status);
+        setIsSubmitting(false);
+        return;
+      }
+    } catch (error) {
+      console.warn("Unable to recheck online ordering status:", error);
+    }
 
     const allowedPaymentMethods = fulfillmentMetadata.diningOption === "DELIVERY"
       ? ["QRPH"]
@@ -2249,6 +2319,12 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       if (onCheckoutSuccess) onCheckoutSuccess();
     } catch (err) {
       console.error("Critical submission failure loop trace:", err);
+      const blockedStatus = storeOrderingStatusFromError(err);
+      if (blockedStatus) {
+        setOrderingStatus(blockedStatus);
+        setOrderingStatusDialog(blockedStatus);
+        return;
+      }
       if (isConnectivityFailure(err) && !paymentProofUrl && !isQrph) {
         const queuedOrder = {
           ...orderPayload,
@@ -2413,9 +2489,10 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
             </div>
             <button
               onClick={handleOpenCheckoutValidation}
-              className="w-full h-11 rounded-xl bg-blue-300/80 text-white text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-blue-400/80 transition"
+              disabled={isSubmitting || orderingStatusChecking || orderingStatus !== STORE_ORDERING_STATUS.OPEN}
+              className="w-full h-11 rounded-xl bg-blue-300/80 text-white text-xs font-bold uppercase tracking-wider shadow-sm hover:bg-blue-400/80 transition disabled:cursor-not-allowed disabled:bg-slate-300"
             >
-            {isSubmitting ? "Sending..." : "Place Order"}
+            {isSubmitting ? "Sending..." : orderingStatusChecking ? "Checking Store..." : orderingStatus === STORE_ORDERING_STATUS.OPEN ? "Place Order" : "Online Ordering Unavailable"}
             </button>
             <button
               onClick={() => setConfirmClear(true)}
@@ -2436,6 +2513,11 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
           <div>            
             <h2 className="text-lg font-bold text-slate-800">Order Menu</h2>
             <p className="mt-1 text-[11px] text-cyan-700">{selectedStore?.name ? `Showing items for ${selectedStore.name}` : "Select a store to view available items"}</p>
+            {!orderingStatusChecking && orderingStatus !== STORE_ORDERING_STATUS.OPEN && (
+              <p className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${orderingStatus === STORE_ORDERING_STATUS.BUSY ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-700"}`}>
+                Online ordering {orderingStatus}
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <select
@@ -2636,6 +2718,30 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
         selectedStore={selectedStore}
         selectedStoreName={selectedStore?.name}
       />
+
+      {orderingStatusDialog && storeOrderingStatusMessage(orderingStatusDialog) && (
+        <div className="fixed inset-0 z-[320] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="store-ordering-status-title">
+          <div className="w-full max-w-sm rounded-3xl border border-white/70 bg-white p-6 text-center shadow-2xl">
+            <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full text-3xl ${orderingStatusDialog === STORE_ORDERING_STATUS.BUSY ? "bg-amber-100" : "bg-red-100"}`}>
+              {orderingStatusDialog === STORE_ORDERING_STATUS.BUSY ? "⏱️" : "🔒"}
+            </div>
+            <p className="mt-4 text-[10px] font-black uppercase tracking-[0.2em] text-[#FC687D]">{selectedStore?.name || "Selected store"}</p>
+            <h2 id="store-ordering-status-title" className="mt-1 text-xl font-black text-slate-900">
+              {storeOrderingStatusMessage(orderingStatusDialog).title}
+            </h2>
+            <p className="mt-3 text-sm font-medium leading-relaxed text-slate-600">
+              {storeOrderingStatusMessage(orderingStatusDialog).message}
+            </p>
+            <button
+              type="button"
+              onClick={() => setOrderingStatusDialog(null)}
+              className="mt-6 h-11 w-full rounded-xl bg-[#FC687D] text-xs font-black uppercase tracking-wider text-white shadow-sm transition hover:bg-rose-500"
+            >
+              Okay
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

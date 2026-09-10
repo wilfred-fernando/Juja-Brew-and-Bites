@@ -86,7 +86,7 @@ async function loadMenuData(mode, { includeTestStores = false, accessToken = "" 
         categoryQuery,
         supabase
           .from("stores")
-          .select("id, name, is_active, is_test")
+          .select("id, name, is_active, is_test, customer_ordering_status, customer_ordering_status_updated_at")
           .eq("is_active", true)
           .order("name"),
         supabase.from("menu_item_store_availability").select("item_id, store_id, is_available"),
