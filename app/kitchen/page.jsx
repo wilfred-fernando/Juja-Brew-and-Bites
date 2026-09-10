@@ -1179,9 +1179,10 @@ export default function KitchenDisplay() {
                 ))}
               </div>
               <input
+                type="search"
                 value={availabilitySearch}
                 onChange={(event) => setAvailabilitySearch(event.target.value)}
-                placeholder={availabilityTab === "groups" ? "Search option groups..." : "Search kitchen items..."}
+                placeholder={availabilityTab === "groups" ? "Search option groups..." : "Search items by name or category..."}
                 className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-100"
               />
             </div>
@@ -1196,14 +1197,18 @@ export default function KitchenDisplay() {
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
                   <Utensils className="mx-auto h-9 w-9 text-slate-400" />
                   <p className="mt-3 text-sm font-bold text-slate-500">
-                    No Kitchen printer group items found for this store.
+                    {availabilitySearch.trim()
+                      ? "No kitchen items match your search."
+                      : "No Kitchen printer group items found for this store."}
                   </p>
                 </div>
               ) : availabilityTab === "groups" && filteredAvailabilityGroups.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
                   <PackageCheck className="mx-auto h-9 w-9 text-slate-400" />
                   <p className="mt-3 text-sm font-bold text-slate-500">
-                    No option selections attached to Kitchen printer group categories.
+                    {availabilitySearch.trim()
+                      ? "No option selections match your search."
+                      : "No option selections attached to Kitchen printer group categories."}
                   </p>
                 </div>
               ) : availabilityTab === "items" ? (

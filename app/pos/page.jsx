@@ -4299,6 +4299,7 @@ export default function POSPage() {
   const [managementOpen, setManagementOpen] = useState(false);
   const [managementView, setManagementView] = useState("receipts");
   const [itemsManagementTab, setItemsManagementTab] = useState("items");
+  const [itemsManagementSearch, setItemsManagementSearch] = useState("");
   const [receiptRows, setReceiptRows] = useState([]);
   const [receiptItemRows, setReceiptItemRows] = useState([]);
   const [receiptRefunds, setReceiptRefunds] = useState({});
@@ -5159,18 +5160,21 @@ export default function POSPage() {
   }, [closedShiftReportRecords, selectedShiftReportId]);
   const itemsByManagementCategory = useMemo(() => {
     const map = new Map();
+    const search = itemsManagementSearch.trim().toLowerCase();
     const categoryNames = (categories || []).map((cat) => cat?.name || cat?.label || cat).filter(Boolean);
     categoryNames.forEach((name) => map.set(name, []));
-    (items || []).forEach((item) => {
-      const key = item.category || "Uncategorized";
-      if (!map.has(key)) map.set(key, []);
-      map.get(key).push(item);
-    });
+    (items || [])
+      .filter((item) => !search || `${item.name || ""} ${item.category || ""}`.toLowerCase().includes(search))
+      .forEach((item) => {
+        const key = item.category || "Uncategorized";
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push(item);
+      });
     return Array.from(map.entries())
       .map(([name, rows]) => ({ name, rows: rows.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))) }))
       .filter((group) => group.rows.length > 0)
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [categories, items]);
+  }, [categories, items, itemsManagementSearch]);
 
   const visibleMenuItems = useMemo(() => {
     const search = menuSearch.trim().toLowerCase();
@@ -10219,29 +10223,46 @@ export default function POSPage() {
               </div>
 
               {itemsManagementTab === "items" ? (
-                <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-                  {itemsByManagementCategory.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-slate-200 p-4 text-xs font-semibold text-slate-400">No items found.</div>
-                  ) : itemsByManagementCategory.map((category) => (
-                    <div key={category.name} className="space-y-2">
-                      <div className="sticky top-0 z-10 rounded-lg bg-rose-50 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-rose-700">
-                        {category.name}
-                      </div>
-                      {category.rows.map((item) => (
-                        <div key={item.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="text-xs font-bold text-slate-800 truncate">{item.name}</p>
-                              <p className="text-[10px] font-semibold text-slate-400">{peso2(item.price || 0)}</p>
-                            </div>
-                            <button type="button" onClick={() => toggleMenuItemAvailability(item)} className={`h-8 px-3 rounded-full text-[10px] font-black uppercase tracking-wider ${item.is_available === false ? "bg-slate-200 text-slate-500" : "bg-emerald-50 text-emerald-600 border border-emerald-100"}`}>
-                              {item.is_available === false ? "Off" : "On"}
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                <div className="space-y-3">
+                  <label className="block space-y-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Search Menu Items</span>
+                    <div className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 focus-within:border-rose-300 focus-within:ring-2 focus-within:ring-rose-100">
+                      <Search size={14} className="shrink-0 text-slate-400" />
+                      <input
+                        type="search"
+                        value={itemsManagementSearch}
+                        onChange={(event) => setItemsManagementSearch(event.target.value)}
+                        placeholder="Search by item or category"
+                        className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-slate-700 outline-none placeholder:text-slate-400"
+                      />
                     </div>
-                  ))}
+                  </label>
+                  <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                    {itemsByManagementCategory.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-slate-200 p-4 text-xs font-semibold text-slate-400">
+                        {itemsManagementSearch.trim() ? "No menu items match your search." : "No items found."}
+                      </div>
+                    ) : itemsByManagementCategory.map((category) => (
+                      <div key={category.name} className="space-y-2">
+                        <div className="sticky top-0 z-10 rounded-lg bg-rose-50 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-rose-700">
+                          {category.name}
+                        </div>
+                        {category.rows.map((item) => (
+                          <div key={item.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-slate-800 truncate">{item.name}</p>
+                                <p className="text-[10px] font-semibold text-slate-400">{peso2(item.price || 0)}</p>
+                              </div>
+                              <button type="button" onClick={() => toggleMenuItemAvailability(item)} className={`h-8 px-3 rounded-full text-[10px] font-black uppercase tracking-wider ${item.is_available === false ? "bg-slate-200 text-slate-500" : "bg-emerald-50 text-emerald-600 border border-emerald-100"}`}>
+                                {item.is_available === false ? "Off" : "On"}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
