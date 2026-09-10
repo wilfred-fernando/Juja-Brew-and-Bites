@@ -1,9 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { cacheHeaders, getCached } from "@/lib/serverCache";
 import { isPromoCategoryName, isPromoMenuItem } from "@/lib/menuPromos";
 import { headers } from "next/headers";
-
-const MENU_TTL_MS = 5 * 60 * 1000;
 
 function supabaseConfig() {
   return {
@@ -67,9 +64,9 @@ async function loadMenuData(mode, { includeTestStores = false, accessToken = "" 
     .select("*")
     .order("name");
 
-  if (isCustomer) itemQuery.eq("pos_only", false);
-  else itemQuery.or("pos_only.is.null,pos_only.eq.false");
-  if (!isCustomer) itemQuery.eq("is_available", true);
+  itemQuery
+    .or("pos_only.is.null,pos_only.eq.false")
+    .eq("is_available", true);
 
   const categoryQuery = supabase
     .from("menu_categories")
@@ -77,8 +74,7 @@ async function loadMenuData(mode, { includeTestStores = false, accessToken = "" 
     .eq("is_active", true)
     .order("name", { ascending: true });
 
-  if (isCustomer) categoryQuery.eq("pos_only", false);
-  else categoryQuery.or("pos_only.is.null,pos_only.eq.false");
+  categoryQuery.or("pos_only.is.null,pos_only.eq.false");
 
   const promises = isCustomer
     ? [
@@ -123,13 +119,13 @@ export async function GET(req) {
     const mode = searchParams.get("mode") === "customer" ? "customer" : "public";
     const accessToken = await getRequesterAccessToken();
     const includeTestStores = mode === "customer" && await requesterCanSeeTestStores(accessToken);
-    const data = includeTestStores
-      ? await loadMenuData(mode, { includeTestStores, accessToken })
-      : await getCached(`menu-data:${mode}:public`, MENU_TTL_MS, () => loadMenuData(mode));
+    const data = await loadMenuData(mode, { includeTestStores, accessToken });
 
     return Response.json(data, {
       headers: {
-        ...(includeTestStores ? { "Cache-Control": "no-store" } : cacheHeaders(300, 900)),
+        "Cache-Control": "no-store, max-age=0",
+        "CDN-Cache-Control": "no-store",
+        "Vercel-CDN-Cache-Control": "no-store",
         "X-Juja-Cache": "menu-data",
         "X-Juja-Test-Stores": includeTestStores ? "included" : "hidden",
       },

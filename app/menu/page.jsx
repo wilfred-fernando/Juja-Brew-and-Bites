@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { menuCardPrice } from "@/lib/menuPricing";
+import { isMenuItemVisibleToCustomers } from "@/lib/menuVisibility";
 
 const hasMenuOptions = (item) =>
   Array.isArray(item?.variants) &&
@@ -13,7 +14,6 @@ const hasMenuOptions = (item) =>
 const supabase = getSupabaseClient();
 
 const LOGO = "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
-const isMenuItemMarkedAvailable = (item) => item?.is_available !== false && item?.available !== false;
 const peso0 = (amount) => `₱${Number(amount || 0).toLocaleString("en-PH", { maximumFractionDigits: 0 })}`;
 
 // ─── Shared Nav (Integrated Perfectly) ───────────────────────────────────────
@@ -248,7 +248,7 @@ export default function PublicMenuPage() {
 
       // Only allow items from visible categories
       const allowedCatNames = new Set(catsData.map(c => c.name));
-      const safeItems = itemsData.filter((i) => isMenuItemMarkedAvailable(i) && allowedCatNames.has(i.category));
+      const safeItems = itemsData.filter((i) => isMenuItemVisibleToCustomers(i) && allowedCatNames.has(i.category));
 
       setCats(catsData);
       setItems(safeItems);
@@ -279,7 +279,7 @@ export default function PublicMenuPage() {
           const rowId = nextItem.id || previousItem.id;
           if (!rowId) return;
 
-          if (payload.eventType === "DELETE" || nextItem.pos_only === true || !isMenuItemMarkedAvailable(nextItem)) {
+          if (payload.eventType === "DELETE" || !isMenuItemVisibleToCustomers(nextItem)) {
             setItems((prev) => prev.filter((item) => item.id !== rowId));
             return;
           }

@@ -15,6 +15,7 @@ import { isBirthdayVoucher } from "@/lib/loyalty/birthdayVoucher";
 import { isWelcomeVoucher, WELCOME_VOUCHER_REWARD_TEXT } from "@/lib/loyalty/welcomeVoucher";
 import { findVoucherForMenuItem, isPromoCategoryName, isPromoMenuItem, isVoucherAvailable, loyaltyEligibleLineTotal } from "@/lib/menuPromos";
 import { menuCardPrice } from "@/lib/menuPricing";
+import { isMenuCategoryVisibleToCustomers, isMenuItemVisibleToCustomers } from "@/lib/menuVisibility";
 import {
   normalizeStoreOrderingStatus,
   STORE_ORDERING_STATUS,
@@ -55,7 +56,6 @@ const peso2 = (amount) => `₱${Number(amount || 0).toLocaleString("en-PH", { mi
 const ALERT_SOUND_SRC = "/sound/notification.mp3";
 const CUSTOMER_NOTIFICATION_ICON = "/favicon.ico";
 const QRPH_IMAGE_PATH = "https://files.jujabrewandbites.com/public-media/qrph.jpg";
-const isMenuItemMarkedAvailable = (item) => item?.is_available !== false && item?.available !== false;
 const optionGroupKey = (value) => String(value || "").trim().toLowerCase();
 const optionSelectionKey = (value) => String(value || "").trim().toLowerCase();
 
@@ -1891,8 +1891,12 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
     async function fetchMenu() {
       setLoading(true);
       const applyMenu = (json) => {
-        setItems(json.items || []);
-        setCategories([...(json.categories || [])].sort((a, b) => (a.name || "").localeCompare(b.name || "")));
+        setItems((json.items || []).filter(isMenuItemVisibleToCustomers));
+        setCategories(
+          (json.categories || [])
+            .filter(isMenuCategoryVisibleToCustomers)
+            .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+        );
         const activeStores = json.stores || [];
         setStores(activeStores);
         setSelectedBranch((current) => (activeStores.some((store) => String(store.id) === String(current)) ? current : activeStores[0]?.id || current));
@@ -1906,7 +1910,6 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
         applyMenu(cachedSnapshot.data);
         setLoading(false);
       }
-      if (isLocalSnapshotFresh(cachedSnapshot, 6 * 60 * 60 * 1000)) return;
       const { session } = await getStableSession(supabase);
       const accessToken = session?.access_token;
       const res = await fetch("/api/menu-data?mode=customer", {
@@ -1986,14 +1989,14 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
           const rowId = nextItem.id || previousItem.id;
           if (!rowId) return;
 
-          if (payload.eventType === "DELETE" || nextItem.pos_only === true) {
+          if (payload.eventType === "DELETE" || !isMenuItemVisibleToCustomers(nextItem)) {
             setItems((prev) => prev.filter((item) => item.id !== rowId));
             setSelectedItemForModal((current) => (current?.id === rowId ? null : current));
             return;
           }
 
           setItems((prev) => (prev.some((item) => item.id === rowId) ? prev.map((item) => (item.id === rowId ? nextItem : item)) : [...prev, nextItem]));
-          setSelectedItemForModal((current) => (current?.id === rowId && !isMenuItemMarkedAvailable(nextItem) ? null : current));
+          setSelectedItemForModal((current) => (current?.id === rowId && !isMenuItemVisibleToCustomers(nextItem) ? null : current));
         }
       )
       .on(
@@ -2075,6 +2078,15 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
     };
   }, [selectedBranch, selectedStore?.customer_ordering_status]);
 
+  const unavailableItemIds = useMemo(() => new Set(
+    itemStoreAvailability
+      .filter((entry) => (
+        String(entry.store_id) === String(selectedBranch)
+        && entry.is_available === false
+      ))
+      .map((entry) => String(entry.item_id))
+  ), [itemStoreAvailability, selectedBranch]);
+
   const visibleCategories = useMemo(() => {
     return cats
       .filter((cat) => {
@@ -2101,11 +2113,13 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
 
   const filteredItems = useMemo(() => {
     return items
+      .filter(isMenuItemVisibleToCustomers)
+      .filter((item) => !unavailableItemIds.has(String(item.id)))
       .filter((i) => visibleCategories.some((cat) => cat.name === i.category))
       .filter((i) => (activeTab === "ALL" ? true : i.category === activeTab))
       .filter((i) => (!isPromoMenuItem(i) ? true : !!findVoucherForMenuItem(activeVouchers, i)))
       .filter((i) => (q ? (i.name || "").toLowerCase().includes(q) : true));
-  }, [items, visibleCategories, activeTab, q, activeVouchers]);
+  }, [items, unavailableItemIds, visibleCategories, activeTab, q, activeVouchers]);
 
   const filteredItemGroups = useMemo(() => {
     if (q || activeTab !== "ALL") return [{ category: null, items: filteredItems }];
@@ -2118,15 +2132,11 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
   }, [activeTab, filteredItems, q, visibleCategories]);
 
   const isItemAvailableForSelectedStore = (item) => {
-    if (!selectedBranch) return true;
-    const row = itemStoreAvailability.find(
-      (entry) => String(entry.item_id) === String(item.id) && String(entry.store_id) === String(selectedBranch)
-    );
-    return row ? row.is_available !== false : true;
+    return !unavailableItemIds.has(String(item.id));
   };
 
   const isItemOrderable = (item) =>
-    isMenuItemMarkedAvailable(item) &&
+    isMenuItemVisibleToCustomers(item) &&
     isItemAvailableForSelectedStore(item) &&
     (!isPromoMenuItem(item) || !!findVoucherForMenuItem(activeVouchers, item));
 
