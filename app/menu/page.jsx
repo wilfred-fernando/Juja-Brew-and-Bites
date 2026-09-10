@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { menuCardPrice } from "@/lib/menuPricing";
 
 const hasMenuOptions = (item) =>
   Array.isArray(item?.variants) &&
@@ -529,7 +530,7 @@ export default function PublicMenuPage() {
                       
                       {/* Price */}
                       <p className="text-[18px] text-[#FC687D] text-center font-semibold mt-3">
-                        {peso0(item.price)}
+                        {peso0(menuCardPrice(item))}
                       </p>
 
                       {hasMenuOptions(item) && (

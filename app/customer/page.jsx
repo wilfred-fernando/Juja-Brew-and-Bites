@@ -14,6 +14,7 @@ import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib
 import { isBirthdayVoucher } from "@/lib/loyalty/birthdayVoucher";
 import { isWelcomeVoucher, WELCOME_VOUCHER_REWARD_TEXT } from "@/lib/loyalty/welcomeVoucher";
 import { findVoucherForMenuItem, isPromoCategoryName, isPromoMenuItem, isVoucherAvailable, loyaltyEligibleLineTotal } from "@/lib/menuPromos";
+import { menuCardPrice } from "@/lib/menuPricing";
 import {
   normalizeStoreOrderingStatus,
   STORE_ORDERING_STATUS,
@@ -2617,7 +2618,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
                   </div>
                 </div>
                 <p className="mt-1 w-full border-t border-cyan-50 pt-2 text-center text-[18px] font-semibold text-slate-950">
-                  {peso0(item.price)}
+                  {peso0(menuCardPrice(item))}
                 </p>
                 {hasMenuOptions(item) && (
                   <p className="mt-1 text-center text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
