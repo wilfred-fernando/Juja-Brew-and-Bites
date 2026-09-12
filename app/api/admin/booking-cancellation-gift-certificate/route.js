@@ -1,6 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies, headers } from "next/headers";
+import { cancellationGiftEmail } from "@/lib/bookings/cancellationGiftEmail";
+import { renderGiftCertificateImage } from "@/lib/bookings/giftCertificateImage";
+import { buildGiftCertificateDelivery } from "@/lib/bookings/giftCertificateDelivery";
+import { getEmailConfigStatus, sendNotificationEmail } from "@/lib/email/notifications";
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
 
 function supabaseConfig() {
   return {
@@ -63,87 +70,104 @@ async function requireAdmin(adminClient) {
   return { allowed: true, requester };
 }
 
-function giftCertificateCode(booking) {
-  const ref = String(booking?.reference_code || booking?.id || "")
-    .replace(/[^a-z0-9]/gi, "")
-    .slice(-8)
-    .toUpperCase();
-  return `BKG-GC-${ref || Math.floor(100000 + Math.random() * 900000)}`;
+async function context() {
+  const { url, serviceRoleKey } = supabaseConfig();
+  if (!url || !serviceRoleKey) throw new Error("Booking gift certificate service is not configured.");
+  const admin = createSupabaseClient(url, serviceRoleKey);
+  const guard = await requireAdmin(admin);
+  return { admin, guard };
+}
+
+export async function GET(req) {
+  try {
+    const { admin, guard } = await context();
+    if (!guard.allowed) return Response.json({ error: guard.error }, { status: guard.status });
+    const query = new URL(req.url).searchParams;
+    const certificateId = query.get("certificateId");
+    if (certificateId) {
+      if (!/^[0-9a-f-]{36}$/i.test(certificateId)) return Response.json({ error: "Invalid certificate ID." }, { status: 400 });
+      const { data: certificate, error } = await admin.from("booking_gc_certificates")
+        .select("*, booking_gc_batches!inner(expires_at,status)").eq("id", certificateId).maybeSingle();
+      if (error) throw error;
+      if (!certificate) return Response.json({ error: "Certificate not found." }, { status: 404 });
+      const batch = certificate.booking_gc_batches;
+      const png = await renderGiftCertificateImage({ code: certificate.code, amount: certificate.amount, expiresAt: batch.expires_at,
+        preview: certificate.status !== "active" || batch.status !== "approved" || new Date(batch.expires_at).getTime() <= Date.now() });
+      return new Response(new Uint8Array(png), { headers: {
+        "Content-Type": "image/png", "Cache-Control": "private, no-store",
+        "Content-Disposition": `${query.get("download") === "1" ? "attachment" : "inline"}; filename="${certificate.code}.png"`,
+        "X-Content-Type-Options": "nosniff",
+      } });
+    }
+    const { data, error } = await admin.from("booking_gc_batches")
+      .select("*, booking_gc_certificates(*), function_room_bookings(status,payment_status)")
+      .order("status", { ascending: false }).order("created_at", { ascending: false }).limit(200);
+    if (error) throw error;
+    return Response.json({ batches: data.map((batch) => {
+      const certificates = batch.booking_gc_certificates.sort((a,b) => a.sequence_number-b.sequence_number);
+      return { ...batch, booking_gc_certificates: certificates, email: cancellationGiftEmail(batch, certificates) };
+    }) }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
 }
 
 export async function POST(req) {
   try {
-    const { url, serviceRoleKey } = supabaseConfig();
-    if (!url || !serviceRoleKey) {
-      return Response.json(
-        { error: "Supabase service role key is required for booking cancellation approval." },
-        { status: 500 }
-      );
+    const { admin, guard } = await context();
+    if (!guard.allowed) return Response.json({ error: guard.error }, { status: guard.status });
+    const { bookingId, batchId, action = "cancel" } = await req.json();
+    if (action === "cancel") {
+      if (!bookingId) return Response.json({ error: "Booking ID is required." }, { status: 400 });
+      // The database trigger queues the certificates in the same transaction.
+      const { data: booking, error } = await admin.from("function_room_bookings")
+        .update({ status: "cancelled" }).eq("id", bookingId)
+        .eq("status", "cancellation_requested").select("*").maybeSingle();
+      if (error) throw error;
+      if (!booking) return Response.json({ error: "Booking is no longer awaiting cancellation." }, { status: 409 });
+      return Response.json({ success: true, booking });
     }
-
-    const admin = createSupabaseClient(url, serviceRoleKey);
-    const guard = await requireAdmin(admin);
-    if (!guard.allowed) {
-      return Response.json({ error: guard.error }, { status: guard.status });
+    if (action !== "approve_email" || !batchId) {
+      return Response.json({ error: "A valid action and batch ID are required." }, { status: 400 });
     }
-
-    const { bookingId } = await req.json();
-    if (!bookingId) {
-      return Response.json({ error: "Booking ID is required." }, { status: 400 });
+    if (!getEmailConfigStatus().ready) {
+      return Response.json({ error: "Email notification is not configured." }, { status: 503 });
     }
-
-    const { data: booking, error: bookingError } = await admin
-      .from("function_room_bookings")
-      .select("*")
-      .eq("id", bookingId)
-      .maybeSingle();
-
-    if (bookingError) throw bookingError;
-    if (!booking) return Response.json({ error: "Booking not found." }, { status: 404 });
-    if (booking.status !== "cancellation_requested") {
-      return Response.json(
-        { error: "Only cancellation-requested bookings can be converted to gift certificate." },
-        { status: 409 }
-      );
-    }
-
-    const amount = Number(booking.deposit_amount || 0);
-    const gcPayload = {
-      booking_id: booking.id,
-      code: giftCertificateCode(booking),
-      customer_name: booking.customer_name || null,
-      customer_email: booking.email || null,
-      customer_contact: booking.contact_number || null,
-      amount,
-      status: "active",
-      approved_by: guard.requester.id,
-      notes: "Reservation fee converted after approved booking cancellation.",
-    };
-
-    const { data: giftCertificate, error: gcError } = await admin
-      .from("booking_cancellation_gift_certificates")
-      .upsert(gcPayload, { onConflict: "booking_id" })
-      .select("*")
-      .single();
-
-    if (gcError) throw gcError;
-
-    const { error: updateError } = await admin
-      .from("function_room_bookings")
-      .update({ status: "cancelled_gc" })
-      .eq("id", booking.id);
-
-    if (updateError) throw updateError;
-
-    return Response.json({
-      success: true,
-      booking: { ...booking, status: "cancelled_gc" },
-      giftCertificate,
+    const { error: approvalError } = await admin.rpc("approve_booking_gc_batch", {
+      p_batch_id: batchId, p_actor: guard.requester.id,
     });
+    if (approvalError) return Response.json({ error: approvalError.message }, { status: 409 });
+    // A conditional claim prevents concurrent approval clicks from sending twice.
+    const { data: batch, error: claimError } = await admin.from("booking_gc_batches")
+      .update({ email_status: "sending", email_started_at: new Date().toISOString(), email_error: null })
+      .eq("id", batchId).eq("status", "approved").in("email_status", ["pending", "failed"])
+      .select("*").maybeSingle();
+    if (claimError) throw claimError;
+    if (!batch) return Response.json({ error: "Email is already sent or sending. Refresh to see its status." }, { status: 409 });
+    let sent = false;
+    try {
+      const { data: certificates, error } = await admin.from("booking_gc_certificates")
+        .select("*").eq("batch_id", batch.id).order("sequence_number");
+      if (error) throw error;
+      const delivery = await buildGiftCertificateDelivery(batch, certificates);
+      const result = await sendNotificationEmail({ to: batch.customer_email, ...delivery });
+      if (!result.sent) throw new Error(result.publicError || "Email could not be sent.");
+      sent = true;
+      const { error: saveError } = await admin.from("booking_gc_batches")
+        .update({ email_status: "sent", emailed_at: new Date().toISOString() }).eq("id", batch.id);
+      if (saveError) throw saveError;
+      return Response.json({ success: true, emailSent: true });
+    } catch {
+      if (!sent) {
+        const { error: saveError } = await admin.from("booking_gc_batches")
+          .update({ email_status: "failed", email_error: "Email failed. Verify delivery before retrying." }).eq("id", batch.id);
+        if (saveError) console.error("Unable to record GC email failure", saveError.message);
+      }
+      return Response.json({ error: sent
+        ? "Email was sent, but delivery status could not be saved. Do not resend; contact support."
+        : "Certificates approved, but email failed. Verify delivery before retrying from the approval panel." }, { status: 502 });
+    }
   } catch (error) {
-    return Response.json(
-      { error: error?.message || "Unable to approve booking cancellation." },
-      { status: 500 }
-    );
+    return Response.json({ error: error?.message || "Unable to process gift certificates." }, { status: 500 });
   }
 }

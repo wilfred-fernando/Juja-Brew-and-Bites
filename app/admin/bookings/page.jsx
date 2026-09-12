@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/dateFormat";
 import { packageExtensionPolicyText } from "@/lib/bookings/extensionPolicy";
+import BookingGiftCertificates from "@/components/BookingGiftCertificates";
 
 const supabase = getSupabaseClient();
 
@@ -1078,6 +1079,8 @@ export default function AdminBookingsDashboard() {
           </div>
         </div>
       </div>
+
+      <BookingGiftCertificates bookings={bookings} onApproved={loadAll} />
 
       {/* Loading */}
       {loading ? (

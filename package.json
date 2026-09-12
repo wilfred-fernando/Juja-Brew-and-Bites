@@ -48,7 +48,9 @@
     "react": "^19.2.4",
     "react-barcode": "^1.6.1",
     "react-dom": "^19.2.4",
-    "recharts": "^3.8.1"
+    "recharts": "^3.8.1",
+    "sharp": "0.34.5",
+    "jsbarcode": "3.12.3"
   },
   "devDependencies": {
     "@capacitor/android": "^8.4.1",

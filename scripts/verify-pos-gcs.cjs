@@ -1,0 +1,107 @@
+const { loadEnvConfig } = require('@next/env');
+const { Client } = require('pg');
+const { readFileSync } = require('node:fs');
+const assert = require('node:assert/strict');
+const { randomUUID } = require('node:crypto');
+loadEnvConfig(process.cwd());
+async function main() {
+  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required for rollback-only verification.');
+  const client = new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 10000 });
+  await client.connect();
+  const schema = 'gc_test_' + randomUUID().replaceAll('-', '');
+  try {
+    await client.query('BEGIN');
+    await client.query('SET LOCAL statement_timeout = 15000');
+    await client.query(`CREATE SCHEMA ${schema}`);
+    await client.query(`CREATE TABLE ${schema}.function_room_bookings(id uuid primary key, status text, payment_status text, deposit_amount numeric, customer_name text, email text)`);
+    await client.query(`CREATE TABLE ${schema}.profiles(id uuid, role text, store_id uuid)`);
+    await client.query(`CREATE TABLE ${schema}.booking_cancellation_gift_certificates(booking_id uuid)`);
+    const actor = (await client.query("SELECT id FROM public.profiles WHERE lower(role) IN ('admin','super_admin') LIMIT 1")).rows[0]?.id;
+    assert.ok(actor, 'Need an existing admin identity for approval foreign key');
+    await client.query(`INSERT INTO ${schema}.profiles(id,role) VALUES ($1,'admin')`, [actor]);
+    await client.query(`CREATE TABLE ${schema}.orders (LIKE public.orders INCLUDING DEFAULTS)`);
+    await client.query(`ALTER TABLE ${schema}.orders ADD PRIMARY KEY(id)`);
+    await client.query(`CREATE TABLE ${schema}.order_items (LIKE public.order_items INCLUDING DEFAULTS)`);
+    await client.query(`CREATE TABLE ${schema}.vouchers (LIKE public.vouchers INCLUDING DEFAULTS)`);
+    await client.query(`CREATE TABLE ${schema}.web_orders (LIKE public.web_orders INCLUDING DEFAULTS)`);
+    await client.query(`CREATE TABLE ${schema}.open_tickets (LIKE public.open_tickets INCLUDING DEFAULTS)`);
+    await client.query(`CREATE FUNCTION ${schema}.complete_pos_discount_claims(uuid,uuid,text) RETURNS void LANGUAGE sql AS 'SELECT'`);
+    for (const file of ['20260912090000_booking_gc_approval_batches.sql','20260912100000_pos_booking_gc_redemption.sql']) {
+      const migration = readFileSync('supabase/migrations/'+file,'utf8')
+        .replaceAll('public.', schema + '.').replaceAll('set search_path = public', 'set search_path = ' + schema)
+        .replaceAll('set search_path=public', 'set search_path=' + schema);
+      await client.query(migration);
+    }
+    await client.query("SELECT set_config('request.jwt.claim.sub',$1,true)",[actor]);
+    const seed = async (status, payment, amount=1000) => {
+      const id = randomUUID();
+      await client.query(`INSERT INTO ${schema}.function_room_bookings VALUES ($1,$2,$3,$4,'Test Customer','test@example.com')`,[id,status,payment,amount]);
+      return id;
+    };
+    const batchFor = async id => (await client.query(`SELECT * FROM ${schema}.booking_gc_batches WHERE booking_id=$1`,[id])).rows[0];
+    const paid = await seed('cancelled','approved');
+    const batch = await batchFor(paid);
+    await client.query(`SELECT ${schema}.approve_booking_gc_batch($1,$2)`,[batch.id,actor]);
+    const codes = (await client.query(`SELECT code FROM ${schema}.booking_gc_certificates WHERE batch_id=$1 ORDER BY sequence_number`,[batch.id])).rows.map(row=>row.code);
+    const store=randomUUID();
+    const order = {items:[],receipt_number:'TEST-GC-001',store_id:store,net_amount:350,total:'350',subtotal:350,discount:'0',gross_amount:350,discount_amount:0,payment_method:'JUJA e-GC 200 + Cash 150',source_metadata:{payment_splits:[{method:'JUJA e-GC',amount:200},{method:'Cash',amount:150}]}};
+    const items=[{source_metadata:{},name:'Test item',quantity:1,unit_price:350,line_total:350,net_amount:350,gross_amount:350,discount_amount:0}];
+    const submit=(key,orderDraft=order,itemDraft=items,selected=codes.slice(0,2))=>client.query(`SELECT ${schema}.complete_pos_gc_sale($1,$2,$3,$4) result`,[key,orderDraft,JSON.stringify(itemDraft),selected]);
+    const rejects = async (fn,pattern) => {
+      await client.query('SAVEPOINT invalid_sale');
+      await assert.rejects(fn(),pattern);
+      await client.query('ROLLBACK TO SAVEPOINT invalid_sale');
+    };
+    const validation=await client.query(`SELECT ${schema}.validate_pos_booking_gc($1,$2) result`,[codes[0].toLowerCase(),store]);
+    assert.equal(validation.rows[0].result.code,codes[0]);
+    await rejects(()=>submit(randomUUID(),order,items,[codes[0],codes[0]]),/Duplicate/);
+    await rejects(()=>submit(randomUUID(),order,items,[codes[0],'INVALID']),/not found/);
+    await rejects(()=>submit(randomUUID(),{...order,total:'150',net_amount:150},[{...items[0],net_amount:150,gross_amount:150}],codes.slice(0,2)),/cannot exceed/);
+    await rejects(()=>submit(randomUUID(),{...order,source_metadata:{payment_splits:[{method:'JUJA e-GC',amount:200}]} }),/Payment amounts/);
+    // Force an item write failure after the order insert; the transaction must preserve both codes.
+    await client.query(`ALTER TABLE ${schema}.order_items ADD CONSTRAINT test_failure CHECK (name <> 'FAIL')`);
+    await rejects(()=>submit(randomUUID(),order,[{...items[0],name:'FAIL'}]),/test_failure/);
+    assert.equal((await client.query(`SELECT count(*)::int n FROM ${schema}.orders`)).rows[0].n,0);
+    assert.equal((await client.query(`SELECT count(*)::int n FROM ${schema}.booking_gc_certificates WHERE status='active'`)).rows[0].n,10);
+    const key=randomUUID();
+    const result=(await submit(key)).rows[0].result;
+    assert.equal(result.replayed,false);
+    await client.query('SET CONSTRAINTS ALL IMMEDIATE');
+    await client.query('SET CONSTRAINTS ALL DEFERRED');
+    assert.equal((await submit(key)).rows[0].result.replayed,true);
+    assert.equal((await client.query(`SELECT count(*)::int n FROM ${schema}.orders`)).rows[0].n,1);
+    assert.equal((await client.query(`SELECT count(*)::int n FROM ${schema}.order_items`)).rows[0].n,1);
+    const ledger=(await client.query(`SELECT * FROM ${schema}.booking_gc_redemptions`)).rows;
+    assert.equal(ledger.length,2);
+    assert.equal(ledger[0].cashier_id,actor);
+    assert.equal(ledger[0].store_id,store);
+    assert.equal(ledger[0].receipt_number,order.receipt_number);
+    await rejects(async () => {
+      await client.query(`INSERT INTO ${schema}.orders SELECT (jsonb_populate_record(null::${schema}.orders,$1)).*`,[{...result.order,id:randomUUID(),pos_gc_checkout_key:randomUUID()}]);
+      await client.query('SET CONSTRAINTS ALL IMMEDIATE');
+    },/matching redemption ledger/);
+    assert.equal((await client.query(`SELECT has_function_privilege('anon','${schema}.complete_pos_gc_sale(uuid,jsonb,jsonb,text[],uuid[])','EXECUTE') allowed`)).rows[0].allowed,false);
+    assert.equal((await client.query(`SELECT has_table_privilege('authenticated','${schema}.booking_gc_redemptions','INSERT') allowed`)).rows[0].allowed,false);
+    await rejects(()=>submit(randomUUID()),/no longer available/);
+    await rejects(()=>client.query(`SELECT ${schema}.validate_pos_booking_gc($1,$2)`,[codes[0],store]),/already redeemed/);
+    const pending=await batchFor(await seed('cancelled','approved'));
+    const pendingCode=(await client.query(`SELECT code FROM ${schema}.booking_gc_certificates WHERE batch_id=$1 LIMIT 1`,[pending.id])).rows[0].code;
+    await rejects(()=>client.query(`SELECT ${schema}.validate_pos_booking_gc($1,$2)`,[pendingCode,store]),/awaiting approval/);
+    const expiredBatch=await batchFor(await seed('cancelled','approved'));
+    await client.query(`SELECT ${schema}.approve_booking_gc_batch($1,$2)`,[expiredBatch.id,actor]);
+    const expiredCodes=(await client.query(`SELECT code FROM ${schema}.booking_gc_certificates WHERE batch_id=$1 ORDER BY sequence_number LIMIT 2`,[expiredBatch.id])).rows.map(row=>row.code);
+    assert.match(expiredCodes[0],/^JUJA-GC-\d{18}$/);
+    await client.query(`UPDATE ${schema}.booking_gc_batches SET created_at=now()-interval '90 days' WHERE id=$1`,[expiredBatch.id]);
+    assert.ok((await client.query(`SELECT ${schema}.validate_pos_booking_gc($1,$2) result`,[expiredCodes[0],store])).rows[0].result.code);
+    await client.query(`UPDATE ${schema}.booking_gc_batches SET created_at=now()-interval '91 days' WHERE id=$1`,[expiredBatch.id]);
+    await rejects(()=>client.query(`SELECT ${schema}.validate_pos_booking_gc($1,$2)`,[expiredCodes[0],store]),/expired/);
+    await rejects(()=>submit(randomUUID(),order,items,expiredCodes),/expired/);
+    await client.query(`UPDATE ${schema}.profiles SET role='cashier',store_id=$1 WHERE id=$2`,[randomUUID(),actor]);
+    await rejects(()=>submit(randomUUID(),order,items,codes.slice(2,4)),/Wrong POS branch/);
+    await client.query(`UPDATE ${schema}.profiles SET role='customer' WHERE id=$1`,[actor]);
+    await rejects(()=>submit(randomUUID(),order,items,codes.slice(2,4)),/POS access/);
+    await client.query('SET CONSTRAINTS ALL IMMEDIATE');
+    console.log('PASS: validation, pending approval, duplicate/unknown/spent codes, exact tender, no GC change, atomic rollback, idempotent retry, audit receipt/cashier/branch, role and branch restrictions. All changes rolled back.');
+  } finally { await client.query('ROLLBACK'); await client.end(); }
+}
+main().catch(error => { console.error(error.message); process.exitCode=1; });

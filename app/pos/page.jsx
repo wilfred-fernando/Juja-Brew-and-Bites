@@ -22,6 +22,8 @@ import {
   setLocalSnapshot,
 } from "@/lib/localData";
 import TicketPanel from "@/components/pos/TicketPanel";
+import GiftCertificatePayment from "@/components/pos/GiftCertificatePayment";
+import { gcPaymentBreakdown } from "@/lib/posGiftCertificates";
 import OfflineSyncNotice from "@/components/pos/OfflineSyncNotice";
 import { addPosCartLine } from "@/lib/posCart";
 import { receiptLineMetadata } from "@/lib/reports/receiptDetails";
@@ -1635,7 +1637,7 @@ function buildReceiptText({
   const storedCashChange = order?.source_metadata?.cash_change;
   const cashTenderedValue = cashTendered ?? storedCashTendered;
   const cashChangeValue = changeDue ?? storedCashChange;
-  const showCashTenderDetails = isCashPayment
+  const showCashTenderDetails = (isCashPayment || (order?.source_metadata?.gc_codes?.length > 0 && Number(cashTenderedValue) > 0))
     && cashTenderedValue !== null
     && cashTenderedValue !== undefined
     && cashTenderedValue !== ""
@@ -1718,6 +1720,7 @@ function buildReceiptText({
   }
   lines.push(receiptPair("Total", receiptAmount(totalValue)));
   if (rs.show_payment_type !== false) lines.push(receiptPair(paidBy, receiptAmount(totalValue)));
+  for (const code of order?.source_metadata?.gc_codes || []) lines.push(`e-GC: ${code}`);
   if (showCashTenderDetails) {
     lines.push(receiptPair("Cash tendered", receiptAmount(cashTenderedValue)));
     lines.push(receiptPair("Change", receiptAmount(Math.max(0, Number(cashChangeValue ?? Number(cashTenderedValue) - totalValue)))));
@@ -3621,13 +3624,22 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
   );
 }
 
-function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, onConfirm, total, paymentAmount, setPaymentAmount }) {
+function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, onConfirm, total, paymentAmount, setPaymentAmount, storeId, charging }) {
+  const [certificates, setCertificates] = useState([]);
+  const [checkingGc, setCheckingGc] = useState(false);
+  const gcKeyRef = useRef(null);
+  const gcTotal = certificates.length * 100;
+  function changeCertificates(next) {
+    setCertificates(next);
+    gcKeyRef.current = crypto.randomUUID();
+    setPaymentAmount(String(Math.max(0, Number(total) - next.length * 100).toFixed(2)));
+  }
   const splitDraftInitializedRef = useRef(false);
   const [useSplitPayment, setUseSplitPayment] = useState(false);
   const [splitPayments, setSplitPayments] = useState([]);
   const isCash = normalizePaymentMethodName(selectedPayment) === "Cash";
   const amt = Number(paymentAmount || 0);
-  const due = Number(total || 0);
+  const due = Math.max(0, Number(total || 0) - gcTotal);
   const availableTypes = paymentTypes || [];
 
   useEffect(() => {
@@ -3638,6 +3650,8 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
     if (splitDraftInitializedRef.current) return;
     splitDraftInitializedRef.current = true;
     setUseSplitPayment(false);
+    setCertificates([]);
+    gcKeyRef.current = crypto.randomUUID();
     setSplitPayments([
       { id: "split-1", method: availableTypes[0]?.name || selectedPayment || "", amount: "" },
       { id: "split-2", method: availableTypes[1]?.name || availableTypes[0]?.name || selectedPayment || "", amount: "" },
@@ -3664,7 +3678,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
     .sort((a, b) => a - b)
     .slice(0, 6);
 
-  const disableConfirm =
+  const disableConfirm = charging || checkingGc || gcTotal > Number(total) || (gcTotal > 0 && !useSplitPayment && !isCash && amt < due) || (
     isZeroDue
       ? false
       : useSplitPayment
@@ -3673,7 +3687,21 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
         !paymentAmount ||
         isNaN(amt) ||
         amt <= 0 ||
-        (isCash && amt < due);
+        (isCash && amt < due));
+
+  function finalizePayment() {
+    const payload = useSplitPayment
+      ? { payments: splitPayments.map((p) => ({ method: p.method, amount: Number(p.amount || 0) })), amountPaid: splitTotal, changeDue: splitChange }
+      : { amountPaid: isZeroDue ? 0 : amt, changeDue: isZeroDue ? 0 : change };
+    if (gcTotal > 0) {
+      const otherPayments = isZeroDue ? [] : useSplitPayment ? payload.payments : [{ method: selectedPayment, amount: amt }];
+      try { Object.assign(payload, gcPaymentBreakdown(total, certificates.length, otherPayments)); }
+      catch (error) { return alert(error.message); }
+      payload.gcCodes = certificates.map((gc) => gc.code);
+      payload.gcCheckoutKey = gcKeyRef.current;
+    }
+    onConfirm(payload);
+  }
 
   const updateSplitPayment = (idx, patch) => {
     setSplitPayments((prev) => prev.map((row, i) => (i === idx ? { ...row, ...patch } : row)));
@@ -3691,8 +3719,9 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
   };
 
   return (
-    <ModalShell open={open} onClose={onClose} title="Payment" subtitle="Select Payment Type" z={150}>
-      <div className="space-y-4">
+    <ModalShell open={open} onClose={() => !charging && !checkingGc && onClose()} title="Payment" subtitle="Select Payment Type" z={150}>
+      <fieldset disabled={charging} className="space-y-4">
+        <GiftCertificatePayment certificates={certificates} onChange={changeCertificates} total={total} storeId={storeId} disabled={charging} onChecking={setCheckingGc} />
         <div className="flex items-center justify-between rounded-xl border border-rose-100 bg-rose-50/60 px-3 py-2">
           <div>
             <p className="text-xs font-black text-slate-800">Split Payment</p>
@@ -3822,18 +3851,12 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
 
         <button
           disabled={disableConfirm}
-          onClick={() => onConfirm(useSplitPayment
-            ? {
-                payments: splitPayments.map((p) => ({ method: p.method, amount: Number(p.amount || 0) })),
-                amountPaid: splitTotal,
-                changeDue: splitChange,
-              }
-            : { amountPaid: isZeroDue ? 0 : amt, changeDue: isZeroDue ? 0 : change })}
+          onClick={finalizePayment}
           className="w-full h-12 rounded-xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-wider shadow-sm transition disabled:opacity-40"
         >
           Finalize Transaction • {peso2(total)}
         </button>
-      </div>
+      </fieldset>
     </ModalShell>
   );
 }
@@ -9127,7 +9150,9 @@ export default function POSPage() {
 
   async function confirmCharge(paymentPayload = {}) {
     if (charging) return;
-    const total = Number(totalDue || 0);
+    const gcCodes = Array.isArray(paymentPayload.gcCodes) ? paymentPayload.gcCodes : [];
+    const usingGc = gcCodes.length > 0;
+    const total = usingGc ? Number(Number(totalDue || 0).toFixed(2)) : Number(totalDue || 0);
     const splitPaymentsPayload = Array.isArray(paymentPayload.payments) ? paymentPayload.payments.filter((p) => p.method && Number(p.amount || 0) > 0) : [];
     const normalizedSplitPayments = splitPaymentsPayload
       .map((p) => ({
@@ -9140,8 +9165,8 @@ export default function POSPage() {
       : selectedPayment || (total <= 0 ? "No Payment Required" : "");
     if (!paymentLabel) return showToast("error", "Payment Required", "Select a payment type.");
     const isCashTransaction = normalizedSplitPayments.length === 0 && normalizePaymentMethodName(paymentLabel) === "Cash";
-    const cashTendered = isCashTransaction ? Math.max(total, Number(paymentPayload.amountPaid || 0)) : null;
-    const cashChange = isCashTransaction ? Math.max(0, Number(paymentPayload.changeDue ?? cashTendered - total)) : null;
+    const cashTendered = usingGc ? paymentPayload.gcCashTendered : isCashTransaction ? Math.max(total, Number(paymentPayload.amountPaid || 0)) : null;
+    const cashChange = usingGc ? paymentPayload.gcCashChange : isCashTransaction ? Math.max(0, Number(paymentPayload.changeDue ?? cashTendered - total)) : null;
     const resolvedBranchId = getResolvedBranchId();
     if (!resolvedBranchId) return showToast("error", "Branch not set", "Please sign out and sign in again so POS can load your branch.");
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before charging.");
@@ -9212,8 +9237,25 @@ export default function POSPage() {
     let activeWebOrderForCharge = null;
     let originalTicketForCharge = null;
 
+    function showRecoveredGcSale(order) {
+      setReceiptText(buildReceiptText({ receiptSettings, order, cart, diningOptionName: order.dining_option,
+        payment: order.payment_method, customer: receiptCustomer, subtotal: Number(order.subtotal),
+        discount: Number(order.discount), total: Number(order.total), store: currentStore, cashierName,
+        loyaltyAlreadyAwarded: true }));
+      setReceiptOpen(true);
+      clearTicketSoft();
+      setPaymentOpen(false);
+      showToast("warn", "Sale Already Saved", "The e-GCs were redeemed on this receipt. Check receipt logs for any follow-up needed; do not charge again.");
+    }
+
     setCharging(true);
     try {
+      if (usingGc) {
+        const { data: previous, error: previousError } = await supabase.from("orders").select("*")
+          .eq("pos_gc_checkout_key", paymentPayload.gcCheckoutKey).maybeSingle();
+        if (previousError) throw previousError;
+        if (previous) return showRecoveredGcSale(previous);
+      }
       if (activeWebOrderId) {
         const { data: webOrderForCharge, error: webOrderForChargeErr } = await supabase
           .from("web_orders")
@@ -9264,7 +9306,7 @@ export default function POSPage() {
         discountClaimsReserved = true;
       }
 
-      if (appliedCartVouchers.length > 0) {
+      if (appliedCartVouchers.length > 0 && !usingGc) {
         const { data: sessionData } = await supabase.auth.getSession();
         const accessToken = sessionData?.session?.access_token;
         const redeemedIds = new Set();
@@ -9297,9 +9339,7 @@ export default function POSPage() {
         throw new Error("No receipt number was returned by the database.");
       }
 
-      const { data: orderRow, error: orderErr } = await supabase
-        .from("orders")
-        .insert([{
+      const orderPayload = {
           order_number: generatedReceiptNumber,
           receipt_number: generatedReceiptNumber,
           receipt_sequence: receiptRow.receipt_sequence || null,
@@ -9341,24 +9381,9 @@ export default function POSPage() {
             } : null,
           },
           dining_option: chargedDiningLabel || "WEB_ORDER",
-        }])
-        .select("*")
-        .single();
-      if (orderErr) throw new Error(orderErr.message);
-      createdOrderRow = orderRow;
-
-      if (!activeWebOrderId && !originalTicketId) {
-        const { error: kdsErr } = await upsertKdsTicket(supabase, {
-          sourceType: "pos",
-          order: { ...orderRow, items: enrichOrderItemsForKds(cart) },
-          status: "preparing",
-        });
-        if (kdsErr) showToast("warn", "KDS Sync Warning", kdsErr.message);
-      }
-
+      };
       const itemRows = cart.map((line) => ({
         source_metadata: receiptLineMetadata(line),
-        order_id: orderRow.id,
         menu_item_id: line.id,
         name: line.name,
         category_name: line.category || line.categoryName || null,
@@ -9369,10 +9394,34 @@ export default function POSPage() {
         discount_amount: lineDiscountAmount(line),
         net_amount: lineNetAmount(line),
       }));
-      const { error: itemsErr } = await supabase.from("order_items").insert(itemRows);
-      if (itemsErr) throw new Error(itemsErr.message);
+      const result = usingGc
+        ? await supabase.rpc("complete_pos_gc_sale", {
+            p_key: paymentPayload.gcCheckoutKey, p_order: orderPayload, p_items: itemRows,
+            p_codes: gcCodes, p_voucher_ids: appliedCartVouchers.map((voucher) => voucher.id),
+          })
+        : await supabase.from("orders").insert([orderPayload]).select("*").single();
+      const orderErr = result.error;
+      const orderRow = usingGc ? result.data?.order : result.data;
+      if (orderErr) throw new Error(orderErr.message);
+      createdOrderRow = orderRow;
+      if (usingGc && result.data?.replayed) return showRecoveredGcSale(orderRow);
 
-      if (discountClaimsReserved) {
+      if (!activeWebOrderId && !originalTicketId) {
+        const { error: kdsErr } = await upsertKdsTicket(supabase, {
+          sourceType: "pos",
+          order: { ...orderRow, items: enrichOrderItemsForKds(cart) },
+          status: "preparing",
+        });
+        if (kdsErr) showToast("warn", "KDS Sync Warning", kdsErr.message);
+      }
+
+      if (!usingGc) {
+        const { error: itemsErr } = await supabase.from("order_items").insert(itemRows.map((item) => ({ ...item, order_id: orderRow.id })));
+        if (itemsErr) throw new Error(itemsErr.message);
+      }
+      if (usingGc) discountClaimsCompleted = discountClaimsReserved;
+
+      if (discountClaimsReserved && !usingGc) {
         const { error: claimCompleteError } = await supabase.rpc("complete_pos_discount_claims", {
           p_claim_key: discountClaimKey,
           p_order_id: orderRow.id,
@@ -9503,7 +9552,11 @@ export default function POSPage() {
         });
         if (releaseError) console.error("Discount claim release failed:", releaseError);
       }
-      if (!createdOrderRow && !activeWebOrderId && appliedCartVouchers.length === 0 && discountClaims.length === 0 && isProbablyOfflineError(err)) {
+      if (usingGc && createdOrderRow) {
+        showRecoveredGcSale(createdOrderRow);
+        return;
+      }
+      if (!usingGc && !createdOrderRow && !activeWebOrderId && appliedCartVouchers.length === 0 && discountClaims.length === 0 && isProbablyOfflineError(err)) {
         await queueOfflineCharge(offlineDraft);
         setIsOfflineMode(true);
 
@@ -10320,7 +10373,7 @@ export default function POSPage() {
               </div>
             </div>
             <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
-              <h3 className="text-sm font-black text-slate-800 mb-3">Today's Sales Breakdown</h3>
+              <h3 className="text-sm font-black text-slate-800 mb-3">Today&apos;s Sales Breakdown</h3>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[620px] text-xs">
                   <thead>
@@ -11129,7 +11182,7 @@ export default function POSPage() {
         onAllow={handlePrinterPermissionAllow}
       />
       {shiftCashModal}
-      <PaymentModal open={paymentOpen} onClose={() => setPaymentOpen(false)} paymentTypes={paymentTypes} selectedPayment={selectedPayment} onSelect={(name) => setSelectedPayment(name)} onConfirm={confirmCharge} total={totalDue} paymentAmount={paymentAmount} setPaymentAmount={setPaymentAmount} />
+      <PaymentModal open={paymentOpen} onClose={() => setPaymentOpen(false)} paymentTypes={paymentTypes} selectedPayment={selectedPayment} onSelect={(name) => setSelectedPayment(name)} onConfirm={confirmCharge} total={totalDue} paymentAmount={paymentAmount} setPaymentAmount={setPaymentAmount} storeId={getResolvedBranchId()} charging={charging} />
       <ReceiptPreviewModal open={receiptOpen} onClose={() => setReceiptOpen(false)} receiptText={receiptText} />
     </div>
   );
