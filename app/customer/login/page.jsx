@@ -14,6 +14,11 @@ const supabase = getSupabaseClient();
 const LOGO =
   "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
 
+function customerReturnPath() {
+  return typeof window !== "undefined" && new URLSearchParams(window.location.search).get("returnTo") === "/gift-certificates"
+    ? "/gift-certificates" : "/customer";
+}
+
 function customerLoginRedirectUrl() {
   return "https://customer.jujabrewandbites.com/auth/callback";
 }
@@ -52,7 +57,7 @@ export default function Login() {
         if (session) {
           
     if (window.location.pathname !== "/customer") {
-        window.location.replace("/customer");
+        window.location.replace(customerReturnPath());
       }
       return;
 
@@ -151,7 +156,7 @@ export default function Login() {
       if (isAdminPortal) {
         window.location.replace("/admin/pos");
       } else {
-        window.location.replace("/customer");
+        window.location.replace(customerReturnPath());
       }
     } catch (err) {
       setError(err.message || (mode === "signup" ? "Unable to create account." : "Invalid credentials."));

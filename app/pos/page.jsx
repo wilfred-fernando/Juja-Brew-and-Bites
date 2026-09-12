@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { getStableSession } from "@/lib/supabase/session";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
@@ -22,6 +23,7 @@ import {
   setLocalSnapshot,
 } from "@/lib/localData";
 import TicketPanel from "@/components/pos/TicketPanel";
+import GiftCertificatePurchaseForm from "@/components/GiftCertificatePurchaseForm";
 import GiftCertificatePayment from "@/components/pos/GiftCertificatePayment";
 import { gcPaymentBreakdown } from "@/lib/posGiftCertificates";
 import OfflineSyncNotice from "@/components/pos/OfflineSyncNotice";
@@ -1877,6 +1879,7 @@ function buildEndDayReportText({ store, cashierName, startingCash, actualCash, d
     "CASH DRAWER",
     receiptPair("Starting cash", receiptAmount(startingCash || 0)),
     receiptPair("Cash payments", receiptAmount(summary?.cashPayments || 0)),
+    receiptPair("e-GC cash collected", receiptAmount(summary?.gcCashCollected || 0)),
     receiptPair("Cash refunds", receiptAmount(summary?.cashRefunds || 0)),
     receiptPair("Expected cash", receiptAmount(expectedCash)),
     receiptPair("Actual cash", receiptAmount(actualCashValue)),
@@ -4367,6 +4370,9 @@ export default function POSPage() {
   const [splitSelected, setSplitSelected] = useState([]);
   const [diningOptionPickOpen, setDiningOptionPickOpen] = useState(false);
   const [posMenuOpen, setPosMenuOpen] = useState(false);
+  const [gcPurchaseOpen, setGcPurchaseOpen] = useState(false);
+  const [gcPurchaseBusy, setGcPurchaseBusy] = useState(false);
+  const [gcCashCollected, setGcCashCollected] = useState(0);
   const [manualBookingOpen, setManualBookingOpen] = useState(false);
   const [bookingCalendarOpen, setBookingCalendarOpen] = useState(false);
   const [managementOpen, setManagementOpen] = useState(false);
@@ -5175,8 +5181,9 @@ export default function POSPage() {
       discountBreakdown,
       netSales,
       cashPayments,
+      gcCashCollected,
       cashRefunds,
-      expectedCash: Number(startingCash || 0) + cashPayments - cashRefunds,
+      expectedCash: Number(startingCash || 0) + cashPayments + gcCashCollected - cashRefunds,
       payments: {
         Cash: paymentNetTotal("cash"),
         Gcash: paymentNetTotal("gcash"),
@@ -5198,7 +5205,7 @@ export default function POSPage() {
         "No Payment Required": paymentCount("no payment required", "nopaymentrequired"),
       },
     };
-  }, [receiptRows, receiptItemRows, startingCash, activeShiftStartMs]);
+  }, [receiptRows, receiptItemRows, startingCash, activeShiftStartMs, gcCashCollected]);
   const shiftSalesRows = useMemo(() => {
     const todayKey = formatDate(new Date());
     const todaysRows = (receiptRows || []).filter((row) => {
@@ -7734,7 +7741,23 @@ export default function POSPage() {
     }
   }
 
+  async function fetchGcCashCollected() {
+    if (!storeId) return 0;
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    const from = activeShiftStartMs ? new Date(activeShiftStartMs).toISOString() : `${today}T00:00:00+08:00`;
+    const { data } = await supabase.auth.getSession();
+    const response = await fetch(`/api/gift-certificate-purchases?storeId=${encodeURIComponent(storeId)}&cashFrom=${encodeURIComponent(from)}`, {
+      headers: data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {}, cache: "no-store",
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Unable to verify e-GC cash collections.");
+    const total = Number(result.cashCollected || 0);
+    setGcCashCollected(total);
+    return total;
+  }
+
   async function fetchReceiptLogs() {
+    fetchGcCashCollected().catch(error => showToast("error", "e-GC collections unavailable", error.message));
     const cachedReceiptLog = (await getLocalSnapshot("pos_receipts", { storeId }))?.data;
     if (cachedReceiptLog?.rows?.length) {
       setReceiptRows(cachedReceiptLog.rows);
@@ -8703,9 +8726,16 @@ export default function POSPage() {
       return;
     }
 
+    let verifiedGcCash = gcCashCollected;
+    if (shiftCashMode !== "open") {
+      try { verifiedGcCash = await fetchGcCashCollected(); }
+      catch { showToast("error", "Connect before closing", "Unable to verify e-GC cash collections. Reconnect and retry closing the shift."); return; }
+    }
     const isEndDay = shiftCashMode === "end_day";
     const capturedShiftSummary = {
       ...shiftSummary,
+      gcCashCollected: verifiedGcCash,
+      expectedCash: shiftSummary.expectedCash - gcCashCollected + verifiedGcCash,
       startingCash: Number(startingCash || 0),
     };
     const record = {
@@ -10013,6 +10043,12 @@ export default function POSPage() {
     <div className="min-h-screen overscroll-none bg-[#FFF5F7] pb-24 lg:pb-0 font-sans antialiased text-slate-800" style={{ overscrollBehaviorY: "none" }}>
       <PosApkUpdatePrompt />
       <Toast toast={toast} onClose={() => setToast(null)} />
+      {gcPurchaseOpen && createPortal(<div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="gc-purchase-title">
+        <div className="max-h-[90vh] w-full max-w-xl overflow-auto rounded-2xl bg-white p-6">
+          <div className="mb-5 flex items-center justify-between gap-3"><h2 id="gc-purchase-title" className="text-xl font-semibold">Sell e-GCs</h2><button type="button" disabled={gcPurchaseBusy} onClick={() => setGcPurchaseOpen(false)} className="rounded-lg border px-3 py-2 disabled:opacity-40">Close</button></div>
+          <GiftCertificatePurchaseForm source="pos" storeId={storeId} onBusyChange={setGcPurchaseBusy} onCreated={() => { fetchGcCashCollected().catch(error => showToast("error", "e-GC collections", error.message)); }} />
+        </div>
+      </div>, document.body)}
       <ManualBookingModal
         open={manualBookingOpen}
         cashierName={cashierName}
@@ -10134,6 +10170,7 @@ export default function POSPage() {
                   >
                     Manual Booking
                   </button>
+                  <button type="button" disabled={!storeId || shiftStatus !== "open"} onClick={() => { setPosMenuOpen(false); setGcPurchaseOpen(true); }} className="h-10 rounded-xl border border-rose-200 bg-rose-50 text-xs font-semibold uppercase tracking-wider text-[#FC687D] disabled:opacity-40">Sell e-GCs</button>
                   <button
                     type="button"
                     onClick={() => {
@@ -10333,6 +10370,7 @@ export default function POSPage() {
                 </div>
                 {[
                   ["Cash payments", shiftSummary.cashPayments],
+                  ["e-GC cash collected", shiftSummary.gcCashCollected],
                   ["Cash refunds", shiftSummary.cashRefunds],
                   ["Expected cash amount", shiftSummary.expectedCash],
                 ].map(([label, value]) => (

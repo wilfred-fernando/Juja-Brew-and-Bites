@@ -26,7 +26,7 @@ async function main() {
     await client.query(`CREATE TABLE ${schema}.web_orders (LIKE public.web_orders INCLUDING DEFAULTS)`);
     await client.query(`CREATE TABLE ${schema}.open_tickets (LIKE public.open_tickets INCLUDING DEFAULTS)`);
     await client.query(`CREATE FUNCTION ${schema}.complete_pos_discount_claims(uuid,uuid,text) RETURNS void LANGUAGE sql AS 'SELECT'`);
-    for (const file of ['20260912090000_booking_gc_approval_batches.sql','20260912100000_pos_booking_gc_redemption.sql']) {
+    for (const file of ['20260912090000_booking_gc_approval_batches.sql','20260912100000_pos_booking_gc_redemption.sql','20260912120000_gc_purchases.sql']) {
       const migration = readFileSync('supabase/migrations/'+file,'utf8')
         .replaceAll('public.', schema + '.').replaceAll('set search_path = public', 'set search_path = ' + schema)
         .replaceAll('set search_path=public', 'set search_path=' + schema);
@@ -100,6 +100,44 @@ async function main() {
     await rejects(()=>submit(randomUUID(),order,items,codes.slice(2,4)),/Wrong POS branch/);
     await client.query(`UPDATE ${schema}.profiles SET role='customer' WHERE id=$1`,[actor]);
     await rejects(()=>submit(randomUUID(),order,items,codes.slice(2,4)),/POS access/);
+    // Purchased certificates reuse the same atomic POS payment and redemption ledger.
+    await client.query(`UPDATE ${schema}.profiles SET role='admin' WHERE id=$1`,[actor]);
+    const buy = async (overrides={}) => (await client.query(`SELECT ${schema}.create_gc_purchase($1,$2) result`, [{request_key:randomUUID(),customer_name:'Purchase Customer',customer_email:'buyer@example.com',quantity:2,source:'website',payment_method:'QRPH',payment_proof_url:'https://example.com/'+randomUUID()+'.png',...overrides},actor])).rows[0].result;
+    const purchase=await buy();
+    const purchasedBatch=(await client.query(`SELECT * FROM ${schema}.booking_gc_batches WHERE purchase_id=$1`,[purchase.id])).rows[0];
+    const purchasedCodes=(await client.query(`SELECT code FROM ${schema}.booking_gc_certificates WHERE batch_id=$1`,[purchasedBatch.id])).rows.map(r=>r.code);
+    assert.equal(purchasedBatch.status,'pending_approval');
+    assert.equal(purchasedCodes.length,2);
+    assert.equal((await buy({request_key:purchase.request_key,quantity:9})).id,purchase.id);
+    assert.equal((await client.query(`SELECT count(*)::int n FROM ${schema}.booking_gc_batches WHERE purchase_id=$1`,[purchase.id])).rows[0].n,1);
+    await rejects(()=>client.query(`SELECT ${schema}.validate_pos_booking_gc($1,$2)`,[purchasedCodes[0],store]),/awaiting approval/);
+    await rejects(()=>client.query(`SELECT ${schema}.review_gc_purchase($1,$2,true,false)`,[purchasedBatch.id,actor]),/Verify the full payment/);
+    await rejects(()=>client.query(`SELECT ${schema}.review_gc_purchase($1,$2,true,true)`,[purchasedBatch.id,randomUUID()]),/Admin access/);
+    await client.query(`SELECT ${schema}.review_gc_purchase($1,$2,true,true)`,[purchasedBatch.id,actor]);
+    await client.query(`SELECT ${schema}.review_gc_purchase($1,$2,true,false)`,[purchasedBatch.id,actor]);
+    assert.equal((await client.query(`SELECT status FROM ${schema}.gc_purchases WHERE id=$1`,[purchase.id])).rows[0].status,'approved');
+    await submit(randomUUID(),{...order,receipt_number:'PURCHASE-GC-TEST'},items,purchasedCodes);
+    await rejects(()=>client.query(`SELECT ${schema}.validate_pos_booking_gc($1,$2)`,[purchasedCodes[0],store]),/already redeemed/);
+    await client.query(`UPDATE ${schema}.booking_gc_batches SET created_at='2026-09-12T04:00:00Z' WHERE id=$1`,[purchasedBatch.id]);
+    assert.equal((await client.query(`SELECT expires_at FROM ${schema}.booking_gc_batches WHERE id=$1`,[purchasedBatch.id])).rows[0].expires_at.toISOString(),'2027-03-12T16:00:00.000Z');
+    await client.query(`UPDATE ${schema}.booking_gc_batches SET created_at='2026-08-31T04:00:00Z' WHERE id=$1`,[purchasedBatch.id]);
+    assert.equal((await client.query(`SELECT expires_at FROM ${schema}.booking_gc_batches WHERE id=$1`,[purchasedBatch.id])).rows[0].expires_at.toISOString(),'2027-02-28T16:00:00.000Z');
+    const cash=await buy({source:'pos',store_id:store,payment_method:'Cash',payment_proof_url:null});
+    const cashBatch=(await client.query(`SELECT id FROM ${schema}.booking_gc_batches WHERE purchase_id=$1`,[cash.id])).rows[0];
+    await client.query(`SELECT ${schema}.review_gc_purchase($1,$2,false,false,'Payment requires follow-up')`,[cashBatch.id,actor]);
+    await rejects(()=>client.query(`SELECT ${schema}.review_gc_purchase($1,$2,true,true)`,[cashBatch.id,actor]),/rejected/);
+    assert.equal(Number((await client.query(`SELECT ${schema}.gc_purchase_cash_total($1,now()-interval '1 day') total`,[store])).rows[0].total),200);
+    await rejects(()=>buy({customer_name:null}),/not-null/);
+    await rejects(()=>buy({customer_email:'invalid'}),/check constraint/);
+    await rejects(()=>buy({quantity:0}),/check constraint/);
+    await rejects(()=>buy({payment_proof_url:null}),/check constraint/);
+    await rejects(()=>buy({payment_proof_url:purchase.payment_proof_url}),/unique constraint/);
+    await rejects(()=>buy({payment_method:'Cash',payment_proof_url:null}),/check constraint/);
+    await client.query(`UPDATE ${schema}.profiles SET role='cashier',store_id=$1 WHERE id=$2`,[randomUUID(),actor]);
+    await rejects(()=>buy({source:'pos',store_id:store,payment_method:'Cash',payment_proof_url:null}),/Wrong POS branch/);
+    assert.equal((await client.query(`SELECT has_function_privilege('authenticated','${schema}.create_gc_purchase(jsonb,uuid)','EXECUTE') allowed`)).rows[0].allowed,false);
+    assert.equal((await client.query(`SELECT has_table_privilege('authenticated','${schema}.gc_purchases','INSERT') allowed`)).rows[0].allowed,false);
+    console.log('PASS: purchases, required details/proof, duplicate requests/proof, admin payment verification, six calendar months including month-end, rejected issuance, separate cash collections, purchased GC POS redemption.');
     await client.query('SET CONSTRAINTS ALL IMMEDIATE');
     console.log('PASS: validation, pending approval, duplicate/unknown/spent codes, exact tender, no GC change, atomic rollback, idempotent retry, audit receipt/cashier/branch, role and branch restrictions. All changes rolled back.');
   } finally { await client.query('ROLLBACK'); await client.end(); }

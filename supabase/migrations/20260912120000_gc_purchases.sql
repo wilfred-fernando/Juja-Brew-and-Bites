@@ -18,7 +18,7 @@ create table public.gc_purchases (
  created_at timestamptz not null default now(),
  check(source<>'website' or payment_method='QRPH'),
  check(source<>'pos' or store_id is not null),
- check(payment_method<>'QRPH' or length(payment_proof_url)>0)
+ check(payment_method<>'QRPH' or coalesce(length(payment_proof_url),0)>0)
 );
 alter table public.gc_purchases enable row level security;
 revoke all on public.gc_purchases from anon,authenticated;
@@ -27,6 +27,15 @@ create index gc_purchases_creator_date on public.gc_purchases(created_by,created
 create unique index gc_purchases_proof_once on public.gc_purchases(payment_proof_url) where payment_proof_url is not null;
 alter table public.booking_gc_batches alter column booking_id drop not null;
 alter table public.booking_gc_batches add column purchase_id uuid unique references public.gc_purchases(id);
+-- Purchase validity is six calendar months, inclusive of the final Manila date.
+-- Cancellation validity remains 90 days. Recreate the derived column only.
+alter table public.booking_gc_batches drop column expires_at;
+alter table public.booking_gc_batches add column expires_at timestamptz generated always as (
+ (case when purchase_id is not null
+ then ((created_at at time zone 'Asia/Manila')::date + interval '6 months' + interval '1 day')
+ else (((created_at at time zone 'Asia/Manila')::date + 91)::timestamp)
+ end) at time zone 'Asia/Manila'
+) stored;
 alter table public.booking_gc_batches add constraint gc_batch_one_source check(num_nonnulls(booking_id,purchase_id)=1);
 alter table public.booking_gc_batches drop constraint booking_gc_batches_status_check;
 alter table public.booking_gc_batches add constraint booking_gc_batches_status_check check(status in ('pending_approval','approved','rejected'));
@@ -40,7 +49,7 @@ begin
  select * into purchase from public.gc_purchases where request_key=(p_data->>'request_key')::uuid;
  if purchase.id is not null then
   if purchase.created_by<>p_actor then raise exception 'Request belongs to another user'; end if;
-  return to_jsonb(purchase);
+  return to_jsonb(purchase) || jsonb_build_object('expires_at',(select expires_at from public.booking_gc_batches where purchase_id=purchase.id));
  end if;
  if p_data->>'source'='pos' then
   select * into actor from public.profiles where id=p_actor;
@@ -53,7 +62,7 @@ begin
  insert into public.booking_gc_batches(purchase_id,customer_name,customer_email,amount)
  values(purchase.id,purchase.customer_name,purchase.customer_email,purchase.amount) returning id into batch_id;
  insert into public.booking_gc_certificates(batch_id,sequence_number) select batch_id,n from generate_series(1,purchase.quantity)n;
- return to_jsonb(purchase);
+ return to_jsonb(purchase) || jsonb_build_object('expires_at',(select expires_at from public.booking_gc_batches where purchase_id=purchase.id));
 end;
 $$;
 
@@ -87,3 +96,12 @@ revoke all on function public.create_gc_purchase(jsonb,uuid) from public,anon,au
 revoke all on function public.review_gc_purchase(uuid,uuid,boolean,boolean,text) from public,anon,authenticated;
 grant execute on function public.create_gc_purchase(jsonb,uuid) to service_role;
 grant execute on function public.review_gc_purchase(uuid,uuid,boolean,boolean,text) to service_role;
+
+-- Gift-card collections are prepaid value, separate from redeemed product sales.
+create function public.gc_purchase_cash_total(p_store_id text,p_from timestamptz) returns numeric
+language sql stable security definer set search_path=public as $$
+ select coalesce(sum(amount),0) from public.gc_purchases
+ where source='pos' and payment_method='Cash' and store_id=p_store_id and created_at>=p_from;
+$$;
+revoke all on function public.gc_purchase_cash_total(text,timestamptz) from public,anon,authenticated;
+grant execute on function public.gc_purchase_cash_total(text,timestamptz) to service_role;

@@ -99,9 +99,12 @@ export async function GET(req) {
         "X-Content-Type-Options": "nosniff",
       } });
     }
-    const { data, error } = await admin.from("booking_gc_batches")
-      .select("*, booking_gc_certificates(*), function_room_bookings(status,payment_status)")
+    let batchesQuery = admin.from("booking_gc_batches")
+      .select("*, booking_gc_certificates(*), function_room_bookings(status,payment_status), gc_purchases(*)")
+      .not(query.get("source") === "purchase" ? "purchase_id" : "booking_id", "is", null)
       .order("status", { ascending: false }).order("created_at", { ascending: false }).limit(200);
+    if (query.get("history") !== "1") batchesQuery = batchesQuery.neq("status", "rejected");
+    const { data, error } = await batchesQuery;
     if (error) throw error;
     return Response.json({ batches: data.map((batch) => {
       const certificates = batch.booking_gc_certificates.sort((a,b) => a.sequence_number-b.sequence_number);
@@ -116,16 +119,24 @@ export async function POST(req) {
   try {
     const { admin, guard } = await context();
     if (!guard.allowed) return Response.json({ error: guard.error }, { status: guard.status });
-    const { bookingId, batchId, action = "cancel" } = await req.json();
-    if (action === "cancel") {
+    const { bookingId, batchId, action = "cancel", paymentVerified = false, reason = "" } = await req.json();
+    if (action === "cancel" || action === "admin_cancel") {
       if (!bookingId) return Response.json({ error: "Booking ID is required." }, { status: 400 });
       // The database trigger queues the certificates in the same transaction.
-      const { data: booking, error } = await admin.from("function_room_bookings")
-        .update({ status: "cancelled" }).eq("id", bookingId)
-        .eq("status", "cancellation_requested").select("*").maybeSingle();
+      let cancellation = admin.from("function_room_bookings")
+        .update({ status: "cancelled" }).eq("id", bookingId);
+      cancellation = action === "admin_cancel"
+        ? cancellation.in("status", ["pending", "confirmed", "cancellation_requested"]).gte("start_at", new Date().toISOString())
+        : cancellation.eq("status", "cancellation_requested");
+      const { data: booking, error } = await cancellation.select("*").maybeSingle();
       if (error) throw error;
-      if (!booking) return Response.json({ error: "Booking is no longer awaiting cancellation." }, { status: 409 });
+      if (!booking) return Response.json({ error: "Booking is no longer eligible for cancellation. Refresh and check its status." }, { status: 409 });
       return Response.json({ success: true, booking });
+    }
+    if (action === "reject_purchase" && batchId) {
+      const { error } = await admin.rpc("review_gc_purchase", { p_batch_id: batchId, p_actor: guard.requester.id,
+        p_approve: false, p_payment_verified: false, p_reason: reason });
+      return error ? Response.json({ error: error.message }, { status: 409 }) : Response.json({ success: true });
     }
     if (action !== "approve_email" || !batchId) {
       return Response.json({ error: "A valid action and batch ID are required." }, { status: 400 });
@@ -133,8 +144,11 @@ export async function POST(req) {
     if (!getEmailConfigStatus().ready) {
       return Response.json({ error: "Email notification is not configured." }, { status: 503 });
     }
-    const { error: approvalError } = await admin.rpc("approve_booking_gc_batch", {
+    const { data: sourceBatch, error: sourceError } = await admin.from("booking_gc_batches").select("purchase_id").eq("id", batchId).single();
+    if (sourceError) throw sourceError;
+    const { error: approvalError } = await admin.rpc(sourceBatch.purchase_id ? "review_gc_purchase" : "approve_booking_gc_batch", {
       p_batch_id: batchId, p_actor: guard.requester.id,
+      ...(sourceBatch.purchase_id ? { p_approve: true, p_payment_verified: paymentVerified === true } : {}),
     });
     if (approvalError) return Response.json({ error: approvalError.message }, { status: 409 });
     // A conditional claim prevents concurrent approval clicks from sending twice.

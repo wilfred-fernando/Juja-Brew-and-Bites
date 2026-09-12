@@ -8,6 +8,7 @@ export function middleware(req: NextRequest) {
 
   // ✅ SYSTEM FILES
   if (
+    pathname === "/gift-certificates" ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
     pathname.includes(".")

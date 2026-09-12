@@ -374,6 +374,8 @@ export default function AdminBookingsDashboard() {
   const disableApproveReject = (b) =>
     isPastBooking(b) || isConfirmedBooking(b) || terminalBookingStatuses.has(withExpiredBookingStatus(b, now)?.status);
 
+  const canCancelBooking = (b) => !isPastBooking(b) && !isExpiredBooking(b) && ["pending", "confirmed", "cancellation_requested"].includes(b.status);
+
   function statusUpdatePayload(type, booking) {
     const approving = type === "approve" || type === "approve_bulk";
     if (booking?.status === "cancellation_requested") {
@@ -390,16 +392,16 @@ export default function AdminBookingsDashboard() {
         };
   }
 
-  async function approveCancellationWithGiftCertificate(bookingId) {
+  async function approveCancellationWithGiftCertificate(bookingId, action = "cancel") {
     const res = await fetch("/api/admin/booking-cancellation-gift-certificate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bookingId }),
+      body: JSON.stringify({ bookingId, action }),
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json?.error || "Unable to approve cancellation.");
     return {
-      status: json?.booking?.status || "cancelled_gc",
+      status: json?.booking?.status || "cancelled",
       giftCertificate: json?.giftCertificate || null,
     };
   }
@@ -757,6 +759,14 @@ export default function AdminBookingsDashboard() {
       } else {
         // SINGLE
         const booking = bookingOrIds;
+
+        if (type === "cancel") {
+          if (!canCancelBooking(booking)) throw new Error("Only upcoming active bookings can be cancelled.");
+          const result = await approveCancellationWithGiftCertificate(booking.id, "admin_cancel");
+          setBookings(prev => prev.map(item => item.id === booking.id ? { ...item, status: result.status } : item));
+          setActionModal(null);
+          return;
+        }
 
         if (disableApproveReject(booking)) {
           alert("Action not allowed. Past bookings and confirmed bookings cannot be approved/rejected.");
@@ -1586,7 +1596,7 @@ export default function AdminBookingsDashboard() {
                 </div>
 
                 <div className="mt-2 text-[11px] text-slate-500">
-                  Rule: past bookings locked; confirmed upcoming cannot be approve/reject.
+                  Rule: past bookings locked. Upcoming confirmed bookings can be edited or cancelled.
                 </div>
               </div>
 
@@ -1718,6 +1728,11 @@ export default function AdminBookingsDashboard() {
 
                             {/* ACTIONS */}
                             <div className="flex gap-2 flex-wrap justify-end">
+                              {canCancelBooking(b) && <button type="button" disabled={actionLoading}
+                                onClick={() => setActionModal({ type: "cancel", booking: b })}
+                                className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-red-700 disabled:opacity-50">
+                                Cancel booking
+                              </button>}
                               <button
                                 disabled={past}
                                 onClick={() => !past && openEditModal(b)}
@@ -1800,6 +1815,7 @@ export default function AdminBookingsDashboard() {
               <div>
                 <p className="text-[10px] uppercase tracking-widest text-slate-500">Confirm Action</p>
                 <h3 className="text-lg font-semibold text-slate-800">
+                  {actionModal.type === "cancel" && "Cancel Booking"}
                   {actionModal.type === "approve" &&
                     (actionModal.booking?.status === "cancellation_requested"
                       ? "Approve Cancellation"
@@ -1822,22 +1838,28 @@ export default function AdminBookingsDashboard() {
 
             <p className="text-sm text-slate-600 mb-4">
               Are you sure you want to{" "}
-              <b>{actionModal.type.includes("approve") ? "approve" : "reject"}</b>{" "}
+              <b>{actionModal.type === "cancel" ? "cancel" : actionModal.type.includes("approve") ? "approve" : "reject"}</b>{" "}
               {actionModal.booking ? "this booking" : "the selected bookings"}?
             </p>
 
+            {actionModal.type === "cancel" && <p className="mb-4 text-sm text-slate-600">
+              {actionModal.booking?.payment_status === "approved" && Number(actionModal.booking?.deposit_amount) >= 100
+                ? "The paid reservation fee will queue ₱100 e-GCs for separate admin approval. Customer email delivery happens only after that approval."
+                : "The booking slot will be released. No e-GCs are issued without an approved reservation payment of at least ₱100."}
+            </p>}
             <div className="flex gap-2">
               <button
                 onClick={() => setActionModal(null)}
                 disabled={actionLoading}
                 className="flex-1 py-3 rounded-xl bg-white border border-slate-200 text-slate-600 text-[11px] uppercase tracking-widest active:scale-95 disabled:opacity-60"
               >
-                Cancel
+                {actionModal.type === "cancel" ? "Keep booking" : "Cancel"}
               </button>
 
               <button
                 disabled={actionLoading}
                 onClick={() => {
+                  if (actionModal.type === "cancel") return runStatusUpdate("cancel", actionModal.booking);
                   if (actionModal.type === "approve") return runStatusUpdate("approve", actionModal.booking);
                   if (actionModal.type === "reject") return runStatusUpdate("reject", actionModal.booking);
                   if (actionModal.type === "approve_bulk") return runStatusUpdate("approve", actionModal.ids || []);

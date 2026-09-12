@@ -80,6 +80,7 @@ export default function PromoPage() {
 
       <main className="flex-1 px-4 pb-14 pt-24 sm:px-6 lg:px-10">
         <section className="mx-auto max-w-7xl">
+          <Link href="/gift-certificates" style={{ color: "#fff" }} className="mb-6 inline-block rounded-xl bg-green-800 px-5 py-3 font-semibold text-white">Buy JUJA e-Gift Certificates</Link>
           <div className="grid items-stretch gap-6 lg:grid-cols-[0.95fr_1.05fr]">
             <div className="rounded-[2rem] border border-white/70 bg-white/78 p-7 shadow-[0_28px_80px_rgba(51,65,85,0.16)] backdrop-blur-xl sm:p-9 lg:p-10">
               <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#087830]">
