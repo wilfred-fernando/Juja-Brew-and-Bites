@@ -2657,6 +2657,10 @@ function SavedTicketsModal({
                       <p className="font-bold text-slate-800 text-sm truncate">{t.order_type || t.ticket_name}</p>
                       <p className="text-xs text-slate-500 mt-0.5">Active lines: {activeItems.length} / {(t.items || []).length} • <span className="font-bold text-slate-700">{peso0(t.total_amount)}</span></p>
                       <p className="text-[11px] font-medium text-slate-500 mt-1 truncate">Client: {t._customerName || "Walk-in"}</p>
+                      <div className="mt-2 space-y-0.5 text-[10px] font-medium text-slate-500">
+                        <p><span className="font-bold text-slate-600">Created:</span> {formatReceiptDateTime(t.created_at)} PHT</p>
+                        <p><span className="font-bold text-slate-600">Last updated:</span> {formatReceiptDateTime(t.updated_at || t.created_at)} PHT</p>
+                      </div>
                     </button>
                   </div>
                   <button
@@ -2687,6 +2691,10 @@ function SavedTicketsModal({
         subtitle={`${selectedTicket?._customerName || "Walk-in"} • ${peso0(selectedTicket?.total_amount || 0)}`}
         z={155}
       >
+        <div className="mb-3 grid grid-cols-1 gap-1 rounded-xl border border-slate-200 bg-slate-50 p-3 text-[11px] font-medium text-slate-600 sm:grid-cols-2">
+          <p><span className="font-bold text-slate-700">Created:</span> {selectedTicket ? formatReceiptDateTime(selectedTicket.created_at) : ""} PHT</p>
+          <p><span className="font-bold text-slate-700">Last updated:</span> {selectedTicket ? formatReceiptDateTime(selectedTicket.updated_at || selectedTicket.created_at) : ""} PHT</p>
+        </div>
         <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
           {(selectedTicket?.items || []).map((line, idx) => {
             const voided = isVoidedLine(line);
@@ -6835,7 +6843,7 @@ export default function POSPage() {
 
     let res = await supabase
       .from("open_tickets")
-      .select("id, store_id, ticket_name, order_type, customer_id, items, total_amount, applied_voucher, created_at")
+      .select("id, store_id, ticket_name, order_type, customer_id, items, total_amount, applied_voucher, created_at, updated_at")
       .eq("store_id", sid)
       .order("created_at", { ascending: false })
       .limit(100);
@@ -6843,7 +6851,7 @@ export default function POSPage() {
     if (res.error && /applied_voucher/i.test(res.error.message || "")) {
       res = await supabase
           .from("open_tickets")
-          .select("id, store_id, ticket_name, order_type, customer_id, items, total_amount, created_at")
+          .select("id, store_id, ticket_name, order_type, customer_id, items, total_amount, created_at, updated_at")
           .eq("store_id", sid)
           .order("created_at", { ascending: false })
           .limit(100);
