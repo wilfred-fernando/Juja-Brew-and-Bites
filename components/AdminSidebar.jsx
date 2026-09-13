@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -96,7 +96,7 @@ export default function AdminSidebar({
         { name: "Inventory", path: "/admin/inventory", icon: Boxes },
         { name: "Menu", path: "/admin/menu", icon: Puzzle },
         { name: "Customers", path: "/admin/customers", icon: Star },
-        { name: "e-GC Purchases", path: "/admin/gift-certificates", icon: Gift },
+        { name: "e-GC Monitoring", path: "/admin/gift-certificates", icon: Gift },
         { name: "Promos", path: "/admin/promos", icon: Gift },
         { name: "Messenger", path: "/admin/messenger", icon: MessageCircle },
       ],
