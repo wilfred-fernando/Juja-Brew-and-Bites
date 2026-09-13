@@ -15,7 +15,7 @@ const bitmap=new z.BinaryBitmap(new z.HybridBinarizer(new z.RGBLuminanceSource(n
 assert.equal(new z.MultiFormatReader().decode(bitmap,new Map([[z.DecodeHintType.POSSIBLE_FORMATS,[z.BarcodeFormat.CODE_128]],[z.DecodeHintType.TRY_HARDER,true]])).getText(),code);
 console.log('PASS barcode at '+width+'px');}
 const draft=cancellationGiftEmail({customer_name:'Test',booking_id:'TEST',amount:100,expires_at:expiresAt},[{code}]);
-assert.ok(draft.text.includes('Valid until: Dec 11, 2026'));assert.ok(draft.text.includes(code));
+assert.ok(draft.text.includes('Valid Until: December 11, 2026'));assert.ok(draft.text.includes(code));
 await assert.rejects(renderGiftCertificateImage({code,amount:200,expiresAt}),/Invalid/);
 console.log('PASS expiry date, email text, invalid denomination. PNG '+Math.round(png.length/1024)+' KB; '+(Date.now()-started)+' ms');
 })().catch(error=>{console.error(error.message||error);process.exitCode=1});
