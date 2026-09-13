@@ -20,13 +20,16 @@ async function main() {
     assert.ok(actor, 'Need an existing admin identity for approval foreign key');
     await client.query(`INSERT INTO ${schema}.profiles(id,role) VALUES ($1,'admin')`, [actor]);
     await client.query(`CREATE TABLE ${schema}.orders (LIKE public.orders INCLUDING DEFAULTS)`);
+    await client.query(`ALTER TABLE ${schema}.orders DROP COLUMN IF EXISTS pos_gc_checkout_key`);
     await client.query(`ALTER TABLE ${schema}.orders ADD PRIMARY KEY(id)`);
     await client.query(`CREATE TABLE ${schema}.order_items (LIKE public.order_items INCLUDING DEFAULTS)`);
     await client.query(`CREATE TABLE ${schema}.vouchers (LIKE public.vouchers INCLUDING DEFAULTS)`);
     await client.query(`CREATE TABLE ${schema}.web_orders (LIKE public.web_orders INCLUDING DEFAULTS)`);
+    await client.query(`ALTER TABLE ${schema}.web_orders ADD PRIMARY KEY(id)`);
+    for (const column of ['gc_codes','gc_amount','gc_remainder_method','gc_released_at']) await client.query(`ALTER TABLE ${schema}.web_orders DROP COLUMN IF EXISTS ${column}`);
     await client.query(`CREATE TABLE ${schema}.open_tickets (LIKE public.open_tickets INCLUDING DEFAULTS)`);
     await client.query(`CREATE FUNCTION ${schema}.complete_pos_discount_claims(uuid,uuid,text) RETURNS void LANGUAGE sql AS 'SELECT'`);
-    for (const file of ['20260912090000_booking_gc_approval_batches.sql','20260912100000_pos_booking_gc_redemption.sql','20260912120000_gc_purchases.sql']) {
+    for (const file of ['20260912090000_booking_gc_approval_batches.sql','20260912100000_pos_booking_gc_redemption.sql','20260912120000_gc_purchases.sql','20260913090000_customer_gc_redemption.sql']) {
       const migration = readFileSync('supabase/migrations/'+file,'utf8')
         .replaceAll('public.', schema + '.').replaceAll('set search_path = public', 'set search_path = ' + schema)
         .replaceAll('set search_path=public', 'set search_path=' + schema);
@@ -137,6 +140,35 @@ async function main() {
     await rejects(()=>buy({source:'pos',store_id:store,payment_method:'Cash',payment_proof_url:null}),/Wrong POS branch/);
     assert.equal((await client.query(`SELECT has_function_privilege('authenticated','${schema}.create_gc_purchase(jsonb,uuid)','EXECUTE') allowed`)).rows[0].allowed,false);
     assert.equal((await client.query(`SELECT has_table_privilege('authenticated','${schema}.gc_purchases','INSERT') allowed`)).rows[0].allowed,false);
+    await client.query(`UPDATE ${schema}.profiles SET role='admin' WHERE id=$1`,[actor]);
+    const webBatch=await batchFor(await seed('cancelled','approved',1000));
+    await client.query(`SELECT ${schema}.approve_booking_gc_batch($1,$2)`,[webBatch.id,actor]);
+    const webCodes=(await client.query(`SELECT code FROM ${schema}.booking_gc_certificates WHERE batch_id=$1 ORDER BY sequence_number`,[webBatch.id])).rows.map(r=>r.code);
+    const webDraft={store_id:store,customer_name:'Web Test',items:[{name:'Test',quantity:1,unitPrice:350}],subtotal:350,total:350,fulfillment_type:'TAKEOUT',payment_method:'Cash',client_idempotency_key:randomUUID()};
+    const webSubmit=(draft=webDraft,selected=webCodes.slice(0,2))=>client.query(`SELECT ${schema}.submit_customer_gc_order($1,$2) result`,[draft,selected]);
+    assert.equal((await client.query(`SELECT ${schema}.validate_customer_gc($1) result`,[webCodes[0]])).rows[0].result.code,webCodes[0]);
+    const web=(await webSubmit()).rows[0].result.row;
+    assert.equal(Number(web.gc_amount),200);
+    assert.equal((await webSubmit()).rows[0].result.created,false);
+    await rejects(()=>submit(randomUUID(),order,items,webCodes.slice(0,2)),/no longer available/);
+    await rejects(()=>webSubmit({...webDraft,client_idempotency_key:randomUUID()}),/already used/);
+    await submit(randomUUID(),{...order,source_web_order_id:web.id,receipt_number:'WEB-GC-TEST'},items,webCodes.slice(0,2));
+    assert.equal((await client.query(`SELECT count(*)::int n FROM ${schema}.booking_gc_redemptions WHERE web_order_id=$1 AND order_id IS NOT NULL`,[web.id])).rows[0].n,2);
+    await rejects(()=>client.query(`UPDATE ${schema}.web_orders SET status='cancelled' WHERE id=$1`,[web.id]),/already charged/);
+    const rejected=(await webSubmit({...webDraft,client_idempotency_key:randomUUID()},webCodes.slice(2,4))).rows[0].result.row;
+    await client.query(`UPDATE ${schema}.web_orders SET status='rejected' WHERE id=$1`,[rejected.id]);
+    assert.ok((await client.query(`SELECT ${schema}.validate_customer_gc($1) result`,[webCodes[2]])).rows[0].result.code);
+    assert.equal((await client.query(`SELECT count(*)::int n FROM ${schema}.web_gc_release_events WHERE web_order_id=$1`,[rejected.id])).rows[0].n,2);
+    await rejects(()=>client.query(`UPDATE ${schema}.web_orders SET status='pending' WHERE id=$1`,[rejected.id]),/cannot be reopened/);
+    await rejects(()=>webSubmit({...webDraft,client_idempotency_key:randomUUID(),total:150},webCodes.slice(2,4)),/Invalid order total/);
+    await rejects(()=>webSubmit({...webDraft,client_idempotency_key:randomUUID()},[webCodes[2],webCodes[2]]),/Duplicate/);
+    await rejects(()=>webSubmit({...webDraft,client_idempotency_key:randomUUID(),fulfillment_type:'DELIVERY'},webCodes.slice(2,4)),/valid payment method/);
+    const full=(await webSubmit({...webDraft,items:[{quantity:1,unitPrice:200}],subtotal:200,total:200,payment_method:'JUJA e-GC',client_idempotency_key:randomUUID()},webCodes.slice(4,6))).rows[0].result.row;
+    assert.equal(full.payment_status,'approved');
+    await client.query('SET CONSTRAINTS ALL IMMEDIATE');
+    await client.query('SET CONSTRAINTS ALL DEFERRED');
+    await rejects(async()=>{await client.query(`INSERT INTO ${schema}.web_orders(user_id,store_id,branch_id,items,subtotal,total,gc_amount,gc_codes) VALUES($1,$2::uuid,$2::uuid::text,'[]',100,100,100,$3)`,[actor,store,[webCodes[9]]]);await client.query('SET CONSTRAINTS ALL IMMEDIATE');},/redemption ledger/);
+    console.log('PASS: online checkout, shared POS spend protection, idempotent retry, full/partial payment, POS transfer, cancellation release audit, forged ledger rejection.');
     console.log('PASS: purchases, required details/proof, duplicate requests/proof, admin payment verification, six calendar months including month-end, rejected issuance, separate cash collections, purchased GC POS redemption.');
     await client.query('SET CONSTRAINTS ALL IMMEDIATE');
     console.log('PASS: validation, pending approval, duplicate/unknown/spent codes, exact tender, no GC change, atomic rollback, idempotent retry, audit receipt/cashier/branch, role and branch restrictions. All changes rolled back.');

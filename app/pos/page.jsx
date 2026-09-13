@@ -3627,7 +3627,7 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
   );
 }
 
-function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, onConfirm, total, paymentAmount, setPaymentAmount, storeId, charging }) {
+function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, onConfirm, total, paymentAmount, setPaymentAmount, storeId, charging, webCertificates = [] }) {
   const [certificates, setCertificates] = useState([]);
   const [checkingGc, setCheckingGc] = useState(false);
   const gcKeyRef = useRef(null);
@@ -3653,13 +3653,14 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
     if (splitDraftInitializedRef.current) return;
     splitDraftInitializedRef.current = true;
     setUseSplitPayment(false);
-    setCertificates([]);
+    setCertificates(webCertificates.map(code => ({ code, amount: 100, locked: true })));
+    setPaymentAmount(String(Math.max(0, Number(total) - webCertificates.length * 100).toFixed(2)));
     gcKeyRef.current = crypto.randomUUID();
     setSplitPayments([
       { id: "split-1", method: availableTypes[0]?.name || selectedPayment || "", amount: "" },
       { id: "split-2", method: availableTypes[1]?.name || availableTypes[0]?.name || selectedPayment || "", amount: "" },
     ]);
-  }, [open, selectedPayment, paymentTypes]);
+  }, [open, selectedPayment, paymentTypes, webCertificates, total, setPaymentAmount]);
 
   const change = isCash ? Math.max(0, amt - due) : 0;
   const remaining = Math.max(0, due - amt);
@@ -4414,6 +4415,7 @@ export default function POSPage() {
 
   // New persistent pointer reference state to bind edited web orders back cleanly
   const [activeWebOrderId, setActiveWebOrderId] = useState(null);
+  const [activeWebGcCodes, setActiveWebGcCodes] = useState([]);
   const [activeWebOrderBranchId, setActiveWebOrderBranchId] = useState(null);
   const [activeWebOrderFulfillmentType, setActiveWebOrderFulfillmentType] = useState("");
 
@@ -4656,6 +4658,7 @@ export default function POSPage() {
 
   const clearActiveWebOrderContext = () => {
     setActiveWebOrderId(null);
+    setActiveWebGcCodes([]);
     setActiveWebOrderBranchId(null);
     setActiveWebOrderFulfillmentType("");
   };
@@ -7129,6 +7132,7 @@ export default function POSPage() {
     }
     setCart(enrichOrderItemsForKds(order.items || []));
     setOriginalTicketId(null);
+    setActiveWebGcCodes(order.gc_codes || []);
     setActiveWebOrderId(order.id); // Secure tracking context parameter link
     setActiveWebOrderBranchId(getWebOrderStoreId(order) || storeId || null);
     setActiveWebOrderFulfillmentType(order.fulfillment_type || order.dining_option || "");
@@ -11220,7 +11224,7 @@ export default function POSPage() {
         onAllow={handlePrinterPermissionAllow}
       />
       {shiftCashModal}
-      <PaymentModal open={paymentOpen} onClose={() => setPaymentOpen(false)} paymentTypes={paymentTypes} selectedPayment={selectedPayment} onSelect={(name) => setSelectedPayment(name)} onConfirm={confirmCharge} total={totalDue} paymentAmount={paymentAmount} setPaymentAmount={setPaymentAmount} storeId={getResolvedBranchId()} charging={charging} />
+      <PaymentModal open={paymentOpen} onClose={() => setPaymentOpen(false)} paymentTypes={paymentTypes} selectedPayment={selectedPayment} onSelect={(name) => setSelectedPayment(name)} onConfirm={confirmCharge} total={totalDue} paymentAmount={paymentAmount} setPaymentAmount={setPaymentAmount} storeId={getResolvedBranchId()} charging={charging} webCertificates={activeWebGcCodes} />
       <ReceiptPreviewModal open={receiptOpen} onClose={() => setReceiptOpen(false)} receiptText={receiptText} />
     </div>
   );

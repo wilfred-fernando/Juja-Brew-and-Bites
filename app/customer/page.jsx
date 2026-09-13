@@ -23,6 +23,7 @@ import {
   storeOrderingStatusMessage,
 } from "@/lib/storeOrderingStatus";
 import { ensureNativeNotificationPermission, isNativeApp, registerNativeCustomerPush, showNativeNotification } from "@/lib/nativeNotifications";
+import GiftCertificatePayment from "@/components/pos/GiftCertificatePayment";
 import BookingTab from "@/components/BookingForm";
 import CustomerApkUpdatePrompt from "@/components/CustomerApkUpdatePrompt";
 import ApkDownloadBanner from "@/components/ApkDownloadBanner";
@@ -69,7 +70,12 @@ const isConnectivityFailure = (error) => {
   return /fetch|network|connection|offline|timeout|failed to fetch/i.test(String(error?.message || error || ""));
 };
 
-async function insertCustomerWebOrder(orderPayload) {
+async function insertCustomerWebOrder(orderPayload, gcCodes = []) {
+  if (gcCodes.length) {
+    const { data, error } = await supabase.rpc("submit_customer_gc_order", { p_order: orderPayload, p_codes: gcCodes });
+    if (error) throw error;
+    return data;
+  }
   const { data, error } = await supabase
     .from("web_orders")
     .insert([orderPayload])
@@ -1150,6 +1156,9 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
   const [deliveryLocationPromptDismissed, setDeliveryLocationPromptDismissed] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [paymentProof, setPaymentProof] = useState(null);
+  const [gcCertificates, setGcCertificates] = useState([]);
+  const [checkingGc, setCheckingGc] = useState(false);
+  useEffect(() => { if (!open) { setGcCertificates([]); setCheckingGc(false); } }, [open]);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
   const autoDeliveryLocationRequestedRef = useRef(false);
   const targetTimeOptions = useMemo(() => buildTargetTimeOptions(fulfillmentDate, selectedStore), [fulfillmentDate, selectedStore]);
@@ -1325,6 +1334,8 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
   const regularDeliveryFee = Number(deliveryQuote?.regularFee || deliveryQuote?.fee || 0);
   const deliveryFee = diningOption === "DELIVERY" ? regularDeliveryFee : 0;
   const orderTotal = subtotal + deliveryFee;
+  const gcAmount = gcCertificates.length * 100;
+  const remainingPayment = Math.max(0, orderTotal - gcAmount);
   const hasDeliveryQuote =
     diningOption !== "DELIVERY" ||
     (Number.isFinite(deliveryFee) && deliveryFee > 0);
@@ -1334,8 +1345,8 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
     (diningOption !== "DELIVERY" || deliveryAddress.trim().length >= 8) &&
     hasDeliveryQuote &&
     !deliveryQuoteLoading &&
-    paymentOptions.includes(paymentMethod) &&
-    (paymentMethod !== "QRPH" || Boolean(paymentProof));
+    !checkingGc && gcAmount <= subtotal &&
+    (remainingPayment === 0 || (paymentOptions.includes(paymentMethod) && (paymentMethod !== "QRPH" || Boolean(paymentProof))));
   const potentialPointsEarned = loyaltyPoints(loyaltyEligibleSubtotal);
   const deliveryAddressSearchTerm = deliveryAddress.trim();
   const deliveryMapUrl = deliveryMapPreviewUrl({ pin: deliveryPin });
@@ -1640,7 +1651,10 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
             </section>
           )}
 
-          {paymentOptions.length > 0 && (
+          <GiftCertificatePayment customerCheckout certificates={gcCertificates} onChange={setGcCertificates} total={subtotal}
+            storeId={selectedStore?.id} disabled={isSubmitting} onChecking={setCheckingGc} />
+          {diningOption === "DELIVERY" && <p className="text-xs text-slate-600">e-GCs apply to items. Pay the delivery fee and any remaining item balance through QRPH.</p>}
+          {remainingPayment > 0 && paymentOptions.length > 0 && (
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-3">
                 Payment Option
@@ -1669,7 +1683,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                 <div className="mt-4 space-y-4 rounded-2xl border border-emerald-900/10 bg-[#f7f4ec] p-4">
                   <div className="text-center">
                     <p className="text-xs font-semibold uppercase tracking-widest text-[#0b6942]">
-                      Scan to pay {peso2(orderTotal)}
+                      Scan to pay {peso2(remainingPayment)}
                     </p>
                     <Image
                       src={QRPH_IMAGE_PATH}
@@ -1766,6 +1780,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
               <span className="text-xl text-cyan-800">{peso2(orderTotal)}</span>
             </div>
           </div>
+          {gcAmount > 0 && <p className="mb-3 text-sm font-semibold">e-GCs: {peso2(gcAmount)} · Remaining payment: {peso2(remainingPayment)}</p>}
           <div className="grid grid-cols-[0.8fr_1.2fr] gap-3">
           <button
             type="button"
@@ -1786,8 +1801,9 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
               deliveryServiceLevel: "regular",
               deliveryFee,
               deliveryQuote,
-              paymentMethod,
-              paymentProof,
+              paymentMethod: remainingPayment === 0 && gcAmount > 0 ? "JUJA e-GC" : paymentMethod,
+              paymentProof: remainingPayment > 0 ? paymentProof : null,
+              gcCodes: gcCertificates.map(gc => gc.code),
               scheduledFor: selectedTargetAt?.toISOString() || null,
               scheduleLabel: formatOrderScheduleLabel(fulfillmentDate, fulfillmentTime),
               isScheduled: isScheduledOrder,
@@ -2225,6 +2241,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
     setConfirmationOpen(true);
   };
 
+  const gcCheckoutRef = useRef(null);
   const executeOrderSubmission = async (fulfillmentMetadata) => {
     setIsSubmitting(true);
 
@@ -2240,10 +2257,15 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       console.warn("Unable to recheck online ordering status:", error);
     }
 
+    const gcCodes = Array.isArray(fulfillmentMetadata.gcCodes) ? fulfillmentMetadata.gcCodes : [];
+    const usingGc = gcCodes.length > 0;
+    const deliveryFee = fulfillmentMetadata.diningOption === "DELIVERY" ? Number(fulfillmentMetadata.deliveryFee || 0) : 0;
+    const orderTotal = Number(subtotal) + deliveryFee;
+    const gcRemainder = orderTotal - gcCodes.length * 100;
     const allowedPaymentMethods = fulfillmentMetadata.diningOption === "DELIVERY"
       ? ["QRPH"]
       : ["Cash", "QRPH"];
-    if (!allowedPaymentMethods.includes(fulfillmentMetadata.paymentMethod)) {
+    if (gcRemainder < 0 || (gcRemainder > 0 && !allowedPaymentMethods.includes(fulfillmentMetadata.paymentMethod))) {
       setIsSubmitting(false);
       alert("Please select an available payment method for this order type.");
       return;
@@ -2274,9 +2296,9 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
 
     const releaseStatus = fulfillmentMetadata.isScheduled ? "scheduled" : "pending";
     const orderStatus = releaseStatus;
-    const deliveryFee = fulfillmentMetadata.diningOption === "DELIVERY" ? Number(fulfillmentMetadata.deliveryFee || 0) : 0;
-    const orderTotal = Number(subtotal) + deliveryFee;
-    const idempotencyKey = customerOrderIdempotencyKey();
+    const signature = JSON.stringify({ cart, selectedBranch, gcCodes, orderTotal, method: fulfillmentMetadata.paymentMethod, scheduledFor: fulfillmentMetadata.scheduledFor });
+    if (!gcCheckoutRef.current || gcCheckoutRef.current.signature !== signature) gcCheckoutRef.current = { signature, key: customerOrderIdempotencyKey() };
+    const idempotencyKey = usingGc ? gcCheckoutRef.current.key : customerOrderIdempotencyKey();
     const orderPayload = {
       user_id: user.id,
       customer_name: member?.customer_name || user?.user_metadata?.full_name || "Web Customer",
@@ -2313,8 +2335,10 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       client_idempotency_key: idempotencyKey,
     };
 
+    let gcSubmitted = false;
     try {
-      const { row: freshWebOrderRow, created } = await insertCustomerWebOrder(orderPayload);
+      const { row: freshWebOrderRow, created } = await insertCustomerWebOrder(orderPayload, gcCodes);
+      gcSubmitted = true;
       if (created) {
         notifyStoreOfCustomerOrder(freshWebOrderRow, {
           itemCount,
@@ -2336,7 +2360,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
         setOrderingStatusDialog(blockedStatus);
         return;
       }
-      if (isConnectivityFailure(err) && !paymentProofUrl && !isQrph) {
+      if (!usingGc && isConnectivityFailure(err) && !paymentProofUrl && !isQrph) {
         const queuedOrder = {
           ...orderPayload,
           id: `offline:${idempotencyKey}`,
@@ -2369,7 +2393,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
       }
       alert(`❌ Submission Error: ${err.message || "Network Connection Failure"}`);
     } finally {
-      setConfirmationOpen(false);
+      if (!usingGc || gcSubmitted) setConfirmationOpen(false);
       setIsSubmitting(false);
     }
   };
