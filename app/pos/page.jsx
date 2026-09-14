@@ -3757,11 +3757,6 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
   return (
     <ModalShell open={open} onClose={() => !charging && !checkingGc && !gcDialogOpen && onClose()} title="Payment" subtitle="Select Payment Type" z={150}>
       <fieldset disabled={charging} className="space-y-4">
-        <button type="button" onClick={() => setGcDialogOpen(true)} className={`w-full rounded-xl border p-3 text-left text-xs font-bold ${gcTotal > 0 ? "border-green-600 bg-green-50 text-green-900" : "border-slate-200 bg-white text-slate-700"}`}>
-          Gift Certificate
-          {gcTotal > 0 && <span className="mt-1 block">{certificates.length} e-GCs applied · {peso2(gcTotal)} · Edit codes</span>}
-        </button>
-        {gcTotal > 0 && <p className="text-xs text-green-800">Remaining payment: {peso2(due)}. {due > 0 ? "Select a payment method below for the balance." : "The bill is fully covered by e-GCs."}</p>}
         {open && gcDialogOpen && <GiftCertificatePaymentDialog onClose={() => setGcDialogOpen(false)} checking={checkingGc} certificates={certificates} onChange={changeCertificates} total={total} storeId={storeId} disabled={charging} onChecking={setCheckingGc} />}
         <div className="flex items-center justify-between rounded-xl border border-rose-100 bg-rose-50/60 px-3 py-2">
           <div>
@@ -3778,20 +3773,17 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
           </button>
         </div>
 
-        {(paymentTypes || []).length === 0 ? (
-          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
-            No system configurations available for merchant settlement modes.
-          </div>
-        ) : useSplitPayment ? (
+        {useSplitPayment ? (
           <div className="space-y-2">
             {splitPayments.map((row, idx) => (
               <div key={row.id} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center rounded-xl border border-slate-200 bg-white p-2">
                 <select
                   value={row.method}
-                  onChange={(e) => updateSplitPayment(idx, { method: e.target.value })}
+                  onChange={(e) => { if (e.target.value === "__gift_certificate") setGcDialogOpen(true); else updateSplitPayment(idx, { method: e.target.value }); }}
                   className="h-10 rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-bold text-slate-700 outline-none"
                 >
                   {availableTypes.map((p) => <option key={p.id || p.name} value={p.name}>{p.name}</option>)}
+                  <option value="__gift_certificate">Gift Certificate</option>
                 </select>
                 <div className="flex items-center gap-1 h-10 rounded-lg border border-slate-200 bg-slate-50 px-2">
                   <span className="text-slate-400 font-bold text-xs">₱</span>
@@ -3835,8 +3827,13 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
                 {p.name}
               </button>
             ))}
+            <button type="button" onClick={() => setGcDialogOpen(true)}
+              className={`h-11 rounded-xl border text-xs font-bold uppercase tracking-wider transition ${gcTotal > 0 ? "border-rose-300 bg-rose-50 text-[#FC687D]" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+              Gift Certificate
+            </button>
           </div>
         )}
+        {gcTotal > 0 && <p className="text-xs text-green-800">{certificates.length} e-GCs applied · {peso2(gcTotal)}. Remaining payment: {peso2(due)}. {due > 0 ? "Select another payment method for the balance." : "The bill is fully covered by e-GCs."}</p>}
 
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3 shadow-inner">
           <div>
