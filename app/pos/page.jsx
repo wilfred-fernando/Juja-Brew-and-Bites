@@ -3701,18 +3701,12 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
   const splitChange = Math.max(0, splitTotal - due);
   const splitReady = splitPayments.length > 1 && splitPayments.every((p) => p.method && Number(p.amount || 0) > 0) && splitTotal >= due;
   const isZeroDue = due <= 0;
-  const roundCash = (value) => {
-    if (value <= 100) return Math.ceil(value / 10) * 10;
-    if (value <= 500) return Math.ceil(value / 50) * 50;
-    return Math.ceil(value / 100) * 100;
-  };
-  const cashTenderSuggestions = Array.from(new Set([
-    roundCash(due),
-    ...[200, 500, 1000, 2000].filter((n) => n >= due),
-  ]))
-    .filter((n) => Number(n) > 0 && Number(n) >= due)
-    .sort((a, b) => a - b)
-    .slice(0, 6);
+  const dueCentavos = Math.round(due * 100);
+  const cashTenderSuggestions = dueCentavos > 0
+    ? Array.from(new Set([5, 10, 20, 50, 100, 500, 1000].map(denomination =>
+      Math.ceil(dueCentavos / (denomination * 100)) * denomination,
+    ))).sort((a, b) => a - b)
+    : [];
 
   const disableConfirm = charging || checkingGc || gcDialogOpen || gcTotal > Number(total) || (gcTotal > 0 && !useSplitPayment && !isCash && amt < due) || (
     isZeroDue
@@ -3762,8 +3756,8 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
         <div className="space-y-4">
         <div className="flex items-center justify-between rounded-xl border border-rose-100 bg-rose-50/60 px-3 py-2">
           <div>
-            <p className="text-xs font-black text-slate-800">Split Payment</p>
-            <p className="text-[10px] font-semibold text-slate-500">Use two or more payment methods.</p>
+            <p className="text-sm font-black text-slate-800">Split Payment</p>
+            <p className="text-sm font-semibold text-slate-500">Use two or more payment methods.</p>
           </div>
           <button
             type="button"
@@ -3782,18 +3776,18 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
                 <select
                   value={row.method}
                   onChange={(e) => { if (e.target.value === "__gift_certificate") setGcDialogOpen(true); else updateSplitPayment(idx, { method: e.target.value }); }}
-                  className="h-10 rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-bold text-slate-700 outline-none"
+                  className="h-10 rounded-lg border border-slate-200 bg-slate-50 px-2 text-sm font-bold text-slate-700 outline-none"
                 >
                   {availableTypes.map((p) => <option key={p.id || p.name} value={p.name}>{p.name}</option>)}
                   <option value="__gift_certificate">Gift Certificate</option>
                 </select>
                 <div className="flex items-center gap-1 h-10 rounded-lg border border-slate-200 bg-slate-50 px-2">
-                  <span className="text-slate-400 font-bold text-xs">₱</span>
+                  <span className="text-slate-400 font-bold text-sm">₱</span>
                   <input
                     inputMode="decimal"
                     value={row.amount}
                     onChange={(e) => updateSplitPayment(idx, { amount: e.target.value.replace(/[^\d.]/g, "") })}
-                    className="w-full bg-transparent text-xs font-bold text-slate-800 outline-none"
+                    className="w-full bg-transparent text-sm font-bold text-slate-800 outline-none"
                     placeholder="0.00"
                   />
                 </div>
@@ -3807,7 +3801,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
                 </button>
               </div>
             ))}
-            <button type="button" onClick={addSplitRow} className="w-full h-9 rounded-xl border border-dashed border-rose-200 bg-rose-50 text-[10px] font-black uppercase tracking-wider text-[#FC687D]">
+            <button type="button" onClick={addSplitRow} className="w-full h-9 rounded-xl border border-dashed border-rose-200 bg-rose-50 text-sm font-black uppercase tracking-wider text-[#FC687D]">
               Add Payment Line
             </button>
           </div>
@@ -3820,7 +3814,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
                   onSelect(p.name);
                   setPaymentAmount(String(Number(due || 0).toFixed(2)));
                 }}
-                className={`h-11 rounded-xl border text-xs font-bold uppercase tracking-wider transition ${
+                className={`h-11 rounded-xl border text-sm font-bold uppercase tracking-wider transition ${
                   selectedPayment === p.name
                     ? "border-rose-300 bg-rose-50 text-[#FC687D]"
                     : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
@@ -3830,17 +3824,17 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
               </button>
             ))}
             <button type="button" onClick={() => setGcDialogOpen(true)}
-              className={`h-11 rounded-xl border text-xs font-bold uppercase tracking-wider transition ${gcTotal > 0 ? "border-rose-300 bg-rose-50 text-[#FC687D]" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+              className={`h-11 rounded-xl border text-sm font-bold uppercase tracking-wider transition ${gcTotal > 0 ? "border-rose-300 bg-rose-50 text-[#FC687D]" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
               Gift Certificate
             </button>
           </div>
         )}
-        {gcTotal > 0 && <p className="text-xs text-green-800">{certificates.length} e-GCs applied · {peso2(gcTotal)}. Remaining payment: {peso2(due)}. {due > 0 ? "Select another payment method for the balance." : "The bill is fully covered by e-GCs."}</p>}
+        {gcTotal > 0 && <p className="text-sm text-green-800">{certificates.length} e-GCs applied · {peso2(gcTotal)}. Remaining payment: {peso2(due)}. {due > 0 ? "Select another payment method for the balance." : "The bill is fully covered by e-GCs."}</p>}
 
         </div>
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3 shadow-inner">
           <div>
-            <p className="text-[10px] uppercase tracking-widest font-extrabold text-slate-400">{isCash ? "Cash tendered" : "Processing Value"}</p>
+            <p className="text-sm uppercase tracking-widest font-extrabold text-slate-400">{isCash ? "Cash tendered" : "Processing Value"}</p>
             <div className="mt-1.5 flex items-center gap-2 bg-white px-3 h-11 border border-slate-200 rounded-lg">
               <span className="text-slate-400 font-bold text-sm">₱</span>
               <input
@@ -3851,7 +3845,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
                   setPaymentAmount(v);
                 }}
                 placeholder={String(Number(total || 0).toFixed(2))}
-                className="w-full bg-transparent font-bold text-slate-800 text-sm outline-none"
+                className="w-full bg-transparent font-bold text-slate-800 text-xl outline-none"
               />
             </div>
             {!useSplitPayment && isCash && (
@@ -3861,7 +3855,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
                     key={`${suggestion}-${idx}`}
                     type="button"
                     onClick={() => setPaymentAmount(Number(suggestion).toFixed(2))}
-                    className="h-8 rounded-lg border border-rose-100 bg-white text-[10px] font-black text-[#FC687D] hover:bg-rose-50"
+                    className="min-h-11 px-1 rounded-lg border border-rose-100 bg-white text-sm font-black text-[#FC687D] hover:bg-rose-50"
                   >
                     {idx === 0 && Number(suggestion) === due ? "Exact" : peso2(suggestion)}
                   </button>
@@ -3870,7 +3864,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
             )}
           </div>
 
-          <div className="text-xs space-y-1.5 pt-2 border-t border-slate-200/60 font-semibold text-slate-600">
+          <div className="text-sm space-y-1.5 pt-2 border-t border-slate-200/60 font-semibold text-slate-600">
             <div className="flex justify-between"><span>Bill Total Due</span><span className="text-slate-900 font-bold">{peso2(due)}</span></div>
             <div className="flex justify-between"><span>Tendered</span><span>{peso2(useSplitPayment ? splitTotal : amt)}</span></div>
             {useSplitPayment ? (
@@ -3881,12 +3875,12 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
             ) : isCash ? (
               <div className="flex justify-between text-emerald-600 font-bold border-t border-dashed border-slate-200 pt-1.5 mt-1">
                 <span>Change Allocation</span>
-                <span className="text-sm font-extrabold">{peso2(change)}</span>
+                <span className="text-xl font-extrabold">{peso2(change)}</span>
               </div>
             ) : remaining > 0 ? (
               <div className="flex justify-between text-orange-600"><span>Unsettled Margin</span><span className="font-bold">{peso2(remaining)}</span></div>
             ) : null}
-            {!useSplitPayment && isCash && amt < due ? <p className="text-[10px] text-red-500 font-bold mt-1">Warning: Tendered value lower than order subtotal due.</p> : null}
+            {!useSplitPayment && isCash && amt < due ? <p className="text-sm text-red-500 font-bold mt-1">Warning: Tendered value lower than order subtotal due.</p> : null}
           </div>
         </div>
 
@@ -3895,7 +3889,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
         <button
           disabled={disableConfirm}
           onClick={finalizePayment}
-          className="w-full h-12 rounded-xl bg-[#FC687D] text-white text-xs font-bold uppercase tracking-wider shadow-sm transition disabled:opacity-40"
+          className="w-full h-12 rounded-xl bg-[#FC687D] text-white text-sm font-bold uppercase tracking-wider shadow-sm transition disabled:opacity-40"
         >
           Finalize Transaction • {peso2(total)}
         </button>
