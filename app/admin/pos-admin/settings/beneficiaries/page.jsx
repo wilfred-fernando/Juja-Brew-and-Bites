@@ -147,6 +147,7 @@ export default function BeneficiariesPage() {
                 <option value="senior_citizen">SC (Senior Citizen)</option>
                 <option value="pwd">PWD</option>
                 <option value="qcid">QCID Promo</option>
+                <option value="teacher">Teacher</option>
               </select>
             </label>
             {editing.beneficiary_type === "qcid" && (
@@ -179,7 +180,7 @@ export default function BeneficiariesPage() {
         <label className="space-y-1 text-sm font-semibold">
           <span>Type</span>
           <select value={type} onChange={(event) => { setType(event.target.value); setPage(1); }} className={inputClass}>
-            <option value="">All types</option><option value="senior_citizen">SC</option><option value="pwd">PWD</option><option value="qcid">QCID</option>
+            <option value="">All types</option><option value="senior_citizen">SC</option><option value="pwd">PWD</option><option value="qcid">QCID</option><option value="teacher">Teacher</option>
           </select>
         </label>
         <label className="space-y-1 text-sm font-semibold">

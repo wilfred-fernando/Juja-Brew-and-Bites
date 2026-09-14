@@ -4,7 +4,7 @@ import { loadBeneficiaryUsage } from "@/lib/server/beneficiary-usage";
 
 const FIELDS = "id, beneficiary_type, full_name, id_number, residency_status, is_active, created_at, updated_at";
 const PAGE_SIZE = 25;
-const BENEFICIARY_TYPES = ["pwd", "senior_citizen", "qcid"];
+const BENEFICIARY_TYPES = ["pwd", "senior_citizen", "qcid", "teacher"];
 
 export async function GET(request) {
   try {
@@ -18,7 +18,7 @@ export async function GET(request) {
       return Response.json({ error: "Select a valid beneficiary status." }, { status: 400 });
     }
     if (type && !BENEFICIARY_TYPES.includes(type)) {
-      return Response.json({ error: "Select SC, PWD, or QCID." }, { status: 400 });
+      return Response.json({ error: "Select SC, PWD, QCID, or Teacher." }, { status: 400 });
     }
     // Keep user input out of PostgREST filter syntax and wildcard operators.
     const search = (params.get("q") || "").slice(0, 120).replace(/[^\p{L}\p{N}\s'-]/gu, " ").trim();
@@ -73,7 +73,7 @@ export async function PATCH(request) {
       updated_at: new Date().toISOString(),
     }).eq("id", id).eq("updated_at", body.updated_at).select(FIELDS).maybeSingle();
     if (error?.code === "23505") {
-      return Response.json({ error: "A beneficiary with this identity already exists. Review the saved SC, PWD, and QCID records before changing these details." }, { status: 409 });
+      return Response.json({ error: "A beneficiary with this identity already exists. Review the saved SC, PWD, QCID, and Teacher records before changing these details." }, { status: 409 });
     }
     if (error) throw error;
     if (!data) {

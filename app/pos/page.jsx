@@ -24,12 +24,17 @@ import {
 } from "@/lib/localData";
 import TicketPanel from "@/components/pos/TicketPanel";
 import GiftCertificatePurchaseForm from "@/components/GiftCertificatePurchaseForm";
-import GiftCertificatePayment from "@/components/pos/GiftCertificatePayment";
+import GiftCertificatePaymentDialog from "@/components/pos/GiftCertificatePaymentDialog";
 import { gcPaymentBreakdown } from "@/lib/posGiftCertificates";
 import OfflineSyncNotice from "@/components/pos/OfflineSyncNotice";
 import { addPosCartLine } from "@/lib/posCart";
 import { receiptLineMetadata } from "@/lib/reports/receiptDetails";
 import { buildShiftDiscountBreakdown } from "@/lib/posDiscountBreakdown";
+import {
+  isPosDiscountRuleCurrentlyActive,
+  isRegularDrinkSelection,
+  posDiscountRuleAppliesToItem,
+} from "@/lib/posDiscountRules";
 import {
   normalizeStoreOrderingStatus,
   STORE_ORDERING_STATUS_OPTIONS,
@@ -3229,24 +3234,12 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [], catego
 
   const basePrice = Number(item.price) || 0;
   const unitPrice = basePrice + variantPrice;
-  const itemDiscountBaseRule = discountRules.find((rule) => String(rule.id) === String(itemDiscountRuleId));
-  const itemDiscountRule =
-    itemDiscountOverride && String(itemDiscountOverride.id) === String(itemDiscountRuleId)
-      ? itemDiscountOverride
-      : itemDiscountBaseRule;
   const itemCategory = categories.find((category) =>
     String(category.id) === String(item.category_id || item.menu_category_id || "") ||
     String(category.name || "").toLowerCase() === String(item.category || item.category_name || "").toLowerCase()
   );
   const discountEntitlementGroup = String(itemCategory?.discount_entitlement_group || item.discount_entitlement_group || "").toLowerCase();
-  const requiresDiscountBeneficiary = Boolean(itemDiscountRule?.requires_discount_beneficiary);
-  const lineSubtotal = unitPrice * Number(quantity || 1);
-  const discountBase = requiresDiscountBeneficiary ? unitPrice : lineSubtotal;
-  const discountValue = Math.max(0, Math.min(lineSubtotal, discountAmountFromRule(itemDiscountRule, discountBase)));
   const availableVariantGroups = (item.variants || []).filter((g) => g.isAvailable !== false && g.is_available !== false);
-  const canAdd = availableVariantGroups.every((g) => !g.isRequired || (selections[g.id] || []).length > 0) &&
-    (!requiresDiscountBeneficiary || (itemDiscountBeneficiary?.id && discountEntitlementGroup));
-
   const variantDetails = Object.values(selections)
     .flat()
     .map((o) => o.name)
@@ -3263,6 +3256,21 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [], catego
       groupName: group.name || group.label || group.id || "Options",
     }));
   });
+  const eligibleDiscountRules = discountRules.filter((rule) => posDiscountRuleAppliesToItem(rule, {
+    entitlementGroup: discountEntitlementGroup,
+    selectedOptions,
+  }));
+  const itemDiscountBaseRule = eligibleDiscountRules.find((rule) => String(rule.id) === String(itemDiscountRuleId));
+  const itemDiscountRule =
+    itemDiscountOverride && itemDiscountBaseRule && String(itemDiscountOverride.id) === String(itemDiscountRuleId)
+      ? itemDiscountOverride
+      : itemDiscountBaseRule;
+  const requiresDiscountBeneficiary = Boolean(itemDiscountRule?.requires_discount_beneficiary);
+  const lineSubtotal = unitPrice * Number(quantity || 1);
+  const discountBase = requiresDiscountBeneficiary ? unitPrice : lineSubtotal;
+  const discountValue = Math.max(0, Math.min(lineSubtotal, discountAmountFromRule(itemDiscountRule, discountBase)));
+  const canAdd = availableVariantGroups.every((g) => !g.isRequired || (selections[g.id] || []).length > 0) &&
+    (!requiresDiscountBeneficiary || (itemDiscountBeneficiary?.id && discountEntitlementGroup));
 
   const totalLine = Math.max(0, unitPrice * quantity - discountValue).toFixed(0);
   const submitLine = () =>
@@ -3288,6 +3296,9 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [], catego
       discountBeneficiaryName: requiresDiscountBeneficiary ? itemDiscountBeneficiary?.full_name : null,
       discountBeneficiaryIdNumber: requiresDiscountBeneficiary ? itemDiscountBeneficiary?.id_number : null,
       discountBeneficiaryResidency: requiresDiscountBeneficiary ? itemDiscountBeneficiary?.residency_status : null,
+      discountRegularSize: requiresDiscountBeneficiary && discountEntitlementGroup === "drink"
+        ? isRegularDrinkSelection(selectedOptions)
+        : null,
       variantDetails,
       selectedOptions,
       instructions,
@@ -3344,7 +3355,7 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [], catego
         </div>
       </div>
 
-      {discountRules.length > 0 && (
+      {eligibleDiscountRules.length > 0 && (
         <div className="mt-4">
           <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1">Item Discount</label>
           <select
@@ -3357,7 +3368,7 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [], catego
                 setItemDiscountBeneficiary(null);
                 return;
               }
-              const selectedRule = discountRules.find((rule) => String(rule.id) === String(selectedId));
+              const selectedRule = eligibleDiscountRules.find((rule) => String(rule.id) === String(selectedId));
               const resolvedRule = promptForVariableDiscount(selectedRule, unitPrice * Number(quantity || 1));
               if (!resolvedRule) return;
               let selectedBeneficiary = null;
@@ -3376,7 +3387,7 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [], catego
             className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 outline-none focus:border-[#FC687D]"
           >
             <option value="">No item discount</option>
-            {discountRules.map((rule) => (
+            {eligibleDiscountRules.map((rule) => (
               <option key={rule.id} value={rule.id}>
                 {rule.name || rule.discount_name || "Discount"}{isVariableDiscountRule(rule) ? " (Manual)" : ""}
               </option>
@@ -3494,7 +3505,15 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
   useEffect(() => {
     if (!open) return;
     setSearch("");
-    setBeneficiaryType(requiredBeneficiaryType === "qcid" ? "qcid" : requiredBeneficiaryType === "pwd" ? "pwd" : "senior_citizen");
+    setBeneficiaryType(
+      requiredBeneficiaryType === "qcid"
+        ? "qcid"
+        : requiredBeneficiaryType === "teacher"
+          ? "teacher"
+          : requiredBeneficiaryType === "pwd"
+            ? "pwd"
+            : "senior_citizen"
+    );
     setResidencyStatus("resident");
     setFullName("");
     setIdNumber("");
@@ -3532,7 +3551,13 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
   };
 
   return (
-    <ModalShell open={open} onClose={onClose} title={requiredBeneficiaryType === "qcid" ? "QCID Promo" : "SC / PWD Discount"} subtitle={ruleName || "Select beneficiary"} z={165}>
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      title={requiredBeneficiaryType === "qcid" ? "QCID Promo" : requiredBeneficiaryType === "teacher" ? "Teacher's Promo" : "SC / PWD Discount"}
+      subtitle={ruleName || "Select beneficiary"}
+      z={165}
+    >
       <div className="rounded-xl border border-cyan-100 bg-cyan-50 px-3 py-2 text-xs text-slate-700">
         Select an existing beneficiary or save a new name and ID number. Daily limits are checked when the order is charged.
       </div>
@@ -3584,6 +3609,10 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
             <option value="resident">Quezon City resident</option>
             <option value="non_resident">Non-resident</option>
           </select>
+        ) : requiredBeneficiaryType === "teacher" ? (
+          <div className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-800">
+            Teacher
+          </div>
         ) : (
           <select
             aria-label="New beneficiary type"
@@ -3630,6 +3659,7 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
 function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, onConfirm, total, paymentAmount, setPaymentAmount, storeId, charging, webCertificates = [] }) {
   const [certificates, setCertificates] = useState([]);
   const [checkingGc, setCheckingGc] = useState(false);
+  const [gcDialogOpen, setGcDialogOpen] = useState(false);
   const gcKeyRef = useRef(null);
   const gcTotal = certificates.length * 100;
   function changeCertificates(next) {
@@ -3643,11 +3673,13 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
   const isCash = normalizePaymentMethodName(selectedPayment) === "Cash";
   const amt = Number(paymentAmount || 0);
   const due = Math.max(0, Number(total || 0) - gcTotal);
-  const availableTypes = paymentTypes || [];
+  const availableTypes = (paymentTypes || []).filter(type => !["giftcertificate", "jujaegc"].includes(String(type.name).toLowerCase().replace(/[^a-z]/g, "")));
 
   useEffect(() => {
     if (!open) {
       splitDraftInitializedRef.current = false;
+      setGcDialogOpen(false);
+      setCheckingGc(false);
       return;
     }
     if (splitDraftInitializedRef.current) return;
@@ -3682,7 +3714,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
     .sort((a, b) => a - b)
     .slice(0, 6);
 
-  const disableConfirm = charging || checkingGc || gcTotal > Number(total) || (gcTotal > 0 && !useSplitPayment && !isCash && amt < due) || (
+  const disableConfirm = charging || checkingGc || gcDialogOpen || gcTotal > Number(total) || (gcTotal > 0 && !useSplitPayment && !isCash && amt < due) || (
     isZeroDue
       ? false
       : useSplitPayment
@@ -3723,9 +3755,14 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
   };
 
   return (
-    <ModalShell open={open} onClose={() => !charging && !checkingGc && onClose()} title="Payment" subtitle="Select Payment Type" z={150}>
+    <ModalShell open={open} onClose={() => !charging && !checkingGc && !gcDialogOpen && onClose()} title="Payment" subtitle="Select Payment Type" z={150}>
       <fieldset disabled={charging} className="space-y-4">
-        <GiftCertificatePayment certificates={certificates} onChange={changeCertificates} total={total} storeId={storeId} disabled={charging} onChecking={setCheckingGc} />
+        <button type="button" onClick={() => setGcDialogOpen(true)} className={`w-full rounded-xl border p-3 text-left text-xs font-bold ${gcTotal > 0 ? "border-green-600 bg-green-50 text-green-900" : "border-slate-200 bg-white text-slate-700"}`}>
+          Gift Certificate
+          {gcTotal > 0 && <span className="mt-1 block">{certificates.length} e-GCs applied · {peso2(gcTotal)} · Edit codes</span>}
+        </button>
+        {gcTotal > 0 && <p className="text-xs text-green-800">Remaining payment: {peso2(due)}. {due > 0 ? "Select a payment method below for the balance." : "The bill is fully covered by e-GCs."}</p>}
+        {open && gcDialogOpen && <GiftCertificatePaymentDialog onClose={() => setGcDialogOpen(false)} checking={checkingGc} certificates={certificates} onChange={changeCertificates} total={total} storeId={storeId} disabled={charging} onChecking={setCheckingGc} />}
         <div className="flex items-center justify-between rounded-xl border border-rose-100 bg-rose-50/60 px-3 py-2">
           <div>
             <p className="text-xs font-black text-slate-800">Split Payment</p>
@@ -3782,7 +3819,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2">
-            {paymentTypes.map((p) => (
+            {availableTypes.map((p) => (
               <button
                 key={p.id}
                 onClick={() => {
@@ -4176,6 +4213,7 @@ function collectPosDiscountClaims(lines = []) {
       beneficiary_id: beneficiaryId,
       discount_id: discountId,
       entitlement_group: entitlementGroup,
+      regular_size: line.discountRegularSize === true || isRegularDrinkSelection(line.selectedOptions || []),
     });
   });
 
@@ -5003,7 +5041,7 @@ export default function POSPage() {
 
   const subtotal = useMemo(() => calcTotal(cart), [cart]);
   const activeDiscountRules = useMemo(
-    () => (discountRules || []).filter((rule) => rule.is_active !== false),
+    () => (discountRules || []).filter((rule) => isPosDiscountRuleCurrentlyActive(rule)),
     [discountRules]
   );
   const itemDiscountRules = useMemo(

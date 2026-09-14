@@ -926,7 +926,7 @@ function ReceiptDrawer({ order, items = [], onClose }) {
                       <p>{item.discountName || "Item discount"}: -{receiptPeso(item.discount)}</p>
                       {item.discountBeneficiaryName && <p>Beneficiary: {item.discountBeneficiaryName}</p>}
                       {(item.discountBeneficiaryType || item.discountBeneficiaryIdNumber) && <p>
-                        {item.discountBeneficiaryType === "pwd" ? "PWD" : item.discountBeneficiaryType === "senior_citizen" ? "SC" : item.discountBeneficiaryType === "qcid" ? "QCID" : "Beneficiary"}
+                        {item.discountBeneficiaryType === "pwd" ? "PWD" : item.discountBeneficiaryType === "senior_citizen" ? "SC" : item.discountBeneficiaryType === "qcid" ? "QCID" : item.discountBeneficiaryType === "teacher" ? "Teacher" : "Beneficiary"}
                         {item.discountBeneficiaryIdNumber ? ` ID: ${item.discountBeneficiaryIdNumber}` : ""}
                         {item.discountBeneficiaryResidency === "resident" ? " · Resident" : item.discountBeneficiaryResidency === "non_resident" ? " · Non-resident" : ""}
                       </p>}

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { promotionRuleSummary } from "@/lib/posDiscountRules";
 
 function usePosStoreId() {
   return useMemo(() => {
@@ -221,7 +222,7 @@ export default function DiscountsSettingsPage() {
           />
           <span>
             <span className="block font-semibold">Discount beneficiary required</span>
-            <span className="block text-xs text-slate-500">For SC, PWD, or QCID discounts. Requires a saved name and ID number and enforces one Drink, one Food, and one Dessert redemption per day.</span>
+            <span className="block text-xs text-slate-500">For SC, PWD, QCID, or Teacher discounts. Requires a saved name and ID number and enforces daily category limits.</span>
           </span>
         </label>
 
@@ -247,6 +248,7 @@ export default function DiscountsSettingsPage() {
                 <div className="text-xs text-slate-500">
                   {r.type} | {r.scope} | {discountLabel(r)} | {r.is_variable ? "Variable" : "Fixed"} | {r.requires_discount_beneficiary ? "Beneficiary controlled" : "No beneficiary"} | {r.is_active ? "Active" : "Inactive"}
                 </div>
+                {promotionRuleSummary(r) && <div className="mt-1 text-xs font-medium text-cyan-700">{promotionRuleSummary(r)}</div>}
               </div>
               <div className="flex gap-2">
                 <button onClick={() => toggleBeneficiary(r)} className="px-3 py-2 text-xs rounded border">
