@@ -2209,7 +2209,7 @@ function printReceiptText(receiptText, opts = {}) {
 
 // ================= MODALS & SYSTEM UI =================
 
-function ModalShell({ open, onClose, title, subtitle, children, z = 120 }) {
+function ModalShell({ open, onClose, title, subtitle, children, z = 120, wide = false }) {
   if (!open) return null;
   return (
     <div
@@ -2218,7 +2218,7 @@ function ModalShell({ open, onClose, title, subtitle, children, z = 120 }) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md bg-white rounded-t-3xl md:rounded-3xl p-5 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-4 duration-300 md:zoom-in-95"
+        className={`w-full ${wide ? "max-w-3xl" : "max-w-md"} bg-white rounded-t-3xl md:rounded-3xl p-5 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-4 duration-300 md:zoom-in-95`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
@@ -3755,9 +3755,11 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
   };
 
   return (
-    <ModalShell open={open} onClose={() => !charging && !checkingGc && !gcDialogOpen && onClose()} title="Payment" subtitle="Select Payment Type" z={150}>
+    <ModalShell open={open} onClose={() => !charging && !checkingGc && !gcDialogOpen && onClose()} title="Payment" subtitle="Select Payment Type" z={150} wide>
       <fieldset disabled={charging} className="space-y-4">
         {open && gcDialogOpen && <GiftCertificatePaymentDialog onClose={() => setGcDialogOpen(false)} checking={checkingGc} certificates={certificates} onChange={changeCertificates} total={total} storeId={storeId} disabled={charging} onChecking={setCheckingGc} />}
+        <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
+        <div className="space-y-4">
         <div className="flex items-center justify-between rounded-xl border border-rose-100 bg-rose-50/60 px-3 py-2">
           <div>
             <p className="text-xs font-black text-slate-800">Split Payment</p>
@@ -3835,6 +3837,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
         )}
         {gcTotal > 0 && <p className="text-xs text-green-800">{certificates.length} e-GCs applied · {peso2(gcTotal)}. Remaining payment: {peso2(due)}. {due > 0 ? "Select another payment method for the balance." : "The bill is fully covered by e-GCs."}</p>}
 
+        </div>
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3 shadow-inner">
           <div>
             <p className="text-[10px] uppercase tracking-widest font-extrabold text-slate-400">{isCash ? "Cash tendered" : "Processing Value"}</p>
@@ -3885,6 +3888,8 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
             ) : null}
             {!useSplitPayment && isCash && amt < due ? <p className="text-[10px] text-red-500 font-bold mt-1">Warning: Tendered value lower than order subtotal due.</p> : null}
           </div>
+        </div>
+
         </div>
 
         <button
