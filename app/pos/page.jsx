@@ -33,6 +33,7 @@ import { buildShiftDiscountBreakdown } from "@/lib/posDiscountBreakdown";
 import {
   isPosDiscountRuleCurrentlyActive,
   isRegularDrinkSelection,
+  isWholeOrderDiscountRule,
   posDiscountRuleAppliesToItem,
 } from "@/lib/posDiscountRules";
 import {
@@ -5046,12 +5047,15 @@ export default function POSPage() {
     [activeDiscountRules]
   );
   const orderDiscountRules = useMemo(
-    () => activeDiscountRules.filter((rule) => {
-      const scope = String(rule.scope || "receipt").toLowerCase();
-      return scope === "receipt" || scope === "order";
-    }),
+    () => activeDiscountRules.filter((rule) => isWholeOrderDiscountRule(rule)),
     [activeDiscountRules]
   );
+
+  useEffect(() => {
+    if (!appliedDiscount) return;
+    const stillAllowed = orderDiscountRules.some((rule) => String(rule.id) === String(appliedDiscount.id));
+    if (!stillAllowed) setAppliedDiscount(null);
+  }, [appliedDiscount, orderDiscountRules]);
 
   const removeCartItemAt = (index) => {
     const removedLine = cart[index];

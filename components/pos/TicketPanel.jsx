@@ -339,7 +339,7 @@ const isWelcomeVoucher = (voucher) => {
       {discountRules.length > 0 && (
         <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50/70 p-2">
           <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400">
-            Order Discount
+            Whole Order Discount
           </label>
           <div className="flex gap-2">
             <select
@@ -351,7 +351,7 @@ const isWelcomeVoucher = (voucher) => {
               }}
               className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none transition focus:border-slate-400"
             >
-              <option value="">No order discount</option>
+              <option value="">No whole-order discount</option>
               {discountRules.map((rule) => (
                 <option key={rule.id} value={rule.id}>
                   {rule.name || rule.discount_name || "Discount"}{isVariableDiscountRule(rule) ? " (Manual)" : ""}
