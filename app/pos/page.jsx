@@ -4460,16 +4460,17 @@ export default function POSPage() {
 
   const diningOptionName = selectedDining?.name || "";
   const isGrabDiningOption = /grab/i.test(diningOptionName || "");
+  const isShopeeDiningOption = /shopee/i.test(diningOptionName || "");
   const isPandaDiningOption = /panda|foodpanda/i.test(diningOptionName || "");
   const isVipRoomDiningOption = isVipRoomDiningOptionName(diningOptionName);
-  const activeMenuChannel = isGrabDiningOption ? "grab" : isPandaDiningOption ? "panda" : "standard";
+  const activeMenuChannel = (isGrabDiningOption || isShopeeDiningOption) ? "grab" : isPandaDiningOption ? "panda" : "standard";
   const trimmedGrabOrderNumber = String(grabOrderNumber || "")
     .trim()
-    .replace(isGrabDiningOption ? /^grab[\s-]*/i : isVipRoomDiningOption ? /^vip\s*room[\s-]*/i : "", "");
-  const requiresDiningReference = isGrabDiningOption || isVipRoomDiningOption;
-  const diningReferenceLabel = isGrabDiningOption ? "GRAB Order Number" : isVipRoomDiningOption ? "VIP Room Reference" : "";
-  const diningReferencePrefix = isGrabDiningOption ? "GRAB" : isVipRoomDiningOption ? "VIP ROOM" : "";
-  const diningReferencePlaceholder = isGrabDiningOption ? "335" : "A1 / Private Event";
+    .replace(isGrabDiningOption ? /^grab[\s-]*/i : isShopeeDiningOption ? /^shopee(?:\s*food)?[\s-]*/i : isVipRoomDiningOption ? /^vip\s*room[\s-]*/i : "", "");
+  const requiresDiningReference = isGrabDiningOption || isShopeeDiningOption || isVipRoomDiningOption;
+  const diningReferenceLabel = isGrabDiningOption ? "GRAB Order Number" : isShopeeDiningOption ? "ShopeeFood Order Number" : isVipRoomDiningOption ? "VIP Room Reference" : "";
+  const diningReferencePrefix = isGrabDiningOption ? "GRAB" : isShopeeDiningOption ? "SHOPEEFOOD" : isVipRoomDiningOption ? "VIP ROOM" : "";
+  const diningReferencePlaceholder = (isGrabDiningOption || isShopeeDiningOption) ? "335" : "A1 / Private Event";
   const ticketDiningLabel = requiresDiningReference && trimmedGrabOrderNumber ? `${diningOptionName} ${trimmedGrabOrderNumber}` : diningOptionName;
   const itemPriceForChannel = (item, channel = activeMenuChannel) => {
     const basePrice = Number(item?.price || 0);
@@ -4517,7 +4518,7 @@ export default function POSPage() {
       price,
       variants,
       priceChannel: activeMenuChannel,
-      channel_price_label: activeMenuChannel === "grab" ? "GRAB" : activeMenuChannel === "panda" ? "PANDA" : "",
+      channel_price_label: isShopeeDiningOption ? "SHOPEEFOOD" : activeMenuChannel === "grab" ? "GRAB" : activeMenuChannel === "panda" ? "PANDA" : "",
     };
   };
   const getResolvedBranchId = () => {
@@ -6216,7 +6217,11 @@ export default function POSPage() {
 
     const applySettings = (snapshot) => {
       if (!snapshot) return;
-      const dining = snapshot.diningOptions || [];
+      const configuredDining = snapshot.diningOptions || [];
+      // Built-in delivery option also works with cached/offline settings.
+      const dining = configuredDining.some((option) => /shopee/i.test(option.name || ""))
+        ? configuredDining
+        : [...configuredDining, { id: "shopeefood", name: "ShopeeFood", is_active: true }];
       setPaymentTypes(mergeGlobalThenStore(snapshot.paymentTypes || []));
       setDiningOptions(dining);
       setTicketTemplates(snapshot.ticketTemplates || []);
@@ -6707,7 +6712,7 @@ export default function POSPage() {
     if (!changed) return;
 
     setDiningOption(optionId);
-    if (!/grab/i.test(name) && !isVipRoomDiningOptionName(name)) setGrabOrderNumber("");
+    if (!/grab|shopee/i.test(name) && !isVipRoomDiningOptionName(name)) setGrabOrderNumber("");
   }
 
   async function saveTableOrder() {
@@ -8081,21 +8086,23 @@ export default function POSPage() {
 
   async function refundTicket(receipt) {
     if (!receipt?.receipt_number) return;
+    const receiptTime = receipt.created_at || receipt.receipt_date;
+    if (!receiptTime) {
+      showToast("error", "Refund unavailable", "Cannot verify the receipt date. Please contact admin.");
+      return;
+    }
+    const { data: closedDays, error: closedDayError } = await supabase.from("cashier_pos")
+      .select("id").eq("store_id", receipt.store_id || storeId).eq("mode", "end_day")
+      .gte("created_at", receiptTime).limit(1);
+    if (closedDayError || closedDays?.length) {
+      showToast("error", "Refund blocked", closedDayError ? "Unable to verify end-of-day status. Reconnect and try again." : "This receipt cannot be refunded because its end-of-day shift is closed.");
+      return;
+    }
     if (String(receipt.status || "").toLowerCase() === "refunded") {
       showToast("info", "Already Refunded", receipt.receipt_number);
       return;
     }
     if (receipt.source !== "web_order" && receipt.id) {
-      try {
-        const restoreResult = await restoreInventoryForOrder(supabase, receipt.id, currentUserId);
-        if (restoreResult?.duplicate) {
-          showToast("info", "Inventory Already Restored", receipt.receipt_number);
-        } else {
-          showToast("success", "Inventory Restored", `${restoreResult?.restored || 0} stock movement${Number(restoreResult?.restored || 0) === 1 ? "" : "s"} returned.`);
-        }
-      } catch (error) {
-        showToast("warn", "Inventory Restore Skipped", error.message || "Receipt refund saved, but inventory restore needs review.");
-      }
       const refundAmount = Number(receipt.net_sales || receipt.total_collected || receipt.total || 0);
       const { error: refundError } = await supabase
         .from("orders")
@@ -8108,7 +8115,18 @@ export default function POSPage() {
         })
         .eq("id", receipt.id);
       if (refundError) {
-        showToast("warn", "Refund Audit Skipped", refundError.message);
+        showToast("error", "Refund blocked", refundError.message);
+        return;
+      }
+      try {
+        const restoreResult = await restoreInventoryForOrder(supabase, receipt.id, currentUserId);
+        if (restoreResult?.duplicate) {
+          showToast("info", "Inventory Already Restored", receipt.receipt_number);
+        } else {
+          showToast("success", "Inventory Restored", `${restoreResult?.restored || 0} stock movement${Number(restoreResult?.restored || 0) === 1 ? "" : "s"} returned.`);
+        }
+      } catch (error) {
+        showToast("warn", "Inventory Restore Skipped", error.message || "Receipt refund saved, but inventory restore needs review.");
       }
       const { error: itemsRefundError } = await supabase
         .from("order_items")
@@ -9031,7 +9049,7 @@ export default function POSPage() {
     const name = t.order_type || t.ticket_name || "";
     const opt = (diningOptions || []).find((d) => d.name === name || (name.toLowerCase().startsWith(`${String(d.name || "").toLowerCase()} `)));
     setDiningOption(opt?.id || "");
-    if (opt?.name && (/grab/i.test(opt.name) || isVipRoomDiningOptionName(opt.name))) {
+    if (opt?.name && (/grab|shopee/i.test(opt.name) || isVipRoomDiningOptionName(opt.name))) {
       setGrabOrderNumber(name.slice(String(opt.name).length).trim());
     } else {
       setGrabOrderNumber("");
