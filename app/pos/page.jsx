@@ -6225,11 +6225,7 @@ export default function POSPage() {
 
     const applySettings = (snapshot) => {
       if (!snapshot) return;
-      const configuredDining = snapshot.diningOptions || [];
-      // Built-in delivery option also works with cached/offline settings.
-      const dining = configuredDining.some((option) => /shopee/i.test(option.name || ""))
-        ? configuredDining
-        : [...configuredDining, { id: "shopeefood", name: "ShopeeFood", is_active: true }];
+      const dining = snapshot.diningOptions || [];
       setPaymentTypes(mergeGlobalThenStore(snapshot.paymentTypes || []));
       setDiningOptions(dining);
       setTicketTemplates(snapshot.ticketTemplates || []);
