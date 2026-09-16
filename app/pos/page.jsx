@@ -2135,6 +2135,11 @@ function buildCupLabels({ orderId, cart, diningOptionName, printedAt, storeName 
   return labels;
 }
 
+function shouldAutoPrintCupLabels(diningOptionName) {
+  const compactName = String(diningOptionName || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  return ["takeout", "grabfood", "shopeefood", "foodpanda"].some((name) => compactName.includes(name));
+}
+
 const peso0 = (n) => `₱${Number(n || 0).toLocaleString("en-PH", { maximumFractionDigits: 0 })}`;
 const peso2 = (n) => `₱${Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -4420,6 +4425,7 @@ export default function POSPage() {
   const [receiptRefunds, setReceiptRefunds] = useState({});
   const [selectedReceiptNumber, setSelectedReceiptNumber] = useState("");
   const [reprintingReceipt, setReprintingReceipt] = useState(false);
+  const [reprintingOrderSlip, setReprintingOrderSlip] = useState(false);
   const [reprintingCupLabel, setReprintingCupLabel] = useState(false);
   const [startingCash, setStartingCash] = useState("");
   const [shiftCashOpen, setShiftCashOpen] = useState(false);
@@ -5853,8 +5859,6 @@ export default function POSPage() {
           labelCart: acceptedItems,
           labelDining: webDiningOptionLabel(acceptedOrder.fulfillment_type || acceptedOrder.dining_option),
           printedAt: acceptedAt,
-          askBeforePrint: true,
-          promptContext: "this accepted web order",
         });
       } catch (labelError) {
         showToast("warn", "Cup Label Not Printed", labelError?.message || "Reconnect the cup-label printer, then reprint if needed.");
@@ -6499,9 +6503,9 @@ export default function POSPage() {
     labelCart = cart,
     labelDining = diningOptionName || "WEB ORDER",
     printedAt = new Date(),
-    askBeforePrint = false,
-    promptContext = "this order",
   } = {}) {
+    if (!shouldAutoPrintCupLabels(labelDining)) return;
+
     const labels = buildCupLabels({
       orderId,
       cart: labelCart,
@@ -6513,12 +6517,6 @@ export default function POSPage() {
     });
 
     if (labels.length === 0) return;
-
-    if (askBeforePrint) {
-      const labelCount = labels.length;
-      const confirmed = window.confirm(`Print ${labelCount} cup label${labelCount === 1 ? "" : "s"} for ${promptContext}?`);
-      if (!confirmed) return;
-    }
 
     try {
       for (const label of labels) {
@@ -6585,6 +6583,8 @@ export default function POSPage() {
     slipCustomer = attachedCustomer?.name || "",
     slipTotal = totalDue,
     printedAt = new Date(),
+    titleSuffix = "",
+    throwOnError = false,
   } = {}) {
     const cartRows = slipCart || [];
     if (cartRows.length === 0) return;
@@ -6602,6 +6602,7 @@ export default function POSPage() {
 
     try {
       for (const job of printJobs) {
+        const groupTitle = job.groupName.toUpperCase();
         const slipText = buildOrderSlipText({
           orderId,
           cart: job.items,
@@ -6609,12 +6610,15 @@ export default function POSPage() {
           customerName: slipCustomer,
           total: job.useFullTotal ? slipTotal : calcTotal(job.items),
           printedAt,
-          slipTitle: `${job.groupName.toUpperCase()} ORDER SLIP`,
+          slipTitle: `${groupTitle.endsWith("ORDER SLIP") ? groupTitle : `${groupTitle} ORDER SLIP`}${titleSuffix}`,
         });
         await printByRoleWhenReady("receipt", slipText);
       }
+      return printJobs.length;
     } catch (printError) {
+      if (throwOnError) throw printError;
       showToast("warn", "Order Slip Not Printed", printError?.message || "Select and save the receipt printer in POS Settings.");
+      return 0;
     }
   }
 
@@ -6762,8 +6766,6 @@ export default function POSPage() {
         labelCart: savedItems,
         labelDining: webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName),
         printedAt: new Date(),
-        askBeforePrint: true,
-        promptContext: "this saved web order",
       });
       return;
     }
@@ -6866,8 +6868,6 @@ export default function POSPage() {
           labelCart: addedItems,
           labelDining: name,
           printedAt: ticketPrintedAt,
-          askBeforePrint: true,
-          promptContext: "the newly added saved-ticket items",
         });
       }
     } else {
@@ -6903,8 +6903,6 @@ export default function POSPage() {
         labelCart: savedItems,
         labelDining: name,
         printedAt: ticketRow.created_at || new Date(),
-        askBeforePrint: true,
-        promptContext: "this saved ticket",
       });
     }
   }
@@ -8197,6 +8195,10 @@ export default function POSPage() {
         quantity,
         unitPrice: quantity > 0 ? lineGross / quantity : lineGross,
         price: quantity > 0 ? lineGross / quantity : lineGross,
+        categoryId: row.categoryId || row.category_id || row.menu_category_id || sourceLine?.categoryId || sourceLine?.category_id || sourceLine?.menu_category_id || sourceLine?.category?.id || null,
+        category_id: row.category_id || row.categoryId || row.menu_category_id || sourceLine?.category_id || sourceLine?.categoryId || sourceLine?.menu_category_id || null,
+        category: row.category || row.categoryName || row.category_name || sourceLine?.category || sourceLine?.categoryName || sourceLine?.category_name || "",
+        categoryName: row.categoryName || row.category_name || row.category || sourceLine?.categoryName || sourceLine?.category_name || sourceLine?.category || "",
         variantDetails: row.variantDetails || row.variant_details || sourceLine?.variantDetails || sourceLine?.variant_details || "",
         selectedOptions: row.selectedOptions || row.selected_options || sourceLine?.selectedOptions || sourceLine?.selected_options || [],
         selected_options: row.selected_options || row.selectedOptions || sourceLine?.selected_options || sourceLine?.selectedOptions || [],
@@ -8290,6 +8292,47 @@ export default function POSPage() {
       showToast("error", "Reprint Failed", error?.message || "Unable to reprint receipt.");
     } finally {
       setReprintingReceipt(false);
+    }
+  }
+
+  async function reprintOrderSlipForReceipt(receipt) {
+    if (!receipt?.receipt_number || reprintingOrderSlip) return;
+    setReprintingOrderSlip(true);
+    try {
+      const items = await loadReceiptItemsForAction(receipt);
+      if (items.length === 0) {
+        showToast("error", "Order Slip Reprint Failed", "No receipt items were found for this receipt.");
+        return;
+      }
+
+      const slipCart = normalizeOrderItemRowsForReceipt(items, receipt).map((row) => ({
+        ...row,
+        name: row.item || row.name || "Item",
+        quantity: Math.max(1, Number(row.quantity || row.qty || 1)),
+        categoryId: row.categoryId || row.category_id || row.menu_category_id || row.category?.id || null,
+        category_id: row.category_id || row.categoryId || row.menu_category_id || null,
+        category: row.category || row.categoryName || row.category_name || "",
+        categoryName: row.categoryName || row.category_name || row.category || "",
+        variantDetails: row.variantDetails || row.variant_details || row.variant_name || "",
+        selectedOptions: row.selectedOptions || row.selected_options || row.options || row.modifiers || [],
+        instructions: row.instructions || row.note || row.specialInstructions || row.special_instructions || "",
+      }));
+
+      const printCount = await autoPrintOrderSlip({
+        orderId: receipt.receipt_number,
+        slipCart,
+        slipDining: receipt.dining_option || receipt.order_type || receipt.description || "Receipt",
+        slipCustomer: receipt.customer_name || receipt.customer?.name || "Walk-in",
+        slipTotal: Number(receipt.net_sales || receipt.total_collected || receipt.total || 0),
+        printedAt: new Date(),
+        titleSuffix: " REPRINT",
+        throwOnError: true,
+      });
+      showToast("success", "Order Slip Reprinted", `${printCount} order slip${printCount === 1 ? "" : "s"} sent to the receipt printer.`);
+    } catch (error) {
+      showToast("error", "Order Slip Reprint Failed", error?.message || "Unable to reprint the order slip.");
+    } finally {
+      setReprintingOrderSlip(false);
     }
   }
 
@@ -9613,8 +9656,6 @@ export default function POSPage() {
           labelCart: cart,
           labelDining: chargedDiningLabel || "WEB ORDER",
           printedAt: orderRow.paid_at || orderRow.created_at || new Date(),
-          askBeforePrint: true,
-          promptContext: "this charged order",
         });
       }
 
@@ -10331,6 +10372,14 @@ export default function POSPage() {
                           className="h-9 px-3 rounded-xl bg-cyan-50 border border-cyan-100 text-[10px] font-bold uppercase tracking-wider text-cyan-700 disabled:opacity-60"
                         >
                           {reprintingReceipt ? "Reprinting..." : "Reprint Receipt"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => reprintOrderSlipForReceipt(selectedReceipt)}
+                          disabled={reprintingOrderSlip}
+                          className="h-9 px-3 rounded-xl bg-cyan-50 border border-cyan-100 text-[10px] font-bold uppercase tracking-wider text-cyan-700 disabled:opacity-60"
+                        >
+                          {reprintingOrderSlip ? "Printing Slip..." : "Reprint Order Slip"}
                         </button>
                         <button
                           type="button"

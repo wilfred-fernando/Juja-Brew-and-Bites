@@ -273,7 +273,7 @@ const isWelcomeVoucher = (voucher) => {
           </button>
 
           {showManageDropdown && (
-            <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden py-1 z-50">
+            <div className="absolute right-0 top-full mt-1 w-64 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden py-1 z-50">
               
               {/* ✅ ADDED: View Parked Web Orders Entry Point */}
               <button
@@ -290,7 +290,47 @@ const isWelcomeVoucher = (voucher) => {
               >
                 Print Bill
               </button>
-              
+
+              {discountRules.length > 0 && (
+                <div className="border-t border-slate-100 px-3 py-2">
+                  <label className="mb-1 block text-[9px] font-bold uppercase tracking-widest text-slate-400">
+                    Whole Order Discount
+                  </label>
+                  <div className="flex gap-1.5">
+                    <select
+                      value={appliedDiscount?.id || ""}
+                      onChange={(event) => {
+                        const selected = discountRules.find((rule) => String(rule.id) === String(event.target.value));
+                        if (selected) onApplyDiscount?.(selected);
+                        else onRemoveDiscount?.();
+                      }}
+                      className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-700 outline-none transition focus:border-slate-400"
+                    >
+                      <option value="">No discount</option>
+                      {discountRules.map((rule) => (
+                        <option key={rule.id} value={rule.id}>
+                          {rule.name || rule.discount_name || "Discount"}{isVariableDiscountRule(rule) ? " (Manual)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                    {appliedDiscount && (
+                      <button
+                        type="button"
+                        onClick={onRemoveDiscount}
+                        className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-bold uppercase text-slate-600 transition hover:bg-slate-100"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  {appliedDiscount?.manual_label && (
+                    <p className="mt-1 text-[9px] font-semibold text-slate-500">
+                      Manual value: {appliedDiscount.manual_label}
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="border-t border-slate-100 my-1" />
 
               <button
@@ -335,46 +375,6 @@ const isWelcomeVoucher = (voucher) => {
           )}
         </div>
       </div>
-
-      {discountRules.length > 0 && (
-        <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50/70 p-2">
-          <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400">
-            Whole Order Discount
-          </label>
-          <div className="flex gap-2">
-            <select
-              value={appliedDiscount?.id || ""}
-              onChange={(event) => {
-                const selected = discountRules.find((rule) => String(rule.id) === String(event.target.value));
-                if (selected) onApplyDiscount?.(selected);
-                else onRemoveDiscount?.();
-              }}
-              className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none transition focus:border-slate-400"
-            >
-              <option value="">No whole-order discount</option>
-              {discountRules.map((rule) => (
-                <option key={rule.id} value={rule.id}>
-                  {rule.name || rule.discount_name || "Discount"}{isVariableDiscountRule(rule) ? " (Manual)" : ""}
-                </option>
-              ))}
-            </select>
-            {appliedDiscount && (
-              <button
-                type="button"
-                onClick={onRemoveDiscount}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-600 transition hover:bg-slate-100"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-          {appliedDiscount?.manual_label && (
-            <p className="mt-1 text-[10px] font-semibold text-slate-500">
-              Manual value: {appliedDiscount.manual_label}
-            </p>
-          )}
-        </div>
-      )}
 
       {/* Split Selection State Alert Strip */}
       {splitMode && (
