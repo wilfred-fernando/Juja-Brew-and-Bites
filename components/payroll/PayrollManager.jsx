@@ -12,6 +12,7 @@ const amountOnly = (n) =>
     maximumFractionDigits: 2,
   });
 const num = (n) => Number(n || 0);
+const escapeHtml = (value) => String(value ?? "").replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character]);
 function localDate(date = new Date()) {
   const copy = new Date(date);
   copy.setMinutes(copy.getMinutes() - copy.getTimezoneOffset());
@@ -1579,6 +1580,26 @@ export default function AdminPayrollPage() {
     );
     if (payrollSynced)
       setNotice("Cutoff attendance saved and payroll details updated.");
+  }
+
+  function downloadAttendancePrintReport() {
+    const employee = employeeById[selectedEmployeeId];
+    if (!selectedPeriod || !employee || !attendanceDraftRows.length) {
+      return setNotice("Select a cutoff and employee with attendance rows first.");
+    }
+    const rows = attendanceDraftRows.map((row) => {
+      const schedule = scheduleDraftRows.find((item) => item.work_date === row.work_date) || schedules.find((item) => item.period_id === selectedPeriodId && item.employee_id === selectedEmployeeId && item.work_date === row.work_date);
+      const metrics = attendanceMetrics({ ...row, schedule_in: schedule?.schedule_in || row.schedule_in, schedule_out: schedule?.schedule_out || row.schedule_out });
+      return `<tr><td>${escapeHtml(dateTextWithDay(row.work_date))}</td><td>${escapeHtml(timeLabel(schedule?.schedule_in || row.schedule_in) || "-")}</td><td>${escapeHtml(timeLabel(schedule?.schedule_out || row.schedule_out) || "-")}</td><td>${escapeHtml(timeLabel(row.actual_in) || "-")}</td><td>${escapeHtml(timeLabel(row.actual_out) || "-")}</td><td>${metrics.late.toFixed(0)} min</td><td>${metrics.undertime.toFixed(0)} min</td><td>${metrics.overtime.toFixed(0)} hr</td><td>${escapeHtml(String(row.status || "present").replace(/_/g, " "))}</td><td>${escapeHtml(row.notes || "-")}</td></tr>`;
+    }).join("");
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Attendance - ${escapeHtml(employee.full_name)}</title><style>@page{size:A4 landscape;margin:12mm}body{font:12px Arial,sans-serif;color:#0f172a}h1{font-size:20px;margin:0}p{margin:4px 0;color:#475569}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{border:1px solid #cbd5e1;padding:7px;text-align:left}th{background:#0f172a;color:white;text-transform:uppercase;font-size:10px;letter-spacing:.06em}tr:nth-child(even){background:#f8fafc}.footer{margin-top:18px;font-size:10px;color:#64748b}</style></head><body><h1>JUJA Attendance Report</h1><p><strong>Employee:</strong> ${escapeHtml(employee.employee_no ? `${employee.employee_no} - ${employee.full_name}` : employee.full_name)}</p><p><strong>Cutoff:</strong> ${escapeHtml(dateText(selectedPeriod.period_start))} - ${escapeHtml(dateText(selectedPeriod.period_end))}</p><table><thead><tr><th>Date</th><th>Schedule In</th><th>Schedule Out</th><th>Actual In</th><th>Actual Out</th><th>Late</th><th>Undertime</th><th>Overtime</th><th>Status</th><th>Notes</th></tr></thead><tbody>${rows}</tbody></table><p class="footer">Generated ${escapeHtml(new Date().toLocaleString("en-PH"))}. Open this file in a browser and print it.</p></body></html>`;
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `attendance-${slug(employee.full_name) || employee.id}-${selectedPeriod.period_start}.html`;
+    link.click();
+    URL.revokeObjectURL(url);
   }
   async function syncPayrollEntryForEmployee(
     employeeId,
@@ -3535,7 +3556,7 @@ export default function AdminPayrollPage() {
           {" "}
           <form
             onSubmit={saveCutoffSchedule}
-            className="grid grid-cols-1 gap-3 rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl lg:grid-cols-[1fr_1fr_auto]"
+            className="grid grid-cols-1 gap-3 rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl lg:grid-cols-[1fr_1fr_auto_auto]"
           >
             {" "}
             <div>
@@ -3683,6 +3704,9 @@ export default function AdminPayrollPage() {
             </select>{" "}
             <button className="h-11 rounded-xl bg-slate-400/78 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">
               Save Cutoff Attendance
+            </button>{" "}
+            <button type="button" onClick={downloadAttendancePrintReport} className="h-11 rounded-xl border border-cyan-100 bg-cyan-50 px-5 text-xs font-semibold uppercase tracking-wider text-cyan-700 transition hover:-translate-y-0.5 hover:bg-cyan-100">
+              Download for Printing
             </button>{" "}
           </form>{" "}
           <DataTable
