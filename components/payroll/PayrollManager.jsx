@@ -601,7 +601,7 @@ export default function AdminPayrollPage() {
   });
   const [thirteenthMonthForm, setThirteenthMonthForm] = useState(() => {
     const year = new Date().getFullYear();
-    return { year: String(year), pay_date: `${year}-12-24` };
+    return { employee_id: "", year: String(year), pay_date: `${year}-12-24` };
   });
   useEffect(() => {
     fetchPayroll();
@@ -2465,6 +2465,8 @@ export default function AdminPayrollPage() {
     e.preventDefault();
     const year = String(thirteenthMonthForm.year || "").trim();
     const payDate = thirteenthMonthForm.pay_date;
+    const employee = employeeById[thirteenthMonthForm.employee_id];
+    if (!employee) return setNotice("Select an employee first.");
     if (!/^\d{4}$/.test(year) || !payDate || !payDate.startsWith(`${year}-`)) {
       return setNotice(
         "Enter a valid calendar year and a payday within that year.",
@@ -2503,30 +2505,26 @@ export default function AdminPayrollPage() {
         (basicPayByEmployee[entry.employee_id] || 0) +
         payrollThirteenthMonthBasis(entry);
     });
-    const generatedRows = employees
-      .filter((employee) => basicPayByEmployee[employee.id] > 0)
-      .map((employee) => {
-        const thirteenthMonthPay = basicPayByEmployee[employee.id] / 12;
-        const existingEntry = entries.find(
-          (entry) =>
-            entry.period_id === periodId && entry.employee_id === employee.id,
-        );
-        return {
-          ...blankEntry(periodId, employee.id, 0),
-          id: `${periodId}-${employee.id}`,
-          thirteenth_month_pay: thirteenthMonthPay,
-          gross_total: thirteenthMonthPay,
-          deduction_total: 0,
-          net_total: thirteenthMonthPay,
-          status: existingEntry?.status || "draft",
-          notes: `13th Month Pay ${year}: basic pay only; allowances, overtime, adjustments, and deductions excluded.`,
-          generated_at: new Date().toISOString(),
-        };
-      });
-    if (!generatedRows.length)
+    const basicPay = basicPayByEmployee[employee.id] || 0;
+    if (!basicPay)
       return setNotice(
-        `No eligible basic-pay payroll entries found for ${year}.`,
+        `No eligible basic-pay payroll entries found for ${employee.full_name} in ${year}.`,
       );
+    const thirteenthMonthPay = basicPay / 12;
+    const existingEntry = entries.find(
+      (entry) => entry.period_id === periodId && entry.employee_id === employee.id,
+    );
+    const generatedRow = {
+      ...blankEntry(periodId, employee.id, 0),
+      id: `${periodId}-${employee.id}`,
+      thirteenth_month_pay: thirteenthMonthPay,
+      gross_total: thirteenthMonthPay,
+      deduction_total: 0,
+      net_total: thirteenthMonthPay,
+      status: existingEntry?.status || "draft",
+      notes: `13th Month Pay ${year}: basic pay only; allowances, overtime, adjustments, and deductions excluded.`,
+      generated_at: new Date().toISOString(),
+    };
     setSaving(true);
     const { data: period, error: periodError } = await supabase
       .from("payroll_periods")
@@ -2539,8 +2537,9 @@ export default function AdminPayrollPage() {
     }
     const { data, error } = await supabase
       .from("payroll_entries")
-      .upsert(generatedRows)
-      .select();
+      .upsert(generatedRow)
+      .select()
+      .maybeSingle();
     if (error) {
       setSaving(false);
       return setNotice(`13th Month Generation Failed: ${error.message}`);
@@ -2550,13 +2549,13 @@ export default function AdminPayrollPage() {
       ...prev.filter((row) => row.id !== period.id),
     ]);
     setEntries((prev) => [
-      ...(data || []),
-      ...prev.filter((row) => row.period_id !== periodId),
+      ...(data ? [data] : []),
+      ...prev.filter((row) => row.id !== generatedRow.id),
     ]);
     setSelectedPeriodId(periodId);
     setActiveTab("payroll");
     setNotice(
-      `Generated 13th Month Pay for ${generatedRows.length} employee${generatedRows.length === 1 ? "" : "s"}. Allowances were excluded.`,
+      `Generated 13th Month Pay for ${employee.full_name}. Allowances were excluded.`,
     );
     setSaving(false);
   }
@@ -2734,7 +2733,7 @@ export default function AdminPayrollPage() {
           </form>{" "}
           <form
             onSubmit={generateThirteenthMonthPayroll}
-            className="grid grid-cols-1 gap-4 rounded-2xl border border-cyan-100 bg-cyan-50/50 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] lg:grid-cols-3"
+            className="grid grid-cols-1 gap-4 rounded-2xl border border-cyan-100 bg-cyan-50/50 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] lg:grid-cols-4"
           >
             {" "}
             <div className="lg:col-span-3">
@@ -2743,12 +2742,35 @@ export default function AdminPayrollPage() {
                 13th Month Pay
               </h2>{" "}
               <p className="mt-1 text-xs text-slate-500">
-                Generates one draft payment per employee from calendar-year
-                basic pay only, including employees now marked resigned when
-                they have qualifying earnings in the selected year. Allowances,
-                overtime, adjustments, and deductions are excluded.
+                Generates one draft payment for the selected employee from
+                calendar-year basic pay only. Resigned employees remain
+                eligible when they have qualifying earnings in the selected
+                year. Allowances, overtime, adjustments, and deductions are
+                excluded.
               </p>{" "}
             </div>{" "}
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Employee{" "}
+              <select
+                value={thirteenthMonthForm.employee_id}
+                onChange={(e) =>
+                  setThirteenthMonthForm((current) => ({
+                    ...current,
+                    employee_id: e.target.value,
+                  }))
+                }
+                className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm normal-case outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+              >
+                <option value="">Select employee</option>
+                {employees.map((employee) => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.employee_no ? `${employee.employee_no} - ` : ""}
+                    {employee.full_name}
+                    {employeeEmploymentStatus(employee) === "resigned" ? " (Resigned)" : ""}
+                  </option>
+                ))}
+              </select>
+            </label>{" "}
             <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               Calendar Year{" "}
               <input
@@ -2788,7 +2810,7 @@ export default function AdminPayrollPage() {
               className="mt-6 h-11 rounded-xl bg-cyan-600 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_30px_rgba(8,145,178,0.30)] transition hover:-translate-y-0.5 hover:bg-cyan-500 disabled:bg-slate-300"
             >
               {" "}
-              {saving ? "Generating..." : "Generate 13th Month"}{" "}
+              {saving ? "Generating..." : "Generate Employee 13th Month"}{" "}
             </button>{" "}
           </form>{" "}
         </div>
