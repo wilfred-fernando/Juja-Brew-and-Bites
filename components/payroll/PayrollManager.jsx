@@ -1,52 +1,52 @@
 "use client";
-
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/dateFormat";
-
 const supabase = getSupabaseClient();
-
-const money = (n) => `₱ ${Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const money = (n) =>
+  `₱ ${Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const deductionMoney = (n) => `(${money(n)})`;
-const amountOnly = (n) => Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const amountOnly = (n) =>
+  Number(n || 0).toLocaleString("en-PH", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 const num = (n) => Number(n || 0);
-
 function localDate(date = new Date()) {
   const copy = new Date(date);
   copy.setMinutes(copy.getMinutes() - copy.getTimezoneOffset());
   return copy.toISOString().slice(0, 10);
 }
-
 function addDays(dateValue, days) {
   const date = new Date(`${dateValue}T00:00:00`);
   date.setDate(date.getDate() + days);
   return localDate(date);
 }
-
 function previousSaturday(date = new Date()) {
   const copy = new Date(date);
   const offset = (copy.getDay() + 1) % 7;
   copy.setDate(copy.getDate() - offset);
   return localDate(copy);
 }
-
 function dateText(value) {
   if (!value) return "-";
   return formatDate(String(value).slice(0, 10));
 }
-
 function dateTextWithDay(value) {
   if (!value) return "-";
   const raw = String(value).slice(0, 10);
   const date = new Date(`${raw}T00:00:00`);
-  const day = Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString("en-US", { weekday: "short" });
+  const day = Number.isNaN(date.getTime())
+    ? ""
+    : date.toLocaleDateString("en-US", { weekday: "short" });
   return `${dateText(raw)}${day ? ` ${day}` : ""}`;
 }
-
 function normalizeRole(value) {
-  return String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
 }
-
 function slug(value) {
   return String(value || "")
     .normalize("NFKD")
@@ -55,43 +55,43 @@ function slug(value) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 }
-
 function compareDate(value, start, end) {
   const v = String(value || "").slice(0, 10);
   return v >= start && v <= end;
 }
-
 function dailyRateForWorkDate(employee, workDate, rateChanges = []) {
-  const currentRate = num(employee?.current_daily_rate ?? employee?.default_daily_rate);
+  const currentRate = num(
+    employee?.current_daily_rate ?? employee?.default_daily_rate,
+  );
   const startingRate = employeeStartingDailyRate(employee) || currentRate;
   const date = String(workDate || "").slice(0, 10);
   const employeeChanges = rateChanges
-    .filter((change) => change.employee_id === employee?.id && change.effective_date)
-    .sort((a, b) => String(a.effective_date).localeCompare(String(b.effective_date)));
-
+    .filter(
+      (change) => change.employee_id === employee?.id && change.effective_date,
+    )
+    .sort((a, b) =>
+      String(a.effective_date).localeCompare(String(b.effective_date)),
+    );
   if (!date || employeeChanges.length === 0) return currentRate;
-
   let applicableChange = null;
   for (const change of employeeChanges) {
     const effectiveDate = String(change.effective_date).slice(0, 10);
     if (effectiveDate <= date) {
       applicableChange = change;
     } else {
-      return applicableChange ? num(applicableChange.new_daily_rate) : num(change.old_daily_rate || startingRate);
+      return applicableChange
+        ? num(applicableChange.new_daily_rate)
+        : num(change.old_daily_rate || startingRate);
     }
   }
-
   return applicableChange ? num(applicableChange.new_daily_rate) : currentRate;
 }
-
 function employeeCurrentDailyRate(employee) {
   return num(employee?.current_daily_rate ?? employee?.default_daily_rate);
 }
-
 function employeeStartingDailyRate(employee) {
   return num(employee?.starting_daily_rate ?? employee?.default_daily_rate);
 }
-
 function nextEmployeeNo(employees = []) {
   const fallback = { prefix: "JUJA-", width: 3, number: 0 };
   const latest = employees.reduce((current, employee) => {
@@ -100,15 +100,20 @@ function nextEmployeeNo(employees = []) {
     if (!match) return current;
     const number = Number(match[2]);
     if (!Number.isFinite(number) || number < current.number) return current;
-    return { prefix: match[1] || fallback.prefix, width: match[2].length || fallback.width, number };
+    return {
+      prefix: match[1] || fallback.prefix,
+      width: match[2].length || fallback.width,
+      number,
+    };
   }, fallback);
   return `${latest.prefix}${String(latest.number + 1).padStart(latest.width, "0")}`;
 }
-
 function employeeEmploymentStatus(employee) {
-  return employee?.employment_status || (employee?.active === false ? "resigned" : "active");
+  return (
+    employee?.employment_status ||
+    (employee?.active === false ? "resigned" : "active")
+  );
 }
-
 function blankEmployeeForm() {
   return {
     employee_no: "",
@@ -130,7 +135,6 @@ function blankEmployeeForm() {
     emergency_contact_person: "",
   };
 }
-
 function datesBetween(start, end) {
   if (!start || !end) return [];
   const dates = [];
@@ -142,20 +146,19 @@ function datesBetween(start, end) {
   }
   return dates;
 }
-
 function normalizeTime(value) {
   if (!value) return "";
   const text = String(value).trim();
-  const matched = text.match(/^(\d{1,2})(?::(\d{1,2}))?(?::\d{1,2})?\s*([ap])\.?\s*m?\.?$/i);
+  const matched = text.match(
+    /^(\d{1,2})(?::(\d{1,2}))?(?::\d{1,2})?\s*([ap])\.?\s*m?\.?$/i,
+  );
   const plain = text.match(/^(\d{1,2})(?::(\d{1,2}))(?::\d{1,2})?$/);
   const match = matched || plain;
   if (!match) return "";
-
   let hour = Number(match[1]);
   const minute = Number(match[2] ?? 0);
   if (!Number.isFinite(hour) || !Number.isFinite(minute)) return "";
   if (minute < 0 || minute > 59) return "";
-
   const meridiem = match[3]?.toLowerCase();
   if (meridiem) {
     if (hour < 1 || hour > 12) return "";
@@ -164,33 +167,29 @@ function normalizeTime(value) {
   } else if (hour < 0 || hour > 23) {
     return "";
   }
-
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
-
 function timeMinutes(value) {
   const time = normalizeTime(value);
   if (!time) return null;
   const [hour, minute] = time.split(":").map(Number);
   return hour * 60 + minute;
 }
-
 function endpointMinutes(scheduleIn, value) {
   const start = timeMinutes(scheduleIn);
   const point = timeMinutes(value);
   if (start === null || point === null) return null;
   return point <= start ? point + 1440 : point;
 }
-
 function minutesLate(scheduleIn, actualIn) {
   const schedule = timeMinutes(scheduleIn);
   let actual = timeMinutes(actualIn);
   if (schedule === null || actual === null) return 0;
-  if (actual < schedule && schedule >= 18 * 60 && actual <= 6 * 60) actual += 1440;
+  if (actual < schedule && schedule >= 18 * 60 && actual <= 6 * 60)
+    actual += 1440;
   const diff = actual - schedule;
   return Math.max(0, diff || 0);
 }
-
 function minutesUndertime(scheduleIn, scheduleOut, actualOut) {
   const scheduledOut = endpointMinutes(scheduleIn, scheduleOut);
   const actual = endpointMinutes(scheduleIn, actualOut);
@@ -198,7 +197,6 @@ function minutesUndertime(scheduleIn, scheduleOut, actualOut) {
   const diff = scheduledOut - actual;
   return Math.max(0, diff || 0);
 }
-
 function overtimeHours(scheduleIn, scheduleOut, actualOut) {
   const scheduledOut = endpointMinutes(scheduleIn, scheduleOut);
   const actual = endpointMinutes(scheduleIn, actualOut);
@@ -206,9 +204,7 @@ function overtimeHours(scheduleIn, scheduleOut, actualOut) {
   const diff = actual - scheduledOut;
   return Math.max(0, Math.floor(diff / 60) || 0);
 }
-
 const DEFAULT_PAYROLL_PAID_HOURS = 8;
-
 function payrollPaidHours(scheduleIn, scheduleOut) {
   const start = timeMinutes(scheduleIn);
   const end = endpointMinutes(scheduleIn, scheduleOut);
@@ -216,15 +212,12 @@ function payrollPaidHours(scheduleIn, scheduleOut) {
   const scheduledHours = Math.max(0, (end - start) / 60);
   return Math.max(1, scheduledHours - 1);
 }
-
 function payrollHourlyRate(dailyRate, scheduleIn, scheduleOut) {
   return num(dailyRate) / payrollPaidHours(scheduleIn, scheduleOut);
 }
-
 function payrollMinuteRate(dailyRate, scheduleIn, scheduleOut) {
   return payrollHourlyRate(dailyRate, scheduleIn, scheduleOut) / 60;
 }
-
 function attendanceStatusFromSchedule(status) {
   const value = String(status || "scheduled").toLowerCase();
   if (value === "rest_day") return "rest_day";
@@ -232,16 +225,19 @@ function attendanceStatusFromSchedule(status) {
   if (value === "absent") return "absent";
   return "present";
 }
-
 function attendanceMetrics(row) {
-  if ((row.status || "present") !== "present") return { late: 0, undertime: 0, overtime: 0 };
+  if ((row.status || "present") !== "present")
+    return { late: 0, undertime: 0, overtime: 0 };
   return {
     late: minutesLate(row.schedule_in, row.actual_in),
-    undertime: minutesUndertime(row.schedule_in, row.schedule_out, row.actual_out),
+    undertime: minutesUndertime(
+      row.schedule_in,
+      row.schedule_out,
+      row.actual_out,
+    ),
     overtime: overtimeHours(row.schedule_in, row.schedule_out, row.actual_out),
   };
 }
-
 function timeLabel(value) {
   const minutes = timeMinutes(value);
   if (minutes === null) return "";
@@ -251,19 +247,22 @@ function timeLabel(value) {
   const suffix = hour24 >= 12 ? "PM" : "AM";
   return `${hour12}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
-
 const HOURLY_TIME_OPTIONS = Array.from({ length: 24 }, (_, hour) => {
   const value = `${String(hour).padStart(2, "0")}:00`;
   return { value, label: timeLabel(value) };
 });
-
 function timeOptionsWithCurrent(value) {
   const current = normalizeTime(value);
-  if (!current || HOURLY_TIME_OPTIONS.some((option) => option.value === current)) return HOURLY_TIME_OPTIONS;
-  return [...HOURLY_TIME_OPTIONS, { value: current, label: timeLabel(current) }]
-    .sort((a, b) => timeMinutes(a.value) - timeMinutes(b.value));
+  if (
+    !current ||
+    HOURLY_TIME_OPTIONS.some((option) => option.value === current)
+  )
+    return HOURLY_TIME_OPTIONS;
+  return [
+    ...HOURLY_TIME_OPTIONS,
+    { value: current, label: timeLabel(current) },
+  ].sort((a, b) => timeMinutes(a.value) - timeMinutes(b.value));
 }
-
 function statusClass(status) {
   const s = String(status || "draft").toLowerCase();
   if (s === "paid") return "bg-cyan-50 text-cyan-700 border-cyan-100";
@@ -271,7 +270,6 @@ function statusClass(status) {
   if (s === "void") return "bg-slate-100 text-slate-500 border-slate-200";
   return "bg-amber-50 text-amber-600 border-amber-100";
 }
-
 function blankEntry(periodId = "", employeeId = "", dailyRate = 0) {
   const overtimeRate = payrollHourlyRate(dailyRate);
   const minuteRate = payrollMinuteRate(dailyRate);
@@ -298,21 +296,44 @@ function blankEntry(periodId = "", employeeId = "", dailyRate = 0) {
     cash_advance_deduction: 0,
     misc_deduction_total: 0,
     loan_repayment_total: 0,
+    thirteenth_month_pay: 0,
     notes: "",
     status: "draft",
   };
 }
-
-function buildPayrollEntryFromAttendance({ employee, period, rows, repaymentRows, loanRepaymentRows = [], miscDeductionRows = [], rateChanges = [], existingEntry = null }) {
+function buildPayrollEntryFromAttendance({
+  employee,
+  period,
+  rows,
+  repaymentRows,
+  loanRepaymentRows = [],
+  miscDeductionRows = [],
+  rateChanges = [],
+  existingEntry = null,
+}) {
   if (!employee || !period) return null;
   const start = period.period_start;
   const end = period.period_end;
   const periodId = period.id;
-  const rowsForPeriod = rows.filter((row) => row.employee_id === employee.id && compareDate(row.work_date, start, end));
-  const daysWorked = rowsForPeriod.filter((row) => row.status === "present" || row.actual_in).length;
-  const late = rowsForPeriod.reduce((sum, row) => sum + num(row.late_minutes), 0);
-  const under = rowsForPeriod.reduce((sum, row) => sum + num(row.undertime_minutes), 0);
-  const ot = rowsForPeriod.reduce((sum, row) => sum + num(row.overtime_hours), 0);
+  const rowsForPeriod = rows.filter(
+    (row) =>
+      row.employee_id === employee.id && compareDate(row.work_date, start, end),
+  );
+  const daysWorked = rowsForPeriod.filter(
+    (row) => row.status === "present" || row.actual_in,
+  ).length;
+  const late = rowsForPeriod.reduce(
+    (sum, row) => sum + num(row.late_minutes),
+    0,
+  );
+  const under = rowsForPeriod.reduce(
+    (sum, row) => sum + num(row.undertime_minutes),
+    0,
+  );
+  const ot = rowsForPeriod.reduce(
+    (sum, row) => sum + num(row.overtime_hours),
+    0,
+  );
   const absent = rowsForPeriod.filter((row) => row.status === "absent").length;
   const basePay = rowsForPeriod.reduce((sum, row) => {
     if (row.status !== "present" && !row.actual_in) return sum;
@@ -320,23 +341,51 @@ function buildPayrollEntryFromAttendance({ employee, period, rows, repaymentRows
   }, 0);
   const overtimePay = rowsForPeriod.reduce((sum, row) => {
     const dayRate = dailyRateForWorkDate(employee, row.work_date, rateChanges);
-    return sum + num(row.overtime_hours) * payrollHourlyRate(dayRate, row.schedule_in, row.schedule_out);
+    return (
+      sum +
+      num(row.overtime_hours) *
+        payrollHourlyRate(dayRate, row.schedule_in, row.schedule_out)
+    );
   }, 0);
   const lateDeduction = rowsForPeriod.reduce((sum, row) => {
     const dayRate = dailyRateForWorkDate(employee, row.work_date, rateChanges);
-    return sum + num(row.late_minutes) * payrollMinuteRate(dayRate, row.schedule_in, row.schedule_out);
+    return (
+      sum +
+      num(row.late_minutes) *
+        payrollMinuteRate(dayRate, row.schedule_in, row.schedule_out)
+    );
   }, 0);
   const undertimeDeduction = rowsForPeriod.reduce((sum, row) => {
     const dayRate = dailyRateForWorkDate(employee, row.work_date, rateChanges);
-    return sum + num(row.undertime_minutes) * payrollMinuteRate(dayRate, row.schedule_in, row.schedule_out);
+    return (
+      sum +
+      num(row.undertime_minutes) *
+        payrollMinuteRate(dayRate, row.schedule_in, row.schedule_out)
+    );
   }, 0);
-  const dailyRate = daysWorked ? basePay / daysWorked : dailyRateForWorkDate(employee, end, rateChanges);
+  const dailyRate = daysWorked
+    ? basePay / daysWorked
+    : dailyRateForWorkDate(employee, end, rateChanges);
   const otRate = ot ? overtimePay / ot : payrollHourlyRate(dailyRate);
   const lateRate = late ? lateDeduction / late : payrollMinuteRate(dailyRate);
-  const undertimeRate = under ? undertimeDeduction / under : payrollMinuteRate(dailyRate);
-  const cashAdvanceDeduction = repaymentRows.filter((row) => row.employee_id === employee.id && row.period_id === periodId).reduce((sum, row) => sum + num(row.amount), 0);
-  const loanRepaymentTotal = loanRepaymentRows.filter((row) => row.employee_id === employee.id && row.period_id === periodId).reduce((sum, row) => sum + num(row.amount), 0);
-  const miscDeduction = miscDeductionRows.filter((row) => row.employee_id === employee.id && row.period_id === periodId).reduce((sum, row) => sum + num(row.amount), 0);
+  const undertimeRate = under
+    ? undertimeDeduction / under
+    : payrollMinuteRate(dailyRate);
+  const cashAdvanceDeduction = repaymentRows
+    .filter(
+      (row) => row.employee_id === employee.id && row.period_id === periodId,
+    )
+    .reduce((sum, row) => sum + num(row.amount), 0);
+  const loanRepaymentTotal = loanRepaymentRows
+    .filter(
+      (row) => row.employee_id === employee.id && row.period_id === periodId,
+    )
+    .reduce((sum, row) => sum + num(row.amount), 0);
+  const miscDeduction = miscDeductionRows
+    .filter(
+      (row) => row.employee_id === employee.id && row.period_id === periodId,
+    )
+    .reduce((sum, row) => sum + num(row.amount), 0);
   const allowance15th = num(existingEntry?.allowance_15th);
   const allowance30th = num(existingEntry?.allowance_30th);
   const payrollAllowance = num(existingEntry?.payroll_allowance);
@@ -344,10 +393,21 @@ function buildPayrollEntryFromAttendance({ employee, period, rows, repaymentRows
   const sssDeduction = num(existingEntry?.sss_deduction);
   const philhealthDeduction = num(existingEntry?.philhealth_deduction);
   const hmdfDeduction = num(existingEntry?.hmdf_deduction);
-  const gross = basePay + overtimePay + allowance15th + allowance30th + payrollAllowance + payrollAdjustment;
+  const gross =
+    basePay +
+    overtimePay +
+    allowance15th +
+    allowance30th +
+    payrollAllowance +
+    payrollAdjustment;
   const deduction = lateDeduction + undertimeDeduction;
-  const totalDeductions = deduction + miscDeduction + loanRepaymentTotal + sssDeduction + philhealthDeduction + hmdfDeduction;
-
+  const totalDeductions =
+    deduction +
+    miscDeduction +
+    loanRepaymentTotal +
+    sssDeduction +
+    philhealthDeduction +
+    hmdfDeduction;
   return {
     id: `${periodId}-${employee.id}`,
     period_id: periodId,
@@ -379,7 +439,6 @@ function buildPayrollEntryFromAttendance({ employee, period, rows, repaymentRows
     generated_at: new Date().toISOString(),
   };
 }
-
 function payrollTotals(entry) {
   const gross =
     num(entry.daily_rate) * num(entry.days_worked) +
@@ -387,7 +446,8 @@ function payrollTotals(entry) {
     num(entry.allowance_15th) +
     num(entry.allowance_30th) +
     num(entry.payroll_allowance) +
-    num(entry.payroll_adjustment);
+    num(entry.payroll_adjustment) +
+    num(entry.thirteenth_month_pay);
   const baseDeductions =
     num(entry.late_minutes) * num(entry.late_rate_per_minute) +
     num(entry.undertime_minutes) * num(entry.undertime_rate_per_minute);
@@ -395,48 +455,66 @@ function payrollTotals(entry) {
     num(entry.sss_deduction) +
     num(entry.philhealth_deduction) +
     num(entry.hmdf_deduction);
-  const totalDeductions = baseDeductions + num(entry.misc_deduction_total) + num(entry.loan_repayment_total) + statutoryDeductions;
+  const totalDeductions =
+    baseDeductions +
+    num(entry.misc_deduction_total) +
+    num(entry.loan_repayment_total) +
+    statutoryDeductions;
   return {
     gross_total: gross,
     deduction_total: totalDeductions,
     net_total: gross - totalDeductions - num(entry.cash_advance_deduction),
   };
 }
-
 function payrollAllowanceTotal(entry) {
-  return num(entry.allowance_15th) + num(entry.allowance_30th) + num(entry.payroll_allowance);
+  return (
+    num(entry.allowance_15th) +
+    num(entry.allowance_30th) +
+    num(entry.payroll_allowance)
+  );
 }
-
 function payrollBaseGross(entry) {
   return num(entry.daily_rate) * num(entry.days_worked);
 }
-
 function payrollOvertimePay(entry) {
   return num(entry.overtime_hours) * num(entry.overtime_rate);
 }
-
 function payrollLateDeduction(entry) {
   return num(entry.late_minutes) * num(entry.late_rate_per_minute);
 }
-
 function payrollUndertimeDeduction(entry) {
   return num(entry.undertime_minutes) * num(entry.undertime_rate_per_minute);
 }
-
 function payrollOtherDeductions(entry) {
-  return num(entry.misc_deduction_total) + num(entry.loan_repayment_total) + num(entry.sss_deduction) + num(entry.philhealth_deduction) + num(entry.hmdf_deduction);
+  return (
+    num(entry.misc_deduction_total) +
+    num(entry.loan_repayment_total) +
+    num(entry.sss_deduction) +
+    num(entry.philhealth_deduction) +
+    num(entry.hmdf_deduction)
+  );
 }
-
 function payrollNetBasicPay(entry) {
-  return payrollBaseGross(entry) + payrollOvertimePay(entry) - payrollLateDeduction(entry) - payrollUndertimeDeduction(entry);
+  return (
+    payrollBaseGross(entry) +
+    payrollOvertimePay(entry) -
+    payrollLateDeduction(entry) -
+    payrollUndertimeDeduction(entry)
+  );
 }
-
+function payrollThirteenthMonthBasis(entry) {
+  return Math.max(
+    0,
+    payrollBaseGross(entry) -
+      payrollLateDeduction(entry) -
+      payrollUndertimeDeduction(entry),
+  );
+}
 function moneyOrDash(value, { negative = false } = {}) {
   const amount = num(value);
   if (!amount) return "-";
   return negative ? deductionMoney(Math.abs(amount)) : money(amount);
 }
-
 export default function AdminPayrollPage() {
   const [employees, setEmployees] = useState([]);
   const [periods, setPeriods] = useState([]);
@@ -462,14 +540,51 @@ export default function AdminPayrollPage() {
   const [entryForm, setEntryForm] = useState(blankEntry());
   const [employeeForm, setEmployeeForm] = useState(blankEmployeeForm());
   const [editingEmployeeId, setEditingEmployeeId] = useState("");
-  const [rateIncreaseForm, setRateIncreaseForm] = useState({ employee_id: "", effective_date: localDate(), new_daily_rate: "", notes: "" });
+  const [rateIncreaseForm, setRateIncreaseForm] = useState({
+    employee_id: "",
+    effective_date: localDate(),
+    new_daily_rate: "",
+    notes: "",
+  });
   const [scheduleDraftRows, setScheduleDraftRows] = useState([]);
   const [attendanceDraftRows, setAttendanceDraftRows] = useState([]);
-  const [advanceForm, setAdvanceForm] = useState({ employee_id: "", advance_date: localDate(), amount: "", reason: "" });
-  const [repaymentForm, setRepaymentForm] = useState({ employee_id: "", cash_advance_id: "", period_id: "", payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
-  const [loanForm, setLoanForm] = useState({ employee_id: "", loan_date: localDate(), amount: "", reason: "" });
-  const [loanRepaymentForm, setLoanRepaymentForm] = useState({ employee_id: "", loan_id: "", period_id: "", payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
-  const [miscDeductionForm, setMiscDeductionForm] = useState({ employee_id: "", period_id: "", deduction_date: localDate(), amount: "", description: "" });
+  const [advanceForm, setAdvanceForm] = useState({
+    employee_id: "",
+    advance_date: localDate(),
+    amount: "",
+    reason: "",
+  });
+  const [repaymentForm, setRepaymentForm] = useState({
+    employee_id: "",
+    cash_advance_id: "",
+    period_id: "",
+    payment_date: localDate(),
+    amount: "",
+    method: "payroll deduction",
+    notes: "",
+  });
+  const [loanForm, setLoanForm] = useState({
+    employee_id: "",
+    loan_date: localDate(),
+    amount: "",
+    reason: "",
+  });
+  const [loanRepaymentForm, setLoanRepaymentForm] = useState({
+    employee_id: "",
+    loan_id: "",
+    period_id: "",
+    payment_date: localDate(),
+    amount: "",
+    method: "payroll deduction",
+    notes: "",
+  });
+  const [miscDeductionForm, setMiscDeductionForm] = useState({
+    employee_id: "",
+    period_id: "",
+    deduction_date: localDate(),
+    amount: "",
+    description: "",
+  });
   const [editingAdvanceId, setEditingAdvanceId] = useState("");
   const [editingRepaymentId, setEditingRepaymentId] = useState("");
   const [editingLoanId, setEditingLoanId] = useState("");
@@ -478,38 +593,71 @@ export default function AdminPayrollPage() {
   const [adjustmentDrafts, setAdjustmentDrafts] = useState({});
   const [cutoffForm, setCutoffForm] = useState(() => {
     const start = previousSaturday();
-    return { cutoff_start: start, cutoff_end: addDays(start, 6), payday: addDays(start, 7) };
+    return {
+      cutoff_start: start,
+      cutoff_end: addDays(start, 6),
+      payday: addDays(start, 7),
+    };
   });
-
+  const [thirteenthMonthForm, setThirteenthMonthForm] = useState(() => {
+    const year = new Date().getFullYear();
+    return { year: String(year), pay_date: `${year}-12-24` };
+  });
   useEffect(() => {
     fetchPayroll();
   }, []);
-
   const sortedPeriods = useMemo(
-    () => [...periods].sort((a, b) => new Date(b.pay_date || b.period_end || 0) - new Date(a.pay_date || a.period_end || 0)),
-    [periods]
+    () =>
+      [...periods].sort(
+        (a, b) =>
+          new Date(b.pay_date || b.period_end || 0) -
+          new Date(a.pay_date || a.period_end || 0),
+      ),
+    [periods],
   );
-
   useEffect(() => {
-    if (!selectedPeriodId && sortedPeriods[0]?.id) setSelectedPeriodId(sortedPeriods[0].id);
+    if (!selectedPeriodId && sortedPeriods[0]?.id)
+      setSelectedPeriodId(sortedPeriods[0].id);
   }, [selectedPeriodId, sortedPeriods]);
-
   useEffect(() => {
     const firstEmployee = employees[0]?.id || "";
-    if (!selectedEmployeeId && firstEmployee) setSelectedEmployeeId(firstEmployee);
-    setAdvanceForm((current) => ({ ...current, employee_id: current.employee_id || firstEmployee }));
-    setLoanForm((current) => ({ ...current, employee_id: current.employee_id || firstEmployee }));
-    setRepaymentForm((current) => ({ ...current, employee_id: current.employee_id || firstEmployee, period_id: current.period_id || selectedPeriodId }));
-    setLoanRepaymentForm((current) => ({ ...current, employee_id: current.employee_id || firstEmployee, period_id: current.period_id || selectedPeriodId }));
-    setMiscDeductionForm((current) => ({ ...current, employee_id: current.employee_id || firstEmployee, period_id: current.period_id || selectedPeriodId }));
-    setRateIncreaseForm((current) => ({ ...current, employee_id: current.employee_id || firstEmployee }));
+    if (!selectedEmployeeId && firstEmployee)
+      setSelectedEmployeeId(firstEmployee);
+    setAdvanceForm((current) => ({
+      ...current,
+      employee_id: current.employee_id || firstEmployee,
+    }));
+    setLoanForm((current) => ({
+      ...current,
+      employee_id: current.employee_id || firstEmployee,
+    }));
+    setRepaymentForm((current) => ({
+      ...current,
+      employee_id: current.employee_id || firstEmployee,
+      period_id: current.period_id || selectedPeriodId,
+    }));
+    setLoanRepaymentForm((current) => ({
+      ...current,
+      employee_id: current.employee_id || firstEmployee,
+      period_id: current.period_id || selectedPeriodId,
+    }));
+    setMiscDeductionForm((current) => ({
+      ...current,
+      employee_id: current.employee_id || firstEmployee,
+      period_id: current.period_id || selectedPeriodId,
+    }));
+    setRateIncreaseForm((current) => ({
+      ...current,
+      employee_id: current.employee_id || firstEmployee,
+    }));
   }, [employees, selectedEmployeeId, selectedPeriodId]);
-
   useEffect(() => {
     if (editingEmployeeId || employeeForm.employee_no || loading) return;
-    setEmployeeForm((current) => ({ ...current, employee_no: nextEmployeeNo(employees) }));
+    setEmployeeForm((current) => ({
+      ...current,
+      employee_no: nextEmployeeNo(employees),
+    }));
   }, [editingEmployeeId, employeeForm.employee_no, employees, loading]);
-
   const employeeById = useMemo(() => {
     const map = {};
     employees.forEach((employee) => {
@@ -517,7 +665,6 @@ export default function AdminPayrollPage() {
     });
     return map;
   }, [employees]);
-
   const periodById = useMemo(() => {
     const map = {};
     periods.forEach((period) => {
@@ -525,12 +672,14 @@ export default function AdminPayrollPage() {
     });
     return map;
   }, [periods]);
-
   const selectedPeriod = periodById[selectedPeriodId];
   const canApprovePayroll = currentRole === "super_admin";
-  const canMarkPayrollPaid = currentRole === "super_admin" || currentRole === "admin";
+  const canMarkPayrollPaid =
+    currentRole === "super_admin" || currentRole === "admin";
   const canChangePayrollStatus = canApprovePayroll;
-  const canViewPayslip = (entry) => canApprovePayroll || ["approved", "paid"].includes(String(entry?.status || "").toLowerCase());
+  const canViewPayslip = (entry) =>
+    canApprovePayroll ||
+    ["approved", "paid"].includes(String(entry?.status || "").toLowerCase());
   const canMarkEntryPaid = (entry) => {
     const status = String(entry?.status || "").toLowerCase();
     if (status === "paid") return false;
@@ -539,15 +688,16 @@ export default function AdminPayrollPage() {
   };
   const requireSuperAdminPayrollEdit = () => {
     if (canApprovePayroll) return true;
-    setNotice("Only super admin accounts can edit or delete payroll deductions, cash advances, and loans.");
+    setNotice(
+      "Only super admin accounts can edit or delete payroll deductions, cash advances, and loans.",
+    );
     return false;
   };
-
   const cutoffDates = useMemo(
-    () => datesBetween(selectedPeriod?.period_start, selectedPeriod?.period_end),
-    [selectedPeriod]
+    () =>
+      datesBetween(selectedPeriod?.period_start, selectedPeriod?.period_end),
+    [selectedPeriod],
   );
-
   const repaymentsByAdvance = useMemo(() => {
     const map = {};
     repayments.forEach((row) => {
@@ -556,16 +706,24 @@ export default function AdminPayrollPage() {
     });
     return map;
   }, [repayments]);
-
   const advanceRows = useMemo(() => {
     return advances
       .map((advance) => {
-        const paid = (repaymentsByAdvance[advance.id] || []).reduce((sum, row) => sum + num(row.amount), 0);
-        return { ...advance, employee: employeeById[advance.employee_id], repaid: paid, balance: num(advance.amount) - paid };
+        const paid = (repaymentsByAdvance[advance.id] || []).reduce(
+          (sum, row) => sum + num(row.amount),
+          0,
+        );
+        return {
+          ...advance,
+          employee: employeeById[advance.employee_id],
+          repaid: paid,
+          balance: num(advance.amount) - paid,
+        };
       })
-      .sort((a, b) => new Date(b.advance_date || 0) - new Date(a.advance_date || 0));
+      .sort(
+        (a, b) => new Date(b.advance_date || 0) - new Date(a.advance_date || 0),
+      );
   }, [advances, employeeById, repaymentsByAdvance]);
-
   const repaymentsByLoan = useMemo(() => {
     const map = {};
     loanRepayments.forEach((row) => {
@@ -574,127 +732,184 @@ export default function AdminPayrollPage() {
     });
     return map;
   }, [loanRepayments]);
-
   const loanRows = useMemo(() => {
     return loans
       .map((loan) => {
-        const paid = (repaymentsByLoan[loan.id] || []).reduce((sum, row) => sum + num(row.amount), 0);
-        return { ...loan, employee: employeeById[loan.employee_id], repaid: paid, balance: num(loan.amount) - paid };
+        const paid = (repaymentsByLoan[loan.id] || []).reduce(
+          (sum, row) => sum + num(row.amount),
+          0,
+        );
+        return {
+          ...loan,
+          employee: employeeById[loan.employee_id],
+          repaid: paid,
+          balance: num(loan.amount) - paid,
+        };
       })
       .sort((a, b) => new Date(b.loan_date || 0) - new Date(a.loan_date || 0));
   }, [employeeById, loans, repaymentsByLoan]);
-
   const selectedEmployeeAdvanceRows = useMemo(
-    () => advanceRows.filter((row) => !selectedEmployeeId || row.employee_id === selectedEmployeeId),
-    [advanceRows, selectedEmployeeId]
+    () =>
+      advanceRows.filter(
+        (row) => !selectedEmployeeId || row.employee_id === selectedEmployeeId,
+      ),
+    [advanceRows, selectedEmployeeId],
   );
-
   const selectedEmployeeOpenAdvanceRows = useMemo(
     () => selectedEmployeeAdvanceRows.filter((row) => row.balance > 0),
-    [selectedEmployeeAdvanceRows]
+    [selectedEmployeeAdvanceRows],
   );
-
   const selectedEmployeeLoanRows = useMemo(
-    () => loanRows.filter((row) => !selectedEmployeeId || row.employee_id === selectedEmployeeId),
-    [loanRows, selectedEmployeeId]
+    () =>
+      loanRows.filter(
+        (row) => !selectedEmployeeId || row.employee_id === selectedEmployeeId,
+      ),
+    [loanRows, selectedEmployeeId],
   );
-
   const selectedEmployeeOpenLoanRows = useMemo(
     () => selectedEmployeeLoanRows.filter((row) => row.balance > 0),
-    [selectedEmployeeLoanRows]
+    [selectedEmployeeLoanRows],
   );
-
   const repaymentEmployeeAdvanceRows = useMemo(
-    () => advanceRows.filter((row) => row.employee_id === repaymentForm.employee_id),
-    [advanceRows, repaymentForm.employee_id]
+    () =>
+      advanceRows.filter(
+        (row) => row.employee_id === repaymentForm.employee_id,
+      ),
+    [advanceRows, repaymentForm.employee_id],
   );
-
   const repaymentEmployeeOpenAdvanceRows = useMemo(
     () => repaymentEmployeeAdvanceRows.filter((row) => row.balance > 0),
-    [repaymentEmployeeAdvanceRows]
+    [repaymentEmployeeAdvanceRows],
   );
-
   const repaymentEmployeeLoanRows = useMemo(
-    () => loanRows.filter((row) => row.employee_id === loanRepaymentForm.employee_id),
-    [loanRepaymentForm.employee_id, loanRows]
+    () =>
+      loanRows.filter(
+        (row) => row.employee_id === loanRepaymentForm.employee_id,
+      ),
+    [loanRepaymentForm.employee_id, loanRows],
   );
-
   const repaymentEmployeeOpenLoanRows = useMemo(
     () => repaymentEmployeeLoanRows.filter((row) => row.balance > 0),
-    [repaymentEmployeeLoanRows]
+    [repaymentEmployeeLoanRows],
   );
-
   useEffect(() => {
     if (activeTab !== "deductions") return;
-    const availableAdvances = editingRepaymentId ? repaymentEmployeeAdvanceRows : repaymentEmployeeOpenAdvanceRows;
-    const currentIsVisible = availableAdvances.some((row) => row.id === repaymentForm.cash_advance_id);
+    const availableAdvances = editingRepaymentId
+      ? repaymentEmployeeAdvanceRows
+      : repaymentEmployeeOpenAdvanceRows;
+    const currentIsVisible = availableAdvances.some(
+      (row) => row.id === repaymentForm.cash_advance_id,
+    );
     if (!currentIsVisible) {
       setRepaymentForm((current) => ({
         ...current,
         cash_advance_id: availableAdvances[0]?.id || "",
       }));
     }
-    const availableLoans = editingLoanRepaymentId ? repaymentEmployeeLoanRows : repaymentEmployeeOpenLoanRows;
-    const currentLoanIsVisible = availableLoans.some((row) => row.id === loanRepaymentForm.loan_id);
+    const availableLoans = editingLoanRepaymentId
+      ? repaymentEmployeeLoanRows
+      : repaymentEmployeeOpenLoanRows;
+    const currentLoanIsVisible = availableLoans.some(
+      (row) => row.id === loanRepaymentForm.loan_id,
+    );
     if (!currentLoanIsVisible) {
       setLoanRepaymentForm((current) => ({
         ...current,
         loan_id: availableLoans[0]?.id || "",
       }));
     }
-  }, [activeTab, editingLoanRepaymentId, editingRepaymentId, loanRepaymentForm.loan_id, repaymentEmployeeAdvanceRows, repaymentEmployeeLoanRows, repaymentEmployeeOpenAdvanceRows, repaymentEmployeeOpenLoanRows, repaymentForm.cash_advance_id]);
-
+  }, [
+    activeTab,
+    editingLoanRepaymentId,
+    editingRepaymentId,
+    loanRepaymentForm.loan_id,
+    repaymentEmployeeAdvanceRows,
+    repaymentEmployeeLoanRows,
+    repaymentEmployeeOpenAdvanceRows,
+    repaymentEmployeeOpenLoanRows,
+    repaymentForm.cash_advance_id,
+  ]);
   const employeeAdvanceSummary = useMemo(() => {
     const map = {};
     advanceRows.forEach((row) => {
-      if (!map[row.employee_id]) map[row.employee_id] = { amount: 0, repaid: 0, balance: 0 };
+      if (!map[row.employee_id])
+        map[row.employee_id] = { amount: 0, repaid: 0, balance: 0 };
       map[row.employee_id].amount += num(row.amount);
       map[row.employee_id].repaid += num(row.repaid);
       map[row.employee_id].balance += Math.max(0, num(row.balance));
     });
     return map;
   }, [advanceRows]);
-
   const employeeBalanceRows = useMemo(
-    () => employees
-      .map((employee) => ({ employee, ...(employeeAdvanceSummary[employee.id] || { amount: 0, repaid: 0, balance: 0 }) }))
-      .filter((row) => row.balance > 0)
-      .sort((a, b) => String(a.employee.employee_no || a.employee.full_name).localeCompare(String(b.employee.employee_no || b.employee.full_name))),
-    [employeeAdvanceSummary, employees]
+    () =>
+      employees
+        .map((employee) => ({
+          employee,
+          ...(employeeAdvanceSummary[employee.id] || {
+            amount: 0,
+            repaid: 0,
+            balance: 0,
+          }),
+        }))
+        .filter((row) => row.balance > 0)
+        .sort((a, b) =>
+          String(a.employee.employee_no || a.employee.full_name).localeCompare(
+            String(b.employee.employee_no || b.employee.full_name),
+          ),
+        ),
+    [employeeAdvanceSummary, employees],
   );
-
   const employeeLoanSummary = useMemo(() => {
     const map = {};
     loanRows.forEach((row) => {
-      if (!map[row.employee_id]) map[row.employee_id] = { amount: 0, repaid: 0, balance: 0 };
+      if (!map[row.employee_id])
+        map[row.employee_id] = { amount: 0, repaid: 0, balance: 0 };
       map[row.employee_id].amount += num(row.amount);
       map[row.employee_id].repaid += num(row.repaid);
       map[row.employee_id].balance += Math.max(0, num(row.balance));
     });
     return map;
   }, [loanRows]);
-
   const employeeLoanBalanceRows = useMemo(
-    () => employees
-      .map((employee) => ({ employee, ...(employeeLoanSummary[employee.id] || { amount: 0, repaid: 0, balance: 0 }) }))
-      .filter((row) => row.balance > 0)
-      .sort((a, b) => String(a.employee.employee_no || a.employee.full_name).localeCompare(String(b.employee.employee_no || b.employee.full_name))),
-    [employeeLoanSummary, employees]
+    () =>
+      employees
+        .map((employee) => ({
+          employee,
+          ...(employeeLoanSummary[employee.id] || {
+            amount: 0,
+            repaid: 0,
+            balance: 0,
+          }),
+        }))
+        .filter((row) => row.balance > 0)
+        .sort((a, b) =>
+          String(a.employee.employee_no || a.employee.full_name).localeCompare(
+            String(b.employee.employee_no || b.employee.full_name),
+          ),
+        ),
+    [employeeLoanSummary, employees],
   );
-
   const payrollRows = useMemo(() => {
     const q = search.trim().toLowerCase();
     return entries
-      .filter((entry) => !selectedPeriodId || entry.period_id === selectedPeriodId)
+      .filter(
+        (entry) => !selectedPeriodId || entry.period_id === selectedPeriodId,
+      )
       .map((entry) => ({ ...entry, employee: employeeById[entry.employee_id] }))
       .filter((entry) => {
         if (!q) return true;
-        const target = `${entry.employee?.employee_no || ""} ${entry.employee?.full_name || entry.employee_id}`.toLowerCase();
+        const target =
+          `${entry.employee?.employee_no || ""} ${entry.employee?.full_name || entry.employee_id}`.toLowerCase();
         return target.includes(q);
       })
-      .sort((a, b) => String(a.employee?.employee_no || a.employee?.full_name || "").localeCompare(String(b.employee?.employee_no || b.employee?.full_name || "")));
+      .sort((a, b) =>
+        String(
+          a.employee?.employee_no || a.employee?.full_name || "",
+        ).localeCompare(
+          String(b.employee?.employee_no || b.employee?.full_name || ""),
+        ),
+      );
   }, [employeeById, entries, search, selectedPeriodId]);
-
   useEffect(() => {
     if (activeTab !== "adjustments") return;
     setAdjustmentDrafts((current) => {
@@ -711,21 +926,22 @@ export default function AdminPayrollPage() {
       return next;
     });
   }, [activeTab, payrollRows]);
-
   const summary = useMemo(() => {
     const rows = payrollRows;
     return {
       employees: rows.length,
       gross: rows.reduce((sum, row) => sum + num(row.gross_total), 0),
       deductions: rows.reduce((sum, row) => sum + num(row.deduction_total), 0),
-      cashAdvances: rows.reduce((sum, row) => sum + num(row.cash_advance_deduction), 0),
+      cashAdvances: rows.reduce(
+        (sum, row) => sum + num(row.cash_advance_deduction),
+        0,
+      ),
       net: rows.reduce((sum, row) => sum + num(row.net_total), 0),
       late: rows.reduce((sum, row) => sum + num(row.late_minutes), 0),
       overtime: rows.reduce((sum, row) => sum + num(row.overtime_hours), 0),
       paid: rows.filter((row) => row.status === "paid").length,
     };
   }, [payrollRows]);
-
   const employeeTotals = useMemo(() => {
     const map = {};
     entries.forEach((entry) => {
@@ -734,82 +950,99 @@ export default function AdminPayrollPage() {
       map[key].net += num(entry.net_total);
       map[key].gross += num(entry.gross_total);
       map[key].entries += 1;
-      map[key].thirteenth = map[key].net / 12;
+      map[key].thirteenth += num(entry.thirteenth_month_pay);
     });
     return map;
   }, [entries]);
-
   const scheduleRows = useMemo(() => {
     return scheduleDraftRows
       .map((row) => ({ ...row, employee: employeeById[row.employee_id] }))
       .sort((a, b) => String(a.work_date).localeCompare(String(b.work_date)));
   }, [employeeById, scheduleDraftRows]);
-
   const attendanceRows = useMemo(() => {
     return attendanceDraftRows
       .map((row) => ({ ...row, employee: employeeById[row.employee_id] }))
       .sort((a, b) => String(a.work_date).localeCompare(String(b.work_date)));
   }, [attendanceDraftRows, employeeById]);
-
   useEffect(() => {
     if (!selectedPeriodId || !selectedEmployeeId || cutoffDates.length === 0) {
       setScheduleDraftRows([]);
       setAttendanceDraftRows([]);
       return;
     }
-
     const nextSchedule = cutoffDates.map((workDate) => {
-      const existing = schedules.find((row) => row.period_id === selectedPeriodId && row.employee_id === selectedEmployeeId && row.work_date === workDate);
-      return existing ? {
-        ...existing,
-        schedule_in: normalizeTime(existing.schedule_in),
-        schedule_out: normalizeTime(existing.schedule_out),
-      } : {
-        id: `${selectedPeriodId}-${selectedEmployeeId}-${workDate}`,
-        period_id: selectedPeriodId,
-        employee_id: selectedEmployeeId,
-        work_date: workDate,
-        schedule_in: "09:00",
-        schedule_out: "18:00",
-        status: "scheduled",
-        notes: "",
-      };
+      const existing = schedules.find(
+        (row) =>
+          row.period_id === selectedPeriodId &&
+          row.employee_id === selectedEmployeeId &&
+          row.work_date === workDate,
+      );
+      return existing
+        ? {
+            ...existing,
+            schedule_in: normalizeTime(existing.schedule_in),
+            schedule_out: normalizeTime(existing.schedule_out),
+          }
+        : {
+            id: `${selectedPeriodId}-${selectedEmployeeId}-${workDate}`,
+            period_id: selectedPeriodId,
+            employee_id: selectedEmployeeId,
+            work_date: workDate,
+            schedule_in: "09:00",
+            schedule_out: "18:00",
+            status: "scheduled",
+            notes: "",
+          };
     });
-
     const nextAttendance = cutoffDates.map((workDate) => {
-      const existing = attendance.find((row) => row.period_id === selectedPeriodId && row.employee_id === selectedEmployeeId && row.work_date === workDate);
+      const existing = attendance.find(
+        (row) =>
+          row.period_id === selectedPeriodId &&
+          row.employee_id === selectedEmployeeId &&
+          row.work_date === workDate,
+      );
       const schedule = nextSchedule.find((row) => row.work_date === workDate);
       const scheduleIn = normalizeTime(schedule?.schedule_in);
       const scheduleOut = normalizeTime(schedule?.schedule_out);
       const status = attendanceStatusFromSchedule(schedule?.status);
-      return existing ? {
-        ...existing,
-        schedule_in: scheduleIn || normalizeTime(existing.schedule_in),
-        schedule_out: scheduleOut || normalizeTime(existing.schedule_out),
-        actual_in: normalizeTime(existing.actual_in) || (status === "present" ? scheduleIn : ""),
-        actual_out: normalizeTime(existing.actual_out) || (status === "present" ? scheduleOut : ""),
-        status,
-      } : {
-        id: `${selectedPeriodId}-${selectedEmployeeId}-${workDate}`,
-        period_id: selectedPeriodId,
-        employee_id: selectedEmployeeId,
-        work_date: workDate,
-        schedule_in: scheduleIn,
-        schedule_out: scheduleOut,
-        actual_in: status === "present" ? scheduleIn : "",
-        actual_out: status === "present" ? scheduleOut : "",
-        late_minutes: "",
-        undertime_minutes: "",
-        overtime_hours: "",
-        status,
-        notes: "",
-      };
+      return existing
+        ? {
+            ...existing,
+            schedule_in: scheduleIn || normalizeTime(existing.schedule_in),
+            schedule_out: scheduleOut || normalizeTime(existing.schedule_out),
+            actual_in:
+              normalizeTime(existing.actual_in) ||
+              (status === "present" ? scheduleIn : ""),
+            actual_out:
+              normalizeTime(existing.actual_out) ||
+              (status === "present" ? scheduleOut : ""),
+            status,
+          }
+        : {
+            id: `${selectedPeriodId}-${selectedEmployeeId}-${workDate}`,
+            period_id: selectedPeriodId,
+            employee_id: selectedEmployeeId,
+            work_date: workDate,
+            schedule_in: scheduleIn,
+            schedule_out: scheduleOut,
+            actual_in: status === "present" ? scheduleIn : "",
+            actual_out: status === "present" ? scheduleOut : "",
+            late_minutes: "",
+            undertime_minutes: "",
+            overtime_hours: "",
+            status,
+            notes: "",
+          };
     });
-
     setScheduleDraftRows(nextSchedule);
     setAttendanceDraftRows(nextAttendance);
-  }, [attendance, cutoffDates, schedules, selectedEmployeeId, selectedPeriodId]);
-
+  }, [
+    attendance,
+    cutoffDates,
+    schedules,
+    selectedEmployeeId,
+    selectedPeriodId,
+  ]);
   const formTotals = useMemo(() => {
     const gross =
       num(entryForm.daily_rate) * num(entryForm.days_worked) +
@@ -817,10 +1050,12 @@ export default function AdminPayrollPage() {
       num(entryForm.allowance_15th) +
       num(entryForm.allowance_30th) +
       num(entryForm.payroll_allowance) +
-      num(entryForm.payroll_adjustment);
+      num(entryForm.payroll_adjustment) +
+      num(entryForm.thirteenth_month_pay);
     const deductions =
       num(entryForm.late_minutes) * num(entryForm.late_rate_per_minute) +
-      num(entryForm.undertime_minutes) * num(entryForm.undertime_rate_per_minute);
+      num(entryForm.undertime_minutes) *
+        num(entryForm.undertime_rate_per_minute);
     const cashAdvanceDeduction = num(entryForm.cash_advance_deduction);
     const miscDeduction = num(entryForm.misc_deduction_total);
     const loanRepaymentTotal = num(entryForm.loan_repayment_total);
@@ -828,34 +1063,98 @@ export default function AdminPayrollPage() {
       num(entryForm.sss_deduction) +
       num(entryForm.philhealth_deduction) +
       num(entryForm.hmdf_deduction);
-    const totalDeductions = deductions + miscDeduction + loanRepaymentTotal + statutoryDeductions;
-    return { gross, deductions: totalDeductions, baseDeductions: deductions, miscDeduction, cashAdvanceDeduction, net: gross - totalDeductions - cashAdvanceDeduction };
+    const totalDeductions =
+      deductions + miscDeduction + loanRepaymentTotal + statutoryDeductions;
+    return {
+      gross,
+      deductions: totalDeductions,
+      baseDeductions: deductions,
+      miscDeduction,
+      cashAdvanceDeduction,
+      net: gross - totalDeductions - cashAdvanceDeduction,
+    };
   }, [entryForm]);
-
   async function fetchPayroll() {
     setLoading(true);
     const { data: sessionData } = await supabase.auth.getSession();
     const userId = sessionData?.session?.user?.id || null;
     const profileRes = userId
-      ? await supabase.from("profiles").select("role").eq("id", userId).maybeSingle()
+      ? await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", userId)
+          .maybeSingle()
       : { data: null, error: null };
-    setCurrentRole(profileRes.error ? "" : normalizeRole(profileRes.data?.role));
-
-    const [employeeRes, periodRes, entryRes, scheduleRes, attendanceRes, advanceRes, repaymentRes, miscDeductionRes, loanRes, loanRepaymentRes] = await Promise.all([
-      supabase.from("payroll_employees").select("*").order("employee_no", { ascending: true }),
-      supabase.from("payroll_periods").select("*").order("pay_date", { ascending: false }),
-      supabase.from("payroll_entries").select("*").order("created_at", { ascending: false }),
-      supabase.from("payroll_schedules").select("*").order("work_date", { ascending: true }),
-      supabase.from("payroll_attendance").select("*").order("work_date", { ascending: true }),
-      supabase.from("payroll_cash_advances").select("*").order("advance_date", { ascending: false }),
-      supabase.from("payroll_cash_advance_repayments").select("*").order("payment_date", { ascending: false }),
-      supabase.from("payroll_misc_deductions").select("*").order("deduction_date", { ascending: false }),
-      supabase.from("payroll_loans").select("*").order("loan_date", { ascending: false }),
-      supabase.from("payroll_loan_repayments").select("*").order("payment_date", { ascending: false }),
+    setCurrentRole(
+      profileRes.error ? "" : normalizeRole(profileRes.data?.role),
+    );
+    const [
+      employeeRes,
+      periodRes,
+      entryRes,
+      scheduleRes,
+      attendanceRes,
+      advanceRes,
+      repaymentRes,
+      miscDeductionRes,
+      loanRes,
+      loanRepaymentRes,
+    ] = await Promise.all([
+      supabase
+        .from("payroll_employees")
+        .select("*")
+        .order("employee_no", { ascending: true }),
+      supabase
+        .from("payroll_periods")
+        .select("*")
+        .order("pay_date", { ascending: false }),
+      supabase
+        .from("payroll_entries")
+        .select("*")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("payroll_schedules")
+        .select("*")
+        .order("work_date", { ascending: true }),
+      supabase
+        .from("payroll_attendance")
+        .select("*")
+        .order("work_date", { ascending: true }),
+      supabase
+        .from("payroll_cash_advances")
+        .select("*")
+        .order("advance_date", { ascending: false }),
+      supabase
+        .from("payroll_cash_advance_repayments")
+        .select("*")
+        .order("payment_date", { ascending: false }),
+      supabase
+        .from("payroll_misc_deductions")
+        .select("*")
+        .order("deduction_date", { ascending: false }),
+      supabase
+        .from("payroll_loans")
+        .select("*")
+        .order("loan_date", { ascending: false }),
+      supabase
+        .from("payroll_loan_repayments")
+        .select("*")
+        .order("payment_date", { ascending: false }),
     ]);
-    const error = employeeRes.error || periodRes.error || entryRes.error || scheduleRes.error || attendanceRes.error || advanceRes.error || repaymentRes.error || loanRes.error || loanRepaymentRes.error;
+    const error =
+      employeeRes.error ||
+      periodRes.error ||
+      entryRes.error ||
+      scheduleRes.error ||
+      attendanceRes.error ||
+      advanceRes.error ||
+      repaymentRes.error ||
+      loanRes.error ||
+      loanRepaymentRes.error;
     if (error) {
-      setNotice(`Payroll Failed: ${error.message}. Run supabase/payroll_setup.sql in Supabase first.`);
+      setNotice(
+        `Payroll Failed: ${error.message}. Run supabase/payroll_setup.sql in Supabase first.`,
+      );
       setEmployees([]);
       setPeriods([]);
       setEntries([]);
@@ -883,22 +1182,28 @@ export default function AdminPayrollPage() {
       setRepayments(repaymentRes.data || []);
       setLoans(loanRes.data || []);
       setLoanRepayments(loanRepaymentRes.data || []);
-      setMiscDeductions(miscDeductionRes.error ? [] : miscDeductionRes.data || []);
+      setMiscDeductions(
+        miscDeductionRes.error ? [] : miscDeductionRes.data || [],
+      );
       setRateChanges(rateChangeRes.error ? [] : rateChangeRes.data || []);
     }
     setLoading(false);
   }
-
   function openEntryModal(entry = null) {
     if (entry) {
       setEntryForm({ ...blankEntry(), ...entry });
     } else {
       const employee = employeeById[selectedEmployeeId] || employees[0];
-      setEntryForm(blankEntry(selectedPeriodId, employee?.id || "", employeeCurrentDailyRate(employee)));
+      setEntryForm(
+        blankEntry(
+          selectedPeriodId,
+          employee?.id || "",
+          employeeCurrentDailyRate(employee),
+        ),
+      );
     }
     setEntryModalOpen(true);
   }
-
   function setEntryField(field, value) {
     setEntryForm((current) => {
       const next = { ...current, [field]: value };
@@ -921,15 +1226,21 @@ export default function AdminPayrollPage() {
       return next;
     });
   }
-
   async function saveEmployee(e) {
     e.preventDefault();
-    if (!employeeForm.full_name.trim()) return setNotice("Employee name is required.");
+    if (!employeeForm.full_name.trim())
+      return setNotice("Employee name is required.");
     const id = editingEmployeeId || slug(employeeForm.full_name);
     if (!id) return setNotice("Employee ID could not be created.");
     const status = employeeForm.employment_status || "active";
-    const currentRate = num(employeeForm.current_daily_rate || employeeForm.default_daily_rate);
-    const startingRate = num(employeeForm.starting_daily_rate || currentRate || employeeForm.default_daily_rate);
+    const currentRate = num(
+      employeeForm.current_daily_rate || employeeForm.default_daily_rate,
+    );
+    const startingRate = num(
+      employeeForm.starting_daily_rate ||
+        currentRate ||
+        employeeForm.default_daily_rate,
+    );
     const payload = {
       id,
       employee_no: employeeForm.employee_no.trim() || null,
@@ -948,22 +1259,35 @@ export default function AdminPayrollPage() {
       sss_no: employeeForm.sss_no.trim() || null,
       philhealth_no: employeeForm.philhealth_no.trim() || null,
       hmdf_no: employeeForm.hmdf_no.trim() || null,
-      emergency_contact_person: employeeForm.emergency_contact_person.trim() || null,
+      emergency_contact_person:
+        employeeForm.emergency_contact_person.trim() || null,
       active: status === "active",
     };
-    const { data, error } = await supabase.from("payroll_employees").upsert(payload).select().maybeSingle();
+    const { data, error } = await supabase
+      .from("payroll_employees")
+      .upsert(payload)
+      .select()
+      .maybeSingle();
     if (error) return setNotice(`Employee Save Failed: ${error.message}`);
-    const nextEmployees = [data, ...employees.filter((row) => row.id !== data.id)].sort((a, b) => String(a.employee_no || a.full_name).localeCompare(String(b.employee_no || b.full_name)));
+    const nextEmployees = [
+      data,
+      ...employees.filter((row) => row.id !== data.id),
+    ].sort((a, b) =>
+      String(a.employee_no || a.full_name).localeCompare(
+        String(b.employee_no || b.full_name),
+      ),
+    );
     setEmployees(nextEmployees);
     resetEmployeeForm(nextEmployees);
     setNotice("Employee saved.");
   }
-
   function resetEmployeeForm(employeeList = employees) {
     setEditingEmployeeId("");
-    setEmployeeForm({ ...blankEmployeeForm(), employee_no: nextEmployeeNo(employeeList) });
+    setEmployeeForm({
+      ...blankEmployeeForm(),
+      employee_no: nextEmployeeNo(employeeList),
+    });
   }
-
   function openEmployeeEdit(employee) {
     setEditingEmployeeId(employee.id);
     setEmployeeForm({
@@ -974,9 +1298,12 @@ export default function AdminPayrollPage() {
       date_resigned_terminated: employee.date_resigned_terminated || "",
       date_reemployment: employee.date_reemployment || "",
       employment_status: employeeEmploymentStatus(employee),
-      starting_daily_rate: employee.starting_daily_rate ?? employee.default_daily_rate ?? "",
-      current_daily_rate: employee.current_daily_rate ?? employee.default_daily_rate ?? "",
-      default_daily_rate: employee.default_daily_rate ?? employee.current_daily_rate ?? "",
+      starting_daily_rate:
+        employee.starting_daily_rate ?? employee.default_daily_rate ?? "",
+      current_daily_rate:
+        employee.current_daily_rate ?? employee.default_daily_rate ?? "",
+      default_daily_rate:
+        employee.default_daily_rate ?? employee.current_daily_rate ?? "",
       birthday: employee.birthday || "",
       address: employee.address || "",
       contact_number: employee.contact_number || "",
@@ -986,24 +1313,35 @@ export default function AdminPayrollPage() {
       emergency_contact_person: employee.emergency_contact_person || "",
     });
   }
-
   async function deleteEmployee(employee) {
-    if (typeof window !== "undefined" && !window.confirm(`Delete ${employee.full_name}?`)) return;
-    const { error } = await supabase.from("payroll_employees").delete().eq("id", employee.id);
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm(`Delete ${employee.full_name}?`)
+    )
+      return;
+    const { error } = await supabase
+      .from("payroll_employees")
+      .delete()
+      .eq("id", employee.id);
     if (error) return setNotice(`Employee Delete Failed: ${error.message}`);
     setEmployees((prev) => prev.filter((row) => row.id !== employee.id));
     if (selectedEmployeeId === employee.id) setSelectedEmployeeId("");
     if (editingEmployeeId === employee.id) resetEmployeeForm();
     setNotice("Employee deleted.");
   }
-
   async function saveRateIncrease(e) {
     e.preventDefault();
     const employee = employeeById[rateIncreaseForm.employee_id];
     const newRate = num(rateIncreaseForm.new_daily_rate);
-    if (!employee || !rateIncreaseForm.effective_date || !newRate) return setNotice("Employee, effective date, and new daily rate are required.");
-    const previousRate = dailyRateForWorkDate(employee, addDays(rateIncreaseForm.effective_date, -1), rateChanges);
-
+    if (!employee || !rateIncreaseForm.effective_date || !newRate)
+      return setNotice(
+        "Employee, effective date, and new daily rate are required.",
+      );
+    const previousRate = dailyRateForWorkDate(
+      employee,
+      addDays(rateIncreaseForm.effective_date, -1),
+      rateChanges,
+    );
     const changePayload = {
       id: `rate-${employee.id}-${rateIncreaseForm.effective_date}-${Date.now()}`,
       employee_id: employee.id,
@@ -1012,90 +1350,176 @@ export default function AdminPayrollPage() {
       effective_date: rateIncreaseForm.effective_date,
       notes: rateIncreaseForm.notes.trim() || null,
     };
-    const { error: changeError } = await supabase.from("payroll_rate_changes").insert(changePayload);
-    if (changeError) return setNotice(`Rate Increase Failed: ${changeError.message}. Run supabase/payroll_setup.sql in Supabase first.`);
-
-    const latestRateChange = [...rateChanges.filter((change) => change.employee_id === employee.id), changePayload]
-      .filter((change) => String(change.effective_date || "").slice(0, 10) <= localDate())
-      .sort((a, b) => String(b.effective_date).localeCompare(String(a.effective_date)))[0];
-    const nextCurrentRate = latestRateChange ? num(latestRateChange.new_daily_rate) : employeeCurrentDailyRate(employee);
-
+    const { error: changeError } = await supabase
+      .from("payroll_rate_changes")
+      .insert(changePayload);
+    if (changeError)
+      return setNotice(
+        `Rate Increase Failed: ${changeError.message}. Run supabase/payroll_setup.sql in Supabase first.`,
+      );
+    const latestRateChange = [
+      ...rateChanges.filter((change) => change.employee_id === employee.id),
+      changePayload,
+    ]
+      .filter(
+        (change) =>
+          String(change.effective_date || "").slice(0, 10) <= localDate(),
+      )
+      .sort((a, b) =>
+        String(b.effective_date).localeCompare(String(a.effective_date)),
+      )[0];
+    const nextCurrentRate = latestRateChange
+      ? num(latestRateChange.new_daily_rate)
+      : employeeCurrentDailyRate(employee);
     const { data, error } = await supabase
       .from("payroll_employees")
-      .update({ default_daily_rate: nextCurrentRate, current_daily_rate: nextCurrentRate })
+      .update({
+        default_daily_rate: nextCurrentRate,
+        current_daily_rate: nextCurrentRate,
+      })
       .eq("id", employee.id)
       .select()
       .maybeSingle();
     if (error) return setNotice(`Rate Update Failed: ${error.message}`);
-
-    setEmployees((prev) => prev.map((row) => (row.id === employee.id ? data : row)));
+    setEmployees((prev) =>
+      prev.map((row) => (row.id === employee.id ? data : row)),
+    );
     setRateChanges((prev) => [changePayload, ...prev]);
-    if (editingEmployeeId === employee.id) setEmployeeForm((current) => ({ ...current, default_daily_rate: nextCurrentRate, current_daily_rate: nextCurrentRate }));
-    setRateIncreaseForm((current) => ({ ...current, new_daily_rate: "", notes: "" }));
+    if (editingEmployeeId === employee.id)
+      setEmployeeForm((current) => ({
+        ...current,
+        default_daily_rate: nextCurrentRate,
+        current_daily_rate: nextCurrentRate,
+      }));
+    setRateIncreaseForm((current) => ({
+      ...current,
+      new_daily_rate: "",
+      notes: "",
+    }));
     setNotice("Daily rate increase saved.");
   }
-
   async function toggleEmployee(employee) {
     const nextActive = !employee.active;
     const { data, error } = await supabase
       .from("payroll_employees")
-      .update({ active: nextActive, employment_status: nextActive ? "active" : "resigned" })
+      .update({
+        active: nextActive,
+        employment_status: nextActive ? "active" : "resigned",
+      })
       .eq("id", employee.id)
       .select()
       .maybeSingle();
     if (error) return setNotice(`Employee Update Failed: ${error.message}`);
-    setEmployees((prev) => prev.map((row) => (row.id === employee.id ? data : row)));
+    setEmployees((prev) =>
+      prev.map((row) => (row.id === employee.id ? data : row)),
+    );
   }
-
   function updateScheduleDraft(workDate, field, value) {
-    const nextValue = field === "schedule_in" || field === "schedule_out" ? normalizeTime(value) : value;
+    const nextValue =
+      field === "schedule_in" || field === "schedule_out"
+        ? normalizeTime(value)
+        : value;
     setScheduleDraftRows((rows) =>
-      rows.map((row) => (row.work_date === workDate ? { ...row, [field]: nextValue } : row))
+      rows.map((row) =>
+        row.work_date === workDate ? { ...row, [field]: nextValue } : row,
+      ),
     );
   }
-
   function updateAttendanceDraft(workDate, field, value) {
-    const nextValue = field === "schedule_in" || field === "schedule_out" || field === "actual_in" || field === "actual_out" ? normalizeTime(value) : value;
+    const nextValue =
+      field === "schedule_in" ||
+      field === "schedule_out" ||
+      field === "actual_in" ||
+      field === "actual_out"
+        ? normalizeTime(value)
+        : value;
     setAttendanceDraftRows((rows) =>
-      rows.map((row) => (row.work_date === workDate ? { ...row, [field]: nextValue } : row))
+      rows.map((row) =>
+        row.work_date === workDate ? { ...row, [field]: nextValue } : row,
+      ),
     );
   }
-
   async function saveCutoffSchedule(e) {
     e.preventDefault();
-    if (!selectedPeriodId || !selectedEmployeeId || scheduleDraftRows.length === 0) return setNotice("Select a cutoff and employee first.");
+    if (
+      !selectedPeriodId ||
+      !selectedEmployeeId ||
+      scheduleDraftRows.length === 0
+    )
+      return setNotice("Select a cutoff and employee first.");
     const payload = scheduleDraftRows.map((row) => ({
-      id: row.id || `${selectedPeriodId}-${selectedEmployeeId}-${row.work_date}`,
+      id:
+        row.id || `${selectedPeriodId}-${selectedEmployeeId}-${row.work_date}`,
       period_id: selectedPeriodId,
       employee_id: selectedEmployeeId,
       work_date: row.work_date,
-      schedule_in: row.status === "scheduled" ? normalizeTime(row.schedule_in) || null : null,
-      schedule_out: row.status === "scheduled" ? normalizeTime(row.schedule_out) || null : null,
+      schedule_in:
+        row.status === "scheduled"
+          ? normalizeTime(row.schedule_in) || null
+          : null,
+      schedule_out:
+        row.status === "scheduled"
+          ? normalizeTime(row.schedule_out) || null
+          : null,
       status: row.status || "scheduled",
       notes: row.notes || null,
     }));
-    const { data, error } = await supabase.from("payroll_schedules").upsert(payload).select();
+    const { data, error } = await supabase
+      .from("payroll_schedules")
+      .upsert(payload)
+      .select();
     if (error) return setNotice(`Schedule Save Failed: ${error.message}`);
     setSchedules((prev) => [
       ...(data || []),
-      ...prev.filter((row) => !(row.period_id === selectedPeriodId && row.employee_id === selectedEmployeeId)),
+      ...prev.filter(
+        (row) =>
+          !(
+            row.period_id === selectedPeriodId &&
+            row.employee_id === selectedEmployeeId
+          ),
+      ),
     ]);
     setNotice("Cutoff schedule saved.");
   }
-
   async function saveCutoffAttendance(e) {
     e.preventDefault();
-    if (!selectedPeriodId || !selectedEmployeeId || attendanceDraftRows.length === 0) return setNotice("Select a cutoff and employee first.");
+    if (
+      !selectedPeriodId ||
+      !selectedEmployeeId ||
+      attendanceDraftRows.length === 0
+    )
+      return setNotice("Select a cutoff and employee first.");
     const payload = attendanceDraftRows.map((row) => {
-      const schedule = scheduleDraftRows.find((item) => item.work_date === row.work_date) || schedules.find((item) => item.period_id === selectedPeriodId && item.employee_id === selectedEmployeeId && item.work_date === row.work_date);
-      const scheduleIn = normalizeTime(schedule?.schedule_in) || normalizeTime(row.schedule_in);
-      const scheduleOut = normalizeTime(schedule?.schedule_out) || normalizeTime(row.schedule_out);
+      const schedule =
+        scheduleDraftRows.find((item) => item.work_date === row.work_date) ||
+        schedules.find(
+          (item) =>
+            item.period_id === selectedPeriodId &&
+            item.employee_id === selectedEmployeeId &&
+            item.work_date === row.work_date,
+        );
+      const scheduleIn =
+        normalizeTime(schedule?.schedule_in) || normalizeTime(row.schedule_in);
+      const scheduleOut =
+        normalizeTime(schedule?.schedule_out) ||
+        normalizeTime(row.schedule_out);
       const actualIn = normalizeTime(row.actual_in);
       const actualOut = normalizeTime(row.actual_out);
-      const status = attendanceStatusFromSchedule(schedule?.status || row.status);
-      const computed = attendanceMetrics({ ...row, schedule_in: scheduleIn, schedule_out: scheduleOut, actual_in: actualIn, actual_out: actualOut, status });
+      const status = attendanceStatusFromSchedule(
+        schedule?.status || row.status,
+      );
+      const computed = attendanceMetrics({
+        ...row,
+        schedule_in: scheduleIn,
+        schedule_out: scheduleOut,
+        actual_in: actualIn,
+        actual_out: actualOut,
+        status,
+      });
       return {
-        id: row.id || `${selectedPeriodId}-${selectedEmployeeId}-${row.work_date}`,
+        id:
+          row.id ||
+          `${selectedPeriodId}-${selectedEmployeeId}-${row.work_date}`,
         period_id: selectedPeriodId,
         employee_id: selectedEmployeeId,
         work_date: row.work_date,
@@ -1110,24 +1534,51 @@ export default function AdminPayrollPage() {
         notes: row.notes || null,
       };
     });
-    const { data, error } = await supabase.from("payroll_attendance").upsert(payload).select();
+    const { data, error } = await supabase
+      .from("payroll_attendance")
+      .upsert(payload)
+      .select();
     if (error) return setNotice(`Attendance Save Failed: ${error.message}`);
     const nextAttendance = [
       ...(data || []),
-      ...attendance.filter((row) => !(row.period_id === selectedPeriodId && row.employee_id === selectedEmployeeId)),
+      ...attendance.filter(
+        (row) =>
+          !(
+            row.period_id === selectedPeriodId &&
+            row.employee_id === selectedEmployeeId
+          ),
+      ),
     ];
     setAttendance((prev) => [
       ...(data || []),
-      ...prev.filter((row) => !(row.period_id === selectedPeriodId && row.employee_id === selectedEmployeeId)),
+      ...prev.filter(
+        (row) =>
+          !(
+            row.period_id === selectedPeriodId &&
+            row.employee_id === selectedEmployeeId
+          ),
+      ),
     ]);
-    const payrollSynced = await syncPayrollEntryForEmployee(selectedEmployeeId, selectedPeriod, nextAttendance, { revertApprovedToDraft: true });
-    if (payrollSynced) setNotice("Cutoff attendance saved and payroll details updated.");
+    const payrollSynced = await syncPayrollEntryForEmployee(
+      selectedEmployeeId,
+      selectedPeriod,
+      nextAttendance,
+      { revertApprovedToDraft: true },
+    );
+    if (payrollSynced)
+      setNotice("Cutoff attendance saved and payroll details updated.");
   }
-
-  async function syncPayrollEntryForEmployee(employeeId, period, attendanceRowsSource = attendance, options = {}) {
+  async function syncPayrollEntryForEmployee(
+    employeeId,
+    period,
+    attendanceRowsSource = attendance,
+    options = {},
+  ) {
     const employee = employeeById[employeeId];
     if (!employee || !period?.id) return false;
-    const existingEntry = entries.find((row) => row.period_id === period.id && row.employee_id === employeeId);
+    const existingEntry = entries.find(
+      (row) => row.period_id === period.id && row.employee_id === employeeId,
+    );
     const payload = buildPayrollEntryFromAttendance({
       employee,
       period,
@@ -1139,11 +1590,17 @@ export default function AdminPayrollPage() {
       existingEntry,
     });
     if (!payload) return false;
-    if (options.revertApprovedToDraft && String(existingEntry?.status || "").toLowerCase() === "approved") {
+    if (
+      options.revertApprovedToDraft &&
+      String(existingEntry?.status || "").toLowerCase() === "approved"
+    ) {
       payload.status = "draft";
     }
-
-    const { data, error } = await supabase.from("payroll_entries").upsert(payload).select().maybeSingle();
+    const { data, error } = await supabase
+      .from("payroll_entries")
+      .upsert(payload)
+      .select()
+      .maybeSingle();
     if (error) {
       setNotice(`Payroll Update Failed: ${error.message}`);
       return false;
@@ -1151,30 +1608,72 @@ export default function AdminPayrollPage() {
     setEntries((prev) => [data, ...prev.filter((row) => row.id !== data.id)]);
     return true;
   }
-
   async function saveAdvance(e) {
     e.preventDefault();
-    if (!advanceForm.employee_id || !advanceForm.advance_date || !num(advanceForm.amount)) return setNotice("Cash advance employee, date, and amount are required.");
+    if (
+      !advanceForm.employee_id ||
+      !advanceForm.advance_date ||
+      !num(advanceForm.amount)
+    )
+      return setNotice("Cash advance employee, date, and amount are required.");
     if (editingAdvanceId && !requireSuperAdminPayrollEdit()) return;
-    const advancePaid = editingAdvanceId ? (repaymentsByAdvance[editingAdvanceId] || []).reduce((sum, row) => sum + num(row.amount), 0) : 0;
-    const payload = { ...advanceForm, amount: num(advanceForm.amount), reason: advanceForm.reason || null, status: advancePaid >= num(advanceForm.amount) && advancePaid > 0 ? "paid" : "active" };
+    const advancePaid = editingAdvanceId
+      ? (repaymentsByAdvance[editingAdvanceId] || []).reduce(
+          (sum, row) => sum + num(row.amount),
+          0,
+        )
+      : 0;
+    const payload = {
+      ...advanceForm,
+      amount: num(advanceForm.amount),
+      reason: advanceForm.reason || null,
+      status:
+        advancePaid >= num(advanceForm.amount) && advancePaid > 0
+          ? "paid"
+          : "active",
+    };
     const request = editingAdvanceId
-      ? supabase.from("payroll_cash_advances").update(payload).eq("id", editingAdvanceId)
-      : supabase.from("payroll_cash_advances").insert({ id: `ca-${advanceForm.employee_id}-${advanceForm.advance_date}-${Date.now()}`, ...payload });
+      ? supabase
+          .from("payroll_cash_advances")
+          .update(payload)
+          .eq("id", editingAdvanceId)
+      : supabase
+          .from("payroll_cash_advances")
+          .insert({
+            id: `ca-${advanceForm.employee_id}-${advanceForm.advance_date}-${Date.now()}`,
+            ...payload,
+          });
     const { data, error } = await request.select().maybeSingle();
     if (error) return setNotice(`Cash Advance Failed: ${error.message}`);
-    setAdvances((prev) => editingAdvanceId ? prev.map((row) => (row.id === data.id ? data : row)) : [data, ...prev]);
-    setRepaymentForm((current) => ({ ...current, employee_id: data.employee_id, cash_advance_id: data.id }));
+    setAdvances((prev) =>
+      editingAdvanceId
+        ? prev.map((row) => (row.id === data.id ? data : row))
+        : [data, ...prev],
+    );
+    setRepaymentForm((current) => ({
+      ...current,
+      employee_id: data.employee_id,
+      cash_advance_id: data.id,
+    }));
     setSelectedEmployeeId(data.employee_id);
     setEditingAdvanceId("");
-    setAdvanceForm({ employee_id: advanceForm.employee_id, advance_date: localDate(), amount: "", reason: "" });
-    setNotice(editingAdvanceId ? "Cash advance updated." : "Cash advance recorded.");
+    setAdvanceForm({
+      employee_id: advanceForm.employee_id,
+      advance_date: localDate(),
+      amount: "",
+      reason: "",
+    });
+    setNotice(
+      editingAdvanceId ? "Cash advance updated." : "Cash advance recorded.",
+    );
   }
-
   async function saveRepayment(e) {
     e.preventDefault();
-    const advance = advances.find((row) => row.id === repaymentForm.cash_advance_id);
-    if (!advance || !num(repaymentForm.amount)) return setNotice("Select a cash advance and repayment amount.");
+    const advance = advances.find(
+      (row) => row.id === repaymentForm.cash_advance_id,
+    );
+    if (!advance || !num(repaymentForm.amount))
+      return setNotice("Select a cash advance and repayment amount.");
     if (editingRepaymentId && !requireSuperAdminPayrollEdit()) return;
     const previous = repayments.find((row) => row.id === editingRepaymentId);
     const payload = {
@@ -1187,49 +1686,117 @@ export default function AdminPayrollPage() {
       notes: repaymentForm.notes || null,
     };
     const request = editingRepaymentId
-      ? supabase.from("payroll_cash_advance_repayments").update(payload).eq("id", editingRepaymentId)
-      : supabase.from("payroll_cash_advance_repayments").insert({ id: `repay-${advance.id}-${repaymentForm.payment_date}-${Date.now()}`, ...payload });
+      ? supabase
+          .from("payroll_cash_advance_repayments")
+          .update(payload)
+          .eq("id", editingRepaymentId)
+      : supabase
+          .from("payroll_cash_advance_repayments")
+          .insert({
+            id: `repay-${advance.id}-${repaymentForm.payment_date}-${Date.now()}`,
+            ...payload,
+          });
     const { data, error } = await request.select().maybeSingle();
     if (error) return setNotice(`Repayment Failed: ${error.message}`);
-    const nextRepayments = editingRepaymentId ? repayments.map((row) => (row.id === data.id ? data : row)) : [data, ...repayments];
-    const paid = nextRepayments.filter((row) => row.cash_advance_id === advance.id).reduce((sum, row) => sum + num(row.amount), 0);
+    const nextRepayments = editingRepaymentId
+      ? repayments.map((row) => (row.id === data.id ? data : row))
+      : [data, ...repayments];
+    const paid = nextRepayments
+      .filter((row) => row.cash_advance_id === advance.id)
+      .reduce((sum, row) => sum + num(row.amount), 0);
     setRepayments(nextRepayments);
     const nextStatus = paid >= num(advance.amount) ? "paid" : "active";
     if (String(advance.status || "").toLowerCase() !== nextStatus) {
-      const { data: updated } = await supabase.from("payroll_cash_advances").update({ status: nextStatus }).eq("id", advance.id).select().maybeSingle();
-      if (updated) setAdvances((prev) => prev.map((row) => (row.id === updated.id ? updated : row)));
+      const { data: updated } = await supabase
+        .from("payroll_cash_advances")
+        .update({ status: nextStatus })
+        .eq("id", advance.id)
+        .select()
+        .maybeSingle();
+      if (updated)
+        setAdvances((prev) =>
+          prev.map((row) => (row.id === updated.id ? updated : row)),
+        );
     }
     setEditingRepaymentId("");
-    setRepaymentForm({ employee_id: advance.employee_id, cash_advance_id: advance.id, period_id: repaymentForm.period_id, payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
-    const synced = await syncPayrollForAffectedRows([previous, data], { repaymentRows: nextRepayments });
-    setNotice(synced ? `Repayment ${editingRepaymentId ? "updated" : "recorded"} and payroll details updated.` : `Repayment ${editingRepaymentId ? "updated" : "recorded"}.`);
+    setRepaymentForm({
+      employee_id: advance.employee_id,
+      cash_advance_id: advance.id,
+      period_id: repaymentForm.period_id,
+      payment_date: localDate(),
+      amount: "",
+      method: "payroll deduction",
+      notes: "",
+    });
+    const synced = await syncPayrollForAffectedRows([previous, data], {
+      repaymentRows: nextRepayments,
+    });
+    setNotice(
+      synced
+        ? `Repayment ${editingRepaymentId ? "updated" : "recorded"} and payroll details updated.`
+        : `Repayment ${editingRepaymentId ? "updated" : "recorded"}.`,
+    );
   }
-
   async function saveLoan(e) {
     e.preventDefault();
-    if (!loanForm.employee_id || !loanForm.loan_date || !num(loanForm.amount)) return setNotice("Loan employee, date, and amount are required.");
+    if (!loanForm.employee_id || !loanForm.loan_date || !num(loanForm.amount))
+      return setNotice("Loan employee, date, and amount are required.");
     if (editingLoanId && !requireSuperAdminPayrollEdit()) return;
-    const loanPaid = editingLoanId ? (repaymentsByLoan[editingLoanId] || []).reduce((sum, row) => sum + num(row.amount), 0) : 0;
-    const payload = { ...loanForm, amount: num(loanForm.amount), reason: loanForm.reason || null, status: loanPaid >= num(loanForm.amount) && loanPaid > 0 ? "paid" : "active" };
+    const loanPaid = editingLoanId
+      ? (repaymentsByLoan[editingLoanId] || []).reduce(
+          (sum, row) => sum + num(row.amount),
+          0,
+        )
+      : 0;
+    const payload = {
+      ...loanForm,
+      amount: num(loanForm.amount),
+      reason: loanForm.reason || null,
+      status:
+        loanPaid >= num(loanForm.amount) && loanPaid > 0 ? "paid" : "active",
+    };
     const request = editingLoanId
       ? supabase.from("payroll_loans").update(payload).eq("id", editingLoanId)
-      : supabase.from("payroll_loans").insert({ id: `loan-${loanForm.employee_id}-${loanForm.loan_date}-${Date.now()}`, ...payload });
+      : supabase
+          .from("payroll_loans")
+          .insert({
+            id: `loan-${loanForm.employee_id}-${loanForm.loan_date}-${Date.now()}`,
+            ...payload,
+          });
     const { data, error } = await request.select().maybeSingle();
-    if (error) return setNotice(`Loan Failed: ${error.message}. Run supabase/migrations/20260615090000_add_payroll_loans.sql first.`);
-    setLoans((prev) => editingLoanId ? prev.map((row) => (row.id === data.id ? data : row)) : [data, ...prev]);
-    setLoanRepaymentForm((current) => ({ ...current, employee_id: data.employee_id, loan_id: data.id }));
+    if (error)
+      return setNotice(
+        `Loan Failed: ${error.message}. Run supabase/migrations/20260615090000_add_payroll_loans.sql first.`,
+      );
+    setLoans((prev) =>
+      editingLoanId
+        ? prev.map((row) => (row.id === data.id ? data : row))
+        : [data, ...prev],
+    );
+    setLoanRepaymentForm((current) => ({
+      ...current,
+      employee_id: data.employee_id,
+      loan_id: data.id,
+    }));
     setSelectedEmployeeId(data.employee_id);
     setEditingLoanId("");
-    setLoanForm({ employee_id: loanForm.employee_id, loan_date: localDate(), amount: "", reason: "" });
+    setLoanForm({
+      employee_id: loanForm.employee_id,
+      loan_date: localDate(),
+      amount: "",
+      reason: "",
+    });
     setNotice(editingLoanId ? "Loan updated." : "Loan recorded.");
   }
-
   async function saveLoanRepayment(e) {
     e.preventDefault();
     const loan = loans.find((row) => row.id === loanRepaymentForm.loan_id);
-    if (!loan || !num(loanRepaymentForm.amount)) return setNotice("Select a loan and repayment amount.");
+    if (!loan || !num(loanRepaymentForm.amount))
+      return setNotice("Select a loan and repayment amount.");
     if (editingLoanRepaymentId && !requireSuperAdminPayrollEdit()) return;
-    const previous = loanRepayments.find((row) => row.id === editingLoanRepaymentId);
+    const previous = loanRepayments.find(
+      (row) => row.id === editingLoanRepaymentId,
+    );
     const payload = {
       loan_id: loan.id,
       employee_id: loan.employee_id,
@@ -1241,31 +1808,76 @@ export default function AdminPayrollPage() {
       notes: loanRepaymentForm.notes || null,
     };
     const request = editingLoanRepaymentId
-      ? supabase.from("payroll_loan_repayments").update(payload).eq("id", editingLoanRepaymentId)
-      : supabase.from("payroll_loan_repayments").insert({ id: `loan-repay-${loan.id}-${loanRepaymentForm.payment_date}-${Date.now()}`, ...payload });
+      ? supabase
+          .from("payroll_loan_repayments")
+          .update(payload)
+          .eq("id", editingLoanRepaymentId)
+      : supabase
+          .from("payroll_loan_repayments")
+          .insert({
+            id: `loan-repay-${loan.id}-${loanRepaymentForm.payment_date}-${Date.now()}`,
+            ...payload,
+          });
     const { data, error } = await request.select().maybeSingle();
-    if (error) return setNotice(`Loan Repayment Failed: ${error.message}. Run supabase/migrations/20260615090000_add_payroll_loans.sql first.`);
-    const nextLoanRepayments = editingLoanRepaymentId ? loanRepayments.map((row) => (row.id === data.id ? data : row)) : [data, ...loanRepayments];
-    const paid = nextLoanRepayments.filter((row) => row.loan_id === loan.id).reduce((sum, row) => sum + num(row.amount), 0);
+    if (error)
+      return setNotice(
+        `Loan Repayment Failed: ${error.message}. Run supabase/migrations/20260615090000_add_payroll_loans.sql first.`,
+      );
+    const nextLoanRepayments = editingLoanRepaymentId
+      ? loanRepayments.map((row) => (row.id === data.id ? data : row))
+      : [data, ...loanRepayments];
+    const paid = nextLoanRepayments
+      .filter((row) => row.loan_id === loan.id)
+      .reduce((sum, row) => sum + num(row.amount), 0);
     setLoanRepayments(nextLoanRepayments);
     const nextStatus = paid >= num(loan.amount) ? "paid" : "active";
     if (String(loan.status || "").toLowerCase() !== nextStatus) {
-      const { data: updated } = await supabase.from("payroll_loans").update({ status: nextStatus }).eq("id", loan.id).select().maybeSingle();
-      if (updated) setLoans((prev) => prev.map((row) => (row.id === updated.id ? updated : row)));
+      const { data: updated } = await supabase
+        .from("payroll_loans")
+        .update({ status: nextStatus })
+        .eq("id", loan.id)
+        .select()
+        .maybeSingle();
+      if (updated)
+        setLoans((prev) =>
+          prev.map((row) => (row.id === updated.id ? updated : row)),
+        );
     }
     setEditingLoanRepaymentId("");
-    setLoanRepaymentForm({ employee_id: loan.employee_id, loan_id: loan.id, period_id: loanRepaymentForm.period_id, payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
-    const synced = await syncPayrollForAffectedRows([previous, data], { loanRepaymentRows: nextLoanRepayments });
-    setNotice(synced ? `Loan repayment ${editingLoanRepaymentId ? "updated" : "recorded"} and payroll details updated.` : `Loan repayment ${editingLoanRepaymentId ? "updated" : "recorded"}.`);
+    setLoanRepaymentForm({
+      employee_id: loan.employee_id,
+      loan_id: loan.id,
+      period_id: loanRepaymentForm.period_id,
+      payment_date: localDate(),
+      amount: "",
+      method: "payroll deduction",
+      notes: "",
+    });
+    const synced = await syncPayrollForAffectedRows([previous, data], {
+      loanRepaymentRows: nextLoanRepayments,
+    });
+    setNotice(
+      synced
+        ? `Loan repayment ${editingLoanRepaymentId ? "updated" : "recorded"} and payroll details updated.`
+        : `Loan repayment ${editingLoanRepaymentId ? "updated" : "recorded"}.`,
+    );
   }
-
   async function saveMiscDeduction(e) {
     e.preventDefault();
-    if (!miscDeductionForm.employee_id || !miscDeductionForm.period_id || !miscDeductionForm.deduction_date || !num(miscDeductionForm.amount)) {
-      return setNotice("Misc deduction employee, cutoff, date, and amount are required.");
+    if (
+      !miscDeductionForm.employee_id ||
+      !miscDeductionForm.period_id ||
+      !miscDeductionForm.deduction_date ||
+      !num(miscDeductionForm.amount)
+    ) {
+      return setNotice(
+        "Misc deduction employee, cutoff, date, and amount are required.",
+      );
     }
     if (editingMiscDeductionId && !requireSuperAdminPayrollEdit()) return;
-    const previous = miscDeductions.find((row) => row.id === editingMiscDeductionId);
+    const previous = miscDeductions.find(
+      (row) => row.id === editingMiscDeductionId,
+    );
     const payload = {
       employee_id: miscDeductionForm.employee_id,
       period_id: miscDeductionForm.period_id,
@@ -1274,38 +1886,73 @@ export default function AdminPayrollPage() {
       description: miscDeductionForm.description.trim() || null,
     };
     const request = editingMiscDeductionId
-      ? supabase.from("payroll_misc_deductions").update(payload).eq("id", editingMiscDeductionId)
-      : supabase.from("payroll_misc_deductions").insert({ id: `misc-${miscDeductionForm.employee_id}-${miscDeductionForm.period_id}-${miscDeductionForm.deduction_date}-${Date.now()}`, ...payload });
+      ? supabase
+          .from("payroll_misc_deductions")
+          .update(payload)
+          .eq("id", editingMiscDeductionId)
+      : supabase
+          .from("payroll_misc_deductions")
+          .insert({
+            id: `misc-${miscDeductionForm.employee_id}-${miscDeductionForm.period_id}-${miscDeductionForm.deduction_date}-${Date.now()}`,
+            ...payload,
+          });
     const { data, error } = await request.select().maybeSingle();
-    if (error) return setNotice(`Misc Deduction Failed: ${error.message}. Run supabase/payroll_employee_deductions_update.sql first.`);
-    const nextMiscDeductions = editingMiscDeductionId ? miscDeductions.map((row) => (row.id === data.id ? data : row)) : [data, ...miscDeductions];
+    if (error)
+      return setNotice(
+        `Misc Deduction Failed: ${error.message}. Run supabase/payroll_employee_deductions_update.sql first.`,
+      );
+    const nextMiscDeductions = editingMiscDeductionId
+      ? miscDeductions.map((row) => (row.id === data.id ? data : row))
+      : [data, ...miscDeductions];
     setMiscDeductions(nextMiscDeductions);
     setEditingMiscDeductionId("");
-    setMiscDeductionForm((current) => ({ ...current, deduction_date: localDate(), amount: "", description: "" }));
-    const synced = await syncPayrollForAffectedRows([previous, data], { miscDeductionRows: nextMiscDeductions });
-    setNotice(synced ? `Misc deduction ${editingMiscDeductionId ? "updated" : "recorded"} and payroll details updated.` : `Misc deduction ${editingMiscDeductionId ? "updated" : "recorded"}.`);
+    setMiscDeductionForm((current) => ({
+      ...current,
+      deduction_date: localDate(),
+      amount: "",
+      description: "",
+    }));
+    const synced = await syncPayrollForAffectedRows([previous, data], {
+      miscDeductionRows: nextMiscDeductions,
+    });
+    setNotice(
+      synced
+        ? `Misc deduction ${editingMiscDeductionId ? "updated" : "recorded"} and payroll details updated.`
+        : `Misc deduction ${editingMiscDeductionId ? "updated" : "recorded"}.`,
+    );
   }
-
   async function syncPayrollForAffectedRows(rows, options = {}) {
     const affected = new Map();
     rows.forEach((row) => {
-      if (row?.employee_id && row?.period_id) affected.set(`${row.employee_id}:${row.period_id}`, row);
+      if (row?.employee_id && row?.period_id)
+        affected.set(`${row.employee_id}:${row.period_id}`, row);
     });
     let synced = 0;
     for (const row of affected.values()) {
       const period = periodById[row.period_id];
-      if (period && await syncPayrollEntryForEmployee(row.employee_id, period, attendance, { ...options, revertApprovedToDraft: true })) {
+      if (
+        period &&
+        (await syncPayrollEntryForEmployee(
+          row.employee_id,
+          period,
+          attendance,
+          { ...options, revertApprovedToDraft: true },
+        ))
+      ) {
         synced += 1;
       }
     }
     return synced;
   }
-
   function cancelAdvanceEdit() {
     setEditingAdvanceId("");
-    setAdvanceForm({ employee_id: selectedEmployeeId || employees[0]?.id || "", advance_date: localDate(), amount: "", reason: "" });
+    setAdvanceForm({
+      employee_id: selectedEmployeeId || employees[0]?.id || "",
+      advance_date: localDate(),
+      amount: "",
+      reason: "",
+    });
   }
-
   function editAdvance(row) {
     if (!row?.id || !requireSuperAdminPayrollEdit()) return;
     setEditingAdvanceId(row.id);
@@ -1317,12 +1964,18 @@ export default function AdminPayrollPage() {
       reason: row.reason || "",
     });
   }
-
   function cancelRepaymentEdit() {
     setEditingRepaymentId("");
-    setRepaymentForm({ employee_id: repaymentForm.employee_id, cash_advance_id: repaymentForm.cash_advance_id, period_id: selectedPeriodId, payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
+    setRepaymentForm({
+      employee_id: repaymentForm.employee_id,
+      cash_advance_id: repaymentForm.cash_advance_id,
+      period_id: selectedPeriodId,
+      payment_date: localDate(),
+      amount: "",
+      method: "payroll deduction",
+      notes: "",
+    });
   }
-
   function editRepayment(row) {
     if (!row?.id || !requireSuperAdminPayrollEdit()) return;
     setEditingRepaymentId(row.id);
@@ -1338,12 +1991,15 @@ export default function AdminPayrollPage() {
     });
     setActiveTab("deductions");
   }
-
   function cancelLoanEdit() {
     setEditingLoanId("");
-    setLoanForm({ employee_id: selectedEmployeeId || employees[0]?.id || "", loan_date: localDate(), amount: "", reason: "" });
+    setLoanForm({
+      employee_id: selectedEmployeeId || employees[0]?.id || "",
+      loan_date: localDate(),
+      amount: "",
+      reason: "",
+    });
   }
-
   function editLoan(row) {
     if (!row?.id || !requireSuperAdminPayrollEdit()) return;
     setEditingLoanId(row.id);
@@ -1355,12 +2011,18 @@ export default function AdminPayrollPage() {
       reason: row.reason || "",
     });
   }
-
   function cancelLoanRepaymentEdit() {
     setEditingLoanRepaymentId("");
-    setLoanRepaymentForm({ employee_id: loanRepaymentForm.employee_id, loan_id: loanRepaymentForm.loan_id, period_id: selectedPeriodId, payment_date: localDate(), amount: "", method: "payroll deduction", notes: "" });
+    setLoanRepaymentForm({
+      employee_id: loanRepaymentForm.employee_id,
+      loan_id: loanRepaymentForm.loan_id,
+      period_id: selectedPeriodId,
+      payment_date: localDate(),
+      amount: "",
+      method: "payroll deduction",
+      notes: "",
+    });
   }
-
   function editLoanRepayment(row) {
     if (!row?.id || !requireSuperAdminPayrollEdit()) return;
     setEditingLoanRepaymentId(row.id);
@@ -1376,12 +2038,16 @@ export default function AdminPayrollPage() {
     });
     setActiveTab("deductions");
   }
-
   function cancelMiscDeductionEdit() {
     setEditingMiscDeductionId("");
-    setMiscDeductionForm({ employee_id: selectedEmployeeId || employees[0]?.id || "", period_id: selectedPeriodId, deduction_date: localDate(), amount: "", description: "" });
+    setMiscDeductionForm({
+      employee_id: selectedEmployeeId || employees[0]?.id || "",
+      period_id: selectedPeriodId,
+      deduction_date: localDate(),
+      amount: "",
+      description: "",
+    });
   }
-
   function editMiscDeduction(row) {
     if (!row?.id || !requireSuperAdminPayrollEdit()) return;
     setEditingMiscDeductionId(row.id);
@@ -1395,100 +2061,199 @@ export default function AdminPayrollPage() {
     });
     setActiveTab("deductions");
   }
-
   async function deleteMiscDeduction(row) {
     if (!requireSuperAdminPayrollEdit()) return;
     if (!row?.id || !window.confirm("Delete this misc deduction?")) return;
-    const nextMiscDeductions = miscDeductions.filter((item) => item.id !== row.id);
-    const { error } = await supabase.from("payroll_misc_deductions").delete().eq("id", row.id);
+    const nextMiscDeductions = miscDeductions.filter(
+      (item) => item.id !== row.id,
+    );
+    const { error } = await supabase
+      .from("payroll_misc_deductions")
+      .delete()
+      .eq("id", row.id);
     if (error) return setNotice(`Delete Failed: ${error.message}`);
     setMiscDeductions(nextMiscDeductions);
-    const synced = await syncPayrollForAffectedRows([row], { miscDeductionRows: nextMiscDeductions });
-    setNotice(synced ? "Misc deduction deleted and payroll details updated." : "Misc deduction deleted.");
+    const synced = await syncPayrollForAffectedRows([row], {
+      miscDeductionRows: nextMiscDeductions,
+    });
+    setNotice(
+      synced
+        ? "Misc deduction deleted and payroll details updated."
+        : "Misc deduction deleted.",
+    );
   }
-
   async function deleteRepayment(row) {
     if (!requireSuperAdminPayrollEdit()) return;
-    if (!row?.id || !window.confirm("Delete this cash advance repayment?")) return;
+    if (!row?.id || !window.confirm("Delete this cash advance repayment?"))
+      return;
     const nextRepayments = repayments.filter((item) => item.id !== row.id);
-    const { error } = await supabase.from("payroll_cash_advance_repayments").delete().eq("id", row.id);
+    const { error } = await supabase
+      .from("payroll_cash_advance_repayments")
+      .delete()
+      .eq("id", row.id);
     if (error) return setNotice(`Delete Failed: ${error.message}`);
     setRepayments(nextRepayments);
     const advance = advances.find((item) => item.id === row.cash_advance_id);
     if (advance) {
-      const paid = nextRepayments.filter((item) => item.cash_advance_id === advance.id).reduce((sum, item) => sum + num(item.amount), 0);
-      if (paid < num(advance.amount) && String(advance.status || "").toLowerCase() === "paid") {
-        const { data: updated } = await supabase.from("payroll_cash_advances").update({ status: "active" }).eq("id", advance.id).select().maybeSingle();
-        if (updated) setAdvances((prev) => prev.map((item) => item.id === updated.id ? updated : item));
+      const paid = nextRepayments
+        .filter((item) => item.cash_advance_id === advance.id)
+        .reduce((sum, item) => sum + num(item.amount), 0);
+      if (
+        paid < num(advance.amount) &&
+        String(advance.status || "").toLowerCase() === "paid"
+      ) {
+        const { data: updated } = await supabase
+          .from("payroll_cash_advances")
+          .update({ status: "active" })
+          .eq("id", advance.id)
+          .select()
+          .maybeSingle();
+        if (updated)
+          setAdvances((prev) =>
+            prev.map((item) => (item.id === updated.id ? updated : item)),
+          );
       }
     }
-    const synced = await syncPayrollForAffectedRows([row], { repaymentRows: nextRepayments });
-    setNotice(synced ? "Cash advance repayment deleted and payroll details updated." : "Cash advance repayment deleted.");
+    const synced = await syncPayrollForAffectedRows([row], {
+      repaymentRows: nextRepayments,
+    });
+    setNotice(
+      synced
+        ? "Cash advance repayment deleted and payroll details updated."
+        : "Cash advance repayment deleted.",
+    );
   }
-
   async function deleteLoanRepayment(row) {
     if (!requireSuperAdminPayrollEdit()) return;
     if (!row?.id || !window.confirm("Delete this loan repayment?")) return;
-    const nextLoanRepayments = loanRepayments.filter((item) => item.id !== row.id);
-    const { error } = await supabase.from("payroll_loan_repayments").delete().eq("id", row.id);
+    const nextLoanRepayments = loanRepayments.filter(
+      (item) => item.id !== row.id,
+    );
+    const { error } = await supabase
+      .from("payroll_loan_repayments")
+      .delete()
+      .eq("id", row.id);
     if (error) return setNotice(`Delete Failed: ${error.message}`);
     setLoanRepayments(nextLoanRepayments);
     const loan = loans.find((item) => item.id === row.loan_id);
     if (loan) {
-      const paid = nextLoanRepayments.filter((item) => item.loan_id === loan.id).reduce((sum, item) => sum + num(item.amount), 0);
-      if (paid < num(loan.amount) && String(loan.status || "").toLowerCase() === "paid") {
-        const { data: updated } = await supabase.from("payroll_loans").update({ status: "active" }).eq("id", loan.id).select().maybeSingle();
-        if (updated) setLoans((prev) => prev.map((item) => item.id === updated.id ? updated : item));
+      const paid = nextLoanRepayments
+        .filter((item) => item.loan_id === loan.id)
+        .reduce((sum, item) => sum + num(item.amount), 0);
+      if (
+        paid < num(loan.amount) &&
+        String(loan.status || "").toLowerCase() === "paid"
+      ) {
+        const { data: updated } = await supabase
+          .from("payroll_loans")
+          .update({ status: "active" })
+          .eq("id", loan.id)
+          .select()
+          .maybeSingle();
+        if (updated)
+          setLoans((prev) =>
+            prev.map((item) => (item.id === updated.id ? updated : item)),
+          );
       }
     }
-    const synced = await syncPayrollForAffectedRows([row], { loanRepaymentRows: nextLoanRepayments });
-    setNotice(synced ? "Loan repayment deleted and payroll details updated." : "Loan repayment deleted.");
+    const synced = await syncPayrollForAffectedRows([row], {
+      loanRepaymentRows: nextLoanRepayments,
+    });
+    setNotice(
+      synced
+        ? "Loan repayment deleted and payroll details updated."
+        : "Loan repayment deleted.",
+    );
   }
-
   async function deleteAdvance(row) {
     if (!requireSuperAdminPayrollEdit()) return;
-    if (!row?.id || !window.confirm("Delete this cash advance and its repayment history?")) return;
-    const relatedRepayments = repayments.filter((item) => item.cash_advance_id === row.id);
+    if (
+      !row?.id ||
+      !window.confirm("Delete this cash advance and its repayment history?")
+    )
+      return;
+    const relatedRepayments = repayments.filter(
+      (item) => item.cash_advance_id === row.id,
+    );
     const relatedIds = relatedRepayments.map((item) => item.id);
     if (relatedIds.length) {
-      const repaymentDelete = await supabase.from("payroll_cash_advance_repayments").delete().in("id", relatedIds);
-      if (repaymentDelete.error) return setNotice(`Delete Failed: ${repaymentDelete.error.message}`);
+      const repaymentDelete = await supabase
+        .from("payroll_cash_advance_repayments")
+        .delete()
+        .in("id", relatedIds);
+      if (repaymentDelete.error)
+        return setNotice(`Delete Failed: ${repaymentDelete.error.message}`);
     }
-    const { error } = await supabase.from("payroll_cash_advances").delete().eq("id", row.id);
+    const { error } = await supabase
+      .from("payroll_cash_advances")
+      .delete()
+      .eq("id", row.id);
     if (error) return setNotice(`Delete Failed: ${error.message}`);
-    const nextRepayments = repayments.filter((item) => item.cash_advance_id !== row.id);
+    const nextRepayments = repayments.filter(
+      (item) => item.cash_advance_id !== row.id,
+    );
     setRepayments(nextRepayments);
     setAdvances((prev) => prev.filter((item) => item.id !== row.id));
-    const synced = await syncPayrollForAffectedRows(relatedRepayments, { repaymentRows: nextRepayments });
-    setNotice(synced ? "Cash advance deleted and payroll details updated." : "Cash advance deleted.");
+    const synced = await syncPayrollForAffectedRows(relatedRepayments, {
+      repaymentRows: nextRepayments,
+    });
+    setNotice(
+      synced
+        ? "Cash advance deleted and payroll details updated."
+        : "Cash advance deleted.",
+    );
   }
-
   async function deleteLoan(row) {
     if (!requireSuperAdminPayrollEdit()) return;
-    if (!row?.id || !window.confirm("Delete this loan and its repayment history?")) return;
-    const relatedRepayments = loanRepayments.filter((item) => item.loan_id === row.id);
+    if (
+      !row?.id ||
+      !window.confirm("Delete this loan and its repayment history?")
+    )
+      return;
+    const relatedRepayments = loanRepayments.filter(
+      (item) => item.loan_id === row.id,
+    );
     const relatedIds = relatedRepayments.map((item) => item.id);
     if (relatedIds.length) {
-      const repaymentDelete = await supabase.from("payroll_loan_repayments").delete().in("id", relatedIds);
-      if (repaymentDelete.error) return setNotice(`Delete Failed: ${repaymentDelete.error.message}`);
+      const repaymentDelete = await supabase
+        .from("payroll_loan_repayments")
+        .delete()
+        .in("id", relatedIds);
+      if (repaymentDelete.error)
+        return setNotice(`Delete Failed: ${repaymentDelete.error.message}`);
     }
-    const { error } = await supabase.from("payroll_loans").delete().eq("id", row.id);
+    const { error } = await supabase
+      .from("payroll_loans")
+      .delete()
+      .eq("id", row.id);
     if (error) return setNotice(`Delete Failed: ${error.message}`);
-    const nextLoanRepayments = loanRepayments.filter((item) => item.loan_id !== row.id);
+    const nextLoanRepayments = loanRepayments.filter(
+      (item) => item.loan_id !== row.id,
+    );
     setLoanRepayments(nextLoanRepayments);
     setLoans((prev) => prev.filter((item) => item.id !== row.id));
-    const synced = await syncPayrollForAffectedRows(relatedRepayments, { loanRepaymentRows: nextLoanRepayments });
-    setNotice(synced ? "Loan deleted and payroll details updated." : "Loan deleted.");
+    const synced = await syncPayrollForAffectedRows(relatedRepayments, {
+      loanRepaymentRows: nextLoanRepayments,
+    });
+    setNotice(
+      synced ? "Loan deleted and payroll details updated." : "Loan deleted.",
+    );
   }
-
   async function saveEntry(e) {
     e.preventDefault();
-    if (!entryForm.period_id || !entryForm.employee_id) return setNotice("Select a period and employee first.");
-    if (["approved", "paid"].includes(String(entryForm.status || "").toLowerCase()) && !canApprovePayroll) {
+    if (!entryForm.period_id || !entryForm.employee_id)
+      return setNotice("Select a period and employee first.");
+    if (
+      ["approved", "paid"].includes(
+        String(entryForm.status || "").toLowerCase(),
+      ) &&
+      !canApprovePayroll
+    ) {
       return setNotice("Only super admin accounts can edit approved payroll.");
     }
     setSaving(true);
-    const id = entryForm.id || `${entryForm.period_id}-${entryForm.employee_id}`;
+    const id =
+      entryForm.id || `${entryForm.period_id}-${entryForm.employee_id}`;
     const entryStatus = String(entryForm.status || "draft").toLowerCase();
     const payload = {
       id,
@@ -1513,13 +2278,19 @@ export default function AdminPayrollPage() {
       cash_advance_deduction: formTotals.cashAdvanceDeduction,
       misc_deduction_total: formTotals.miscDeduction,
       loan_repayment_total: num(entryForm.loan_repayment_total),
+      thirteenth_month_pay: num(entryForm.thirteenth_month_pay),
       gross_total: formTotals.gross,
       deduction_total: formTotals.deductions,
       net_total: formTotals.net,
-      status: entryStatus === "approved" ? "draft" : entryForm.status || "draft",
+      status:
+        entryStatus === "approved" ? "draft" : entryForm.status || "draft",
       notes: entryForm.notes || null,
     };
-    const { data, error } = await supabase.from("payroll_entries").upsert(payload).select().maybeSingle();
+    const { data, error } = await supabase
+      .from("payroll_entries")
+      .upsert(payload)
+      .select()
+      .maybeSingle();
     if (error) {
       setNotice(`Save Failed: ${error.message}`);
     } else {
@@ -1529,17 +2300,12 @@ export default function AdminPayrollPage() {
     }
     setSaving(false);
   }
-
   function updateAdjustmentDraft(entryId, field, value) {
     setAdjustmentDrafts((current) => ({
       ...current,
-      [entryId]: {
-        ...(current[entryId] || {}),
-        [field]: value,
-      },
+      [entryId]: { ...(current[entryId] || {}), [field]: value },
     }));
   }
-
   async function savePayrollAdjustment(entry) {
     const draft = adjustmentDrafts[entry.id] || {};
     const nextEntry = {
@@ -1564,7 +2330,6 @@ export default function AdminPayrollPage() {
     if (String(entry.status || "").toLowerCase() === "approved") {
       payload.status = "draft";
     }
-
     setSaving(`adjustment-${entry.id}`);
     const { data, error } = await supabase
       .from("payroll_entries")
@@ -1575,7 +2340,9 @@ export default function AdminPayrollPage() {
     if (error) {
       setNotice(`Adjustment Save Failed: ${error.message}`);
     } else {
-      setEntries((prev) => prev.map((row) => (row.id === data.id ? data : row)));
+      setEntries((prev) =>
+        prev.map((row) => (row.id === data.id ? data : row)),
+      );
       setAdjustmentDrafts((current) => ({
         ...current,
         [data.id]: {
@@ -1590,24 +2357,38 @@ export default function AdminPayrollPage() {
     }
     setSaving(false);
   }
-
   async function updateEntryStatus(entry, status) {
-    if (status === "approved" && !canApprovePayroll) return setNotice("Only super admin accounts can approve payroll.");
-    if (status === "paid" && !canMarkPayrollPaid) return setNotice("Only admin or super admin accounts can tag payroll as paid.");
-    if (status === "paid" && !canApprovePayroll && String(entry?.status || "").toLowerCase() !== "approved") {
-      return setNotice("Payroll must be approved by a super admin before admin can tag it as paid.");
+    if (status === "approved" && !canApprovePayroll)
+      return setNotice("Only super admin accounts can approve payroll.");
+    if (status === "paid" && !canMarkPayrollPaid)
+      return setNotice(
+        "Only admin or super admin accounts can tag payroll as paid.",
+      );
+    if (
+      status === "paid" &&
+      !canApprovePayroll &&
+      String(entry?.status || "").toLowerCase() !== "approved"
+    ) {
+      return setNotice(
+        "Payroll must be approved by a super admin before admin can tag it as paid.",
+      );
     }
-    const { data, error } = await supabase.from("payroll_entries").update({ status }).eq("id", entry.id).select().maybeSingle();
+    const { data, error } = await supabase
+      .from("payroll_entries")
+      .update({ status })
+      .eq("id", entry.id)
+      .select()
+      .maybeSingle();
     if (error) return setNotice(`Status Failed: ${error.message}`);
     setEntries((prev) => prev.map((row) => (row.id === entry.id ? data : row)));
   }
-
   async function generateCutoffPayroll(e) {
     e.preventDefault();
     const start = cutoffForm.cutoff_start;
     const end = cutoffForm.cutoff_end || addDays(start, 6);
     const payday = addDays(end, 1);
-    if (!start || !end || end < start) return setNotice("Cutoff end must be on or after cutoff start.");
+    if (!start || !end || end < start)
+      return setNotice("Cutoff end must be on or after cutoff start.");
     setSaving(true);
     const periodId = `cutoff-${start}`;
     const periodPayload = {
@@ -1619,16 +2400,26 @@ export default function AdminPayrollPage() {
       pay_date: payday,
       status: "draft",
     };
-    const { data: period, error: periodError } = await supabase.from("payroll_periods").upsert(periodPayload).select().maybeSingle();
+    const { data: period, error: periodError } = await supabase
+      .from("payroll_periods")
+      .upsert(periodPayload)
+      .select()
+      .maybeSingle();
     if (periodError) {
       setSaving(false);
       return setNotice(`Generate Failed: ${periodError.message}`);
     }
-
-    const activeEmployees = employees.filter((employee) => employee.active !== false && employeeEmploymentStatus(employee) === "active");
+    const activeEmployees = employees.filter(
+      (employee) =>
+        employee.active !== false &&
+        employeeEmploymentStatus(employee) === "active",
+    );
     const generatedRows = activeEmployees
       .map((employee) => {
-        const existingEntry = entries.find((row) => row.period_id === periodId && row.employee_id === employee.id);
+        const existingEntry = entries.find(
+          (row) =>
+            row.period_id === periodId && row.employee_id === employee.id,
+        );
         const row = buildPayrollEntryFromAttendance({
           employee,
           period,
@@ -1639,69 +2430,240 @@ export default function AdminPayrollPage() {
           rateChanges,
           existingEntry,
         });
-        if (row && String(existingEntry?.status || "").toLowerCase() === "approved") row.status = "draft";
+        if (
+          row &&
+          String(existingEntry?.status || "").toLowerCase() === "approved"
+        )
+          row.status = "draft";
         return row;
       })
       .filter(Boolean);
-
-    const { data, error } = await supabase.from("payroll_entries").upsert(generatedRows).select();
+    const { data, error } = await supabase
+      .from("payroll_entries")
+      .upsert(generatedRows)
+      .select();
     if (error) {
       setSaving(false);
       return setNotice(`Generate Failed: ${error.message}`);
     }
-    setPeriods((prev) => [period, ...prev.filter((row) => row.id !== period.id)]);
-    setEntries((prev) => [...(data || []), ...prev.filter((row) => row.period_id !== periodId)]);
+    setPeriods((prev) => [
+      period,
+      ...prev.filter((row) => row.id !== period.id),
+    ]);
+    setEntries((prev) => [
+      ...(data || []),
+      ...prev.filter((row) => row.period_id !== periodId),
+    ]);
     setSelectedPeriodId(periodId);
     setActiveTab("payroll");
-    setNotice(`Generated payroll for ${dateText(start)} - ${dateText(end)}. Payday ${dateText(payday)}.`);
+    setNotice(
+      `Generated payroll for ${dateText(start)} - ${dateText(end)}. Payday ${dateText(payday)}.`,
+    );
     setSaving(false);
   }
-
+  async function generateThirteenthMonthPayroll(e) {
+    e.preventDefault();
+    const year = String(thirteenthMonthForm.year || "").trim();
+    const payDate = thirteenthMonthForm.pay_date;
+    if (!/^\d{4}$/.test(year) || !payDate || !payDate.startsWith(`${year}-`)) {
+      return setNotice(
+        "Enter a valid calendar year and a payday within that year.",
+      );
+    }
+    const periodId = `13th-month-${year}`;
+    const periodStart = `${year}-01-01`;
+    const periodEnd = `${year}-12-31`;
+    const periodPayload = {
+      id: periodId,
+      label: `13th Month Pay ${year}`,
+      source_sheet: null,
+      period_start: periodStart,
+      period_end: periodEnd,
+      pay_date: payDate,
+      status: "draft",
+    };
+    const periodById = Object.fromEntries(
+      periods.map((period) => [period.id, period]),
+    );
+    const basicPayByEmployee = {};
+    entries.forEach((entry) => {
+      const period = periodById[entry.period_id];
+      const entryDate = String(
+        period?.period_end || period?.pay_date || "",
+      ).slice(0, 10);
+      if (
+        entry.period_id === periodId ||
+        String(entry.status || "").toLowerCase() === "void" ||
+        !entryDate ||
+        entryDate < periodStart ||
+        entryDate > periodEnd
+      )
+        return;
+      basicPayByEmployee[entry.employee_id] =
+        (basicPayByEmployee[entry.employee_id] || 0) +
+        payrollThirteenthMonthBasis(entry);
+    });
+    const generatedRows = employees
+      .filter((employee) => basicPayByEmployee[employee.id] > 0)
+      .map((employee) => {
+        const thirteenthMonthPay = basicPayByEmployee[employee.id] / 12;
+        const existingEntry = entries.find(
+          (entry) =>
+            entry.period_id === periodId && entry.employee_id === employee.id,
+        );
+        return {
+          ...blankEntry(periodId, employee.id, 0),
+          id: `${periodId}-${employee.id}`,
+          thirteenth_month_pay: thirteenthMonthPay,
+          gross_total: thirteenthMonthPay,
+          deduction_total: 0,
+          net_total: thirteenthMonthPay,
+          status: existingEntry?.status || "draft",
+          notes: `13th Month Pay ${year}: basic pay only; allowances, overtime, adjustments, and deductions excluded.`,
+          generated_at: new Date().toISOString(),
+        };
+      });
+    if (!generatedRows.length)
+      return setNotice(
+        `No eligible basic-pay payroll entries found for ${year}.`,
+      );
+    setSaving(true);
+    const { data: period, error: periodError } = await supabase
+      .from("payroll_periods")
+      .upsert(periodPayload)
+      .select()
+      .maybeSingle();
+    if (periodError) {
+      setSaving(false);
+      return setNotice(`13th Month Generation Failed: ${periodError.message}`);
+    }
+    const { data, error } = await supabase
+      .from("payroll_entries")
+      .upsert(generatedRows)
+      .select();
+    if (error) {
+      setSaving(false);
+      return setNotice(`13th Month Generation Failed: ${error.message}`);
+    }
+    setPeriods((prev) => [
+      period,
+      ...prev.filter((row) => row.id !== period.id),
+    ]);
+    setEntries((prev) => [
+      ...(data || []),
+      ...prev.filter((row) => row.period_id !== periodId),
+    ]);
+    setSelectedPeriodId(periodId);
+    setActiveTab("payroll");
+    setNotice(
+      `Generated 13th Month Pay for ${generatedRows.length} employee${generatedRows.length === 1 ? "" : "s"}. Allowances were excluded.`,
+    );
+    setSaving(false);
+  }
   function updateCutoffStart(value) {
     const end = addDays(value, 6);
-    setCutoffForm({ cutoff_start: value, cutoff_end: end, payday: addDays(end, 1) });
+    setCutoffForm({
+      cutoff_start: value,
+      cutoff_end: end,
+      payday: addDays(end, 1),
+    });
   }
-
   function updateCutoffEnd(value) {
-    setCutoffForm((current) => ({ ...current, cutoff_end: value, payday: addDays(value, 1) }));
+    setCutoffForm((current) => ({
+      ...current,
+      cutoff_end: value,
+      payday: addDays(value, 1),
+    }));
   }
-
   return (
     <div className="space-y-6 pb-20">
+      {" "}
       <header className="rounded-3xl border border-white/20 bg-slate-600/78 p-5 text-white shadow-[-20_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl lg:p-6">
+        {" "}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-cyan-200">Finance</p>
-          <p className="text-3xl font-semibold text-white">Payroll System</p>
-          <p className="mt-2 text-sm text-slate-300">Flexible cutoff range with payday on the next day after cutoff end.</p>
+          {" "}
+          <div>
+            {" "}
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-cyan-200">
+              Finance
+            </p>{" "}
+            <p className="text-3xl font-semibold text-white">Payroll System</p>{" "}
+            <p className="mt-2 text-sm text-slate-300">
+              Flexible cutoff range with payday on the next day after cutoff
+              end.
+            </p>{" "}
+          </div>{" "}
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {" "}
+            <select
+              value={selectedPeriodId}
+              onChange={(e) => setSelectedPeriodId(e.target.value)}
+              className="h-11 rounded-xl border border-cyan-300/30 bg-white/10 px-3 text-sm font-semibold text-white outline-none transition duration-200 focus:border-cyan-300/70 focus:ring-4 focus:ring-cyan-300/20"
+            >
+              {" "}
+              {sortedPeriods.map((period) => (
+                <option key={period.id} value={period.id}>
+                  {period.label}
+                </option>
+              ))}{" "}
+            </select>{" "}
+            <button
+              onClick={() => setActiveTab("generate")}
+              className="h-11 rounded-xl bg-cyan-400 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_30px_rgba(34,211,238,0.26)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-400"
+            >
+              Generate Cutoff
+            </button>{" "}
+          </div>{" "}
+        </div>{" "}
+      </header>{" "}
+      {notice ? (
+        <div className="rounded-xl border border-cyan-100 bg-cyan-50 p-3 text-sm font-semibold text-cyan-800 shadow-sm">
+          {notice}
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <select value={selectedPeriodId} onChange={(e) => setSelectedPeriodId(e.target.value)} className="h-11 rounded-xl border border-cyan-300/30 bg-white/10 px-3 text-sm font-semibold text-white outline-none transition duration-200 focus:border-cyan-300/70 focus:ring-4 focus:ring-cyan-300/20">
-            {sortedPeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}
-          </select>
-          <button onClick={() => setActiveTab("generate")} className="h-11 rounded-xl bg-cyan-400 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_30px_rgba(34,211,238,0.26)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-400">Generate Cutoff</button>
-        </div>
-        </div>
-      </header>
-
-      {notice ? <div className="rounded-xl border border-cyan-100 bg-cyan-50 p-3 text-sm font-semibold text-cyan-800 shadow-sm">{notice}</div> : null}
-
+      ) : null}{" "}
       <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {" "}
         {[
-          ["Net Payroll", money(summary.net), `${summary.employees} employee entries`],
-          ["Gross Pay", money(summary.gross), `${money(summary.deductions)} deductions`],
-          ["Cash Advance", money(summary.cashAdvances), `${summary.late.toFixed(0)} late minutes`],
-          ["Paid Status", `${summary.paid}/${summary.employees}`, selectedPeriod ? `${dateText(selectedPeriod.period_start)} - ${dateText(selectedPeriod.period_end)}` : "No period"],
+          [
+            "Net Payroll",
+            money(summary.net),
+            `${summary.employees} employee entries`,
+          ],
+          [
+            "Gross Pay",
+            money(summary.gross),
+            `${money(summary.deductions)} deductions`,
+          ],
+          [
+            "Cash Advance",
+            money(summary.cashAdvances),
+            `${summary.late.toFixed(0)} late minutes`,
+          ],
+          [
+            "Paid Status",
+            `${summary.paid}/${summary.employees}`,
+            selectedPeriod
+              ? `${dateText(selectedPeriod.period_start)} - ${dateText(selectedPeriod.period_end)}`
+              : "No period",
+          ],
         ].map(([label, value, sub]) => (
-          <div key={label} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl transition duration-300 hover:border-cyan-200/80 hover:shadow-[0_24px_60px_rgba(8,145,178,0.14)]">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{label}</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-950">{value}</p>
-            <p className="mt-1 text-xs text-slate-500">{sub}</p>
+          <div
+            key={label}
+            className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl transition duration-300 hover:border-cyan-200/80 hover:shadow-[0_24px_60px_rgba(8,145,178,0.14)]"
+          >
+            {" "}
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+              {label}
+            </p>{" "}
+            <p className="mt-2 text-2xl font-semibold text-slate-950">
+              {value}
+            </p>{" "}
+            <p className="mt-1 text-xs text-slate-500">{sub}</p>{" "}
           </div>
-        ))}
-      </section>
-
+        ))}{" "}
+      </section>{" "}
       <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/70 bg-white/72 p-1 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl md:grid-cols-4 xl:grid-cols-9">
+        {" "}
         {[
           ["payroll", "Payroll"],
           ["generate", "Generate"],
@@ -1713,344 +2675,1099 @@ export default function AdminPayrollPage() {
           ["cashAdvance", "Cash Advance"],
           ["loans", "Loans"],
         ].map(([key, label]) => (
-          <button key={key} onClick={() => setActiveTab(key)} className={`h-10 rounded-xl text-xs font-semibold uppercase tracking-wider transition duration-200 ${activeTab === key ? "bg-slate-300/78 text-cyan-50 shadow-[0_0_28px_rgba(34,211,238,0.16)]" : "text-slate-600 hover:-translate-y-0.5 hover:bg-cyan-50 hover:text-cyan-700"}`}>
-            {label}
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={`h-10 rounded-xl text-xs font-semibold uppercase tracking-wider transition duration-200 ${activeTab === key ? "bg-slate-300/78 text-cyan-50 shadow-[0_0_28px_rgba(34,211,238,0.16)]" : "text-slate-600 hover:-translate-y-0.5 hover:bg-cyan-50 hover:text-cyan-700"}`}
+          >
+            {" "}
+            {label}{" "}
           </button>
-        ))}
-      </div>
-
+        ))}{" "}
+      </div>{" "}
       {loading ? (
-        <div className="py-16 text-center text-sm font-bold text-slate-400">Loading payroll...</div>
+        <div className="py-16 text-center text-sm font-bold text-slate-400">
+          Loading payroll...
+        </div>
       ) : activeTab === "generate" ? (
-        <form onSubmit={generateCutoffPayroll} className="grid grid-cols-1 gap-4 rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl lg:grid-cols-4">
-          <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Cutoff Start
-            <input type="date" value={cutoffForm.cutoff_start} onChange={(e) => updateCutoffStart(e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm normal-case outline-none transition duration-200 focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
-          </label>
-          <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Cutoff End
-            <input type="date" value={cutoffForm.cutoff_end} onChange={(e) => updateCutoffEnd(e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm normal-case outline-none transition duration-200 focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
-          </label>
-          <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Payday
-            <input type="date" value={cutoffForm.payday} readOnly className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm normal-case outline-none" />
-          </label>
-          <button disabled={saving} className="mt-6 h-11 rounded-xl bg-slate-400/78 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_30px_rgba(8,145,178,0.30)] transition duration-200 hover:-translate-y-0.5 hover:bg-slate-400/78 disabled:bg-slate-300">
-            {saving ? "Generating..." : "Generate Payroll"}
-          </button>
-        </form>
+        <div className="space-y-4">
+          {" "}
+          <form
+            onSubmit={generateCutoffPayroll}
+            className="grid grid-cols-1 gap-4 rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl lg:grid-cols-4"
+          >
+            {" "}
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Cutoff Start{" "}
+              <input
+                type="date"
+                value={cutoffForm.cutoff_start}
+                onChange={(e) => updateCutoffStart(e.target.value)}
+                className="mt-2 h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm normal-case outline-none transition duration-200 focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+              />{" "}
+            </label>{" "}
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Cutoff End{" "}
+              <input
+                type="date"
+                value={cutoffForm.cutoff_end}
+                onChange={(e) => updateCutoffEnd(e.target.value)}
+                className="mt-2 h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm normal-case outline-none transition duration-200 focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+              />{" "}
+            </label>{" "}
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Payday{" "}
+              <input
+                type="date"
+                value={cutoffForm.payday}
+                readOnly
+                className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm normal-case outline-none"
+              />{" "}
+            </label>{" "}
+            <button
+              disabled={saving}
+              className="mt-6 h-11 rounded-xl bg-slate-400/78 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_30px_rgba(8,145,178,0.30)] transition duration-200 hover:-translate-y-0.5 hover:bg-slate-400/78 disabled:bg-slate-300"
+            >
+              {" "}
+              {saving ? "Generating..." : "Generate Payroll"}{" "}
+            </button>{" "}
+          </form>{" "}
+          <form
+            onSubmit={generateThirteenthMonthPayroll}
+            className="grid grid-cols-1 gap-4 rounded-2xl border border-cyan-100 bg-cyan-50/50 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] lg:grid-cols-3"
+          >
+            {" "}
+            <div className="lg:col-span-3">
+              {" "}
+              <h2 className="text-sm font-semibold text-slate-950">
+                13th Month Pay
+              </h2>{" "}
+              <p className="mt-1 text-xs text-slate-500">
+                Generates one draft payment per employee from calendar-year
+                basic pay only. Allowances, overtime, adjustments, and
+                deductions are excluded.
+              </p>{" "}
+            </div>{" "}
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Calendar Year{" "}
+              <input
+                type="number"
+                min="2000"
+                max="2100"
+                value={thirteenthMonthForm.year}
+                onChange={(e) => {
+                  const year = e.target.value;
+                  setThirteenthMonthForm((current) => ({
+                    ...current,
+                    year,
+                    pay_date: /^\d{4}$/.test(year)
+                      ? `${year}-12-24`
+                      : current.pay_date,
+                  }));
+                }}
+                className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm normal-case outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+              />{" "}
+            </label>{" "}
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Payday{" "}
+              <input
+                type="date"
+                value={thirteenthMonthForm.pay_date}
+                onChange={(e) =>
+                  setThirteenthMonthForm((current) => ({
+                    ...current,
+                    pay_date: e.target.value,
+                  }))
+                }
+                className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm normal-case outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+              />{" "}
+            </label>{" "}
+            <button
+              disabled={saving}
+              className="mt-6 h-11 rounded-xl bg-cyan-600 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_30px_rgba(8,145,178,0.30)] transition hover:-translate-y-0.5 hover:bg-cyan-500 disabled:bg-slate-300"
+            >
+              {" "}
+              {saving ? "Generating..." : "Generate 13th Month"}{" "}
+            </button>{" "}
+          </form>{" "}
+        </div>
       ) : activeTab === "payroll" ? (
         <section className="space-y-4">
+          {" "}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <input value={search} onChange={(e) => setSearch(e.target.value)} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-4 text-sm outline-none transition duration-200 focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20 sm:max-w-sm" placeholder="Search employee or employee no." />
-            <button onClick={() => openEntryModal()} className="h-11 rounded-xl border border-cyan-100 bg-cyan-50 px-5 text-xs font-semibold uppercase tracking-wider text-cyan-700 transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-100">Add Payroll</button>
-          </div>
+            {" "}
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-4 text-sm outline-none transition duration-200 focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20 sm:max-w-sm"
+              placeholder="Search employee or employee no."
+            />{" "}
+            <button
+              onClick={() => openEntryModal()}
+              className="h-11 rounded-xl border border-cyan-100 bg-cyan-50 px-5 text-xs font-semibold uppercase tracking-wider text-cyan-700 transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-100"
+            >
+              Add Payroll
+            </button>{" "}
+          </div>{" "}
           <div className="overflow-x-auto rounded-2xl border border-white/70 bg-white/88 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl">
+            {" "}
             <table className="w-full min-w-[1580px] text-sm">
+              {" "}
               <thead className="sticky top-0 bg-slate-950 text-left text-[10px] uppercase tracking-[0.16em] text-cyan-50">
+                {" "}
                 <tr>
-                  <th className="p-3">Emp No.</th>
-                  <th className="px-1 py-3">Employee</th>
-                  <th className="px-1 py-3">Rate</th>
-                  <th className="px-1 py-3 text-center">Days</th>
-                  <th className="px-1 py-3 text-right">Gross</th>
-                  <th className="px-1 py-3 text-center">OT</th>
-                  <th className="px-1 py-3 text-right">Late</th>
-                  <th className="px-1 py-3 text-right">UT</th>
-                  <th className="px-1 py-3 text-right">Net Basic Pay</th>
-                  <th className="px-1 py-3 text-right">Allowance</th>
-                  <th className="px-1 py-3 text-right">Adjustment</th>
-                  <th className="px-1 py-3 text-right">Deductions</th>
-                  <th className="px-1 py-3 text-right">Cash Adv.</th>
-                  <th className="px-1 py-3 text-right">Net Pay</th>
-                  <th className="px-4 py-3">Status</th>
-                    <th className="text-right pr-3">Actions</th>
-                </tr>
-              </thead>
+                  {" "}
+                  <th className="p-3">Emp No.</th>{" "}
+                  <th className="px-1 py-3">Employee</th>{" "}
+                  <th className="px-1 py-3">Rate</th>{" "}
+                  <th className="px-1 py-3 text-center">Days</th>{" "}
+                  <th className="px-1 py-3 text-right">Gross</th>{" "}
+                  <th className="px-1 py-3 text-center">OT</th>{" "}
+                  <th className="px-1 py-3 text-right">Late</th>{" "}
+                  <th className="px-1 py-3 text-right">UT</th>{" "}
+                  <th className="px-1 py-3 text-right">Net Basic Pay</th>{" "}
+                  <th className="px-1 py-3 text-right">Allowance</th>{" "}
+                  <th className="px-1 py-3 text-right">Adjustment</th>{" "}
+                  <th className="px-1 py-3 text-right">Deductions</th>{" "}
+                  <th className="px-1 py-3 text-right">Cash Adv.</th>{" "}
+                  <th className="px-1 py-3 text-right">Net Pay</th>{" "}
+                  <th className="px-4 py-3">Status</th>{" "}
+                  <th className="text-right pr-3">Actions</th>{" "}
+                </tr>{" "}
+              </thead>{" "}
               <tbody className="divide-y divide-slate-200/80">
+                {" "}
                 {payrollRows.length === 0 ? (
-                  <tr><td colSpan="16" className="p-8 text-center text-sm font-semibold text-slate-400">No payroll rows found.</td></tr>
-                ) : payrollRows.map((entry) => {
-                  const allowanceTotal = payrollAllowanceTotal(entry);
-                  const adjustment = num(entry.payroll_adjustment);
-                  const otherDeductions = payrollOtherDeductions(entry);
-                  return (
-                    <tr key={entry.id} className="transition duration-200 hover:bg-cyan-50/45">
-                      <td className="p-3 font-semibold text-slate-600">{entry.employee?.employee_no || "-"}</td>
-                      <td>
-                        {canViewPayslip(entry) ? (
-                          <button
-                            type="button"
-                            onClick={() => setPayslipEntry(entry)}
-                            className="group text-left"
+                  <tr>
+                    <td
+                      colSpan="16"
+                      className="p-8 text-center text-sm font-semibold text-slate-400"
+                    >
+                      No payroll rows found.
+                    </td>
+                  </tr>
+                ) : (
+                  payrollRows.map((entry) => {
+                    const allowanceTotal = payrollAllowanceTotal(entry);
+                    const adjustment = num(entry.payroll_adjustment);
+                    const otherDeductions = payrollOtherDeductions(entry);
+                    return (
+                      <tr
+                        key={entry.id}
+                        className="transition duration-200 hover:bg-cyan-50/45"
+                      >
+                        {" "}
+                        <td className="p-3 font-semibold text-slate-600">
+                          {entry.employee?.employee_no || "-"}
+                        </td>{" "}
+                        <td>
+                          {" "}
+                          {canViewPayslip(entry) ? (
+                            <button
+                              type="button"
+                              onClick={() => setPayslipEntry(entry)}
+                              className="group text-left"
+                            >
+                              {" "}
+                              <span className="font-semibold text-slate-900 underline-offset-4 transition group-hover:text-cyan-700 group-hover:underline">
+                                {" "}
+                                {entry.employee?.full_name ||
+                                  entry.employee_id}{" "}
+                              </span>{" "}
+                              {entry.employee?.designation ? (
+                                <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                                  {entry.employee.designation}
+                                </span>
+                              ) : null}{" "}
+                              <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                                {" "}
+                                View payslip{" "}
+                              </span>{" "}
+                            </button>
+                          ) : (
+                            <div>
+                              {" "}
+                              <span className="font-semibold text-slate-900">
+                                {entry.employee?.full_name || entry.employee_id}
+                              </span>{" "}
+                              {entry.employee?.designation ? (
+                                <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                                  {entry.employee.designation}
+                                </span>
+                              ) : null}{" "}
+                              <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-amber-600">
+                                {" "}
+                                Payslip locked until approval{" "}
+                              </span>{" "}
+                            </div>
+                          )}{" "}
+                        </td>{" "}
+                        <td className="px-1">{money(entry.daily_rate)}</td>{" "}
+                        <td className="px-1 py-3 text-center">
+                          {num(entry.days_worked).toLocaleString("en-PH", {
+                            maximumFractionDigits: 2,
+                          })}
+                        </td>{" "}
+                        <td className="px-1 py-3 text-right">
+                          {moneyOrDash(payrollBaseGross(entry))}
+                        </td>{" "}
+                        <td className="px-1 py-3 text-right">
+                          {moneyOrDash(payrollOvertimePay(entry))}
+                        </td>{" "}
+                        <td className="px-1 py-3 text-right text-red-600">
+                          {moneyOrDash(payrollLateDeduction(entry), {
+                            negative: true,
+                          })}
+                        </td>{" "}
+                        <td className="px-1 py-3 text-right text-red-600">
+                          {moneyOrDash(payrollUndertimeDeduction(entry), {
+                            negative: true,
+                          })}
+                        </td>{" "}
+                        <td className="px-1 py-3 text-right font-semibold text-slate-900">
+                          {moneyOrDash(payrollNetBasicPay(entry))}
+                        </td>{" "}
+                        <td className="px-1 py-3 text-right text-cyan-700">
+                          {moneyOrDash(allowanceTotal)}
+                        </td>{" "}
+                        <td
+                          className={`px-1 py-3 text-right ${adjustment < 0 ? "text-red-600" : "text-cyan-700"}`}
+                        >
+                          {moneyOrDash(adjustment, {
+                            negative: adjustment < 0,
+                          })}
+                        </td>{" "}
+                        <td className="px-1 py-3 text-right text-red-600">
+                          {moneyOrDash(otherDeductions, { negative: true })}
+                        </td>{" "}
+                        <td className="px-1 py-3 text-right text-red-600">
+                          {moneyOrDash(entry.cash_advance_deduction, {
+                            negative: true,
+                          })}
+                        </td>{" "}
+                        <td className="px-3 py-3 font-semibold text-right text-cyan-700">
+                          {money(entry.net_total)}
+                        </td>{" "}
+                        <td className="px-4 py-3">
+                          {" "}
+                          <span
+                            className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase ${statusClass(entry.status)}`}
                           >
-                            <span className="font-semibold text-slate-900 underline-offset-4 transition group-hover:text-cyan-700 group-hover:underline">
-                              {entry.employee?.full_name || entry.employee_id}
-                            </span>
-                            {entry.employee?.designation ? (
-                              <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">{entry.employee.designation}</span>
-                            ) : null}
-                            <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                              View payslip
-                            </span>
-                          </button>
-                        ) : (
-                          <div>
-                            <span className="font-semibold text-slate-900">{entry.employee?.full_name || entry.employee_id}</span>
-                            {entry.employee?.designation ? (
-                              <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">{entry.employee.designation}</span>
-                            ) : null}
-                            <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-amber-600">
-                              Payslip locked until approval
-                            </span>
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-1">{money(entry.daily_rate)}</td>
-                      <td className="px-1 py-3 text-center">{num(entry.days_worked).toLocaleString("en-PH", { maximumFractionDigits: 2 })}</td>
-                      <td className="px-1 py-3 text-right">{moneyOrDash(payrollBaseGross(entry))}</td>
-                      <td className="px-1 py-3 text-right">{moneyOrDash(payrollOvertimePay(entry))}</td>
-                      <td className="px-1 py-3 text-right text-red-600">{moneyOrDash(payrollLateDeduction(entry), { negative: true })}</td>
-                      <td className="px-1 py-3 text-right text-red-600">{moneyOrDash(payrollUndertimeDeduction(entry), { negative: true })}</td>
-                      <td className="px-1 py-3 text-right font-semibold text-slate-900">{moneyOrDash(payrollNetBasicPay(entry))}</td>
-                      <td className="px-1 py-3 text-right text-cyan-700">{moneyOrDash(allowanceTotal)}</td>
-                      <td className={`px-1 py-3 text-right ${adjustment < 0 ? "text-red-600" : "text-cyan-700"}`}>{moneyOrDash(adjustment, { negative: adjustment < 0 })}</td>
-                      <td className="px-1 py-3 text-right text-red-600">{moneyOrDash(otherDeductions, { negative: true })}</td>
-                      <td className="px-1 py-3 text-right text-red-600">{moneyOrDash(entry.cash_advance_deduction, { negative: true })}</td>
-                      <td className="px-3 py-3 font-semibold text-right text-cyan-700">{money(entry.net_total)}</td>
-                      <td className="px-4 py-3">
-                        <span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase ${statusClass(entry.status)}`}>{entry.status || "draft"}</span>
-                      </td>
-                      <td className="pr-3 text-right">
-                        <div className="flex justify-end gap-2">
-                          {canApprovePayroll && entry.status !== "approved" && entry.status !== "paid" ? <button onClick={() => updateEntryStatus(entry, "approved")} className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[10px] font-semibold uppercase text-blue-600 transition hover:-translate-y-0.5">Approve</button> : null}
-                          {canMarkEntryPaid(entry) ? <button onClick={() => updateEntryStatus(entry, "paid")} className="rounded-lg border border-cyan-100 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase text-cyan-700 transition hover:-translate-y-0.5">Paid</button> : null}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                            {entry.status || "draft"}
+                          </span>{" "}
+                        </td>{" "}
+                        <td className="pr-3 text-right">
+                          {" "}
+                          <div className="flex justify-end gap-2">
+                            {" "}
+                            {canApprovePayroll &&
+                            entry.status !== "approved" &&
+                            entry.status !== "paid" ? (
+                              <button
+                                onClick={() =>
+                                  updateEntryStatus(entry, "approved")
+                                }
+                                className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[10px] font-semibold uppercase text-blue-600 transition hover:-translate-y-0.5"
+                              >
+                                Approve
+                              </button>
+                            ) : null}{" "}
+                            {canMarkEntryPaid(entry) ? (
+                              <button
+                                onClick={() => updateEntryStatus(entry, "paid")}
+                                className="rounded-lg border border-cyan-100 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase text-cyan-700 transition hover:-translate-y-0.5"
+                              >
+                                Paid
+                              </button>
+                            ) : null}{" "}
+                          </div>{" "}
+                        </td>{" "}
+                      </tr>
+                    );
+                  })
+                )}{" "}
+              </tbody>{" "}
+            </table>{" "}
+          </div>{" "}
         </section>
       ) : activeTab === "employees" ? (
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-[380px_1fr]">
+          {" "}
           <div className="space-y-4">
-            <form onSubmit={saveEmployee} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+            {" "}
+            <form
+              onSubmit={saveEmployee}
+              className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl"
+            >
+              {" "}
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-sm font-semibold text-slate-950">{editingEmployeeId ? "Edit Employee" : "Add Employee"}</h2>
+                {" "}
+                <h2 className="text-sm font-semibold text-slate-950">
+                  {editingEmployeeId ? "Edit Employee" : "Add Employee"}
+                </h2>{" "}
                 {editingEmployeeId ? (
-                  <button type="button" onClick={resetEmployeeForm} className="rounded-lg border border-slate-100 px-3 py-2 text-[10px] font-semibold uppercase text-slate-500 transition hover:border-cyan-200 hover:text-cyan-700">Cancel</button>
-                ) : null}
-              </div>
+                  <button
+                    type="button"
+                    onClick={resetEmployeeForm}
+                    className="rounded-lg border border-slate-100 px-3 py-2 text-[10px] font-semibold uppercase text-slate-500 transition hover:border-cyan-200 hover:text-cyan-700"
+                  >
+                    Cancel
+                  </button>
+                ) : null}{" "}
+              </div>{" "}
               <div className="mt-4 space-y-3">
-                <input value={employeeForm.employee_no} onChange={(e) => setEmployeeForm((p) => ({ ...p, employee_no: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Employee no." />
-                <input value={employeeForm.full_name} onChange={(e) => setEmployeeForm((p) => ({ ...p, full_name: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Employee name" />
-                <input value={employeeForm.designation} onChange={(e) => setEmployeeForm((p) => ({ ...p, designation: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Designation" />
+                {" "}
+                <input
+                  value={employeeForm.employee_no}
+                  onChange={(e) =>
+                    setEmployeeForm((p) => ({
+                      ...p,
+                      employee_no: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                  placeholder="Employee no."
+                />{" "}
+                <input
+                  value={employeeForm.full_name}
+                  onChange={(e) =>
+                    setEmployeeForm((p) => ({
+                      ...p,
+                      full_name: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                  placeholder="Employee name"
+                />{" "}
+                <input
+                  value={employeeForm.designation}
+                  onChange={(e) =>
+                    setEmployeeForm((p) => ({
+                      ...p,
+                      designation: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                  placeholder="Designation"
+                />{" "}
                 <div className="grid grid-cols-2 gap-3">
+                  {" "}
                   <label className="block">
-                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Starting daily rate</span>
-                    <input value={employeeForm.starting_daily_rate} onChange={(e) => setEmployeeForm((p) => ({ ...p, starting_daily_rate: e.target.value }))} type="number" step="0.01" className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="0.00" />
-                  </label>
+                    {" "}
+                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                      Starting daily rate
+                    </span>{" "}
+                    <input
+                      value={employeeForm.starting_daily_rate}
+                      onChange={(e) =>
+                        setEmployeeForm((p) => ({
+                          ...p,
+                          starting_daily_rate: e.target.value,
+                        }))
+                      }
+                      type="number"
+                      step="0.01"
+                      className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                      placeholder="0.00"
+                    />{" "}
+                  </label>{" "}
                   <label className="block">
-                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Current daily rate</span>
-                    <input value={employeeForm.current_daily_rate} onChange={(e) => setEmployeeForm((p) => ({ ...p, current_daily_rate: e.target.value, default_daily_rate: e.target.value }))} type="number" step="0.01" className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="0.00" />
-                  </label>
-                </div>
-                <select value={employeeForm.employment_status} onChange={(e) => setEmployeeForm((p) => ({ ...p, employment_status: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm capitalize outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
-                  <option value="active">Active</option>
-                  <option value="resigned">Resigned</option>
-                  <option value="terminated">Terminated</option>
-                </select>
+                    {" "}
+                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                      Current daily rate
+                    </span>{" "}
+                    <input
+                      value={employeeForm.current_daily_rate}
+                      onChange={(e) =>
+                        setEmployeeForm((p) => ({
+                          ...p,
+                          current_daily_rate: e.target.value,
+                          default_daily_rate: e.target.value,
+                        }))
+                      }
+                      type="number"
+                      step="0.01"
+                      className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                      placeholder="0.00"
+                    />{" "}
+                  </label>{" "}
+                </div>{" "}
+                <select
+                  value={employeeForm.employment_status}
+                  onChange={(e) =>
+                    setEmployeeForm((p) => ({
+                      ...p,
+                      employment_status: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm capitalize outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                >
+                  {" "}
+                  <option value="active">Active</option>{" "}
+                  <option value="resigned">Resigned</option>{" "}
+                  <option value="terminated">Terminated</option>{" "}
+                </select>{" "}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {" "}
                   <label className="block">
-                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Date hired</span>
-                    <input type="date" value={employeeForm.date_hired} onChange={(e) => setEmployeeForm((p) => ({ ...p, date_hired: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
-                  </label>
+                    {" "}
+                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                      Date hired
+                    </span>{" "}
+                    <input
+                      type="date"
+                      value={employeeForm.date_hired}
+                      onChange={(e) =>
+                        setEmployeeForm((p) => ({
+                          ...p,
+                          date_hired: e.target.value,
+                        }))
+                      }
+                      className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                    />{" "}
+                  </label>{" "}
                   <label className="block">
-                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Resigned/terminated</span>
-                    <input type="date" value={employeeForm.date_resigned_terminated} onChange={(e) => setEmployeeForm((p) => ({ ...p, date_resigned_terminated: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
-                  </label>
+                    {" "}
+                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                      Resigned/terminated
+                    </span>{" "}
+                    <input
+                      type="date"
+                      value={employeeForm.date_resigned_terminated}
+                      onChange={(e) =>
+                        setEmployeeForm((p) => ({
+                          ...p,
+                          date_resigned_terminated: e.target.value,
+                        }))
+                      }
+                      className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                    />{" "}
+                  </label>{" "}
                   <label className="block">
-                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Re-employment</span>
-                    <input type="date" value={employeeForm.date_reemployment} onChange={(e) => setEmployeeForm((p) => ({ ...p, date_reemployment: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
-                  </label>
-                </div>
-                <input type="date" value={employeeForm.birthday} onChange={(e) => setEmployeeForm((p) => ({ ...p, birthday: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" title="Birthday" />
-                <input value={employeeForm.contact_number} onChange={(e) => setEmployeeForm((p) => ({ ...p, contact_number: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Contact number" />
-                <input value={employeeForm.address} onChange={(e) => setEmployeeForm((p) => ({ ...p, address: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Address" />
-                <input value={employeeForm.sss_no} onChange={(e) => setEmployeeForm((p) => ({ ...p, sss_no: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="SSS No." />
-                <input value={employeeForm.philhealth_no} onChange={(e) => setEmployeeForm((p) => ({ ...p, philhealth_no: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Philhealth No." />
-                <input value={employeeForm.hmdf_no} onChange={(e) => setEmployeeForm((p) => ({ ...p, hmdf_no: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="HMDF No." />
-                <input value={employeeForm.emergency_contact_person} onChange={(e) => setEmployeeForm((p) => ({ ...p, emergency_contact_person: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Emergency contact person" />
-                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">{editingEmployeeId ? "Update Employee" : "Save Employee"}</button>
-              </div>
-            </form>
-
-            <form onSubmit={saveRateIncrease} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-              <h2 className="text-sm font-semibold text-slate-950">Daily Rate Increase</h2>
+                    {" "}
+                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                      Re-employment
+                    </span>{" "}
+                    <input
+                      type="date"
+                      value={employeeForm.date_reemployment}
+                      onChange={(e) =>
+                        setEmployeeForm((p) => ({
+                          ...p,
+                          date_reemployment: e.target.value,
+                        }))
+                      }
+                      className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                    />{" "}
+                  </label>{" "}
+                </div>{" "}
+                <input
+                  type="date"
+                  value={employeeForm.birthday}
+                  onChange={(e) =>
+                    setEmployeeForm((p) => ({ ...p, birthday: e.target.value }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                  title="Birthday"
+                />{" "}
+                <input
+                  value={employeeForm.contact_number}
+                  onChange={(e) =>
+                    setEmployeeForm((p) => ({
+                      ...p,
+                      contact_number: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                  placeholder="Contact number"
+                />{" "}
+                <input
+                  value={employeeForm.address}
+                  onChange={(e) =>
+                    setEmployeeForm((p) => ({ ...p, address: e.target.value }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                  placeholder="Address"
+                />{" "}
+                <input
+                  value={employeeForm.sss_no}
+                  onChange={(e) =>
+                    setEmployeeForm((p) => ({ ...p, sss_no: e.target.value }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                  placeholder="SSS No."
+                />{" "}
+                <input
+                  value={employeeForm.philhealth_no}
+                  onChange={(e) =>
+                    setEmployeeForm((p) => ({
+                      ...p,
+                      philhealth_no: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                  placeholder="Philhealth No."
+                />{" "}
+                <input
+                  value={employeeForm.hmdf_no}
+                  onChange={(e) =>
+                    setEmployeeForm((p) => ({ ...p, hmdf_no: e.target.value }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                  placeholder="HMDF No."
+                />{" "}
+                <input
+                  value={employeeForm.emergency_contact_person}
+                  onChange={(e) =>
+                    setEmployeeForm((p) => ({
+                      ...p,
+                      emergency_contact_person: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                  placeholder="Emergency contact person"
+                />{" "}
+                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">
+                  {editingEmployeeId ? "Update Employee" : "Save Employee"}
+                </button>{" "}
+              </div>{" "}
+            </form>{" "}
+            <form
+              onSubmit={saveRateIncrease}
+              className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl"
+            >
+              {" "}
+              <h2 className="text-sm font-semibold text-slate-950">
+                Daily Rate Increase
+              </h2>{" "}
               <div className="mt-4 space-y-3">
-                <select value={rateIncreaseForm.employee_id} onChange={(e) => setRateIncreaseForm((p) => ({ ...p, employee_id: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
-                  {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}
-                </select>
-                <input type="date" value={rateIncreaseForm.effective_date} onChange={(e) => setRateIncreaseForm((p) => ({ ...p, effective_date: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
-                <input value={rateIncreaseForm.new_daily_rate} onChange={(e) => setRateIncreaseForm((p) => ({ ...p, new_daily_rate: e.target.value }))} type="number" step="0.01" className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="New daily rate" />
-                <input value={rateIncreaseForm.notes} onChange={(e) => setRateIncreaseForm((p) => ({ ...p, notes: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Notes" />
-                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">Save Rate Increase</button>
-              </div>
+                {" "}
+                <select
+                  value={rateIncreaseForm.employee_id}
+                  onChange={(e) =>
+                    setRateIncreaseForm((p) => ({
+                      ...p,
+                      employee_id: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                >
+                  {" "}
+                  {employees.map((employee) => (
+                    <option key={employee.id} value={employee.id}>
+                      {employee.employee_no ? `${employee.employee_no} - ` : ""}
+                      {employee.full_name}
+                    </option>
+                  ))}{" "}
+                </select>{" "}
+                <input
+                  type="date"
+                  value={rateIncreaseForm.effective_date}
+                  onChange={(e) =>
+                    setRateIncreaseForm((p) => ({
+                      ...p,
+                      effective_date: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                />{" "}
+                <input
+                  value={rateIncreaseForm.new_daily_rate}
+                  onChange={(e) =>
+                    setRateIncreaseForm((p) => ({
+                      ...p,
+                      new_daily_rate: e.target.value,
+                    }))
+                  }
+                  type="number"
+                  step="0.01"
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                  placeholder="New daily rate"
+                />{" "}
+                <input
+                  value={rateIncreaseForm.notes}
+                  onChange={(e) =>
+                    setRateIncreaseForm((p) => ({
+                      ...p,
+                      notes: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                  placeholder="Notes"
+                />{" "}
+                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">
+                  Save Rate Increase
+                </button>{" "}
+              </div>{" "}
               <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Recent Rate Changes</p>
+                {" "}
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  Recent Rate Changes
+                </p>{" "}
                 {rateChanges.length === 0 ? (
-                  <p className="text-xs font-semibold text-slate-400">No rate increase records yet.</p>
-                ) : rateChanges.slice(0, 5).map((change) => (
-                  <div key={change.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600">
-                    <p className="font-semibold text-slate-900">{employeeById[change.employee_id]?.full_name || change.employee_id}</p>
-                    <p>{dateText(change.effective_date)}: {money(change.old_daily_rate)} to {money(change.new_daily_rate)}</p>
-                  </div>
-                ))}
-              </div>
-            </form>
-          </div>
+                  <p className="text-xs font-semibold text-slate-400">
+                    No rate increase records yet.
+                  </p>
+                ) : (
+                  rateChanges.slice(0, 5).map((change) => (
+                    <div
+                      key={change.id}
+                      className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600"
+                    >
+                      {" "}
+                      <p className="font-semibold text-slate-900">
+                        {employeeById[change.employee_id]?.full_name ||
+                          change.employee_id}
+                      </p>{" "}
+                      <p>
+                        {dateText(change.effective_date)}:{" "}
+                        {money(change.old_daily_rate)} to{" "}
+                        {money(change.new_daily_rate)}
+                      </p>{" "}
+                    </div>
+                  ))
+                )}{" "}
+              </div>{" "}
+            </form>{" "}
+          </div>{" "}
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {" "}
             {employees.map((employee) => {
               const total = employeeTotals[employee.id] || {};
               const advance = employeeAdvanceSummary[employee.id] || {};
               const employmentStatus = employeeEmploymentStatus(employee);
               return (
-                <div key={employee.id} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl transition duration-300 hover:border-cyan-200/80 hover:shadow-[0_24px_60px_rgba(8,145,178,0.14)]">
+                <div
+                  key={employee.id}
+                  className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl transition duration-300 hover:border-cyan-200/80 hover:shadow-[0_24px_60px_rgba(8,145,178,0.14)]"
+                >
+                  {" "}
                   <div className="flex items-start justify-between gap-3">
+                    {" "}
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-cyan-700">{employee.employee_no || "No employee no."}</p>
-                      <h3 className="font-semibold text-slate-950">{employee.full_name}</h3>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">{employee.designation || "No designation"}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">Current daily rate {money(employeeCurrentDailyRate(employee))}</p>
-                    </div>
-                    <button onClick={() => toggleEmployee(employee)} className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase transition hover:-translate-y-0.5 ${employmentStatus === "active" ? "bg-cyan-50 text-cyan-700" : employmentStatus === "terminated" ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-600"}`}>
-                      {employmentStatus}
-                    </button>
-                  </div>
+                      {" "}
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-cyan-700">
+                        {employee.employee_no || "No employee no."}
+                      </p>{" "}
+                      <h3 className="font-semibold text-slate-950">
+                        {employee.full_name}
+                      </h3>{" "}
+                      <p className="mt-1 text-xs font-semibold text-slate-500">
+                        {employee.designation || "No designation"}
+                      </p>{" "}
+                      <p className="mt-1 text-xs font-semibold text-slate-500">
+                        Current daily rate{" "}
+                        {money(employeeCurrentDailyRate(employee))}
+                      </p>{" "}
+                    </div>{" "}
+                    <button
+                      onClick={() => toggleEmployee(employee)}
+                      className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase transition hover:-translate-y-0.5 ${employmentStatus === "active" ? "bg-cyan-50 text-cyan-700" : employmentStatus === "terminated" ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-600"}`}
+                    >
+                      {" "}
+                      {employmentStatus}{" "}
+                    </button>{" "}
+                  </div>{" "}
                   <div className="mt-3 grid gap-2 rounded-xl border border-slate-100 bg-white/70 p-3 text-xs text-slate-600 sm:grid-cols-2">
-                    <p><span className="text-slate-400">Birthday:</span> {dateText(employee.birthday)}</p>
-                    <p><span className="text-slate-400">Designation:</span> {employee.designation || "-"}</p>
-                    <p><span className="text-slate-400">Starting rate:</span> {money(employeeStartingDailyRate(employee))}</p>
-                    <p><span className="text-slate-400">Current rate:</span> {money(employeeCurrentDailyRate(employee))}</p>
-                    <p><span className="text-slate-400">Date hired:</span> {dateText(employee.date_hired)}</p>
-                    <p><span className="text-slate-400">Resigned/terminated:</span> {dateText(employee.date_resigned_terminated)}</p>
-                    <p><span className="text-slate-400">Re-employment:</span> {dateText(employee.date_reemployment)}</p>
-                    <p><span className="text-slate-400">Contact:</span> {employee.contact_number || "-"}</p>
-                    <p className="sm:col-span-2"><span className="text-slate-400">Address:</span> {employee.address || "-"}</p>
-                    <p><span className="text-slate-400">SSS:</span> {employee.sss_no || "-"}</p>
-                    <p><span className="text-slate-400">PhilHealth:</span> {employee.philhealth_no || "-"}</p>
-                    <p><span className="text-slate-400">HMDF:</span> {employee.hmdf_no || "-"}</p>
-                    <p><span className="text-slate-400">Emergency:</span> {employee.emergency_contact_person || "-"}</p>
-                  </div>
+                    {" "}
+                    <p>
+                      <span className="text-slate-400">Birthday:</span>{" "}
+                      {dateText(employee.birthday)}
+                    </p>{" "}
+                    <p>
+                      <span className="text-slate-400">Designation:</span>{" "}
+                      {employee.designation || "-"}
+                    </p>{" "}
+                    <p>
+                      <span className="text-slate-400">Starting rate:</span>{" "}
+                      {money(employeeStartingDailyRate(employee))}
+                    </p>{" "}
+                    <p>
+                      <span className="text-slate-400">Current rate:</span>{" "}
+                      {money(employeeCurrentDailyRate(employee))}
+                    </p>{" "}
+                    <p>
+                      <span className="text-slate-400">Date hired:</span>{" "}
+                      {dateText(employee.date_hired)}
+                    </p>{" "}
+                    <p>
+                      <span className="text-slate-400">
+                        Resigned/terminated:
+                      </span>{" "}
+                      {dateText(employee.date_resigned_terminated)}
+                    </p>{" "}
+                    <p>
+                      <span className="text-slate-400">Re-employment:</span>{" "}
+                      {dateText(employee.date_reemployment)}
+                    </p>{" "}
+                    <p>
+                      <span className="text-slate-400">Contact:</span>{" "}
+                      {employee.contact_number || "-"}
+                    </p>{" "}
+                    <p className="sm:col-span-2">
+                      <span className="text-slate-400">Address:</span>{" "}
+                      {employee.address || "-"}
+                    </p>{" "}
+                    <p>
+                      <span className="text-slate-400">SSS:</span>{" "}
+                      {employee.sss_no || "-"}
+                    </p>{" "}
+                    <p>
+                      <span className="text-slate-400">PhilHealth:</span>{" "}
+                      {employee.philhealth_no || "-"}
+                    </p>{" "}
+                    <p>
+                      <span className="text-slate-400">HMDF:</span>{" "}
+                      {employee.hmdf_no || "-"}
+                    </p>{" "}
+                    <p>
+                      <span className="text-slate-400">Emergency:</span>{" "}
+                      {employee.emergency_contact_person || "-"}
+                    </p>{" "}
+                  </div>{" "}
                   <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
-                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><span className="block text-slate-400">YTD Net</span><b>{money(total.net || 0)}</b></div>
-                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><span className="block text-slate-400">13th Est.</span><b>{money(total.thirteenth || 0)}</b></div>
-                    <div className="rounded-xl border border-cyan-100 bg-cyan-50 p-3"><span className="block text-slate-400">CA Balance</span><b>{money(advance.balance || 0)}</b></div>
-                  </div>
+                    {" "}
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                      <span className="block text-slate-400">YTD Net</span>
+                      <b>{money(total.net || 0)}</b>
+                    </div>{" "}
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                      <span className="block text-slate-400">13th Pay</span>
+                      <b>{money(total.thirteenth || 0)}</b>
+                    </div>{" "}
+                    <div className="rounded-xl border border-cyan-100 bg-cyan-50 p-3">
+                      <span className="block text-slate-400">CA Balance</span>
+                      <b>{money(advance.balance || 0)}</b>
+                    </div>{" "}
+                  </div>{" "}
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <button type="button" onClick={() => openEmployeeEdit(employee)} className="rounded-lg border border-slate-100 px-3 py-2 text-[10px] font-semibold uppercase text-slate-600 transition hover:-translate-y-0.5 hover:border-cyan-200 hover:text-cyan-700">Edit</button>
-                    <button type="button" onClick={() => deleteEmployee(employee)} className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-[10px] font-semibold uppercase text-red-600 transition hover:-translate-y-0.5">Delete</button>
-                  </div>
+                    {" "}
+                    <button
+                      type="button"
+                      onClick={() => openEmployeeEdit(employee)}
+                      className="rounded-lg border border-slate-100 px-3 py-2 text-[10px] font-semibold uppercase text-slate-600 transition hover:-translate-y-0.5 hover:border-cyan-200 hover:text-cyan-700"
+                    >
+                      Edit
+                    </button>{" "}
+                    <button
+                      type="button"
+                      onClick={() => deleteEmployee(employee)}
+                      className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-[10px] font-semibold uppercase text-red-600 transition hover:-translate-y-0.5"
+                    >
+                      Delete
+                    </button>{" "}
+                  </div>{" "}
                 </div>
               );
-            })}
-          </div>
+            })}{" "}
+          </div>{" "}
         </section>
       ) : activeTab === "schedule" ? (
         <section className="space-y-4">
-          <form onSubmit={saveCutoffSchedule} className="grid grid-cols-1 gap-3 rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl lg:grid-cols-[1fr_1fr_auto]">
+          {" "}
+          <form
+            onSubmit={saveCutoffSchedule}
+            className="grid grid-cols-1 gap-3 rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl lg:grid-cols-[1fr_1fr_auto]"
+          >
+            {" "}
             <div>
-              <p className="text-sm font-semibold text-slate-950">Schedule Encoding Per Cutoff</p>
-              <p className="mt-1 text-xs font-semibold text-slate-500">{selectedPeriod ? `${dateTextWithDay(selectedPeriod.period_start)} - ${dateTextWithDay(selectedPeriod.period_end)}` : "Select a cutoff period"}</p>
-            </div>
-            <select value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)} className="h-11 rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
-              {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}
-            </select>
-            <button className="h-11 rounded-xl bg-slate-400/78 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">Save Cutoff Schedule</button>
-          </form>
-          <DataTable empty="No schedule rows found for this cutoff." minWidth="980px" headers={["Date", "Emp No.", "Employee", "In", "Out", "Status", "Notes"]}>
+              {" "}
+              <p className="text-sm font-semibold text-slate-950">
+                Schedule Encoding Per Cutoff
+              </p>{" "}
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                {selectedPeriod
+                  ? `${dateTextWithDay(selectedPeriod.period_start)} - ${dateTextWithDay(selectedPeriod.period_end)}`
+                  : "Select a cutoff period"}
+              </p>{" "}
+            </div>{" "}
+            <select
+              value={selectedEmployeeId}
+              onChange={(e) => setSelectedEmployeeId(e.target.value)}
+              className="h-11 rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+            >
+              {" "}
+              {employees.map((employee) => (
+                <option key={employee.id} value={employee.id}>
+                  {employee.employee_no ? `${employee.employee_no} - ` : ""}
+                  {employee.full_name}
+                </option>
+              ))}{" "}
+            </select>{" "}
+            <button className="h-11 rounded-xl bg-slate-400/78 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">
+              Save Cutoff Schedule
+            </button>{" "}
+          </form>{" "}
+          <DataTable
+            empty="No schedule rows found for this cutoff."
+            minWidth="980px"
+            headers={[
+              "Date",
+              "Emp No.",
+              "Employee",
+              "In",
+              "Out",
+              "Status",
+              "Notes",
+            ]}
+          >
+            {" "}
             {scheduleRows.map((row) => (
-              <tr key={row.id} className="border-t border-slate-100 transition hover:bg-cyan-50/45">
-                <td className="p-3 font-bold">{dateTextWithDay(row.work_date)}</td>
-                <td>{row.employee?.employee_no || "-"}</td>
-                <td>{row.employee?.full_name || row.employee_id}</td>
-                <td><TimeSelect value={row.schedule_in} disabled={row.status !== "scheduled"} onChange={(value) => updateScheduleDraft(row.work_date, "schedule_in", value)} className="h-9 w-32 rounded-lg border border-slate-200 px-2 text-xs font-semibold outline-none focus:border-cyan-400/70 disabled:bg-slate-50" /></td>
-                <td><TimeSelect value={row.schedule_out} disabled={row.status !== "scheduled"} onChange={(value) => updateScheduleDraft(row.work_date, "schedule_out", value)} className="h-9 w-32 rounded-lg border border-slate-200 px-2 text-xs font-semibold outline-none focus:border-cyan-400/70 disabled:bg-slate-50" /></td>
+              <tr
+                key={row.id}
+                className="border-t border-slate-100 transition hover:bg-cyan-50/45"
+              >
+                {" "}
+                <td className="p-3 font-bold">
+                  {dateTextWithDay(row.work_date)}
+                </td>{" "}
+                <td>{row.employee?.employee_no || "-"}</td>{" "}
+                <td>{row.employee?.full_name || row.employee_id}</td>{" "}
                 <td>
-                  <select value={row.status || "scheduled"} onChange={(e) => updateScheduleDraft(row.work_date, "status", e.target.value)} className="h-9 rounded-lg border border-slate-200 px-2 text-xs font-semibold outline-none focus:border-cyan-400/70">
-                    <option value="scheduled">Scheduled</option>
-                    <option value="rest_day">Rest Day</option>
-                    <option value="absent">Absent</option>
-                    <option value="closed">Closed</option>
-                  </select>
-                </td>
-                <td><input value={row.notes || ""} onChange={(e) => updateScheduleDraft(row.work_date, "notes", e.target.value)} className="h-9 w-40 rounded-lg border border-slate-200 px-2 text-xs font-semibold outline-none focus:border-cyan-400/70" placeholder="Notes" /></td>
+                  <TimeSelect
+                    value={row.schedule_in}
+                    disabled={row.status !== "scheduled"}
+                    onChange={(value) =>
+                      updateScheduleDraft(row.work_date, "schedule_in", value)
+                    }
+                    className="h-9 w-32 rounded-lg border border-slate-200 px-2 text-xs font-semibold outline-none focus:border-cyan-400/70 disabled:bg-slate-50"
+                  />
+                </td>{" "}
+                <td>
+                  <TimeSelect
+                    value={row.schedule_out}
+                    disabled={row.status !== "scheduled"}
+                    onChange={(value) =>
+                      updateScheduleDraft(row.work_date, "schedule_out", value)
+                    }
+                    className="h-9 w-32 rounded-lg border border-slate-200 px-2 text-xs font-semibold outline-none focus:border-cyan-400/70 disabled:bg-slate-50"
+                  />
+                </td>{" "}
+                <td>
+                  {" "}
+                  <select
+                    value={row.status || "scheduled"}
+                    onChange={(e) =>
+                      updateScheduleDraft(
+                        row.work_date,
+                        "status",
+                        e.target.value,
+                      )
+                    }
+                    className="h-9 rounded-lg border border-slate-200 px-2 text-xs font-semibold outline-none focus:border-cyan-400/70"
+                  >
+                    {" "}
+                    <option value="scheduled">Scheduled</option>{" "}
+                    <option value="rest_day">Rest Day</option>{" "}
+                    <option value="absent">Absent</option>{" "}
+                    <option value="closed">Closed</option>{" "}
+                  </select>{" "}
+                </td>{" "}
+                <td>
+                  <input
+                    value={row.notes || ""}
+                    onChange={(e) =>
+                      updateScheduleDraft(
+                        row.work_date,
+                        "notes",
+                        e.target.value,
+                      )
+                    }
+                    className="h-9 w-40 rounded-lg border border-slate-200 px-2 text-xs font-semibold outline-none focus:border-cyan-400/70"
+                    placeholder="Notes"
+                  />
+                </td>{" "}
               </tr>
-            ))}
-          </DataTable>
+            ))}{" "}
+          </DataTable>{" "}
         </section>
       ) : activeTab === "attendance" ? (
         <section className="space-y-4">
-          <form onSubmit={saveCutoffAttendance} className="grid grid-cols-1 gap-3 rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl lg:grid-cols-[1fr_1fr_auto]">
+          {" "}
+          <form
+            onSubmit={saveCutoffAttendance}
+            className="grid grid-cols-1 gap-3 rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl lg:grid-cols-[1fr_1fr_auto]"
+          >
+            {" "}
             <div>
-              <p className="text-sm font-semibold text-slate-950">Attendance Encoding Per Cutoff</p>
-              <p className="mt-1 text-xs font-semibold text-slate-500">{selectedPeriod ? `${dateTextWithDay(selectedPeriod.period_start)} - ${dateTextWithDay(selectedPeriod.period_end)}` : "Select a cutoff period"}</p>
-            </div>
-            <select value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)} className="h-11 rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
-              {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}
-            </select>
-            <button className="h-11 rounded-xl bg-slate-400/78 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">Save Cutoff Attendance</button>
-          </form>
-          <DataTable empty="No attendance rows found for this cutoff." minWidth="1180px" headers={["Date", "Emp No.", "Employee", "In", "Out", "Late", "UT", "OT", "Status", "Notes"]}>
+              {" "}
+              <p className="text-sm font-semibold text-slate-950">
+                Attendance Encoding Per Cutoff
+              </p>{" "}
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                {selectedPeriod
+                  ? `${dateTextWithDay(selectedPeriod.period_start)} - ${dateTextWithDay(selectedPeriod.period_end)}`
+                  : "Select a cutoff period"}
+              </p>{" "}
+            </div>{" "}
+            <select
+              value={selectedEmployeeId}
+              onChange={(e) => setSelectedEmployeeId(e.target.value)}
+              className="h-11 rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+            >
+              {" "}
+              {employees.map((employee) => (
+                <option key={employee.id} value={employee.id}>
+                  {employee.employee_no ? `${employee.employee_no} - ` : ""}
+                  {employee.full_name}
+                </option>
+              ))}{" "}
+            </select>{" "}
+            <button className="h-11 rounded-xl bg-slate-400/78 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">
+              Save Cutoff Attendance
+            </button>{" "}
+          </form>{" "}
+          <DataTable
+            empty="No attendance rows found for this cutoff."
+            minWidth="1180px"
+            headers={[
+              "Date",
+              "Emp No.",
+              "Employee",
+              "In",
+              "Out",
+              "Late",
+              "UT",
+              "OT",
+              "Status",
+              "Notes",
+            ]}
+          >
+            {" "}
             {attendanceRows.map((row) => {
               const metrics = attendanceMetrics(row);
               return (
-                <tr key={row.id} className="border-t border-slate-100 transition hover:bg-cyan-50/45">
-                  <td className="p-3 font-bold">{dateTextWithDay(row.work_date)}</td>
-                  <td>{row.employee?.employee_no || "-"}</td>
-                  <td>{row.employee?.full_name || row.employee_id}</td>
-                  <td><TimeInput value={row.actual_in} disabled={row.status !== "present"} onChange={(value) => updateAttendanceDraft(row.work_date, "actual_in", value)} className="h-9 w-32 rounded-lg border border-slate-200 px-2 text-xs font-semibold outline-none focus:border-cyan-400/70 disabled:bg-slate-50" /></td>
-                  <td><TimeInput value={row.actual_out} disabled={row.status !== "present"} onChange={(value) => updateAttendanceDraft(row.work_date, "actual_out", value)} className="h-9 w-32 rounded-lg border border-slate-200 px-2 text-xs font-semibold outline-none focus:border-cyan-400/70 disabled:bg-slate-50" /></td>
-                  <td><span className="inline-flex h-9 w-20 items-center rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-bold text-slate-600">{metrics.late.toFixed(0)}m</span></td>
-                  <td><span className="inline-flex h-9 w-20 items-center rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-bold text-slate-600">{metrics.undertime.toFixed(0)}m</span></td>
-                  <td><span className="inline-flex h-9 w-20 items-center rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-bold text-slate-600">{metrics.overtime.toFixed(0)}h</span></td>
+                <tr
+                  key={row.id}
+                  className="border-t border-slate-100 transition hover:bg-cyan-50/45"
+                >
+                  {" "}
+                  <td className="p-3 font-bold">
+                    {dateTextWithDay(row.work_date)}
+                  </td>{" "}
+                  <td>{row.employee?.employee_no || "-"}</td>{" "}
+                  <td>{row.employee?.full_name || row.employee_id}</td>{" "}
                   <td>
-                    <select value={row.status || "present"} disabled className="h-9 rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-bold text-slate-600">
-                      <option value="present">Present</option>
-                      <option value="absent">Absent</option>
-                      <option value="rest_day">Rest Day</option>
-                      <option value="closed">Closed</option>
-                    </select>
-                  </td>
-                  <td><input value={row.notes || ""} onChange={(e) => updateAttendanceDraft(row.work_date, "notes", e.target.value)} className="h-9 w-40 rounded-lg border border-slate-200 px-2 text-xs font-semibold outline-none focus:border-cyan-400/70" placeholder="Notes" /></td>
+                    <TimeInput
+                      value={row.actual_in}
+                      disabled={row.status !== "present"}
+                      onChange={(value) =>
+                        updateAttendanceDraft(row.work_date, "actual_in", value)
+                      }
+                      className="h-9 w-32 rounded-lg border border-slate-200 px-2 text-xs font-semibold outline-none focus:border-cyan-400/70 disabled:bg-slate-50"
+                    />
+                  </td>{" "}
+                  <td>
+                    <TimeInput
+                      value={row.actual_out}
+                      disabled={row.status !== "present"}
+                      onChange={(value) =>
+                        updateAttendanceDraft(
+                          row.work_date,
+                          "actual_out",
+                          value,
+                        )
+                      }
+                      className="h-9 w-32 rounded-lg border border-slate-200 px-2 text-xs font-semibold outline-none focus:border-cyan-400/70 disabled:bg-slate-50"
+                    />
+                  </td>{" "}
+                  <td>
+                    <span className="inline-flex h-9 w-20 items-center rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-bold text-slate-600">
+                      {metrics.late.toFixed(0)}m
+                    </span>
+                  </td>{" "}
+                  <td>
+                    <span className="inline-flex h-9 w-20 items-center rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-bold text-slate-600">
+                      {metrics.undertime.toFixed(0)}m
+                    </span>
+                  </td>{" "}
+                  <td>
+                    <span className="inline-flex h-9 w-20 items-center rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-bold text-slate-600">
+                      {metrics.overtime.toFixed(0)}h
+                    </span>
+                  </td>{" "}
+                  <td>
+                    {" "}
+                    <select
+                      value={row.status || "present"}
+                      disabled
+                      className="h-9 rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-bold text-slate-600"
+                    >
+                      {" "}
+                      <option value="present">Present</option>{" "}
+                      <option value="absent">Absent</option>{" "}
+                      <option value="rest_day">Rest Day</option>{" "}
+                      <option value="closed">Closed</option>{" "}
+                    </select>{" "}
+                  </td>{" "}
+                  <td>
+                    <input
+                      value={row.notes || ""}
+                      onChange={(e) =>
+                        updateAttendanceDraft(
+                          row.work_date,
+                          "notes",
+                          e.target.value,
+                        )
+                      }
+                      className="h-9 w-40 rounded-lg border border-slate-200 px-2 text-xs font-semibold outline-none focus:border-cyan-400/70"
+                      placeholder="Notes"
+                    />
+                  </td>{" "}
                 </tr>
               );
-            })}
-          </DataTable>
+            })}{" "}
+          </DataTable>{" "}
         </section>
       ) : activeTab === "adjustments" ? (
         <section className="space-y-4">
+          {" "}
           <div className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+            {" "}
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              {" "}
               <div>
-                <p className="text-sm font-semibold text-slate-950">Payroll Adjustments and Allowances</p>
+                {" "}
+                <p className="text-sm font-semibold text-slate-950">
+                  Payroll Adjustments and Allowances
+                </p>{" "}
                 <p className="mt-1 text-xs font-semibold text-slate-500">
-                  Add balance from previous payroll, extra payroll adjustment, and allowance amounts for the selected cutoff.
-                </p>
-              </div>
+                  {" "}
+                  Add balance from previous payroll, extra payroll adjustment,
+                  and allowance amounts for the selected cutoff.{" "}
+                </p>{" "}
+              </div>{" "}
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-4 text-sm outline-none transition duration-200 focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20 lg:max-w-sm"
                 placeholder="Search employee or employee no."
-              />
-            </div>
-          </div>
-
-          <DataTable empty="Generate payroll for this cutoff before adding adjustments." minWidth="1240px" headers={["Emp No.", "Employee", "15th Allowance", "30th Allowance", "Allowance", "Balance / Adjustment", "Notes", "Gross", "Net", "Action"]}>
+              />{" "}
+            </div>{" "}
+          </div>{" "}
+          <DataTable
+            empty="Generate payroll for this cutoff before adding adjustments."
+            minWidth="1240px"
+            headers={[
+              "Emp No.",
+              "Employee",
+              "15th Allowance",
+              "30th Allowance",
+              "Allowance",
+              "Balance / Adjustment",
+              "Notes",
+              "Gross",
+              "Net",
+              "Action",
+            ]}
+          >
+            {" "}
             {payrollRows.map((entry) => {
               const draft = adjustmentDrafts[entry.id] || {};
-              const locked = ["approved", "paid"].includes(String(entry.status || "").toLowerCase()) && !canChangePayrollStatus;
+              const locked =
+                ["approved", "paid"].includes(
+                  String(entry.status || "").toLowerCase(),
+                ) && !canChangePayrollStatus;
               const preview = payrollTotals({
                 ...entry,
                 allowance_15th: draft.allowance_15th,
@@ -2058,402 +3775,1290 @@ export default function AdminPayrollPage() {
                 payroll_allowance: draft.payroll_allowance,
                 payroll_adjustment: draft.payroll_adjustment,
               });
-              const inputClass = "h-9 w-28 rounded-lg border border-slate-200 bg-white px-2 text-right text-xs font-semibold outline-none transition focus:border-cyan-400/70 disabled:bg-slate-50 disabled:text-slate-400";
+              const inputClass =
+                "h-9 w-28 rounded-lg border border-slate-200 bg-white px-2 text-right text-xs font-semibold outline-none transition focus:border-cyan-400/70 disabled:bg-slate-50 disabled:text-slate-400";
               return (
-                <tr key={entry.id} className="border-t border-slate-100 transition hover:bg-cyan-50/45">
-                  <td className="p-3 font-semibold text-slate-600">{entry.employee?.employee_no || "-"}</td>
+                <tr
+                  key={entry.id}
+                  className="border-t border-slate-100 transition hover:bg-cyan-50/45"
+                >
+                  {" "}
+                  <td className="p-3 font-semibold text-slate-600">
+                    {entry.employee?.employee_no || "-"}
+                  </td>{" "}
                   <td className="px-2 py-3">
-                    <p className="font-semibold text-slate-950">{entry.employee?.full_name || entry.employee_id}</p>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{periodById[entry.period_id]?.label || entry.period_id}</p>
-                  </td>
+                    {" "}
+                    <p className="font-semibold text-slate-950">
+                      {entry.employee?.full_name || entry.employee_id}
+                    </p>{" "}
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                      {periodById[entry.period_id]?.label || entry.period_id}
+                    </p>{" "}
+                  </td>{" "}
                   <td className="px-2 py-3">
-                    <input type="number" step="0.01" disabled={locked} value={draft.allowance_15th ?? ""} onChange={(e) => updateAdjustmentDraft(entry.id, "allowance_15th", e.target.value)} className={inputClass} />
-                  </td>
+                    {" "}
+                    <input
+                      type="number"
+                      step="0.01"
+                      disabled={locked}
+                      value={draft.allowance_15th ?? ""}
+                      onChange={(e) =>
+                        updateAdjustmentDraft(
+                          entry.id,
+                          "allowance_15th",
+                          e.target.value,
+                        )
+                      }
+                      className={inputClass}
+                    />{" "}
+                  </td>{" "}
                   <td className="px-2 py-3">
-                    <input type="number" step="0.01" disabled={locked} value={draft.allowance_30th ?? ""} onChange={(e) => updateAdjustmentDraft(entry.id, "allowance_30th", e.target.value)} className={inputClass} />
-                  </td>
+                    {" "}
+                    <input
+                      type="number"
+                      step="0.01"
+                      disabled={locked}
+                      value={draft.allowance_30th ?? ""}
+                      onChange={(e) =>
+                        updateAdjustmentDraft(
+                          entry.id,
+                          "allowance_30th",
+                          e.target.value,
+                        )
+                      }
+                      className={inputClass}
+                    />{" "}
+                  </td>{" "}
                   <td className="px-2 py-3">
-                    <input type="number" step="0.01" disabled={locked} value={draft.payroll_allowance ?? ""} onChange={(e) => updateAdjustmentDraft(entry.id, "payroll_allowance", e.target.value)} className={inputClass} />
-                  </td>
+                    {" "}
+                    <input
+                      type="number"
+                      step="0.01"
+                      disabled={locked}
+                      value={draft.payroll_allowance ?? ""}
+                      onChange={(e) =>
+                        updateAdjustmentDraft(
+                          entry.id,
+                          "payroll_allowance",
+                          e.target.value,
+                        )
+                      }
+                      className={inputClass}
+                    />{" "}
+                  </td>{" "}
                   <td className="px-2 py-3">
-                    <input type="number" step="0.01" disabled={locked} value={draft.payroll_adjustment ?? ""} onChange={(e) => updateAdjustmentDraft(entry.id, "payroll_adjustment", e.target.value)} className={inputClass} />
-                  </td>
+                    {" "}
+                    <input
+                      type="number"
+                      step="0.01"
+                      disabled={locked}
+                      value={draft.payroll_adjustment ?? ""}
+                      onChange={(e) =>
+                        updateAdjustmentDraft(
+                          entry.id,
+                          "payroll_adjustment",
+                          e.target.value,
+                        )
+                      }
+                      className={inputClass}
+                    />{" "}
+                  </td>{" "}
                   <td className="px-2 py-3">
-                    <input disabled={locked} value={draft.notes ?? ""} onChange={(e) => updateAdjustmentDraft(entry.id, "notes", e.target.value)} className="h-9 w-56 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold outline-none transition focus:border-cyan-400/70 disabled:bg-slate-50 disabled:text-slate-400" placeholder="Example: Previous payroll balance" />
-                  </td>
-                  <td className="px-2 py-3 text-right font-semibold text-slate-800">{money(preview.gross_total)}</td>
-                  <td className="px-2 py-3 text-right font-semibold text-cyan-700">{money(preview.net_total)}</td>
+                    {" "}
+                    <input
+                      disabled={locked}
+                      value={draft.notes ?? ""}
+                      onChange={(e) =>
+                        updateAdjustmentDraft(entry.id, "notes", e.target.value)
+                      }
+                      className="h-9 w-56 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold outline-none transition focus:border-cyan-400/70 disabled:bg-slate-50 disabled:text-slate-400"
+                      placeholder="Example: Previous payroll balance"
+                    />{" "}
+                  </td>{" "}
+                  <td className="px-2 py-3 text-right font-semibold text-slate-800">
+                    {money(preview.gross_total)}
+                  </td>{" "}
+                  <td className="px-2 py-3 text-right font-semibold text-cyan-700">
+                    {money(preview.net_total)}
+                  </td>{" "}
                   <td className="px-3 py-3 text-right">
+                    {" "}
                     <button
                       type="button"
                       disabled={locked || saving === `adjustment-${entry.id}`}
                       onClick={() => savePayrollAdjustment(entry)}
                       className="rounded-lg border border-cyan-100 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase text-cyan-700 transition hover:-translate-y-0.5 hover:bg-cyan-100 disabled:cursor-not-allowed disabled:border-slate-100 disabled:bg-slate-50 disabled:text-slate-400"
                     >
-                      {locked ? "Locked" : saving === `adjustment-${entry.id}` ? "Saving" : "Save"}
-                    </button>
-                  </td>
+                      {" "}
+                      {locked
+                        ? "Locked"
+                        : saving === `adjustment-${entry.id}`
+                          ? "Saving"
+                          : "Save"}{" "}
+                    </button>{" "}
+                  </td>{" "}
                 </tr>
               );
-            })}
-          </DataTable>
+            })}{" "}
+          </DataTable>{" "}
         </section>
       ) : activeTab === "deductions" ? (
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-[380px_1fr]">
+          {" "}
           <div className="space-y-4">
-            <form onSubmit={saveMiscDeduction} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-              <h2 className="text-sm font-semibold text-slate-950">{editingMiscDeductionId ? "Edit Misc Deduction" : "Misc Deduction"}</h2>
+            {" "}
+            <form
+              onSubmit={saveMiscDeduction}
+              className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl"
+            >
+              {" "}
+              <h2 className="text-sm font-semibold text-slate-950">
+                {editingMiscDeductionId
+                  ? "Edit Misc Deduction"
+                  : "Misc Deduction"}
+              </h2>{" "}
               <div className="mt-4 space-y-3">
-                <select value={miscDeductionForm.employee_id} onChange={(e) => setMiscDeductionForm((p) => ({ ...p, employee_id: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
-                  {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}
-                </select>
-                <select value={miscDeductionForm.period_id} onChange={(e) => setMiscDeductionForm((p) => ({ ...p, period_id: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">{sortedPeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select>
-                <input type="date" value={miscDeductionForm.deduction_date} onChange={(e) => setMiscDeductionForm((p) => ({ ...p, deduction_date: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
-                <input type="number" step="0.01" value={miscDeductionForm.amount} onChange={(e) => setMiscDeductionForm((p) => ({ ...p, amount: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Amount" />
-                <input value={miscDeductionForm.description} onChange={(e) => setMiscDeductionForm((p) => ({ ...p, description: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Description" />
-                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">{editingMiscDeductionId ? "Update Misc Deduction" : "Save Misc Deduction"}</button>
-                {editingMiscDeductionId ? <button type="button" onClick={cancelMiscDeductionEdit} className="h-10 w-full rounded-xl border border-slate-200 bg-white text-xs font-semibold uppercase tracking-wider text-slate-700 transition hover:bg-slate-50">Cancel Edit</button> : null}
-              </div>
-            </form>
-
-            <form onSubmit={saveRepayment} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-              <h2 className="text-sm font-semibold text-slate-950">{editingRepaymentId ? "Edit Cash Advance Deduction / Repayment" : "Cash Advance Deduction / Repayment"}</h2>
+                {" "}
+                <select
+                  value={miscDeductionForm.employee_id}
+                  onChange={(e) =>
+                    setMiscDeductionForm((p) => ({
+                      ...p,
+                      employee_id: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                >
+                  {" "}
+                  {employees.map((employee) => (
+                    <option key={employee.id} value={employee.id}>
+                      {employee.employee_no ? `${employee.employee_no} - ` : ""}
+                      {employee.full_name}
+                    </option>
+                  ))}{" "}
+                </select>{" "}
+                <select
+                  value={miscDeductionForm.period_id}
+                  onChange={(e) =>
+                    setMiscDeductionForm((p) => ({
+                      ...p,
+                      period_id: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                >
+                  {sortedPeriods.map((period) => (
+                    <option key={period.id} value={period.id}>
+                      {period.label}
+                    </option>
+                  ))}
+                </select>{" "}
+                <input
+                  type="date"
+                  value={miscDeductionForm.deduction_date}
+                  onChange={(e) =>
+                    setMiscDeductionForm((p) => ({
+                      ...p,
+                      deduction_date: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                />{" "}
+                <input
+                  type="number"
+                  step="0.01"
+                  value={miscDeductionForm.amount}
+                  onChange={(e) =>
+                    setMiscDeductionForm((p) => ({
+                      ...p,
+                      amount: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                  placeholder="Amount"
+                />{" "}
+                <input
+                  value={miscDeductionForm.description}
+                  onChange={(e) =>
+                    setMiscDeductionForm((p) => ({
+                      ...p,
+                      description: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                  placeholder="Description"
+                />{" "}
+                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">
+                  {editingMiscDeductionId
+                    ? "Update Misc Deduction"
+                    : "Save Misc Deduction"}
+                </button>{" "}
+                {editingMiscDeductionId ? (
+                  <button
+                    type="button"
+                    onClick={cancelMiscDeductionEdit}
+                    className="h-10 w-full rounded-xl border border-slate-200 bg-white text-xs font-semibold uppercase tracking-wider text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Cancel Edit
+                  </button>
+                ) : null}{" "}
+              </div>{" "}
+            </form>{" "}
+            <form
+              onSubmit={saveRepayment}
+              className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl"
+            >
+              {" "}
+              <h2 className="text-sm font-semibold text-slate-950">
+                {editingRepaymentId
+                  ? "Edit Cash Advance Deduction / Repayment"
+                  : "Cash Advance Deduction / Repayment"}
+              </h2>{" "}
               <div className="mt-4 space-y-3">
-                <select value={repaymentForm.employee_id} onChange={(e) => setRepaymentForm((p) => ({ ...p, employee_id: e.target.value, cash_advance_id: "" }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
-                  {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}
-                </select>
-                <select value={repaymentForm.cash_advance_id} onChange={(e) => setRepaymentForm((p) => ({ ...p, cash_advance_id: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
-                  <option value="">Select advance</option>
-                  {(editingRepaymentId ? repaymentEmployeeAdvanceRows : repaymentEmployeeOpenAdvanceRows).map((row) => <option key={row.id} value={row.id}>{dateText(row.advance_date)} / {money(Math.max(0, row.balance))}</option>)}
-                </select>
-                <select value={repaymentForm.period_id} onChange={(e) => setRepaymentForm((p) => ({ ...p, period_id: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">{sortedPeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select>
-                <input type="date" value={repaymentForm.payment_date} onChange={(e) => setRepaymentForm((p) => ({ ...p, payment_date: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
-                <input type="number" step="0.01" value={repaymentForm.amount} onChange={(e) => setRepaymentForm((p) => ({ ...p, amount: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Repayment amount" />
-                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">{editingRepaymentId ? "Update Repayment" : "Save Repayment"}</button>
-                {editingRepaymentId ? <button type="button" onClick={cancelRepaymentEdit} className="h-10 w-full rounded-xl border border-slate-200 bg-white text-xs font-semibold uppercase tracking-wider text-slate-700 transition hover:bg-slate-50">Cancel Edit</button> : null}
-              </div>
-            </form>
-
-            <form onSubmit={saveLoanRepayment} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-              <h2 className="text-sm font-semibold text-slate-950">{editingLoanRepaymentId ? "Edit Loan Deduction / Repayment" : "Loan Deduction / Repayment"}</h2>
+                {" "}
+                <select
+                  value={repaymentForm.employee_id}
+                  onChange={(e) =>
+                    setRepaymentForm((p) => ({
+                      ...p,
+                      employee_id: e.target.value,
+                      cash_advance_id: "",
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                >
+                  {" "}
+                  {employees.map((employee) => (
+                    <option key={employee.id} value={employee.id}>
+                      {employee.employee_no ? `${employee.employee_no} - ` : ""}
+                      {employee.full_name}
+                    </option>
+                  ))}{" "}
+                </select>{" "}
+                <select
+                  value={repaymentForm.cash_advance_id}
+                  onChange={(e) =>
+                    setRepaymentForm((p) => ({
+                      ...p,
+                      cash_advance_id: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                >
+                  {" "}
+                  <option value="">Select advance</option>{" "}
+                  {(editingRepaymentId
+                    ? repaymentEmployeeAdvanceRows
+                    : repaymentEmployeeOpenAdvanceRows
+                  ).map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {dateText(row.advance_date)} /{" "}
+                      {money(Math.max(0, row.balance))}
+                    </option>
+                  ))}{" "}
+                </select>{" "}
+                <select
+                  value={repaymentForm.period_id}
+                  onChange={(e) =>
+                    setRepaymentForm((p) => ({
+                      ...p,
+                      period_id: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                >
+                  {sortedPeriods.map((period) => (
+                    <option key={period.id} value={period.id}>
+                      {period.label}
+                    </option>
+                  ))}
+                </select>{" "}
+                <input
+                  type="date"
+                  value={repaymentForm.payment_date}
+                  onChange={(e) =>
+                    setRepaymentForm((p) => ({
+                      ...p,
+                      payment_date: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                />{" "}
+                <input
+                  type="number"
+                  step="0.01"
+                  value={repaymentForm.amount}
+                  onChange={(e) =>
+                    setRepaymentForm((p) => ({ ...p, amount: e.target.value }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                  placeholder="Repayment amount"
+                />{" "}
+                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">
+                  {editingRepaymentId ? "Update Repayment" : "Save Repayment"}
+                </button>{" "}
+                {editingRepaymentId ? (
+                  <button
+                    type="button"
+                    onClick={cancelRepaymentEdit}
+                    className="h-10 w-full rounded-xl border border-slate-200 bg-white text-xs font-semibold uppercase tracking-wider text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Cancel Edit
+                  </button>
+                ) : null}{" "}
+              </div>{" "}
+            </form>{" "}
+            <form
+              onSubmit={saveLoanRepayment}
+              className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl"
+            >
+              {" "}
+              <h2 className="text-sm font-semibold text-slate-950">
+                {editingLoanRepaymentId
+                  ? "Edit Loan Deduction / Repayment"
+                  : "Loan Deduction / Repayment"}
+              </h2>{" "}
               <div className="mt-4 space-y-3">
-                <select value={loanRepaymentForm.employee_id} onChange={(e) => setLoanRepaymentForm((p) => ({ ...p, employee_id: e.target.value, loan_id: "" }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
-                  {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}
-                </select>
-                <select value={loanRepaymentForm.loan_id} onChange={(e) => setLoanRepaymentForm((p) => ({ ...p, loan_id: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">
-                  <option value="">Select loan</option>
-                  {(editingLoanRepaymentId ? repaymentEmployeeLoanRows : repaymentEmployeeOpenLoanRows).map((row) => <option key={row.id} value={row.id}>{dateText(row.loan_date)} / {money(Math.max(0, row.balance))}</option>)}
-                </select>
-                <select value={loanRepaymentForm.period_id} onChange={(e) => setLoanRepaymentForm((p) => ({ ...p, period_id: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">{sortedPeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select>
-                <input type="date" value={loanRepaymentForm.payment_date} onChange={(e) => setLoanRepaymentForm((p) => ({ ...p, payment_date: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
-                <input type="number" step="0.01" value={loanRepaymentForm.amount} onChange={(e) => setLoanRepaymentForm((p) => ({ ...p, amount: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Repayment amount" />
-                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">{editingLoanRepaymentId ? "Update Loan Repayment" : "Save Loan Repayment"}</button>
-                {editingLoanRepaymentId ? <button type="button" onClick={cancelLoanRepaymentEdit} className="h-10 w-full rounded-xl border border-slate-200 bg-white text-xs font-semibold uppercase tracking-wider text-slate-700 transition hover:bg-slate-50">Cancel Edit</button> : null}
-              </div>
-            </form>
-          </div>
-
+                {" "}
+                <select
+                  value={loanRepaymentForm.employee_id}
+                  onChange={(e) =>
+                    setLoanRepaymentForm((p) => ({
+                      ...p,
+                      employee_id: e.target.value,
+                      loan_id: "",
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                >
+                  {" "}
+                  {employees.map((employee) => (
+                    <option key={employee.id} value={employee.id}>
+                      {employee.employee_no ? `${employee.employee_no} - ` : ""}
+                      {employee.full_name}
+                    </option>
+                  ))}{" "}
+                </select>{" "}
+                <select
+                  value={loanRepaymentForm.loan_id}
+                  onChange={(e) =>
+                    setLoanRepaymentForm((p) => ({
+                      ...p,
+                      loan_id: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                >
+                  {" "}
+                  <option value="">Select loan</option>{" "}
+                  {(editingLoanRepaymentId
+                    ? repaymentEmployeeLoanRows
+                    : repaymentEmployeeOpenLoanRows
+                  ).map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {dateText(row.loan_date)} /{" "}
+                      {money(Math.max(0, row.balance))}
+                    </option>
+                  ))}{" "}
+                </select>{" "}
+                <select
+                  value={loanRepaymentForm.period_id}
+                  onChange={(e) =>
+                    setLoanRepaymentForm((p) => ({
+                      ...p,
+                      period_id: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                >
+                  {sortedPeriods.map((period) => (
+                    <option key={period.id} value={period.id}>
+                      {period.label}
+                    </option>
+                  ))}
+                </select>{" "}
+                <input
+                  type="date"
+                  value={loanRepaymentForm.payment_date}
+                  onChange={(e) =>
+                    setLoanRepaymentForm((p) => ({
+                      ...p,
+                      payment_date: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                />{" "}
+                <input
+                  type="number"
+                  step="0.01"
+                  value={loanRepaymentForm.amount}
+                  onChange={(e) =>
+                    setLoanRepaymentForm((p) => ({
+                      ...p,
+                      amount: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                  placeholder="Repayment amount"
+                />{" "}
+                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">
+                  {editingLoanRepaymentId
+                    ? "Update Loan Repayment"
+                    : "Save Loan Repayment"}
+                </button>{" "}
+                {editingLoanRepaymentId ? (
+                  <button
+                    type="button"
+                    onClick={cancelLoanRepaymentEdit}
+                    className="h-10 w-full rounded-xl border border-slate-200 bg-white text-xs font-semibold uppercase tracking-wider text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Cancel Edit
+                  </button>
+                ) : null}{" "}
+              </div>{" "}
+            </form>{" "}
+          </div>{" "}
           <div className="space-y-4">
-            <DataTable empty="No misc deductions found for this cutoff." minWidth="940px" headers={canApprovePayroll ? ["Date", "Employee", "Cutoff", "Description", "Amount", "Action"] : ["Date", "Employee", "Cutoff", "Description", "Amount"]}>
+            {" "}
+            <DataTable
+              empty="No misc deductions found for this cutoff."
+              minWidth="940px"
+              headers={
+                canApprovePayroll
+                  ? [
+                      "Date",
+                      "Employee",
+                      "Cutoff",
+                      "Description",
+                      "Amount",
+                      "Action",
+                    ]
+                  : ["Date", "Employee", "Cutoff", "Description", "Amount"]
+              }
+            >
+              {" "}
               {miscDeductions
-                .filter((row) => !selectedPeriodId || row.period_id === selectedPeriodId)
+                .filter(
+                  (row) =>
+                    !selectedPeriodId || row.period_id === selectedPeriodId,
+                )
                 .map((row) => (
-                  <tr key={row.id} className="border-t border-slate-100 transition hover:bg-cyan-50/45">
-                    <td className="p-3 font-semibold">{dateText(row.deduction_date)}</td>
-                    <td>{employeeById[row.employee_id]?.full_name || row.employee_id}</td>
-                    <td>{periodById[row.period_id]?.label || row.period_id}</td>
-                    <td>{row.description || "Misc deduction"}</td>
-                    <td className="px-1 py-3 font-semibold text-cyan-700">{money(row.amount)}</td>
+                  <tr
+                    key={row.id}
+                    className="border-t border-slate-100 transition hover:bg-cyan-50/45"
+                  >
+                    {" "}
+                    <td className="p-3 font-semibold">
+                      {dateText(row.deduction_date)}
+                    </td>{" "}
+                    <td>
+                      {employeeById[row.employee_id]?.full_name ||
+                        row.employee_id}
+                    </td>{" "}
+                    <td>{periodById[row.period_id]?.label || row.period_id}</td>{" "}
+                    <td>{row.description || "Misc deduction"}</td>{" "}
+                    <td className="px-1 py-3 font-semibold text-cyan-700">
+                      {money(row.amount)}
+                    </td>{" "}
                     {canApprovePayroll ? (
                       <td className="px-1 py-3">
+                        {" "}
                         <div className="flex flex-wrap gap-2">
-                          <button type="button" onClick={() => editMiscDeduction(row)} className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-cyan-700 transition hover:bg-cyan-100">Edit</button>
-                          <button type="button" onClick={() => deleteMiscDeduction(row)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-red-700 transition hover:bg-red-100">Delete</button>
-                        </div>
+                          {" "}
+                          <button
+                            type="button"
+                            onClick={() => editMiscDeduction(row)}
+                            className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-cyan-700 transition hover:bg-cyan-100"
+                          >
+                            Edit
+                          </button>{" "}
+                          <button
+                            type="button"
+                            onClick={() => deleteMiscDeduction(row)}
+                            className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-red-700 transition hover:bg-red-100"
+                          >
+                            Delete
+                          </button>{" "}
+                        </div>{" "}
                       </td>
-                    ) : null}
+                    ) : null}{" "}
                   </tr>
-                ))}
-            </DataTable>
-
-            <DataTable empty="No cash advance repayments found for this cutoff." minWidth="940px" headers={canApprovePayroll ? ["Date", "Employee", "Cash Advance", "Cutoff", "Amount", "Action"] : ["Date", "Employee", "Cash Advance", "Cutoff", "Amount"]}>
+                ))}{" "}
+            </DataTable>{" "}
+            <DataTable
+              empty="No cash advance repayments found for this cutoff."
+              minWidth="940px"
+              headers={
+                canApprovePayroll
+                  ? [
+                      "Date",
+                      "Employee",
+                      "Cash Advance",
+                      "Cutoff",
+                      "Amount",
+                      "Action",
+                    ]
+                  : ["Date", "Employee", "Cash Advance", "Cutoff", "Amount"]
+              }
+            >
+              {" "}
               {repayments
-                .filter((row) => !selectedPeriodId || row.period_id === selectedPeriodId)
+                .filter(
+                  (row) =>
+                    !selectedPeriodId || row.period_id === selectedPeriodId,
+                )
                 .map((row) => (
-                  <tr key={row.id} className="border-t border-slate-100 transition hover:bg-cyan-50/45">
-                    <td className="p-3 font-semibold">{dateText(row.payment_date)}</td>
-                    <td>{employeeById[row.employee_id]?.full_name || row.employee_id}</td>
-                    <td>{dateText(advances.find((advance) => advance.id === row.cash_advance_id)?.advance_date)}</td>
-                    <td>{periodById[row.period_id]?.label || row.period_id || "-"}</td>
-                    <td className="px-1 py-3 font-semibold text-cyan-700">{money(row.amount)}</td>
+                  <tr
+                    key={row.id}
+                    className="border-t border-slate-100 transition hover:bg-cyan-50/45"
+                  >
+                    {" "}
+                    <td className="p-3 font-semibold">
+                      {dateText(row.payment_date)}
+                    </td>{" "}
+                    <td>
+                      {employeeById[row.employee_id]?.full_name ||
+                        row.employee_id}
+                    </td>{" "}
+                    <td>
+                      {dateText(
+                        advances.find(
+                          (advance) => advance.id === row.cash_advance_id,
+                        )?.advance_date,
+                      )}
+                    </td>{" "}
+                    <td>
+                      {periodById[row.period_id]?.label || row.period_id || "-"}
+                    </td>{" "}
+                    <td className="px-1 py-3 font-semibold text-cyan-700">
+                      {money(row.amount)}
+                    </td>{" "}
                     {canApprovePayroll ? (
                       <td className="px-1 py-3">
+                        {" "}
                         <div className="flex flex-wrap gap-2">
-                          <button type="button" onClick={() => editRepayment(row)} className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-cyan-700 transition hover:bg-cyan-100">Edit</button>
-                          <button type="button" onClick={() => deleteRepayment(row)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-red-700 transition hover:bg-red-100">Delete</button>
-                        </div>
+                          {" "}
+                          <button
+                            type="button"
+                            onClick={() => editRepayment(row)}
+                            className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-cyan-700 transition hover:bg-cyan-100"
+                          >
+                            Edit
+                          </button>{" "}
+                          <button
+                            type="button"
+                            onClick={() => deleteRepayment(row)}
+                            className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-red-700 transition hover:bg-red-100"
+                          >
+                            Delete
+                          </button>{" "}
+                        </div>{" "}
                       </td>
-                    ) : null}
+                    ) : null}{" "}
                   </tr>
-                ))}
-            </DataTable>
-
-            <DataTable empty="No loan repayments found for this cutoff." minWidth="940px" headers={canApprovePayroll ? ["Date", "Employee", "Loan", "Cutoff", "Amount", "Action"] : ["Date", "Employee", "Loan", "Cutoff", "Amount"]}>
+                ))}{" "}
+            </DataTable>{" "}
+            <DataTable
+              empty="No loan repayments found for this cutoff."
+              minWidth="940px"
+              headers={
+                canApprovePayroll
+                  ? ["Date", "Employee", "Loan", "Cutoff", "Amount", "Action"]
+                  : ["Date", "Employee", "Loan", "Cutoff", "Amount"]
+              }
+            >
+              {" "}
               {loanRepayments
-                .filter((row) => !selectedPeriodId || row.period_id === selectedPeriodId)
+                .filter(
+                  (row) =>
+                    !selectedPeriodId || row.period_id === selectedPeriodId,
+                )
                 .map((row) => (
-                  <tr key={row.id} className="border-t border-slate-100 transition hover:bg-cyan-50/45">
-                    <td className="p-3 font-semibold">{dateText(row.payment_date || row.repayment_date)}</td>
-                    <td>{employeeById[row.employee_id]?.full_name || row.employee_id}</td>
-                    <td>{dateText(loans.find((loan) => loan.id === row.loan_id)?.loan_date)}</td>
-                    <td>{periodById[row.period_id]?.label || row.period_id || "-"}</td>
-                    <td className="px-1 py-3 font-semibold text-cyan-700">{money(row.amount)}</td>
+                  <tr
+                    key={row.id}
+                    className="border-t border-slate-100 transition hover:bg-cyan-50/45"
+                  >
+                    {" "}
+                    <td className="p-3 font-semibold">
+                      {dateText(row.payment_date || row.repayment_date)}
+                    </td>{" "}
+                    <td>
+                      {employeeById[row.employee_id]?.full_name ||
+                        row.employee_id}
+                    </td>{" "}
+                    <td>
+                      {dateText(
+                        loans.find((loan) => loan.id === row.loan_id)
+                          ?.loan_date,
+                      )}
+                    </td>{" "}
+                    <td>
+                      {periodById[row.period_id]?.label || row.period_id || "-"}
+                    </td>{" "}
+                    <td className="px-1 py-3 font-semibold text-cyan-700">
+                      {money(row.amount)}
+                    </td>{" "}
                     {canApprovePayroll ? (
                       <td className="px-1 py-3">
+                        {" "}
                         <div className="flex flex-wrap gap-2">
-                          <button type="button" onClick={() => editLoanRepayment(row)} className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-cyan-700 transition hover:bg-cyan-100">Edit</button>
-                          <button type="button" onClick={() => deleteLoanRepayment(row)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-red-700 transition hover:bg-red-100">Delete</button>
-                        </div>
+                          {" "}
+                          <button
+                            type="button"
+                            onClick={() => editLoanRepayment(row)}
+                            className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-cyan-700 transition hover:bg-cyan-100"
+                          >
+                            Edit
+                          </button>{" "}
+                          <button
+                            type="button"
+                            onClick={() => deleteLoanRepayment(row)}
+                            className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-red-700 transition hover:bg-red-100"
+                          >
+                            Delete
+                          </button>{" "}
+                        </div>{" "}
                       </td>
-                    ) : null}
+                    ) : null}{" "}
                   </tr>
-                ))}
-            </DataTable>
-          </div>
+                ))}{" "}
+            </DataTable>{" "}
+          </div>{" "}
         </section>
       ) : activeTab === "cashAdvance" ? (
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-[380px_1fr]">
+          {" "}
           <div className="space-y-4">
-            <form onSubmit={saveAdvance} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-              <h2 className="text-sm font-semibold text-slate-950">{editingAdvanceId ? "Edit Cash Advance" : "Cash Advance"}</h2>
+            {" "}
+            <form
+              onSubmit={saveAdvance}
+              className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl"
+            >
+              {" "}
+              <h2 className="text-sm font-semibold text-slate-950">
+                {editingAdvanceId ? "Edit Cash Advance" : "Cash Advance"}
+              </h2>{" "}
               <div className="mt-4 space-y-3">
-                <select value={advanceForm.employee_id} onChange={(e) => {
-                  setAdvanceForm((p) => ({ ...p, employee_id: e.target.value }));
-                  setSelectedEmployeeId(e.target.value);
-                }} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">{employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}</select>
-                <input type="date" value={advanceForm.advance_date} onChange={(e) => setAdvanceForm((p) => ({ ...p, advance_date: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
-                <input type="number" step="0.01" value={advanceForm.amount} onChange={(e) => setAdvanceForm((p) => ({ ...p, amount: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Amount" />
-                <input value={advanceForm.reason} onChange={(e) => setAdvanceForm((p) => ({ ...p, reason: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Reason" />
-                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">{editingAdvanceId ? "Update Advance" : "Save Advance"}</button>
-                {editingAdvanceId ? <button type="button" onClick={cancelAdvanceEdit} className="h-10 w-full rounded-xl border border-slate-200 bg-white text-xs font-semibold uppercase tracking-wider text-slate-700 transition hover:bg-slate-50">Cancel Edit</button> : null}
-              </div>
-            </form>
-          </div>
-          
+                {" "}
+                <select
+                  value={advanceForm.employee_id}
+                  onChange={(e) => {
+                    setAdvanceForm((p) => ({
+                      ...p,
+                      employee_id: e.target.value,
+                    }));
+                    setSelectedEmployeeId(e.target.value);
+                  }}
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                >
+                  {employees.map((employee) => (
+                    <option key={employee.id} value={employee.id}>
+                      {employee.employee_no ? `${employee.employee_no} - ` : ""}
+                      {employee.full_name}
+                    </option>
+                  ))}
+                </select>{" "}
+                <input
+                  type="date"
+                  value={advanceForm.advance_date}
+                  onChange={(e) =>
+                    setAdvanceForm((p) => ({
+                      ...p,
+                      advance_date: e.target.value,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                />{" "}
+                <input
+                  type="number"
+                  step="0.01"
+                  value={advanceForm.amount}
+                  onChange={(e) =>
+                    setAdvanceForm((p) => ({ ...p, amount: e.target.value }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                  placeholder="Amount"
+                />{" "}
+                <input
+                  value={advanceForm.reason}
+                  onChange={(e) =>
+                    setAdvanceForm((p) => ({ ...p, reason: e.target.value }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                  placeholder="Reason"
+                />{" "}
+                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">
+                  {editingAdvanceId ? "Update Advance" : "Save Advance"}
+                </button>{" "}
+                {editingAdvanceId ? (
+                  <button
+                    type="button"
+                    onClick={cancelAdvanceEdit}
+                    className="h-10 w-full rounded-xl border border-slate-200 bg-white text-xs font-semibold uppercase tracking-wider text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Cancel Edit
+                  </button>
+                ) : null}{" "}
+              </div>{" "}
+            </form>{" "}
+          </div>{" "}
           <div className="space-y-4">
+            {" "}
             <div className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+              {" "}
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                {" "}
                 <div>
-                  <p className="text-sm font-semibold text-slate-950">Cash Advance Details Per Employee</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-500">{employeeById[selectedEmployeeId]?.full_name || "Select an employee"}</p>
-                </div>
-                <select value={selectedEmployeeId} onChange={(e) => {
-                  setSelectedEmployeeId(e.target.value);
-                  setAdvanceForm((current) => ({ ...current, employee_id: e.target.value }));
-                }} className="h-11 rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20 sm:min-w-[280px]">
-                  {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}
-                </select>
-              </div>
-            </div>
-            
-            <DataTable empty="No employees with cash advance balance." minWidth="820px" headers={["Employee", "Amount", "Repaid", "Balance", "Status"]}>
+                  {" "}
+                  <p className="text-sm font-semibold text-slate-950">
+                    Cash Advance Details Per Employee
+                  </p>{" "}
+                  <p className="mt-1 text-xs font-semibold text-slate-500">
+                    {employeeById[selectedEmployeeId]?.full_name ||
+                      "Select an employee"}
+                  </p>{" "}
+                </div>{" "}
+                <select
+                  value={selectedEmployeeId}
+                  onChange={(e) => {
+                    setSelectedEmployeeId(e.target.value);
+                    setAdvanceForm((current) => ({
+                      ...current,
+                      employee_id: e.target.value,
+                    }));
+                  }}
+                  className="h-11 rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20 sm:min-w-[280px]"
+                >
+                  {" "}
+                  {employees.map((employee) => (
+                    <option key={employee.id} value={employee.id}>
+                      {employee.employee_no ? `${employee.employee_no} - ` : ""}
+                      {employee.full_name}
+                    </option>
+                  ))}{" "}
+                </select>{" "}
+              </div>{" "}
+            </div>{" "}
+            <DataTable
+              empty="No employees with cash advance balance."
+              minWidth="820px"
+              headers={["Employee", "Amount", "Repaid", "Balance", "Status"]}
+            >
+              {" "}
               {employeeBalanceRows.map((row) => (
                 <tr
                   key={row.employee.id}
                   onClick={() => {
                     setSelectedEmployeeId(row.employee.id);
-                    setAdvanceForm((current) => ({ ...current, employee_id: row.employee.id }));
+                    setAdvanceForm((current) => ({
+                      ...current,
+                      employee_id: row.employee.id,
+                    }));
                   }}
                   className={`cursor-pointer border-t border-slate-100 transition ${selectedEmployeeId === row.employee.id ? "bg-cyan-50" : "hover:bg-cyan-50/45"}`}
                 >
+                  {" "}
                   <td className="p-3">
-                    <p className="font-semibold text-slate-950">{row.employee.employee_no ? `${row.employee.employee_no} - ` : ""}{row.employee.full_name}</p>
-                  </td>
-                  <td>{money(row.amount)}</td>
-                  <td>{money(row.repaid)}</td>
-                  <td className="font-semibold text-cyan-700">{money(row.balance)}</td>
-                  <td className="font-semibold text-cyan-700">Open</td>
+                    {" "}
+                    <p className="font-semibold text-slate-950">
+                      {row.employee.employee_no
+                        ? `${row.employee.employee_no} - `
+                        : ""}
+                      {row.employee.full_name}
+                    </p>{" "}
+                  </td>{" "}
+                  <td>{money(row.amount)}</td> <td>{money(row.repaid)}</td>{" "}
+                  <td className="font-semibold text-cyan-700">
+                    {money(row.balance)}
+                  </td>{" "}
+                  <td className="font-semibold text-cyan-700">Open</td>{" "}
                 </tr>
-              ))}
-            </DataTable>            
-
-            <DataTable empty="No cash advance records found for this employee." minWidth="1180px" headers={canApprovePayroll ? ["Cash Advance", "Amount", "Repayment History", "Repaid", "Balance", "Status", "Action"] : ["Cash Advance", "Amount", "Repayment History", "Repaid", "Balance", "Status"]}>
+              ))}{" "}
+            </DataTable>{" "}
+            <DataTable
+              empty="No cash advance records found for this employee."
+              minWidth="1180px"
+              headers={
+                canApprovePayroll
+                  ? [
+                      "Cash Advance",
+                      "Amount",
+                      "Repayment History",
+                      "Repaid",
+                      "Balance",
+                      "Status",
+                      "Action",
+                    ]
+                  : [
+                      "Cash Advance",
+                      "Amount",
+                      "Repayment History",
+                      "Repaid",
+                      "Balance",
+                      "Status",
+                    ]
+              }
+            >
+              {" "}
               {selectedEmployeeAdvanceRows.map((row) => {
-                const repaymentHistory = [...(repaymentsByAdvance[row.id] || [])]
-                  .sort((a, b) => new Date(b.payment_date || 0) - new Date(a.payment_date || 0));
+                const repaymentHistory = [
+                  ...(repaymentsByAdvance[row.id] || []),
+                ].sort(
+                  (a, b) =>
+                    new Date(b.payment_date || 0) -
+                    new Date(a.payment_date || 0),
+                );
                 return (
-                  <tr key={row.id} className="border-t border-slate-100 align-top transition hover:bg-cyan-50/45">
+                  <tr
+                    key={row.id}
+                    className="border-t border-slate-100 align-top transition hover:bg-cyan-50/45"
+                  >
+                    {" "}
                     <td className="p-3">
-                      <p className="font-semibold text-slate-950">{dateText(row.advance_date)}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">{row.reason || "Cash advance"}</p>
-                    </td>
-                    <td className="pt-3">{money(row.amount)}</td>
+                      {" "}
+                      <p className="font-semibold text-slate-950">
+                        {dateText(row.advance_date)}
+                      </p>{" "}
+                      <p className="mt-1 text-xs font-semibold text-slate-500">
+                        {row.reason || "Cash advance"}
+                      </p>{" "}
+                    </td>{" "}
+                    <td className="pt-3">{money(row.amount)}</td>{" "}
                     <td className="py-3 pr-3">
+                      {" "}
                       {repaymentHistory.length === 0 ? (
-                        <span className="text-xs font-semibold text-slate-400">No repayment yet.</span>
+                        <span className="text-xs font-semibold text-slate-400">
+                          No repayment yet.
+                        </span>
                       ) : (
                         <div className="space-y-2">
+                          {" "}
                           {repaymentHistory.map((repayment) => (
-                            <div key={repayment.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600">
+                            <div
+                              key={repayment.id}
+                              className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600"
+                            >
+                              {" "}
                               <div className="flex flex-wrap items-center justify-between gap-2">
-                                <span className="font-semibold text-slate-950">{dateText(repayment.payment_date)}</span>
-                                <span className="font-semibold text-cyan-700">{money(repayment.amount)}</span>
-                              </div>
-                              <p className="mt-1">{repayment.method || "payroll deduction"}{repayment.period_id ? ` / ${periodById[repayment.period_id]?.label || repayment.period_id}` : ""}</p>
-                              {repayment.notes ? <p className="mt-1 text-slate-500">{repayment.notes}</p> : null}
+                                {" "}
+                                <span className="font-semibold text-slate-950">
+                                  {dateText(repayment.payment_date)}
+                                </span>{" "}
+                                <span className="font-semibold text-cyan-700">
+                                  {money(repayment.amount)}
+                                </span>{" "}
+                              </div>{" "}
+                              <p className="mt-1">
+                                {repayment.method || "payroll deduction"}
+                                {repayment.period_id
+                                  ? ` / ${periodById[repayment.period_id]?.label || repayment.period_id}`
+                                  : ""}
+                              </p>{" "}
+                              {repayment.notes ? (
+                                <p className="mt-1 text-slate-500">
+                                  {repayment.notes}
+                                </p>
+                              ) : null}{" "}
                               {canApprovePayroll ? (
                                 <div className="mt-2 flex flex-wrap gap-2">
-                                  <button type="button" onClick={() => editRepayment(repayment)} className="rounded-lg border border-cyan-200 bg-cyan-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-cyan-700 transition hover:bg-cyan-100">Edit</button>
-                                  <button type="button" onClick={() => deleteRepayment(repayment)} className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-red-700 transition hover:bg-red-100">Delete</button>
+                                  {" "}
+                                  <button
+                                    type="button"
+                                    onClick={() => editRepayment(repayment)}
+                                    className="rounded-lg border border-cyan-200 bg-cyan-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-cyan-700 transition hover:bg-cyan-100"
+                                  >
+                                    Edit
+                                  </button>{" "}
+                                  <button
+                                    type="button"
+                                    onClick={() => deleteRepayment(repayment)}
+                                    className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-red-700 transition hover:bg-red-100"
+                                  >
+                                    Delete
+                                  </button>{" "}
                                 </div>
-                              ) : null}
+                              ) : null}{" "}
                             </div>
-                          ))}
+                          ))}{" "}
                         </div>
-                      )}
-                    </td>
-                    <td className="pt-3">{money(row.repaid)}</td>
-                    <td className="pt-3 font-semibold text-cyan-700">{money(row.balance)}</td>
-                    <td className="pt-3">{row.status || "active"}</td>
+                      )}{" "}
+                    </td>{" "}
+                    <td className="pt-3">{money(row.repaid)}</td>{" "}
+                    <td className="pt-3 font-semibold text-cyan-700">
+                      {money(row.balance)}
+                    </td>{" "}
+                    <td className="pt-3">{row.status || "active"}</td>{" "}
                     {canApprovePayroll ? (
                       <td className="pt-3">
+                        {" "}
                         <div className="flex flex-wrap gap-2">
-                          <button type="button" onClick={() => editAdvance(row)} className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-cyan-700 transition hover:bg-cyan-100">Edit</button>
-                          <button type="button" onClick={() => deleteAdvance(row)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-red-700 transition hover:bg-red-100">Delete</button>
-                        </div>
+                          {" "}
+                          <button
+                            type="button"
+                            onClick={() => editAdvance(row)}
+                            className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-cyan-700 transition hover:bg-cyan-100"
+                          >
+                            Edit
+                          </button>{" "}
+                          <button
+                            type="button"
+                            onClick={() => deleteAdvance(row)}
+                            className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-red-700 transition hover:bg-red-100"
+                          >
+                            Delete
+                          </button>{" "}
+                        </div>{" "}
                       </td>
-                    ) : null}
+                    ) : null}{" "}
                   </tr>
                 );
-              })}
-            </DataTable>
-
-          </div>
+              })}{" "}
+            </DataTable>{" "}
+          </div>{" "}
         </section>
       ) : activeTab === "loans" ? (
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-[380px_1fr]">
+          {" "}
           <div className="space-y-4">
-            <form onSubmit={saveLoan} className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-              <h2 className="text-sm font-semibold text-slate-950">{editingLoanId ? "Edit Loan" : "Loan"}</h2>
+            {" "}
+            <form
+              onSubmit={saveLoan}
+              className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl"
+            >
+              {" "}
+              <h2 className="text-sm font-semibold text-slate-950">
+                {editingLoanId ? "Edit Loan" : "Loan"}
+              </h2>{" "}
               <div className="mt-4 space-y-3">
-                <select value={loanForm.employee_id} onChange={(e) => {
-                  setLoanForm((p) => ({ ...p, employee_id: e.target.value }));
-                  setSelectedEmployeeId(e.target.value);
-                }} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">{employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}</select>
-                <input type="date" value={loanForm.loan_date} onChange={(e) => setLoanForm((p) => ({ ...p, loan_date: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
-                <input type="number" step="0.01" value={loanForm.amount} onChange={(e) => setLoanForm((p) => ({ ...p, amount: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Amount" />
-                <input value={loanForm.reason} onChange={(e) => setLoanForm((p) => ({ ...p, reason: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" placeholder="Reason" />
-                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">{editingLoanId ? "Update Loan" : "Save Loan"}</button>
-                {editingLoanId ? <button type="button" onClick={cancelLoanEdit} className="h-10 w-full rounded-xl border border-slate-200 bg-white text-xs font-semibold uppercase tracking-wider text-slate-700 transition hover:bg-slate-50">Cancel Edit</button> : null}
-              </div>
-            </form>
-          </div>
-
+                {" "}
+                <select
+                  value={loanForm.employee_id}
+                  onChange={(e) => {
+                    setLoanForm((p) => ({ ...p, employee_id: e.target.value }));
+                    setSelectedEmployeeId(e.target.value);
+                  }}
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                >
+                  {employees.map((employee) => (
+                    <option key={employee.id} value={employee.id}>
+                      {employee.employee_no ? `${employee.employee_no} - ` : ""}
+                      {employee.full_name}
+                    </option>
+                  ))}
+                </select>{" "}
+                <input
+                  type="date"
+                  value={loanForm.loan_date}
+                  onChange={(e) =>
+                    setLoanForm((p) => ({ ...p, loan_date: e.target.value }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                />{" "}
+                <input
+                  type="number"
+                  step="0.01"
+                  value={loanForm.amount}
+                  onChange={(e) =>
+                    setLoanForm((p) => ({ ...p, amount: e.target.value }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                  placeholder="Amount"
+                />{" "}
+                <input
+                  value={loanForm.reason}
+                  onChange={(e) =>
+                    setLoanForm((p) => ({ ...p, reason: e.target.value }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                  placeholder="Reason"
+                />{" "}
+                <button className="h-11 w-full rounded-xl bg-slate-400/78 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-slate-400/78">
+                  {editingLoanId ? "Update Loan" : "Save Loan"}
+                </button>{" "}
+                {editingLoanId ? (
+                  <button
+                    type="button"
+                    onClick={cancelLoanEdit}
+                    className="h-10 w-full rounded-xl border border-slate-200 bg-white text-xs font-semibold uppercase tracking-wider text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Cancel Edit
+                  </button>
+                ) : null}{" "}
+              </div>{" "}
+            </form>{" "}
+          </div>{" "}
           <div className="space-y-4">
+            {" "}
             <div className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+              {" "}
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                {" "}
                 <div>
-                  <p className="text-sm font-semibold text-slate-950">Loan Details Per Employee</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-500">{employeeById[selectedEmployeeId]?.full_name || "Select an employee"}</p>
-                </div>
-                <select value={selectedEmployeeId} onChange={(e) => {
-                  setSelectedEmployeeId(e.target.value);
-                  setLoanForm((current) => ({ ...current, employee_id: e.target.value }));
-                }} className="h-11 rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20 sm:min-w-[280px]">
-                  {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}
-                </select>
-              </div>
-            </div>
-
-            <DataTable empty="No employees with loan balance." minWidth="820px" headers={["Employee", "Amount", "Repaid", "Balance", "Status"]}>
+                  {" "}
+                  <p className="text-sm font-semibold text-slate-950">
+                    Loan Details Per Employee
+                  </p>{" "}
+                  <p className="mt-1 text-xs font-semibold text-slate-500">
+                    {employeeById[selectedEmployeeId]?.full_name ||
+                      "Select an employee"}
+                  </p>{" "}
+                </div>{" "}
+                <select
+                  value={selectedEmployeeId}
+                  onChange={(e) => {
+                    setSelectedEmployeeId(e.target.value);
+                    setLoanForm((current) => ({
+                      ...current,
+                      employee_id: e.target.value,
+                    }));
+                  }}
+                  className="h-11 rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20 sm:min-w-[280px]"
+                >
+                  {" "}
+                  {employees.map((employee) => (
+                    <option key={employee.id} value={employee.id}>
+                      {employee.employee_no ? `${employee.employee_no} - ` : ""}
+                      {employee.full_name}
+                    </option>
+                  ))}{" "}
+                </select>{" "}
+              </div>{" "}
+            </div>{" "}
+            <DataTable
+              empty="No employees with loan balance."
+              minWidth="820px"
+              headers={["Employee", "Amount", "Repaid", "Balance", "Status"]}
+            >
+              {" "}
               {employeeLoanBalanceRows.map((row) => (
                 <tr
                   key={row.employee.id}
                   onClick={() => {
                     setSelectedEmployeeId(row.employee.id);
-                    setLoanForm((current) => ({ ...current, employee_id: row.employee.id }));
+                    setLoanForm((current) => ({
+                      ...current,
+                      employee_id: row.employee.id,
+                    }));
                   }}
                   className={`cursor-pointer border-t border-slate-100 transition ${selectedEmployeeId === row.employee.id ? "bg-cyan-50" : "hover:bg-cyan-50/45"}`}
                 >
+                  {" "}
                   <td className="p-3">
-                    <p className="font-semibold text-slate-950">{row.employee.employee_no ? `${row.employee.employee_no} - ` : ""}{row.employee.full_name}</p>
-                  </td>
-                  <td>{money(row.amount)}</td>
-                  <td>{money(row.repaid)}</td>
-                  <td className="font-semibold text-cyan-700">{money(row.balance)}</td>
-                  <td className="font-semibold text-cyan-700">Open</td>
+                    {" "}
+                    <p className="font-semibold text-slate-950">
+                      {row.employee.employee_no
+                        ? `${row.employee.employee_no} - `
+                        : ""}
+                      {row.employee.full_name}
+                    </p>{" "}
+                  </td>{" "}
+                  <td>{money(row.amount)}</td> <td>{money(row.repaid)}</td>{" "}
+                  <td className="font-semibold text-cyan-700">
+                    {money(row.balance)}
+                  </td>{" "}
+                  <td className="font-semibold text-cyan-700">Open</td>{" "}
                 </tr>
-              ))}
-            </DataTable>
-
-            <DataTable empty="No loan records found for this employee." minWidth="1180px" headers={canApprovePayroll ? ["Loan", "Amount", "Repayment History", "Repaid", "Balance", "Status", "Action"] : ["Loan", "Amount", "Repayment History", "Repaid", "Balance", "Status"]}>
+              ))}{" "}
+            </DataTable>{" "}
+            <DataTable
+              empty="No loan records found for this employee."
+              minWidth="1180px"
+              headers={
+                canApprovePayroll
+                  ? [
+                      "Loan",
+                      "Amount",
+                      "Repayment History",
+                      "Repaid",
+                      "Balance",
+                      "Status",
+                      "Action",
+                    ]
+                  : [
+                      "Loan",
+                      "Amount",
+                      "Repayment History",
+                      "Repaid",
+                      "Balance",
+                      "Status",
+                    ]
+              }
+            >
+              {" "}
               {selectedEmployeeLoanRows.map((row) => {
-                const repaymentHistory = [...(repaymentsByLoan[row.id] || [])]
-                  .sort((a, b) => new Date((b.payment_date || b.repayment_date) || 0) - new Date((a.payment_date || a.repayment_date) || 0));
+                const repaymentHistory = [
+                  ...(repaymentsByLoan[row.id] || []),
+                ].sort(
+                  (a, b) =>
+                    new Date(b.payment_date || b.repayment_date || 0) -
+                    new Date(a.payment_date || a.repayment_date || 0),
+                );
                 return (
-                  <tr key={row.id} className="border-t border-slate-100 align-top transition hover:bg-cyan-50/45">
+                  <tr
+                    key={row.id}
+                    className="border-t border-slate-100 align-top transition hover:bg-cyan-50/45"
+                  >
+                    {" "}
                     <td className="p-3">
-                      <p className="font-semibold text-slate-950">{dateText(row.loan_date)}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">{row.reason || "Loan"}</p>
-                    </td>
-                    <td className="pt-3">{money(row.amount)}</td>
+                      {" "}
+                      <p className="font-semibold text-slate-950">
+                        {dateText(row.loan_date)}
+                      </p>{" "}
+                      <p className="mt-1 text-xs font-semibold text-slate-500">
+                        {row.reason || "Loan"}
+                      </p>{" "}
+                    </td>{" "}
+                    <td className="pt-3">{money(row.amount)}</td>{" "}
                     <td className="py-3 pr-3">
+                      {" "}
                       {repaymentHistory.length === 0 ? (
-                        <span className="text-xs font-semibold text-slate-400">No repayment yet.</span>
+                        <span className="text-xs font-semibold text-slate-400">
+                          No repayment yet.
+                        </span>
                       ) : (
                         <div className="space-y-2">
+                          {" "}
                           {repaymentHistory.map((repayment) => (
-                            <div key={repayment.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600">
+                            <div
+                              key={repayment.id}
+                              className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600"
+                            >
+                              {" "}
                               <div className="flex flex-wrap items-center justify-between gap-2">
-                                <span className="font-semibold text-slate-950">{dateText(repayment.payment_date || repayment.repayment_date)}</span>
-                                <span className="font-semibold text-cyan-700">{money(repayment.amount)}</span>
-                              </div>
-                              <p className="mt-1">{repayment.method || "payroll deduction"}{repayment.period_id ? ` / ${periodById[repayment.period_id]?.label || repayment.period_id}` : ""}</p>
-                              {repayment.notes ? <p className="mt-1 text-slate-500">{repayment.notes}</p> : null}
+                                {" "}
+                                <span className="font-semibold text-slate-950">
+                                  {dateText(
+                                    repayment.payment_date ||
+                                      repayment.repayment_date,
+                                  )}
+                                </span>{" "}
+                                <span className="font-semibold text-cyan-700">
+                                  {money(repayment.amount)}
+                                </span>{" "}
+                              </div>{" "}
+                              <p className="mt-1">
+                                {repayment.method || "payroll deduction"}
+                                {repayment.period_id
+                                  ? ` / ${periodById[repayment.period_id]?.label || repayment.period_id}`
+                                  : ""}
+                              </p>{" "}
+                              {repayment.notes ? (
+                                <p className="mt-1 text-slate-500">
+                                  {repayment.notes}
+                                </p>
+                              ) : null}{" "}
                               {canApprovePayroll ? (
                                 <div className="mt-2 flex flex-wrap gap-2">
-                                  <button type="button" onClick={() => editLoanRepayment(repayment)} className="rounded-lg border border-cyan-200 bg-cyan-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-cyan-700 transition hover:bg-cyan-100">Edit</button>
-                                  <button type="button" onClick={() => deleteLoanRepayment(repayment)} className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-red-700 transition hover:bg-red-100">Delete</button>
+                                  {" "}
+                                  <button
+                                    type="button"
+                                    onClick={() => editLoanRepayment(repayment)}
+                                    className="rounded-lg border border-cyan-200 bg-cyan-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-cyan-700 transition hover:bg-cyan-100"
+                                  >
+                                    Edit
+                                  </button>{" "}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      deleteLoanRepayment(repayment)
+                                    }
+                                    className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-red-700 transition hover:bg-red-100"
+                                  >
+                                    Delete
+                                  </button>{" "}
                                 </div>
-                              ) : null}
+                              ) : null}{" "}
                             </div>
-                          ))}
+                          ))}{" "}
                         </div>
-                      )}
-                    </td>
-                    <td className="pt-3">{money(row.repaid)}</td>
-                    <td className="pt-3 font-semibold text-cyan-700">{money(row.balance)}</td>
-                    <td className="pt-3">{row.status || "active"}</td>
+                      )}{" "}
+                    </td>{" "}
+                    <td className="pt-3">{money(row.repaid)}</td>{" "}
+                    <td className="pt-3 font-semibold text-cyan-700">
+                      {money(row.balance)}
+                    </td>{" "}
+                    <td className="pt-3">{row.status || "active"}</td>{" "}
                     {canApprovePayroll ? (
                       <td className="pt-3">
+                        {" "}
                         <div className="flex flex-wrap gap-2">
-                          <button type="button" onClick={() => editLoan(row)} className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-cyan-700 transition hover:bg-cyan-100">Edit</button>
-                          <button type="button" onClick={() => deleteLoan(row)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-red-700 transition hover:bg-red-100">Delete</button>
-                        </div>
+                          {" "}
+                          <button
+                            type="button"
+                            onClick={() => editLoan(row)}
+                            className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-cyan-700 transition hover:bg-cyan-100"
+                          >
+                            Edit
+                          </button>{" "}
+                          <button
+                            type="button"
+                            onClick={() => deleteLoan(row)}
+                            className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-red-700 transition hover:bg-red-100"
+                          >
+                            Delete
+                          </button>{" "}
+                        </div>{" "}
                       </td>
-                    ) : null}
+                    ) : null}{" "}
                   </tr>
                 );
-              })}
-            </DataTable>
-          </div>
+              })}{" "}
+            </DataTable>{" "}
+          </div>{" "}
         </section>
-      ) : null}
-
+      ) : null}{" "}
       {entryModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
-          <form onSubmit={saveEntry} className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-white/70 bg-white/92 shadow-[0_30px_90px_rgba(2,6,23,0.35)] backdrop-blur-xl">
+          {" "}
+          <form
+            onSubmit={saveEntry}
+            className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-white/70 bg-white/92 shadow-[0_30px_90px_rgba(2,6,23,0.35)] backdrop-blur-xl"
+          >
+            {" "}
             <div className="flex items-center justify-between border-b border-slate-100 p-5">
-              <h2 className="text-lg font-semibold text-slate-950">{entryForm.id ? "Edit Payroll" : "Add Payroll"}</h2>
-              <button type="button" onClick={() => setEntryModalOpen(false)} className="h-9 w-9 rounded-full bg-slate-100 text-lg font-semibold text-slate-500 transition hover:bg-slate-200">x</button>
-            </div>
+              {" "}
+              <h2 className="text-lg font-semibold text-slate-950">
+                {entryForm.id ? "Edit Payroll" : "Add Payroll"}
+              </h2>{" "}
+              <button
+                type="button"
+                onClick={() => setEntryModalOpen(false)}
+                className="h-9 w-9 rounded-full bg-slate-100 text-lg font-semibold text-slate-500 transition hover:bg-slate-200"
+              >
+                x
+              </button>{" "}
+            </div>{" "}
             <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Period
-                <select value={entryForm.period_id} onChange={(e) => setEntryField("period_id", e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm normal-case outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">{sortedPeriods.map((period) => <option key={period.id} value={period.id}>{period.label}</option>)}</select>
-              </label>
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Employee
-                <select value={entryForm.employee_id} onChange={(e) => setEntryField("employee_id", e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm normal-case outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20">{employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.employee_no ? `${employee.employee_no} - ` : ""}{employee.full_name}</option>)}</select>
-              </label>
+              {" "}
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Period{" "}
+                <select
+                  value={entryForm.period_id}
+                  onChange={(e) => setEntryField("period_id", e.target.value)}
+                  className="mt-2 h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm normal-case outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                >
+                  {sortedPeriods.map((period) => (
+                    <option key={period.id} value={period.id}>
+                      {period.label}
+                    </option>
+                  ))}
+                </select>{" "}
+              </label>{" "}
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Employee{" "}
+                <select
+                  value={entryForm.employee_id}
+                  onChange={(e) => setEntryField("employee_id", e.target.value)}
+                  className="mt-2 h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm normal-case outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                >
+                  {employees.map((employee) => (
+                    <option key={employee.id} value={employee.id}>
+                      {employee.employee_no ? `${employee.employee_no} - ` : ""}
+                      {employee.full_name}
+                    </option>
+                  ))}
+                </select>{" "}
+              </label>{" "}
               {[
                 ["daily_rate", "Daily Rate"],
                 ["days_worked", "No. of Days"],
@@ -2473,209 +5078,498 @@ export default function AdminPayrollPage() {
                 ["hmdf_deduction", "HMDF Deduction"],
                 ["misc_deduction_total", "Misc Deduction"],
                 ["loan_repayment_total", "Loan Repayment"],
+                ["thirteenth_month_pay", "13th Month Pay"],
                 ["cash_advance_deduction", "Cash Advance Deduction"],
               ].map(([field, label]) => (
-                <label key={field} className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}
-                  <input type="number" step="0.01" value={entryForm[field] ?? ""} onChange={(e) => setEntryField(field, e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm normal-case outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
+                <label
+                  key={field}
+                  className="text-xs font-semibold uppercase tracking-wider text-slate-500"
+                >
+                  {label}{" "}
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={entryForm[field] ?? ""}
+                    onChange={(e) => setEntryField(field, e.target.value)}
+                    className="mt-2 h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm normal-case outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                  />{" "}
                 </label>
-              ))}
-              <label className="md:col-span-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Notes
-                <textarea value={entryForm.notes || ""} onChange={(e) => setEntryField("notes", e.target.value)} className="mt-2 min-h-20 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2 text-sm normal-case outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20" />
-              </label>
-            </div>
+              ))}{" "}
+              <label className="md:col-span-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Notes{" "}
+                <textarea
+                  value={entryForm.notes || ""}
+                  onChange={(e) => setEntryField("notes", e.target.value)}
+                  className="mt-2 min-h-20 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2 text-sm normal-case outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
+                />{" "}
+              </label>{" "}
+            </div>{" "}
             <div className="grid grid-cols-2 gap-3 border-y border-slate-100 bg-slate-50 p-5 text-sm md:grid-cols-4">
-              <div><span className="block text-xs font-bold text-slate-400">Gross</span><b>{money(formTotals.gross)}</b></div>
-              <div><span className="block text-xs font-bold text-slate-400">Deductions</span><b>{money(formTotals.deductions)}</b></div>
-              <div><span className="block text-xs font-bold text-slate-400">Cash Advance</span><b>{money(formTotals.cashAdvanceDeduction)}</b></div>
-              <div><span className="block text-xs font-bold text-slate-400">Net</span><b className="text-cyan-700">{money(formTotals.net)}</b></div>
-            </div>
+              {" "}
+              <div>
+                <span className="block text-xs font-bold text-slate-400">
+                  Gross
+                </span>
+                <b>{money(formTotals.gross)}</b>
+              </div>{" "}
+              <div>
+                <span className="block text-xs font-bold text-slate-400">
+                  Deductions
+                </span>
+                <b>{money(formTotals.deductions)}</b>
+              </div>{" "}
+              <div>
+                <span className="block text-xs font-bold text-slate-400">
+                  Cash Advance
+                </span>
+                <b>{money(formTotals.cashAdvanceDeduction)}</b>
+              </div>{" "}
+              <div>
+                <span className="block text-xs font-bold text-slate-400">
+                  Net
+                </span>
+                <b className="text-cyan-700">{money(formTotals.net)}</b>
+              </div>{" "}
+            </div>{" "}
             <div className="flex justify-end gap-3 p-5">
-              <button type="button" onClick={() => setEntryModalOpen(false)} className="h-11 rounded-xl border border-slate-200 px-5 text-xs font-semibold uppercase tracking-wider text-slate-500 transition hover:-translate-y-0.5 hover:border-cyan-200 hover:text-cyan-700">Cancel</button>
-              <button disabled={saving} className="h-11 rounded-xl bg-cyan-600 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-cyan-500 disabled:bg-slate-300">{saving ? "Saving..." : "Save Payroll"}</button>
-            </div>
-          </form>
+              {" "}
+              <button
+                type="button"
+                onClick={() => setEntryModalOpen(false)}
+                className="h-11 rounded-xl border border-slate-200 px-5 text-xs font-semibold uppercase tracking-wider text-slate-500 transition hover:-translate-y-0.5 hover:border-cyan-200 hover:text-cyan-700"
+              >
+                Cancel
+              </button>{" "}
+              <button
+                disabled={saving}
+                className="h-11 rounded-xl bg-cyan-600 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:bg-cyan-500 disabled:bg-slate-300"
+              >
+                {saving ? "Saving..." : "Save Payroll"}
+              </button>{" "}
+            </div>{" "}
+          </form>{" "}
         </div>
-      ) : null}
-
+      ) : null}{" "}
       {payslipEntry ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          {" "}
           <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-white/70 bg-white/95 shadow-[0_30px_90px_rgba(2,6,23,0.35)] backdrop-blur-xl">
+            {" "}
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-5">
+              {" "}
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-700">Payslip</p>
+                {" "}
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-700">
+                  Payslip
+                </p>{" "}
                 <h2 className="mt-1 text-2xl font-semibold text-slate-950">
-                  {payslipEntry.employee?.full_name || payslipEntry.employee_id}
-                </h2>
+                  {" "}
+                  {payslipEntry.employee?.full_name ||
+                    payslipEntry.employee_id}{" "}
+                </h2>{" "}
                 <p className="mt-1 text-xs font-semibold text-slate-500">
-                  {payslipEntry.employee?.employee_no || "No employee no."}
-                  {payslipEntry.employee?.designation ? ` / ${payslipEntry.employee.designation}` : ""}
-                </p>
-              </div>
+                  {" "}
+                  {payslipEntry.employee?.employee_no || "No employee no."}{" "}
+                  {payslipEntry.employee?.designation
+                    ? ` / ${payslipEntry.employee.designation}`
+                    : ""}{" "}
+                </p>{" "}
+              </div>{" "}
               <button
                 type="button"
                 onClick={() => setPayslipEntry(null)}
                 className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-all active:scale-90 font-bold"
               >
-                X
-              </button>
-            </div>
-
+                {" "}
+                X{" "}
+              </button>{" "}
+            </div>{" "}
             <div className="space-y-5 p-5">
+              {" "}
               <div className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm sm:grid-cols-3">
+                {" "}
                 <div>
-                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Cutoff</span>
+                  {" "}
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                    Cutoff
+                  </span>{" "}
                   <b className="mt-1 block text-slate-950">
-                    {dateText(periodById[payslipEntry.period_id]?.period_start)} - {dateText(periodById[payslipEntry.period_id]?.period_end)}
-                  </b>
-                </div>
+                    {" "}
+                    {dateText(
+                      periodById[payslipEntry.period_id]?.period_start,
+                    )}{" "}
+                    -{" "}
+                    {dateText(
+                      periodById[payslipEntry.period_id]?.period_end,
+                    )}{" "}
+                  </b>{" "}
+                </div>{" "}
                 <div>
-                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Payday</span>
-                  <b className="mt-1 block text-slate-950">{dateText(periodById[payslipEntry.period_id]?.pay_date)}</b>
-                </div>
+                  {" "}
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                    Payday
+                  </span>{" "}
+                  <b className="mt-1 block text-slate-950">
+                    {dateText(periodById[payslipEntry.period_id]?.pay_date)}
+                  </b>{" "}
+                </div>{" "}
                 <div>
-                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Status</span>
-                  <span className={`mt-1 inline-flex rounded-full border px-3 py-1 text-[10px] font-semibold uppercase ${statusClass(payslipEntry.status)}`}>
-                    {payslipEntry.status || "draft"}
-                  </span>
-                </div>
-              </div>
-
+                  {" "}
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                    Status
+                  </span>{" "}
+                  <span
+                    className={`mt-1 inline-flex rounded-full border px-3 py-1 text-[10px] font-semibold uppercase ${statusClass(payslipEntry.status)}`}
+                  >
+                    {" "}
+                    {payslipEntry.status || "draft"}{" "}
+                  </span>{" "}
+                </div>{" "}
+              </div>{" "}
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+                {" "}
                 <section className="rounded-2xl border border-slate-200 bg-white/92 p-4">
+                  {" "}
                   <div className="space-y-2 text-sm">
+                    {" "}
                     {[
-                      ["Employee No.", payslipEntry.employee?.employee_no || "-"],
+                      [
+                        "Employee No.",
+                        payslipEntry.employee?.employee_no || "-",
+                      ],
                       ["Daily Rate", amountOnly(payslipEntry.daily_rate)],
-                      ["Date Hired", dateText(payslipEntry.employee?.date_hired)],
-                      ["Designation", payslipEntry.employee?.designation || "-"],
+                      [
+                        "Date Hired",
+                        dateText(payslipEntry.employee?.date_hired),
+                      ],
+                      [
+                        "Designation",
+                        payslipEntry.employee?.designation || "-",
+                      ],
                       ["SSS No.", payslipEntry.employee?.sss_no || "-"],
-                      ["PhilHealth No.", payslipEntry.employee?.philhealth_no || "-"],
+                      [
+                        "PhilHealth No.",
+                        payslipEntry.employee?.philhealth_no || "-",
+                      ],
                       ["HMDF No.", payslipEntry.employee?.hmdf_no || "-"],
-                    ].map(([label, value]) => <DetailLine key={label} label={label} value={value} />)}
-                  </div>
-
-                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">Attendance</h3>
+                    ].map(([label, value]) => (
+                      <DetailLine key={label} label={label} value={value} />
+                    ))}{" "}
+                  </div>{" "}
+                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">
+                    Attendance
+                  </h3>{" "}
                   <div className="mt-3 space-y-2 text-sm">
+                    {" "}
                     {[
-                      ["Days Worked", `${amountOnly(payslipEntry.days_worked)} Day/s`],
-                      ["OT Hours", `${amountOnly(payslipEntry.overtime_hours)} Hour/s`],
-                      ["Late", `${num(payslipEntry.late_minutes).toFixed(0)} min/s`],
-                      ["Undertime", `${num(payslipEntry.undertime_minutes).toFixed(0)} min/s`],
-                    ].map(([label, value]) => <DetailLine key={label} label={label} value={value} />)}
-                  </div>
-
-                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">Contributions</h3>
+                      [
+                        "Days Worked",
+                        `${amountOnly(payslipEntry.days_worked)} Day/s`,
+                      ],
+                      [
+                        "OT Hours",
+                        `${amountOnly(payslipEntry.overtime_hours)} Hour/s`,
+                      ],
+                      [
+                        "Late",
+                        `${num(payslipEntry.late_minutes).toFixed(0)} min/s`,
+                      ],
+                      [
+                        "Undertime",
+                        `${num(payslipEntry.undertime_minutes).toFixed(0)} min/s`,
+                      ],
+                    ].map(([label, value]) => (
+                      <DetailLine key={label} label={label} value={value} />
+                    ))}{" "}
+                  </div>{" "}
+                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">
+                    Contributions
+                  </h3>{" "}
                   <div className="mt-3 space-y-2 text-sm">
-                    <AmountLine label="SSS" value={payslipEntry.sss_deduction} negative />
-                    <AmountLine label="PhilHealth" value={payslipEntry.philhealth_deduction} negative />
-                    <AmountLine label="HMDF" value={payslipEntry.hmdf_deduction} negative />
-                    <AmountLine label="Total" value={num(payslipEntry.sss_deduction) + num(payslipEntry.philhealth_deduction) + num(payslipEntry.hmdf_deduction)} negative strong />
-                  </div>
-                </section>
-
+                    {" "}
+                    <AmountLine
+                      label="SSS"
+                      value={payslipEntry.sss_deduction}
+                      negative
+                    />{" "}
+                    <AmountLine
+                      label="PhilHealth"
+                      value={payslipEntry.philhealth_deduction}
+                      negative
+                    />{" "}
+                    <AmountLine
+                      label="HMDF"
+                      value={payslipEntry.hmdf_deduction}
+                      negative
+                    />{" "}
+                    <AmountLine
+                      label="Total"
+                      value={
+                        num(payslipEntry.sss_deduction) +
+                        num(payslipEntry.philhealth_deduction) +
+                        num(payslipEntry.hmdf_deduction)
+                      }
+                      negative
+                      strong
+                    />{" "}
+                  </div>{" "}
+                </section>{" "}
                 <section className="rounded-2xl border border-slate-200 bg-white/92 p-4">
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-950">Basic Pay</h3>
+                  {" "}
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-950">
+                    Basic Pay
+                  </h3>{" "}
                   <div className="mt-3 space-y-2 text-sm">
-                    <AmountLine label="Gross Pay" value={num(payslipEntry.daily_rate) * num(payslipEntry.days_worked)} />
-                    <AmountLine label="Overtime" value={num(payslipEntry.overtime_hours) * num(payslipEntry.overtime_rate)} />
-                    <AmountLine label="Late" value={num(payslipEntry.late_minutes) * num(payslipEntry.late_rate_per_minute)} negative />
-                    <AmountLine label="Undertime" value={num(payslipEntry.undertime_minutes) * num(payslipEntry.undertime_rate_per_minute)} negative />
-                    <AmountLine label="Net Basic Pay" value={payrollNetBasicPay(payslipEntry)} strong />
-                  </div>
-
-                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">Allowances</h3>
+                    {" "}
+                    <AmountLine
+                      label="Gross Pay"
+                      value={
+                        num(payslipEntry.daily_rate) *
+                        num(payslipEntry.days_worked)
+                      }
+                    />{" "}
+                    <AmountLine
+                      label="Overtime"
+                      value={
+                        num(payslipEntry.overtime_hours) *
+                        num(payslipEntry.overtime_rate)
+                      }
+                    />{" "}
+                    <AmountLine
+                      label="Late"
+                      value={
+                        num(payslipEntry.late_minutes) *
+                        num(payslipEntry.late_rate_per_minute)
+                      }
+                      negative
+                    />{" "}
+                    <AmountLine
+                      label="Undertime"
+                      value={
+                        num(payslipEntry.undertime_minutes) *
+                        num(payslipEntry.undertime_rate_per_minute)
+                      }
+                      negative
+                    />{" "}
+                    <AmountLine
+                      label="Net Basic Pay"
+                      value={payrollNetBasicPay(payslipEntry)}
+                      strong
+                    />{" "}
+                  </div>{" "}
+                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">
+                    Allowances
+                  </h3>{" "}
                   <div className="mt-3 space-y-2 text-sm">
-                    <AmountLine label="Allowance 15th" value={payslipEntry.allowance_15th} />
-                    <AmountLine label="Allowance 30th" value={payslipEntry.allowance_30th} />
-                    <AmountLine label="Allowance" value={payslipEntry.payroll_allowance} />
-                    <AmountLine label="Total" value={payrollAllowanceTotal(payslipEntry)} strong />
-                  </div>
-
-                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">Adjustments</h3>
+                    {" "}
+                    <AmountLine
+                      label="Allowance 15th"
+                      value={payslipEntry.allowance_15th}
+                    />{" "}
+                    <AmountLine
+                      label="Allowance 30th"
+                      value={payslipEntry.allowance_30th}
+                    />{" "}
+                    <AmountLine
+                      label="Allowance"
+                      value={payslipEntry.payroll_allowance}
+                    />{" "}
+                    <AmountLine
+                      label="Total"
+                      value={payrollAllowanceTotal(payslipEntry)}
+                      strong
+                    />{" "}
+                  </div>{" "}
+                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">
+                    Adjustments
+                  </h3>{" "}
                   <div className="mt-3 space-y-2 text-sm">
-                    <AmountLine label="Payroll Adjustment" value={payslipEntry.payroll_adjustment} negative={num(payslipEntry.payroll_adjustment) < 0} />
-                    <AmountLine label="Other Adjustment" value={0} />
-                    <AmountLine label="Total" value={payslipEntry.payroll_adjustment} negative={num(payslipEntry.payroll_adjustment) < 0} strong />
-                  </div>
-
-                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">Deductions</h3>
+                    {" "}
+                    <AmountLine
+                      label="Payroll Adjustment"
+                      value={payslipEntry.payroll_adjustment}
+                      negative={num(payslipEntry.payroll_adjustment) < 0}
+                    />{" "}
+                    <AmountLine label="Other Adjustment" value={0} />{" "}
+                    <AmountLine
+                      label="Total"
+                      value={payslipEntry.payroll_adjustment}
+                      negative={num(payslipEntry.payroll_adjustment) < 0}
+                      strong
+                    />{" "}
+                  </div>{" "}
+                  {num(payslipEntry.thirteenth_month_pay) ? (
+                    <div className="mt-8 rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4 text-sm">
+                      {" "}
+                      <AmountLine
+                        label="13th Month Pay (basic pay only)"
+                        value={payslipEntry.thirteenth_month_pay}
+                        strong
+                      />{" "}
+                    </div>
+                  ) : null}{" "}
+                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">
+                    Deductions
+                  </h3>{" "}
                   <div className="mt-3 space-y-2 text-sm">
-                    <AmountLine label="Cash Advance" value={payslipEntry.cash_advance_deduction} negative />
-                    <AmountLine label="Loan Repayment" value={payslipEntry.loan_repayment_total} negative />
-                    <AmountLine label="Misc Deduction" value={payslipEntry.misc_deduction_total} negative />
-                    <AmountLine label="Total" value={num(payslipEntry.cash_advance_deduction) + num(payslipEntry.loan_repayment_total) + num(payslipEntry.misc_deduction_total)} negative strong />
-                  </div>
-                </section>
-              </div>
-
+                    {" "}
+                    <AmountLine
+                      label="Cash Advance"
+                      value={payslipEntry.cash_advance_deduction}
+                      negative
+                    />{" "}
+                    <AmountLine
+                      label="Loan Repayment"
+                      value={payslipEntry.loan_repayment_total}
+                      negative
+                    />{" "}
+                    <AmountLine
+                      label="Misc Deduction"
+                      value={payslipEntry.misc_deduction_total}
+                      negative
+                    />{" "}
+                    <AmountLine
+                      label="Total"
+                      value={
+                        num(payslipEntry.cash_advance_deduction) +
+                        num(payslipEntry.loan_repayment_total) +
+                        num(payslipEntry.misc_deduction_total)
+                      }
+                      negative
+                      strong
+                    />{" "}
+                  </div>{" "}
+                </section>{" "}
+              </div>{" "}
               <div className="grid grid-cols-2 gap-3 rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4 text-sm md:grid-cols-4">
-                <SummaryAmount label="Gross Pay" value={payslipEntry.gross_total} />
-                <SummaryAmount label="Adjustment" value={payslipEntry.payroll_adjustment} negative={num(payslipEntry.payroll_adjustment) < 0} />
-                <SummaryAmount label="Total Deductions" value={num(payslipEntry.deduction_total) + num(payslipEntry.cash_advance_deduction)} negative />
-                <SummaryAmount label="Net Pay" value={payslipEntry.net_total} highlight />
-              </div>
-
-              <p className="text-xs text-slate-500">*This is computer generated and does not require a signature.</p>
-            </div>
-          </div>
+                {" "}
+                <SummaryAmount
+                  label="Gross Pay"
+                  value={payslipEntry.gross_total}
+                />{" "}
+                <SummaryAmount
+                  label="Adjustment"
+                  value={payslipEntry.payroll_adjustment}
+                  negative={num(payslipEntry.payroll_adjustment) < 0}
+                />{" "}
+                <SummaryAmount
+                  label="Total Deductions"
+                  value={
+                    num(payslipEntry.deduction_total) +
+                    num(payslipEntry.cash_advance_deduction)
+                  }
+                  negative
+                />{" "}
+                <SummaryAmount
+                  label="Net Pay"
+                  value={payslipEntry.net_total}
+                  highlight
+                />{" "}
+              </div>{" "}
+              <p className="text-xs text-slate-500">
+                *This is computer generated and does not require a signature.
+              </p>{" "}
+            </div>{" "}
+          </div>{" "}
         </div>
-      ) : null}
+      ) : null}{" "}
     </div>
   );
 }
-
 function DataTable({ headers, children, empty, minWidth }) {
-  const rows = Array.isArray(children) ? children.filter(Boolean) : children ? [children] : [];
+  const rows = Array.isArray(children)
+    ? children.filter(Boolean)
+    : children
+      ? [children]
+      : [];
   return (
     <div className="overflow-x-auto rounded-2xl border border-white/70 bg-white/88 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl">
+      {" "}
       <table className="w-full text-sm" style={{ minWidth }}>
+        {" "}
         <thead className="sticky top-0 bg-slate-950 text-left text-[10px] uppercase tracking-[0.16em] text-cyan-50">
-          <tr>{headers.map((header, idx) => <th key={header} className={idx === 0 ? "p-3" : ""}>{header}</th>)}</tr>
-        </thead>
+          {" "}
+          <tr>
+            {headers.map((header, idx) => (
+              <th key={header} className={idx === 0 ? "p-3" : ""}>
+                {header}
+              </th>
+            ))}
+          </tr>{" "}
+        </thead>{" "}
         <tbody className="divide-y divide-slate-200/80">
-          {rows.length === 0 ? <tr><td colSpan={headers.length} className="p-8 text-center text-sm font-semibold text-slate-400">{empty}</td></tr> : rows}
-        </tbody>
-      </table>
+          {" "}
+          {rows.length === 0 ? (
+            <tr>
+              <td
+                colSpan={headers.length}
+                className="p-8 text-center text-sm font-semibold text-slate-400"
+              >
+                {empty}
+              </td>
+            </tr>
+          ) : (
+            rows
+          )}{" "}
+        </tbody>{" "}
+      </table>{" "}
     </div>
   );
 }
-
 function DetailLine({ label, value }) {
   return (
     <div className="grid grid-cols-[minmax(110px,1fr)_auto] gap-4 border-b border-slate-200/80 pb-2 last:border-0">
-      <span className="whitespace-nowrap text-slate-700">{label}</span>
-      <span className="whitespace-nowrap text-right font-semibold text-slate-950">{value}</span>
+      {" "}
+      <span className="whitespace-nowrap text-slate-700">{label}</span>{" "}
+      <span className="whitespace-nowrap text-right font-semibold text-slate-950">
+        {value}
+      </span>{" "}
     </div>
   );
 }
-
 function AmountLine({ label, value, negative = false, strong = false }) {
   const amount = num(value);
   const showNegative = negative && amount !== 0;
   return (
-    <div className={`grid grid-cols-[minmax(140px,1fr)_48px_118px] gap-2 border-b border-slate-200/80 pb-2 last:border-0 ${strong ? "font-semibold text-slate-950" : "text-slate-700"}`}>
-      <span className="whitespace-nowrap">{label}</span>
-      <span className="whitespace-nowrap text-right text-slate-700">PHP</span>
-      <span className={`whitespace-nowrap text-right ${showNegative ? "text-red-600" : "text-slate-950"}`}>
-        {showNegative ? `(${amountOnly(Math.abs(amount))})` : amount === 0 ? "-" : amountOnly(amount)}
-      </span>
+    <div
+      className={`grid grid-cols-[minmax(140px,1fr)_48px_118px] gap-2 border-b border-slate-200/80 pb-2 last:border-0 ${strong ? "font-semibold text-slate-950" : "text-slate-700"}`}
+    >
+      {" "}
+      <span className="whitespace-nowrap">{label}</span>{" "}
+      <span className="whitespace-nowrap text-right text-slate-700">PHP</span>{" "}
+      <span
+        className={`whitespace-nowrap text-right ${showNegative ? "text-red-600" : "text-slate-950"}`}
+      >
+        {" "}
+        {showNegative
+          ? `(${amountOnly(Math.abs(amount))})`
+          : amount === 0
+            ? "-"
+            : amountOnly(amount)}{" "}
+      </span>{" "}
     </div>
   );
 }
-
 function SummaryAmount({ label, value, negative = false, highlight = false }) {
   const amount = num(value);
   const showNegative = negative && amount !== 0;
   return (
     <div>
-      <span className="block text-[10px] font-semibold uppercase tracking-wider text-cyan-800">{label}</span>
-      <b className={`mt-1 block text-lg ${highlight ? "text-cyan-700" : showNegative ? "text-red-600" : "text-slate-950"}`}>
-        {showNegative ? `(${amountOnly(Math.abs(amount))})` : amountOnly(amount)}
-      </b>
+      {" "}
+      <span className="block text-[10px] font-semibold uppercase tracking-wider text-cyan-800">
+        {label}
+      </span>{" "}
+      <b
+        className={`mt-1 block text-lg ${highlight ? "text-cyan-700" : showNegative ? "text-red-600" : "text-slate-950"}`}
+      >
+        {" "}
+        {showNegative
+          ? `(${amountOnly(Math.abs(amount))})`
+          : amountOnly(amount)}{" "}
+      </b>{" "}
     </div>
   );
 }
-
 function TimeSelect({ value, onChange, disabled, className = "" }) {
   const normalized = normalizeTime(value);
   return (
@@ -2685,22 +5579,22 @@ function TimeSelect({ value, onChange, disabled, className = "" }) {
       onChange={(event) => onChange(event.target.value)}
       className={className}
     >
-      <option value="">--:--</option>
+      {" "}
+      <option value="">--:--</option>{" "}
       {timeOptionsWithCurrent(normalized).map((option) => (
-        <option key={option.value} value={option.value}>{option.label}</option>
-      ))}
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}{" "}
     </select>
   );
 }
-
 function TimeInput({ value, onChange, disabled, className = "" }) {
   const normalized = normalizeTime(value);
   const [draft, setDraft] = useState(timeLabel(normalized));
-
   useEffect(() => {
     setDraft(timeLabel(value));
   }, [value]);
-
   function commit() {
     const text = draft.trim();
     if (!text) {
@@ -2708,17 +5602,14 @@ function TimeInput({ value, onChange, disabled, className = "" }) {
       setDraft("");
       return;
     }
-
     const next = normalizeTime(text);
     if (!next) {
       setDraft(timeLabel(normalized));
       return;
     }
-
     onChange(next);
     setDraft(timeLabel(next));
   }
-
   return (
     <input
       value={draft}

@@ -42,6 +42,7 @@ create table if not exists public.payroll_entries (
   allowance_15th numeric(12, 2) not null default 0,
   allowance_30th numeric(12, 2) not null default 0,
   payroll_allowance numeric(12, 2) not null default 0,
+  thirteenth_month_pay numeric(12, 2) not null default 0,
   payroll_adjustment numeric(12, 2) not null default 0,
   sss_deduction numeric(12, 2) not null default 0,
   philhealth_deduction numeric(12, 2) not null default 0,
@@ -138,6 +139,7 @@ create unique index if not exists payroll_employees_employee_no_key
 alter table public.payroll_entries
   add column if not exists cash_advance_deduction numeric(12, 2) not null default 0,
   add column if not exists payroll_allowance numeric(12, 2) not null default 0,
+  add column if not exists thirteenth_month_pay numeric(12, 2) not null default 0,
   add column if not exists payroll_adjustment numeric(12, 2) not null default 0,
   add column if not exists sss_deduction numeric(12, 2) not null default 0,
   add column if not exists philhealth_deduction numeric(12, 2) not null default 0,
