@@ -910,6 +910,18 @@ export default function AdminPayrollPage() {
         ),
       );
   }, [employeeById, entries, search, selectedPeriodId]);
+
+  const thirteenthMonthRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return entries
+      .filter((entry) => num(entry.thirteenth_month_pay) > 0)
+      .map((entry) => ({ ...entry, employee: employeeById[entry.employee_id], period: periodById[entry.period_id] }))
+      .filter((entry) => {
+        if (!q) return true;
+        return `${entry.employee?.employee_no || ""} ${entry.employee?.full_name || entry.employee_id} ${entry.period?.label || ""}`.toLowerCase().includes(q);
+      })
+      .sort((a, b) => String(b.period?.pay_date || "").localeCompare(String(a.period?.pay_date || "")) || String(a.employee?.employee_no || a.employee?.full_name || "").localeCompare(String(b.employee?.employee_no || b.employee?.full_name || "")));
+  }, [employeeById, entries, periodById, search]);
   useEffect(() => {
     if (activeTab !== "adjustments") return;
     setAdjustmentDrafts((current) => {
@@ -2661,11 +2673,12 @@ export default function AdminPayrollPage() {
           </div>
         ))}{" "}
       </section>{" "}
-      <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/70 bg-white/72 p-1 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl md:grid-cols-4 xl:grid-cols-9">
+      <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/70 bg-white/72 p-1 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl md:grid-cols-4 xl:grid-cols-10">
         {" "}
         {[
           ["payroll", "Payroll"],
           ["generate", "Generate"],
+          ["thirteenthMonth", "13th Month"],
           ["employees", "Employees"],
           ["schedule", "Schedule"],
           ["attendance", "Attendance"],
@@ -3012,6 +3025,38 @@ export default function AdminPayrollPage() {
               </tbody>{" "}
             </table>{" "}
           </div>{" "}
+        </section>
+      ) : activeTab === "thirteenthMonth" ? (
+        <section className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-950">Generated 13th Month Pay</h2>
+              <p className="mt-1 text-sm text-slate-500">Employee-specific 13th-month records generated from basic pay only.</p>
+            </div>
+            <button type="button" onClick={() => setActiveTab("generate")} className="h-11 rounded-xl border border-cyan-100 bg-cyan-50 px-5 text-xs font-semibold uppercase tracking-wider text-cyan-700 transition hover:-translate-y-0.5 hover:bg-cyan-100">Generate 13th Month</button>
+          </div>
+          <input value={search} onChange={(e) => setSearch(e.target.value)} className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-4 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20 sm:max-w-sm" placeholder="Search employee or year" />
+          <DataTable empty="No 13th-month pay has been generated yet." minWidth="980px" headers={["Emp No.", "Employee", "Year", "Payday", "13th Month Pay", "Status", "Actions"]}>
+            {thirteenthMonthRows.map((entry) => (
+              <tr key={entry.id} className="transition duration-200 hover:bg-cyan-50/45">
+                <td className="p-3 font-semibold text-slate-600">{entry.employee?.employee_no || "-"}</td>
+                <td className="py-3">
+                  {canViewPayslip(entry) ? <button type="button" onClick={() => setPayslipEntry(entry)} className="font-semibold text-slate-900 underline-offset-4 transition hover:text-cyan-700 hover:underline">{entry.employee?.full_name || entry.employee_id}</button> : <span className="font-semibold text-slate-900">{entry.employee?.full_name || entry.employee_id}</span>}
+                  {employeeEmploymentStatus(entry.employee) === "resigned" ? <span className="ml-2 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-500">Resigned</span> : null}
+                </td>
+                <td className="py-3">{String(entry.period?.period_end || "").slice(0, 4) || "-"}</td>
+                <td className="py-3">{dateText(entry.period?.pay_date)}</td>
+                <td className="py-3 text-right font-semibold text-cyan-700">{money(entry.thirteenth_month_pay)}</td>
+                <td className="py-3"><span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase ${statusClass(entry.status)}`}>{entry.status || "draft"}</span></td>
+                <td className="py-3 text-right">
+                  <div className="flex justify-end gap-2">
+                    {canApprovePayroll && !["approved", "paid"].includes(String(entry.status || "").toLowerCase()) ? <button type="button" onClick={() => updateEntryStatus(entry, "approved")} className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[10px] font-semibold uppercase text-blue-600">Approve</button> : null}
+                    {canMarkEntryPaid(entry) ? <button type="button" onClick={() => updateEntryStatus(entry, "paid")} className="rounded-lg border border-cyan-100 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase text-cyan-700">Paid</button> : null}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </DataTable>
         </section>
       ) : activeTab === "employees" ? (
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-[380px_1fr]">
