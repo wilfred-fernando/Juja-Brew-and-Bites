@@ -2744,8 +2744,9 @@ export default function AdminPayrollPage() {
               </h2>{" "}
               <p className="mt-1 text-xs text-slate-500">
                 Generates one draft payment per employee from calendar-year
-                basic pay only. Allowances, overtime, adjustments, and
-                deductions are excluded.
+                basic pay only, including employees now marked resigned when
+                they have qualifying earnings in the selected year. Allowances,
+                overtime, adjustments, and deductions are excluded.
               </p>{" "}
             </div>{" "}
             <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
