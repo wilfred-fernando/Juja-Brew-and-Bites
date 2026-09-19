@@ -621,7 +621,7 @@ export default function AdminPayrollPage() {
       setSelectedPeriodId(sortedPeriods[0].id);
   }, [selectedPeriodId, sortedPeriods]);
   useEffect(() => {
-    const firstEmployee = employees[0]?.id || "";
+    const firstEmployee = employees.find((employee) => employee.active !== false && employeeEmploymentStatus(employee) === "active")?.id || "";
     if (!selectedEmployeeId && firstEmployee)
       setSelectedEmployeeId(firstEmployee);
     setAdvanceForm((current) => ({
@@ -666,6 +666,16 @@ export default function AdminPayrollPage() {
     });
     return map;
   }, [employees]);
+  const operationalEmployees = useMemo(
+    () => employees.filter((employee) => employee.active !== false && employeeEmploymentStatus(employee) === "active"),
+    [employees],
+  );
+  useEffect(() => {
+    const firstEmployeeId = operationalEmployees[0]?.id || "";
+    if (!firstEmployeeId) return;
+    const activeIds = new Set(operationalEmployees.map((employee) => employee.id));
+    if (!activeIds.has(selectedEmployeeId)) setSelectedEmployeeId(firstEmployeeId);
+  }, [operationalEmployees, selectedEmployeeId]);
   const periodById = useMemo(() => {
     const map = {};
     periods.forEach((period) => {
@@ -3576,7 +3586,7 @@ export default function AdminPayrollPage() {
               className="h-11 rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
             >
               {" "}
-              {employees.map((employee) => (
+              {operationalEmployees.map((employee) => (
                 <option key={employee.id} value={employee.id}>
                   {employee.employee_no ? `${employee.employee_no} - ` : ""}
                   {employee.full_name}
@@ -3695,7 +3705,7 @@ export default function AdminPayrollPage() {
               className="h-11 rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
             >
               {" "}
-              {employees.map((employee) => (
+              {operationalEmployees.map((employee) => (
                 <option key={employee.id} value={employee.id}>
                   {employee.employee_no ? `${employee.employee_no} - ` : ""}
                   {employee.full_name}
@@ -4022,7 +4032,7 @@ export default function AdminPayrollPage() {
                   className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
                 >
                   {" "}
-                  {employees.map((employee) => (
+                  {operationalEmployees.map((employee) => (
                     <option key={employee.id} value={employee.id}>
                       {employee.employee_no ? `${employee.employee_no} - ` : ""}
                       {employee.full_name}
@@ -4120,7 +4130,7 @@ export default function AdminPayrollPage() {
                   className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
                 >
                   {" "}
-                  {employees.map((employee) => (
+                  {operationalEmployees.map((employee) => (
                     <option key={employee.id} value={employee.id}>
                       {employee.employee_no ? `${employee.employee_no} - ` : ""}
                       {employee.full_name}
@@ -4224,7 +4234,7 @@ export default function AdminPayrollPage() {
                   className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
                 >
                   {" "}
-                  {employees.map((employee) => (
+                  {operationalEmployees.map((employee) => (
                     <option key={employee.id} value={employee.id}>
                       {employee.employee_no ? `${employee.employee_no} - ` : ""}
                       {employee.full_name}
@@ -4543,7 +4553,7 @@ export default function AdminPayrollPage() {
                   }}
                   className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
                 >
-                  {employees.map((employee) => (
+                  {operationalEmployees.map((employee) => (
                     <option key={employee.id} value={employee.id}>
                       {employee.employee_no ? `${employee.employee_no} - ` : ""}
                       {employee.full_name}
@@ -4622,7 +4632,7 @@ export default function AdminPayrollPage() {
                   className="h-11 rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20 sm:min-w-[280px]"
                 >
                   {" "}
-                  {employees.map((employee) => (
+                  {operationalEmployees.map((employee) => (
                     <option key={employee.id} value={employee.id}>
                       {employee.employee_no ? `${employee.employee_no} - ` : ""}
                       {employee.full_name}
@@ -4831,7 +4841,7 @@ export default function AdminPayrollPage() {
                   }}
                   className="h-11 w-full rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20"
                 >
-                  {employees.map((employee) => (
+                  {operationalEmployees.map((employee) => (
                     <option key={employee.id} value={employee.id}>
                       {employee.employee_no ? `${employee.employee_no} - ` : ""}
                       {employee.full_name}
@@ -4907,7 +4917,7 @@ export default function AdminPayrollPage() {
                   className="h-11 rounded-xl border border-slate-200/80 bg-white/90 px-3 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20 sm:min-w-[280px]"
                 >
                   {" "}
-                  {employees.map((employee) => (
+                  {operationalEmployees.map((employee) => (
                     <option key={employee.id} value={employee.id}>
                       {employee.employee_no ? `${employee.employee_no} - ` : ""}
                       {employee.full_name}
