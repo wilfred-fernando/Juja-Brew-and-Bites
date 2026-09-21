@@ -925,6 +925,7 @@ export default function AdminBookingsDashboard() {
       hour: Number.isFinite(Number(prefill.hour)) ? Number(prefill.hour) : OPERATING_START_HOUR,
       hourlySelection: Boolean(prefill.hourlySelection),
       deposit_amount: 0,
+      payment_method: "Cash",
       status: "confirmed",
       payment_status: "submitted",
     });
@@ -966,7 +967,13 @@ export default function AdminBookingsDashboard() {
         contact_number: String(manualModal.contact_number || "").trim(),
         email: String(manualModal.email || "").trim(),
         deposit_amount: Number(manualModal.deposit_amount || 0),
-        payment_status: manualModal.payment_status || "submitted",
+        payment_status:
+          manualModal.payment_method === "Cash"
+            ? "cash_pending"
+            : manualModal.payment_method === "Waived"
+              ? "waived"
+              : "submitted",
+        payment_method: manualModal.payment_method,
         payment_proof_url: null,
         status: manualModal.status || "confirmed",
       };
@@ -1956,6 +1963,19 @@ export default function AdminBookingsDashboard() {
                   onChange={(e) => setManualModal((p) => ({ ...p, deposit_amount: Number(e.target.value) }))}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
                 />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Payment Method</label>
+                <select
+                  value={manualModal.payment_method}
+                  onChange={(e) => setManualModal((p) => ({ ...p, payment_method: e.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
+                >
+                  <option value="Cash">Cash</option>
+                  <option value="Card">Card</option>
+                  <option value="QRPH">QRPH</option>
+                  <option value="Waived">Waived</option>
+                </select>
               </div>
 
               <div className="md:col-span-2">

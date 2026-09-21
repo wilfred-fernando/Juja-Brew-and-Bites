@@ -57,6 +57,7 @@ function initialForm() {
     dateISO: manilaDateISO(),
     hour: 10,
     deposit_amount: 0,
+    payment_method: "Cash",
     status: "confirmed",
   };
 }
@@ -131,8 +132,13 @@ export default function ManualBookingModal({ open, cashierName, onClose, onCreat
         contact_number: String(form.contact_number).trim(),
         email: String(form.email).trim(),
         deposit_amount: Math.max(0, Number(form.deposit_amount || 0)),
-        payment_status: "submitted",
-        payment_method: null,
+        payment_status:
+          form.payment_method === "Cash"
+            ? "cash_pending"
+            : form.payment_method === "Waived"
+              ? "waived"
+              : "submitted",
+        payment_method: form.payment_method,
         payment_proof_url: null,
         status: form.status,
         created_via: "pos",
@@ -172,6 +178,14 @@ export default function ManualBookingModal({ open, cashierName, onClose, onCreat
           <Field label="Contact Number"><input value={form.contact_number} onChange={(e) => setForm((p) => ({ ...p, contact_number: e.target.value }))} className="field" /></Field>
           <Field label="Email"><input type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} className="field" /></Field>
           <Field label="Deposit Amount"><input type="number" min={0} value={form.deposit_amount} onChange={(e) => setForm((p) => ({ ...p, deposit_amount: Number(e.target.value) }))} className="field" /></Field>
+          <Field label="Payment Method">
+            <select value={form.payment_method} onChange={(e) => setForm((p) => ({ ...p, payment_method: e.target.value }))} className="field">
+              <option value="Cash">Cash</option>
+              <option value="Card">Card</option>
+              <option value="QRPH">QRPH</option>
+              <option value="Waived">Waived</option>
+            </select>
+          </Field>
           <Field label="Package" wide>
             <select disabled={packageLoading} value={form.package_id} onChange={(e) => setForm((p) => ({ ...p, package_id: Number(e.target.value) }))} className="field">
               <option value="">{packageLoading ? "Loading packages..." : "Select package"}</option>
