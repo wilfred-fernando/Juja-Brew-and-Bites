@@ -863,28 +863,6 @@ function receiptPointsEarned(order, items) {
 }
 
 function ReceiptDrawer({ order, items = [], onClose }) {
-  const [loyalty, setLoyalty] = useState({ loading: true, balance: null });
-  useEffect(() => {
-    if (!order) return;
-    let cancelled = false;
-    async function loadReceiptLoyalty() {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const params = new URLSearchParams({ id: order.id, source: order.source === "POS" ? "order" : "web_order" });
-        const response = await fetch(`/api/admin/receipt-loyalty?${params}`, {
-          cache: "no-store",
-          headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
-        });
-        if (!response.ok) throw new Error("Unable to load receipt points");
-        const data = await response.json();
-        if (!cancelled) setLoyalty({ loading: false, balance: data.pointsBalance });
-      } catch {
-        if (!cancelled) setLoyalty({ loading: false, balance: null });
-      }
-    }
-    loadReceiptLoyalty();
-    return () => { cancelled = true; };
-  }, [order]);
   if (!order) return null;
   const totalCollected = Number(order.raw?.total_collected ?? order.raw?.["Total collected"] ?? order.net ?? 0);
   const change = Math.max(0, totalCollected - Number(order.net || 0));
@@ -892,7 +870,7 @@ function ReceiptDrawer({ order, items = [], onClose }) {
   const paymentAmount = totalCollected || order.net;
   const hasCustomer = Boolean(order.customerName && !["walk-in", "web customer"].includes(String(order.customerName).toLowerCase()));
   const pointsEarned = hasCustomer ? receiptPointsEarned(order, items) : 0;
-  const pointsBalance = loyalty.balance == null ? NaN : Number(loyalty.balance);
+  const pointsBalance = order.raw?.receipt_points_balance == null ? NaN : Number(order.raw.receipt_points_balance);
   const orderVoucherLabel = voucherLabel(
     order.raw?.applied_voucher || order.raw?.appliedVoucher || order.raw?.voucher || order.raw?.voucher_code || order.raw?.applied_voucher_code
   );
@@ -979,7 +957,7 @@ function ReceiptDrawer({ order, items = [], onClose }) {
                 </div>
                   <div className="flex justify-between gap-3">
                     <span>Points balance</span>
-                    <span>{loyalty.loading ? "Loading…" : Number.isFinite(pointsBalance) ? number(pointsBalance) : "Unavailable"}</span>
+                    <span>{Number.isFinite(pointsBalance) ? number(pointsBalance) : "Unavailable"}</span>
                   </div>
               </div>
             ) : null}
