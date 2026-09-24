@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { packageExtensionPolicyText } from "@/lib/bookings/extensionPolicy";
+import { createManualBooking } from "@/lib/bookings/createManualBooking";
 
 const supabase = getSupabaseClient();
 const START_HOURS = Array.from({ length: 13 }, (_, index) => 10 + index);
@@ -62,7 +63,7 @@ function initialForm() {
   };
 }
 
-export default function ManualBookingModal({ open, cashierName, onClose, onCreated, onError }) {
+export default function ManualBookingModal({ open, cashierName, onClose, onCreated, onError, onWarning }) {
   const [form, setForm] = useState(initialForm);
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -143,10 +144,10 @@ export default function ManualBookingModal({ open, cashierName, onClose, onCreat
         status: form.status,
         created_via: "pos",
       };
-      const { data, error } = await supabase.rpc("create_manual_booking", { data: payload });
-      if (error) throw error;
-      onCreated?.(data);
+      const result = await createManualBooking(supabase, payload);
+      onCreated?.(result.booking);
       onClose?.();
+      if (result.emailError) onWarning?.(`Booking saved, but confirmation email was not sent: ${result.emailError}`);
     } catch (error) {
       const message = String(error?.message || "Manual booking failed.");
       onError?.(

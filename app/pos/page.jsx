@@ -10158,6 +10158,7 @@ export default function POSPage() {
           )
         }
         onError={(message) => showToast("error", "Booking Failed", message)}
+        onWarning={(message) => showToast("warn", "Booking Email Not Sent", message)}
       />
       <BookingCalendarModal
         open={bookingCalendarOpen}

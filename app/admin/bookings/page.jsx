@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/dateFormat";
 import { packageExtensionPolicyText } from "@/lib/bookings/extensionPolicy";
+import { createManualBooking } from "@/lib/bookings/createManualBooking";
 import BookingGiftCertificates from "@/components/BookingGiftCertificates";
 
 const supabase = getSupabaseClient();
@@ -978,20 +979,11 @@ export default function AdminBookingsDashboard() {
         status: manualModal.status || "confirmed",
       };
 
-      const { data, error } = await supabase.rpc("create_manual_booking", {
-        data: { ...payload, created_via: "admin" },
-      });
-      if (error) {
-        const msg = String(error.message || "");
-        if (msg.includes("no_overlap_function_room")) {
-          alert("This manual booking overlaps an existing booking. Choose another time.");
-        } else {
-          alert(error.message);
-        }
-        return;
-      }
+      const result = await createManualBooking(supabase, { ...payload, created_via: "admin" });
+      const data = result.booking;
 
       setManualModal(null);
+      if (result.emailError) alert(`Booking saved, but confirmation email was not sent: ${result.emailError}`);
       if (data?.id) {
         setBookings((prev) => [...prev, data].sort((a, b) => new Date(a.start_at) - new Date(b.start_at)));
       } else {
