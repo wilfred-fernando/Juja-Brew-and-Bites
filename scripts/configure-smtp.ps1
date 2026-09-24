@@ -1,18 +1,30 @@
+param([switch]$Resend)
+
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$smtpHost = Read-Host 'SMTP host (for Gmail: smtp.gmail.com)'
-$smtpPort = Read-Host 'SMTP port (465 for SSL, 587 for STARTTLS)'
-$smtpUser = Read-Host 'Sender email / SMTP username'
+if ($Resend) {
+  $smtpHost = 'smtp.resend.com'
+  $smtpPort = '465'
+  $smtpUser = 'resend'
+  $smtpFrom = 'Juja Brew & Bites <no-reply@jujabrewandbites.com>'
+} else {
+  $smtpHost = Read-Host 'SMTP host (for Gmail: smtp.gmail.com)'
+  $smtpPort = Read-Host 'SMTP port (465 for SSL, 587 for STARTTLS)'
+  $smtpUser = Read-Host 'SMTP username'
+  $smtpFrom = Read-Host 'Sender email address (press Enter to use the username)'
+  if ([string]::IsNullOrWhiteSpace($smtpFrom)) { $smtpFrom = $smtpUser }
+}
 if ([string]::IsNullOrWhiteSpace($smtpHost) -or [string]::IsNullOrWhiteSpace($smtpUser) -or $smtpPort -notin @('465', '587')) {
   throw 'Enter a host, username, and port 465 or 587.'
 }
-$smtpSecret = Read-Host 'SMTP password (Gmail: app password, not your normal password)' -AsSecureString
+$smtpSecret = Read-Host 'SMTP password (Resend: API key; Gmail: app password)' -AsSecureString
 $secretPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($smtpSecret)
 Push-Location $projectRoot
 try {
   $env:JUJA_SETUP_SMTP_HOST = $smtpHost
   $env:JUJA_SETUP_SMTP_PORT = $smtpPort
   $env:JUJA_SETUP_SMTP_USER = $smtpUser
+  $env:JUJA_SETUP_SMTP_FROM = $smtpFrom
   $env:JUJA_SETUP_SMTP_PASS = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($secretPointer)
   @'
 const fs = require('node:fs');
@@ -30,7 +42,7 @@ const nodemailer = require('nodemailer');
     greetingTimeout: 10000, socketTimeout: 10000 });
   try { await transport.verify(); } finally { transport.close(); }
   const values = { SMTP_HOST: host, SMTP_PORT: String(port), SMTP_SECURE: String(port === 465),
-    SMTP_USER: user, SMTP_PASS: pass, SMTP_FROM: user };
+    SMTP_USER: user, SMTP_PASS: pass, SMTP_FROM: process.env.JUJA_SETUP_SMTP_FROM.trim() };
   let content = fs.existsSync('.env.local') ? fs.readFileSync('.env.local', 'utf8') : '';
   for (const [key, value] of Object.entries(values)) {
     const pattern = new RegExp('^(?:export\\s+)?' + key + '\\s*=.*(?:\\r?\\n|$)', 'gm');
@@ -44,6 +56,6 @@ const nodemailer = require('nodemailer');
   if ($LASTEXITCODE -ne 0) { throw 'SMTP verification failed.' }
 } finally {
   [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($secretPointer)
-  Remove-Item Env:JUJA_SETUP_SMTP_HOST, Env:JUJA_SETUP_SMTP_PORT, Env:JUJA_SETUP_SMTP_USER, Env:JUJA_SETUP_SMTP_PASS -ErrorAction SilentlyContinue
+  Remove-Item Env:JUJA_SETUP_SMTP_HOST, Env:JUJA_SETUP_SMTP_PORT, Env:JUJA_SETUP_SMTP_USER, Env:JUJA_SETUP_SMTP_PASS, Env:JUJA_SETUP_SMTP_FROM -ErrorAction SilentlyContinue
   Pop-Location
 }
