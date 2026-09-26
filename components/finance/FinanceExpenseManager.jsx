@@ -344,6 +344,7 @@ export default function FinanceExpenseManager() {
   const [expenseModalScope, setExpenseModalScope] = useState("");
   const [fundModalOpen, setFundModalOpen] = useState(false);
   const [referenceModalOpen, setReferenceModalOpen] = useState(false);
+  const [referenceExpenseScope, setReferenceExpenseScope] = useState(null);
   const [bulkReferenceModalOpen, setBulkReferenceModalOpen] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [currentProfile, setCurrentProfile] = useState(null);
@@ -1217,6 +1218,7 @@ export default function FinanceExpenseManager() {
   }
 
   function openReferenceModal(row = null) {
+    setReferenceExpenseScope(null);
     if (row) {
       setEditingReferenceId(row.id);
       setReferenceForm({
@@ -1243,6 +1245,26 @@ export default function FinanceExpenseManager() {
     setReferenceModalOpen(true);
   }
 
+  function openExpenseItemModal(scope) {
+    if (!canManageAll) return;
+    setNotice(null);
+    const form = scope === "overall" ? expenseForm : pettyForm;
+    setEditingReferenceId(null);
+    setReferenceExpenseScope(scope);
+    setReferenceForm({
+      ...initialReferenceForm,
+      name: itemReferenceFor(form.description) ? "" : form.description.trim(),
+      common_name: itemReferenceFor(form.description) ? "" : form.item_common_name,
+    });
+    setReferenceModalOpen(true);
+  }
+
+  function closeReferenceModal() {
+    if (saving === "reference") return;
+    setReferenceModalOpen(false);
+    setReferenceExpenseScope(null);
+  }
+
   function openBulkReferenceModal() {
     setBulkReferenceType(referenceFilter === "all" ? "item" : referenceFilter || "item");
     setBulkReferenceText("");
@@ -1251,7 +1273,12 @@ export default function FinanceExpenseManager() {
 
   async function saveReference(event) {
     event.preventDefault();
+    if (saving === "reference") return;
+    if (!canManageAll) return showNotice("error", "Only admin accounts can manage references.");
     if (!referenceForm.name.trim()) return showNotice("error", "Reference name is required.");
+    if (referenceExpenseScope && references.some((row) => row.ref_type === "item" && normalize(row.name) === normalize(referenceForm.name))) {
+      return showNotice("error", "This item already exists in References. Choose the existing item, or use a different name.");
+    }
 
     setSaving("reference");
     const payload = {
@@ -1286,8 +1313,27 @@ export default function FinanceExpenseManager() {
         showNotice("error", error.message);
       } else {
         setReferences((prev) => [...prev, newRow].sort((a, b) => a.ref_type.localeCompare(b.ref_type) || a.name.localeCompare(b.name)));
+        if (referenceExpenseScope) {
+          const setter = referenceExpenseScope === "overall" ? setExpenseForm : setPettyForm;
+          const inventoryItem = inventoryItemFor(newRow.name, newRow.common_name || "");
+          setter((prev) => ({
+            ...prev,
+            description: newRow.name,
+            item_common_name: newRow.common_name || "",
+            ...(inventoryItem ? {
+              inventory_item_id: inventoryItem.id,
+              inventory_common_name_id: inventoryItem.common_name_id || prev.inventory_common_name_id,
+              inventory_unit_cost: inventoryItem.cost_per_unit ?? prev.inventory_unit_cost,
+            } : {}),
+            ...(prev.is_inventory_purchase && newRow.reference_quantity && newRow.reference_unit ? {
+              inventory_quantity: referenceInventoryQuantity(newRow, prev.quantity),
+              inventory_unit: normalizeUnit(newRow.reference_unit),
+            } : {}),
+          }));
+        }
         setReferenceModalOpen(false);
-        showNotice("success", "Reference added.");
+        setReferenceExpenseScope(null);
+        showNotice("success", referenceExpenseScope ? "Item added to References and selected for this expense." : "Reference added.");
       }
     }
     setSaving("");
@@ -1397,6 +1443,11 @@ export default function FinanceExpenseManager() {
               onChange={(value) => updateExpenseForm(scope, "description", value)}
               required
             />
+            {canManageAll ? (
+              <button type="button" onClick={() => openExpenseItemModal(scope)} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-cyan-700 hover:text-cyan-900">
+                <Plus size={14} /> Add New Item Details
+              </button>
+            ) : null}
           </Field>
           <Field label="Supplier / Name">
             <SearchableSelectInput
@@ -1744,9 +1795,11 @@ export default function FinanceExpenseManager() {
   function renderReferenceForm() {
     return (
       <form onSubmit={saveReference} className="space-y-4">
+        {referenceExpenseScope ? <p className="text-sm text-slate-600">Save this item to References and select it for your expense. Your expense details will be kept.</p> : null}
+        {referenceExpenseScope && notice?.type === "error" ? <p role="alert" className="text-sm text-red-600">{notice.message}</p> : null}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Reference Type">
-            <Select value={referenceForm.ref_type} onChange={(e) => setReferenceForm((prev) => ({ ...prev, ref_type: e.target.value }))}>
+            <Select disabled={Boolean(referenceExpenseScope)} value={referenceForm.ref_type} onChange={(e) => setReferenceForm((prev) => ({ ...prev, ref_type: e.target.value }))}>
               {REF_TYPES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
             </Select>
           </Field>
@@ -1831,6 +1884,7 @@ export default function FinanceExpenseManager() {
           <Field label="Status">
             <Select
               value={referenceForm.is_active ? "active" : "inactive"}
+              disabled={Boolean(referenceExpenseScope)}
               onChange={(e) => setReferenceForm((prev) => ({ ...prev, is_active: e.target.value === "active" }))}
             >
               <option value="active">Active</option>
@@ -1848,7 +1902,7 @@ export default function FinanceExpenseManager() {
           disabled={saving === "reference"}
           className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500 disabled:bg-slate-300"
         >
-          {saving === "reference" ? "Saving..." : editingReferenceId ? "Save Reference" : "Add Reference"}
+          {saving === "reference" ? "Saving..." : referenceExpenseScope ? "Save Item & Use in Expense" : editingReferenceId ? "Save Reference" : "Add Reference"}
         </button>
       </form>
     );
@@ -2200,7 +2254,7 @@ export default function FinanceExpenseManager() {
       )}
 
       <Modal
-        open={Boolean(expenseModalScope)}
+        open={Boolean(expenseModalScope) && !referenceExpenseScope}
         title={editingExpense ? "Edit Expense Entry" : expenseModalScope === "petty" ? `Add Petty Cash Expense - ${selectedStoreName}` : "Add Overall Expense"}
         onClose={closeExpenseModal}
       >
@@ -2218,8 +2272,8 @@ export default function FinanceExpenseManager() {
 
       <Modal
         open={referenceModalOpen}
-        title={editingReferenceId ? "Edit Reference" : "Add Reference"}
-        onClose={() => setReferenceModalOpen(false)}
+        title={referenceExpenseScope ? "Add New Item Details" : editingReferenceId ? "Edit Reference" : "Add Reference"}
+        onClose={closeReferenceModal}
         width="max-w-2xl"
       >
         {renderReferenceForm()}
