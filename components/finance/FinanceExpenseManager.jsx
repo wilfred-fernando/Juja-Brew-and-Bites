@@ -87,6 +87,12 @@ const emptyDateFilter = {
   to: "",
 };
 
+const RECEIPT_FIELDS = ["expense_date", "supplier_name", "payment_type", "cheque_no", "cheque_date", "cheque_amount", "or_si_no", "or_si_date", "submitted_by"];
+
+function receiptDetails(form) {
+  return Object.fromEntries(RECEIPT_FIELDS.map((key) => [key, form[key]]));
+}
+
 function peso(value) {
   return `₱ ${Number(value || 0).toLocaleString("en-PH", {
     minimumFractionDigits: 2,
@@ -333,6 +339,8 @@ export default function FinanceExpenseManager() {
   const [references, setReferences] = useState([]);
   const [expenseForm, setExpenseForm] = useState(initialExpenseForm);
   const [pettyForm, setPettyForm] = useState(initialExpenseForm);
+  const [receiptItems, setReceiptItems] = useState([]);
+  const [receiptItemIndex, setReceiptItemIndex] = useState(0);
   const [fundForm, setFundForm] = useState(initialFundForm);
   const [referenceForm, setReferenceForm] = useState(initialReferenceForm);
   const [referenceFilter, setReferenceFilter] = useState("item");
@@ -805,6 +813,8 @@ export default function FinanceExpenseManager() {
   }
 
   function openExpenseModal(scope, row = null) {
+    setReceiptItems([]);
+    setReceiptItemIndex(0);
     setEditingExpense(row ? { scope, row } : null);
     if (scope === "overall") {
       setExpenseForm(row ? expenseFormFromRow(row) : (prev) => freshExpenseForm(prev));
@@ -818,6 +828,109 @@ export default function FinanceExpenseManager() {
   function closeExpenseModal() {
     setEditingExpense(null);
     setExpenseModalScope("");
+    setReceiptItems([]);
+    setReceiptItemIndex(0);
+  }
+
+  function expenseReceiptForms(form) {
+    const lines = receiptItems.length ? receiptItems.map((item, index) => index === receiptItemIndex ? form : item) : [form];
+    return lines.map((item) => ({ ...item, ...receiptDetails(form) }));
+  }
+
+  function selectReceiptItem(scope, index) {
+    const form = scope === "overall" ? expenseForm : pettyForm;
+    const lines = expenseReceiptForms(form);
+    setReceiptItems(lines);
+    setReceiptItemIndex(index);
+    (scope === "overall" ? setExpenseForm : setPettyForm)(lines[index]);
+  }
+
+  function addReceiptItem(scope) {
+    const form = scope === "overall" ? expenseForm : pettyForm;
+    const lines = expenseReceiptForms(form);
+    const next = { ...freshExpenseForm(form), ...receiptDetails(form) };
+    setReceiptItems([...lines, next]);
+    setReceiptItemIndex(lines.length);
+    (scope === "overall" ? setExpenseForm : setPettyForm)(next);
+  }
+
+  function removeReceiptItem(scope, index) {
+    const form = scope === "overall" ? expenseForm : pettyForm;
+    const lines = expenseReceiptForms(form).filter((_, itemIndex) => itemIndex !== index);
+    setReceiptItems(lines);
+    const nextIndex = Math.min(receiptItemIndex, lines.length - 1);
+    setReceiptItemIndex(nextIndex);
+    (scope === "overall" ? setExpenseForm : setPettyForm)(lines[nextIndex]);
+  }
+
+  async function saveReceiptExpenses(scope) {
+    if (saving) return;
+    const form = scope === "overall" ? expenseForm : pettyForm;
+    const lines = expenseReceiptForms(form);
+    const invalidIndex = lines.findIndex((line) => !line.description.trim() || (scope === "overall" && line.is_inventory_purchase && !line.store_id));
+    if (invalidIndex >= 0) {
+      selectReceiptItem(scope, invalidIndex);
+      return showNotice("error", `Item ${invalidIndex + 1}: enter a description and select a store for inventory purchases.`);
+    }
+    setSaving(scope);
+    const submittedAt = new Date().toISOString();
+    const pettyRows = scope === "petty" ? lines.map((line) => buildExpensePayload(line, "pc_exp", {
+      store_id: selectedStoreId, date_submitted: submittedAt, created_at: submittedAt,
+    })) : [];
+    const overallRows = lines.map((line, index) => {
+      const storeId = scope === "petty" ? selectedStoreId : line.is_inventory_purchase ? line.store_id : null;
+      return {
+        ...(scope === "petty" ? pettyRows[index] : buildExpensePayload(line, "exp")),
+        id: makeId("exp"),
+        entry_source: scope === "petty" ? "petty_cash" : "overall",
+        source_tag: scope === "petty" ? "Petty Cash" : "Overall",
+        store_id: storeId,
+        store_name: storeId ? storeNameById[storeId] || null : null,
+        ...(scope === "petty" ? { petty_cash_entry_id: pettyRows[index].id } : {}),
+        date_submitted: submittedAt, created_at: submittedAt,
+      };
+    });
+    try {
+      if (pettyRows.length) {
+        const { error } = await supabase.from("finance_petty_cash_entries").insert(pettyRows);
+        if (error) throw error;
+      }
+      const { error } = await supabase.from("finance_expenses").insert(overallRows);
+      if (error) {
+        if (pettyRows.length) {
+          const { error: rollbackError } = await supabase.from("finance_petty_cash_entries").delete().in("id", pettyRows.map((row) => row.id));
+          if (rollbackError) {
+            setPettyEntries((prev) => [...pettyRows, ...prev]);
+            closeExpenseModal();
+            throw new Error("Petty cash items were saved but could not sync to Overall Expenses. Do not re-enter this receipt; contact an administrator to reconcile it.");
+          }
+        }
+        throw error;
+      }
+      // The receipt is saved. Close the draft before inventory work to prevent duplicate retries.
+      setOverallExpenses((prev) => [...overallRows, ...prev]);
+      if (pettyRows.length) setPettyEntries((prev) => [...pettyRows, ...prev]);
+      closeExpenseModal();
+      const warnings = [];
+      for (let index = 0; index < lines.length; index += 1) {
+        try {
+          const sync = await syncExpenseInventoryIfNeeded(lines[index], overallRows[index].id);
+          if (sync.message) warnings.push(`Item ${index + 1}: ${sync.message}`);
+          setOverallExpenses((prev) => prev.map((row) => row.id === overallRows[index].id ? { ...row, inventory_sync_status: sync.status } : row));
+          if (pettyRows.length) {
+            await markPettyInventoryStatus(pettyRows[index].id, sync);
+            setPettyEntries((prev) => prev.map((row) => row.id === pettyRows[index].id ? { ...row, inventory_sync_status: sync.status } : row));
+          }
+        } catch (syncError) {
+          warnings.push(`Item ${index + 1}: inventory sync failed (${syncError.message}).`);
+        }
+      }
+      showNotice(warnings.length ? "error" : "success", `${lines.length} receipt items saved.${warnings.length ? ` ${warnings.join(" ")}` : ""}`);
+    } catch (error) {
+      showNotice("error", error.message);
+    } finally {
+      setSaving("");
+    }
   }
 
   function fundFormFromRow(row) {
@@ -846,6 +959,7 @@ export default function FinanceExpenseManager() {
   async function saveOverallExpense(event) {
     event.preventDefault();
     if (!canManageAll) return showNotice("error", "Only admin accounts can manage overall expenses.");
+    if (!editingExpense) return saveReceiptExpenses("overall");
     if (!expenseForm.description.trim()) return showNotice("error", "Description is required.");
     if (expenseForm.is_inventory_purchase && !expenseForm.store_id) {
       return showNotice("error", "Select inventory store location for this purchase.");
@@ -919,6 +1033,7 @@ export default function FinanceExpenseManager() {
     if (isCashier && String(selectedStoreId) !== String(currentProfile?.store_id || "")) {
       return showNotice("error", "Cashier accounts can only use their assigned branch.");
     }
+    if (!editingExpense) return saveReceiptExpenses("petty");
     if (!pettyForm.description.trim()) return showNotice("error", "Description is required.");
 
     setSaving("petty");
@@ -1417,9 +1532,13 @@ export default function FinanceExpenseManager() {
     const allocation = allocationFor(form.category, math.total);
     const editingThisForm = editingExpense?.scope === scope;
     const inventoryPreview = inventoryPurchasePreview(form);
+    const receiptLines = expenseReceiptForms(form);
+    const receiptTotal = receiptLines.reduce((sum, item) => sum + lineMath(item).total, 0);
 
     return (
       <form onSubmit={onSubmit} className="space-y-4">
+        <fieldset disabled={Boolean(saving)} className="space-y-4">
+        {notice?.type === "error" ? <p role="alert" className="text-sm text-red-600">{notice.message}</p> : null}
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-widest text-cyan-700">
@@ -1430,10 +1549,29 @@ export default function FinanceExpenseManager() {
             </h2>
           </div>
           <div className="rounded-xl border border-cyan-100 bg-cyan-50/80 px-4 py-2 text-right shadow-[0_0_24px_rgba(34,211,238,0.12)]">
-            <p className="text-[9px] font-semibold uppercase tracking-wider text-cyan-700">Total</p>
-            <p className="text-lg font-semibold text-slate-950">{peso(math.total)}</p>
+            <p className="text-[9px] font-semibold uppercase tracking-wider text-cyan-700">{editingThisForm ? "Total" : "Receipt Total"}</p>
+            <p className="text-lg font-semibold text-slate-950">{peso(editingThisForm ? math.total : receiptTotal)}</p>
           </div>
         </div>
+
+        {!editingThisForm ? (
+          <div className="rounded-2xl border border-cyan-100 bg-cyan-50/45 p-4">
+            <p className="text-sm font-semibold text-slate-800">Items on this receipt</p>
+            <p className="mt-1 text-xs text-slate-600">Supplier, date, payment and OR / SI details apply to all items. Select an item to edit its details below. Discounts apply per item.</p>
+            <div className="mt-3 space-y-2">
+              {receiptLines.map((item, index) => (
+                <div key={index} className={`flex items-center gap-2 rounded-xl border p-2 ${index === receiptItemIndex ? "border-cyan-500 bg-white" : "border-slate-200"}`}>
+                  <button type="button" aria-pressed={index === receiptItemIndex} onClick={() => selectReceiptItem(scope, index)} className="flex flex-1 items-center justify-between gap-3 text-left text-sm">
+                    <span>{index + 1}. {item.description || "New item"}</span>
+                    <span className="whitespace-nowrap font-semibold">{peso(lineMath(item).total)}</span>
+                  </button>
+                  {receiptLines.length > 1 ? <button type="button" aria-label={`Remove item ${index + 1}`} onClick={() => removeReceiptItem(scope, index)} className="rounded-lg p-2 text-red-600 hover:bg-red-50"><Trash2 size={16} /></button> : null}
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={() => addReceiptItem(scope)} className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-cyan-700"><Plus size={16} /> Add Another Item</button>
+          </div>
+        ) : null}
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
           <Field label="Date">
@@ -1593,9 +1731,10 @@ export default function FinanceExpenseManager() {
             disabled={saving === scope || (scope === "petty" && !selectedStoreId)}
             className="h-full min-h-14 rounded-xl bg-slate-400/78 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition duration-200 hover:-translate-y-0.5 hover:bg-slate-300/78 hover:shadow-[0_0_34px_rgba(34,211,238,0.36)] active:translate-y-0 disabled:bg-slate-300"
           >
-            {saving === scope ? "Saving..." : editingThisForm ? "Update Entry" : "Save Entry"}
+            {saving === scope ? "Saving..." : editingThisForm ? "Update Entry" : `Save Receipt (${receiptLines.length} ${receiptLines.length === 1 ? "Item" : "Items"})`}
           </button>
         </div>
+        </fieldset>
       </form>
     );
   }
