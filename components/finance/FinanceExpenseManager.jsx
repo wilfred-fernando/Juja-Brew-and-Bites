@@ -35,6 +35,7 @@ const REF_TYPES = [
 
 const initialExpenseForm = {
   tax_type: "Non-VAT",
+  receipt_type: "",
   expense_date: new Date().toISOString().slice(0, 10),
   description: "",
   supplier_name: "",
@@ -89,7 +90,7 @@ const emptyDateFilter = {
   to: "",
 };
 
-const RECEIPT_FIELDS = ["expense_date", "supplier_name", "payment_type", "cheque_no", "cheque_date", "cheque_amount", "or_si_no", "or_si_date", "submitted_by"];
+const RECEIPT_FIELDS = ["expense_date", "supplier_name", "payment_type", "cheque_no", "cheque_date", "cheque_amount", "receipt_type", "or_si_no", "or_si_date", "submitted_by"];
 
 function receiptDetails(form) {
   return Object.fromEntries(RECEIPT_FIELDS.map((key) => [key, form[key]]));
@@ -732,6 +733,7 @@ export default function FinanceExpenseManager() {
       total: math.total,
       category: form.category || "OP-EX",
       tax_type: form.tax_type || null,
+      receipt_type: form.receipt_type || null,
       payment_type: form.payment_type || null,
       cheque_no: form.cheque_no.trim() || null,
       cheque_date: form.cheque_date || null,
@@ -802,6 +804,7 @@ export default function FinanceExpenseManager() {
       discount: String(row.discount ?? ""),
       category: row.category || "OP-EX",
       tax_type: row.tax_type || "",
+      receipt_type: row.receipt_type || "",
       payment_type: row.payment_type || "",
       cheque_no: row.cheque_no || "",
       cheque_date: dateInputValue(row.cheque_date),
@@ -1566,7 +1569,7 @@ export default function FinanceExpenseManager() {
         {!editingThisForm ? (
           <div className="rounded-2xl border border-cyan-100 bg-cyan-50/45 p-4">
             <p className="text-sm font-semibold text-slate-800">Items on this receipt</p>
-            <p className="mt-1 text-xs text-slate-600">Supplier, date, payment and OR / SI details apply to all items. Select an item to edit its details below. Discounts apply per item.</p>
+            <p className="mt-1 text-xs text-slate-600">Supplier, date, payment and receipt details apply to all items. Select an item to edit its details below. Discounts apply per item.</p>
             <div className="mt-3 space-y-2">
               {receiptLines.map((item, index) => (
                 <div key={index} className={`flex items-center gap-2 rounded-xl border p-2 ${index === receiptItemIndex ? "border-cyan-500 bg-white" : "border-slate-200"}`}>
@@ -1643,7 +1646,7 @@ export default function FinanceExpenseManager() {
           <Field label="Discount">
             <Input type="number" min="0" step="0.01" value={form.discount} onChange={(e) => updateExpenseForm(scope, "discount", e.target.value)} />
           </Field>
-          <Field label="Tax / Receipt Type">
+          <Field label="Tax Type">
             <Select value={form.tax_type} onChange={(e) => updateExpenseForm(scope, "tax_type", e.target.value)}>
               {!form.tax_type ? <option value="">Unspecified (existing entry)</option> : null}
               {EXPENSE_TAX_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
@@ -1664,10 +1667,16 @@ export default function FinanceExpenseManager() {
           <Field label="Cheque Amount">
             <Input type="number" min="0" step="0.01" value={form.cheque_amount} onChange={(e) => updateExpenseForm(scope, "cheque_amount", e.target.value)} />
           </Field>
-          <Field label="OR / SI No.">
+          <Field label="Receipt Type">
+            <Select value={form.receipt_type} onChange={(e) => updateExpenseForm(scope, "receipt_type", e.target.value)}>
+              <option value="">Select receipt type</option>
+              {["OR", "SI", "DR"].map((type) => <option key={type} value={type}>{type}</option>)}
+            </Select>
+          </Field>
+          <Field label="Receipt No. (OR / SI / DR)">
             <Input value={form.or_si_no} onChange={(e) => updateExpenseForm(scope, "or_si_no", e.target.value)} />
           </Field>
-          <Field label="OR / SI Date">
+          <Field label="Receipt Date">
             <Input type="date" value={form.or_si_date} onChange={(e) => updateExpenseForm(scope, "or_si_date", e.target.value)} />
           </Field>
           <Field label="Submitted By">
@@ -1733,7 +1742,7 @@ export default function FinanceExpenseManager() {
           <p className="font-semibold">{form.tax_type || "Unspecified"} — current item</p>
           {form.tax_type === "VAT" ? (
             <p className="mt-1">Vatable sales {peso(vat.vatableSales)} + 12% VAT {peso(vat.vatAmount)} = {peso(math.total)}</p>
-          ) : form.tax_type ? <p className="mt-1">VAT: {peso(0)} · Total: {peso(math.total)}</p> : <p className="mt-1">Select a tax / receipt type to classify this expense.</p>}
+          ) : form.tax_type ? <p className="mt-1">VAT: {peso(0)} · Total: {peso(math.total)}</p> : <p className="mt-1">Select a tax type to classify this expense.</p>}
           {form.tax_type === "VAT" ? <p className="mt-1 text-xs text-slate-500">VAT is already included in the encoded amount. The breakdown uses the total after the item discount.</p> : null}
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-5">
@@ -1792,6 +1801,10 @@ export default function FinanceExpenseManager() {
               <th className="px-4 py-3 text-right">Unit Price</th>
               <th className="px-4 py-3 text-right">Sub-total</th>
               <th className="px-4 py-3 text-right">Discount</th>
+              <th className="px-4 py-3">Tax Type</th>
+              <th className="px-4 py-3 text-right">Vatable Sales</th>
+              <th className="px-4 py-3 text-right">VAT</th>
+              <th className="px-4 py-3">Receipt Type</th>
               <th className="px-4 py-3 text-right">Total</th>
               <th className="px-4 py-3">Category</th>
               <th className="px-4 py-3">Payment</th>
@@ -1822,10 +1835,12 @@ export default function FinanceExpenseManager() {
                   <td className="px-4 py-3 text-right">{peso(row.unit_price)}</td>
                   <td className="px-4 py-3 text-right">{peso(row.subtotal)}</td>
                   <td className="px-4 py-3 text-right">{peso(row.discount)}</td>
+                  <td className="px-4 py-3">{row.tax_type || "Unspecified"}</td>
+                  <td className="px-4 py-3 text-right">{row.tax_type ? peso(expenseVatBreakdown(row.total, row.tax_type).vatableSales) : "-"}</td>
+                  <td className="px-4 py-3 text-right">{row.tax_type ? peso(expenseVatBreakdown(row.total, row.tax_type).vatAmount) : "-"}</td>
+                  <td className="px-4 py-3">{row.receipt_type || "-"}</td>
                   <td className="px-4 py-3 text-right font-semibold text-slate-950">
                     {peso(row.total)}
-                    <p className="text-[10px] font-normal text-slate-500">{row.tax_type || "Unspecified"}</p>
-                    {row.tax_type === "VAT" ? <p className="text-[10px] font-normal text-slate-500">Vatable {peso(expenseVatBreakdown(row.total, row.tax_type).vatableSales)} + VAT {peso(expenseVatBreakdown(row.total, row.tax_type).vatAmount)}</p> : null}
                   </td>
                   <td className="px-4 py-3">
                     <span className={dataPillClass}>{row.category}</span>
