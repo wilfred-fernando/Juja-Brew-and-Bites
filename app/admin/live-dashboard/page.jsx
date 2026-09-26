@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { createCoalescedRefresh } from "@/lib/coalescedRefresh";
 import { formatDateTime } from "@/lib/dateFormat";
 
 const supabase = getSupabaseClient();
@@ -64,6 +65,7 @@ export default function LiveDashboard() {
   // -----------------------------
   useEffect(() => {
     fetchOrders();
+    const refreshOrders = createCoalescedRefresh(fetchOrders);
 
     const channel = supabase
       .channel("live-dashboard")
@@ -75,12 +77,13 @@ export default function LiveDashboard() {
           table: "open_tickets_order",
         },
         () => {
-          fetchOrders(); // refresh instantly
+          refreshOrders();
         }
       )
       .subscribe();
 
     return () => {
+      refreshOrders.dispose();
       supabase.removeChannel(channel);
     };
   }, []);

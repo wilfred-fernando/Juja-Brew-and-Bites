@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { createCoalescedRefresh } from "@/lib/coalescedRefresh";
 import { formatDateTime } from "@/lib/dateFormat";
 
 const supabase = getSupabaseClient();
@@ -30,11 +31,12 @@ export default function AdminLiveOrders() {
 
   useEffect(() => {
     fetchOrders();
+    const refreshOrders = createCoalescedRefresh(fetchOrders);
     const channel = supabase
       .channel("admin-live-web-orders")
-      .on("postgres_changes", { event: "*", schema: "public", table: "web_orders" }, fetchOrders)
+      .on("postgres_changes", { event: "*", schema: "public", table: "web_orders" }, refreshOrders)
       .subscribe();
-    return () => supabase.removeChannel(channel);
+    return () => { refreshOrders.dispose(); supabase.removeChannel(channel); };
   }, []);
 
   return (

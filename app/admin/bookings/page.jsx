@@ -59,11 +59,12 @@ function labelBookingSlot(hour) {
   const compactHour = (value) => labelHour(value).replace(":00", "").replace(" (+1)", "");
   return `${compactHour(hour)} - ${compactHour(hour + 3)}`;
 }
-function editSlotHours(currentHour) {
+function editSlotHours(currentHour, hourlySelection = false) {
   const hour = Number(currentHour);
-  return BOOKING_SLOT_HOURS.includes(hour)
-    ? BOOKING_SLOT_HOURS
-    : [...BOOKING_SLOT_HOURS, hour].sort((a, b) => a - b);
+  const hours = hourlySelection ? ADMIN_MANUAL_HOURLY_STARTS : BOOKING_SLOT_HOURS;
+  return hours.includes(hour)
+    ? hours
+    : [...hours, hour].sort((a, b) => a - b);
 }
 function computeDateTime(dateISO, hourLike) {
   const [year, month, day] = String(dateISO).split("-").map(Number);
@@ -2202,9 +2203,11 @@ export default function AdminBookingsDashboard() {
                   onChange={(e) => setEditModal((p) => ({ ...p, hour: Number(e.target.value) }))}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
                 >
-                  {editSlotHours(editModal.hour).map((h) => (
+                  {editSlotHours(editModal.hour, isConfirmedBooking(editModal.booking)).map((h) => (
                     <option key={h} value={h}>
-                      {BOOKING_SLOT_HOURS.includes(h)
+                      {isConfirmedBooking(editModal.booking)
+                        ? `${labelHour(h)}${ADMIN_MANUAL_HOURLY_STARTS.includes(h) ? "" : " (existing booking time)"}`
+                        : BOOKING_SLOT_HOURS.includes(h)
                         ? labelBookingSlot(h)
                         : `${labelHour(h)} (existing booking time)`}
                     </option>

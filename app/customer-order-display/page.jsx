@@ -79,30 +79,55 @@ export default function CustomerOrderDisplayPage() {
   const visibleOrders = useMemo(() => [...preparingOrders, ...servedOrders], [preparingOrders, servedOrders]);
   const time = clockParts(now);
 
-  async function loadOrders({ silent = false } = {}) {
-    if (!silent) setLoading(true);
-    try {
-      const res = await fetch("/api/customer-order-display");
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || "Unable to load display.");
-      setOrders(Array.isArray(json.orders) ? json.orders : []);
-      setError("");
-    } catch (err) {
-      setError(err?.message || "Unable to load display.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
+    let disposed = false;
+    let refresh;
+    let controller;
+    let inFlight = false;
+    let delay = 30000;
+    const loadOrders = async () => {
+      clearTimeout(refresh);
+      if (disposed || inFlight || document.visibilityState !== "visible") return;
+      inFlight = true;
+      controller = new AbortController();
+      try {
+        const res = await fetch("/api/customer-order-display", { signal: controller.signal });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.error || "Unable to load display.");
+        if (disposed) return;
+        const nextOrders = Array.isArray(json.orders) ? json.orders : [];
+        setOrders(nextOrders);
+        setError("");
+        // Keep active/just-served orders fresh; poll empty displays once a minute.
+        delay = nextOrders.length ? 30000 : 60000;
+      } catch (err) {
+        if (!disposed && err.name !== "AbortError") {
+          setError(err?.message || "Unable to load display.");
+          delay = Math.min(delay * 2, 300000);
+        }
+      } finally {
+        inFlight = false;
+        if (!disposed) {
+          setLoading(false);
+          if (document.visibilityState === "visible") refresh = setTimeout(loadOrders, delay);
+        }
+      }
+    };
+    const onVisibilityChange = () => {
+      clearTimeout(refresh);
+      if (document.visibilityState === "visible") loadOrders();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
     loadOrders();
-    const refresh = setInterval(() => loadOrders({ silent: true }), 30000);
     const clock = setInterval(() => setNow(new Date()), 2000);
     const slide = setInterval(() => {
       setSlideIndex((current) => (current + 1) % DISPLAY_SLIDES.length);
     }, SLIDE_INTERVAL_MS);
     return () => {
-      clearInterval(refresh);
+      disposed = true;
+      controller?.abort();
+      clearTimeout(refresh);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       clearInterval(clock);
       clearInterval(slide);
     };

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { findBeneficiaryDuplicates } from "@/lib/beneficiaryDuplicates";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { createCoalescedRefresh } from "@/lib/coalescedRefresh";
 import { getStableSession } from "@/lib/supabase/session";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { deductInventoryForOrder, normalizeUnit, restoreInventoryForOrder } from "@/lib/inventory";
@@ -5761,7 +5762,7 @@ export default function POSPage() {
           .limit(10);
 
         if (error) throw error;
-        await fetchPendingCount(storeId);
+        // The shared POS repair refresh already updates the pending count.
         for (const order of data || []) {
           await showIncomingOrder(order);
         }
@@ -5933,18 +5934,20 @@ export default function POSPage() {
       setSavedTickets([]);
       return;
     }
+    const refreshTickets = createCoalescedRefresh(() => fetchSavedTickets(storeId));
     const channel = supabase
       .channel(`open_tickets_changes:${storeId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'open_tickets', filter: `store_id=eq.${storeId}` }, () => {
-        fetchSavedTickets(storeId);
+        refreshTickets();
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { refreshTickets.dispose(); supabase.removeChannel(channel); };
   }, [storeId]);
 
   useEffect(() => {
     if (!storeId) return;
+    const refreshTables = createCoalescedRefresh(() => fetchActiveKitchenTables());
     const channel = supabase
       .channel("pos-kds-table-occupancy")
       .on(
@@ -5953,12 +5956,12 @@ export default function POSPage() {
         (payload) => {
           const row = payload.new || payload.old || {};
           if (row.store_id && String(row.store_id) !== String(storeId)) return;
-          fetchActiveKitchenTables();
+          refreshTables();
         }
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { refreshTables.dispose(); supabase.removeChannel(channel); };
   }, [storeId]);
 
   useEffect(() => {

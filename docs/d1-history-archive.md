@@ -19,7 +19,7 @@ This does not mirror unrelated application tables such as payroll or auth.
 
 The `20260926090000_finance_cloudflare_outbox.sql` migration queues existing
 records and captures later inserts, updates, and deletes transactionally.
-The archive Worker's one-minute cron copies up to 1,000 events per invocation.
+The archive Worker's five-minute cron copies up to 1,000 events per invocation.
 The source queue is acknowledged only after a successful D1 transaction.
 Failed deliveries stay queued; repeated and out-of-order deliveries cannot
 overwrite newer versions. D1 `finance_records` holds the latest row/tombstone;
