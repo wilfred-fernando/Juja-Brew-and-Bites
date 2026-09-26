@@ -2,6 +2,12 @@ name = "juja-history-archive"
 main = "src/index.js"
 compatibility_date = "2026-07-31"
 
+[triggers]
+crons = ["* * * * *"]
+
+[observability]
+enabled = true
+
 [[d1_databases]]
 binding = "ARCHIVE_DB"
 database_name = "juja-history-archive"

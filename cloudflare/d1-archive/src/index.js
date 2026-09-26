@@ -1,3 +1,5 @@
+import { syncFinance, financeStatus } from "./finance.js";
+
 const TABLE_COLUMNS = {
   archive_orders: [
     "source_id", "source_type", "business_date", "created_at", "paid_at", "store_id",
@@ -232,10 +234,19 @@ async function validation(url, env) {
 }
 
 export default {
+  async scheduled(_controller, env) {
+    const result = await syncFinance(env);
+    console.log(JSON.stringify({ event: "finance_cloudflare_sync", ...result }));
+  },
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === "/health") return json({ ok: true, service: "juja-history-archive" });
     if (!authorized(request, env)) return json({ error: "Unauthorized" }, 401);
+    if (request.method === "POST" && url.pathname === "/v1/finance/sync") {
+      try { return json(await syncFinance(env)); }
+      catch (error) { return json({ error: error.message }, 500); }
+    }
+    if (request.method === "GET" && url.pathname === "/v1/finance/status") return json(await financeStatus(env));
     if (request.method === "POST" && url.pathname === "/v1/archive/batch") return upsertBatch(request, env);
     if (request.method === "POST" && url.pathname === "/v1/archive/shift/start") return startShiftBatch(request, env);
     if (request.method === "POST" && url.pathname === "/v1/archive/shift/finalize") return finalizeShiftBatch(request, env);
