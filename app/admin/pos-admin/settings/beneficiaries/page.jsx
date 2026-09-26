@@ -161,7 +161,7 @@ export default function BeneficiariesPage() {
             )}
             <label className="space-y-1 text-sm font-semibold">
               <span>ID number</span>
-              <input required maxLength={100} value={editing.id_number} onChange={(event) => setEditing({ ...editing, id_number: event.target.value })} className={inputClass} />
+              <input required maxLength={["pwd", "senior_citizen"].includes(editing.beneficiary_type) ? 5 : 100} pattern={["pwd", "senior_citizen"].includes(editing.beneficiary_type) ? "[0-9]{5}" : undefined} inputMode={["pwd", "senior_citizen"].includes(editing.beneficiary_type) ? "numeric" : "text"} title="SC/PWD IDs require exactly 5 digits" value={editing.id_number} onChange={(event) => setEditing({ ...editing, id_number: event.target.value })} className={inputClass} />
             </label>
           </fieldset>
           {saveError && <p role="alert" className="text-sm text-red-700">{saveError}</p>}

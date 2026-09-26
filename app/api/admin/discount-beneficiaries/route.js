@@ -55,6 +55,9 @@ export async function PATCH(request) {
     const name = formatBeneficiaryName(body?.full_name);
     const idNumber = typeof body?.id_number === "string" ? body.id_number.trim() : "";
     const normalized = idNumber.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+    if (["pwd", "senior_citizen"].includes(type) && !/^[0-9]{5}$/.test(idNumber)) {
+      return Response.json({ error: "SC/PWD ID must contain exactly 5 digits, including leading zeros." }, { status: 400 });
+    }
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ||
         !BENEFICIARY_TYPES.includes(type) || (type === "qcid" && !["resident", "non_resident"].includes(residencyStatus)) ||
         name.length < 3 || name.length > 200 ||

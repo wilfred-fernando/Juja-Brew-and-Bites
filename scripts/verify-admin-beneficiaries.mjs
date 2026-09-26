@@ -23,7 +23,7 @@ const handlers = vm.runInNewContext(`${source}; ({ GET, PATCH, DELETE });`, {
 });
 const body = {
   id: "00000000-0000-4000-8000-000000000001", full_name: "  Ana   Cruz  ",
-  beneficiary_type: "pwd", id_number: " ab-123 ", updated_at: "2026-09-03T01:00:00.000Z",
+  beneficiary_type: "pwd", id_number: " 01234 ", updated_at: "2026-09-03T01:00:00.000Z",
 };
 const patch = (payload) => handlers.PATCH(new Request("http://localhost/api/admin/discount-beneficiaries", {
   method: "PATCH", body: JSON.stringify(payload), headers: { "Content-Type": "application/json" },
@@ -46,16 +46,24 @@ for (const invalid of [{ ...body, id: "bad" }, { ...body, full_name: " " }, { ..
   assert.equal((await patch(invalid)).status, 400);
   assert.equal(calls.length, 0);
 }
-result = { data: { ...body, full_name: "Ana Cruz", id_number: "ab-123" }, error: null };
+for (const type of ["pwd", "senior_citizen"]) {
+  for (const id of ["1234", "123456", "AB123", "01-23"]) {
+    calls = [];
+    assert.equal((await patch({ ...body, beneficiary_type: type, id_number: id })).status, 400);
+    assert.equal(calls.length, 0, "Invalid SC/PWD IDs must not reach the database");
+  }
+}
+result = { data: { ...body, full_name: "Ana Cruz", id_number: "01234" }, error: null };
 calls = [];
 const saved = await patch({ ...body, full_name: "  aNA   MARIE o'CRUZ-smith  ", is_active: false, created_by: "untrusted", normalized_id_number: "untrusted" });
 assert.equal(saved.status, 200);
 const update = calls.find(([method]) => method === "update")[1];
 assert.equal(update.full_name, "Ana Marie O'Cruz-Smith");
-assert.equal(update.normalized_id_number, "AB123");
+assert.equal(update.normalized_id_number, "01234");
 assert.equal(update.beneficiary_type, "pwd");
-assert.equal(update.id_number, "ab-123");
-assert.deepEqual(Object.keys(update).sort(), ["beneficiary_type", "full_name", "id_number", "normalized_id_number", "updated_at"]);
+assert.equal(update.id_number, "01234");
+assert.equal(update.residency_status, null);
+assert.deepEqual(Object.keys(update).sort(), ["beneficiary_type", "full_name", "id_number", "normalized_id_number", "residency_status", "updated_at"]);
 assert.ok(calls.some(([method, key, value]) => method === "eq" && key === "id" && value === body.id));
 assert.ok(calls.some(([method, key, value]) => method === "eq" && key === "updated_at" && value === body.updated_at));
 assert.ok(calls.filter(([method]) => method === "from").every(([, table]) => table === "pos_discount_beneficiaries"));

@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import { findBeneficiaryDuplicates as find } from '../lib/beneficiaryDuplicates.js';
+const records = [{id: '1', full_name: 'Irish Bibiano', id_number: '39340', beneficiary_type: 'pwd'}];
+assert.equal(find(records, 'BIBIANO, IRISH', '0340', 'pwd').length, 1);
+assert.equal(find(records, 'Irish Marie Bibiano', '9340', 'pwd').length, 1);
+assert.equal(find(records, 'Someone Else', '39-340', 'pwd').length, 1);
+assert.equal(find(records, 'Irish Bibiano', '12345', 'senior_citizen').length, 1);
+assert.equal(find(records, 'Irish Bibiano', '12345', 'teacher').length, 0);
+assert.equal(find(records, 'Irish Someone', '12345', 'pwd').length, 0);
+assert.equal(find(records, '', '', 'pwd').length, 0);
+console.log('Verified duplicate name, ID, middle-name, reversed-name, cross-SC/PWD and separate-program matching.');

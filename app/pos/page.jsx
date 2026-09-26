@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { findBeneficiaryDuplicates } from "@/lib/beneficiaryDuplicates";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { getStableSession } from "@/lib/supabase/session";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
@@ -3527,6 +3528,7 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
   }, [open, requiredBeneficiaryType]);
 
   const normalizedSearch = search.trim().toLowerCase();
+  const duplicateBeneficiaries = findBeneficiaryDuplicates(beneficiaries, fullName, idNumber, beneficiaryType);
   const filtered = beneficiaries.filter((entry) => {
     if (!beneficiaryMatchesRule(entry.beneficiary_type, requiredBeneficiaryType)) return false;
     if (!normalizedSearch) return true;
@@ -3536,6 +3538,11 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
 
   const saveNew = async () => {
     if (saving || !fullName.trim() || !idNumber.trim()) return;
+    if (["pwd", "senior_citizen"].includes(beneficiaryType) && !/^[0-9]{5}$/.test(idNumber.trim())) {
+      setSaveError("SC/PWD ID must contain exactly 5 digits, including leading zeros.");
+      return;
+    }
+    if (duplicateBeneficiaries.length) return;
     setSaving(true);
     setSaveError("");
     try {
@@ -3634,7 +3641,9 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
         <input
           value={idNumber}
           onChange={(event) => setIdNumber(event.target.value)}
-          placeholder="ID number"
+          placeholder={["pwd", "senior_citizen"].includes(beneficiaryType) ? "ID number (exactly 5 digits)" : "ID number"}
+          inputMode={["pwd", "senior_citizen"].includes(beneficiaryType) ? "numeric" : "text"}
+          maxLength={["pwd", "senior_citizen"].includes(beneficiaryType) ? 5 : 100}
           className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-cyan-500"
         />
         <input
@@ -3649,10 +3658,22 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
           This saves the beneficiary as {beneficiaryType === "pwd" ? "PWD" : "SC"}. Choose the matching item discount to apply this ID.
         </p>
       )}
+      {duplicateBeneficiaries.length > 0 && (
+        <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3" role="status">
+          <p className="text-xs font-semibold text-slate-800">Possible duplicate found. Select the saved beneficiary or ask Admin to review the details.</p>
+          {duplicateBeneficiaries.map((entry) => (
+            <button key={entry.id} type="button" disabled={saving || !beneficiaryMatchesRule(entry.beneficiary_type, requiredBeneficiaryType)}
+              onClick={() => onSelect?.(entry)} className="mt-2 block w-full rounded-lg border border-slate-200 bg-white p-2 text-left text-xs text-slate-800 disabled:opacity-60">
+              {entry.full_name} · {beneficiaryTypeLabel(entry.beneficiary_type)} · ID {entry.id_number}
+              {beneficiaryMatchesRule(entry.beneficiary_type, requiredBeneficiaryType) ? " — Select existing" : " — Choose the matching discount or contact Admin"}
+            </button>
+          ))}
+        </div>
+      )}
       {saveError && <p role="alert" className="mt-2 rounded-lg bg-red-50 p-3 text-xs text-red-700">{saveError}</p>}
       <button
         type="button"
-        disabled={saving || !fullName.trim() || !idNumber.trim()}
+        disabled={saving || loading || duplicateBeneficiaries.length > 0 || !fullName.trim() || !idNumber.trim()}
         onClick={saveNew}
         className="mt-3 h-11 w-full rounded-xl bg-slate-700 text-xs font-semibold uppercase tracking-wider text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
       >
