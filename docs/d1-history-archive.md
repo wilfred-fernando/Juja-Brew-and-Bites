@@ -6,6 +6,50 @@ does not delete or mutate source records.
 
 ## Archived data
 
+### Finance mirror
+
+Finance uses a separate continuous mirror; it is not restricted to terminal
+sales or yesterday's records. Supabase remains the operational source.
+
+The seven covered tables are `finance_expenses`, `finance_petty_cash_entries`,
+`finance_petty_cash_funds`, `finance_references`, `finance_delete_requests`,
+`finance_daily_inventory_entries`, and `finance_inventory_transfers`.
+Full JSON rows preserve every receipt line and all item/supplier fields.
+This does not mirror unrelated application tables such as payroll or auth.
+
+The `20260926090000_finance_cloudflare_outbox.sql` migration queues existing
+records and captures later inserts, updates, and deletes transactionally.
+The archive Worker's one-minute cron copies up to 1,000 events per invocation.
+The source queue is acknowledged only after a successful D1 transaction.
+Failed deliveries stay queued; repeated and out-of-order deliveries cannot
+overwrite newer versions. D1 `finance_records` holds the latest row/tombstone;
+`finance_events` retains each captured version, including deleted rows.
+The outbox contains financial data and is restricted to the service role.
+
+Deployment (existing Cloudflare account login required):
+
+```powershell
+node scripts/verify-finance-cloudflare.mjs
+node scripts/finance-cloudflare-ops.mjs --apply
+npx wrangler d1 execute juja-history-archive --remote --config cloudflare/d1-archive/wrangler.toml --file cloudflare/d1-archive/finance-schema.sql
+node scripts/configure-finance-cloudflare.mjs
+npx wrangler deploy --config cloudflare/d1-archive/wrangler.toml
+```
+
+`configure-finance-cloudflare.mjs` pipes the Supabase URL and service key into
+Worker secrets without exposing them in command arguments or writing a file.
+Never use a public environment variable for the service key.
+The authenticated `POST /v1/finance/sync` endpoint runs a backfill/retry;
+`GET /v1/finance/status` reports D1 record/deletion counts and last sync times.
+Both require the existing archive bearer token. Use
+`node scripts/finance-cloudflare-ops.mjs` to inspect source counts and backlog.
+Cron failures are recorded in Worker logs; a growing/old queue needs attention.
+If delivery must be paused, remove the finance cron; keep the source outbox
+and triggers so changes accumulate for retry. Never truncate/reset its identity
+sequence, since event IDs also identify versions already stored in D1.
+
+### Sales and audit archive
+
 - Completed, paid, delivered, refunded, voided, and closed orders
 - Receipt/order items
 - Closed and end-day cashier shift records
