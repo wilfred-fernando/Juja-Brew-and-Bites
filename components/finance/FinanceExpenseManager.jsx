@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/dateFormat";
+import { EXPENSE_TAX_TYPES, expenseVatBreakdown } from "@/lib/financeVat";
 import { INVENTORY_UNITS, normalizeUnit, syncExpensePurchaseToInventory } from "@/lib/inventory";
 
 const CATEGORY_OPTIONS = ["OP-EX", "PERSONAL"];
@@ -33,6 +34,7 @@ const REF_TYPES = [
 ];
 
 const initialExpenseForm = {
+  tax_type: "Non-VAT",
   expense_date: new Date().toISOString().slice(0, 10),
   description: "",
   supplier_name: "",
@@ -729,6 +731,7 @@ export default function FinanceExpenseManager() {
       discount: math.discount,
       total: math.total,
       category: form.category || "OP-EX",
+      tax_type: form.tax_type || null,
       payment_type: form.payment_type || null,
       cheque_no: form.cheque_no.trim() || null,
       cheque_date: form.cheque_date || null,
@@ -798,6 +801,7 @@ export default function FinanceExpenseManager() {
       unit_price: String(row.unit_price ?? ""),
       discount: String(row.discount ?? ""),
       category: row.category || "OP-EX",
+      tax_type: row.tax_type || "",
       payment_type: row.payment_type || "",
       cheque_no: row.cheque_no || "",
       cheque_date: dateInputValue(row.cheque_date),
@@ -848,7 +852,7 @@ export default function FinanceExpenseManager() {
   function addReceiptItem(scope) {
     const form = scope === "overall" ? expenseForm : pettyForm;
     const lines = expenseReceiptForms(form);
-    const next = { ...freshExpenseForm(form), ...receiptDetails(form) };
+    const next = { ...freshExpenseForm(form), ...receiptDetails(form), tax_type: form.tax_type };
     setReceiptItems([...lines, next]);
     setReceiptItemIndex(lines.length);
     (scope === "overall" ? setExpenseForm : setPettyForm)(next);
@@ -1530,10 +1534,15 @@ export default function FinanceExpenseManager() {
     const onSubmit = scope === "overall" ? saveOverallExpense : savePettyExpense;
     const math = lineMath(form);
     const allocation = allocationFor(form.category, math.total);
+    const vat = expenseVatBreakdown(math.total, form.tax_type);
     const editingThisForm = editingExpense?.scope === scope;
     const inventoryPreview = inventoryPurchasePreview(form);
     const receiptLines = expenseReceiptForms(form);
     const receiptTotal = receiptLines.reduce((sum, item) => sum + lineMath(item).total, 0);
+    const receiptVat = receiptLines.reduce((sum, item) => {
+      const breakdown = expenseVatBreakdown(lineMath(item).total, item.tax_type);
+      return { vatableSales: sum.vatableSales + breakdown.vatableSales, vatAmount: sum.vatAmount + breakdown.vatAmount };
+    }, { vatableSales: 0, vatAmount: 0 });
 
     return (
       <form onSubmit={onSubmit} className="space-y-4">
@@ -1570,6 +1579,7 @@ export default function FinanceExpenseManager() {
               ))}
             </div>
             <button type="button" onClick={() => addReceiptItem(scope)} className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-cyan-700"><Plus size={16} /> Add Another Item</button>
+            {receiptLines.some((item) => item.tax_type === "VAT") ? <p className="mt-3 text-xs text-slate-600">Receipt VAT breakdown: vatable sales {peso(receiptVat.vatableSales)} · VAT {peso(receiptVat.vatAmount)}. Non-VAT and AR items remain separate from vatable sales.</p> : null}
           </div>
         ) : null}
 
@@ -1627,11 +1637,17 @@ export default function FinanceExpenseManager() {
               {uniqueOptions([form.unit], unitOptions).map((option) => <option key={option}>{option}</option>)}
             </Select>
           </Field>
-          <Field label="Unit Price">
+          <Field label={form.tax_type === "VAT" ? "Unit Price (VAT included)" : "Unit Price"}>
             <Input type="number" min="0" step="0.01" value={form.unit_price} onChange={(e) => updateExpenseForm(scope, "unit_price", e.target.value)} />
           </Field>
           <Field label="Discount">
             <Input type="number" min="0" step="0.01" value={form.discount} onChange={(e) => updateExpenseForm(scope, "discount", e.target.value)} />
+          </Field>
+          <Field label="Tax / Receipt Type">
+            <Select value={form.tax_type} onChange={(e) => updateExpenseForm(scope, "tax_type", e.target.value)}>
+              {!form.tax_type ? <option value="">Unspecified (existing entry)</option> : null}
+              {EXPENSE_TAX_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+            </Select>
           </Field>
           <Field label="Payment Type">
             <Select value={form.payment_type} onChange={(e) => updateExpenseForm(scope, "payment_type", e.target.value)}>
@@ -1713,6 +1729,13 @@ export default function FinanceExpenseManager() {
           )}
         </div>
 
+        <div className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+          <p className="font-semibold">{form.tax_type || "Unspecified"} — current item</p>
+          {form.tax_type === "VAT" ? (
+            <p className="mt-1">Vatable sales {peso(vat.vatableSales)} + 12% VAT {peso(vat.vatAmount)} = {peso(math.total)}</p>
+          ) : form.tax_type ? <p className="mt-1">VAT: {peso(0)} · Total: {peso(math.total)}</p> : <p className="mt-1">Select a tax / receipt type to classify this expense.</p>}
+          {form.tax_type === "VAT" ? <p className="mt-1 text-xs text-slate-500">VAT is already included in the encoded amount. The breakdown uses the total after the item discount.</p> : null}
+        </div>
         <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-5">
           <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
             <p className="text-[9px] font-semibold uppercase text-slate-400">Sub-total</p>
@@ -1799,7 +1822,11 @@ export default function FinanceExpenseManager() {
                   <td className="px-4 py-3 text-right">{peso(row.unit_price)}</td>
                   <td className="px-4 py-3 text-right">{peso(row.subtotal)}</td>
                   <td className="px-4 py-3 text-right">{peso(row.discount)}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-slate-950">{peso(row.total)}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-slate-950">
+                    {peso(row.total)}
+                    <p className="text-[10px] font-normal text-slate-500">{row.tax_type || "Unspecified"}</p>
+                    {row.tax_type === "VAT" ? <p className="text-[10px] font-normal text-slate-500">Vatable {peso(expenseVatBreakdown(row.total, row.tax_type).vatableSales)} + VAT {peso(expenseVatBreakdown(row.total, row.tax_type).vatAmount)}</p> : null}
+                  </td>
                   <td className="px-4 py-3">
                     <span className={dataPillClass}>{row.category}</span>
                   </td>
