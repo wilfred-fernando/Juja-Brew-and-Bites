@@ -23,7 +23,7 @@ const BASE_BOOKING_MINUTES = 3 * 60;
 
 const DEPOSIT_AMOUNT = 1000;
 const PAYMENT_HOLD_HOURS = 24;
-const QR_IMAGE_PATH = "https://files.jujabrewandbites.com/public-media/qrph.jpg";
+const QR_IMAGE_PATH = "/payment-qr/qrph_pasong-tamo.jpg";
 const ADMIN_EMAIL = "jujabrewandbites@gmail.com";
 const EXPIRED_BOOKING_STATUS = "expired";
 const CUSTOMER_READ_ONLY_BOOKING_STATUSES = new Set([
@@ -2225,7 +2225,7 @@ export default function BookingForm({ user, member }) {
                     </p>
                     <img
                       src={QR_IMAGE_PATH}
-                      alt="JUJA QRPH payment code"
+                      alt="JUJA Pasong Tamo QRPH payment code"
                       className="mx-auto mt-3 w-full max-w-[260px] rounded-2xl border border-slate-200 bg-white object-contain p-2"
                     />
                     <p className="mt-2 text-xs leading-relaxed text-slate-500">

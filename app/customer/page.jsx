@@ -57,6 +57,10 @@ const peso2 = (amount) => `₱${Number(amount || 0).toLocaleString("en-PH", { mi
 const ALERT_SOUND_SRC = "/sound/notification.mp3";
 const CUSTOMER_NOTIFICATION_ICON = "/favicon.ico";
 const QRPH_IMAGE_PATH = "https://files.jujabrewandbites.com/public-media/qrph.jpg";
+const QRPH_IMAGE_BY_STORE = {
+  "e916bee8-3770-4650-9b46-d2e7d3ad49e6": "/payment-qr/qrph_diliman.jpg",
+  "bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e": "/payment-qr/qrph_pasong-tamo.jpg",
+};
 const optionGroupKey = (value) => String(value || "").trim().toLowerCase();
 const optionSelectionKey = (value) => String(value || "").trim().toLowerCase();
 
@@ -1138,6 +1142,7 @@ function DeliveryPinPickerModal({ open, address, pin, onAddressChange, onPinChan
 }
 
 function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEligibleSubtotal, cartItems, isSubmitting, selectedStore, selectedStoreName }) {
+  const qrphImagePath = QRPH_IMAGE_BY_STORE[selectedStore?.id] || QRPH_IMAGE_PATH;
   const [diningOption, setDiningOption] = useState("TAKEOUT");
   const [fulfillmentDate, setFulfillmentDate] = useState(getManilaDateString(0));
   const [fulfillmentTime, setFulfillmentTime] = useState(getManilaTimeString(30));
@@ -1686,11 +1691,12 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                       Scan to pay {peso2(remainingPayment)}
                     </p>
                     <Image
-                      src={QRPH_IMAGE_PATH}
-                      alt="JUJA QRPH payment code"
+                      src={qrphImagePath}
+                      alt={`${selectedStoreName || "JUJA"} QRPH payment code`}
                       width={260}
                       height={260}
-                      className="mx-auto mt-3 w-full max-w-[260px] rounded-2xl border border-slate-200 bg-white object-contain p-2"
+                      unoptimized
+                      className="mx-auto mt-3 h-auto w-full max-w-[260px] rounded-2xl border border-slate-200 bg-white object-contain p-2"
                     />
                     <p className="mt-2 text-xs leading-relaxed text-slate-500">
                       Complete the transfer in your banking or e-wallet app, then attach the payment confirmation below.
