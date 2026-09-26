@@ -2390,7 +2390,8 @@ export default function FinanceExpenseManager() {
             <SummaryCard label={`${selectedStoreName} Cash On Hand`} value={peso(selectedPettySummary.cashOnHand)} icon={Wallet} />
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 items-center gap-3 sm:grid-cols-3">
+            {renderExportButton("petty")}
             <button
               type="button"
               onClick={() => openExpenseModal("petty")}
@@ -2483,7 +2484,6 @@ export default function FinanceExpenseManager() {
           </div>
 
           {renderDeleteRequests()}
-          <div className="flex justify-end">{renderExportButton("petty")}</div>
           {renderExpenseTable(selectedStoreEntries, "finance_petty_cash_entries")}
         </div>
       ) : (
