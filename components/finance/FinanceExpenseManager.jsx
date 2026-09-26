@@ -1245,16 +1245,19 @@ export default function FinanceExpenseManager() {
     setReferenceModalOpen(true);
   }
 
-  function openExpenseItemModal(scope) {
+  function openExpenseReferenceModal(scope, refType) {
     if (!canManageAll) return;
     setNotice(null);
     const form = scope === "overall" ? expenseForm : pettyForm;
+    const name = refType === "supplier" ? form.supplier_name : form.description;
+    const existing = references.some((row) => row.ref_type === refType && normalize(row.name) === normalize(name));
     setEditingReferenceId(null);
     setReferenceExpenseScope(scope);
     setReferenceForm({
       ...initialReferenceForm,
-      name: itemReferenceFor(form.description) ? "" : form.description.trim(),
-      common_name: itemReferenceFor(form.description) ? "" : form.item_common_name,
+      ref_type: refType,
+      name: existing ? "" : name.trim(),
+      common_name: refType === "item" && !existing ? form.item_common_name : "",
     });
     setReferenceModalOpen(true);
   }
@@ -1276,8 +1279,8 @@ export default function FinanceExpenseManager() {
     if (saving === "reference") return;
     if (!canManageAll) return showNotice("error", "Only admin accounts can manage references.");
     if (!referenceForm.name.trim()) return showNotice("error", "Reference name is required.");
-    if (referenceExpenseScope && references.some((row) => row.ref_type === "item" && normalize(row.name) === normalize(referenceForm.name))) {
-      return showNotice("error", "This item already exists in References. Choose the existing item, or use a different name.");
+    if (referenceExpenseScope && references.some((row) => row.ref_type === referenceForm.ref_type && normalize(row.name) === normalize(referenceForm.name))) {
+      return showNotice("error", `This ${referenceForm.ref_type} already exists in References. Choose the existing ${referenceForm.ref_type}, or use a different name.`);
     }
 
     setSaving("reference");
@@ -1315,8 +1318,8 @@ export default function FinanceExpenseManager() {
         setReferences((prev) => [...prev, newRow].sort((a, b) => a.ref_type.localeCompare(b.ref_type) || a.name.localeCompare(b.name)));
         if (referenceExpenseScope) {
           const setter = referenceExpenseScope === "overall" ? setExpenseForm : setPettyForm;
-          const inventoryItem = inventoryItemFor(newRow.name, newRow.common_name || "");
-          setter((prev) => ({
+          const inventoryItem = newRow.ref_type === "item" ? inventoryItemFor(newRow.name, newRow.common_name || "") : null;
+          setter((prev) => newRow.ref_type === "supplier" ? { ...prev, supplier_name: newRow.name } : ({
             ...prev,
             description: newRow.name,
             item_common_name: newRow.common_name || "",
@@ -1333,7 +1336,7 @@ export default function FinanceExpenseManager() {
         }
         setReferenceModalOpen(false);
         setReferenceExpenseScope(null);
-        showNotice("success", referenceExpenseScope ? "Item added to References and selected for this expense." : "Reference added.");
+        showNotice("success", referenceExpenseScope ? `${newRow.ref_type === "supplier" ? "Supplier" : "Item"} added to References and selected for this expense.` : "Reference added.");
       }
     }
     setSaving("");
@@ -1444,7 +1447,7 @@ export default function FinanceExpenseManager() {
               required
             />
             {canManageAll ? (
-              <button type="button" onClick={() => openExpenseItemModal(scope)} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-cyan-700 hover:text-cyan-900">
+              <button type="button" onClick={() => openExpenseReferenceModal(scope, "item")} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-cyan-700 hover:text-cyan-900">
                 <Plus size={14} /> Add New Item Details
               </button>
             ) : null}
@@ -1455,6 +1458,11 @@ export default function FinanceExpenseManager() {
               options={supplierReferences.map((row) => row.name)}
               onChange={(value) => updateExpenseForm(scope, "supplier_name", value)}
             />
+            {canManageAll ? (
+              <button type="button" onClick={() => openExpenseReferenceModal(scope, "supplier")} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-cyan-700 hover:text-cyan-900">
+                <Plus size={14} /> Add Supplier Details
+              </button>
+            ) : null}
           </Field>
           <Field label="Common Name">
             <Input
@@ -1795,7 +1803,7 @@ export default function FinanceExpenseManager() {
   function renderReferenceForm() {
     return (
       <form onSubmit={saveReference} className="space-y-4">
-        {referenceExpenseScope ? <p className="text-sm text-slate-600">Save this item to References and select it for your expense. Your expense details will be kept.</p> : null}
+        {referenceExpenseScope ? <p className="text-sm text-slate-600">Save this {referenceForm.ref_type} to References and select it for your expense. Your expense details will be kept.</p> : null}
         {referenceExpenseScope && notice?.type === "error" ? <p role="alert" className="text-sm text-red-600">{notice.message}</p> : null}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Reference Type">
@@ -1902,7 +1910,7 @@ export default function FinanceExpenseManager() {
           disabled={saving === "reference"}
           className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_28px_rgba(8,145,178,0.28)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-500 disabled:bg-slate-300"
         >
-          {saving === "reference" ? "Saving..." : referenceExpenseScope ? "Save Item & Use in Expense" : editingReferenceId ? "Save Reference" : "Add Reference"}
+          {saving === "reference" ? "Saving..." : referenceExpenseScope ? `Save ${referenceForm.ref_type === "supplier" ? "Supplier" : "Item"} & Use in Expense` : editingReferenceId ? "Save Reference" : "Add Reference"}
         </button>
       </form>
     );
@@ -2272,7 +2280,7 @@ export default function FinanceExpenseManager() {
 
       <Modal
         open={referenceModalOpen}
-        title={referenceExpenseScope ? "Add New Item Details" : editingReferenceId ? "Edit Reference" : "Add Reference"}
+        title={referenceExpenseScope ? referenceForm.ref_type === "supplier" ? "Add Supplier Details" : "Add New Item Details" : editingReferenceId ? "Edit Reference" : "Add Reference"}
         onClose={closeReferenceModal}
         width="max-w-2xl"
       >
