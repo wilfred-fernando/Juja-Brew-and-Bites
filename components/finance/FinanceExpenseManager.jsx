@@ -5,6 +5,7 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   Database,
+  Download,
   Pencil,
   Plus,
   RefreshCw,
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/dateFormat";
+import { financeExpensesCsv } from "@/lib/financeCsv";
 import { EXPENSE_TAX_TYPES, expenseVatBreakdown } from "@/lib/financeVat";
 import { INVENTORY_UNITS, normalizeUnit, syncExpensePurchaseToInventory } from "@/lib/inventory";
 
@@ -342,6 +344,7 @@ export default function FinanceExpenseManager() {
   const [references, setReferences] = useState([]);
   const [expenseForm, setExpenseForm] = useState(initialExpenseForm);
   const [pettyForm, setPettyForm] = useState(initialExpenseForm);
+  const [exporting, setExporting] = useState("");
   const [receiptItems, setReceiptItems] = useState([]);
   const [receiptItemIndex, setReceiptItemIndex] = useState(0);
   const [fundForm, setFundForm] = useState(initialFundForm);
@@ -1771,6 +1774,49 @@ export default function FinanceExpenseManager() {
     );
   }
 
+  async function exportExpenses(scope) {
+    if (exporting) return;
+    if (scope === "overall" && !canManageAll) return;
+    if (scope === "petty" && !selectedStoreId) return;
+    const filter = scope === "overall" ? overallDateFilter : pettyDateFilter;
+    const storeId = isCashier ? currentProfile?.store_id : selectedStoreId;
+    if (scope === "petty" && !storeId) return;
+    setExporting(scope);
+    try {
+      const rows = [];
+      // Export the entire filtered result, including rows beyond the UI's limit.
+      for (let offset = 0; ; offset += 500) {
+        let query = supabase.from(scope === "overall" ? "finance_expenses" : "finance_petty_cash_entries")
+          .select("*").order("expense_date", { ascending: false }).order("id").range(offset, offset + 499);
+        if (scope === "petty") query = query.eq("store_id", storeId);
+        if (filter.from) query = query.gte("expense_date", filter.from);
+        if (filter.to) query = query.lte("expense_date", filter.to);
+        const { data, error } = await query;
+        if (error) throw error;
+        rows.push(...(data || []));
+        if ((data || []).length < 500) break;
+      }
+      if (!rows.length) return showNotice("error", "No expenses match the selected filters.");
+      const csv = financeExpensesCsv(rows, storeNameById);
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+      const link = document.createElement("a");
+      const branch = scope === "petty" ? `-${String(storeNameById[storeId] || storeId).replace(/[^a-z0-9]+/gi, "-")}` : "";
+      link.href = url;
+      link.download = `${scope}-expenses${branch}-${filter.from || "all"}-to-${filter.to || "latest"}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showNotice("success", `Exported ${rows.length} expense rows.`);
+    } catch (error) {
+      showNotice("error", `CSV export failed: ${error.message}`);
+    } finally { setExporting(""); }
+  }
+
+  function renderExportButton(scope) {
+    return <button type="button" onClick={() => exportExpenses(scope)} disabled={Boolean(exporting) || (scope === "petty" && !selectedStoreId)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-cyan-200 bg-white px-4 text-xs font-semibold text-cyan-800 disabled:opacity-50"><Download size={15} />{exporting === scope ? "Exporting..." : "Export Expenses CSV"}</button>;
+  }
+
   function renderExpenseTable(rows, tableName, options = {}) {
     const { showStore = false, showSource = false } = options;
     const isOverallTable = tableName === "finance_expenses";
@@ -2308,7 +2354,8 @@ export default function FinanceExpenseManager() {
             <SummaryCard label="Personal" value={peso(overallSummary.personal)} icon={Wallet} tone="amber" />          
           </div>
           {renderDateFilter("Overall Expenses Date", overallDateFilter, setOverallDateFilter)}
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-3">
+            {renderExportButton("overall")}
             <button
               type="button"
               onClick={() => openExpenseModal("overall")}
@@ -2436,6 +2483,7 @@ export default function FinanceExpenseManager() {
           </div>
 
           {renderDeleteRequests()}
+          <div className="flex justify-end">{renderExportButton("petty")}</div>
           {renderExpenseTable(selectedStoreEntries, "finance_petty_cash_entries")}
         </div>
       ) : (
