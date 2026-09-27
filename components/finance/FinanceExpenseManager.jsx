@@ -18,6 +18,7 @@ import {
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/dateFormat";
 import { financeExpensesCsv } from "@/lib/financeCsv";
+import PettyCashMonthlySummary from "./PettyCashMonthlySummary";
 import { expenseSupplierDetails } from "@/lib/financeSuppliers";
 import { EXPENSE_TAX_TYPES, expenseVatBreakdown } from "@/lib/financeVat";
 import { INVENTORY_UNITS, normalizeUnit, syncExpensePurchaseToInventory } from "@/lib/inventory";
@@ -348,6 +349,7 @@ export default function FinanceExpenseManager() {
   const [expenseForm, setExpenseForm] = useState(initialExpenseForm);
   const [pettyForm, setPettyForm] = useState(initialExpenseForm);
   const [exporting, setExporting] = useState("");
+  const [monthlySummaryOpen, setMonthlySummaryOpen] = useState(false);
   const [receiptItems, setReceiptItems] = useState([]);
   const [receiptItemIndex, setReceiptItemIndex] = useState(0);
   const [fundForm, setFundForm] = useState(initialFundForm);
@@ -2500,6 +2502,10 @@ export default function FinanceExpenseManager() {
           </div>
 
           {renderDeleteRequests()}
+          <button type="button" disabled={!selectedStoreId} onClick={() => setMonthlySummaryOpen((open) => !open)} className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-semibold text-cyan-800 disabled:opacity-40">
+            {monthlySummaryOpen ? "Hide Monthly Summary" : "Monthly Summary"}
+          </button>
+          {monthlySummaryOpen && selectedStoreId ? <PettyCashMonthlySummary storeId={isCashier ? currentProfile.store_id : selectedStoreId} storeName={selectedStoreName} /> : null}
           {renderExpenseTable(selectedStoreEntries, "finance_petty_cash_entries")}
         </div>
       ) : (
