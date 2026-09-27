@@ -544,8 +544,10 @@ export default function AdminBookingsDashboard() {
         if (new Date(booking.start_at) < now) return false;
         return (
           booking.status === "cancellation_requested" ||
-          booking.payment_status === "submitted" ||
-          booking.payment_status === "cash_pending"
+          (booking.status === "pending" && (
+            booking.payment_status === "submitted" ||
+            booking.payment_status === "cash_pending"
+          ))
         );
       })
       .sort((a, b) => priority(a) - priority(b) || new Date(a.start_at) - new Date(b.start_at))
@@ -1030,8 +1032,11 @@ export default function AdminBookingsDashboard() {
       confirmed: bookingsInWeek.filter((booking) => booking.status === "confirmed").length,
       needsReview: bookingsInWeek.filter(
         (booking) =>
-          booking.payment_status === "submitted" ||
-          booking.payment_status === "cash_pending"
+          booking.status === "cancellation_requested" ||
+          (booking.status === "pending" && (
+            booking.payment_status === "submitted" ||
+            booking.payment_status === "cash_pending"
+          ))
       ).length,
       guests: bookingsInWeek.reduce((sum, booking) => sum + Number(booking.guest_count || 0), 0),
     }),
@@ -1159,6 +1164,7 @@ export default function AdminBookingsDashboard() {
                               ) : null}
                               <button
                                 type="button"
+                                disabled={!cancellation && booking.status !== "pending"}
                                 onClick={() => setActionModal({ type: "approve", booking })}
                                 className="rounded-lg bg-[#0b6942] px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-white"
                               >
