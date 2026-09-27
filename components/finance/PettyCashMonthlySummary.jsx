@@ -48,7 +48,7 @@ export default function PettyCashMonthlySummary({ storeId, storeName, scope = "p
     return () => { cancelled = true; };
   }, [month, storeId, revision, isOverall]);
   const current = result?.month === month && result?.storeId === storeId && result?.isOverall === isOverall ? result : null;
-  const summary = useMemo(() => current ? pettyCashMonthlySummary(current.entries, current.references) : null, [current]);
+  const summary = useMemo(() => current ? pettyCashMonthlySummary(current.entries, current.references, { includePcv: !isOverall }) : null, [current, isOverall]);
   function download() {
     if (!summary) return;
     const url = URL.createObjectURL(new Blob([pettyCashMonthlyCsv(summary)], { type: "text/csv;charset=utf-8;" }));
@@ -65,14 +65,14 @@ export default function PettyCashMonthlySummary({ storeId, storeName, scope = "p
       <button type="button" onClick={() => setRevision((value) => value + 1)} className="rounded-lg border px-3 py-2 text-sm">Refresh</button>
       <button type="button" disabled={!summary} onClick={download} className="rounded-lg bg-cyan-700 px-3 py-2 text-sm text-white disabled:opacity-40">Export Monthly CSV</button>
     </div>
-    <p className="text-xs text-slate-500">PCV No. is blank. Non-VAT appears under VAT Exempt; AR appears in its own column. Category amounts include VAT. Unclassified items appear under Uncategorized; receipts without numbers remain separate.</p>
+    <p className="text-xs text-slate-500">{!isOverall && "PCV No. is blank. "}Non-VAT appears under VAT Exempt; AR appears in its own column. Category amounts include VAT. Unclassified items appear under Uncategorized; receipts without numbers remain separate.</p>
     {error ? <p role="alert" className="text-sm text-red-600">{error}</p> : !month ? <p>Select a month.</p> : !summary ? <p role="status">Loading monthly summary…</p> : <>
       <p className="text-sm">{summary.rows.length} receipt totals</p>
       <div className="max-h-[65vh] overflow-auto rounded-lg border">
         <table className="w-full whitespace-nowrap text-xs">
           <thead className="sticky top-0 bg-slate-900 text-white"><tr>{summary.headers.map((header, index) => <th key={index} scope="col" className="px-3 py-3 text-left">{header}</th>)}</tr></thead>
-          <tbody>{summary.rows.map((row, index) => <tr key={index} className="border-b even:bg-slate-50">{row.map((value, column) => <td key={column} className={`px-3 py-2 ${summary.headers[column] === "Description" ? "min-w-[220px] max-w-[320px] whitespace-normal break-words [overflow-wrap:anywhere]" : ""} ${typeof value === "number" ? "text-right tabular-nums" : ""}`}>{typeof value === "number" && column !== 5 ? value.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : value}</td>)}</tr>)}</tbody>
-          <tfoot className="sticky bottom-0 bg-slate-100 font-semibold"><tr>{summary.totals.map((value, column) => <td key={column} className="px-3 py-3">{typeof value === "number" && column !== 5 ? value.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : value}</td>)}</tr></tfoot>
+          <tbody>{summary.rows.map((row, index) => <tr key={index} className="border-b even:bg-slate-50">{row.map((value, column) => <td key={column} className={`px-3 py-2 ${summary.headers[column] === "Description" ? "min-w-[220px] max-w-[320px] whitespace-normal break-words [overflow-wrap:anywhere]" : ""} ${typeof value === "number" ? "text-right tabular-nums" : ""}`}>{typeof value === "number" && summary.headers[column] !== "Qty" ? value.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : value}</td>)}</tr>)}</tbody>
+          <tfoot className="sticky bottom-0 bg-slate-100 font-semibold"><tr>{summary.totals.map((value, column) => <td key={column} className="px-3 py-3">{typeof value === "number" && summary.headers[column] !== "Qty" ? value.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : value}</td>)}</tr></tfoot>
         </table>
       </div>
       {!summary.rows.length && <p className="text-sm text-slate-500">No {isOverall ? "overall" : "petty cash"} expenses for this month.</p>}
