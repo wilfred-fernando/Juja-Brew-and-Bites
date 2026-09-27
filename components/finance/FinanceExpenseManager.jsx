@@ -1882,41 +1882,41 @@ export default function FinanceExpenseManager() {
               const supplier = expenseSupplierDetails(row, references);
               const startsNewDay = index > 0 && row.expense_date !== rows[index - 1].expense_date;
               return (
-                <tr key={row.id} className={`text-slate-700 transition duration-200 hover:bg-cyan-50/45 ${startsNewDay ? "border-t-2 border-t-cyan-600" : ""}`}>
-                  <td className="px-4 py-3 font-semibold">{dateText(row.expense_date)}</td>
+                <tr key={row.id} className="text-slate-700 transition duration-200 hover:bg-cyan-50/45">
+                  <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3 font-semibold">{dateText(row.expense_date)}</td>
                   {showSource ? (
-                    <td className="px-4 py-3">
+                    <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3">
                       <span className={dataPillClass}>
                         {sourceLabel}
                       </span>
                     </td>
                   ) : null}
-                  {showStore ? <td className="px-4 py-3 font-semibold">{storeNameById[row.store_id] || "-"}</td> : null}
-                  <td className="px-4 py-3 text-slate-950">{row.description}</td>
-                  <td className="px-4 py-3">{row.item_common_name || "-"}</td>
-                  <td className="px-4 py-3">{row.supplier_name || "-"}</td>
-                  <td className="px-4 py-3">{supplier.companyName || "-"}</td>
-                  <td className="px-4 py-3">{supplier.tinNumber || "-"}</td>
-                  <td className="px-4 py-3 text-center">{Number(row.quantity || 0).toLocaleString("en-PH")}</td>
-                  <td className="px-4 py-3 text-center">{normalizeUnit(row.unit) || "-"}</td>
-                  <td className="px-4 py-3 text-right">{peso(row.unit_price)}</td>
-                  <td className="px-4 py-3 text-right">{peso(row.subtotal)}</td>
-                  <td className="px-4 py-3 text-right">{peso(row.discount)}</td>
-                  <td className="px-4 py-3">{row.tax_type || "Unspecified"}</td>
-                  <td className="px-4 py-3 text-right">{row.tax_type ? peso(expenseVatBreakdown(row.total, row.tax_type).vatableSales) : "-"}</td>
-                  <td className="px-4 py-3 text-right">{row.tax_type ? peso(expenseVatBreakdown(row.total, row.tax_type).vatAmount) : "-"}</td>
-                  <td className="px-4 py-3">{row.receipt_type || "-"}</td>
-                  <td className="px-4 py-3">{row.or_si_no || "-"}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-slate-950">
+                  {showStore ? <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3 font-semibold">{storeNameById[row.store_id] || "-"}</td> : null}
+                  <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3 text-slate-950">{row.description}</td>
+                  <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3">{row.item_common_name || "-"}</td>
+                  <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3">{row.supplier_name || "-"}</td>
+                  <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3">{supplier.companyName || "-"}</td>
+                  <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3">{supplier.tinNumber || "-"}</td>
+                  <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3 text-center">{Number(row.quantity || 0).toLocaleString("en-PH")}</td>
+                  <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3 text-center">{normalizeUnit(row.unit) || "-"}</td>
+                  <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3 text-right">{peso(row.unit_price)}</td>
+                  <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3 text-right">{peso(row.subtotal)}</td>
+                  <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3 text-right">{peso(row.discount)}</td>
+                  <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3">{row.tax_type || "Unspecified"}</td>
+                  <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3 text-right">{row.tax_type ? peso(expenseVatBreakdown(row.total, row.tax_type).vatableSales) : "-"}</td>
+                  <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3 text-right">{row.tax_type ? peso(expenseVatBreakdown(row.total, row.tax_type).vatAmount) : "-"}</td>
+                  <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3">{row.receipt_type || "-"}</td>
+                  <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3">{row.or_si_no || "-"}</td>
+                  <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3 text-right font-semibold text-slate-950">
                     {peso(row.total)}
                   </td>
-                  <td className="px-4 py-3">
+                  <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3">
                     <span className={dataPillClass}>{row.category}</span>
                   </td>
-                  <td className="px-4 py-3">{row.payment_type || "-"}</td>
-                  <td className="px-4 py-3">{syncBadge(row.inventory_sync_status)}</td>
-                  <td className="px-4 py-3">{row.submitted_by || "-"}</td>
-                  <td className="px-4 py-3 text-right">
+                  <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3">{row.payment_type || "-"}</td>
+                  <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3">{syncBadge(row.inventory_sync_status)}</td>
+                  <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3">{row.submitted_by || "-"}</td>
+                  <td style={startsNewDay ? { borderTop: "3px solid #0891b2" } : undefined} className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => openExpenseModal(tableName === "finance_petty_cash_entries" ? "petty" : "overall", row)}
