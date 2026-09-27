@@ -1954,7 +1954,14 @@ function isActiveKdsKitchenItem(item) {
 }
 
 function kitchenPrinterGroup(groups = []) {
-  return (groups || []).find((group) => group.key === "kitchen" || String(group.name || "").trim().toLowerCase() === "kitchen") || null;
+  const kitchenGroups = (groups || []).filter((group) =>
+    group.is_active !== false && (group.key === "kitchen" || String(group.name || "").toLowerCase().includes("kitchen"))
+  );
+  if (!kitchenGroups.length) return null;
+  return {
+    categoryIds: [...new Set(kitchenGroups.flatMap((group) => group.categoryIds || []))],
+    categoryNames: [...new Set(kitchenGroups.flatMap((group) => group.categoryNames || []))],
+  };
 }
 
 function normalizeLabelLine(value) {
@@ -4715,7 +4722,7 @@ export default function POSPage() {
   };
 
   const getKitchenPrinterGroupItems = (lines = []) => {
-    const kitchenGroup = (orderSlipPrinterGroups || []).find((group) => group.key === "kitchen");
+    const kitchenGroup = kitchenPrinterGroup(orderSlipPrinterGroups);
     if (!kitchenGroup) return [];
     return filterItemsByPrinterGroup(lines, kitchenGroup.categoryIds, kitchenGroup.categoryNames);
   };
@@ -6107,7 +6114,7 @@ export default function POSPage() {
 
     const activeSlipGroups = (groups || [])
       .filter((group) => group.is_active !== false)
-      .filter((group) => ["kitchen", "bar"].includes(String(group.name || "").trim().toLowerCase()));
+      .filter((group) => String(group.name || "").toLowerCase().includes("kitchen") || String(group.name || "").trim().toLowerCase() === "bar");
 
     if (activeSlipGroups.length === 0) {
       setBarPrinterCategoryIds([]);
@@ -9437,7 +9444,7 @@ export default function POSPage() {
       if (!activeWebOrderId && originalTicketId) {
         const { data: ticketForCharge, error: ticketForChargeErr } = await supabase
           .from("open_tickets")
-          .select("id, store_id, ticket_name, order_type")
+          .select("id, store_id, ticket_name, order_type, items, created_at")
           .eq("id", originalTicketId)
           .eq("store_id", resolvedBranchId)
           .maybeSingle();
@@ -9446,7 +9453,11 @@ export default function POSPage() {
           await fetchSavedTickets(storeId);
           return showToast("error", "Wrong Store Ticket", "This saved ticket is not assigned to this POS store. Reopen the correct ticket list and try again.");
         }
-        originalTicketForCharge = ticketForCharge;
+        const savedLineItems = await fetchOpenTicketLineItems([originalTicketId], resolvedBranchId);
+        originalTicketForCharge = {
+          ...ticketForCharge,
+          items: savedLineItems.get(String(originalTicketId)) || ticketForCharge.items || [],
+        };
       }
 
       if (discountClaims.length > 0) {
@@ -9559,7 +9570,26 @@ export default function POSPage() {
       createdOrderRow = orderRow;
       if (usingGc && result.data?.replayed) return showRecoveredGcSale(orderRow);
 
-      if (!activeWebOrderId && !originalTicketId) {
+      if (!activeWebOrderId && originalTicketId) {
+        const addedItems = getKitchenPrinterGroupItems(getAddedTicketLines(
+          originalTicketForCharge?.items || [],
+          enrichOrderItemsForKds(cart)
+        ));
+        if (addedItems.length > 0) {
+          const { error: kdsErr } = await appendKdsTicketItems(supabase, {
+            sourceType: "pos",
+            order: {
+              ...orderRow,
+              id: originalTicketId,
+              order_id: orderRow.id,
+              created_at: originalTicketForCharge?.created_at || orderRow.created_at,
+            },
+            items: addedItems,
+            status: "preparing",
+          });
+          if (kdsErr) showToast("warn", "KDS Sync Warning", kdsErr.message);
+        }
+      } else if (!activeWebOrderId && !originalTicketId) {
         const { error: kdsErr } = await upsertKdsTicket(supabase, {
           sourceType: "pos",
           order: { ...orderRow, items: enrichOrderItemsForKds(cart) },
@@ -9641,8 +9671,7 @@ export default function POSPage() {
           }
         }
         if (originalTicketId) {
-          // The saved ticket was already sent to KDS when first saved.
-          // Charging should not resend or complete the kitchen ticket.
+          // Checkout sends only kitchen additions above; preserve the existing KDS history.
           await supabase.from("open_tickets").delete().eq("id", originalTicketId).eq("store_id", getTicketStoreId(originalTicketForCharge) || resolvedBranchId);
         } else {
           console.warn("Charge completed without an attached open ticket id; skipped open_tickets cleanup.");
