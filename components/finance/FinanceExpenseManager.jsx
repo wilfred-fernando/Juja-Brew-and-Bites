@@ -1590,7 +1590,7 @@ export default function FinanceExpenseManager() {
               ))}
             </div>
             <button type="button" onClick={() => addReceiptItem(scope)} className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-cyan-700"><Plus size={16} /> Add Another Item</button>
-            {receiptLines.some((item) => item.tax_type === "VAT") ? <p className="mt-3 text-xs text-slate-600">Receipt VAT breakdown: vatable sales {peso(receiptVat.vatableSales)} · VAT {peso(receiptVat.vatAmount)}. Non-VAT and AR items remain separate from vatable sales.</p> : null}
+            {receiptLines.some((item) => item.tax_type === "VAT") ? <p className="mt-3 text-xs text-slate-600">Receipt VAT breakdown: VAT Amount {peso(receiptVat.vatableSales)} · Input VAT {peso(receiptVat.vatAmount)}. Non-VAT and AR items remain separate from VAT Amount.</p> : null}
           </div>
         ) : null}
 
@@ -1755,8 +1755,8 @@ export default function FinanceExpenseManager() {
         <div className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
           <p className="font-semibold">{form.tax_type || "Unspecified"} — current item</p>
           {form.tax_type === "VAT" ? (
-            <p className="mt-1">Vatable sales {peso(vat.vatableSales)} + 12% VAT {peso(vat.vatAmount)} = {peso(math.total)}</p>
-          ) : form.tax_type ? <p className="mt-1">VAT: {peso(0)} · Total: {peso(math.total)}</p> : <p className="mt-1">Select a tax type to classify this expense.</p>}
+            <p className="mt-1">VAT Amount {peso(vat.vatableSales)} + 12% Input VAT {peso(vat.vatAmount)} = {peso(math.total)}</p>
+          ) : form.tax_type ? <p className="mt-1">Input VAT: {peso(0)} · Total: {peso(math.total)}</p> : <p className="mt-1">Select a tax type to classify this expense.</p>}
           {form.tax_type === "VAT" ? <p className="mt-1 text-xs text-slate-500">VAT is already included in the encoded amount. The breakdown uses the total after the item discount.</p> : null}
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-5">
@@ -1861,8 +1861,8 @@ export default function FinanceExpenseManager() {
               <th className="px-4 py-3 text-right">Sub-total</th>
               <th className="px-4 py-3 text-right">Discount</th>
               <th className="px-4 py-3">Tax Type</th>
-              <th className="px-4 py-3 text-right">Vatable Sales</th>
-              <th className="px-4 py-3 text-right">VAT</th>
+              <th className="px-4 py-3 text-right">VAT Amount</th>
+              <th className="px-4 py-3 text-right">Input VAT</th>
               <th className="px-4 py-3">Receipt Type</th>
               <th className="px-4 py-3 text-right">Total</th>
               <th className="px-4 py-3">Category</th>
