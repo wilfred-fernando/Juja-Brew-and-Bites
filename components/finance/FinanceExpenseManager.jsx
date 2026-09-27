@@ -1883,7 +1883,7 @@ export default function FinanceExpenseManager() {
               const startsNewDay = index > 0 && row.expense_date !== rows[index - 1].expense_date;
               return (
                 <Fragment key={row.id}>
-                  {startsNewDay ? <tr><td colSpan={23 + Number(showSource) + Number(showStore)} className="p-0"><div style={{ borderTop: "4px solid #0891b2", background: "#ecfeff", padding: "8px 16px", color: "#155e75", fontWeight: 700 }}>{dateText(row.expense_date)}</div></td></tr> : null}
+                  {startsNewDay ? <tr><td colSpan={23 + Number(showSource) + Number(showStore)} className="p-0"><div style={{ borderTop: "1px solid #0891b2", background: "#ecfeff", padding: "8px 16px", color: "#155e75", fontWeight: 700 }}>{dateText(row.expense_date)}</div></td></tr> : null}
                 <tr className="text-slate-700 transition duration-200 hover:bg-cyan-50/45">
                   <td className="px-4 py-3 font-semibold">{dateText(row.expense_date)}</td>
                   {showSource ? (
