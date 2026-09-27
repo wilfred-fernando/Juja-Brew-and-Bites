@@ -350,6 +350,7 @@ export default function FinanceExpenseManager() {
   const [pettyForm, setPettyForm] = useState(initialExpenseForm);
   const [exporting, setExporting] = useState("");
   const [monthlySummaryOpen, setMonthlySummaryOpen] = useState(false);
+  const [overallMonthlySummaryOpen, setOverallMonthlySummaryOpen] = useState(false);
   const [receiptItems, setReceiptItems] = useState([]);
   const [receiptItemIndex, setReceiptItemIndex] = useState(0);
   const [fundForm, setFundForm] = useState(initialFundForm);
@@ -1866,6 +1867,7 @@ export default function FinanceExpenseManager() {
               <th className="px-4 py-3 text-right">VAT Amount</th>
               <th className="px-4 py-3 text-right">Input VAT</th>
               <th className="px-4 py-3">Receipt Type</th>
+              <th className="px-4 py-3">Receipt Number</th>
               <th className="px-4 py-3 text-right">Total</th>
               <th className="px-4 py-3">Category</th>
               <th className="px-4 py-3">Payment</th>
@@ -1903,6 +1905,7 @@ export default function FinanceExpenseManager() {
                   <td className="px-4 py-3 text-right">{row.tax_type ? peso(expenseVatBreakdown(row.total, row.tax_type).vatableSales) : "-"}</td>
                   <td className="px-4 py-3 text-right">{row.tax_type ? peso(expenseVatBreakdown(row.total, row.tax_type).vatAmount) : "-"}</td>
                   <td className="px-4 py-3">{row.receipt_type || "-"}</td>
+                  <td className="px-4 py-3">{row.or_si_no || "-"}</td>
                   <td className="px-4 py-3 text-right font-semibold text-slate-950">
                     {peso(row.total)}
                   </td>
@@ -2383,6 +2386,10 @@ export default function FinanceExpenseManager() {
               Add Overall Expense
             </button>
           </div>
+          <button type="button" onClick={() => setOverallMonthlySummaryOpen((open) => !open)} className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-semibold text-cyan-800">
+            {overallMonthlySummaryOpen ? "Hide Monthly Summary" : "Monthly Summary"}
+          </button>
+          {overallMonthlySummaryOpen ? <PettyCashMonthlySummary scope="overall" /> : null}
           {renderExpenseTable(filteredOverallExpenses, "finance_expenses", { showSource: true })}
         </div>
       ) : tab === "petty" ? (
