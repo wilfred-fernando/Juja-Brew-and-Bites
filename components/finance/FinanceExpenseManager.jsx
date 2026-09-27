@@ -1644,11 +1644,11 @@ export default function FinanceExpenseManager() {
           </Field>
           <Field label="Qty">
             <div className="flex items-center gap-2">
-              <button type="button" aria-label="Decrease quantity" disabled={numberValue(form.quantity) <= 0} onClick={() => updateExpenseForm(scope, "quantity", String(Math.max(0, Math.ceil(numberValue(form.quantity)) - 1)))} className="h-11 w-11 shrink-0 rounded-xl border border-slate-300 bg-white text-xl font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40">−</button>
-              <Input type="number" aria-label="Quantity" inputMode="numeric" min="0" step="1" value={form.quantity} onChange={(e) => {
-                if (/^\d*$/.test(e.target.value)) updateExpenseForm(scope, "quantity", e.target.value);
+              <button type="button" aria-label="Decrease quantity" disabled={numberValue(form.quantity) <= 0} onClick={() => updateExpenseForm(scope, "quantity", String(Math.max(0, Math.round((numberValue(form.quantity) - 1) * 1000) / 1000)))} className="h-11 w-11 shrink-0 rounded-xl border border-slate-300 bg-white text-xl font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40">−</button>
+              <Input type="number" aria-label="Quantity" inputMode="decimal" min="0" step="0.001" value={form.quantity} onChange={(e) => {
+                if (/^\d*(\.\d{0,3})?$/.test(e.target.value)) updateExpenseForm(scope, "quantity", e.target.value);
               }} />
-              <button type="button" aria-label="Increase quantity" onClick={() => updateExpenseForm(scope, "quantity", String(Math.max(0, Math.floor(numberValue(form.quantity))) + 1))} className="h-11 w-11 shrink-0 rounded-xl border border-slate-300 bg-white text-xl font-semibold text-slate-700 hover:bg-slate-50">+</button>
+              <button type="button" aria-label="Increase quantity" onClick={() => updateExpenseForm(scope, "quantity", String(Math.round((Math.max(0, numberValue(form.quantity)) + 1) * 1000) / 1000))} className="h-11 w-11 shrink-0 rounded-xl border border-slate-300 bg-white text-xl font-semibold text-slate-700 hover:bg-slate-50">+</button>
             </div>
           </Field>
           <Field label="Unit">
