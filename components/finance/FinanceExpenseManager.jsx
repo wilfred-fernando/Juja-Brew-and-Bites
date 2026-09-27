@@ -1409,8 +1409,6 @@ export default function FinanceExpenseManager() {
     if (saving === "reference") return;
     if (!canManageAll) return showNotice("error", "Only admin accounts can manage references.");
     if (!referenceForm.name.trim()) return showNotice("error", "Reference name is required.");
-    const allowedNames = referenceForm.ref_type === "tax_type" ? EXPENSE_TAX_TYPES : referenceForm.ref_type === "receipt_type" ? ["OR", "SI", "DR"] : null;
-    if (allowedNames && !allowedNames.includes(referenceForm.name.trim())) return showNotice("error", `Supported values: ${allowedNames.join(", ")}.`);
     if (referenceExpenseScope && references.some((row) => row.ref_type === referenceForm.ref_type && normalize(row.name) === normalize(referenceForm.name))) {
       return showNotice("error", `This ${referenceForm.ref_type} already exists in References. Choose the existing ${referenceForm.ref_type}, or use a different name.`);
     }
@@ -1505,8 +1503,6 @@ export default function FinanceExpenseManager() {
         .filter((row) => row.ref_type === bulkReferenceType)
         .map((row) => normalize(row.name))
     );
-    const allowedNames = bulkReferenceType === "tax_type" ? EXPENSE_TAX_TYPES : bulkReferenceType === "receipt_type" ? ["OR", "SI", "DR"] : null;
-    if (allowedNames && names.some((name) => !allowedNames.includes(name))) return showNotice("error", `Supported values: ${allowedNames.join(", ")}.`);
     const newRows = names
       .filter((name) => !existingNames.has(normalize(name)))
       .map((name) => ({
