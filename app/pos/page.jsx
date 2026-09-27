@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -8,7 +8,8 @@ import { createCoalescedRefresh } from "@/lib/coalescedRefresh";
 import { getStableSession } from "@/lib/supabase/session";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { deductInventoryForOrder, normalizeUnit, restoreInventoryForOrder } from "@/lib/inventory";
-import { appendKdsTicketItems, markKdsTicketItemVoided, markKdsTicketStatus, upsertKdsTicket, webDiningOptionLabel } from "@/lib/kds";
+import { markKdsTicketItemVoided, markKdsTicketStatus, upsertKdsTicket, webDiningOptionLabel } from "@/lib/kds";
+import { queueKdsAdditions, retryKdsAdditions } from "@/lib/kdsOutbox";
 import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib/loyalty/annualReset";
 import { isWelcomeVoucher, WELCOME_VOUCHER_REWARD_TEXT } from "@/lib/loyalty/welcomeVoucher";
 import { loyaltyEligibleLineTotal } from "@/lib/menuPromos";
@@ -4477,6 +4478,12 @@ export default function POSPage() {
   const [localDataReady, setLocalDataReady] = useState(false);
   const [offlineSyncing, setOfflineSyncing] = useState(false);
   const [offlineSyncError, setOfflineSyncError] = useState("");
+  const [kdsSyncError, setKdsSyncError] = useState("");
+  async function appendKdsTicketItems(client, args) {
+    const result = await queueKdsAdditions(client, args);
+    setKdsSyncError(result.error?.message || "");
+    return result;
+  }
   const offlineSyncRunningRef = useRef(false);
   const syncOfflineChargesRef = useRef(null);
   const cartAuditSyncRunningRef = useRef(false);
@@ -5520,19 +5527,24 @@ export default function POSPage() {
       if (navigator.onLine !== false) {
         void syncCartAuditsRef.current?.();
         void syncOfflineChargesRef.current?.({ silent: true });
+        void retryKdsAdditions(supabase, storeId)
+          .then(({ error }) => setKdsSyncError(error?.message || ""))
+          .catch((error) => setKdsSyncError(error?.message || "Kitchen items could not be synchronized."));
       }
     };
     const onVisible = () => { if (document.visibilityState === "visible") retry(); };
     retry();
     const timer = window.setInterval(retry, 30000);
     window.addEventListener("focus", retry);
+    window.addEventListener("online", retry);
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       window.clearInterval(timer);
       window.removeEventListener("focus", retry);
+      window.removeEventListener("online", retry);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [localDataReady, currentUserId, storeId]);
+  }, [localDataReady, currentUserId, storeId, supabase]);
 
   useEffect(() => {
     if (isNativeApp()) {
@@ -11100,6 +11112,7 @@ export default function POSPage() {
 
           {/* SIDEBAR TICKET INTERACTION LAYER PANEL */}
           <div className="hidden lg:block bg-white border border-rose-100 rounded-2xl p-3 shadow-sm sticky top-4 h-[calc(100vh-2rem)] max-h-[calc(100vh-2rem)] overflow-hidden">
+            {kdsSyncError && <p role="alert" className="mb-3 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-900">{kdsSyncError}</p>}
             <OfflineSyncNotice offline={isOfflineMode} pending={offlineQueueCount} syncing={offlineSyncing} error={offlineSyncError} onRetry={() => void syncOfflineCharges()} />
             <TicketPanel
               cart={cart}
@@ -11212,6 +11225,7 @@ export default function POSPage() {
             </div>
             
             <div className="flex-1 overflow-y-auto">
+              {kdsSyncError && <p role="alert" className="mb-3 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-900">{kdsSyncError}</p>}
               <OfflineSyncNotice offline={isOfflineMode} pending={offlineQueueCount} syncing={offlineSyncing} error={offlineSyncError} onRetry={() => void syncOfflineCharges()} />
               <TicketPanel
                 cart={cart}
