@@ -18,6 +18,7 @@ import {
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/dateFormat";
 import { financeExpensesCsv } from "@/lib/financeCsv";
+import { expenseSupplierDetails } from "@/lib/financeSuppliers";
 import { EXPENSE_TAX_TYPES, expenseVatBreakdown } from "@/lib/financeVat";
 import { INVENTORY_UNITS, normalizeUnit, syncExpensePurchaseToInventory } from "@/lib/inventory";
 
@@ -1797,7 +1798,7 @@ export default function FinanceExpenseManager() {
         if ((data || []).length < 500) break;
       }
       if (!rows.length) return showNotice("error", "No expenses match the selected filters.");
-      const csv = financeExpensesCsv(rows, storeNameById);
+      const csv = financeExpensesCsv(rows, storeNameById, references);
       const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
       const link = document.createElement("a");
       const branch = scope === "petty" ? `-${String(storeNameById[storeId] || storeId).replace(/[^a-z0-9]+/gi, "-")}` : "";
@@ -1842,6 +1843,8 @@ export default function FinanceExpenseManager() {
               <th className="px-4 py-3">Description</th>
               <th className="px-4 py-3">Common Name</th>
               <th className="px-4 py-3">Supplier / Name</th>
+              <th className="px-4 py-3">Company Name</th>
+              <th className="px-4 py-3">TIN Number</th>
               <th className="px-4 py-3 text-center">Qty</th>
               <th className="px-4 py-3 text-center">Unit</th>
               <th className="px-4 py-3 text-right">Unit Price</th>
@@ -1862,6 +1865,7 @@ export default function FinanceExpenseManager() {
           <tbody className="divide-y divide-slate-200/80">
             {rows.map((row) => {
               const sourceLabel = expenseSourceLabel(row, storeNameById);
+              const supplier = expenseSupplierDetails(row, references);
               return (
                 <tr key={row.id} className="text-slate-700 transition duration-200 hover:bg-cyan-50/45">
                   <td className="px-4 py-3 font-semibold">{dateText(row.expense_date)}</td>
@@ -1876,6 +1880,8 @@ export default function FinanceExpenseManager() {
                   <td className="px-4 py-3 text-slate-950">{row.description}</td>
                   <td className="px-4 py-3">{row.item_common_name || "-"}</td>
                   <td className="px-4 py-3">{row.supplier_name || "-"}</td>
+                  <td className="px-4 py-3">{supplier.companyName || "-"}</td>
+                  <td className="px-4 py-3">{supplier.tinNumber || "-"}</td>
                   <td className="px-4 py-3 text-center">{Number(row.quantity || 0).toLocaleString("en-PH")}</td>
                   <td className="px-4 py-3 text-center">{normalizeUnit(row.unit) || "-"}</td>
                   <td className="px-4 py-3 text-right">{peso(row.unit_price)}</td>
