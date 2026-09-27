@@ -1877,11 +1877,12 @@ export default function FinanceExpenseManager() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200/80">
-            {rows.map((row) => {
+            {rows.map((row, index) => {
               const sourceLabel = expenseSourceLabel(row, storeNameById);
               const supplier = expenseSupplierDetails(row, references);
+              const startsNewDay = index > 0 && row.expense_date !== rows[index - 1].expense_date;
               return (
-                <tr key={row.id} className="text-slate-700 transition duration-200 hover:bg-cyan-50/45">
+                <tr key={row.id} className={`text-slate-700 transition duration-200 hover:bg-cyan-50/45 ${startsNewDay ? "border-t-2 border-t-cyan-600" : ""}`}>
                   <td className="px-4 py-3 font-semibold">{dateText(row.expense_date)}</td>
                   {showSource ? (
                     <td className="px-4 py-3">
