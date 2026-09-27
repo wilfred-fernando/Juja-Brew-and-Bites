@@ -31,6 +31,8 @@ const REF_TYPES = [
   ["item_category", "Item Category"],
   ["supplier", "Supplier"],
   ["payment_type", "Payment Type"],
+  ["tax_type", "Tax Type"],
+  ["receipt_type", "Receipt Type"],
   ["unit", "Unit"],
   ["category", "Category"],
   ["fund_source", "Source of Fund"],
@@ -407,6 +409,8 @@ export default function FinanceExpenseManager() {
   const unitOptions = referenceOptions(referencesByType.unit, UNIT_OPTIONS);
   const fundSourceOptions = referenceOptions(referencesByType.fund_source, FUND_SOURCES);
   const categoryOptions = referenceOptions(referencesByType.category, CATEGORY_OPTIONS);
+  const taxTypeOptions = references.some((row) => row.ref_type === "tax_type") ? referenceOptions(referencesByType.tax_type) : EXPENSE_TAX_TYPES;
+  const receiptTypeOptions = references.some((row) => row.ref_type === "receipt_type") ? referenceOptions(referencesByType.receipt_type) : ["OR", "SI", "DR"];
   const itemCategoryOptions = referenceOptions(itemCategoryReferences, []);
   const commonNameOptions = uniqueOptions(itemReferences.map((row) => row.common_name).filter(Boolean));
 
@@ -1405,6 +1409,8 @@ export default function FinanceExpenseManager() {
     if (saving === "reference") return;
     if (!canManageAll) return showNotice("error", "Only admin accounts can manage references.");
     if (!referenceForm.name.trim()) return showNotice("error", "Reference name is required.");
+    const allowedNames = referenceForm.ref_type === "tax_type" ? EXPENSE_TAX_TYPES : referenceForm.ref_type === "receipt_type" ? ["OR", "SI", "DR"] : null;
+    if (allowedNames && !allowedNames.includes(referenceForm.name.trim())) return showNotice("error", `Supported values: ${allowedNames.join(", ")}.`);
     if (referenceExpenseScope && references.some((row) => row.ref_type === referenceForm.ref_type && normalize(row.name) === normalize(referenceForm.name))) {
       return showNotice("error", `This ${referenceForm.ref_type} already exists in References. Choose the existing ${referenceForm.ref_type}, or use a different name.`);
     }
@@ -1499,6 +1505,8 @@ export default function FinanceExpenseManager() {
         .filter((row) => row.ref_type === bulkReferenceType)
         .map((row) => normalize(row.name))
     );
+    const allowedNames = bulkReferenceType === "tax_type" ? EXPENSE_TAX_TYPES : bulkReferenceType === "receipt_type" ? ["OR", "SI", "DR"] : null;
+    if (allowedNames && names.some((name) => !allowedNames.includes(name))) return showNotice("error", `Supported values: ${allowedNames.join(", ")}.`);
     const newRows = names
       .filter((name) => !existingNames.has(normalize(name)))
       .map((name) => ({
@@ -1636,7 +1644,13 @@ export default function FinanceExpenseManager() {
             </Select>
           </Field>
           <Field label="Qty">
-            <Input type="number" min="0" step="0.001" value={form.quantity} onChange={(e) => updateExpenseForm(scope, "quantity", e.target.value)} />
+            <div className="flex items-center gap-2">
+              <button type="button" aria-label="Decrease quantity" disabled={numberValue(form.quantity) <= 0} onClick={() => updateExpenseForm(scope, "quantity", String(Math.max(0, Math.ceil(numberValue(form.quantity)) - 1)))} className="h-11 w-11 shrink-0 rounded-xl border border-slate-300 bg-white text-xl font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40">−</button>
+              <Input type="number" aria-label="Quantity" inputMode="numeric" min="0" step="1" value={form.quantity} onChange={(e) => {
+                if (/^\d*$/.test(e.target.value)) updateExpenseForm(scope, "quantity", e.target.value);
+              }} />
+              <button type="button" aria-label="Increase quantity" onClick={() => updateExpenseForm(scope, "quantity", String(Math.max(0, Math.floor(numberValue(form.quantity))) + 1))} className="h-11 w-11 shrink-0 rounded-xl border border-slate-300 bg-white text-xl font-semibold text-slate-700 hover:bg-slate-50">+</button>
+            </div>
           </Field>
           <Field label="Unit">
             <Select value={form.unit} onChange={(e) => updateExpenseForm(scope, "unit", e.target.value)}>
@@ -1653,7 +1667,7 @@ export default function FinanceExpenseManager() {
           <Field label="Tax Type">
             <Select value={form.tax_type} onChange={(e) => updateExpenseForm(scope, "tax_type", e.target.value)}>
               {!form.tax_type ? <option value="">Unspecified (existing entry)</option> : null}
-              {EXPENSE_TAX_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+              {uniqueOptions([form.tax_type], taxTypeOptions).map((type) => <option key={type} value={type}>{type}</option>)}
             </Select>
           </Field>
           <Field label="Payment Type">
@@ -1674,7 +1688,7 @@ export default function FinanceExpenseManager() {
           <Field label="Receipt Type">
             <Select value={form.receipt_type} onChange={(e) => updateExpenseForm(scope, "receipt_type", e.target.value)}>
               <option value="">Select receipt type</option>
-              {["OR", "SI", "DR"].map((type) => <option key={type} value={type}>{type}</option>)}
+              {uniqueOptions([form.receipt_type], receiptTypeOptions).map((type) => <option key={type} value={type}>{type}</option>)}
             </Select>
           </Field>
           <Field label="Receipt No. (OR / SI / DR)">
