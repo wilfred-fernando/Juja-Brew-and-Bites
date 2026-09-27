@@ -471,7 +471,7 @@ export default function FinanceExpenseManager() {
     return {
       ...initialExpenseForm,
       category: categoryOptions[0] || "",
-      payment_type: paymentTypeOptions[0] || "",
+      payment_type: "CASH",
       unit: unitOptions[0] || "",
       submitted_by: previous.submitted_by || "",
       store_id: previous.store_id || "",
