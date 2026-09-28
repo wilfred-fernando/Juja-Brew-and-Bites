@@ -2321,7 +2321,7 @@ export default function FinanceExpenseManager() {
             type="button"
             onClick={() => setTab(key)}
             aria-pressed={tab === key}
-            className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-xs font-semibold uppercase tracking-wider transition duration-200 ${
+            className={`finance-navigation-tab inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-xs font-semibold uppercase tracking-wider transition duration-200 ${
               tab === key ? "bg-cyan-600 text-white shadow-sm" : "bg-white text-slate-900 hover:bg-cyan-50 hover:text-cyan-800"
             }`}
           >

@@ -390,6 +390,26 @@ body > .page-transition-shell {
   border-color: var(--app-border-strong);
 }
 
+/* Keep finance navigation legible inside the dark header, including hover. */
+body button.finance-navigation-tab[aria-pressed="false"],
+body button.finance-navigation-tab[aria-pressed="false"]:hover {
+  color: #0f172a !important;
+  background: #ffffff !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+body button.finance-navigation-tab[aria-pressed="true"],
+body button.finance-navigation-tab[aria-pressed="true"]:hover {
+  color: #ffffff !important;
+  background: #0e7490 !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+body button.finance-navigation-tab svg {
+  color: inherit !important;
+  stroke: currentColor;
+}
+
 /* Tables */
 :where(table) {
   width: 100%;
