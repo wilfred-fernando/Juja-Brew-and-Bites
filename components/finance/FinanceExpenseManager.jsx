@@ -10,7 +10,6 @@ import {
   Plus,
   RefreshCw,
   Settings,
-  Store,
   Trash2,
   Wallet,
   X,
@@ -365,6 +364,7 @@ export default function FinanceExpenseManager() {
   const [editingFund, setEditingFund] = useState(null);
   const [expenseModalScope, setExpenseModalScope] = useState("");
   const [fundModalOpen, setFundModalOpen] = useState(false);
+  const [cashInRecordsOpen, setCashInRecordsOpen] = useState(false);
   const [referenceModalOpen, setReferenceModalOpen] = useState(false);
   const [referenceExpenseScope, setReferenceExpenseScope] = useState(null);
   const [bulkReferenceModalOpen, setBulkReferenceModalOpen] = useState(false);
@@ -529,23 +529,6 @@ export default function FinanceExpenseManager() {
       { total: 0, opex: 0, personal: 0 }
     );
   }, [filteredOverallExpenses]);
-
-  const pettyStoreSummary = useMemo(() => {
-    return stores.map((store) => {
-      const fundTotal = filteredPettyFunds
-        .filter((fund) => String(fund.store_id) === String(store.id))
-        .reduce((sum, fund) => sum + numberValue(fund.amount), 0);
-      const expenseTotal = filteredPettyEntries
-        .filter((entry) => String(entry.store_id) === String(store.id))
-        .reduce((sum, entry) => sum + numberValue(entry.total), 0);
-      return {
-        store,
-        fundTotal,
-        expenseTotal,
-        cashOnHand: fundTotal - expenseTotal,
-      };
-    });
-  }, [filteredPettyEntries, filteredPettyFunds, stores]);
 
   const selectedPettySummary = useMemo(() => {
     const funds = selectedStoreFunds.reduce((sum, fund) => sum + numberValue(fund.amount), 0);
@@ -2447,47 +2430,15 @@ export default function FinanceExpenseManager() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            <div className="rounded-2xl border border-white/70 bg-white/78 p-4 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-              <div className="mb-3 flex items-center gap-2">
-                <Store size={17} className="text-cyan-700" />
-                <h2 className="text-sm font-semibold text-slate-950">Store Petty Cash Balances</h2>
-              </div>
-              <div className="space-y-2">
-                {pettyStoreSummary.length === 0 ? (
-                  <EmptyState message="No active stores found." />
-                ) : pettyStoreSummary.map((row) => (
-                  <button
-                    key={row.store.id}
-                    type="button"
-                    onClick={() => !isCashier && setSelectedStoreId(row.store.id)}
-                    disabled={isCashier}
-                    className={`w-full rounded-xl border p-3 text-left transition ${
-                      String(selectedStoreId) === String(row.store.id) ? "border-cyan-200 bg-cyan-50 shadow-[0_0_24px_rgba(34,211,238,0.12)]" : "border-slate-100 bg-white/85 hover:-translate-y-0.5 hover:bg-cyan-50/50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-slate-950">{row.store.name}</p>
-                      <p className="text-sm font-semibold text-cyan-700">{peso(row.cashOnHand)}</p>
-                    </div>
-                    <p className="mt-1 text-[10px] font-bold text-slate-400">
-                      Cash in {peso(row.fundTotal)} / Expenses {peso(row.expenseTotal)}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/70 bg-white/78 p-4 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-              <div className="mb-3 flex items-center gap-2">
-                <ArrowUpCircle size={17} className="text-cyan-700" />
-                <h2 className="text-sm font-semibold text-slate-950">{selectedStoreName} Cash In Records</h2>
-              </div>
+          <button type="button" disabled={!selectedStoreId} onClick={() => setCashInRecordsOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-semibold text-cyan-800 disabled:opacity-40">
+            <ArrowUpCircle size={17} /> View Cash In Records
+          </button>
+          <Modal open={cashInRecordsOpen} title={`${selectedStoreName} Cash In Records`} onClose={() => setCashInRecordsOpen(false)} width="max-w-4xl">
               {selectedStoreFunds.length === 0 ? (
                 <EmptyState message="No cash-in records for this store." />
               ) : (
                 <div className="space-y-2">
-                  {selectedStoreFunds.slice(0, 8).map((fund) => (
+                  {selectedStoreFunds.map((fund) => (
                     <div key={fund.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white/85 p-3 transition duration-200 hover:-translate-y-0.5 hover:border-cyan-200 hover:bg-cyan-50/45">
                       <div>
                         <p className="text-xs font-semibold text-slate-950">{fund.source_of_fund}</p>
@@ -2497,7 +2448,7 @@ export default function FinanceExpenseManager() {
                         <p className="text-xs font-semibold text-cyan-700">{peso(fund.amount)}</p>
                         <button
                           type="button"
-                          onClick={() => openFundModal(fund)}
+                          onClick={() => { setCashInRecordsOpen(false); openFundModal(fund); }}
                           className="inline-flex h-8 items-center justify-center gap-2 rounded-lg border border-cyan-100 bg-cyan-50 px-3 text-[10px] font-semibold uppercase text-cyan-700 transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-100"
                       >
                         <Pencil size={13} className="shrink-0" />
@@ -2515,8 +2466,7 @@ export default function FinanceExpenseManager() {
                   ))}
                 </div>
               )}
-            </div>
-          </div>
+          </Modal>
 
           {renderDeleteRequests()}
           <button type="button" disabled={!selectedStoreId} onClick={() => setMonthlySummaryOpen((open) => !open)} className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-semibold text-cyan-800 disabled:opacity-40">
