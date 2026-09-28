@@ -2306,37 +2306,15 @@ export default function FinanceExpenseManager() {
   return (
       <div className="space-y-6">
       <div className="rounded-3xl border border-white/20 bg-slate-600/78 p-5 text-white shadow-[-20_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-200">Finance Control Center</p>
           <p className="mt-1 text-2xl font-semibold text-white sm:text-3xl">Expenses & Petty Cash</p>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
           </p>
         </div>
-        <button
-          type="button"
-          onClick={loadData}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-4 text-xs font-semibold uppercase tracking-wider text-cyan-100 shadow-[0_0_24px_rgba(34,211,238,0.18)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-300/18"
-        >
-          <RefreshCw size={15} />
-          Refresh
-        </button>
-      </div>
-      </div>
-
-      {notice ? (
-        <div className={`rounded-2xl border p-3 text-sm font-semibold shadow-sm ${notice.type === "error" ? "border-red-100 bg-red-50 text-red-600" : "border-cyan-100 bg-cyan-50 text-cyan-800"}`}>
-          {notice.message}
-        </div>
-      ) : null}
-
-      {setupMissing ? (
-        <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm font-bold text-amber-800">
-          Finance tables are not available yet. Run <span className="font-semibold">supabase/finance_expenses_setup.sql</span> in Supabase, then refresh this page.
-        </div>
-      ) : null}
-
-      <div className={`grid gap-2 rounded-2xl border border-white/70 bg-white/72 p-1 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl md:w-fit ${financeTabs.length === 1 ? "grid-cols-1" : "grid-cols-3"}`}>
+        <div className="flex max-w-full items-center gap-3 overflow-x-auto">
+      <div className={`grid gap-2 rounded-2xl border border-white/70 bg-white/72 p-1 shadow-[0_18px_45px_rgba(15,23,42,0.08)] shrink-0 backdrop-blur-xl md:w-fit ${financeTabs.length === 1 ? "grid-cols-1" : "grid-cols-3"}`}>
         {financeTabs.map(([key, label, Icon]) => (
           <button
             key={key}
@@ -2351,6 +2329,29 @@ export default function FinanceExpenseManager() {
           </button>
         ))}
       </div>
+        <button
+          type="button"
+          onClick={loadData}
+          className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-4 text-xs font-semibold uppercase tracking-wider text-cyan-100 shadow-[0_0_24px_rgba(34,211,238,0.18)] transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-300/18"
+        >
+          <RefreshCw size={15} />
+          Refresh
+        </button>
+        </div>
+      </div>
+      </div>
+
+      {notice ? (
+        <div className={`rounded-2xl border p-3 text-sm font-semibold shadow-sm ${notice.type === "error" ? "border-red-100 bg-red-50 text-red-600" : "border-cyan-100 bg-cyan-50 text-cyan-800"}`}>
+          {notice.message}
+        </div>
+      ) : null}
+
+      {setupMissing ? (
+        <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm font-bold text-amber-800">
+          Finance tables are not available yet. Run <span className="font-semibold">supabase/finance_expenses_setup.sql</span> in Supabase, then refresh this page.
+        </div>
+      ) : null}
 
       {loading ? (
           <div className="flex min-h-72 items-center justify-center rounded-2xl border border-white/70 bg-white/78 backdrop-blur-xl">
