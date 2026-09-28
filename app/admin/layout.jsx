@@ -1,9 +1,12 @@
 ﻿"use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import AdminSidebar from "@/components/AdminSidebar";
+import premium from "@/components/finance/FinanceFutureShell.module.css";
+import styles from "@/components/AdminPremium.module.css";
+import FloatingTableScrollbar from "@/components/finance/FloatingTableScrollbar";
 import { Menu } from "lucide-react";
 
 import { usePortalAuth } from "@/components/usePortalAuth";
@@ -16,7 +19,7 @@ export default function AdminLayout({ children }) {
   const router = useRouter();
 
   const [mobileOpen, setMobileOpen] = useState(false);
-  const isReportsPage = pathname.startsWith("/admin/pos-admin/reports") || pathname.startsWith("/admin/sales");
+  const contentRef = useRef(null);
 
   const { loading, authorized, userEmail, userRole } = usePortalAuth({
     portal: "admin",
@@ -79,14 +82,8 @@ export default function AdminLayout({ children }) {
 
   // Main layout.
   return (
-    <div
-      className="admin-shell flex min-h-screen bg-cover bg-fixed bg-center bg-no-repeat text-slate-900"
-      style={{
-        backgroundImage:
-          "radial-gradient(circle at top left, rgba(125,211,252,0.18), transparent 34%), linear-gradient(135deg, rgba(248,250,252,0.80), rgba(226,232,240,0.66)), url('https://images.jujabrewandbites.com/page%20background.png')",
-      }}
-    >
-      
+    <div className={`${premium.shell} ${styles.shell}`}>
+      <a href="#admin-workspace" className={premium.skip}>Skip to workspace</a>
       {/* SIDEBAR */}
       <AdminSidebar
         pathname={pathname}
@@ -99,10 +96,10 @@ export default function AdminLayout({ children }) {
       />
 
       {/* MAIN */}
-      <div className="flex-1 md:ml-[260px] min-h-screen">
+      <div className={styles.workspace}>
 
         {/* MOBILE TOP BAR */}
-        <div className="sticky top-0 z-40 flex items-center justify-between border-b border-slate-200/70 bg-white/82 px-4 py-3 shadow-[0_18px_45px_rgba(51,65,85,0.14)] backdrop-blur-xl md:hidden">
+        <div className={styles.mobileBar}>
           <button
             onClick={() => setMobileOpen(true)}
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-100 hover:text-slate-900"
@@ -119,8 +116,10 @@ export default function AdminLayout({ children }) {
         </div>
 
         {/* PAGE */}
-        <main className={`admin-premium w-full animate-[financeFade_260ms_ease-out] ${isReportsPage ? "p-4 sm:p-6 md:p-8 xl:p-10" : "mx-auto max-w-7xl p-6 md:p-10"}`}>
-          {children}
+        <main id="admin-workspace" className={styles.main}>
+          <div ref={contentRef} className={`${premium.content} ${styles.content}`}>{children}</div>
+          <FloatingTableScrollbar containerRef={contentRef} />
+          <footer className={premium.footer}><span>JUJA BREW & BITES</span><span>Admin workspace</span></footer>
         </main>
 
       </div>

@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
+import styles from "./AdminPremium.module.css";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -21,9 +23,6 @@ import {
   X,
 } from "lucide-react";
 import { canAccessPage } from "@/lib/adminPageAccess";
-
-const LOGO =
-  "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
 
 export default function AdminSidebar({
   pathname,
@@ -159,13 +158,11 @@ export default function AdminSidebar({
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col border-r border-slate-200/75 bg-white/84 text-slate-800 shadow-[0_28px_90px_rgba(51,65,85,0.18)] backdrop-blur-xl transition-transform duration-300 ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        }`}
+        className={`${styles.sidebar} ${mobileOpen ? styles.open : ""}`}
       >
         {/* HEADER */}
-        <div className="flex items-center justify-between border-b border-slate-200/80 p-6">
-          <img src={LOGO} className="h-8 object-contain" alt="logo" />
+        <div className={styles.brand}>
+          <div className={styles.logo}><Image src="/finance/juja-logo.png" width={8640} height={2160} sizes="300px" priority alt="JUJA Brew & Bites" /><span>ADMIN / WORKSPACE</span></div>
 
           <button
             onClick={() => setMobileOpen(false)}
@@ -177,10 +174,10 @@ export default function AdminSidebar({
         </div>
 
         {/* NAV */}
-        <nav className="flex-1 space-y-5 overflow-y-auto p-4">
+        <nav className={styles.navigation} aria-label="Admin pages">
           {SECTIONS.map((section) => (
             <div key={section.label}>
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-600">
+              <p className={styles.sectionLabel}>
                 {section.label}
               </p>
 
@@ -194,9 +191,8 @@ export default function AdminSidebar({
                       <div key={item.name}>
                         <button
                           onClick={() => toggleMenu(item.path)}
-                          className={`flex w-full justify-between rounded-xl px-3 py-2 text-sm transition duration-200 hover:-translate-y-0.5 hover:bg-sky-50 hover:text-slate-950 ${
-                            active ? "bg-sky-100 text-slate-950 shadow-[0_10px_24px_rgba(51,65,85,0.12)]" : "text-slate-700"
-                          }`}
+                          aria-expanded={isMenuOpen(item.path)}
+                          className={`${styles.navItem} ${active ? styles.active : ""}`}
                         >
                           <span className="flex items-center gap-2">
                             <Icon className="h-4 w-4 shrink-0" />
@@ -206,7 +202,7 @@ export default function AdminSidebar({
                         </button>
 
                         {isMenuOpen(item.path) && (
-                          <div className="ml-4 mt-2 space-y-1 border-l border-slate-200 pl-3">
+                          <div className={styles.submenu}>
                             {item.submenu.map((sub, i) => {
                               if (sub.type === "label") {
                                 return (
@@ -221,11 +217,8 @@ export default function AdminSidebar({
                                   key={sub.path}
                                   href={sub.path}
                                   onClick={() => setMobileOpen(false)}
-                                  className={`block rounded-xl px-3 py-2 text-sm transition duration-200 hover:-translate-y-0.5 ${
-                                    isSubActive(sub.path)
-                                      ? "bg-sky-100 text-slate-950 shadow-[0_10px_22px_rgba(51,65,85,0.10)]"
-                                      : "text-slate-600 hover:bg-sky-50 hover:text-slate-900"
-                                  }`}
+                                  aria-current={isSubActive(sub.path) ? "page" : undefined}
+                                  className={`${styles.navItem} ${isSubActive(sub.path) ? styles.active : ""}`}
                                 >
                                   {sub.name}
                                 </Link>
@@ -242,11 +235,8 @@ export default function AdminSidebar({
                       key={item.path}
                       href={item.path}
                       onClick={() => setMobileOpen(false)}
-                      className={`flex gap-2 rounded-xl px-3 py-2 text-sm transition duration-200 hover:-translate-y-0.5 ${
-                        active
-                          ? "bg-sky-100 text-slate-950 shadow-[0_10px_22px_rgba(51,65,85,0.10)]"
-                          : "text-slate-700 hover:bg-sky-50 hover:text-slate-950"
-                      }`}
+                      aria-current={active ? "page" : undefined}
+                      className={`${styles.navItem} ${active ? styles.active : ""}`}
                     >
                       <Icon className="h-4 w-4 shrink-0" />
                       <span>{item.name}</span>
@@ -259,11 +249,11 @@ export default function AdminSidebar({
         </nav>
 
         {/* FOOTER */}
-        <div className="border-t border-slate-200/80 p-4">
-          <div className="mb-2 truncate text-xs text-slate-600">{userEmail}</div>
+        <div className={styles.account}>
+          <strong>{userEmail}</strong><small>{String(userRole || "Admin").replaceAll("_", " ")}</small>
           <button
             onClick={onLogout}
-            className="w-full rounded-xl border border-slate-200 bg-white/80 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-50 hover:text-slate-950"
+            className={styles.signOut}
           >
             Sign Out
           </button>
