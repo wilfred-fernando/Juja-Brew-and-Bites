@@ -73,3 +73,25 @@
 .accountIdentity small { display:block; margin-top:4px; text-transform:capitalize; font-size:10px; color:#a2bcc7; }
 .shell .signOut { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; margin-top:14px; padding:10px; border:1px solid #49616b; border-radius:8px; background:#152b35!important; color:#e3f0f3!important; box-shadow:none!important; font-size:11px; }
 @media(max-width:700px) { .sidebarAccount { margin:0 0 12px; padding:12px 0; display:flex; align-items:center; justify-content:space-between; gap:12px; } .shell .signOut { width:auto; flex-shrink:0; margin:0; } }
+
+/* Compact workspace design, isolated from Classic. */
+.shell .main { padding:16px 18px; }
+.shell .content :is([class~="space-y-6"],[class~="space-y-5"]) > :not([hidden]) ~ :not([hidden]) { margin-block-start:10px!important; margin-block-end:0!important; }
+.shell .content [class~="gap-3"] { gap:8px; }
+.shell .content div[data-finance-heading] { background:#fff!important; border:1px solid #d2dfe4!important; border-left:4px solid #14796c!important; padding:14px 18px!important; border-radius:10px; color:#173746!important; }
+.shell .content [data-finance-heading] p { color:#173746!important; }
+.shell .content [data-finance-heading] p:first-child { color:#5a787e!important; font-size:9px; letter-spacing:.16em; }
+.shell .content [data-finance-heading] p:nth-child(2) { font-size:22px; line-height:1.25; }
+.shell .content [data-finance-heading] p:empty { display:none; }
+.shell .content [data-finance-heading] button { color:#24554f!important; background:#f3f8f7!important; border:1px solid #d5e4df!important; }
+.shell .content [data-finance-heading] button[aria-pressed="true"] { color:#fff!important; background:#14685f!important; border-color:#14685f!important; -webkit-text-fill-color:#fff!important; }
+.shell .content [data-finance-heading] button[aria-pressed="false"] { -webkit-text-fill-color:#24554f!important; }
+.shell .content [data-finance-stat] { padding:14px 16px!important; border-radius:10px!important; border-top:3px solid #9fcec3!important; transform:none!important; }
+.shell .content [data-finance-stat] p:nth-child(2) { margin-top:5px; font-size:23px; letter-spacing:-.6px; }
+.shell .content [data-finance-stat] span { width:34px; height:34px; border-radius:8px; }
+.shell .content div[class*="rounded-2xl"][class~="p-4"] { padding:12px; }
+.shell .content thead th { padding:11px 12px; background:#e3edef!important; }
+.shell .content tbody td { padding:10px 12px; }
+.shell .footer { margin-top:16px; padding-top:12px; }
+@media(min-width:768px) { .shell .content [data-finance-stats] { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media(max-width:700px) { .shell .main { padding:12px 10px; } .shell .content [data-finance-heading] { padding:12px!important; } }

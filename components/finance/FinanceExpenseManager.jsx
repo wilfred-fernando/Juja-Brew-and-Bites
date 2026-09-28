@@ -289,7 +289,7 @@ function SummaryCard({ label, value, icon: Icon, tone = "rose" }) {
     slate: "bg-slate-50 text-slate-600 border-slate-200",
   };
   return (
-    <div className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-cyan-200/80 hover:shadow-[0_24px_60px_rgba(8,145,178,0.14)]">
+    <div data-finance-stat className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-cyan-200/80 hover:shadow-[0_24px_60px_rgba(8,145,178,0.14)]">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
@@ -2305,7 +2305,7 @@ export default function FinanceExpenseManager() {
 
   return (
       <div className="space-y-6">
-      <div className="rounded-3xl border border-white/20 bg-slate-600/78 p-5 text-white shadow-[-20_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-6">
+      <div data-finance-heading className="rounded-3xl border border-white/20 bg-slate-600/78 p-5 text-white shadow-[-20_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-6">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-200">Finance Control Center</p>
@@ -2360,7 +2360,7 @@ export default function FinanceExpenseManager() {
         </div>
       ) : tab === "overall" ? (
         <div className="space-y-5">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div data-finance-stats className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryCard label="Overall Expenses" value={peso(overallSummary.total)} icon={Database} />
             <SummaryCard label="OP-EX" value={peso(overallSummary.opex)} icon={ArrowDownCircle} tone="emerald" />
             <SummaryCard label="Personal" value={peso(overallSummary.personal)} icon={Wallet} tone="amber" />          
