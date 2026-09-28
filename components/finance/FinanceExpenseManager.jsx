@@ -351,6 +351,8 @@ export default function FinanceExpenseManager() {
   const [exporting, setExporting] = useState("");
   const [monthlySummaryOpen, setMonthlySummaryOpen] = useState(false);
   const [overallMonthlySummaryOpen, setOverallMonthlySummaryOpen] = useState(false);
+  const [dailySummaryOpen, setDailySummaryOpen] = useState(false);
+  const [overallDailySummaryOpen, setOverallDailySummaryOpen] = useState(false);
   const [receiptItems, setReceiptItems] = useState([]);
   const [receiptItemIndex, setReceiptItemIndex] = useState(0);
   const [fundForm, setFundForm] = useState(initialFundForm);
@@ -2394,6 +2396,10 @@ export default function FinanceExpenseManager() {
             {overallMonthlySummaryOpen ? "Hide Monthly Summary" : "Monthly Summary"}
           </button>
           {overallMonthlySummaryOpen ? <PettyCashMonthlySummary scope="overall" /> : null}
+          <button type="button" onClick={() => setOverallDailySummaryOpen((open) => !open)} className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-semibold text-cyan-800">
+            {overallDailySummaryOpen ? "Hide Daily Summary" : "Daily Summary"}
+          </button>
+          {overallDailySummaryOpen ? <PettyCashMonthlySummary scope="overall" period="daily" /> : null}
           {renderExpenseTable(filteredOverallExpenses, "finance_expenses", { showSource: true })}
         </div>
       ) : tab === "petty" ? (
@@ -2517,6 +2523,10 @@ export default function FinanceExpenseManager() {
             {monthlySummaryOpen ? "Hide Monthly Summary" : "Monthly Summary"}
           </button>
           {monthlySummaryOpen && selectedStoreId ? <PettyCashMonthlySummary storeId={isCashier ? currentProfile.store_id : selectedStoreId} storeName={selectedStoreName} /> : null}
+          <button type="button" disabled={!selectedStoreId} onClick={() => setDailySummaryOpen((open) => !open)} className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-semibold text-cyan-800 disabled:opacity-40">
+            {dailySummaryOpen ? "Hide Daily Summary" : "Daily Summary"}
+          </button>
+          {dailySummaryOpen && selectedStoreId ? <PettyCashMonthlySummary storeId={isCashier ? currentProfile.store_id : selectedStoreId} storeName={selectedStoreName} period="daily" /> : null}
           {renderExpenseTable(selectedStoreEntries, "finance_petty_cash_entries")}
         </div>
       ) : (
