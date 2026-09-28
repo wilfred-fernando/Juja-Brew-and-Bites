@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRef } from "react";
+import FloatingTableScrollbar from "./FloatingTableScrollbar";
 import Image from "next/image";
 import { ArrowUpRight, Command, LayoutTemplate, LogOut } from "lucide-react";
 import styles from "./FinanceFutureShell.module.css";
 
 export default function FinanceFutureShell({ children, navItems, activeSection, financePath, userEmail, userRole, onLogout, onClassic }) {
+  const contentRef = useRef(null);
   return <div className={styles.shell} data-finance-interface="future">
     <a className={styles.skip} href="#finance-workspace">Skip to workspace</a>
     <aside className={styles.rail}>
@@ -28,7 +31,8 @@ export default function FinanceFutureShell({ children, navItems, activeSection, 
     </aside>
     <div className={styles.workspace}>
       <main id="finance-workspace" className={styles.main}>
-        <div className={styles.content}>{children}</div>
+        <div ref={contentRef} className={styles.content}>{children}</div>
+        <FloatingTableScrollbar containerRef={contentRef} />
         <footer className={styles.footer}><span>JUJA BREW & BITES</span><span>Finance workspace / Future interface</span></footer>
       </main>
     </div>
