@@ -17,16 +17,16 @@ export default function FinanceFutureShell({ children, navItems, activeSection, 
         </Link>)}
       </nav>
       <div className={styles.railFooter}>
+        <div className={styles.sidebarAccount}>
+          <div className={styles.accountIdentity}><span className={styles.avatar}>{(userEmail || "J").slice(0, 1).toUpperCase()}</span><div><strong>{userEmail}</strong><small>{String(userRole || "Staff").replaceAll("_", " ")}</small></div></div>
+          <button type="button" onClick={onLogout} className={styles.signOut}><LogOut size={16} />Sign Out</button>
+        </div>
         <div className={styles.mode}><Command size={16} /><span>FUTURE INTERFACE</span></div>
         <button type="button" onClick={onClassic} className={styles.classic}><LayoutTemplate size={16} />Classic interface<ArrowUpRight size={14} /></button>
         <p>Switch back whenever you prefer.</p>
       </div>
     </aside>
     <div className={styles.workspace}>
-      <header className={styles.topbar}>
-        <div className={styles.breadcrumb}>JUJA <span>/</span> FINANCE <span>/</span> <strong>{activeSection}</strong></div>
-        <div className={styles.account}><span className={styles.avatar}>{(userEmail || "J").slice(0, 1).toUpperCase()}</span><div><strong>{userEmail}</strong><small>{String(userRole || "Staff").replaceAll("_", " ")}</small></div><button type="button" onClick={onLogout} aria-label="Sign out" title="Sign out"><LogOut size={18} /></button></div>
-      </header>
       <main id="finance-workspace" className={styles.main}>
         <div className={styles.content}>{children}</div>
         <footer className={styles.footer}><span>JUJA BREW & BITES</span><span>Finance workspace / Future interface</span></footer>

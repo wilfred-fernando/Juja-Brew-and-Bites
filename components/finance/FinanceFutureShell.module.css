@@ -62,5 +62,14 @@
 .skip:focus { top:12px; }
 .shell :is(button,a):focus-visible { outline:2px solid #18a187!important; outline-offset:3px; }
 @media(max-width:1100px) { .shell{grid-template-columns:174px minmax(0,1fr)} .rail{padding-inline:12px!important} .main{padding:24px 16px} .topbar{padding-inline:16px!important} .breadcrumb{display:none} .account{margin-left:auto} .edition{display:none} }
-@media(max-width:700px) { .shell{display:block} .shell .rail{position:relative;height:auto;padding:16px;gap:18px} .brand{font-size:19px} .railLabel,.mode,.railFooter p{display:none} .navigation{flex-direction:row;overflow-x:auto} .shell .navItem{flex:1;justify-content:center;min-height:42px;padding:8px;white-space:nowrap} .navItem small{display:none} .railFooter{padding:0;margin:0;position:absolute;right:16px;top:21px} .shell .classic{width:auto;font-size:10px;padding:8px} .classic svg{display:none} .main{padding:24px 12px} .topbar{min-height:58px!important} .intro{margin-bottom:22px} .footer{letter-spacing:.5px} }
+@media(max-width:700px) { .shell{display:block} .shell .rail{position:relative;height:auto;padding:16px;gap:18px} .brand{font-size:19px} .railLabel,.mode,.railFooter p{display:none} .navigation{flex-direction:row;overflow-x:auto} .shell .navItem{flex:1;justify-content:center;min-height:42px;padding:8px;white-space:nowrap} .navItem small{display:none} .railFooter{padding:0;margin:0;position:static} .shell .classic{width:auto;font-size:10px;padding:8px} .classic svg{display:none} .main{padding:24px 12px} .topbar{min-height:58px!important} .intro{margin-bottom:22px} .footer{letter-spacing:.5px} }
 @media(prefers-reduced-motion:reduce) { .shell *, .shell *::before, .shell *::after { animation:none!important; transition:none!important; } }
+
+.sidebarAccount { padding:16px 0; margin-bottom:20px; border-top:1px solid #35515d; border-bottom:1px solid #35515d; }
+.accountIdentity { display:flex; gap:9px; align-items:flex-start; min-width:0; }
+.accountIdentity .avatar { flex-shrink:0; }
+.accountIdentity > div { min-width:0; }
+.accountIdentity strong { display:block; overflow-wrap:anywhere; font-size:11px; line-height:1.6; color:#e3f0f3; }
+.accountIdentity small { display:block; margin-top:4px; text-transform:capitalize; font-size:10px; color:#a2bcc7; }
+.shell .signOut { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; margin-top:14px; padding:10px; border:1px solid #49616b; border-radius:8px; background:#152b35!important; color:#e3f0f3!important; box-shadow:none!important; font-size:11px; }
+@media(max-width:700px) { .sidebarAccount { margin:0 0 12px; padding:12px 0; display:flex; align-items:center; justify-content:space-between; gap:12px; } .shell .signOut { width:auto; flex-shrink:0; margin:0; } }
