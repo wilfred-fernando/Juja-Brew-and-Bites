@@ -1964,7 +1964,7 @@ export default function FinanceExpenseManager() {
 
   function renderDateFilter(label, filter, setFilter) {
     return (
-      <div className="rounded-2xl border border-white/70 bg-white/78 p-4 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl transition duration-300 hover:border-cyan-200/80">
+      <div data-finance-filters className="rounded-2xl border border-white/70 bg-white/78 p-4 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl transition duration-300 hover:border-cyan-200/80">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
           <Field label={`${label} From`}>
             <Input type="date" value={filter.from} onChange={(e) => setFilter((prev) => ({ ...prev, from: e.target.value }))} />
@@ -2366,7 +2366,7 @@ export default function FinanceExpenseManager() {
             <SummaryCard label="Personal" value={peso(overallSummary.personal)} icon={Wallet} tone="amber" />          
           </div>
           {renderDateFilter("Overall Expenses Date", overallDateFilter, setOverallDateFilter)}
-          <div className="flex flex-nowrap items-center gap-3 overflow-x-auto pb-1 [&>button]:h-11 [&>button]:flex-1 [&>button]:shrink-0 [&>button]:whitespace-nowrap [&>button]:py-0 [&>button]:text-xs">
+          <div data-finance-actions className="flex flex-nowrap items-center gap-3 overflow-x-auto pb-1 [&>button]:h-11 [&>button]:flex-1 [&>button]:shrink-0 [&>button]:whitespace-nowrap [&>button]:py-0 [&>button]:text-xs">
             {renderExportButton("overall")}
             <button
               type="button"
@@ -2408,7 +2408,7 @@ export default function FinanceExpenseManager() {
             <SummaryCard label={`${selectedStoreName} Cash On Hand`} value={peso(selectedPettySummary.cashOnHand)} icon={Wallet} />
           </div>
 
-          <div className="flex flex-nowrap items-center gap-3 overflow-x-auto pb-1 [&>button]:h-11 [&>button]:flex-1 [&>button]:shrink-0 [&>button]:whitespace-nowrap [&>button]:py-0 [&>button]:text-xs">
+          <div data-finance-actions className="flex flex-nowrap items-center gap-3 overflow-x-auto pb-1 [&>button]:h-11 [&>button]:flex-1 [&>button]:shrink-0 [&>button]:whitespace-nowrap [&>button]:py-0 [&>button]:text-xs">
             {renderExportButton("petty")}
             <button
               type="button"

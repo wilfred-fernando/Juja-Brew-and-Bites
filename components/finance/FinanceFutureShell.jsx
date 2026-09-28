@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRef } from "react";
 import FloatingTableScrollbar from "./FloatingTableScrollbar";
 import Image from "next/image";
-import { ArrowUpRight, Command, LayoutTemplate, LogOut } from "lucide-react";
+import { ArrowUpRight, ChevronRight, LayoutTemplate, LogOut } from "lucide-react";
 import styles from "./FinanceFutureShell.module.css";
 
 export default function FinanceFutureShell({ children, navItems, activeSection, financePath, userEmail, userRole, onLogout, onClassic }) {
@@ -15,8 +15,8 @@ export default function FinanceFutureShell({ children, navItems, activeSection, 
       <div className={styles.logoBrand}><Image src="/finance/juja-logo.png" alt="JUJA Brew & Bites" width={8640} height={2160} sizes="320px" priority className={styles.logoImage} /><span>FINANCE / WORKSPACE</span></div>
       <div className={styles.railLabel}>CONTROL CENTER</div>
       <nav className={styles.navigation} aria-label="Finance pages">
-        {navItems.map(([key, path, label, Icon], index) => <Link key={key} href={financePath(path)} aria-current={activeSection === key ? "page" : undefined} className={styles.navItem}>
-          <Icon size={19} /><span>{label}</span><small>0{index + 1}</small>
+        {navItems.map(([key, path, label, Icon]) => <Link key={key} href={financePath(path)} aria-current={activeSection === key ? "page" : undefined} className={styles.navItem}>
+          <Icon size={19} /><span>{label}</span><ChevronRight size={14} className={styles.navArrow} />
         </Link>)}
       </nav>
       <div className={styles.railFooter}>
@@ -24,7 +24,6 @@ export default function FinanceFutureShell({ children, navItems, activeSection, 
           <div className={styles.accountIdentity}><span className={styles.avatar}>{(userEmail || "J").slice(0, 1).toUpperCase()}</span><div><strong>{userEmail}</strong><small>{String(userRole || "Staff").replaceAll("_", " ")}</small></div></div>
           <button type="button" onClick={onLogout} className={styles.signOut}><LogOut size={16} />Sign Out</button>
         </div>
-        <div className={styles.mode}><Command size={16} /><span>FUTURE INTERFACE</span></div>
         <button type="button" onClick={onClassic} className={styles.classic}><LayoutTemplate size={16} />Classic interface<ArrowUpRight size={14} /></button>
         <p>Switch back whenever you prefer.</p>
       </div>
