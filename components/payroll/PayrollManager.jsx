@@ -2620,7 +2620,7 @@ export default function AdminPayrollPage() {
   return (
     <div className="space-y-6 pb-20">
       {" "}
-      <header className="rounded-3xl border border-white/20 bg-slate-600/78 p-5 text-white shadow-[-20_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl lg:p-6">
+      <header data-finance-page-heading className="rounded-3xl border border-white/20 bg-slate-600/78 p-5 text-white shadow-[-20_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl lg:p-6">
         {" "}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           {" "}
@@ -2663,7 +2663,7 @@ export default function AdminPayrollPage() {
           {notice}
         </div>
       ) : null}{" "}
-      <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <section data-finance-stats="payroll" className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         {" "}
         {[
           [
@@ -2691,6 +2691,7 @@ export default function AdminPayrollPage() {
         ].map(([label, value, sub]) => (
           <div
             key={label}
+            data-finance-stat
             className="rounded-2xl border border-white/70 bg-white/78 p-5 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl transition duration-300 hover:border-cyan-200/80 hover:shadow-[0_24px_60px_rgba(8,145,178,0.14)]"
           >
             {" "}
@@ -2704,7 +2705,7 @@ export default function AdminPayrollPage() {
           </div>
         ))}{" "}
       </section>{" "}
-      <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/70 bg-white/72 p-1 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl md:grid-cols-4 xl:grid-cols-10">
+      <div data-finance-section-tabs className="grid grid-cols-2 gap-2 rounded-2xl border border-white/70 bg-white/72 p-1 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl md:grid-cols-4 xl:grid-cols-10">
         {" "}
         {[
           ["payroll", "Payroll"],
@@ -2721,6 +2722,7 @@ export default function AdminPayrollPage() {
           <button
             key={key}
             onClick={() => setActiveTab(key)}
+            aria-pressed={activeTab === key}
             className={`h-10 rounded-xl text-xs font-semibold uppercase tracking-wider transition duration-200 ${activeTab === key ? "bg-slate-300/78 text-cyan-50 shadow-[0_0_28px_rgba(34,211,238,0.16)]" : "text-slate-600 hover:-translate-y-0.5 hover:bg-cyan-50 hover:text-cyan-700"}`}
           >
             {" "}

@@ -89,3 +89,23 @@
 @media(max-width:1100px) { .shell{grid-template-columns:184px minmax(0,1fr);padding:8px} .shell .rail{top:8px;height:calc(100dvh - 16px);padding:20px 12px} .main{padding:6px 8px} .shell .content [data-finance-heading] button[aria-pressed]{padding-inline:12px;font-size:10px} }
 @media(max-width:700px) { .shell{display:block;padding:6px} .shell .rail{position:relative;top:0;height:auto;padding:14px;gap:12px;border-radius:12px} .logoBrand{width:160px;padding:0;border:0} .railLabel,.railFooter p{display:none} .navigation{flex-direction:row;overflow-x:auto;gap:4px} .shell .navItem{flex:1;justify-content:center;min-height:40px;padding:9px;white-space:nowrap;font-size:11px} .navArrow{display:none} .railFooter{padding:0;margin:0} .sidebarAccount{margin:0 0 10px;padding:10px 0;display:flex;align-items:center;justify-content:space-between;gap:12px} .shell .signOut{width:auto;flex-shrink:0;margin:0;padding:9px} .shell .classic{width:auto;padding:8px 12px} .main{padding:12px 2px} .shell .content [data-finance-stat]{padding:12px 16px!important} .shell .content [data-finance-stats] [data-finance-stat] + [data-finance-stat]{border-left:0!important;border-top:1px solid #e4e8ee!important} .shell .content [data-finance-heading] p:nth-child(2){font-size:22px} .footer{letter-spacing:.3px} }
 @media(prefers-reduced-motion:reduce) { .shell *, .shell *::before, .shell *::after { animation:none!important; transition:none!important; scroll-behavior:auto!important; } }
+
+/* Inventory and Payroll share the premium hierarchy without changing other portals. */
+.shell .content [data-finance-page-heading] { background:transparent!important; border:0!important; border-radius:0!important; padding:8px 0 14px!important; box-shadow:none!important; color:var(--ink)!important; border-bottom:1px solid #d5dce4!important; }
+.shell .content [data-finance-page-heading] p { color:var(--ink)!important; }
+.shell .content [data-finance-page-heading] p:first-child { font-size:9px; color:var(--muted)!important; letter-spacing:.18em; }
+.shell .content [data-finance-page-heading] p:nth-child(2) { font-size:25px; line-height:1.2; letter-spacing:-.7px; margin-top:5px; }
+.shell .content [data-finance-page-heading] p:nth-child(3) { font-size:11px; color:var(--muted)!important; }
+.shell .content [data-finance-page-heading] p:empty { display:none; }
+.shell .content [data-finance-page-heading] button { height:36px; background:#284b74!important; color:#fff!important; border:1px solid #284b74!important; }
+.shell .content [data-finance-page-heading] button:hover:not(:disabled) { background:#19395e!important; }
+.shell .content [data-finance-page-heading] select { height:36px; max-width:100%; }
+.shell .content [data-finance-section-tabs] { display:flex; overflow-x:auto; gap:0; padding:0; border:0!important; border-bottom:1px solid #d5dce4!important; border-radius:0!important; background:transparent!important; box-shadow:none!important; }
+.shell .content [data-finance-section-tabs] button { flex:1 0 auto; padding:0 16px; border:0!important; border-bottom:3px solid transparent!important; border-radius:0!important; color:#5a6a7e!important; background:transparent!important; box-shadow:none!important; transform:none!important; white-space:nowrap; }
+.shell .content [data-finance-section-tabs] button[aria-pressed="true"] { color:#203f65!important; background:#e9eef5!important; border-bottom-color:#284b74!important; }
+.shell .content [data-finance-section-tabs] button:hover { color:#203f65!important; background:#eaeef3!important; }
+.shell .content :is(form,section)[class*="bg-white"] { padding:14px; }
+.shell .content [class~="space-y-4"] > :not([hidden]) ~ :not([hidden]) { margin-block-start:10px!important; margin-block-end:0!important; }
+.shell .content [class~="gap-4"] { gap:10px; }
+@media(min-width:1280px) { .shell .content [data-finance-stats="payroll"] { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+@media(min-width:768px) and (max-width:1279px) { .shell .content [data-finance-stats="payroll"] { grid-template-columns:repeat(2,minmax(0,1fr)); } }

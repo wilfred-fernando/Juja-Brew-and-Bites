@@ -54,9 +54,9 @@ function Select(props) {
   );
 }
 
-function Card({ children, className = "" }) {
+function Card({ children, className = "", ...props }) {
   return (
-    <section className={`rounded-2xl border border-white/70 bg-white/86 p-4 shadow-[0_20px_55px_rgba(51,65,85,0.12)] backdrop-blur-xl ${className}`}>
+    <section {...props} className={`rounded-2xl border border-white/70 bg-white/86 p-4 shadow-[0_20px_55px_rgba(51,65,85,0.12)] backdrop-blur-xl ${className}`}>
       {children}
     </section>
   );
@@ -564,7 +564,7 @@ export default function FinanceInventoryManager() {
         </div>
       ) : null}
 
-      <section className="rounded-3xl border border-sky-200/40 bg-slate-600/92 p-5 text-white shadow-[0_24px_70px_rgba(51,65,85,0.24)] backdrop-blur-xl">
+      <section data-finance-page-heading className="rounded-3xl border border-sky-200/40 bg-slate-600/92 p-5 text-white shadow-[0_24px_70px_rgba(51,65,85,0.24)] backdrop-blur-xl">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-100">Finance Inventory Control</p>
@@ -609,10 +609,10 @@ export default function FinanceInventoryManager() {
         )}
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Reorder Purchases</p><p className="mt-2 text-2xl font-semibold text-slate-950">{qty(summary.reorder)}</p></Card>
-        <Card><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">POS Auto Deduct</p><p className="mt-2 text-2xl font-semibold text-slate-950">{qty(summary.deductions)}</p></Card>
-        <Card><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Manual Adjustment</p><p className="mt-2 text-2xl font-semibold text-slate-950">{qty(summary.manual)}</p></Card>
+      <div data-finance-stats className="grid gap-4 md:grid-cols-3">
+        <Card data-finance-stat><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Reorder Purchases</p><p className="mt-2 text-2xl font-semibold text-slate-950">{qty(summary.reorder)}</p></Card>
+        <Card data-finance-stat><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">POS Auto Deduct</p><p className="mt-2 text-2xl font-semibold text-slate-950">{qty(summary.deductions)}</p></Card>
+        <Card data-finance-stat><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Manual Adjustment</p><p className="mt-2 text-2xl font-semibold text-slate-950">{qty(summary.manual)}</p></Card>
       </div>
 
       <Card>
