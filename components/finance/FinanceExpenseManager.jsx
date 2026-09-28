@@ -2320,8 +2320,9 @@ export default function FinanceExpenseManager() {
             key={key}
             type="button"
             onClick={() => setTab(key)}
+            aria-pressed={tab === key}
             className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-xs font-semibold uppercase tracking-wider transition duration-200 ${
-              tab === key ? "bg-slate-300/78 text-cyan-50 shadow-[0_0_28px_rgba(34,211,238,0.16)]" : "text-slate-500 hover:-translate-y-0.5 hover:bg-cyan-50 hover:text-cyan-700"
+              tab === key ? "bg-cyan-600 text-white shadow-sm" : "bg-white text-slate-900 hover:bg-cyan-50 hover:text-cyan-800"
             }`}
           >
             <Icon size={15} />
