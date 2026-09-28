@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import FinanceFutureShell from "@/components/finance/FinanceFutureShell";
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Banknote, Boxes, LogOut, ReceiptText, Users } from "lucide-react";
@@ -15,16 +14,6 @@ function financePath(path) {
 }
 
 export default function FinanceLayout({ children }) {
-  const [interfaceMode, setInterfaceMode] = useState("future");
-  useEffect(() => {
-    try {
-      if (localStorage.getItem("juja:finance:interface") === "classic") setInterfaceMode("classic");
-    } catch {}
-  }, []);
-  function changeInterface(mode) {
-    try { localStorage.setItem("juja:finance:interface", mode); } catch {}
-    setInterfaceMode(mode);
-  }
   const supabase = getSupabaseClient();
   const pathname = usePathname();
   const router = useRouter();
@@ -95,8 +84,6 @@ export default function FinanceLayout({ children }) {
       ["payroll", "/payroll", "Payroll", Users],
     ];
 
-  if (interfaceMode === "future") return <FinanceFutureShell navItems={navItems} activeSection={activeSection} financePath={financePath} userEmail={userEmail} userRole={userRole} onLogout={handleLogout} onClassic={() => changeInterface("classic")}>{children}</FinanceFutureShell>;
-
   return (
     <div
       className="min-h-screen bg-cover bg-fixed bg-center bg-no-repeat text-slate-900"
@@ -118,7 +105,6 @@ export default function FinanceLayout({ children }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <button type="button" onClick={() => changeInterface("future")} className="rounded-xl border border-cyan-200 bg-white px-3 py-2 text-xs font-semibold text-slate-900">Future interface</button>
             <nav className="hidden items-center gap-1 rounded-xl border border-slate-200 bg-white/70 p-1 shadow-sm sm:flex">
               {navItems.map(([key, path, label, Icon]) => (
                 <Link
