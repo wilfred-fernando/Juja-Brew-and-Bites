@@ -2364,7 +2364,7 @@ export default function FinanceExpenseManager() {
             <SummaryCard label="Personal" value={peso(overallSummary.personal)} icon={Wallet} tone="amber" />          
           </div>
           {renderDateFilter("Overall Expenses Date", overallDateFilter, setOverallDateFilter)}
-          <div className="flex flex-wrap justify-end gap-3">
+          <div className="flex flex-nowrap items-center gap-3 overflow-x-auto pb-1 [&>button]:h-11 [&>button]:flex-1 [&>button]:shrink-0 [&>button]:whitespace-nowrap [&>button]:py-0 [&>button]:text-xs">
             {renderExportButton("overall")}
             <button
               type="button"
@@ -2374,14 +2374,16 @@ export default function FinanceExpenseManager() {
               <Plus size={15} />
               Add Overall Expense
             </button>
-          </div>
           <button type="button" onClick={() => setOverallMonthlySummaryOpen((open) => !open)} className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-semibold text-cyan-800">
             {overallMonthlySummaryOpen ? "Hide Monthly Summary" : "Monthly Summary"}
           </button>
-          {overallMonthlySummaryOpen ? <PettyCashMonthlySummary scope="overall" /> : null}
           <button type="button" onClick={() => setOverallDailySummaryOpen((open) => !open)} className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-semibold text-cyan-800">
             {overallDailySummaryOpen ? "Hide Daily Summary" : "Daily Summary"}
           </button>
+          </div>
+
+          {overallMonthlySummaryOpen ? <PettyCashMonthlySummary scope="overall" /> : null}
+
           {overallDailySummaryOpen ? <PettyCashMonthlySummary scope="overall" period="daily" /> : null}
           {renderExpenseTable(filteredOverallExpenses, "finance_expenses", { showSource: true })}
         </div>
@@ -2408,7 +2410,7 @@ export default function FinanceExpenseManager() {
             <SummaryCard label={`${selectedStoreName} Cash On Hand`} value={peso(selectedPettySummary.cashOnHand)} icon={Wallet} />
           </div>
 
-          <div className="grid grid-cols-1 items-center gap-3 sm:grid-cols-3">
+          <div className="flex flex-nowrap items-center gap-3 overflow-x-auto pb-1 [&>button]:h-11 [&>button]:flex-1 [&>button]:shrink-0 [&>button]:whitespace-nowrap [&>button]:py-0 [&>button]:text-xs">
             {renderExportButton("petty")}
             <button
               type="button"
@@ -2428,11 +2430,18 @@ export default function FinanceExpenseManager() {
               <ArrowUpCircle size={15} />
               Add Cash In
             </button>
-          </div>
-
           <button type="button" disabled={!selectedStoreId} onClick={() => setCashInRecordsOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-semibold text-cyan-800 disabled:opacity-40">
             <ArrowUpCircle size={17} /> View Cash In Records
           </button>
+          <button type="button" disabled={!selectedStoreId} onClick={() => setMonthlySummaryOpen((open) => !open)} className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-semibold text-cyan-800 disabled:opacity-40">
+            {monthlySummaryOpen ? "Hide Monthly Summary" : "Monthly Summary"}
+          </button>
+          <button type="button" disabled={!selectedStoreId} onClick={() => setDailySummaryOpen((open) => !open)} className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-semibold text-cyan-800 disabled:opacity-40">
+            {dailySummaryOpen ? "Hide Daily Summary" : "Daily Summary"}
+          </button>
+          </div>
+
+
           <Modal open={cashInRecordsOpen} title={`${selectedStoreName} Cash In Records`} onClose={() => setCashInRecordsOpen(false)} width="max-w-4xl">
               {selectedStoreFunds.length === 0 ? (
                 <EmptyState message="No cash-in records for this store." />
@@ -2469,13 +2478,9 @@ export default function FinanceExpenseManager() {
           </Modal>
 
           {renderDeleteRequests()}
-          <button type="button" disabled={!selectedStoreId} onClick={() => setMonthlySummaryOpen((open) => !open)} className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-semibold text-cyan-800 disabled:opacity-40">
-            {monthlySummaryOpen ? "Hide Monthly Summary" : "Monthly Summary"}
-          </button>
+
           {monthlySummaryOpen && selectedStoreId ? <PettyCashMonthlySummary storeId={isCashier ? currentProfile.store_id : selectedStoreId} storeName={selectedStoreName} /> : null}
-          <button type="button" disabled={!selectedStoreId} onClick={() => setDailySummaryOpen((open) => !open)} className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-semibold text-cyan-800 disabled:opacity-40">
-            {dailySummaryOpen ? "Hide Daily Summary" : "Daily Summary"}
-          </button>
+
           {dailySummaryOpen && selectedStoreId ? <PettyCashMonthlySummary storeId={isCashier ? currentProfile.store_id : selectedStoreId} storeName={selectedStoreName} period="daily" /> : null}
           {renderExpenseTable(selectedStoreEntries, "finance_petty_cash_entries")}
         </div>
