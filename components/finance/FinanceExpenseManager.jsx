@@ -2391,7 +2391,7 @@ export default function FinanceExpenseManager() {
         </div>
       ) : tab === "petty" ? (
         <div className="space-y-5">
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+          <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_minmax(420px,2fr)_minmax(180px,0.8fr)_minmax(180px,0.8fr)]">
             <div className="rounded-2xl border border-white/70 bg-white/78 p-4 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl transition duration-300 hover:border-cyan-200/80">
             <Field label={isCashier ? "Assigned Branch" : "Petty Cash Store"}>
               <Select value={selectedStoreId} onChange={(e) => setSelectedStoreId(e.target.value)} disabled={isCashier}>
@@ -2404,10 +2404,6 @@ export default function FinanceExpenseManager() {
             ) : null}
             </div>
             {renderDateFilter("Petty Cash Date", pettyDateFilter, setPettyDateFilter)}
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <SummaryCard label={`${selectedStoreName} Cash In`} value={peso(selectedPettySummary.funds)} icon={ArrowUpCircle} tone="emerald" />
             <SummaryCard label={`${selectedStoreName} Expenses`} value={peso(selectedPettySummary.expenses)} icon={ArrowDownCircle} tone="amber" />
             <SummaryCard label={`${selectedStoreName} Cash On Hand`} value={peso(selectedPettySummary.cashOnHand)} icon={Wallet} />
           </div>
