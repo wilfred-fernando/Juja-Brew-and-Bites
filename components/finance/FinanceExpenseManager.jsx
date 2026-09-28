@@ -1835,7 +1835,7 @@ export default function FinanceExpenseManager() {
         <table className="w-full min-w-[1080px] text-sm">
           <thead className="sticky top-0 bg-slate-950 text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-50">
             <tr>
-              <th className="px-4 py-3">Date</th>
+              <th className="whitespace-nowrap px-4 py-3">Date</th>
               {showSource ? <th className="px-4 py-3">Tag</th> : null}
               {showStore ? <th className="px-4 py-3">Store</th> : null}
               <th className="px-4 py-3">Description</th>
@@ -1845,15 +1845,15 @@ export default function FinanceExpenseManager() {
               <th className="px-4 py-3">TIN Number</th>
               <th className="px-4 py-3 text-center">Qty</th>
               <th className="px-4 py-3 text-center">Unit</th>
-              <th className="px-4 py-3 text-right">Unit Price</th>
-              <th className="px-4 py-3 text-right">Sub-total</th>
-              <th className="px-4 py-3 text-right">Discount</th>
+              <th className="whitespace-nowrap px-4 py-3 text-right">Unit Price</th>
+              <th className="whitespace-nowrap px-4 py-3 text-right">Sub-total</th>
+              <th className="whitespace-nowrap px-4 py-3 text-right">Discount</th>
               <th className="px-4 py-3">Tax Type</th>
-              <th className="px-4 py-3 text-right">VAT Amount</th>
-              <th className="px-4 py-3 text-right">Input VAT</th>
+              <th className="whitespace-nowrap px-4 py-3 text-right">VAT Amount</th>
+              <th className="whitespace-nowrap px-4 py-3 text-right">Input VAT</th>
               <th className="px-4 py-3">Receipt Type</th>
               <th className="px-4 py-3">Receipt Number</th>
-              <th className="px-4 py-3 text-right">Total</th>
+              <th className="whitespace-nowrap px-4 py-3 text-right">Total</th>
               <th className="px-4 py-3">Category</th>
               <th className="px-4 py-3">Payment</th>
               <th className="px-4 py-3">Inventory</th>
@@ -1870,7 +1870,7 @@ export default function FinanceExpenseManager() {
                 <Fragment key={row.id}>
                   {startsNewDay ? <tr><td colSpan={23 + Number(showSource) + Number(showStore)} className="p-0"><div style={{ borderTop: "1px solid #0891b2", background: "#ecfeff", padding: "8px 16px", color: "#155e75", fontWeight: 700 }}>{dateText(row.expense_date)}</div></td></tr> : null}
                 <tr className="text-slate-700 transition duration-200 hover:bg-cyan-50/45">
-                  <td className="px-4 py-3 font-semibold">{dateText(row.expense_date)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 font-semibold">{dateText(row.expense_date)}</td>
                   {showSource ? (
                     <td className="px-4 py-3">
                       <span className={dataPillClass}>
@@ -1886,15 +1886,15 @@ export default function FinanceExpenseManager() {
                   <td className="px-4 py-3">{supplier.tinNumber || "-"}</td>
                   <td className="px-4 py-3 text-center">{Number(row.quantity || 0).toLocaleString("en-PH")}</td>
                   <td className="px-4 py-3 text-center">{normalizeUnit(row.unit) || "-"}</td>
-                  <td className="px-4 py-3 text-right">{peso(row.unit_price)}</td>
-                  <td className="px-4 py-3 text-right">{peso(row.subtotal)}</td>
-                  <td className="px-4 py-3 text-right">{peso(row.discount)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right">{peso(row.unit_price)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right">{peso(row.subtotal)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right">{peso(row.discount)}</td>
                   <td className="px-4 py-3">{row.tax_type || "Unspecified"}</td>
-                  <td className="px-4 py-3 text-right">{row.tax_type ? peso(expenseVatBreakdown(row.total, row.tax_type).vatableSales) : "-"}</td>
-                  <td className="px-4 py-3 text-right">{row.tax_type ? peso(expenseVatBreakdown(row.total, row.tax_type).vatAmount) : "-"}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right">{row.tax_type ? peso(expenseVatBreakdown(row.total, row.tax_type).vatableSales) : "-"}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right">{row.tax_type ? peso(expenseVatBreakdown(row.total, row.tax_type).vatAmount) : "-"}</td>
                   <td className="px-4 py-3">{row.receipt_type || "-"}</td>
                   <td className="px-4 py-3">{row.or_si_no || "-"}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-slate-950">
+                  <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-slate-950">
                     {peso(row.total)}
                   </td>
                   <td className="px-4 py-3">
