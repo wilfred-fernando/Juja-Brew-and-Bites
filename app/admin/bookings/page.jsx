@@ -1,4 +1,6 @@
 "use client";
+
+import BookingCustomerSelector from "@/components/BookingCustomerSelector";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/dateFormat";
@@ -957,8 +959,8 @@ export default function AdminBookingsDashboard() {
       const startAt = computeDateTime(manualModal.dateISO, Number(manualModal.hour));
       const endAt = computeEndAt(startAt, extensionHours);
       const payload = {
-        user_id: null,
-        member_id: null,
+        user_id: manualModal.customer_account?.user_id || null,
+        member_id: manualModal.customer_account?.id || null,
         package_id: Number(manualModal.package_id),
         customer_name: String(manualModal.customer_name || "").trim(),
         event_type: String(manualModal.event_type || "").trim(),
@@ -1903,6 +1905,7 @@ export default function AdminBookingsDashboard() {
               </button>
             </div>
 
+<BookingCustomerSelector value={manualModal.customer_account} disabled={manualLoading} onChange={(account) => setManualModal((current) => ({ ...current, customer_account: account, customer_name: account?.name || current.customer_name, email: account?.email || current.email, contact_number: account?.phone || current.contact_number }))} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Customer Name</label>

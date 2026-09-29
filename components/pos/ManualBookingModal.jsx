@@ -1,5 +1,7 @@
 "use client";
 
+import BookingCustomerSelector from "@/components/BookingCustomerSelector";
+
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { packageExtensionPolicyText } from "@/lib/bookings/extensionPolicy";
@@ -119,8 +121,8 @@ export default function ManualBookingModal({ open, cashierName, onClose, onCreat
     setLoading(true);
     try {
       const payload = {
-        user_id: null,
-        member_id: null,
+        user_id: form.customer_account?.user_id || null,
+        member_id: form.customer_account?.id || null,
         package_id: Number(form.package_id),
         customer_name: String(form.customer_name).trim(),
         event_type: String(form.event_type).trim(),
@@ -172,6 +174,7 @@ export default function ManualBookingModal({ open, cashierName, onClose, onCreat
           <button type="button" disabled={loading} onClick={() => onClose?.()} className="h-9 w-9 rounded-full bg-slate-50 text-sm font-bold text-slate-500 disabled:opacity-50">X</button>
         </div>
 
+<BookingCustomerSelector value={form.customer_account} disabled={loading} onChange={(account) => setForm((current) => ({ ...current, customer_account: account, customer_name: account?.name || current.customer_name, email: account?.email || current.email, contact_number: account?.phone || current.contact_number }))} />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Customer Name"><input value={form.customer_name} onChange={(e) => setForm((p) => ({ ...p, customer_name: e.target.value }))} className="field" /></Field>
           <Field label="Event Type"><input value={form.event_type} onChange={(e) => setForm((p) => ({ ...p, event_type: e.target.value }))} placeholder="Birthday, meeting, private event" className="field" /></Field>
