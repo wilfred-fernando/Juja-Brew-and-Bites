@@ -27,6 +27,7 @@ import GiftCertificatePayment from "@/components/pos/GiftCertificatePayment";
 import BookingTab from "@/components/BookingForm";
 import CustomerApkUpdatePrompt from "@/components/CustomerApkUpdatePrompt";
 import ApkDownloadBanner from "@/components/ApkDownloadBanner";
+import CommunityPromoBanners from "@/components/CommunityPromoBanners";
 import { getStableSession } from "@/lib/supabase/session";
 import { uploadProofFile } from "@/lib/storage/uploadProof";
 import {
@@ -4365,6 +4366,7 @@ export default function Customer() {
           <AppNavigation tab={tab} setTab={setTab} />
 
           <main className="flex-1 overflow-x-hidden min-h-screen pb-32 pt-4 md:pt-8 px-4 sm:px-6 lg:pl-72 lg:pr-8 max-w-7xl mx-auto w-full transition-all">
+            {(tab === "home" || tab === "order") && <CommunityPromoBanners />}
             {tab === "home" && <HomeTab member={member} user={user} setTab={setTab} />}
             {tab === "order" && (
               <OrderTab

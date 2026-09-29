@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import CommunityPromoBanners from "@/components/CommunityPromoBanners";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
 const supabase = getSupabaseClient();
@@ -80,6 +81,7 @@ export default function PromoPage() {
 
       <main className="flex-1 px-4 pb-14 pt-24 sm:px-6 lg:px-10">
         <section className="mx-auto max-w-7xl">
+          <CommunityPromoBanners />
           <Link href="/gift-certificates" style={{ color: "#fff" }} className="mb-6 inline-block rounded-xl bg-green-800 px-5 py-3 font-semibold text-white">Buy JUJA e-Gift Certificates</Link>
           <div className="grid items-stretch gap-6 lg:grid-cols-[0.95fr_1.05fr]">
             <div className="rounded-[2rem] border border-white/70 bg-white/78 p-7 shadow-[0_28px_80px_rgba(51,65,85,0.16)] backdrop-blur-xl sm:p-9 lg:p-10">
@@ -90,7 +92,7 @@ export default function PromoPage() {
                 Fresh deals for your next Juja craving.
               </h1>
               <p className="mt-5 max-w-xl text-sm leading-7 text-slate-700 sm:text-base">
-                Browse active promo codes created from Admin Promos. Claim a code, order from the customer portal, and enjoy the latest offers while they are available.
+                Discover our in-store offers and online promo codes. For ID-based offers, present your ID to our cashier. Use online promo codes when ordering from the customer portal.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
@@ -143,7 +145,7 @@ export default function PromoPage() {
                   </div>
                 ) : (
                   <div className="mt-9 rounded-3xl border border-white/15 bg-white/10 p-7">
-                    <h2 className="text-2xl font-semibold text-white">No active promo today</h2>
+                    <h2 className="text-2xl font-semibold text-white">No active online promo code</h2>
                     <p className="mt-3 text-sm leading-7 text-slate-200">
                       New promo codes will appear here automatically once enabled in Admin Promos.
                     </p>
@@ -159,7 +161,7 @@ export default function PromoPage() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
                   Promo Board
                 </p>
-                <h2 className="mt-2 text-2xl font-semibold text-slate-950">All Active Offers</h2>
+                <h2 className="mt-2 text-2xl font-semibold text-slate-950">Online Promo Codes</h2>
               </div>
               <p className="text-sm text-slate-600">{promos.length} active promo{promos.length === 1 ? "" : "s"}</p>
             </div>
@@ -178,7 +180,7 @@ export default function PromoPage() {
               </div>
             ) : promos.length === 0 ? (
               <div className="rounded-3xl border border-dashed border-slate-300 bg-white/70 px-6 py-14 text-center">
-                <p className="text-lg font-semibold text-slate-900">No active promotions</p>
+                <p className="text-lg font-semibold text-slate-900">No active online promo codes</p>
                 <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
                   Promo codes enabled in Admin Promos will show here automatically.
                 </p>
