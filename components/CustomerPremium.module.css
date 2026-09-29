@@ -14,7 +14,7 @@
 .account { margin-top:auto; padding-top:24px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
 .account strong { flex:1; min-width:0; overflow-wrap:anywhere; font-size:10px; font-weight:500; color:#e7edf5; }
 .portal .account button { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:10px; background:transparent!important; border:1px solid #526177!important; color:#d8e1ed!important; }
-.workspace { margin-left:248px; padding:24px 24px 100px; width:calc(100% - 248px); min-width:0; }
+.workspace { margin-left:248px; padding:0 24px 100px; width:calc(100% - 248px); min-width:0; }
 .pageHeading { display:flex; align-items:center; justify-content:space-between; gap:16px; padding-bottom:18px; margin-bottom:18px; border-bottom:1px solid #dce3eb; }
 .pageHeading p { font-size:9px; letter-spacing:.18em; color:#657185; }
 .pageHeading h1 { margin:6px 0; font-size:28px; font-weight:600; letter-spacing:-.8px; color:#20324a; }
@@ -45,7 +45,7 @@
 .portal [class*="text-slate-400"] { color:#657185!important; }
 @media(max-width:1023px) {
  .sidebar { display:none; }
- .workspace { margin-left:0; width:100%; padding:18px 16px calc(110px + env(safe-area-inset-bottom)); }
+ .workspace { margin-left:0; width:100%; padding:0 16px calc(110px + env(safe-area-inset-bottom)); }
  .mobileNav { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); position:fixed; bottom:0; left:0; right:0; z-index:50; padding:6px 4px calc(8px + env(safe-area-inset-bottom)); background:#192b42; border-top:1px solid #31435b; }
  .portal .mobileNav button { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; min-height:50px; background:transparent!important; color:#bfccdd!important; border:0; padding:6px 0; }
  .mobileNav span { font-size:9px; }
@@ -60,3 +60,27 @@
 .portal [data-customer-tab="profile"] { max-width:1200px; }
 .portal [data-customer-tab="booking"] label { color:#52657b; }
 .portal [data-customer-tab="loyalty"] :is(button,a)[class*="border-rose-"] { border-color:#b9c9dc; }
+
+/* Customer routes need no space for the public site's fixed header. */
+.portal.portal { padding-top:0!important; margin-top:0; }
+.portal > :global(.juja-page-bg) { padding-top:0!important; margin-top:0; }
+/* Customer booking workspace: neutral panels, navy actions, ivory accents. */
+.portal [data-booking-workspace] { color:#20324a; }
+.portal [data-booking-heading] { background:#20324a!important; border:1px solid #31435b!important; border-radius:14px; overflow:hidden; box-shadow:none!important; }
+.portal [data-booking-heading] > div:first-child { padding:22px 24px; }
+.portal [data-booking-heading] h2 { color:#fff!important; font-family:Arial,sans-serif; font-size:26px; font-weight:600; letter-spacing:-.6px; margin-top:8px; }
+.portal [data-booking-heading] p { color:#c5d0df!important; }
+.portal [data-booking-heading] p:first-child { color:#f1e6ce!important; font-size:9px; letter-spacing:.16em; }
+.portal [data-booking-steps] { background:#fff!important; border-top:1px solid #dce3eb!important; }
+.portal [data-booking-steps] button { border:0!important; border-bottom:3px solid transparent!important; border-radius:0!important; min-height:52px; color:#52657b!important; background:#fff!important; box-shadow:none!important; text-transform:none; font-size:12px; letter-spacing:0; }
+.portal [data-booking-steps] button[aria-pressed="true"] { background:#f1e6ce!important; color:#20324a!important; border-bottom-color:#284b74!important; }
+.portal [data-booking-steps] button:hover { background:#e9eef5!important; transform:none!important; }
+.portal [data-booking-steps] button span:first-child { border-color:#9eafc3; }
+.portal [data-booking-workspace] div[class*="bg-[#fffdf8]"],.portal [data-booking-workspace] div[class*="bg-[#f7f4ec]"] { background:#fff!important; border-color:#dce3eb!important; border-radius:12px; box-shadow:0 2px 8px #15233706!important; }
+.portal [data-booking-workspace] [class*="text-[#0b6942]"] { color:#284b74!important; }
+.portal [data-booking-workspace] .font-serif { font-family:Arial,sans-serif; }
+.portal [data-booking-workspace] button:is([class*="bg-[#0b6942]"],[class~="bg-slate-600"]) { background:#284b74!important; border-color:#284b74!important; color:white!important; box-shadow:none!important; }
+.portal [data-booking-workspace] button:is([class*="bg-[#0b6942]"],[class~="bg-slate-600"]):hover:not(:disabled) { background:#19395e!important; }
+.portal [data-booking-workspace] input[type="file"]::file-selector-button { background:#284b74; color:white; border:0; border-radius:6px; }
+.portal [data-booking-workspace] [class*="rounded-[28px]"],.portal [data-booking-workspace] [class*="rounded-[32px]"] { border-radius:14px; }
+@media(max-width:640px) { .portal [data-booking-heading] > div:first-child{padding:18px} .portal [data-booking-heading] h2{font-size:23px} .portal [data-booking-steps] button{font-size:10px;gap:5px} }

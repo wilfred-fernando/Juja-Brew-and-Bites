@@ -1386,8 +1386,8 @@ export default function BookingForm({ user, member }) {
   }
 
   return (
-    <div className="space-y-4 md:space-y-6 animate-in fade-in duration-500">
-      <div className="overflow-hidden rounded-[28px] border border-emerald-900/10 bg-gradient-to-br from-[#fffdf8] to-[#f3f0e8] shadow-sm">
+    <div data-booking-workspace className="space-y-4 md:space-y-6 animate-in fade-in duration-500">
+      <div data-booking-heading className="overflow-hidden rounded-[28px] border border-emerald-900/10 bg-gradient-to-br from-[#fffdf8] to-[#f3f0e8] shadow-sm">
         <div className="p-5 md:p-7">
           <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#0b6942]">
             Function room reservation
@@ -1401,7 +1401,7 @@ export default function BookingForm({ user, member }) {
           </p>
         </div>
 
-        <div className="grid grid-cols-3 border-t border-emerald-900/10 bg-white/70">
+        <div data-booking-steps className="grid grid-cols-3 border-t border-emerald-900/10 bg-white/70">
           {[
             ["availability", "1", "Date & time"],
             ["packages", "2", "Package"],
@@ -1413,6 +1413,7 @@ export default function BookingForm({ user, member }) {
                 key={key}
                 type="button"
                 onClick={() => setTab(key)}
+                aria-pressed={active}
                 className={`flex min-w-0 items-center justify-center gap-2 px-2 py-3 text-[10px] font-semibold uppercase tracking-wider transition md:text-xs ${
                   active
                     ? "bg-[#0b6942] text-white"
@@ -1433,6 +1434,7 @@ export default function BookingForm({ user, member }) {
         <button
           type="button"
           onClick={() => setTab("manage")}
+          aria-pressed={tab === "manage"}
           className={`rounded-full border px-4 py-2 text-[10px] font-semibold uppercase tracking-widest transition ${
             tab === "manage"
               ? "border-[#0b6942] bg-[#0b6942] text-white"

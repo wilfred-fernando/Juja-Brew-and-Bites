@@ -526,7 +526,7 @@ function AppNavigation({ tab, setTab, user, onLogout }) {
       {CUSTOMER_TABS.map(({ id, icon: Icon, label }) => <button key={id} type="button" aria-current={tab === id ? "page" : undefined} onClick={() => setTab(id)}><Icon size={19} /><span>{label}</span></button>)}
     </nav>
     <aside className={premium.sidebar}>
-      <Link href="/" className={premium.brand} aria-label="JUJA homepage"><Image src="/branding/juja-signage.png" alt="JUJA Brew & Bites" width={8640} height={2160} sizes="340px" priority /><span>CUSTOMER / WORKSPACE</span></Link>
+      <Link href="/" className={premium.brand} aria-label="JUJA homepage"><Image src="/finance/juja-logo.png" alt="JUJA Brew & Bites" width={8640} height={2160} sizes="340px" priority /><span>CUSTOMER / WORKSPACE</span></Link>
       <p className={premium.navLabel}>YOUR JUJA</p>
       <nav aria-label="Customer navigation">
         {CUSTOMER_TABS.map(({ id, icon: Icon, label }) => <button key={id} type="button" aria-current={tab === id ? "page" : undefined} onClick={() => setTab(id)}><Icon size={18} /><span>{label}</span><ChevronRight size={14} /></button>)}
