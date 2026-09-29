@@ -1,3 +1,5 @@
+import styles from "@/components/CustomerPremium.module.css";
+
 export const metadata = {
   title: "JUJA Customer Portal",
   description: "Customer ordering, booking, and loyalty portal for Juja Brew & Bites.",
@@ -11,5 +13,5 @@ export const metadata = {
 };
 
 export default function CustomerLayout({ children }) {
-  return children;
+  return <div className={styles.portal}>{children}</div>;
 }

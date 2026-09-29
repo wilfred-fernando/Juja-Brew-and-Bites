@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import premium from "@/components/CustomerPremium.module.css";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { Barcode as BarcodeIcon, CalendarDays, MapPin, Phone, ShoppingBasket, Star } from "lucide-react";
+import { Barcode as BarcodeIcon, CalendarDays, MapPin, Phone, ShoppingBasket, Star, Home, Gift, Package, UserRound, LogOut, ChevronRight } from "lucide-react";
 
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
@@ -509,73 +510,30 @@ function normalizeBirthday(input) {
 /* ──────────────────────────────────────────────────────────────
     Responsive Sidebar / Bottom Tab Navigation
 ────────────────────────────────────────────────────────────── */
-function AppNavigation({ tab, setTab }) {
-  const tabs = [
-    { id: "home", icon: "🏠", label: "Home" },
-    { id: "order", icon: "🍽️", label: "Order" },
-    { id: "promos", icon: "🎁", label: "Promos" },
-    { id: "history", icon: "📦", label: "Tracker" },
-    { id: "loyalty", icon: "⭐", label: "Loyalty" },
-    { id: "booking", icon: "🗓", label: "Book" },
-    { id: "profile", icon: "👤", label: "Profile" },
-  ];
+const CUSTOMER_TABS = [
+  { id: "home", icon: Home, label: "Home", description: "Your JUJA, all in one place." },
+  { id: "order", icon: ShoppingBasket, label: "Order", description: "Find your favorites and make them yours." },
+  { id: "promos", icon: Gift, label: "Promos", description: "A little extra for your next visit." },
+  { id: "history", icon: Package, label: "Tracker", description: "Follow your orders, from preparation to pickup." },
+  { id: "loyalty", icon: Star, label: "Loyalty", description: "Your points, rewards, and member benefits." },
+  { id: "booking", icon: CalendarDays, label: "Book", description: "Make room for your next gathering." },
+  { id: "profile", icon: UserRound, label: "Profile", description: "Manage your account and preferences." },
+];
 
-  return (
-    <>
-      {/* Mobile & Tablet Bottom Tab Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-rose-50 pb-safe shadow-[0_-4px_24px_rgba(252,104,125,0.05)] lg:hidden">
-        <div className="max-w-xl mx-auto grid grid-cols-7 px-1">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`relative flex flex-col items-center justify-center py-3 gap-1 transition-all duration-300 active:scale-90 ${
-                tab === t.id ? "text-[#FC687D]" : "text-slate-400 hover:text-slate-600"
-              }`}
-            >
-              <span className={`text-[20px] leading-none transition-transform duration-300 ${tab === t.id ? "scale-110 -translate-y-0.5" : ""}`}>
-                {t.icon}
-              </span>
-              <span className={`text-[8px] font-bold uppercase tracking-wider ${tab === t.id ? "text-[#FC687D]" : "text-slate-400"}`}>
-                {t.label}
-              </span>
-              {tab === t.id && (
-                <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-[#FC687D]" />
-              )}
-            </button>
-          ))}
-        </div>
+function AppNavigation({ tab, setTab, user, onLogout }) {
+  return <>
+    <nav className={premium.mobileNav} aria-label="Customer navigation">
+      {CUSTOMER_TABS.map(({ id, icon: Icon, label }) => <button key={id} type="button" aria-current={tab === id ? "page" : undefined} onClick={() => setTab(id)}><Icon size={19} /><span>{label}</span></button>)}
+    </nav>
+    <aside className={premium.sidebar}>
+      <Link href="/" className={premium.brand} aria-label="JUJA homepage"><Image src="/branding/juja-signage.png" alt="JUJA Brew & Bites" width={8640} height={2160} sizes="340px" priority /><span>CUSTOMER / WORKSPACE</span></Link>
+      <p className={premium.navLabel}>YOUR JUJA</p>
+      <nav aria-label="Customer navigation">
+        {CUSTOMER_TABS.map(({ id, icon: Icon, label }) => <button key={id} type="button" aria-current={tab === id ? "page" : undefined} onClick={() => setTab(id)}><Icon size={18} /><span>{label}</span><ChevronRight size={14} /></button>)}
       </nav>
-
-      {/* Desktop Persistent Left Sidebar Layout */}
-      <aside className="hidden lg:flex flex-col fixed top-0 left-0 h-screen w-64 bg-white border-r border-rose-50 p-6 z-50">
-        <div className="flex items-center gap-3 mb-8 px-2">
-          <img src={LOGO} alt="Juja Logo" className="h-10 w-auto object-contain" />
-          <div className="leading-tight">
-            <h1 className="text-xs font-bold uppercase tracking-widest text-[#FC687D]">Juja</h1>
-            <p className="text-[10px] uppercase text-slate-400 tracking-wider">Brew & Bites</p>
-          </div>
-        </div>
-
-        <nav className="flex-1 space-y-1">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${
-                tab === t.id
-                  ? "bg-[#FFF5F7] text-[#FC687D]"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              <span className="text-xl leading-none">{t.icon}</span>
-              <span className="tracking-wide">{t.label}</span>
-            </button>
-          ))}
-        </nav>
-      </aside>
-    </>
-  );
+      <div className={premium.account}><UserRound size={22} /><strong>{user?.email}</strong><button type="button" onClick={onLogout}><LogOut size={16} />Sign out</button></div>
+    </aside>
+  </>;
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -4364,16 +4322,17 @@ export default function Customer() {
 
       {member && (
         <>
-          <AppNavigation tab={tab} setTab={setTab} />
+          <AppNavigation tab={tab} setTab={setTab} user={user} onLogout={logout} />
 
-          <main className="flex-1 overflow-x-hidden min-h-screen pb-32 pt-4 md:pt-8 px-4 sm:px-6 lg:pl-72 lg:pr-8 max-w-7xl mx-auto w-full transition-all">
+          <main className={premium.workspace} data-customer-tab={tab}>
+            <header className={premium.pageHeading}>
+              <div><p>JUJA BREW &amp; BITES</p><h1>{CUSTOMER_TABS.find((item) => item.id === tab)?.label || "Welcome"}</h1><span>{CUSTOMER_TABS.find((item) => item.id === tab)?.description}</span></div>
+              <button type="button" onClick={() => setTab("profile")} aria-label="Open your profile"><UserRound size={19} /></button>
+            </header>
             {tab === "promos" && (
-              <section aria-labelledby="customer-promos-title">
-                <header className="mb-6">
-                  <h1 id="customer-promos-title" className="text-3xl font-bold tracking-tight text-slate-900">Promos</h1>
-                  <p className="mt-2 text-sm text-slate-600">Discover our latest offers and treats to share.</p>
-                </header>
-                <CommunityPromoBanners detailed />
+              <section aria-label="Customer promos">
+
+                <CommunityPromoBanners detailed layout="list" />
               </section>
             )}
             {tab === "home" && <HomeTab member={member} user={user} setTab={setTab} />}

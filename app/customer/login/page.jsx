@@ -212,7 +212,7 @@ export default function Login() {
           </div>
 
           {/* CARD */}
-          <div className="bg-white rounded-2xl p-6 border border-slate-100">
+          <div data-customer-auth-card className="bg-white rounded-2xl p-6 border border-slate-100">
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {mode === "signup" && (
