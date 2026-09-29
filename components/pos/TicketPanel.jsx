@@ -94,7 +94,7 @@ const isWelcomeVoucher = (voucher) => {
         <div className="flex items-center justify-between">
         <div className="text-left">
           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-            Current order
+            Active Station
           </span>
 
           {/* ✅ FIX: show name instead of ID */}

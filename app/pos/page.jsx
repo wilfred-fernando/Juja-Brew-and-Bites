@@ -26,7 +26,6 @@ import {
   setLocalSnapshot,
 } from "@/lib/localData";
 import TicketPanel from "@/components/pos/TicketPanel";
-import PosNavigation, { POS_SECTIONS } from "@/components/pos/PosNavigation";
 import GiftCertificatePurchaseForm from "@/components/GiftCertificatePurchaseForm";
 import GiftCertificatePaymentDialog from "@/components/pos/GiftCertificatePaymentDialog";
 import { gcPaymentBreakdown } from "@/lib/posGiftCertificates";
@@ -10244,16 +10243,10 @@ export default function POSPage() {
         className="mx-3 mt-3 rounded-2xl border border-cyan-100 bg-white px-4 py-3 text-slate-900 shadow-sm flex items-center justify-between gap-4 animate-in slide-in-from-top duration-300 sm:mx-4 lg:mx-6"
       />
 
-      <PosNavigation active={managementOpen ? managementView : null} onManagement={openManagement}
-        onSale={() => setManagementOpen(false)} onBookings={() => setBookingCalendarOpen(true)}
-        onAccount={() => setPosMenuOpen(true)} onSignOut={signOut} cashier={cashierName} />
-      <div className="pos-workspace p-3 sm:p-4 transition-all">
+      <div className="max-w-[1600px] mx-auto p-3 sm:p-4 lg:p-6 transition-all">
         <header data-pos-heading>
-          <div><p>SALES WORKSPACE</p><h1>{currentStore?.name || currentStore?.store_name || "Cashier workspace"}</h1></div>
-          <div className="pos-header-actions">
-            <span className="pos-shift-status">Shift: {shiftStatus === "open" ? "Open" : "Closed"}</span>
-            <button type="button" onClick={() => setPosMenuOpen(true)}>Menu &amp; account</button>
-          </div>
+          <div className="flex items-center gap-4"><span className="pos-brand" role="img" aria-label="JUJA Brew and Bites" /><div><p>Point of sale</p><h1>{currentStore?.name || currentStore?.store_name || "Cashier workspace"}</h1></div></div>
+          <button type="button" onClick={() => setPosMenuOpen(true)}>Menu &amp; account</button>
         </header>
         {posMenuOpen && (
           <div className="fixed inset-0 z-[145] bg-slate-800/30 backdrop-blur-sm p-4 flex items-center justify-center" onClick={() => setPosMenuOpen(false)}>
@@ -10390,9 +10383,6 @@ export default function POSPage() {
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-          <nav className="pos-management-tabs" aria-label="Management sections">
-            {POS_SECTIONS.map(([key, label, Icon]) => <button key={key} type="button" aria-current={managementView === key ? "page" : undefined} onClick={() => openManagement(key)}><Icon size={16} />{label}</button>)}
-          </nav>
           {managementView === "receipts" && (
             <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
               <div className="space-y-2 max-h-200 overflow-y-auto pr-">
@@ -11024,12 +11014,11 @@ export default function POSPage() {
         )}
 
         {/* MAIN TERMINAL RESPONSIVE GRID LAYOUT FLOW */}
-        <div className="pos-selling-grid grid grid-cols-1 lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_380px] gap-4 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_380px] gap-4 lg:gap-5 items-start">
           
           {/* CATALOG AND MENU SHELF VIEW PANELS */}
           <div data-pos-catalog className="bg-white rounded-2xl border border-rose-100 p-4 shadow-sm space-y-4">
             
-            <div className="pos-catalog-title"><div><p>TAKE AN ORDER</p><h2>Menu catalog</h2></div><span>{visibleMenuItems.length} items</span></div>
             {/* Catalog Controller Sorting filters bars */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-50 pb-3">
               <label className="relative w-full sm:w-80">
@@ -11070,15 +11059,11 @@ export default function POSPage() {
               </button>
             </div>
 
-            <nav className="pos-category-tabs" aria-label="Menu categories">
-              <button type="button" aria-pressed={!activeCategory} onClick={() => setActiveCategory("")}>Featured</button>
-              {categories.map((cat) => <button key={cat.id || cat.name} type="button" aria-pressed={activeCategory === cat.name} onClick={() => setActiveCategory(cat.name)}>{cat.name}</button>)}
-            </nav>
             {/* Product tile grid with category dropdown selection */}
             {loading ? (
               <div className="py-24 text-center"><div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full mx-auto" /></div>
             ) : (
-              <div className="pos-product-grid">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 gap-3 max-h-[calc(100vh-190px)] overflow-y-auto pr-1">
                   {visibleMenuItems.length === 0 ? (
                     <div className="col-span-full rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-xs font-semibold text-slate-500">
                       {activeCategory ? "No available items found in this category." : "No featured menu items found."}
@@ -11093,7 +11078,7 @@ export default function POSPage() {
                           if (!orderable) return;
                           setSelectedItemForModal(item);
                         }}
-                        className={`pos-product-card group relative border rounded-xl p-2.5 text-left transition-all duration-200 flex flex-col h-full justify-between ${
+                        className={`pos-menu-item group relative border rounded-xl p-2.5 text-left transition-all duration-200 flex flex-col h-full justify-between ${
                           orderable
                             ? "bg-white border-slate-100 hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-md"
                             : "cursor-not-allowed border-slate-200 bg-slate-100 opacity-70 grayscale"
