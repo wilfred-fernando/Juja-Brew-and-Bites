@@ -87,14 +87,14 @@ const isWelcomeVoucher = (voucher) => {
       : [];
 
   return (
-    <div className="flex flex-col h-full min-h-0 text-slate-800 font-sans select-none bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+    <div data-pos-order className="flex flex-col h-full min-h-0 text-slate-800 font-sans select-none bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
 
       {/* Header */}
       <div className="pb-3 mb-3 border-b border-rose-100 space-y-3">
         <div className="flex items-center justify-between">
         <div className="text-left">
           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-            Active Station
+            Current order
           </span>
 
           {/* ✅ FIX: show name instead of ID */}
@@ -136,7 +136,8 @@ const isWelcomeVoucher = (voucher) => {
           <button
             type="button"
             onClick={onOpenPosMenu}
-            className="relative h-9 px-3 rounded-xl bg-slate-100/78 text-white text-[12px] font-semibold uppercase shadow-sm"
+            aria-label="Open POS menu"
+            className="relative h-9 px-3 rounded-xl bg-slate-100 text-slate-700 text-[12px] font-semibold uppercase shadow-sm"
           >
             ☰
             {pendingCount > 0 && (
@@ -485,7 +486,7 @@ const isWelcomeVoucher = (voucher) => {
       </div>
 
       {/* Checkout Computations Layout Footer */}
-      <div className="mt-3 pt-1 space-y-3 bg-white">
+      <div data-pos-checkout className="mt-3 pt-1 space-y-3 bg-white">
         <div className="flex justify-between items-baseline">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Balance</span>
           <span className="font-bold text-2xl text-slate-800">
