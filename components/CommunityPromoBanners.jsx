@@ -49,9 +49,9 @@ export default function CommunityPromoBanners({ detailed = false, layout = "grid
   return (
     <section aria-label="JUJA promotions" className={`grid gap-6 ${layout === "list" ? "grid-cols-1" : visible.length > 1 ? "md:grid-cols-2" : "max-w-2xl mx-auto"} ${detailed ? "" : "mb-6"}`}>
       {visible.map((campaign) => (
-        <article key={campaign.id} className={`overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[0_12px_40px_rgba(44,38,30,0.06)] ${layout === "list" ? "grid items-center md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]" : ""}`}>
-          <a href={campaign.image} target="_blank" rel="noopener noreferrer" className="block focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-emerald-700" aria-label={`View full-size ${campaign.label} artwork (opens in new tab)`}>
-            <Image src={campaign.image} width={campaign.width} height={campaign.height} sizes="(max-width: 767px) 100vw, 50vw" alt={`${campaign.label}: ${campaign.offer}. ${campaign.schedule}. ${campaign.details}`} className="h-auto w-full" />
+        <article key={campaign.id} className={`overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[0_12px_40px_rgba(44,38,30,0.06)] ${layout === "list" ? "grid items-center md:grid-cols-[minmax(0,300px)_minmax(0,1fr)]" : ""}`}>
+          <a href={campaign.image} target="_blank" rel="noopener noreferrer" className={`block focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-emerald-700 ${layout === "list" ? "mx-auto w-full max-w-[300px] p-4" : ""}`} aria-label={`View full-size ${campaign.label} artwork (opens in new tab)`}>
+            <Image src={campaign.image} width={campaign.width} height={campaign.height} sizes={layout === "list" ? "268px" : "(max-width: 767px) 100vw, 50vw"} alt={`${campaign.label}: ${campaign.offer}. ${campaign.schedule}. ${campaign.details}`} className="h-auto w-full" />
           </a>
           <div className={detailed ? "p-6 sm:p-8" : "p-4"}>
             <p className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${campaign.tone}`}>{campaign.label}</p>
