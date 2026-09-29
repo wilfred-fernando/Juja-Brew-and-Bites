@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { PublicNav as Nav } from "@/components/PublicNav";
+import { PublicFooter as Footer } from "@/components/PublicFooter";
 
-const LOGO =
-  "https://media.base44.com/images/public/69f505cc3d136c1f10ee80e0/9dedf6c22_SIGNAGElightwithkoreanletters3.png";
+
 
 const coffeeFlavors = [
   "Spanish Latte",
@@ -312,185 +311,9 @@ const addOns = [
   "Travel fee depends on event location",
 ];
 
-function Nav({ active }) {
-  const [open, setOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  const [loginUrl, setLoginUrl] = useState(
-    "https://customer.jujabrewandbites.com/login"
-  );
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const isLocal =
-        window.location.hostname === "localhost" ||
-        window.location.hostname === "127.0.0.1";
-      setLoginUrl(
-        isLocal
-          ? "http://customer.localhost:3000/login"
-          : "https://customer.jujabrewandbites.com/login"
-      );
-    }
 
-    const fn = () => setScrolled(window.scrollY > 40);
-    window.addEventListener("scroll", fn);
-    return () => window.removeEventListener("scroll", fn);
-  }, []);
 
-  const links = [
-    ["home", "Home", "/"],
-    ["menu", "Menu", "/menu"],
-    ["promo", "Promos", "/promos"],
-    ["function room", "Function Room", "/function-room"],
-    ["event-cart", "Event Cart", "/event-cart"],
-    ["about", "About Us", "/about"],
-  ];
-
-  return (
-    <nav
-      className={`fixed top-0 z-50 w-full transition-all duration-500 ${
-        scrolled
-          ? "bg-white/95 shadow-[0_1px_30px_rgba(0,0,0,0.05)] backdrop-blur-2xl"
-          : "bg-transparent"
-      }`}
-    >
-      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-12">
-        <Link href="/" className="flex-shrink-0">
-          <img
-            src={LOGO}
-            alt="Juja"
-            className="h-12 w-auto object-contain drop-shadow-sm transition-all duration-300 hover:scale-105 sm:h-14 md:h-16"
-          />
-        </Link>
-
-        <div className="hidden items-center gap-5 md:flex lg:gap-8">
-          {links.map(([id, label, href]) => (
-            <Link
-              key={id}
-              href={href}
-              className={`group relative pb-1 text-[11px] font-semibold uppercase tracking-[0.16em] transition-all duration-300 lg:text-[12px] ${
-                active === id
-                  ? "text-[#FC687D]"
-                  : "text-slate-700 hover:text-slate-950"
-              }`}
-            >
-              {label}
-              <span
-                className={`absolute bottom-0 left-0 h-[2px] rounded-full bg-gradient-to-r from-[#FC687D] to-rose-400 transition-all duration-350 ${
-                  active === id ? "w-full" : "w-0 group-hover:w-full"
-                }`}
-              />
-            </Link>
-          ))}
-        </div>
-
-        <Link
-          href={loginUrl}
-          className="hidden rounded-full border border-[#087830]/50 bg-white/60 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-widest text-[#087830] transition-colors hover:bg-white md:block"
-        >
-          Login / Signup
-        </Link>
-
-        <button
-          className="p-2 text-slate-800 md:hidden"
-          onClick={() => setOpen(!open)}
-          aria-label="Toggle Menu"
-          type="button"
-        >
-          <div className="w-5 space-y-[5px]">
-            <span
-              className={`block h-[2px] rounded-full bg-current transition-all duration-300 ${
-                open ? "translate-y-[7px] rotate-45" : ""
-              }`}
-            />
-            <span
-              className={`block h-[2px] rounded-full bg-current transition-all duration-300 ${
-                open ? "opacity-0" : ""
-              }`}
-            />
-            <span
-              className={`block h-[2px] rounded-full bg-current transition-all duration-300 ${
-                open ? "-translate-y-[7px] -rotate-45" : ""
-              }`}
-            />
-          </div>
-        </button>
-      </div>
-
-      {open && (
-        <div className="flex flex-col gap-3 border-t border-slate-100 bg-white px-6 py-6 md:hidden">
-          {links.map(([, label, href]) => (
-            <Link
-              key={label}
-              href={href}
-              onClick={() => setOpen(false)}
-              className="border-b border-slate-50 py-2 text-sm font-medium tracking-wide text-slate-800"
-            >
-              {label}
-            </Link>
-          ))}
-          <Link
-            href={loginUrl}
-            onClick={() => setOpen(false)}
-            className="rounded-full border border-[#087830]/50 bg-white/80 py-3.5 text-center text-sm font-semibold text-[#087830]"
-          >
-            Login / Signup
-          </Link>
-        </div>
-      )}
-    </nav>
-  );
-}
-
-function Footer() {
-  return (
-    <footer className="flex-none bg-slate-900 px-6 py-2 text-slate-400 md:py-3">
-      <div className="mx-auto mb-2 grid max-w-7xl grid-cols-1 gap-3 md:mb-3 md:grid-cols-3 md:gap-5">
-        <div className="flex flex-col justify-center">
-          <p className="mb-2 max-w-sm leading-relaxed text-slate-400">
-            ROMANS 15:13
-          </p>
-          <p className="max-w-sm text-xs leading-relaxed text-slate-400">
-            May the God of hope fill you with all joy and peace...
-          </p>
-        </div>
-
-        <div className="text-xs">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#FC687D]">
-            Pasong Tamo Branch
-          </p>
-          <div className="space-y-1 leading-relaxed text-slate-400">
-            <p>36D Visayas Ave., Pasong Tamo, QC</p>
-            <p>0939-9228383</p>
-            <p className="text-[11px] text-slate-500">
-              Store: 10AM-12MN · Function Room: 10AM-2AM
-            </p>
-          </div>
-        </div>
-
-        <div className="text-xs">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#FC687D]">
-            Diliman Branch
-          </p>
-          <div className="space-y-1 leading-relaxed text-slate-400">
-            <p>8 Visayas Ave., Diliman, QC</p>
-            <p>0961-6320909</p>
-            <p className="text-[11px] text-slate-500">
-              Mon-Sat: 9AM–10PM · Sun: CLOSED
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between border-t border-white/10 pt-2 text-[10px] uppercase tracking-wider text-slate-500 sm:flex-row">
-        <p>
-          © {new Date().getFullYear()} Juja Brew &amp; Bites® · All rights
-          reserved
-        </p>
-        <p>Quezon City · Philippines</p>
-      </div>
-    </footer>
-  );
-}
 
 function SectionHeading({ eyebrow, title, subtitle }) {
   return (

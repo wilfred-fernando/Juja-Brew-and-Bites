@@ -1,4 +1,5 @@
 import "./style.css";
+import PublicPremium from "@/components/PublicPremium";
 import PageTransition from "@/components/PageTransition";
 import PwaManifestManager from "@/components/PwaManifestManager";
 
@@ -26,7 +27,7 @@ export default function RootLayout({ children }) {
         suppressHydrationWarning
       >
         <PwaManifestManager />
-        <PageTransition>{children}</PageTransition>
+        <PageTransition><PublicPremium>{children}</PublicPremium></PageTransition>
       </body>
     </html>
   );
