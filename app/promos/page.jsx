@@ -1,233 +1,34 @@
-"use client";
-
+import Link from "next/link";
+import { ArrowUpRight, BadgeCheck, Coffee } from "lucide-react";
 import { PublicNav as Nav } from "@/components/PublicNav";
 import { PublicFooter as Footer } from "@/components/PublicFooter";
-
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import CommunityPromoBanners from "@/components/CommunityPromoBanners";
-import { getSupabaseClient } from "@/lib/supabase/client";
-
-const supabase = getSupabaseClient();
-
-
-function formatMoney(value) {
-  const amount = Number(value || 0);
-  return new Intl.NumberFormat("en-PH", {
-    style: "currency",
-    currency: "PHP",
-    maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
-  }).format(amount);
-}
-
-function getPromoValue(promo) {
-  const discount = Number(promo.discount_value ?? promo.discount ?? 0);
-  if (discount <= 0) return promo.title || "Featured Promo";
-  if ((promo.discount_type || promo.type) === "percent") return `${discount}% OFF`;
-  return `${formatMoney(discount)} OFF`;
-}
-
-function getPromoDescription(promo) {
-  if (promo.description) return promo.description;
-  const minimum = Number(promo.min_order || 0);
-  if (minimum > 0) {
-    return `Use this code on orders worth at least ${formatMoney(minimum)}.`;
-  }
-  return "Use this code on your next Juja order while the offer is active.";
-}
 
 export default function PromoPage() {
-  const [promos, setPromos] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function fetchPromos() {
-      setIsLoading(true);
-      setError("");
-
-      const { data, error: promoError } = await supabase
-        .from("promotions")
-        .select("id, code, title, description, discount_type, discount_value, is_active, start_date, end_date, created_at")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false });
-
-      if (!mounted) return;
-
-      if (promoError) {
-        console.error("Error fetching promos:", promoError);
-        setPromos([]);
-        setError("Promos are temporarily unavailable. Please check again soon.");
-      } else {
-        setPromos(data || []);
-      }
-
-      setIsLoading(false);
-    }
-
-    fetchPromos();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const featuredPromo = useMemo(() => promos[0] || null, [promos]);
-  const otherPromos = useMemo(() => promos.slice(1), [promos]);
-
   return (
-    <div className="juja-page-bg flex min-h-screen flex-col bg-white text-slate-900">
+    <div className="flex min-h-screen flex-col bg-[#faf8f4] text-stone-900">
       <Nav active="promo" />
-
-      <main className="flex-1 px-4 pb-14 pt-24 sm:px-6 lg:px-10">
-        <section className="mx-auto max-w-7xl">
-          <CommunityPromoBanners />
-          <Link href="/gift-certificates" style={{ color: "#fff" }} className="mb-6 inline-block rounded-xl bg-green-800 px-5 py-3 font-semibold text-white">Buy JUJA e-Gift Certificates</Link>
-          <div className="grid items-stretch gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-            <div className="rounded-[2rem] border border-white/70 bg-white/78 p-7 shadow-[0_28px_80px_rgba(51,65,85,0.16)] backdrop-blur-xl sm:p-9 lg:p-10">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#087830]">
-                Current Promos
-              </p>
-              <h1 className="mt-4 max-w-2xl text-4xl font-semibold leading-tight tracking-tight text-slate-950 sm:text-5xl">
-                Fresh deals for your next Juja craving.
-              </h1>
-              <p className="mt-5 max-w-xl text-sm leading-7 text-slate-700 sm:text-base">
-                Discover our in-store offers and online promo codes. For ID-based offers, present your ID to our cashier. Use online promo codes when ordering from the customer portal.
-              </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Link
-                  href="/customer?tab=order"
-                  className="inline-flex items-center justify-center rounded-full bg-[#087830] px-7 py-3 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(8,120,48,0.25)] transition hover:-translate-y-0.5 hover:bg-[#096b2d]"
-                >
-                  Order Now
-                </Link>
-                <Link
-                  href="/menu"
-                  className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white/78 px-7 py-3 text-sm font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:border-[#087830] hover:text-[#087830]"
-                >
-                  View Menu
-                </Link>
-              </div>
+      <main className="flex-1 px-4 pb-16 pt-32 sm:px-6 lg:px-10">
+        <div className="mx-auto max-w-6xl">
+          <header className="mx-auto mb-12 max-w-2xl text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-emerald-800">A little more to love at JUJA</p>
+            <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-tight sm:text-6xl">Good food.<br />Even sweeter perks.</h1>
+            <p className="mx-auto mt-5 max-w-lg text-base leading-7 text-stone-600">Your next coffee break comes with a little extra. Explore our in-store offers and make your JUJA visit a treat.</p>
+            <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-medium text-emerald-900"><BadgeCheck size={16} aria-hidden="true" /> Bring your valid ID. We’ll take care of the rest.</div>
+          </header>
+          <CommunityPromoBanners detailed />
+          <section className="mt-10 flex flex-col items-start justify-between gap-6 rounded-3xl bg-[#163c30] p-7 text-white sm:flex-row sm:items-center sm:p-9" aria-label="Plan your JUJA visit">
+            <div>
+              <Coffee className="mb-3 text-emerald-200" size={26} aria-hidden="true" />
+              <h2 className="text-2xl font-semibold text-white">Make a little time for a treat.</h2>
+              <p className="mt-2 text-sm leading-6 text-emerald-100">Find your next favorite before dropping by.</p>
             </div>
-
-            <div className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-slate-800 p-7 text-white shadow-[0_28px_80px_rgba(15,23,42,0.22)] sm:p-9">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(125,211,252,0.28),transparent_30%),radial-gradient(circle_at_80%_10%,rgba(8,120,48,0.28),transparent_28%)]" />
-              <div className="relative">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-cyan-100">
-                  Featured Code
-                </p>
-
-                {isLoading ? (
-                  <div className="mt-8 space-y-5">
-                    <div className="h-14 w-56 animate-pulse rounded-2xl bg-white/15" />
-                    <div className="h-4 w-72 animate-pulse rounded-full bg-white/15" />
-                    <div className="h-24 animate-pulse rounded-3xl bg-white/10" />
-                  </div>
-                ) : featuredPromo ? (
-                  <div className="mt-7">
-                    <div className="inline-flex rounded-2xl border border-white/25 bg-white/12 px-5 py-3 font-mono text-2xl font-semibold uppercase tracking-[0.16em] text-white">
-                      {featuredPromo.code}
-                    </div>
-                    <h2 className="mt-7 text-5xl font-semibold tracking-tight text-white sm:text-6xl">
-                      {getPromoValue(featuredPromo)}
-                    </h2>
-                    <p className="mt-4 max-w-lg text-sm leading-7 text-slate-100">
-                      {getPromoDescription(featuredPromo)}
-                    </p>
-                    <div className="mt-7 rounded-3xl border border-white/15 bg-white/10 p-5">
-                      <div className="flex items-center justify-between gap-4 text-sm">
-                        <span className="text-slate-200">Minimum order</span>
-                        <span className="font-semibold text-white">
-                          {Number(featuredPromo.min_order || 0) > 0 ? formatMoney(featuredPromo.min_order) : "No minimum"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mt-9 rounded-3xl border border-white/15 bg-white/10 p-7">
-                    <h2 className="text-2xl font-semibold text-white">No active online promo code</h2>
-                    <p className="mt-3 text-sm leading-7 text-slate-200">
-                      New promo codes will appear here automatically once enabled in Admin Promos.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-8 rounded-[2rem] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(51,65,85,0.12)] backdrop-blur-xl sm:p-7">
-            <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
-                  Promo Board
-                </p>
-                <h2 className="mt-2 text-2xl font-semibold text-slate-950">Online Promo Codes</h2>
-              </div>
-              <p className="text-sm text-slate-600">{promos.length} active promo{promos.length === 1 ? "" : "s"}</p>
-            </div>
-
-            {error && (
-              <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error}
-              </div>
-            )}
-
-            {isLoading ? (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {[1, 2, 3, 4, 5, 6].map((item) => (
-                  <div key={item} className="h-48 animate-pulse rounded-3xl border border-slate-200 bg-slate-100/80" />
-                ))}
-              </div>
-            ) : promos.length === 0 ? (
-              <div className="rounded-3xl border border-dashed border-slate-300 bg-white/70 px-6 py-14 text-center">
-                <p className="text-lg font-semibold text-slate-900">No active online promo codes</p>
-                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
-                  Promo codes enabled in Admin Promos will show here automatically.
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {(otherPromos.length ? otherPromos : promos).map((promo) => (
-                  <PromoCard key={promo.id || promo.code} promo={promo} />
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
+            <Link href="/menu" className="inline-flex shrink-0 items-center gap-3 rounded-full bg-white px-6 py-3 text-sm font-semibold !text-emerald-950 transition hover:bg-emerald-100">Explore the menu <ArrowUpRight size={17} aria-hidden="true" /></Link>
+          </section>
+          <p className="mt-7 text-center text-sm text-stone-500">A treat worth sharing. <Link href="/gift-certificates" className="font-semibold text-emerald-800 underline underline-offset-4">Discover JUJA e-Gift Certificates</Link></p>
+        </div>
       </main>
-
       <Footer />
     </div>
-  );
-}
-
-function PromoCard({ promo }) {
-  return (
-    <article className="group flex min-h-[210px] flex-col justify-between rounded-3xl border border-slate-200/80 bg-white/86 p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-[#087830]/45 hover:shadow-[0_20px_45px_rgba(51,65,85,0.14)]">
-      <div>
-        <div className="flex items-start justify-between gap-4">
-          <span className="rounded-2xl bg-slate-900 px-4 py-2 font-mono text-sm font-semibold uppercase tracking-[0.16em] text-white">
-            {promo.code}
-          </span>
-          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-700">
-            Active
-          </span>
-        </div>
-        <h3 className="mt-5 text-3xl font-semibold tracking-tight text-slate-950">
-          {getPromoValue(promo)}
-        </h3>
-        <p className="mt-3 text-sm leading-6 text-slate-600">
-          {getPromoDescription(promo)}
-        </p>
-      </div>
-      <Link
-        href={`/customer?tab=order&promo=${encodeURIComponent(promo.code || "")}`}
-        className="mt-6 inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-800 transition group-hover:border-[#087830] group-hover:bg-[#087830] group-hover:text-white"
-      >
-        Claim Code
-      </Link>
-    </article>
   );
 }

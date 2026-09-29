@@ -1,12 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BadgeCheck, GraduationCap } from "lucide-react";
+import Image from "next/image";
 
-// Inclusive campaign dates in Philippine time; keep expired offers off both pages.
-export default function CommunityPromoBanners() {
+const campaigns = [
+  {
+    id: "qcid", title: "Your city. Your perks.", label: "QCID Promo",
+    image: "/promos/qcid-2026.jpg", width: 960, height: 788,
+    end: "2026-12-31", schedule: "Monday–Wednesday · Until December 31, 2026",
+    offer: "10% off food & drinks",
+    details: "Present a valid QCID before payment. One redemption per day. Cannot be combined with other promos or discounts.",
+    tone: "bg-violet-50 text-violet-900",
+  },
+  {
+    id: "teachers", title: "For the ones who inspire.", label: "Teachers’ Month Promo",
+    image: "/promos/teachers-month-2026.png", width: 1385, height: 1136,
+    end: "2026-10-05", schedule: "September 14–October 5, 2026",
+    offer: "A well-deserved teacher treat",
+    details: "10% off Monday–Friday, September 14–October 2. On October 5, enjoy 50% off one regular-size drink. Present a valid school ID. Daily limits apply: one eligible food, drink, and dessert for the 10% offer.",
+    tone: "bg-rose-50 text-rose-900",
+  },
+];
+
+export default function CommunityPromoBanners({ detailed = false }) {
   const [today, setToday] = useState("");
-
   useEffect(() => {
     const refresh = () => setToday(new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit",
@@ -17,48 +34,25 @@ export default function CommunityPromoBanners() {
   }, []);
 
   if (!today) return null;
-  const showQcid = today <= "2027-12-31";
-  const showTeachers = today <= "2026-10-05";
-  const showTeacherWeekdays = today <= "2026-10-02";
-  if (!showQcid && !showTeachers) return null;
+  const visible = campaigns.filter((campaign) => today <= campaign.end);
+  if (!visible.length) return detailed ? <p className="rounded-3xl border border-stone-200 bg-white p-8 text-center text-stone-600">Our next treats are brewing. Check back soon for new offers.</p> : null;
 
   return (
-    <section aria-label="QCID and teachers promotions" className="mb-6 grid gap-4 md:grid-cols-2">
-      {showQcid && (
-        <article className="relative overflow-hidden rounded-3xl border border-emerald-200 bg-emerald-950 p-6 text-white shadow-sm sm:p-7">
-          <BadgeCheck aria-hidden="true" className="absolute -right-5 -top-5 h-40 w-40 rotate-12 text-emerald-800/50" strokeWidth={1} />
-          <div className="relative">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-200">JUJA • QCID Promo</p>
-            <h2 className="mt-4 text-5xl font-black tracking-tight text-white">10% <span className="text-2xl">OFF</span></h2>
-            <p className="mt-3 text-lg font-semibold text-white">Your QCID comes with a treat.</p>
-            <p className="mt-2 text-sm text-emerald-100">Monday to Wednesday</p>
-            <p className="mt-1 text-sm text-emerald-100">Valid until December 31, 2027</p>
-            <div className="mt-5 border-t border-emerald-700 pt-4 text-xs leading-5 text-emerald-100">
-              Present your QCID to our cashier to avail of the promo in store.
-            </div>
+    <section aria-label="In-store promotions" className={`grid gap-6 ${visible.length > 1 ? "md:grid-cols-2" : "max-w-2xl mx-auto"} ${detailed ? "" : "mb-6"}`}>
+      {visible.map((campaign) => (
+        <article key={campaign.id} className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[0_12px_40px_rgba(44,38,30,0.06)]">
+          <a href={campaign.image} target="_blank" rel="noopener noreferrer" className="block focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-emerald-700" aria-label={`View full-size ${campaign.label} artwork (opens in new tab)`}>
+            <Image src={campaign.image} width={campaign.width} height={campaign.height} sizes="(max-width: 767px) 100vw, 50vw" alt={`${campaign.label}: ${campaign.offer}. ${campaign.schedule}. ${campaign.details}`} className="h-auto w-full" />
+          </a>
+          <div className={detailed ? "p-6 sm:p-8" : "p-4"}>
+            <p className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${campaign.tone}`}>{campaign.label}</p>
+            <h2 className="mt-3 text-xl font-semibold tracking-tight text-stone-900 sm:text-2xl">{campaign.title}</h2>
+            <p className="mt-2 text-sm font-medium text-stone-700">{campaign.schedule}</p>
+            {detailed && <p className="mt-3 text-sm leading-7 text-stone-600">{campaign.details}</p>}
+            <p className="mt-4 text-xs text-stone-500">Available in store · Present your valid ID before payment</p>
           </div>
         </article>
-      )}
-      {showTeachers && (
-        <article className="relative overflow-hidden rounded-3xl border border-amber-200 bg-amber-50 p-6 text-amber-950 shadow-sm sm:p-7">
-          <GraduationCap aria-hidden="true" className="absolute -right-4 -top-4 h-36 w-36 -rotate-12 text-amber-200/70" strokeWidth={1} />
-          <div className="relative">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-800">JUJA • Teachers Promo</p>
-            <h2 className="mt-4 text-5xl font-black tracking-tight text-amber-950">{showTeacherWeekdays ? "10%" : "50%"} <span className="text-2xl">OFF</span></h2>
-            <p className="mt-3 text-lg font-semibold">A little thank-you for our teachers.</p>
-            {showTeacherWeekdays && (
-              <>
-                <p className="mt-2 text-sm">Weekdays • September 14–October 2, 2026</p>
-                <p className="mt-1 text-xs leading-5">One eligible food, drink, and dessert per teacher per day.</p>
-              </>
-            )}
-            <p className="mt-3 rounded-xl bg-amber-200/60 px-3 py-2 text-sm font-semibold">Teachers’ Day • October 5, 2026<br />50% off one regular-size drink per teacher.</p>
-            <div className="mt-4 border-t border-amber-200 pt-4 text-xs leading-5">
-              Present your teacher ID to our cashier to avail of the promo in store.
-            </div>
-          </div>
-        </article>
-      )}
+      ))}
     </section>
   );
 }

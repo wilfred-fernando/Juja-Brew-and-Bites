@@ -303,7 +303,7 @@ export default function PublicMenuPage() {
           <p className="text-center text-slate-400">No items available</p>
         )}
 
-        {/* GRID */}
+        {/* MENU LIST */}
         {!loading && !promoOpen && items.length > 0 && (
           <>
             <div className="flex items-end justify-between mb-3">
@@ -326,7 +326,7 @@ export default function PublicMenuPage() {
                         {group.category}
                       </h3>
                     )}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+                    <div className="flex flex-col gap-2">
                       {group.items.map((item) => {
                   const bestSeller = !!item.is_featured;
                   const mostOrdered = mostOrderedIdSet.has(item.id);
@@ -335,57 +335,26 @@ export default function PublicMenuPage() {
                     <button
                       key={item.id}
                       onClick={() => setSelectedItem(item)}
-                      className="relative text-left bg-white/95 border border-slate-100 rounded-xl p-2 shadow-sm backdrop-blur-sm hover:shadow-md transition active:scale-[0.99]"
+                      className="flex w-full items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-500 sm:gap-4"
                     >
-                      {/* Badges */}
-                      <div className="absolute top-2 left-2 flex gap-1">
-                        {bestSeller && (
-                          <span className="px-2 py-1 rounded-full bg-[#FC687D] text-white text-[9px] font-bold uppercase tracking-widest shadow">
-                            Best Seller
-                          </span>
-                        )}
-                        {mostOrdered && (
-                          <span className="px-2 py-1 rounded-full bg-slate-900 text-white text-[9px] font-bold uppercase tracking-widest shadow">
-                            Most Ordered
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Image */}                      
-                      <div className="w-full aspect-square rounded-lg bg-[#FFF9FA] border border-rose-50 flex items-center justify-center overflow-hidden mb-2 sm:mb-3">
+                      <div className="h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-slate-100 bg-slate-50 sm:h-28 sm:w-28">
                         {item.image_url ? (
-                          <img
-                            src={item.image_url}
-                            alt={item.name}
-                            className="w-full h-full object-cover object-center"
-                          />
+                          <img src={item.image_url} alt={item.name} loading="lazy" className="h-full w-full object-cover object-center" />
                         ) : (
-                          <span className="text-xl sm:text-2xl text-rose-200">📷</span>
+                          <span className="flex h-full items-center justify-center text-2xl text-slate-300" aria-label="No image available">📷</span>
                         )}
                       </div>
-
-                      {/* Name */}
-                      <p className="text-sm font-bold uppercase text-center text-slate-800 leading-tight line-clamp-2">
-                        {item.name}
-                      </p>
-
-                      {/* Category label when searching */}
-                      {q && (
-                        <p className="text-[10px] uppercase tracking-wider text-slate-400 mt-1">
-                          {item.category || "Others"}
-                        </p>
-                      )}
-                      
-                      {/* Price */}
-                      <p className="text-[18px] text-[#FC687D] text-center font-semibold mt-3">
-                        {peso0(menuCardPrice(item))}
-                      </p>
-
-                      {hasMenuOptions(item) && (
-                        <p className="mt-2 text-center text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                          Tap for options
-                        </p>
-                      )}
+                      <div className="min-w-0 flex-1 py-1">
+                        <div className="mb-1 flex flex-wrap gap-1">
+                          {bestSeller && <span className="rounded-full bg-amber-50 px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-amber-800">Best Seller</span>}
+                          {mostOrdered && <span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-slate-700">Most Ordered</span>}
+                        </div>
+                        <p className="text-sm font-semibold leading-snug text-slate-800 sm:text-base">{item.name}</p>
+                        {q && <p className="mt-1 text-[10px] uppercase tracking-wider text-slate-500">{item.category || "Others"}</p>}
+                        <p className="mt-2 whitespace-nowrap text-base font-semibold text-[#284b74] sm:text-lg">{peso0(menuCardPrice(item))}</p>
+                        {hasMenuOptions(item) && <p className="mt-1 text-[10px] text-slate-500">Tap for options</p>}
+                      </div>
+                      <span className="shrink-0 self-center px-1 text-xl text-slate-400" aria-hidden="true">›</span>
                     </button>
                   );
                       })}
