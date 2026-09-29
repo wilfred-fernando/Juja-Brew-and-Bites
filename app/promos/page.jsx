@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, BadgeCheck, Coffee } from "lucide-react";
+import { ArrowUpRight, Coffee } from "lucide-react";
 import { PublicNav as Nav } from "@/components/PublicNav";
 import { PublicFooter as Footer } from "@/components/PublicFooter";
 import CommunityPromoBanners from "@/components/CommunityPromoBanners";
@@ -10,13 +10,12 @@ export default function PromoPage() {
       <Nav active="promo" />
       <main className="flex-1 px-4 pb-16 pt-32 sm:px-6 lg:px-10">
         <div className="mx-auto max-w-6xl">
-          <header className="mx-auto mb-12 max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-emerald-800">A little more to love at JUJA</p>
-            <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-tight sm:text-6xl">Good food.<br />Even sweeter perks.</h1>
-            <p className="mx-auto mt-5 max-w-lg text-base leading-7 text-stone-600">Your next coffee break comes with a little extra. Explore our in-store offers and make your JUJA visit a treat.</p>
-            <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-medium text-emerald-900"><BadgeCheck size={16} aria-hidden="true" /> Bring your valid ID. We’ll take care of the rest.</div>
+          <header className="mb-6 border-b border-slate-200 pb-5">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">JUJA BREW &amp; BITES</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Promos &amp; Special Offers</h1>
+            <p className="mt-3 text-sm leading-6 text-slate-600">Discover our latest treats, discounts, and gift certificate offers. See each promo for details.</p>
           </header>
-          <CommunityPromoBanners detailed />
+          <CommunityPromoBanners detailed layout="list" />
           <section className="mt-10 flex flex-col items-start justify-between gap-6 rounded-3xl bg-[#163c30] p-7 text-white sm:flex-row sm:items-center sm:p-9" aria-label="Plan your JUJA visit">
             <div>
               <Coffee className="mb-3 text-emerald-200" size={26} aria-hidden="true" />

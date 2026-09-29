@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 
 const campaigns = [
   {
@@ -12,7 +11,7 @@ const campaigns = [
     offer: "JUJA e-Gift Certificates — 10+1",
     details: "Get eleven ₱100 e-Gift Certificates for ₱1,000. Prefer a physical gift certificate? Send us a request.",
     tone: "bg-emerald-50 text-emerald-900",
-    href: "/gift-certificates",
+    requiresId: false,
   },
   {
     id: "qcid", title: "Your city. Your perks.", label: "QCID Promo",
@@ -32,7 +31,7 @@ const campaigns = [
   },
 ];
 
-export default function CommunityPromoBanners({ detailed = false }) {
+export default function CommunityPromoBanners({ detailed = false, layout = "grid" }) {
   const [today, setToday] = useState("");
   useEffect(() => {
     const refresh = () => setToday(new Intl.DateTimeFormat("en-CA", {
@@ -48,9 +47,9 @@ export default function CommunityPromoBanners({ detailed = false }) {
   if (!visible.length) return detailed ? <p className="rounded-3xl border border-stone-200 bg-white p-8 text-center text-stone-600">Our next treats are brewing. Check back soon for new offers.</p> : null;
 
   return (
-    <section aria-label="JUJA promotions" className={`grid gap-6 ${visible.length > 1 ? "md:grid-cols-2" : "max-w-2xl mx-auto"} ${detailed ? "" : "mb-6"}`}>
+    <section aria-label="JUJA promotions" className={`grid gap-6 ${layout === "list" ? "grid-cols-1" : visible.length > 1 ? "md:grid-cols-2" : "max-w-2xl mx-auto"} ${detailed ? "" : "mb-6"}`}>
       {visible.map((campaign) => (
-        <article key={campaign.id} className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[0_12px_40px_rgba(44,38,30,0.06)]">
+        <article key={campaign.id} className={`overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[0_12px_40px_rgba(44,38,30,0.06)] ${layout === "list" ? "grid items-center md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]" : ""}`}>
           <a href={campaign.image} target="_blank" rel="noopener noreferrer" className="block focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-emerald-700" aria-label={`View full-size ${campaign.label} artwork (opens in new tab)`}>
             <Image src={campaign.image} width={campaign.width} height={campaign.height} sizes="(max-width: 767px) 100vw, 50vw" alt={`${campaign.label}: ${campaign.offer}. ${campaign.schedule}. ${campaign.details}`} className="h-auto w-full" />
           </a>
@@ -59,9 +58,7 @@ export default function CommunityPromoBanners({ detailed = false }) {
             <h2 className="mt-3 text-xl font-semibold tracking-tight text-stone-900 sm:text-2xl">{campaign.title}</h2>
             <p className="mt-2 text-sm font-medium text-stone-700">{campaign.schedule}</p>
             {detailed && <p className="mt-3 text-sm leading-7 text-stone-600">{campaign.details}</p>}
-            {campaign.href ? (
-              <Link href={campaign.href} className="mt-4 inline-flex rounded-full bg-emerald-900 px-5 py-3 text-sm font-semibold !text-white transition hover:bg-emerald-800">Buy e-Gift Certificates</Link>
-            ) : (
+            {campaign.requiresId !== false && (
               <p className="mt-4 text-xs text-stone-500">Available in store · Present your valid ID before payment</p>
             )}
           </div>
