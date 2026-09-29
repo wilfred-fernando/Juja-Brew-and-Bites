@@ -513,6 +513,7 @@ function AppNavigation({ tab, setTab }) {
   const tabs = [
     { id: "home", icon: "🏠", label: "Home" },
     { id: "order", icon: "🍽️", label: "Order" },
+    { id: "promos", icon: "🎁", label: "Promos" },
     { id: "history", icon: "📦", label: "Tracker" },
     { id: "loyalty", icon: "⭐", label: "Loyalty" },
     { id: "booking", icon: "🗓", label: "Book" },
@@ -523,7 +524,7 @@ function AppNavigation({ tab, setTab }) {
     <>
       {/* Mobile & Tablet Bottom Tab Bar */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-rose-50 pb-safe shadow-[0_-4px_24px_rgba(252,104,125,0.05)] lg:hidden">
-        <div className="max-w-xl mx-auto grid grid-cols-6 px-1">
+        <div className="max-w-xl mx-auto grid grid-cols-7 px-1">
           {tabs.map((t) => (
             <button
               key={t.id}
@@ -4366,7 +4367,16 @@ export default function Customer() {
           <AppNavigation tab={tab} setTab={setTab} />
 
           <main className="flex-1 overflow-x-hidden min-h-screen pb-32 pt-4 md:pt-8 px-4 sm:px-6 lg:pl-72 lg:pr-8 max-w-7xl mx-auto w-full transition-all">
-            {(tab === "home" || tab === "order") && <CommunityPromoBanners />}
+            {tab === "order" && <CommunityPromoBanners />}
+            {tab === "promos" && (
+              <section aria-labelledby="customer-promos-title">
+                <header className="mb-6">
+                  <h1 id="customer-promos-title" className="text-3xl font-bold tracking-tight text-slate-900">Promos</h1>
+                  <p className="mt-2 text-sm text-slate-600">Discover our latest offers and treats to share.</p>
+                </header>
+                <CommunityPromoBanners detailed />
+              </section>
+            )}
             {tab === "home" && <HomeTab member={member} user={user} setTab={setTab} />}
             {tab === "order" && (
               <OrderTab

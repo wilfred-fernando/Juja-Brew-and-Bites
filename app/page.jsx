@@ -10,7 +10,7 @@ export default function Home() {
       <section className={styles.hero}>
         <div>
           <p className={styles.eyebrow}>JUJA BREW & BITES / QUEZON CITY</p>
-          <h1>Annyeong!<br />Your next <em>happy place.</em></h1>
+          <h1>Annyeong!<br />Welcome to JUJA Brew &amp; Bites!<br /><em>Your next go-to place.</em></h1>
           <p className={styles.intro}>Coffee, milk tea, and your favorite bites. Drop by for a little everyday comfort, or bring everyone together for a special occasion.</p>
           <div className={styles.actions}><Link href="/menu">Explore the menu →</Link><Link href="/function-room">Book a function room</Link></div>
         </div>

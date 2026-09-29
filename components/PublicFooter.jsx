@@ -1,6 +1,26 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import styles from "./PublicPremium.module.css";
+
 export function PublicFooter() {
+  const footerRef = useRef(null);
+  const [footerHeight, setFooterHeight] = useState(0);
+
+  useEffect(() => {
+    const footer = footerRef.current;
+    if (!footer) return;
+    const measure = () => setFooterHeight(footer.getBoundingClientRect().height);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(footer);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <footer className="bg-slate-900 text-slate-400 py-2 md:py-3 px-6 flex-none">
+    <>
+    <div aria-hidden="true" className={styles.footerSpace} style={{ "--public-footer-height": `${footerHeight}px` }} />
+    <footer ref={footerRef} className="bg-slate-900 text-slate-400 py-2 md:py-3 px-6 flex-none">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-5 mb-2 md:mb-3">
         <div className="flex flex-col justify-center">
           <p className="text-slate-400 mb-2 leading-relaxed max-w-sm">
@@ -39,5 +59,6 @@ export function PublicFooter() {
         <p>Quezon City · Philippines</p>
       </div>
     </footer>
+    </>
   );
 }

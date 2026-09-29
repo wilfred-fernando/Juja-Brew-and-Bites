@@ -2,8 +2,18 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 
 const campaigns = [
+  {
+    id: "egc-holiday", title: "JUJA e-Gift Certificates", label: "e-GC 10+1 Promo",
+    image: "/promos/egc-10-plus-1-v2.png", width: 1386, height: 1135,
+    schedule: "Buy 10, get 1 FREE · ₱1,000",
+    offer: "JUJA e-Gift Certificates — 10+1",
+    details: "Get eleven ₱100 e-Gift Certificates for ₱1,000. Prefer a physical gift certificate? Send us a request.",
+    tone: "bg-emerald-50 text-emerald-900",
+    href: "/gift-certificates",
+  },
   {
     id: "qcid", title: "Your city. Your perks.", label: "QCID Promo",
     image: "/promos/qcid-2026.jpg", width: 960, height: 788,
@@ -34,11 +44,11 @@ export default function CommunityPromoBanners({ detailed = false }) {
   }, []);
 
   if (!today) return null;
-  const visible = campaigns.filter((campaign) => today <= campaign.end);
+  const visible = campaigns.filter((campaign) => !campaign.end || today <= campaign.end);
   if (!visible.length) return detailed ? <p className="rounded-3xl border border-stone-200 bg-white p-8 text-center text-stone-600">Our next treats are brewing. Check back soon for new offers.</p> : null;
 
   return (
-    <section aria-label="In-store promotions" className={`grid gap-6 ${visible.length > 1 ? "md:grid-cols-2" : "max-w-2xl mx-auto"} ${detailed ? "" : "mb-6"}`}>
+    <section aria-label="JUJA promotions" className={`grid gap-6 ${visible.length > 1 ? "md:grid-cols-2" : "max-w-2xl mx-auto"} ${detailed ? "" : "mb-6"}`}>
       {visible.map((campaign) => (
         <article key={campaign.id} className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[0_12px_40px_rgba(44,38,30,0.06)]">
           <a href={campaign.image} target="_blank" rel="noopener noreferrer" className="block focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-emerald-700" aria-label={`View full-size ${campaign.label} artwork (opens in new tab)`}>
@@ -49,7 +59,11 @@ export default function CommunityPromoBanners({ detailed = false }) {
             <h2 className="mt-3 text-xl font-semibold tracking-tight text-stone-900 sm:text-2xl">{campaign.title}</h2>
             <p className="mt-2 text-sm font-medium text-stone-700">{campaign.schedule}</p>
             {detailed && <p className="mt-3 text-sm leading-7 text-stone-600">{campaign.details}</p>}
-            <p className="mt-4 text-xs text-stone-500">Available in store · Present your valid ID before payment</p>
+            {campaign.href ? (
+              <Link href={campaign.href} className="mt-4 inline-flex rounded-full bg-emerald-900 px-5 py-3 text-sm font-semibold !text-white transition hover:bg-emerald-800">Buy e-Gift Certificates</Link>
+            ) : (
+              <p className="mt-4 text-xs text-stone-500">Available in store · Present your valid ID before payment</p>
+            )}
           </div>
         </article>
       ))}
