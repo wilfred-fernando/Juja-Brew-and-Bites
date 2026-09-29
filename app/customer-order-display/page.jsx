@@ -7,27 +7,7 @@ const DISPLAY_WIDTH = 8268;
 const DISPLAY_HEIGHT = 4606;
 const SLIDE_INTERVAL_MS = 10000;
 
-const DISPLAY_SLIDES = [
-  "https://images.jujabrewandbites.com/Cookies%20(1376%20x%20824%20px).jpg",
-  "https://images.jujabrewandbites.com/TV_BENTO.png",
-  "https://images.jujabrewandbites.com/TV_DUBAI%20CHEWY.png",
-  "https://images.jujabrewandbites.com/TV_LOYALTY%202.png",
-  "https://images.jujabrewandbites.com/TV_EGG%20BUBBLE.png",
-  "https://images.jujabrewandbites.com/TV_FREE%20WIFI.png",
-  "https://images.jujabrewandbites.com/TV_FRESH%20MANGO.png",
-  "https://images.jujabrewandbites.com/TV_FUNCTION%20ROOM.png",
-  "https://images.jujabrewandbites.com/TV_GREAT%20COFFEE.png",
-  "https://images.jujabrewandbites.com/TV_KATSU.png",
-  "https://images.jujabrewandbites.com/TV_MILK%20TEA.png",
-  "https://images.jujabrewandbites.com/TV_MIN%20DONUT-COFFEE.png",
-  "https://images.jujabrewandbites.com/TV_NO%20SMOKING.png",
-  "https://images.jujabrewandbites.com/TV_LOYALTY.png",
-  "https://images.jujabrewandbites.com/TV_NUTELLA%20MT.png",
-  "https://images.jujabrewandbites.com/TV_PARFAIT.png",
-  "https://images.jujabrewandbites.com/TV_PET%20FRIENDLY.png",  
-  "https://images.jujabrewandbites.com/TV_TAIWAN.png",
-  "https://images.jujabrewandbites.com/TV_UNLI%20WINGS.png",
-];
+import { DEFAULT_DISPLAY_SLIDES } from "@/lib/orderDisplaySlides";
 const LOGO_SRC = "/images/juja-logo.png";
 
 function itemLabel(count) {
@@ -73,6 +53,7 @@ export default function CustomerOrderDisplayPage() {
   const [error, setError] = useState("");
   const [now, setNow] = useState(new Date());
   const [slideIndex, setSlideIndex] = useState(0);
+  const [slides, setSlides] = useState(DEFAULT_DISPLAY_SLIDES);
 
   const preparingOrders = useMemo(() => orders.filter((order) => order.status !== "served"), [orders]);
   const servedOrders = useMemo(() => orders.filter((order) => order.status === "served"), [orders]);
@@ -120,18 +101,39 @@ export default function CustomerOrderDisplayPage() {
     document.addEventListener("visibilitychange", onVisibilityChange);
     loadOrders();
     const clock = setInterval(() => setNow(new Date()), 2000);
-    const slide = setInterval(() => {
-      setSlideIndex((current) => (current + 1) % DISPLAY_SLIDES.length);
-    }, SLIDE_INTERVAL_MS);
+
     return () => {
       disposed = true;
       controller?.abort();
       clearTimeout(refresh);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       clearInterval(clock);
-      clearInterval(slide);
+
     };
   }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    const controller = new AbortController();
+    async function loadSlides() {
+      try {
+        const response = await fetch("/api/order-display-images", { cache: "no-store", signal: controller.signal });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!disposed && Array.isArray(data.images)) setSlides(data.images.map((image) => image.url));
+      } catch { /* Keep the last successful playlist when offline. */ }
+    }
+    loadSlides();
+    const refresh = setInterval(loadSlides, 30000);
+    return () => { disposed = true; controller.abort(); clearInterval(refresh); };
+  }, []);
+
+  useEffect(() => {
+    setSlideIndex(0);
+    if (slides.length < 2) return;
+    const timer = setInterval(() => setSlideIndex((index) => (index + 1) % slides.length), SLIDE_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [slides.length]);
 
   return (
     <main className="h-screen overflow-hidden bg-[url('https://images.jujabrewandbites.com/page%20background.png')] bg-cover bg-center p-5 text-slate-950">
@@ -216,12 +218,12 @@ export default function CustomerOrderDisplayPage() {
         </aside>
 
         <section className="relative col-span-1 row-start-2 min-h-0 overflow-hidden bg-black">
-          <img
-            key={DISPLAY_SLIDES[slideIndex]}
-            src={DISPLAY_SLIDES[slideIndex]}
+          {slides.length > 0 && <img
+            key={slides[slideIndex % slides.length]}
+            src={slides[slideIndex % slides.length]}
             alt=""
             className="absolute inset-0 z-10 h-full w-full object-cover"
-          />
+          />}
         </section>
       </div>
     </main>
