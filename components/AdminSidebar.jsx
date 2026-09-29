@@ -63,7 +63,7 @@ export default function AdminSidebar({
             { name: "Receipt Settings", path: "/admin/pos-admin/settings/receipt-settings" },
             { name: "Open Tickets", path: "/admin/pos-admin/settings/open-tickets" },
             { name: "Kitchen Printers", path: "/admin/pos-admin/settings/kitchen-printers" },
-            { name: "Kitchen Order Display", path: "/admin/pos-admin/settings/order-display" },
+            { name: "Customer Order Display", path: "/admin/pos-admin/settings/order-display" },
             { name: "Dining Options", path: "/admin/pos-admin/settings/dining-options" },
             { name: "Discounts", path: "/admin/pos-admin/settings/discounts" },
             { name: "Beneficiaries", path: "/admin/pos-admin/settings/beneficiaries" },

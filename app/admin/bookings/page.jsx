@@ -832,6 +832,8 @@ export default function AdminBookingsDashboard() {
 
     setEditModal({
       booking: b,
+      customer_account: b.user_id || b.member_id ? { id: b.member_id, user_id: b.user_id, name: "Linked customer account", email: b.email || "", phone: b.contact_number || "" } : null,
+      customer_account_changed: false,
       customer_name: b.customer_name || "",
       event_type: b.event_type || "",
       guest_count: b.guest_count || 1,
@@ -873,6 +875,11 @@ export default function AdminBookingsDashboard() {
         start_at: toManilaOffsetISOString(startAt),
         end_at: toManilaOffsetISOString(endAt),
       };
+
+      if (editModal.customer_account_changed) {
+        payload.user_id = editModal.customer_account?.user_id || null;
+        payload.member_id = editModal.customer_account?.id || null;
+      }
 
       if (b.update_request_status === "pending") {
         const result = await approveBookingAndSendConfirmation(b.id, {
@@ -2082,7 +2089,7 @@ export default function AdminBookingsDashboard() {
       {editModal && (
         <div className="fixed inset-0 z-[102] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div
-            className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 w-full max-w-xl"
+            className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 w-full max-w-xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3 mb-3">
@@ -2099,6 +2106,7 @@ export default function AdminBookingsDashboard() {
               </button>
             </div>
 
+            <BookingCustomerSelector value={editModal.customer_account} disabled={editLoading} onChange={(account) => setEditModal((current) => ({ ...current, customer_account: account, customer_account_changed: true, customer_name: account?.name || current.customer_name, email: account?.email || current.email, contact_number: account?.phone || current.contact_number }))} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">

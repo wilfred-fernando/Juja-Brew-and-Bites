@@ -58,7 +58,7 @@ export default function OrderDisplaySettings() {
 
   return <div className="mx-auto max-w-6xl space-y-5 p-4 sm:p-6">
     <header className="flex flex-wrap items-start justify-between gap-4">
-      <div><h1 className="text-2xl font-semibold text-slate-800">Kitchen Order Display</h1>
+      <div><h1 className="text-2xl font-semibold text-slate-800">Customer Order Display</h1>
         <p className="mt-2 text-sm text-slate-500">Manage images shown beside the customer order queue. Each image displays for 10 seconds.</p></div>
       <a href="/customer-order-display" target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm">Open display ↗</a>
     </header>

@@ -99,6 +99,7 @@ export async function POST(req) {
     }
 
     const allowedUpdateFields = new Set([
+      "user_id", "member_id",
       "customer_name",
       "event_type",
       "guest_count",
@@ -120,6 +121,19 @@ export async function POST(req) {
       }
       for (const key of ["guest_count", "package_id", "extension_hours"]) {
         if (key in adjustedFields) adjustedFields[key] = Number(adjustedFields[key]);
+      }
+    }
+
+    if ("user_id" in adjustedFields || "member_id" in adjustedFields) {
+      if (!adjustedFields.user_id && !adjustedFields.member_id) {
+        adjustedFields.user_id = null;
+        adjustedFields.member_id = null;
+      } else {
+        const { data: member, error: memberError } = await admin.from("loyalty_members").select("id,user_id").eq("id", adjustedFields.member_id).maybeSingle();
+        const { data: account, error: accountError } = await admin.from("profiles").select("id,loyalty_account_id").eq("id", adjustedFields.user_id).maybeSingle();
+        if (memberError || accountError || !member || !account || (member.user_id !== account.id && account.loyalty_account_id !== member.id)) {
+          return Response.json({ error: "Select a valid linked customer account." }, { status: 400 });
+        }
       }
     }
 
