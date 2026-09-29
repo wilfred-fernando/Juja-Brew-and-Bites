@@ -2575,7 +2575,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
                     {group.category}
                   </h3>
                 )}
-                <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-4 xl:grid-cols-4">
+                <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
                   {group.items.map((item) => {
               const orderable = isItemOrderable(item);
 
@@ -2589,43 +2589,27 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
                   const storeItem = itemWithStoreOptionGroupAvailability(item);
                   setSelectedItemForModal({ ...storeItem, _promoVoucher: findVoucherForMenuItem(activeVouchers, item) });
                 }}
-                className={`group relative flex h-full min-h-[230px] flex-col items-center justify-between rounded-[100px] border p-3 text-center shadow-[0_18px_45px_rgba(15,23,42,0.08)] transition-all duration-300 ${
+                className={`group relative flex h-full w-full min-w-0 items-start gap-3 rounded-xl border p-3 text-left shadow-sm transition-colors duration-200 ${
                   orderable
-                    ? "border-cyan-100 bg-white/88 hover:-translate-y-1 hover:border-cyan-300 hover:bg-cyan-50/80 hover:shadow-[0_24px_60px_rgba(8,145,178,0.14)]"
+                    ? "border-slate-200 bg-white hover:border-slate-400 hover:bg-slate-50"
                     : "cursor-not-allowed border-slate-200 bg-slate-100/85 opacity-75 grayscale"
                 }`}
               >
-                {!orderable && (
-                  <span className="absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-full bg-slate-800 px-3 py-1 text-[9px] font-semibold uppercase tracking-wider text-white shadow-sm">
-                    Unavailable
-                  </span>
-                )}
-                <div className="flex w-full flex-1 flex-col items-center text-center">
-                  <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl border border-cyan-100 bg-white">
-                    {item.image_url ? (
-                      <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-2xl text-rose-200/40">📷</span>
-                    )}
-                  </div>
-                  <div className="mt-3 flex flex-1 flex-col items-center text-center">
-                    <span className="max-w-full truncate rounded-md bg-cyan-50 px-2 py-0.5 text-center text-[9px] font-normal uppercase tracking-wider text-cyan-700">
-                      {item.category || "General"}
-                    </span>
-                    <p className="mt-1.5 text-center text-sm font-normal leading-tight text-slate-800">
-                      {item.name}
-                    </p>
-                  </div>
+                <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-slate-100 bg-slate-50 sm:h-24 sm:w-24">
+                  {item.image_url ? (
+                    <img src={item.image_url} alt={item.name} loading="lazy" className="h-full w-full object-cover object-center" />
+                  ) : (
+                    <span className="flex h-full items-center justify-center text-2xl text-slate-300" aria-label="No image available">📷</span>
+                  )}
                 </div>
-                <p className="mt-1 w-full border-t border-cyan-50 pt-2 text-center text-[18px] font-semibold text-slate-950">
-                  {peso0(menuCardPrice(item))}
-                </p>
-                {hasMenuOptions(item) && (
-                  <p className="mt-1 text-center text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                    Tap for options
-                  </p>
-                )}
-              </button>
+                <div className="min-w-0 flex-1 py-1">
+                  {!orderable && <span className="mb-1 inline-block rounded-full bg-slate-800 px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-white">Unavailable</span>}
+                  <p className="text-sm font-semibold leading-snug text-slate-800">{item.name}</p>
+                  <p className="mt-1 text-[10px] uppercase tracking-wider text-slate-500">{item.category || "General"}</p>
+                  <p className="mt-2 whitespace-nowrap text-base font-semibold text-slate-950">{peso0(menuCardPrice(item))}</p>
+                  {hasMenuOptions(item) && <p className="mt-1 text-[10px] text-slate-500">Tap for options</p>}
+                </div>
+                            </button>
               );
                   })}
                 </div>

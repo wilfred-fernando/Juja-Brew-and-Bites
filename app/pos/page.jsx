@@ -2147,7 +2147,7 @@ function buildCupLabels({ orderId, cart, diningOptionName, printedAt, storeName 
 
 function shouldAutoPrintCupLabels(diningOptionName) {
   const compactName = String(diningOptionName || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
-  return ["takeout", "grabfood", "shopeefood", "foodpanda"].some((name) => compactName.includes(name));
+  return ["grabfood", "shopeefood", "foodpanda"].some((name) => compactName.includes(name));
 }
 
 const peso0 = (n) => `₱${Number(n || 0).toLocaleString("en-PH", { maximumFractionDigits: 0 })}`;
@@ -6543,7 +6543,9 @@ export default function POSPage() {
     labelDining = diningOptionName || "WEB ORDER",
     printedAt = new Date(),
   } = {}) {
-    if (!shouldAutoPrintCupLabels(labelDining)) return;
+    const autoPrint = shouldAutoPrintCupLabels(labelDining);
+    const isTakeout = String(labelDining || "").toLowerCase().replace(/[^a-z0-9]+/g, "").includes("takeout");
+    if (!autoPrint && !isTakeout) return;
 
     const labels = buildCupLabels({
       orderId,
@@ -6556,6 +6558,8 @@ export default function POSPage() {
     });
 
     if (labels.length === 0) return;
+
+    if (!autoPrint && !confirm("Print cup labels for this takeout order?")) return;
 
     try {
       for (const label of labels) {
