@@ -1,0 +1,37 @@
+.home.home { background:#fbf6ee!important; }
+.main { max-width:1500px; margin:auto; padding:0 22px!important; }
+.hero { position:relative; display:grid; grid-template-columns:1.05fr 1fr; align-items:center; min-height:570px; isolation:isolate; background:radial-gradient(ellipse at 80% 40%,#e8cbae80,transparent 65%); }
+.copy { position:relative; z-index:2; padding:32px 0; }
+.eyebrow { display:flex; align-items:center; gap:20px; font-size:10px; font-weight:700; letter-spacing:.22em; color:#785031; margin-bottom:26px; }
+.eyebrow span { width:40px; height:1px; background:#aa8064; }
+.copy h1 { font-size:clamp(32px,4.2vw,64px); line-height:1.04; letter-spacing:-.045em; color:#231710!important; font-weight:700; }
+.copy h1 strong { font-size:1.3em; font-weight:850; }
+.copy h1 span { color:#94421c; }
+.tagline { display:inline-block; font-family:Georgia,serif; font-style:italic; font-size:clamp(26px,3.2vw,48px); line-height:1.2; color:#88602c; margin:12px 0 20px; border-bottom:5px solid #e6cba4; padding-bottom:8px; }
+.intro { color:#4c3c32; font-size:16px; line-height:1.75; max-width:460px; }
+.actions { display:flex; flex-wrap:wrap; gap:9px; margin-top:24px; }
+.actions a { display:flex; align-items:center; justify-content:center; gap:10px; padding:15px 18px; color:white; background:#984519; border:1px solid #984519; font-size:13px; font-weight:700; }
+.actions a + a { background:#fffbf5; color:#422919; }
+.actions a:hover { background:#783410; color:white; }
+.collage { position:relative; height:550px; min-width:0; }
+.collage::before { content:""; position:absolute; inset:12% 3% 4%; border-radius:48% 48% 18% 20%; background:linear-gradient(140deg,#e3c09b,#f6e7d2); transform:rotate(-4deg); }
+.collage img { position:absolute; object-fit:contain; filter:drop-shadow(0 12px 14px #57361620); }
+.mascot { height:88%; width:66%; top:0; left:16%; }
+.drink { width:39%; height:57%; bottom:5%; left:-4%; transform:rotate(-8deg); }
+.tea { width:38%; height:56%; right:-1%; bottom:13%; transform:rotate(8deg); }
+.pasta { width:57%; height:35%; bottom:-1%; left:13%; z-index:2; }
+.croffle { width:35%; height:31%; bottom:-1%; right:-3%; z-index:3; }
+.note { position:absolute; z-index:3; right:0; top:5%; font-family:Georgia,serif; font-size:23px; font-style:italic; transform:rotate(10deg); color:#654128; }
+.cards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; padding:16px 0 24px; }
+.card { display:grid; grid-template-columns:42% 1fr; gap:16px; padding:14px; border:1px solid #eee2d4; border-radius:14px!important; background:#fffdf9; min-width:0; }
+.card > div:last-child { position:relative; padding:12px 0 44px; }
+.card span { font-size:9px; font-weight:700; letter-spacing:.12em; color:#805033; }
+.card h2 { font-size:22px; font-weight:700; line-height:1.12; margin:10px 0; color:#362319!important; }
+.card p { font-size:12px; color:#736b65; line-height:1.6; }
+.card i { position:absolute; bottom:0; right:0; display:grid; place-items:center; width:34px; height:34px; border-radius:50%; background:#984519; color:white; }
+.productPhoto,.roomPhoto,.cartPhoto { position:relative; overflow:hidden; border-radius:10px; min-height:210px; background:#f5e9d9; }
+.productPhoto img { width:100%; height:100%; object-fit:contain; }
+.roomPhoto img { width:100%; height:100%; object-fit:cover; object-position:50% 50%; }
+.cartPhoto img { position:absolute; width:220%; max-width:none; height:220%; object-fit:cover; object-position:left bottom; left:0; bottom:0; }
+@media(max-width:1000px) { .hero{min-height:0} .collage{height:440px} .cards{grid-template-columns:1fr} .card{grid-template-columns:180px 1fr} .productPhoto,.roomPhoto,.cartPhoto{height:200px;min-height:0} .card h2{font-size:24px} }
+@media(max-width:640px) { .main{padding:0 16px!important} .hero{grid-template-columns:1fr} .copy{padding:24px 0 0} .copy h1{font-size:38px} .eyebrow{font-size:8px;gap:10px;margin-bottom:20px} .intro{font-size:14px} .collage{height:360px;margin:16px 0} .note{font-size:19px} .card{grid-template-columns:38% 1fr;gap:12px} .card h2{font-size:21px} .actions a{font-size:12px;padding:13px} }
