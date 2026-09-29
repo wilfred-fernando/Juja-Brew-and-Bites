@@ -6,7 +6,7 @@ import Image from "next/image";
 const campaigns = [
   {
     id: "egc-holiday", title: "JUJA e-Gift Certificates", label: "e-GC 10+1 Promo",
-    image: "/promos/egc-10-plus-1-v2.png", width: 1386, height: 1135,
+    image: "/promos/egc-10-plus-1-v3.png", width: 1386, height: 1135,
     schedule: "Buy 10, get 1 FREE · ₱1,000",
     offer: "JUJA e-Gift Certificates — 10+1",
     details: "Get eleven ₱100 e-Gift Certificates for ₱1,000. Prefer a physical gift certificate? Send us a request.",
