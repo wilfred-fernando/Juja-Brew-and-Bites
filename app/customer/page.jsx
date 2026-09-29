@@ -2735,6 +2735,22 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
     NEW DETACHED TAB MODULE: Tracker / Order Pipeline History 📦
 ────────────────────────────────────────────────────────────── */
 function TrackerTab({ orders, loadingOrders }) {
+  const [section, setSection] = useState("live");
+  const [selectedId, setSelectedId] = useState(null);
+  const dialogRef = useRef(null);
+  const statusLabel = (status) => String(status || "pending").replace(/[_-]+/g, " ");
+  const isHistory = (order) => ["completed", "rejected", "cancelled", "canceled", "refunded", "voided", "delivered"].includes(String(order.status || "").toLowerCase());
+  const liveOrders = orders.filter((order) => !isHistory(order));
+  const historyOrders = orders.filter(isHistory);
+  const visibleOrders = section === "live" ? liveOrders : historyOrders;
+  const selectedOrder = orders.find((order) => order.id === selectedId);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (selectedOrder && dialog && !dialog.open) dialog.showModal();
+    if (!selectedOrder && dialog?.open) dialog.close();
+  }, [selectedOrder]);
+
   const getStatusColor = (status) => {
     switch (String(status).toLowerCase()) {
       case "pending": return "bg-amber-50 border-amber-200 text-amber-700";
@@ -2755,28 +2771,51 @@ function TrackerTab({ orders, loadingOrders }) {
     return normalized ? normalized.toUpperCase() : "WAITING FOR RIDER BOOKING";
   };
 
-  return (
-    <div className="max-w-3xl mx-auto bg-white rounded-2xl border border-slate-100 p-5 shadow-sm animate-in fade-in duration-300">
-      <div className="border-b border-slate-100 pb-3 mb-5">
-        <h3 className="font-black text-slate-800 text-base flex items-center gap-2">
-          <span>📦</span> Live Order & Order History
-        </h3>
-        <p className="text-[11px] text-slate-400 mt-0.5">Track your live orders and view points earned at Juja Brew & Bites.</p>
-      </div>
 
-      {loadingOrders ? (
-        <div className="py-16 text-center flex justify-center">
-          <div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full" />
-        </div>
-      ) : orders.length === 0 ? (
-        <div className="text-center py-16 px-4 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-          <span className="text-3xl block mb-2">🍽️</span>
-          <p className="text-sm font-semibold">No recent order records located.</p>
-          <p className="text-xs text-slate-400 mt-1">Your orders will automatically appear here once submitted.</p>
+  return (
+    <div className="mx-auto w-full max-w-5xl space-y-4">
+      <div className="flex gap-2 border-b border-slate-200 pb-3" role="group" aria-label="Order lists">
+        {[["live", "Live Orders", liveOrders.length], ["history", "Order History", historyOrders.length]].map(([key, label, count]) => (
+          <button key={key} type="button" aria-pressed={section === key} onClick={() => setSection(key)}
+            className={`rounded-lg border px-4 py-3 text-sm font-semibold transition ${section === key ? "border-slate-800 bg-slate-800 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+            {label} <span className="ml-2 opacity-70">{count}</span>
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-slate-500">{section === "live" ? "Follow your active orders. Tap an order for details and status." : "Your completed and closed orders. Tap to view details."}</p>
+      {loadingOrders ? <p role="status" className="py-12 text-center text-sm text-slate-500">Loading orders…</p> : visibleOrders.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center">
+          <h3 className="font-semibold text-slate-800">{section === "live" ? "No live orders" : "No order history yet"}</h3>
+          <p className="mt-2 text-sm text-slate-500">{section === "live" ? "New orders will appear here once submitted." : "Completed and closed orders will appear here."}</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {orders.map((order) => (
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white divide-y divide-slate-100">
+          {visibleOrders.map((order) => (
+            <button key={order.id} type="button" onClick={() => setSelectedId(order.id)} aria-haspopup="dialog"
+              className="flex w-full items-center gap-3 p-4 text-left transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-slate-500">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold text-slate-800">#{String(order.id).slice(0, 8).toUpperCase()}</span>
+                  <span className={`rounded-md border px-2 py-1 text-[10px] font-semibold capitalize ${getStatusColor(order.status)}`}>{statusLabel(order.status)}</span>
+                </div>
+                <p className="mt-1 text-xs text-slate-500">{order.created_at ? formatDateTime(order.created_at) : ""} · {order.dining_option || "Takeout"}</p>
+                <p className="mt-1 truncate text-xs text-slate-500">{Array.isArray(order.items) ? order.items.map((line) => `${line.name} ×${line.quantity}`).join(", ") : "View order details"}</p>
+              </div>
+              <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-slate-800">{peso2(order.total ?? order.subtotal)}</span>
+              <ChevronRight size={18} className="shrink-0 text-slate-400" />
+            </button>
+          ))}
+        </div>
+      )}
+      <dialog ref={dialogRef} onClose={() => setSelectedId(null)} aria-labelledby="tracker-order-title"
+        onClick={(event) => { if (event.target === event.currentTarget) dialogRef.current.close(); }}
+        className="m-auto w-[calc(100%-2rem)] max-w-2xl max-h-[85dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-0 text-slate-800 shadow-xl backdrop:bg-slate-950/50">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
+          <h2 id="tracker-order-title" className="font-semibold">Order details &amp; status</h2>
+          <button type="button" autoFocus onClick={() => dialogRef.current.close()} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold">Close</button>
+        </div>
+        <div className="p-3" aria-live="polite">
+          {selectedOrder && [selectedOrder].map((order) => (
             <div key={order.id} className="border border-slate-200 rounded-xl p-4 bg-white shadow-sm flex flex-col gap-3 transition hover:border-rose-100">
               <div className="flex items-center justify-between">
                 <div>
@@ -2784,7 +2823,7 @@ function TrackerTab({ orders, loadingOrders }) {
                   <p className="text-[10px] text-slate-400 font-medium mt-0.5">{order.created_at ? formatDateTime(order.created_at) : ""}</p>
                 </div>
                 <span className={`px-2.5 py-0.5 border rounded-md text-[10px] font-black uppercase tracking-wider ${getStatusColor(order.status)}`}>
-                  {order.status || "Pending"}
+                  {statusLabel(order.status)}
                 </span>
               </div>
 
@@ -2835,12 +2874,12 @@ function TrackerTab({ orders, loadingOrders }) {
                     </span>
                   )}
                 </div>
-                <p className="text-sm font-black text-slate-800">Total Charged: {peso2(order.total || order.subtotal)}</p>
+                <p className="text-sm font-black text-slate-800">Order total: {peso2(order.total ?? order.subtotal)}</p>
               </div>
             </div>
           ))}
         </div>
-      )}
+      </dialog>
     </div>
   );
 }
