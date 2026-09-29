@@ -60,7 +60,7 @@
 .greeting { position:relative; display:block; width:fit-content; font-size:1.26em; font-weight:900; }
 .greeting::after { content:""; position:absolute; width:8px; height:25px; right:-16px; top:-8px; border-radius:8px; background:#c98236; transform:rotate(22deg); }
 .welcomeLine { display:block; margin-top:6px; font-weight:700; }
-.welcomeLogo { position:relative; display:block; width:100%; max-width:550px; aspect-ratio:4 / 1; overflow:hidden; margin-top:12px; }
+.welcomeLogo { position:relative; display:block; width:75%; max-width:412px; aspect-ratio:4 / 1; overflow:hidden; margin-top:12px; }
 .welcomeLogo img { position:absolute; width:170%; max-width:none; height:auto; left:-35%; top:50%; transform:translateY(-50%); }
 .welcomeTagline { position:relative; width:fit-content; margin:8px 0 28px; padding-bottom:12px; color:#88602c; font-family:"Segoe Print","Bradley Hand",Georgia,serif; font-style:italic; font-size:clamp(25px,3vw,42px); line-height:1.25; letter-spacing:-.035em; }
 .welcomeTagline::after { content:""; position:absolute; left:0; right:0; bottom:0; height:9px; border-radius:50%; background:#e5cba3; transform:rotate(-1deg); }
