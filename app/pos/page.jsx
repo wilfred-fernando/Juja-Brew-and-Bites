@@ -10206,7 +10206,7 @@ export default function POSPage() {
   }
 
   return (
-    <div className="min-h-screen overscroll-none bg-[#FFF5F7] pb-24 lg:pb-0 font-sans antialiased text-slate-800" style={{ overscrollBehaviorY: "none" }}>
+    <div data-pos-terminal className="min-h-screen overscroll-none bg-[#FFF5F7] pb-24 lg:pb-0 font-sans antialiased text-slate-800" style={{ overscrollBehaviorY: "none" }}>
       <PosApkUpdatePrompt />
       <Toast toast={toast} onClose={() => setToast(null)} />
       {gcPurchaseOpen && createPortal(<div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="gc-purchase-title">
@@ -10243,11 +10243,7 @@ export default function POSPage() {
         className="mx-3 mt-3 rounded-2xl border border-cyan-100 bg-white px-4 py-3 text-slate-900 shadow-sm flex items-center justify-between gap-4 animate-in slide-in-from-top duration-300 sm:mx-4 lg:mx-6"
       />
 
-      <div className="max-w-[1600px] mx-auto p-3 sm:p-4 lg:p-6 transition-all">
-        <header data-pos-heading>
-          <div className="flex items-center gap-4"><span className="pos-brand" role="img" aria-label="JUJA Brew and Bites" /><div><p>Point of sale</p><h1>{currentStore?.name || currentStore?.store_name || "Cashier workspace"}</h1></div></div>
-          <button type="button" onClick={() => setPosMenuOpen(true)}>Menu &amp; account</button>
-        </header>
+      <div data-pos-workspace className="max-w-[1600px] mx-auto p-3 sm:p-4 lg:p-6 transition-all">
         {posMenuOpen && (
           <div className="fixed inset-0 z-[145] bg-slate-800/30 backdrop-blur-sm p-4 flex items-center justify-center" onClick={() => setPosMenuOpen(false)}>
               <div className="w-full max-w-sm rounded-2xl border border-rose-100 bg-white p-3 shadow-2xl" onClick={(e) => e.stopPropagation()}>
@@ -11014,7 +11010,7 @@ export default function POSPage() {
         )}
 
         {/* MAIN TERMINAL RESPONSIVE GRID LAYOUT FLOW */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_380px] gap-4 lg:gap-5 items-start">
+        <div data-pos-selling-grid className="grid grid-cols-1 lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_380px] gap-4 lg:gap-5 items-start">
           
           {/* CATALOG AND MENU SHELF VIEW PANELS */}
           <div data-pos-catalog className="bg-white rounded-2xl border border-rose-100 p-4 shadow-sm space-y-4">
@@ -11063,7 +11059,7 @@ export default function POSPage() {
             {loading ? (
               <div className="py-24 text-center"><div className="w-8 h-8 border-4 border-rose-200 border-t-[#FC687D] animate-spin rounded-full mx-auto" /></div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 gap-3 max-h-[calc(100vh-190px)] overflow-y-auto pr-1">
+              <div data-pos-products className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 gap-3 max-h-[calc(100vh-190px)] overflow-y-auto pr-1">
                   {visibleMenuItems.length === 0 ? (
                     <div className="col-span-full rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-xs font-semibold text-slate-500">
                       {activeCategory ? "No available items found in this category." : "No featured menu items found."}
@@ -11199,7 +11195,7 @@ export default function POSPage() {
       </div>
 
       {/* MOBILE HUD INTERFACE BOTTOM FLOATING TRIGGER ACTION LAYER FOOTER */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-rose-950 text-white shadow-[0_-8px_30px_rgba(252,104,125,0.22)] px-4 py-3 pb-safe border-t border-rose-800">
+      <div data-pos-mobile-cart className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-rose-950 text-white shadow-[0_-8px_30px_rgba(252,104,125,0.22)] px-4 py-3 pb-safe border-t border-rose-800">
         <button
           onClick={() => setTicketDrawerOpen(true)}
           className="w-full h-12 bg-[#FC687D] hover:bg-rose-500 rounded-xl px-4 flex items-center justify-between transition shadow-md active:scale-[0.99]"
@@ -11217,7 +11213,7 @@ export default function POSPage() {
 
       {/* MOBILE DRILLDOWN OVERLAY SLIDEUP DRAWER FOR TOUCH DEVICES */}
       {ticketDrawerOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end lg:hidden animate-in fade-in duration-200" onClick={() => setTicketDrawerOpen(false)}>
+        <div data-pos-mobile-drawer className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end lg:hidden animate-in fade-in duration-200" onClick={() => setTicketDrawerOpen(false)}>
           <div className="w-full max-h-[85vh] bg-white rounded-t-[2rem] p-4 pb-safe overflow-y-auto shadow-2xl animate-in slide-in-from-bottom duration-300 flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
