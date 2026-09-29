@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { PublicNav } from "@/components/PublicNav";
 import { PublicFooter } from "@/components/PublicFooter";
 import styles from "@/components/PublicPremium.module.css";
@@ -10,7 +11,12 @@ export default function Home() {
       <section className={styles.hero}>
         <div>
           <p className={styles.eyebrow}>JUJA BREW & BITES / QUEZON CITY</p>
-          <h1>Annyeong!<br />Welcome to JUJA Brew &amp; Bites!<br /><em>Your next go-to place.</em></h1>
+          <h1 className={styles.welcomeTitle}>
+            <span className={styles.greeting}>Annyeong!</span>
+            <span className={styles.welcomeLine}>Welcome to</span>
+            <span className={styles.welcomeLogo}><Image src="/branding/juja-signage.png" alt="JUJA Brew & Bites!" width={8640} height={2160} sizes="(max-width: 640px) 160vw, 850px" priority /></span>
+          </h1>
+          <p className={styles.welcomeTagline}>Your next go-to place.</p>
           <p className={styles.intro}>Coffee, milk tea, and your favorite bites. Drop by for a little everyday comfort, or bring everyone together for a special occasion.</p>
           <div className={styles.actions}><Link href="/menu">Explore the menu →</Link><Link href="/function-room">Book a function room</Link></div>
         </div>
