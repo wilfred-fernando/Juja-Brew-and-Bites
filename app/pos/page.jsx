@@ -10244,6 +10244,10 @@ export default function POSPage() {
       />
 
       <div className="max-w-[1600px] mx-auto p-3 sm:p-4 lg:p-6 transition-all">
+        <header data-pos-heading>
+          <div className="flex items-center gap-4"><span className="pos-brand" role="img" aria-label="JUJA Brew and Bites" /><div><p>JUJA BREW &amp; BITES / POINT OF SALE</p><h1>{currentStore?.name || currentStore?.store_name || "Cashier workspace"}</h1></div></div>
+          <button type="button" onClick={() => setPosMenuOpen(true)}>Menu &amp; account</button>
+        </header>
         {posMenuOpen && (
           <div className="fixed inset-0 z-[145] bg-slate-800/30 backdrop-blur-sm p-4 flex items-center justify-center" onClick={() => setPosMenuOpen(false)}>
               <div className="w-full max-w-sm rounded-2xl border border-rose-100 bg-white p-3 shadow-2xl" onClick={(e) => e.stopPropagation()}>
@@ -10358,7 +10362,7 @@ export default function POSPage() {
 
         {managementOpen && (
           <div className="fixed inset-0 z-[140] bg-slate-950/45 backdrop-blur-sm p-3 sm:p-6 flex items-center justify-center" onClick={() => setManagementOpen(false)}>
-            <div className="flex w-full max-w-5xl max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-3rem)] flex-col rounded-2xl border border-rose-100 bg-white p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div data-pos-management className="flex w-full max-w-5xl max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-3rem)] flex-col rounded-2xl border border-rose-100 bg-white p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
           <div className="shrink-0 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-rose-50 pb-3 mb-3">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-[#FC687D]">POS Control</p>
@@ -11013,7 +11017,7 @@ export default function POSPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_380px] gap-4 lg:gap-5 items-start">
           
           {/* CATALOG AND MENU SHELF VIEW PANELS */}
-          <div className="bg-white rounded-2xl border border-rose-100 p-4 shadow-sm space-y-4">
+          <div data-pos-catalog className="bg-white rounded-2xl border border-rose-100 p-4 shadow-sm space-y-4">
             
             {/* Catalog Controller Sorting filters bars */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-50 pb-3">
@@ -11115,7 +11119,7 @@ export default function POSPage() {
           </div>
 
           {/* SIDEBAR TICKET INTERACTION LAYER PANEL */}
-          <div className="hidden lg:block bg-white border border-rose-100 rounded-2xl p-3 shadow-sm sticky top-4 h-[calc(100vh-2rem)] max-h-[calc(100vh-2rem)] overflow-hidden">
+          <div data-pos-ticket className="hidden lg:block bg-white border border-rose-100 rounded-2xl p-3 shadow-sm sticky top-4 h-[calc(100vh-2rem)] max-h-[calc(100vh-2rem)] overflow-hidden">
             {kdsSyncError && <p role="alert" className="mb-3 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-900">{kdsSyncError}</p>}
             <OfflineSyncNotice offline={isOfflineMode} pending={offlineQueueCount} syncing={offlineSyncing} error={offlineSyncError} onRetry={() => void syncOfflineCharges()} />
             <TicketPanel
