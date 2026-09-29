@@ -24,7 +24,6 @@ export default function PromoPage() {
             </div>
             <Link href="/menu" className="inline-flex shrink-0 items-center gap-3 rounded-full bg-white px-6 py-3 text-sm font-semibold !text-emerald-950 transition hover:bg-emerald-100">Explore the menu <ArrowUpRight size={17} aria-hidden="true" /></Link>
           </section>
-          <p className="mt-7 text-center text-sm text-stone-500">A treat worth sharing. <Link href="/gift-certificates" className="font-semibold text-emerald-800 underline underline-offset-4">Discover JUJA e-Gift Certificates</Link></p>
         </div>
       </main>
       <Footer />

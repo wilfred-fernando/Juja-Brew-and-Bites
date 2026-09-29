@@ -4367,7 +4367,6 @@ export default function Customer() {
           <AppNavigation tab={tab} setTab={setTab} />
 
           <main className="flex-1 overflow-x-hidden min-h-screen pb-32 pt-4 md:pt-8 px-4 sm:px-6 lg:pl-72 lg:pr-8 max-w-7xl mx-auto w-full transition-all">
-            {tab === "order" && <CommunityPromoBanners />}
             {tab === "promos" && (
               <section aria-labelledby="customer-promos-title">
                 <header className="mb-6">
