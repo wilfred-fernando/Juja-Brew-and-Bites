@@ -2113,7 +2113,7 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
 
   const filteredItemGroups = useMemo(() => {
     if (groupTrayOnly) {
-      return ["Group Tray", "Bento"]
+      return ["Bento", "Group Tray"]
         .map((category) => ({
           category,
           items: filteredItems.filter((item) => String(item.category || "").trim().toLowerCase() === category.toLowerCase()),
