@@ -1,4 +1,5 @@
 "use client";
+import { isOptionGroupVisibleOn } from "@/lib/menuVisibility";
 
 import { PublicNav as Nav } from "@/components/PublicNav";
 import { PublicFooter as Footer } from "@/components/PublicFooter";
@@ -6,7 +7,7 @@ import { PublicFooter as Footer } from "@/components/PublicFooter";
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { menuCardPrice } from "@/lib/menuPricing";
-import { isMenuItemVisibleToCustomers } from "@/lib/menuVisibility";
+import { isMenuItemVisibleToPublic } from "@/lib/menuVisibility";
 
 const hasMenuOptions = (item) =>
   Array.isArray(item?.variants) &&
@@ -96,7 +97,7 @@ export default function PublicMenuPage() {
 
       // Only allow items from visible categories
       const allowedCatNames = new Set(catsData.map(c => c.name));
-      const safeItems = itemsData.filter((i) => isMenuItemVisibleToCustomers(i) && allowedCatNames.has(i.category));
+      const safeItems = itemsData.filter((i) => isMenuItemVisibleToPublic(i) && allowedCatNames.has(i.category));
 
       setCats(catsData);
       setItems(safeItems);
@@ -127,7 +128,7 @@ export default function PublicMenuPage() {
           const rowId = nextItem.id || previousItem.id;
           if (!rowId) return;
 
-          if (payload.eventType === "DELETE" || !isMenuItemVisibleToCustomers(nextItem)) {
+          if (payload.eventType === "DELETE" || !isMenuItemVisibleToPublic(nextItem)) {
             setItems((prev) => prev.filter((item) => item.id !== rowId));
             return;
           }
@@ -341,7 +342,7 @@ export default function PublicMenuPage() {
                         {item.image_url ? (
                           <img src={item.image_url} alt={item.name} loading="lazy" className="h-full w-full object-cover object-center" />
                         ) : (
-                          <span className="flex h-full items-center justify-center text-2xl text-slate-300" aria-label="No image available">📷</span>
+                          <img src="/branding/juja-menu-fallback.png" alt="JUJA Brew & Bites" loading="lazy" className="h-full w-full bg-white object-contain" />
                         )}
                       </div>
                       <div className="min-w-0 flex-1 py-1">
@@ -385,9 +386,7 @@ function VariantModal({ item, onClose }) {
   const variants = Array.isArray(item?.variants)
     ? item.variants.filter((g) => (
         g?.isRequired
-        && !g?.posOnly
-        && !g?.hidePublic
-        && !g?.hide_public
+        && isOptionGroupVisibleOn(g, "public")
         && g?.isAvailable !== false
         && g?.is_available !== false
       ))

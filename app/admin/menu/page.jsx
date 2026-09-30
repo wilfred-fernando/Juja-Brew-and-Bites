@@ -4,6 +4,12 @@ import { useState, useEffect } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
 const supabase = getSupabaseClient();
+const visibilityFields = (entry = {}) => ({ show_public: entry.show_public ?? (!entry.pos_only && !entry.hide_public), show_customer: entry.show_customer ?? !entry.pos_only, show_pos: entry.show_pos ?? true });
+function MenuVisibilitySelection({ value, onChange }) {
+  return <fieldset className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 bg-white p-3"><legend className="px-1 text-xs font-semibold text-slate-600">Show in</legend>
+    {["public", "customer", "pos"].map((channel) => <label key={channel} className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-700"><input type="checkbox" checked={visibilityFields(value)[`show_${channel}`]} onChange={(event) => onChange({ ...value, ...visibilityFields(value), [`show_${channel}`]: event.target.checked })} />{channel}</label>)}
+  </fieldset>;
+}
 
 function normalizeMaxSelection(value) {
   const numberValue = Number(value);
@@ -52,7 +58,7 @@ export default function MenuAdminPage() {
     image_url: "",
     is_available: true,
     is_featured: false,
-    pos_only: false,
+    pos_only: false, ...visibilityFields(),
     grab_price: "",
     panda_price: "",
     grab_available: true,
@@ -73,7 +79,7 @@ export default function MenuAdminPage() {
   const [catForm, setCatForm] = useState({
     name: "",
     is_active: true,
-    pos_only: false,
+    pos_only: false, ...visibilityFields(),
     discount_entitlement_group: "",
   });
   const [catSaving, setCatSaving] = useState(false);
@@ -139,7 +145,7 @@ export default function MenuAdminPage() {
         image_url: item.image_url || "",
         is_available: item.is_available !== false,
         is_featured: !!item.is_featured,
-        pos_only: !!item.pos_only,
+        pos_only: !!item.pos_only, ...visibilityFields(item),
         grab_price: item.grab_price ?? "",
         panda_price: item.panda_price ?? "",
         grab_available: item.grab_available !== false,
@@ -167,7 +173,7 @@ export default function MenuAdminPage() {
         image_url: "",
         is_available: true,
         is_featured: false,
-        pos_only: false,
+        pos_only: false, ...visibilityFields(),
         grab_price: "",
         panda_price: "",
         grab_available: true,
@@ -191,7 +197,7 @@ export default function MenuAdminPage() {
     setSaving(true);
     try {
       const finalPayload = {
-        ...form, // ✅ includes pos_only now
+        ...form, ...visibilityFields(form), pos_only: !visibilityFields(form).show_public && !visibilityFields(form).show_customer,
         price: parseFloat(form.price) || 0,
         grab_price: form.grab_price === "" || form.grab_price == null ? null : parseFloat(form.grab_price) || 0,
         panda_price: form.panda_price === "" || form.panda_price == null ? null : parseFloat(form.panda_price) || 0,
@@ -284,7 +290,7 @@ export default function MenuAdminPage() {
   // --- VARIANT / OPTION HANDLERS ---
   const addOptionGroup = () => {
     setEditingTemplate({ id: null });
-    setTemplateForm({ name: "", is_required: false, is_multi_select: false, max_selection: "", pos_only: false, hide_public: false, options: [{ id: crypto.randomUUID(), name: "", price: 0, grab_price: "", panda_price: "" }] });
+    setTemplateForm({ name: "", is_required: false, is_multi_select: false, max_selection: "", pos_only: false, hide_public: false, ...visibilityFields(), options: [{ id: crypto.randomUUID(), name: "", price: 0, grab_price: "", panda_price: "" }] });
   };
   const removeOptionGroup = (groupId) => setOptionGroups(optionGroups.filter((group) => group.id !== groupId));
 
@@ -295,7 +301,7 @@ export default function MenuAdminPage() {
       const payload = {
         name: templateForm.name.trim(), is_required: templateForm.is_required, is_multi_select: templateForm.is_multi_select,
         max_selection: templateForm.is_multi_select ? normalizeMaxSelection(templateForm.max_selection) : null,
-        pos_only: !!templateForm.pos_only, hide_public: !!templateForm.hide_public,
+        ...visibilityFields(templateForm), pos_only: !visibilityFields(templateForm).show_public && !visibilityFields(templateForm).show_customer, hide_public: !visibilityFields(templateForm).show_public,
         options: (templateForm.options || []).map(normalizeOptionForSave),
       };
       if (!payload.name || !payload.options.length || payload.options.some((option) => !String(option.name || "").trim())) throw new Error("Enter a template name and named options.");
@@ -306,7 +312,7 @@ export default function MenuAdminPage() {
       if (error) throw error;
 
       setOptionGroups((groups) => groups.map((group) => String(group.templateId) === String(saved.id) ? {
-        ...group, name: saved.name, isRequired: saved.is_required, isMultiSelect: saved.is_multi_select,
+        ...group, ...visibilityFields(saved), name: saved.name, isRequired: saved.is_required, isMultiSelect: saved.is_multi_select,
         maxSelection: saved.max_selection, posOnly: saved.pos_only, hidePublic: saved.hide_public, options: saved.options,
       } : group));
       alert("Template saved. All attached menu items are synchronized.");
@@ -347,13 +353,13 @@ export default function MenuAdminPage() {
       setCatForm({
         name: cat.name,
         is_active: cat.is_active,
-        pos_only: !!cat.pos_only,
+        pos_only: !!cat.pos_only, ...visibilityFields(cat),
         discount_entitlement_group: cat.discount_entitlement_group || "",
       });
     } else {
       setEditingCategory(null);
       setCategoryAvailability(Object.fromEntries(stores.map((store) => [store.id, true])));
-      setCatForm({ name: "", is_active: true, pos_only: false, discount_entitlement_group: "" });
+      setCatForm({ name: "", is_active: true, pos_only: false, ...visibilityFields(), discount_entitlement_group: "" });
     }
     setIsCatModalOpen(true);
   };
@@ -362,7 +368,7 @@ export default function MenuAdminPage() {
     e.preventDefault();
     if (!catForm.name.trim()) return alert("Category name is required.");
     const categoryPayload = {
-      ...catForm,
+      ...catForm, ...visibilityFields(catForm), pos_only: !visibilityFields(catForm).show_public && !visibilityFields(catForm).show_customer,
       name: catForm.name.trim(),
       discount_entitlement_group: catForm.discount_entitlement_group || null,
     };
@@ -539,9 +545,9 @@ export default function MenuAdminPage() {
                     <span className="text-left break-words whitespace-normal leading-tight">{cat.name}</span>
 
                     {/* Optional Category badge */}
-                    {cat.pos_only && (
+                    {(
                       <span className="text-[9px] font-bold uppercase text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
-                        POS
+                        {["public", "customer", "pos"].filter((channel) => visibilityFields(cat)[`show_${channel}`]).join(" / ").toUpperCase() || "HIDDEN"}
                       </span>
                     )}
                   </div>
@@ -589,7 +595,7 @@ export default function MenuAdminPage() {
                   {item.image_url ? (
                     <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-xl md:text-2xl text-sky-200/50">📷</span>
+                    <img src="/branding/juja-menu-fallback.png" alt="JUJA Brew & Bites" loading="lazy" className="h-full w-full bg-white object-contain" />
                   )}
                 </div>
 
@@ -603,10 +609,10 @@ export default function MenuAdminPage() {
                       </span>
                     )}
 
-                    {/* ✅ Item POS Only badge */}
-                    {item.pos_only && (
+                    {/* ✅ Item channel visibility */}
+                    {(
                       <span className="ml-1 text-[10px] text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded uppercase font-bold">
-                        POS Only
+                        {["public", "customer", "pos"].filter((channel) => visibilityFields(item)[`show_${channel}`]).join(" / ").toUpperCase() || "HIDDEN"}
                       </span>
                     )}
                   </h3>
@@ -773,18 +779,7 @@ export default function MenuAdminPage() {
                 </label>
               </div>
 
-              <label className="flex items-center gap-3 cursor-pointer group w-fit mt-3">
-                <div className="relative flex items-center justify-center">
-                  <input
-                    type="checkbox"
-                    checked={catForm.pos_only}
-                    onChange={(e) => setCatForm({ ...catForm, pos_only: e.target.checked })}
-                    className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-sky-500 checked:bg-slate-600 transition-all cursor-pointer"
-                  />
-                  <span className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xs font-bold">✓</span>
-                </div>
-                <span className="text-sm font-medium text-slate-700">POS Only (hide from public menu)</span>
-              </label>
+              <MenuVisibilitySelection value={catForm} onChange={setCatForm} />
 
               <div className="rounded-xl border border-cyan-100 bg-cyan-50/40 p-4">
                 <div className="mb-3 flex items-center justify-between gap-3">
@@ -904,23 +899,7 @@ export default function MenuAdminPage() {
                 </label>
               )}
 
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={!!templateForm.pos_only}
-                  onChange={(e) => setTemplateForm({ ...templateForm, pos_only: e.target.checked })}
-                />
-                POS Only
-              </label>
-
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={!!templateForm.hide_public}
-                  onChange={(e) => setTemplateForm({ ...templateForm, hide_public: e.target.checked })}
-                />
-                Hide in public menu
-              </label>
+              <MenuVisibilitySelection value={templateForm} onChange={setTemplateForm} />
 
               <div className="space-y-3">
                 {templateForm.options.map((opt, idx) => (
@@ -1135,19 +1114,8 @@ export default function MenuAdminPage() {
                       <span className="text-xs md:text-sm font-medium text-slate-700">Featured Item ⭐️</span>
                     </label>
 
-                    {/* ✅ ADD: POS Only toggle for items */}
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                      <div className="relative flex items-center justify-center">
-                        <input
-                          type="checkbox"
-                          checked={form.pos_only}
-                          onChange={(e) => setForm({ ...form, pos_only: e.target.checked })}
-                          className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-sky-500 checked:bg-slate-600 transition-all cursor-pointer"
-                        />
-                        <span className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xs font-bold">✓</span>
-                      </div>
-                      <span className="text-xs md:text-sm font-medium text-slate-700">POS Only (hide from public menu)</span>
-                    </label>
+                    {/* Channel visibility */}
+                    <MenuVisibilitySelection value={form} onChange={setForm} />
                   </div>
 
                   <div className="rounded-xl border border-slate-200 bg-white p-4">
@@ -1274,6 +1242,7 @@ export default function MenuAdminPage() {
                           {
                             id: Date.now(),
                             templateId: selected.id,
+                            ...visibilityFields(selected),
                             name: selected.name,
                             isRequired: selected.is_required,
                             isMultiSelect: selected.is_multi_select,
@@ -1320,6 +1289,7 @@ export default function MenuAdminPage() {
                               onClick={() => {
                                 setEditingTemplate(template);
                                 setTemplateForm({
+                                  ...visibilityFields(template),
                                   name: template.name,
                                   is_required: template.is_required,
                                   is_multi_select: template.is_multi_select,

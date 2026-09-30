@@ -1,4 +1,5 @@
 "use client";
+import { isOptionGroupVisibleOn } from "@/lib/menuVisibility";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -25,6 +26,7 @@ import {
   migrateLegacyLocalStorage,
   setLocalSnapshot,
 } from "@/lib/localData";
+import { isMenuVisibleOn } from "@/lib/menuVisibility";
 import TicketPanel from "@/components/pos/TicketPanel";
 import GiftCertificatePurchaseForm from "@/components/GiftCertificatePurchaseForm";
 import GiftCertificatePaymentDialog from "@/components/pos/GiftCertificatePaymentDialog";
@@ -3223,7 +3225,7 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [], catego
     setSelections(selected);
 
     const c = {};
-    (item.variants || []).filter((g) => g.isAvailable !== false && g.is_available !== false).forEach((g) => (c[g.id] = !g.isRequired));
+    (item.variants || []).filter((g) => isOptionGroupVisibleOn(g, "pos")).forEach((g) => (c[g.id] = !g.isRequired));
     setCollapsed(c);
   }, [item]);
 
@@ -3255,7 +3257,7 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [], catego
     String(category.name || "").toLowerCase() === String(item.category || item.category_name || "").toLowerCase()
   );
   const discountEntitlementGroup = String(itemCategory?.discount_entitlement_group || item.discount_entitlement_group || "").toLowerCase();
-  const availableVariantGroups = (item.variants || []).filter((g) => g.isAvailable !== false && g.is_available !== false);
+  const availableVariantGroups = (item.variants || []).filter((g) => isOptionGroupVisibleOn(g, "pos"));
   const variantDetails = Object.values(selections)
     .flat()
     .map((o) => o.name)
@@ -5346,13 +5348,14 @@ export default function POSPage() {
   const visibleMenuItems = useMemo(() => {
     const search = menuSearch.trim().toLowerCase();
     return (items || [])
+      .filter((item) => isMenuVisibleOn(item, "pos") && !categories.some((category) => category.name === item.category && !isMenuVisibleOn(category, "pos")))
       .filter((item) => {
         if (search) return true;
         return activeCategory ? item.category === activeCategory : item.is_featured === true;
       })
       .filter((item) => !search || `${item.name || ""} ${item.category || ""}`.toLowerCase().includes(search))
       .map((item) => itemForActiveChannel(item));
-  }, [items, activeCategory, menuSearch, activeMenuChannel]);
+  }, [items, categories, activeCategory, menuSearch, activeMenuChannel]);
 
   const recipeCategoryOptions = useMemo(() => {
     return Array.from(new Set((items || []).map((item) => item.category || "Uncategorized")))
@@ -11025,7 +11028,7 @@ export default function POSPage() {
                   className="h-12 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 pr-9 text-[14px] font-bold text-slate-700 outline-none transition focus:border-rose-200 focus:bg-white"
                 >
                   <option value="">Featured Menu Items</option>
-                  {categories.map((cat) => (
+                  {categories.filter((cat) => isMenuVisibleOn(cat, "pos")).map((cat) => (
                     <option key={cat.id || cat.name} value={cat.name}>
                       {cat.name}
                     </option>
@@ -11090,7 +11093,7 @@ export default function POSPage() {
                             {item.image_url ? (
                               <img src={item.image_url} alt={item.name} className="w-full h-full object-cover p-1 group-hover:scale-102 transition" />
                             ) : (
-                              <span className="text-2xl text-rose-200/50">📷</span>
+                              <img src="/branding/juja-menu-fallback.png" alt="JUJA Brew & Bites" loading="lazy" className="h-full w-full bg-white !object-contain" />
                             )}
                           </div>
                           <div className="mt-2.5 px-0.5">                            

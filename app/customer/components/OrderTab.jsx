@@ -175,7 +175,7 @@ export default function OrderTab() {
                 {item.image_url ? (
                   <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-2xl text-slate-200">📷</span>
+                  <img src="/branding/juja-menu-fallback.png" alt="JUJA Brew & Bites" loading="lazy" className="h-full w-full bg-white object-contain" />
                 )}
               </div>
 

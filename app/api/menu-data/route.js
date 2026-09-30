@@ -1,3 +1,4 @@
+import { isMenuVisibleOn } from "@/lib/menuVisibility";
 import { createClient } from "@supabase/supabase-js";
 import { isPromoCategoryName, isPromoMenuItem } from "@/lib/menuPromos";
 import { headers } from "next/headers";
@@ -64,9 +65,7 @@ async function loadMenuData(mode, { includeTestStores = false, accessToken = "" 
     .select("*")
     .order("name");
 
-  itemQuery
-    .or("pos_only.is.null,pos_only.eq.false")
-    .eq("is_available", true);
+  itemQuery.eq("is_available", true);
 
   const categoryQuery = supabase
     .from("menu_categories")
@@ -74,7 +73,7 @@ async function loadMenuData(mode, { includeTestStores = false, accessToken = "" 
     .eq("is_active", true)
     .order("name", { ascending: true });
 
-  categoryQuery.or("pos_only.is.null,pos_only.eq.false");
+
 
   const promises = isCustomer
     ? [
@@ -96,8 +95,8 @@ async function loadMenuData(mode, { includeTestStores = false, accessToken = "" 
   const errors = [itemRes.error, catRes.error, storeRes?.error, availabilityRes?.error, categoryAvailabilityRes?.error, optionGroupAvailabilityRes?.error, optionSelectionAvailabilityRes?.error].filter(Boolean);
   if (errors.length) throw errors[0];
 
-  const rawItems = itemRes.data || [];
-  const rawCategories = catRes.data || [];
+  const rawItems = (itemRes.data || []).filter((item) => isMenuVisibleOn(item, mode));
+  const rawCategories = (catRes.data || []).filter((category) => isMenuVisibleOn(category, mode));
   const items = isCustomer ? rawItems : rawItems.filter((item) => !isPromoMenuItem(item));
   const categories = isCustomer ? rawCategories : rawCategories.filter((cat) => !isPromoCategoryName(cat.name));
 

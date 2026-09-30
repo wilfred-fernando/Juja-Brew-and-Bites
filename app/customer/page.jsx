@@ -1,4 +1,5 @@
 "use client";
+import { isOptionGroupVisibleOn } from "@/lib/menuVisibility";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
@@ -743,7 +744,7 @@ function AddToCartModal({ item, onClose, onAdd }) {
 
     const nextCollapsed = {};
     (item.variants || [])
-      .filter((g) => !g.posOnly && g.isAvailable !== false && g.is_available !== false)
+      .filter((g) => isOptionGroupVisibleOn(g, "customer"))
       .forEach((g) => {
         nextCollapsed[g.id] = !g.isRequired;
       });
@@ -768,7 +769,7 @@ function AddToCartModal({ item, onClose, onAdd }) {
   };
 
   const visibleVariantGroups = (item.variants || []).filter(
-    (g) => !g.posOnly && g.isAvailable !== false && g.is_available !== false
+    (g) => isOptionGroupVisibleOn(g, "customer")
   );
 
   const variantPrice =
@@ -2602,7 +2603,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
                   {item.image_url ? (
                     <img src={item.image_url} alt={item.name} loading="lazy" className="h-full w-full object-cover object-center" />
                   ) : (
-                    <span className="flex h-full items-center justify-center text-2xl text-slate-300" aria-label="No image available">📷</span>
+                    <img src="/branding/juja-menu-fallback.png" alt="JUJA Brew & Bites" loading="lazy" className="h-full w-full bg-white object-contain" />
                   )}
                 </div>
                 <div className="min-w-0 flex-1 py-1">
@@ -2612,7 +2613,7 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
                     <p className="mt-1 whitespace-pre-line break-words text-xs leading-relaxed text-slate-600">{item.description}</p>
                   )}
                   <p className="mt-1 text-[10px] uppercase tracking-wider text-slate-500">{item.category || "General"}</p>
-                  <p className="mt-2 whitespace-nowrap text-base font-semibold text-slate-950">{peso0(menuCardPrice(item))}</p>
+                  <p className="mt-2 whitespace-nowrap text-base font-semibold text-slate-950">{peso0(menuCardPrice(item, "customer"))}</p>
                   {hasMenuOptions(item) && <p className="mt-1 text-[10px] text-slate-500">Tap for options</p>}
                 </div>
                             </button>
