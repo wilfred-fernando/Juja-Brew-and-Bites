@@ -450,9 +450,8 @@ export default function KitchenDisplay() {
       });
     const rows = kitchenItems.map((item) => ({
         ...item,
-        is_available: availabilityByItem.has(String(item.id))
-          ? availabilityByItem.get(String(item.id))
-          : item.is_available !== false,
+        global_is_available: item.is_available !== false,
+        is_available: item.is_available !== false,
       }));
     const groupsByName = new Map();
     kitchenItems.forEach((item) => {
@@ -515,20 +514,17 @@ export default function KitchenDisplay() {
     setAvailabilityLoading(false);
   }
 
+  useEffect(() => {
+    if (!showAvailabilityPanel || !assignedStoreId) return;
+    const timer = setInterval(() => { if (!availabilitySavingId) loadKitchenAvailabilityItems(); }, 10000);
+    return () => clearInterval(timer);
+  }, [showAvailabilityPanel, assignedStoreId, availabilitySavingId]);
+
   async function toggleKitchenItemAvailability(item) {
     if (availabilitySavingId || !assignedStoreId || !item?.id) return;
     const nextAvailable = item.is_available === false;
     setAvailabilitySavingId(String(item.id));
-    const { error } = await supabase
-      .from("menu_item_store_availability")
-      .upsert(
-        {
-          item_id: String(item.id),
-          store_id: String(assignedStoreId),
-          is_available: nextAvailable,
-        },
-        { onConflict: "item_id,store_id" }
-      );
+    const { error } = await supabase.rpc("set_shared_menu_availability", { item_key: String(item.id), available: nextAvailable });
 
     if (error) {
       setAlertMessage(`Availability update failed: ${error.message}`);
@@ -1241,7 +1237,7 @@ export default function KitchenDisplay() {
                             {saving ? "Saving" : available ? "Available" : "Unavailable"}
                           </span>
                         </div>
-                        <AvailabilityToggle available={available} busy={saving} disabled={!!availabilitySavingId} name={item.name} scope="This branch" onChange={() => toggleKitchenItemAvailability(item)} />
+                        <AvailabilityToggle available={available} busy={saving} disabled={!!availabilitySavingId} name={item.name} scope="Shared status" onChange={() => toggleKitchenItemAvailability(item)} />
                       </div>
                     );
                   })}

@@ -253,12 +253,20 @@ export default function MenuAdminPage() {
     }
   };
 
+  useEffect(() => {
+    const channel = supabase.channel("admin-menu-availability")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "menu_items" }, ({ new: row }) => {
+        setItems((items) => items.map((item) => String(item.id) === String(row.id) ? { ...item, is_available: row.is_available } : item));
+      }).subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   async function toggleAvailability(item) {
     if (availabilityBusy) return;
     setAvailabilityBusy(true);
     try {
       const available = item.is_available === false;
-      const { error } = await supabase.from("menu_items").update({ is_available: available }).eq("id", item.id);
+      const { error } = await supabase.rpc("set_shared_menu_availability", { item_key: String(item.id), available });
       if (error) throw error;
       setItems((rows) => rows.map((row) => row.id === item.id ? { ...row, is_available: available } : row));
     } catch (error) { alert(error.message); }
@@ -650,7 +658,7 @@ export default function MenuAdminPage() {
               </div>
 
               <div className="flex items-center justify-between md:justify-end w-full md:w-auto gap-3 md:gap-6 pt-3 md:pt-0 border-t md:border-none border-slate-50">
-                <AvailabilityToggle available={item.is_available !== false} busy={availabilityBusy} name={item.name} scope="Global default" onChange={() => toggleAvailability(item)} />
+                <AvailabilityToggle available={item.is_available !== false} busy={availabilityBusy} name={item.name} scope="Shared status" onChange={() => toggleAvailability(item)} />
 
                 <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300">
                   <button

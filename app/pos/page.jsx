@@ -6368,7 +6368,7 @@ export default function POSPage() {
         setCustomers(loyaltySnapshot.data.slice(-100));
       }
       if (cachedSnapshot?.items?.length) {
-        setItems(cachedSnapshot.items || []);
+        setItems((cachedSnapshot.items || []).map((item) => ({ ...item, is_available: item.global_is_available !== false && item.is_available !== false })));
         setCategories(cachedSnapshot.categories || []);
         setRecipeRows(cachedSnapshot.recipeRows || []);
         setRecipeInventoryItems(cachedSnapshot.recipeInventoryItems || []);
@@ -6470,8 +6470,7 @@ export default function POSPage() {
         ])
       );
       const itemRows = rawItems.map((item) => {
-        const hasStoreOverride = storeAvailabilityByItem.has(String(item.id));
-        const storeAvailable = hasStoreOverride ? storeAvailabilityByItem.get(String(item.id)) : item.is_available !== false;
+        const storeAvailable = item.is_available !== false;
         const variants = Array.isArray(item.variants)
           ? item.variants.map((group) => {
               const key = optionGroupKey(group.name || group.groupName || group.label || group.id);
@@ -6526,7 +6525,7 @@ export default function POSPage() {
     } catch (e) {
       const cached = cachedSnapshot || (await getLocalSnapshot("pos_catalog", { storeId: sid }))?.data;
       if (cached?.items?.length) {
-        setItems(cached.items || []);
+        setItems((cached.items || []).map((item) => ({ ...item, is_available: item.global_is_available !== false && item.is_available !== false })));
         setCategories(cached.categories || []);
         setCustomers(cached.customers || []);
         setRecipeRows(cached.recipeRows || []);
@@ -8442,21 +8441,14 @@ export default function POSPage() {
     const sid = getResolvedBranchId();
     if (!sid) return showToast("error", "Store Required", "POS store is not loaded yet.");
     const nextAvailable = item.is_available === false;
-    const { error } = await supabase
-      .from("menu_item_store_availability")
-      .upsert({
-        item_id: String(item.id),
-        store_id: String(sid),
-        is_available: nextAvailable,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "item_id,store_id" });
+    const { error } = await supabase.rpc("set_shared_menu_availability", { item_key: String(item.id), available: nextAvailable });
     if (error) return showToast("error", "Item Update Failed", error.message);
     setItems((prev) => prev.map((row) => (
       String(row.id) === String(item.id)
-        ? { ...row, is_available: nextAvailable, store_is_available: nextAvailable }
+        ? { ...row, is_available: nextAvailable, global_is_available: nextAvailable, store_is_available: nextAvailable }
         : row
     )));
-    showToast("success", "Store Availability Updated", `${item.name || "Item"} is now ${nextAvailable ? "available" : "unavailable"} for this store only.`);
+    showToast("success", "Store Availability Updated", `${item.name || "Item"} is now ${nextAvailable ? "available" : "unavailable"} across Admin, POS and KDS.`);
     } catch (error) { showToast("error", "Availability update failed", error.message); }
     finally { setAvailabilityBusy(false); }
   }
@@ -10661,7 +10653,7 @@ export default function POSPage() {
                                 <p className="text-xs font-bold text-slate-800 truncate">{item.name}</p>
                                 <p className="text-[10px] font-semibold text-slate-400">{peso2(item.price || 0)}</p>
                               </div>
-                              <AvailabilityToggle available={item.is_available !== false} busy={availabilityBusy} name={item.name} scope="This branch" onChange={() => toggleMenuItemAvailability(item)} />
+                              <AvailabilityToggle available={item.is_available !== false} busy={availabilityBusy} name={item.name} scope="Shared status" onChange={() => toggleMenuItemAvailability(item)} />
                             </div>
                           </div>
                         ))}
