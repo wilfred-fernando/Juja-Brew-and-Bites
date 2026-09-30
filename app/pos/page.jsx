@@ -11115,7 +11115,7 @@ export default function POSPage() {
           </div>
 
           {/* SIDEBAR TICKET INTERACTION LAYER PANEL */}
-          <div data-pos-ticket className="hidden lg:block bg-white border border-rose-100 rounded-2xl p-3 shadow-sm sticky top-4 h-[calc(100vh-2rem)] max-h-[calc(100vh-2rem)] overflow-hidden">
+          <div data-pos-ticket className="hidden lg:flex flex-col min-h-0 bg-white border border-rose-100 rounded-2xl p-3 shadow-sm sticky top-4 h-[calc(100dvh-2rem)] max-h-[calc(100dvh-2rem)] overflow-hidden">
             {kdsSyncError && <p role="alert" className="mb-3 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-900">{kdsSyncError}</p>}
             <OfflineSyncNotice offline={isOfflineMode} pending={offlineQueueCount} syncing={offlineSyncing} error={offlineSyncError} onRetry={() => void syncOfflineCharges()} />
             <TicketPanel
@@ -11214,7 +11214,7 @@ export default function POSPage() {
       {/* MOBILE DRILLDOWN OVERLAY SLIDEUP DRAWER FOR TOUCH DEVICES */}
       {ticketDrawerOpen && (
         <div data-pos-mobile-drawer className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end lg:hidden animate-in fade-in duration-200" onClick={() => setTicketDrawerOpen(false)}>
-          <div className="w-full max-h-[85vh] bg-white rounded-t-[2rem] p-4 pb-safe overflow-y-auto shadow-2xl animate-in slide-in-from-bottom duration-300 flex flex-col" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full h-[85dvh] max-h-[85dvh] bg-white rounded-t-[2rem] p-4 pb-safe overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-300 flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <span className="text-lg">🛒</span>
@@ -11228,7 +11228,7 @@ export default function POSPage() {
               </button>
             </div>
             
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               {kdsSyncError && <p role="alert" className="mb-3 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-900">{kdsSyncError}</p>}
               <OfflineSyncNotice offline={isOfflineMode} pending={offlineQueueCount} syncing={offlineSyncing} error={offlineSyncError} onRetry={() => void syncOfflineCharges()} />
               <TicketPanel

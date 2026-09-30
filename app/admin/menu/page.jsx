@@ -63,6 +63,7 @@ export default function MenuAdminPage() {
   const [groupTemplates, setGroupTemplates] = useState([]);
   const [editingTemplate, setEditingTemplate] = useState(null);
   const [templateForm, setTemplateForm] = useState(null);
+  const [templateSaving, setTemplateSaving] = useState(false);
   const hasVariants = optionGroups.length > 0;
   const [saving, setSaving] = useState(false);
 
@@ -282,98 +283,40 @@ export default function MenuAdminPage() {
 
   // --- VARIANT / OPTION HANDLERS ---
   const addOptionGroup = () => {
-    setOptionGroups([
-      ...optionGroups,
-      {
-        id: Date.now(),
-        name: "Variants",
-        isRequired: true,
-        isMultiSelect: false,
-        maxSelection: "",
-        posOnly: false,
-        hidePublic: false,
-        options: [{ id: Date.now() + 1, name: "", price: "", grab_price: "", panda_price: "" }],
-      },
-    ]);
-    setModalTab("Option Groups");
+    setEditingTemplate({ id: null });
+    setTemplateForm({ name: "", is_required: false, is_multi_select: false, max_selection: "", pos_only: false, hide_public: false, options: [{ id: crypto.randomUUID(), name: "", price: 0, grab_price: "", panda_price: "" }] });
   };
-
-  const removeOptionGroup = (groupId) => setOptionGroups(optionGroups.filter((g) => g.id !== groupId));
-  const updateOptionGroup = (groupId, field, value) =>
-    setOptionGroups(optionGroups.map((g) => (g.id === groupId ? { ...g, [field]: value } : g)));
-
-  const addOption = (groupId) =>
-    setOptionGroups(
-      optionGroups.map((g) =>
-        g.id === groupId ? { ...g, options: [...g.options, { id: Date.now(), name: "", price: "", grab_price: "", panda_price: "" }] } : g
-      )
-    );
-
-  const removeOption = (groupId, optionId) =>
-    setOptionGroups(
-      optionGroups.map((g) => (g.id === groupId ? { ...g, options: g.options.filter((o) => o.id !== optionId) } : g))
-    );
-
-  const updateOption = (groupId, optionId, field, value) =>
-    setOptionGroups(
-      optionGroups.map((g) =>
-        g.id === groupId
-          ? {
-              ...g,
-              options: g.options.map((o) => (o.id === optionId ? { ...o, [field]: value } : o)),
-            }
-          : g
-      )
-    );
-
-  const saveAsTemplate = async (group) => {
-    try {
-      const payload = {
-        name: group.name,
-        is_required: group.isRequired,
-        is_multi_select: group.isMultiSelect,
-        max_selection: group.isMultiSelect ? normalizeMaxSelection(group.maxSelection ?? group.max_selection) : null,
-        pos_only: !!group.posOnly,
-        hide_public: !!group.hidePublic,
-        options: (group.options || []).map(normalizeOptionForSave),
-      };
-
-      const { error } = await supabase.from("option_group_templates").insert([payload]);
-      if (error) throw error;
-
-      alert("Template saved!");
-      fetchData();
-    } catch (err) {
-      console.error(err);
-      alert(err.message);
-    }
-  };
+  const removeOptionGroup = (groupId) => setOptionGroups(optionGroups.filter((group) => group.id !== groupId));
 
   const updateTemplate = async () => {
+    if (templateSaving) return;
+    setTemplateSaving(true);
     try {
-      const { error } = await supabase
-        .from("option_group_templates")
-        .update({
-          name: templateForm.name,
-          is_required: templateForm.is_required,
-          is_multi_select: templateForm.is_multi_select,
-          max_selection: templateForm.is_multi_select ? normalizeMaxSelection(templateForm.max_selection) : null,
-          pos_only: !!templateForm.pos_only,
-          hide_public: !!templateForm.hide_public,
-          options: (templateForm.options || []).map(normalizeOptionForSave),
-        })
-        .eq("id", editingTemplate.id);
-
+      const payload = {
+        name: templateForm.name.trim(), is_required: templateForm.is_required, is_multi_select: templateForm.is_multi_select,
+        max_selection: templateForm.is_multi_select ? normalizeMaxSelection(templateForm.max_selection) : null,
+        pos_only: !!templateForm.pos_only, hide_public: !!templateForm.hide_public,
+        options: (templateForm.options || []).map(normalizeOptionForSave),
+      };
+      if (!payload.name || !payload.options.length || payload.options.some((option) => !String(option.name || "").trim())) throw new Error("Enter a template name and named options.");
+      const query = editingTemplate.id
+        ? supabase.from("option_group_templates").update(payload).eq("id", editingTemplate.id)
+        : supabase.from("option_group_templates").insert([payload]);
+      const { data: saved, error } = await query.select().single();
       if (error) throw error;
 
-      alert("Template updated!");
+      setOptionGroups((groups) => groups.map((group) => String(group.templateId) === String(saved.id) ? {
+        ...group, name: saved.name, isRequired: saved.is_required, isMultiSelect: saved.is_multi_select,
+        maxSelection: saved.max_selection, posOnly: saved.pos_only, hidePublic: saved.hide_public, options: saved.options,
+      } : group));
+      alert("Template saved. All attached menu items are synchronized.");
       setEditingTemplate(null);
       setTemplateForm(null);
       fetchData();
     } catch (err) {
       console.error(err);
       alert(err.message);
-    }
+    } finally { setTemplateSaving(false); }
   };
 
   const deleteTemplate = async (id) => {
@@ -847,7 +790,7 @@ export default function MenuAdminPage() {
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-cyan-800">Store Availability</p>
-                    <p className="mt-1 text-xs text-slate-500">Unchecked stores will not show this category in that store's customer menu.</p>
+                    <p className="mt-1 text-xs text-slate-500">Unchecked stores will not show this category in that store&apos;s customer menu.</p>
                   </div>
                   {stores.length > 0 && (
                     <button
@@ -907,9 +850,9 @@ export default function MenuAdminPage() {
       {/* TEMPLATE EDIT MODAL */}
       {editingTemplate && templateForm && (
         <div className="fixed inset-0 z-[70] bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-lg rounded-2xl p-6">
+          <div className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl p-6">
             <div className="flex justify-between items-center mb-5">
-              <h3 className="text-lg font-bold">Edit Template</h3>
+              <h3 className="text-lg font-bold">{editingTemplate.id ? "Edit Template" : "Create Template"}</h3>
               <button
                 onClick={() => {
                   setEditingTemplate(null);
@@ -1026,6 +969,7 @@ export default function MenuAdminPage() {
                       placeholder="PANDA"
                       className="border border-slate-200 bg-slate-50 rounded-xl px-3 py-2 text-sm"
                     />
+                    <button type="button" onClick={() => setTemplateForm((current) => ({ ...current, options: current.options.filter((_, optionIndex) => optionIndex !== idx) }))} className="text-xs text-red-600">Remove option</button>
                   </div>
                 ))}
               </div>
@@ -1035,7 +979,7 @@ export default function MenuAdminPage() {
                 onClick={() =>
                   setTemplateForm({
                     ...templateForm,
-                    options: [...templateForm.options, { name: "", price: 0, grab_price: "", panda_price: "" }],
+                    options: [...templateForm.options, { id: crypto.randomUUID(), name: "", price: 0, grab_price: "", panda_price: "" }],
                   })
                 }
                 className="text-xs font-bold text-slate-700"
@@ -1043,8 +987,8 @@ export default function MenuAdminPage() {
                 + Add Option
               </button>
 
-              <button type="button" onClick={updateTemplate} className="w-full py-3 rounded-xl bg-slate-600 text-white font-bold text-sm">
-                Save Changes
+              <button type="button" disabled={templateSaving} onClick={updateTemplate} className="w-full py-3 rounded-xl bg-slate-600 text-white font-bold text-sm">
+                {templateSaving ? "Saving…" : "Save Template & Sync Items"}
               </button>
             </div>
           </div>
@@ -1267,7 +1211,7 @@ export default function MenuAdminPage() {
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-wider text-cyan-800">Store Availability</p>
-                        <p className="mt-1 text-xs text-slate-500">Unchecked stores will not show this item in that store's customer menu.</p>
+                        <p className="mt-1 text-xs text-slate-500">Unchecked stores will not show this item in that store&apos;s customer menu.</p>
                       </div>
                       {stores.length > 0 && (
                         <button
@@ -1306,7 +1250,7 @@ export default function MenuAdminPage() {
               ) : (
                 <div className="flex flex-col h-full animate-in fade-in duration-300 pb-2">
                   <p className="text-xs text-slate-500 mb-5 font-medium leading-relaxed px-1">
-                    Group 1 can be used for <strong className="text-slate-700">Variants</strong> (e.g. Regular/Spicy). The item base price remains editable on the Details tab.
+                    Changes in Saved Templates update every attached item. Group 1 can be used for <strong className="text-slate-700">Variants</strong> (e.g. Regular/Spicy). The item base price remains editable on the Details tab.
                   </p>
 
                   <button
@@ -1314,7 +1258,7 @@ export default function MenuAdminPage() {
                     onClick={addOptionGroup}
                     className="w-full py-3.5 md:py-4 border-2 border-dashed border-slate-200 text-slate-700 font-bold text-xs rounded-xl hover:bg-sky-50 hover:border-sky-200 transition-all mb-6 active:scale-95"
                   >
-                    + Add New Option Group
+                    + Create Saved Template
                   </button>
 
                   <div className="mb-5">
@@ -1322,13 +1266,14 @@ export default function MenuAdminPage() {
                     <select
                       defaultValue=""
                       onChange={(e) => {
-                        const selected = groupTemplates.find((g) => g.id === e.target.value);
+                        const selected = groupTemplates.find((g) => String(g.id) === e.target.value);
                         if (!selected) return;
 
                         setOptionGroups((prev) => [
                           ...prev,
                           {
                             id: Date.now(),
+                            templateId: selected.id,
                             name: selected.name,
                             isRequired: selected.is_required,
                             isMultiSelect: selected.is_multi_select,
@@ -1352,7 +1297,7 @@ export default function MenuAdminPage() {
                       <option value="">Select Option Group Template</option>
                       {groupTemplates.map((group) => (
                         <option key={group.id} value={group.id}>
-                          {group.name}
+                          {group.name} — {(group.options || []).map((option) => `${option.name}: ₱${option.price || 0}`).join(", ")}
                         </option>
                       ))}
                     </select>
@@ -1365,8 +1310,8 @@ export default function MenuAdminPage() {
                       {groupTemplates.map((template) => (
                         <div key={template.id} className="flex items-center justify-between bg-white border border-slate-100 rounded-xl px-3 py-2">
                           <div>
-                            <p className="text-xs font-bold text-slate-700">{template.name}</p>
-                            <p className="text-[10px] text-slate-500">{template.options?.length || 0} options</p>
+                            <p className="text-xs font-bold text-slate-700">{template.name}</p><p className="text-[10px] text-slate-500">{(template.options || []).map((option) => `${option.name}: ₱${option.price || 0}`).join(" · ")}</p>
+                            <p className="text-[10px] text-slate-500">{template.options?.length || 0} options · {items.filter((item) => (item.variants || []).some((group) => String(group.templateId) === String(template.id))).length} linked items</p>
                           </div>
 
                           <div className="flex gap-2">
@@ -1402,163 +1347,12 @@ export default function MenuAdminPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-4 mb-6">
-                    {optionGroups.map((group) => (
-                      <div key={group.id} className="border border-slate-200 rounded-2xl p-4 md:p-5 bg-white shadow-[0_2px_10px_rgba(252,104,125,0.05)]">
-                        <div className="flex flex-wrap lg:flex-nowrap gap-3 items-center mb-4 pb-4 border-b border-slate-50">
-                          <input
-                            placeholder="Group name (e.g. Variants, Add-ons)"
-                            value={group.name}
-                            onChange={(e) => updateOptionGroup(group.id, "name", e.target.value)}
-                            className="flex-1 min-w-[140px] border border-slate-200 rounded-xl p-2.5 text-xs md:text-sm focus:outline-none focus:border-sky-500 transition font-bold text-slate-700"
-                          />
-
-                          <label className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-600 font-medium cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={group.isRequired}
-                              onChange={(e) => updateOptionGroup(group.id, "isRequired", e.target.checked)}
-                              className="w-3.5 h-3.5 accent-sky-700 cursor-pointer"
-                            />
-                            Required
-                          </label>
-
-                          <label className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-600 font-medium cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={group.isMultiSelect}
-                              onChange={(e) =>
-                                setOptionGroups(optionGroups.map((currentGroup) =>
-                                  currentGroup.id === group.id
-                                    ? { ...currentGroup, isMultiSelect: e.target.checked, maxSelection: e.target.checked ? currentGroup.maxSelection : "" }
-                                    : currentGroup
-                                ))
-                              }
-                              className="w-3.5 h-3.5 accent-sky-700 cursor-pointer"
-                            />
-                            Multi-select
-                          </label>
-
-                          {group.isMultiSelect && (
-                            <label className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-600 font-medium">
-                              Max
-                              <input
-                                type="number"
-                                min="1"
-                                value={group.maxSelection ?? group.max_selection ?? ""}
-                                onChange={(e) => updateOptionGroup(group.id, "maxSelection", e.target.value)}
-                                placeholder="Any"
-                                className="h-8 w-20 rounded-lg border border-slate-200 px-2 text-xs font-semibold text-slate-700 outline-none focus:border-sky-500"
-                              />
-                            </label>
-                          )}
-
-                          <label className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-600 font-medium cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={!!group.posOnly}
-                              onChange={(e) => updateOptionGroup(group.id, "posOnly", e.target.checked)}
-                              className="w-3.5 h-3.5 accent-sky-700 cursor-pointer"
-                            />
-                            POS only
-                          </label>
-
-                          <label className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-600 font-medium cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={!!group.hidePublic}
-                              onChange={(e) => updateOptionGroup(group.id, "hidePublic", e.target.checked)}
-                              className="w-3.5 h-3.5 accent-sky-700 cursor-pointer"
-                            />
-                            Hide in public menu
-                          </label>
-
-                          <div className="flex items-center gap-2 ml-auto lg:ml-2">
-                            <button
-                              type="button"
-                              onClick={() => saveAsTemplate(group)}
-                              className="text-[10px] md:text-xs font-bold text-blue-500 hover:text-blue-700 transition-colors"
-                            >
-                              Save Template
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => removeOptionGroup(group.id)}
-                              className="text-red-400 hover:text-red-600 px-1 font-bold text-base transition-colors"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="space-y-3 pl-2 md:pl-4 border-l-2 border-slate-100 ml-1">
-                          {group.options.map((opt) => (
-                            <div key={opt.id} className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(180px,1fr)_minmax(100px,120px)_minmax(120px,135px)_minmax(130px,150px)_32px] md:items-center">
-                              <input
-                                placeholder="Option name (e.g. Regular)"
-                                value={opt.name}
-                                onChange={(e) => updateOption(group.id, opt.id, "name", e.target.value)}
-                                className="flex-1 border border-slate-200 rounded-xl p-2.5 text-xs md:text-sm focus:outline-none focus:border-sky-500 transition"
-                              />
-
-                              <div className="relative w-full">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">₱</span>
-                                <input
-                                  type="number"
-                                  placeholder="129.00"
-                                  value={opt.price}
-                                  onChange={(e) => updateOption(group.id, opt.id, "price", e.target.value)}
-                                  className="w-full pl-7 pr-3 py-2.5 border border-slate-200 rounded-xl text-xs md:text-sm focus:outline-none focus:border-sky-500 transition"
-                                />
-                              </div>
-
-                              <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-cyan-700">GRAB</span>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  placeholder="Same"
-                                  value={opt.grab_price ?? ""}
-                                  onChange={(e) => updateOption(group.id, opt.id, "grab_price", e.target.value)}
-                                  className="w-full pl-12 pr-3 py-2.5 border border-cyan-100 bg-cyan-50/40 rounded-xl text-xs md:text-sm focus:outline-none focus:border-sky-500 transition"
-                                />
-                              </div>
-
-                              <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-600">PANDA</span>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  placeholder="Same"
-                                  value={opt.panda_price ?? ""}
-                                  onChange={(e) => updateOption(group.id, opt.id, "panda_price", e.target.value)}
-                                  className="w-full pl-14 pr-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-xs md:text-sm focus:outline-none focus:border-sky-500 transition"
-                                />
-                              </div>
-
-                              <button
-                                type="button"
-                                onClick={() => removeOption(group.id, opt.id)}
-                                className="flex h-9 w-8 items-center justify-center rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 font-bold transition-colors text-base"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          ))}
-
-                          <button
-                            type="button"
-                            onClick={() => addOption(group.id)}
-                            className="text-slate-700 font-bold text-[10px] md:text-xs mt-2 hover:underline flex items-center gap-1"
-                          >
-                            + Add Option
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="space-y-3 mb-6">
+                    {optionGroups.map((group) => <div key={group.id} className="rounded-xl border border-slate-200 bg-white p-4">
+                      <div className="flex items-center justify-between gap-3"><div><h4 className="text-sm font-semibold">{group.name}</h4><p className="text-xs text-slate-500">Linked template · Edit in Saved Templates above</p></div>
+                        <button type="button" onClick={() => removeOptionGroup(group.id)} className="rounded-lg border px-3 py-2 text-xs">Remove from item</button></div>
+                      <p className="mt-2 text-xs text-slate-600">{group.options.map((option) => `${option.name} (₱${Number(option.price || 0).toFixed(2)})`).join(" · ")}</p>
+                    </div>)}
                   </div>
                 </div>
               )}

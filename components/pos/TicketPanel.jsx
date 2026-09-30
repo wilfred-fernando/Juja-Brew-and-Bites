@@ -87,7 +87,8 @@ const isWelcomeVoucher = (voucher) => {
       : [];
 
   return (
-    <div data-pos-order className="flex flex-col h-full min-h-0 text-slate-800 font-sans select-none bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+    <div data-pos-order className="flex flex-1 flex-col h-full min-h-0 overflow-hidden text-slate-800 font-sans select-none bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+      <div data-pos-ticket-content className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
 
       {/* Header */}
       <div className="pb-3 mb-3 border-b border-rose-100 space-y-3">
@@ -386,7 +387,7 @@ const isWelcomeVoucher = (voucher) => {
 
 
       {/* Lightweight Transparent Feed Cart */}
-      <div className="flex-1 overflow-y-auto space-y-2 pr-1 border-b border-slate-100 pb-3">
+      <div className="space-y-2 border-b border-slate-100 pb-3">
         {cart.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-slate-400 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50 py-10">
             <span className="text-2xl mb-1.5 opacity-60">☕</span>
@@ -486,7 +487,8 @@ const isWelcomeVoucher = (voucher) => {
       </div>
 
       {/* Checkout Computations Layout Footer */}
-      <div data-pos-checkout className="mt-3 pt-1 space-y-3 bg-white">
+      </div>
+      <div data-pos-checkout className="relative z-10 shrink-0 mt-3 pt-1 space-y-3 bg-white">
         <div className="flex justify-between items-baseline">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Balance</span>
           <span className="font-bold text-2xl text-slate-800">
@@ -495,7 +497,7 @@ const isWelcomeVoucher = (voucher) => {
         </div>
 
         {/* Master Execution Action Targets */}
-        <div className="grid grid-cols-2 gap-2 pt-1">
+        <div className="grid grid-cols-2 gap-2 pt-1 [&>button]:min-h-12">
           <button
             onClick={onSave}
             disabled={savingTicket || cart.length === 0}

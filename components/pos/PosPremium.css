@@ -61,8 +61,8 @@
   body[data-pos-premium] .pos-menu-item .aspect-square { aspect-ratio:1/1; }
   body[data-pos-premium] .pos-menu-item p { font-size:12px; line-height:1.35; }
   body[data-pos-premium] .pos-menu-item > p { margin-top:6px; padding-top:6px; }
-  body[data-pos-premium] [data-pos-ticket] { display:block; position:static; height:100%; max-height:none; min-height:0; overflow-y:auto; }
-  body[data-pos-premium] [data-pos-order] { min-height:100%; height:auto; }
+  body[data-pos-premium] [data-pos-ticket] { display:flex; flex-direction:column; position:static; height:100%; max-height:none; min-height:0; overflow:hidden; }
+  body[data-pos-premium] [data-pos-order] { min-height:0; height:auto; flex:1; }
   body[data-pos-premium] [data-pos-mobile-cart],body[data-pos-premium] [data-pos-mobile-drawer] { display:none; }
 }
 @media screen and (min-width:1440px) {

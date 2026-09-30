@@ -811,6 +811,9 @@ function AddToCartModal({ item, onClose, onAdd }) {
           <div>
             <p className="customer-item-modal__eyebrow text-[10px] uppercase tracking-widest font-bold">Add to Selection</p>
             <h3 className="customer-item-modal__title text-xl font-bold mt-0.5">{item.name}</h3>
+            {item.description?.trim() && (
+              <p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-slate-600">{item.description}</p>
+            )}
             <p className="customer-item-modal__base text-sm font-semibold mt-1">
               Base {peso0(item.price)}
               {variantPrice > 0 ? ` • +${peso0(variantPrice)} variants` : ""}
@@ -2605,6 +2608,9 @@ function OrderTab({ user, member, onCheckoutSuccess }) {
                 <div className="min-w-0 flex-1 py-1">
                   {!orderable && <span className="mb-1 inline-block rounded-full bg-slate-800 px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-white">Unavailable</span>}
                   <p className="text-sm font-semibold leading-snug text-slate-800">{item.name}</p>
+                  {item.description?.trim() && (
+                    <p className="mt-1 whitespace-pre-line break-words text-xs leading-relaxed text-slate-600">{item.description}</p>
+                  )}
                   <p className="mt-1 text-[10px] uppercase tracking-wider text-slate-500">{item.category || "General"}</p>
                   <p className="mt-2 whitespace-nowrap text-base font-semibold text-slate-950">{peso0(menuCardPrice(item))}</p>
                   {hasMenuOptions(item) && <p className="mt-1 text-[10px] text-slate-500">Tap for options</p>}
