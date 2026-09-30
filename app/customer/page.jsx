@@ -516,7 +516,6 @@ const CUSTOMER_TABS = [
   { id: "home", icon: Home, label: "Home", description: "Your JUJA, all in one place." },
   { id: "order", icon: ShoppingBasket, label: "Order", description: "Find your favorites and make them yours." },
   { id: "promos", icon: Gift, label: "Promos", description: "A little extra for your next visit." },
-  { id: "gift-certificates", icon: Gift, label: "e-GCs", description: "Buy JUJA e-Gift Certificates for yourself or someone special." },
   { id: "history", icon: Package, label: "Tracker", description: "Follow your orders, from preparation to pickup." },
   { id: "loyalty", icon: Star, label: "Loyalty", description: "Your points, rewards, and member benefits." },
   { id: "booking", icon: CalendarDays, label: "Book", description: "Make room for your next gathering." },
@@ -542,7 +541,7 @@ function AppNavigation({ tab, setTab, user, onLogout }) {
 /* ──────────────────────────────────────────────────────────────
     Home Tab
 ────────────────────────────────────────────────────────────── */
-function HomeTab({ member, user, setTab }) {
+function HomeTab({ member, user, setTab, onOpenGiftCertificates }) {
   const availablePts = parseFloat(member?.["Available points"] ?? 0) || 0;
 
   const [branch, setBranch] = useState("pasongtamo");
@@ -639,14 +638,14 @@ function HomeTab({ member, user, setTab }) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { icon: "🍽️", label: "Order Food", sub: "Browse menu", tab: "order" },
-            { icon: "🎁", label: "Buy e-GCs", sub: "Share a little JUJA", tab: "gift-certificates" },
+            { icon: "🎁", label: "Buy e-GCs", sub: "Share a little JUJA", tab: "order", giftCertificates: true },
             { icon: "📦", label: "Tracker", sub: "Order Status", tab: "history" },
             { icon: "⭐", label: "Loyalty", sub: "Rewards", tab: "loyalty" },
             { icon: "🗓", label: "Book Room", sub: "Function room", tab: "booking" },
           ].map((c) => (
             <button
               key={c.label}
-              onClick={() => setTab(c.tab)}
+              onClick={() => c.giftCertificates ? onOpenGiftCertificates() : setTab(c.tab)}
               className="flex min-h-[150px] w-full flex-col items-center justify-center rounded-2xl border border-rose-50 bg-white p-5 text-center shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
             >
               <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 text-2xl text-[#FC687D]">
@@ -3773,6 +3772,7 @@ export default function Customer() {
   const [user, setUser] = useState(null);
   const [member, setMember] = useState(null);
   const [tab, setTab] = useState("home");
+  const [orderSection, setOrderSection] = useState("food");
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -4368,18 +4368,27 @@ export default function Customer() {
                 <CommunityPromoBanners detailed layout="list" />
               </section>
             )}
-            {tab === "home" && <HomeTab member={member} user={user} setTab={setTab} />}
+            {tab === "home" && <HomeTab member={member} user={user} setTab={(nextTab) => { if (nextTab === "order") setOrderSection("food"); setTab(nextTab); }} onOpenGiftCertificates={() => { setOrderSection("gift-certificates"); setTab("order"); }} />}
             {tab === "order" && (
+              <>
+              <nav aria-label="Order type" className="mb-5 flex flex-wrap gap-2">
+                {[["food", "Food & Drinks"], ["gift-certificates", "Gift Certificates"]].map(([id, label]) => (
+                  <button key={id} type="button" aria-pressed={orderSection === id} onClick={() => setOrderSection(id)} className={`rounded-xl border px-4 py-3 text-sm font-semibold ${orderSection === id ? "border-slate-800 bg-slate-800 text-white" : "border-slate-200 bg-white text-slate-700"}`}>{label}</button>
+                ))}
+              </nav>
+              <div hidden={orderSection !== "food"}>
               <OrderTab
                 user={user}
                 member={member}
                 onCheckoutSuccess={() => setTab("history")}
               />
+              </div>
+              </>
             )}
             {tab === "history" && <TrackerTab orders={orders} loadingOrders={loadingOrders} />}
-            <section hidden={tab !== "gift-certificates"} aria-label="Buy e-Gift Certificates" className="mx-auto max-w-xl">
+            <section hidden={tab !== "order" || orderSection !== "gift-certificates"} aria-label="Buy gift certificates" className="mx-auto max-w-xl">
               <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-                <h2 className="mb-4 text-xl font-bold text-slate-800">Buy e-Gift Certificates</h2>
+                <h2 className="mb-4 text-xl font-bold text-slate-800">Buy Gift Certificates</h2>
                 <GiftCertificatePurchaseForm source="website" />
               </div>
             </section>
