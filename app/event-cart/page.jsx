@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import styles from "./EventCart.module.css";
 import { PublicNav as Nav } from "@/components/PublicNav";
 import { PublicFooter as Footer } from "@/components/PublicFooter";
 
@@ -315,276 +317,71 @@ const addOns = [
 
 
 
-function SectionHeading({ eyebrow, title, subtitle }) {
+function PackageCard({ pkg, category }) {
   return (
-    <div className="mb-6 border-b border-[#087830]/15 pb-5">
-      <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[#FC687D]">
-        {eyebrow}
-      </p>
-      <h2 className="mt-2 text-3xl font-semibold text-slate-900 md:text-4xl">
-        {title}
-      </h2>
-      {subtitle ? (
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-700">
-          {subtitle}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function FlavorPills({ items }) {
-  return (
-    <div className="mt-4 flex flex-wrap gap-2">
-      {items.map((item) => (
-        <span
-          key={item}
-          className="rounded-full border border-[#087830]/15 bg-white/75 px-3 py-1.5 text-xs text-slate-700"
-        >
-          {item}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function PackageCard({ pkg }) {
-  return (
-    <article className="flex h-full flex-col rounded-3xl border border-white/70 bg-white/78 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.08)] backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:bg-white/90">
-      <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#087830]">
-          {pkg.name}
-        </p>
-        <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
-          <h3 className="text-xl font-semibold text-slate-900">
-            {pkg.label || pkg.cups}
-          </h3>
-          <p className="text-2xl font-semibold text-[#FC687D]">{pkg.price}</p>
-        </div>
-      </div>
-
-      <div className="mt-5 grid gap-2">
-        {pkg.meta.map((item) => (
-          <p
-            key={item}
-            className="rounded-2xl bg-[#087830]/8 px-4 py-2 text-sm text-slate-700"
-          >
-            {item}
-          </p>
-        ))}
-      </div>
-
-      <div className="mt-5 flex-1">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-          Includes
-        </p>
-        <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-700">
-          {pkg.includes.map((item) => (
-            <li key={item} className="flex gap-2">
-              <span className="text-[#087830]">✓</span>
-              <span>{item}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {pkg.flavors ? <FlavorPills items={pkg.flavors} /> : null}
+    <article className={styles.card}>
+      <p className={styles.eyebrow}>{category}</p>
+      <h3>{pkg.name}</h3>
+      <p className={styles.price}>{pkg.price}</p>
+      <div className={styles.meta}>{pkg.meta.map(item => <span key={item}>{item}</span>)}</div>
+      <p className={styles.smallHeading}>Your package includes</p>
+      <ul>{pkg.includes.map(item => <li key={item}>{item}</li>)}</ul>
+      <details className={styles.flavors}>
+        <summary>Explore the flavors</summary>
+        <div className={styles.pills}>{(pkg.flavors || coffeeFlavors).map(item => <span key={item}>{item}</span>)}</div>
+      </details>
+      <a className={styles.cardLink} href="#inquire">Inquire about this package <span aria-hidden="true">↗</span></a>
     </article>
   );
 }
 
 export default function EventCartPage() {
+  const [size, setSize] = useState(0);
+  const selected = drinkPackages[size];
   return (
-    <div
-      className="juja-page-bg flex min-h-screen flex-col bg-transparent pb-16 pt-24 md:pt-28 lg:h-screen lg:overflow-hidden lg:pb-0"
-      style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
-    >
+    <div className={styles.page}>
       <Nav active="event-cart" />
-
-      <main className="relative min-h-0 flex-1 px-4 pb-12 sm:px-6 lg:overflow-y-auto lg:px-10">
-        <section className="relative mx-auto mb-8 max-w-7xl overflow-hidden rounded-[34px] bg-gradient-to-br from-[#075f29] via-[#087830] to-[#0a8c3a] px-6 py-9 text-white shadow-[0_24px_55px_rgba(8,120,48,0.22)] sm:px-10 sm:py-11 lg:px-14">
-          <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-[#FC687D]/25 blur-2xl" />
-          <div className="absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
-          <div className="relative grid items-end gap-8 lg:grid-cols-[1fr_auto]">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-pink-200">
-                JUJA Event Cart Packages
-              </p>
-              <h1 className="mt-3 max-w-4xl text-3xl font-semibold leading-tight sm:text-4xl lg:text-5xl">
-                Make every celebration more delicious!
-              </h1>
-              <p className="mt-4 max-w-3xl text-sm leading-7 text-emerald-50 sm:text-base">
-                Bring the JUJA experience to your special occasion with refreshing
-                milk tea, handcrafted coffee, and crowd-favorite picapica—served
-                fresh from our mobile event cart.
-              </p>
-              <div className="mt-5 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.15em] text-white/90">
-                {["Milk Tea", "Coffee", "Picapica"].map((item) => (
-                  <span key={item} className="rounded-full border border-white/20 bg-white/10 px-4 py-2">
-                    {item}
-                  </span>
-                ))}
-              </div>
+      <main className={styles.main}>
+        <section className={styles.hero}>
+          <div className={styles.heroCopy}>
+            <p className={styles.eyebrow}>JUJA / The event cart collection</p>
+            <h1>A little JUJA.<br /><em>A memorable celebration.</em></h1>
+            <p>Handcrafted coffee, refreshing milk tea, and crowd-favorite picapica. Bring your favorites to the moments worth celebrating.</p>
+            <div className={styles.actions}>
+              <a className={styles.primary} href="#packages">Explore packages <span aria-hidden="true">↓</span></a>
+              <a className={styles.heroLink} href="#inquire">Plan your event ↗</a>
             </div>
-
-            <div className="rounded-3xl border border-white/20 bg-white/12 p-5 backdrop-blur-sm sm:min-w-64">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-pink-200">
-                Packages start at
-              </p>
-              <p className="mt-1 text-4xl font-bold text-white sm:text-5xl">₱8,499</p>
-              <a
-                href="#drink-packages"
-                className="mt-5 block rounded-full bg-[#FC687D] px-6 py-3 text-center text-xs font-bold uppercase tracking-widest text-white transition hover:-translate-y-0.5 hover:bg-[#f85570]"
-              >
-                View Packages
-              </a>
-            </div>
+            <div className={styles.heroFacts}><span><strong>50–200</strong> drink cups</span><span><strong>16oz</strong> refreshments</span><span><strong>From ₱8,499</strong> drink packages</span></div>
+          </div>
+          <div className={styles.heroVisual}>
+            <img src="/images/event-cart-milk-tea.jpg" alt="JUJA milk tea event cart package presentation" fetchPriority="high" />
+            <div className={styles.imageCaption}><span>Made for your gathering</span><strong>Brewed. Served. Celebrated.</strong></div>
           </div>
         </section>
-
-        <section className="mx-auto grid max-w-7xl items-center gap-8 rounded-[34px] border border-white/65 bg-white/62 p-5 shadow-[0_24px_55px_rgba(15,23,42,0.10)] backdrop-blur-md sm:p-8 lg:grid-cols-[0.9fr_1.1fr] lg:p-10">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-[#FC687D]">
-              JUJA Brew &amp; Bites Event Service
-            </p>
-            <h1 className="mt-4 text-4xl font-semibold leading-tight text-slate-950 sm:text-5xl lg:text-6xl">
-              Event Cart
-            </h1>
-            <p className="mt-4 text-lg font-medium text-[#087830]">
-              Coffee Cart · Drink Cart · Picapica Packages
-            </p>
-            <p className="mt-5 max-w-2xl text-sm leading-8 text-slate-700">
-              Bring JUJA to your celebration with mobile cart packages for milk
-              tea, premium drinks, espresso-based iced coffee, and party snacks.
-              Built for birthdays, weddings, corporate events, school events,
-              debuts, private parties, and family gatherings.
-            </p>
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <a
-                href="tel:09399228383"
-                className="rounded-full bg-[#087830] px-7 py-3.5 text-center text-xs font-semibold uppercase tracking-widest text-white shadow-lg shadow-emerald-900/10 transition hover:-translate-y-0.5 hover:bg-[#076a2b]"
-              >
-                Call 0939-922-8383
-              </a>
-              <a
-                href="https://fb.com/jujabrewandbites"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-full border border-[#087830]/30 bg-white/80 px-7 py-3.5 text-center text-xs font-semibold uppercase tracking-widest text-[#087830] transition hover:-translate-y-0.5 hover:bg-white"
-              >
-                Message Us
-              </a>
-            </div>
+        <div className={styles.occasions}><span>A place at every celebration</span><p>Weddings · Birthdays · Corporate events · School events · Debuts · Family gatherings</p></div>
+        <section id="packages" className={styles.section}>
+          <div className={styles.sectionTop}><div><p className={styles.eyebrow}>01 / Find your perfect pour</p><h2>Good company. Great drinks.</h2></div><p>Choose your cup count, then find the package that fits your celebration.</p></div>
+          <div className={styles.selector} role="group" aria-label="Package cup count">{[50,100,150,200].map((cups,index) => <button type="button" key={cups} aria-pressed={size === index} onClick={() => setSize(index)}>{cups} cups</button>)}</div>
+          <p className={styles.groupDescription}>{selected.description}</p>
+          <div className={styles.packageGrid}>
+            <PackageCard pkg={coffeePackages[size]} category="Iced coffee" />
+            {selected.items.map((pkg,index) => <PackageCard key={pkg.name} pkg={pkg} category={['Classic milk tea','Premium milk tea','Milk tea + coffee'][index]} />)}
           </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <img
-              src="https://files.jujabrewandbites.com/public-media/event-cart-milk-tea.jpg"
-              alt="Juja Milk Tea Package poster"
-              className="h-full max-h-[520px] w-full rounded-[28px] object-cover shadow-[0_20px_45px_rgba(15,23,42,0.16)]"
-            />
-            <img
-              src="https://files.jujabrewandbites.com/public-media/event-cart-picapica.jpg"
-              alt="Juja Picapica Package poster"
-              className="h-full max-h-[520px] w-full rounded-[28px] object-cover shadow-[0_20px_45px_rgba(15,23,42,0.16)]"
-            />
-          </div>
+          <div className={styles.upgrade}><div><p className={styles.eyebrow}>Make it a little extra</p><h3>Premium coffee upgrade</h3><p>Add ₱2,000 to ₱4,000 depending on cup quantity.</p></div><div className={styles.pills}>{premiumCoffeeFlavors.map(flavor => <span key={flavor}>{flavor}</span>)}</div></div>
         </section>
-
-        <section id="drink-packages" className="mx-auto mt-10 scroll-mt-28 max-w-7xl rounded-[34px] border border-white/65 bg-white/62 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.08)] backdrop-blur-md sm:p-8">
-          <SectionHeading
-            eyebrow="Drink Cart Packages"
-            title="Milk Tea · Premium Milk Tea · Coffee"
-            subtitle="Choose from 50, 100, 150, and 200-cup packages. Each package includes mobile drink cart setup, custom cup stickers, trained service staff, and complete serving supplies."
-          />
-
-          <div className="space-y-10">
-            {drinkPackages.map((group) => (
-              <div key={group.group}>
-                <h3 className="mb-4 rounded-full border border-[#087830]/20 bg-white/70 px-5 py-2 text-sm font-semibold uppercase tracking-[0.18em] text-[#087830]">
-                  {group.group}
-                </h3>
-                {group.description ? (
-                  <p className="-mt-1 mb-5 px-2 text-sm leading-6 text-slate-600">
-                    {group.description}
-                  </p>
-                ) : null}
-                <div className="grid gap-5 lg:grid-cols-3">
-                  {group.items.map((pkg) => (
-                    <PackageCard key={`${group.group}-${pkg.name}`} pkg={pkg} />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+        <section className={styles.snacks}>
+          <img src="/images/event-cart-picapica.jpg" alt="JUJA picapica cart and snack package" loading="lazy" />
+          <div><p className={styles.eyebrow}>02 / Something to share</p><h2>Little bites.<br />Big crowd pleaser.</h2><p>Complete the celebration with a picapica cart made for mingling, snacking, and coming back for more.</p><p className={styles.price}>₱9,999</p><div className={styles.snackFacts}><span>100 servings</span><span>2 hours</span><span>10 varieties to choose from</span></div><a className={styles.primary} href="#inquire">Ask about picapica ↗</a></div>
         </section>
-
-        <section className="mx-auto mt-10 max-w-7xl rounded-[34px] border border-white/65 bg-white/62 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.08)] backdrop-blur-md sm:p-8">
-          <SectionHeading
-            eyebrow="Coffee Cart Packages"
-            title="Premium Iced Coffee · Espresso-Based Drinks"
-            subtitle="Coffee cart packages include iced coffee service, mobile cart setup, custom cup stickers, staff, cups, straws, ice, and setup before the event."
-          />
-
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            {coffeePackages.map((pkg) => (
-              <PackageCard key={pkg.name} pkg={pkg} />
-            ))}
-          </div>
-
-          <div className="mt-8 grid gap-5 lg:grid-cols-2">
-            <div className="rounded-3xl border border-white/70 bg-white/78 p-5 backdrop-blur-md">
-              <h3 className="text-xl font-semibold text-slate-900">
-                Suggested Coffee Flavors
-              </h3>
-              <FlavorPills items={coffeeFlavors} />
-            </div>
-            <div className="rounded-3xl border border-white/70 bg-white/78 p-5 backdrop-blur-md">
-              <h3 className="text-xl font-semibold text-slate-900">
-                Premium Coffee Upgrade
-              </h3>
-              <p className="mt-3 text-sm leading-7 text-slate-700">
-                Add ₱2,000 to ₱4,000 depending on cup quantity if you want to
-                offer more premium coffee choices.
-              </p>
-              <FlavorPills items={premiumCoffeeFlavors} />
-            </div>
-          </div>
+        <section className={styles.section}>
+          <div className={styles.sectionTop}><div><p className={styles.eyebrow}>03 / The finishing touches</p><h2>Your event, your extras.</h2></div><p>Add more cups, more time, or a personal touch to your setup.</p></div>
+          <div className={styles.addOns}>{addOns.map(item => { const [label,...value] = item.split(':'); return <div key={item}><span>{label}</span>{value.length > 0 && <strong>{value.join(':').trim()}</strong>}</div>; })}</div>
         </section>
-
-        <section className="mx-auto mt-10 grid max-w-7xl gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="rounded-[34px] border border-white/65 bg-white/62 p-6 shadow-[0_18px_40px_rgba(15,23,42,0.08)] backdrop-blur-md sm:p-8">
-            <SectionHeading eyebrow="Picapica" title="Picapica Package" />
-            <p className="text-4xl font-semibold text-[#FC687D]">₱9,999</p>
-            <div className="mt-5 grid gap-2 text-sm text-slate-700">
-              {[
-                "100 servings",
-                "2 hours service time",
-                "10 varieties to choose from",
-              ].map((item) => (
-                <p key={item} className="rounded-2xl bg-white/75 px-4 py-2">
-                  {item}
-                </p>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-[34px] border border-white/65 bg-white/62 p-6 shadow-[0_18px_40px_rgba(15,23,42,0.08)] backdrop-blur-md sm:p-8">
-            <SectionHeading eyebrow="Optional" title="Add-ons" />
-            <div className="grid gap-2 sm:grid-cols-2">
-              {addOns.map((item) => (
-                <p
-                  key={item}
-                  className="rounded-2xl border border-white/70 bg-white/75 px-4 py-3 text-sm text-slate-700"
-                >
-                  {item}
-                </p>
-              ))}
-            </div>
-          </div>
+        <section id="inquire" className={styles.inquiry}>
+          <div><p className={styles.eyebrow}>Let’s celebrate together</p><h2>Bring JUJA to your next event.</h2><p>Tell us your event date, location, preferred package, and cup count. Our team will help you plan the details.</p></div>
+          <div className={styles.contact}><a className={styles.primary} href="https://fb.com/jujabrewandbites" target="_blank" rel="noopener noreferrer">Message us on Facebook ↗</a><a className={styles.heroLink} href="tel:09399228383">Call 0939-922-8383</a><span>Travel fee depends on event location.</span></div>
         </section>
       </main>
-
       <Footer />
     </div>
   );
