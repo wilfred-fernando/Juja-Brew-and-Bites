@@ -1828,7 +1828,7 @@ function ConfirmModal({ title, message, onConfirm, onCancel }) {
 /* ──────────────────────────────────────────────────────────────
     Order Tab (Now Focused 100% On Smooth Menu & Basket Selection)
 ────────────────────────────────────────────────────────────── */
-function OrderTab({ user, member, onCheckoutSuccess, categoryScope = "" }) {
+function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
   const [items, setItems] = useState([]);
   const [cats, setCategories] = useState([]);
   const [activeTab, setActiveTab] = useState("ALL");
@@ -2104,14 +2104,22 @@ function OrderTab({ user, member, onCheckoutSuccess, categoryScope = "" }) {
       .filter(isMenuItemVisibleToCustomers)
       .filter((item) => !unavailableItemIds.has(String(item.id)))
       .filter((i) => visibleCategories.some((cat) => cat.name === i.category))
-      .filter((i) => categoryScope
-        ? String(i.category || "").trim().toLowerCase() === categoryScope.toLowerCase()
+      .filter((i) => groupTrayOnly
+        ? ["group tray", "bento"].includes(String(i.category || "").trim().toLowerCase())
         : activeTab === "ALL" || i.category === activeTab)
       .filter((i) => (!isPromoMenuItem(i) ? true : !!findVoucherForMenuItem(activeVouchers, i)))
       .filter((i) => (q ? (i.name || "").toLowerCase().includes(q) : true));
-  }, [items, unavailableItemIds, visibleCategories, activeTab, q, activeVouchers, categoryScope]);
+  }, [items, unavailableItemIds, visibleCategories, activeTab, q, activeVouchers, groupTrayOnly]);
 
   const filteredItemGroups = useMemo(() => {
+    if (groupTrayOnly) {
+      return ["Group Tray", "Bento"]
+        .map((category) => ({
+          category,
+          items: filteredItems.filter((item) => String(item.category || "").trim().toLowerCase() === category.toLowerCase()),
+        }))
+        .filter((group) => group.items.length > 0);
+    }
     if (q || activeTab !== "ALL") return [{ category: null, items: filteredItems }];
     return visibleCategories
       .map((category) => ({
@@ -2119,7 +2127,7 @@ function OrderTab({ user, member, onCheckoutSuccess, categoryScope = "" }) {
         items: filteredItems.filter((item) => item.category === category.name),
       }))
       .filter((group) => group.items.length > 0);
-  }, [activeTab, filteredItems, q, visibleCategories]);
+  }, [activeTab, filteredItems, q, visibleCategories, groupTrayOnly]);
 
   const isItemAvailableForSelectedStore = (item) => {
     return !unavailableItemIds.has(String(item.id));
@@ -2542,17 +2550,16 @@ function OrderTab({ user, member, onCheckoutSuccess, categoryScope = "" }) {
                 <option key={store.id} value={store.id}>{store.name}</option>
               ))}
             </select>
-            <select
-              value={categoryScope || activeTab}
-              disabled={Boolean(categoryScope)}
+            {!groupTrayOnly && <select
+              value={activeTab}
               onChange={(e) => setActiveTab(e.target.value)}
               className="bg-slate-50 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 outline-none border border-slate-200 pointer-events-auto cursor-pointer"
             >
-              {categoryScope ? <option value={categoryScope}>{categoryScope}</option> : <option value="ALL">All Categories</option>}
-              {!categoryScope && visibleCategories.map((cat) => (
+              <option value="ALL">All Categories</option>
+              {visibleCategories.map((cat) => (
                 <option key={cat.id} value={cat.name}>{cat.name}</option>
               ))}
-            </select>
+            </select>}
             <div className="relative flex-1 sm:flex-initial">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
               <input
@@ -2580,7 +2587,7 @@ function OrderTab({ user, member, onCheckoutSuccess, categoryScope = "" }) {
             {filteredItemGroups.map((group) => (
               <section key={group.category || "items"}>
                 {group.category && (
-                  <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-700">
+                  <h3 className="mb-3 border-b border-slate-200 pb-2 text-sm font-semibold uppercase tracking-wider text-slate-700">
                     {group.category}
                   </h3>
                 )}
@@ -3776,7 +3783,6 @@ export default function Customer() {
   const [member, setMember] = useState(null);
   const [tab, setTab] = useState("home");
   const [orderSection, setOrderSection] = useState("food");
-  const [groupTrayCategory, setGroupTrayCategory] = useState("Group Tray");
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -4381,17 +4387,10 @@ export default function Customer() {
                 ))}
               </nav>
               <div hidden={orderSection === "gift-certificates"}>
-              {orderSection === "group-tray" && (
-                <nav aria-label="Group Tray category" className="mb-5 flex flex-wrap gap-2">
-                  {["Group Tray", "Bento"].map((category) => (
-                    <button key={category} type="button" aria-pressed={groupTrayCategory === category} onClick={() => setGroupTrayCategory(category)} className={premium.orderChoice}>{category}</button>
-                  ))}
-                </nav>
-              )}
               <OrderTab
                 user={user}
                 member={member}
-                categoryScope={orderSection === "group-tray" ? groupTrayCategory : ""}
+                groupTrayOnly={orderSection === "group-tray"}
                 onCheckoutSuccess={() => setTab("history")}
               />
               </div>
