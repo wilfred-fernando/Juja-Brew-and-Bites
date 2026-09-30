@@ -134,6 +134,6 @@ export default function GiftCertificatePurchaseForm({ source = "website", storeI
     </fieldset>
     {locked && <p className="text-sm text-amber-800">This reference is saved. Retry to confirm its status without creating another purchase.</p>}
     {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-    <button disabled={busy} className="w-full rounded-xl bg-green-800 px-5 py-3 font-semibold text-white disabled:opacity-50">{busy ? "Submitting…" : locked ? "Retry saved purchase" : stockBatchId ? "Record paid sale & activate certificate" : `Submit ₱${quantity * 100} purchase for approval`}</button>
+    <button disabled={busy} style={{ color: "#fff" }} className="w-full rounded-xl bg-green-800 px-5 py-3 font-semibold text-white disabled:opacity-50">{busy ? "Submitting…" : locked ? "Retry saved purchase" : stockBatchId ? "Record paid sale & activate certificate" : `Submit ₱${quantity * 100} purchase for approval`}</button>
   </form>;
 }
