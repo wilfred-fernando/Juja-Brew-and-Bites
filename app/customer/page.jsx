@@ -3776,6 +3776,7 @@ export default function Customer() {
   const [member, setMember] = useState(null);
   const [tab, setTab] = useState("home");
   const [orderSection, setOrderSection] = useState("food");
+  const [groupTrayCategory, setGroupTrayCategory] = useState("Group Tray");
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -4375,15 +4376,22 @@ export default function Customer() {
             {tab === "order" && (
               <>
               <nav aria-label="Order type" className="mb-5 flex flex-wrap gap-2">
-                {[["food", "Food & Drinks"], ["group-tray", "Group Tray"], ["bento", "Bento"], ["gift-certificates", "Gift Certificates"]].map(([id, label]) => (
+                {[["food", "Food & Drinks"], ["group-tray", "Group Tray"], ["gift-certificates", "Gift Certificates"]].map(([id, label]) => (
                   <button key={id} type="button" aria-pressed={orderSection === id} onClick={() => setOrderSection(id)} className={premium.orderChoice}>{label}</button>
                 ))}
               </nav>
               <div hidden={orderSection === "gift-certificates"}>
+              {orderSection === "group-tray" && (
+                <nav aria-label="Group Tray category" className="mb-5 flex flex-wrap gap-2">
+                  {["Group Tray", "Bento"].map((category) => (
+                    <button key={category} type="button" aria-pressed={groupTrayCategory === category} onClick={() => setGroupTrayCategory(category)} className={premium.orderChoice}>{category}</button>
+                  ))}
+                </nav>
+              )}
               <OrderTab
                 user={user}
                 member={member}
-                categoryScope={orderSection === "group-tray" ? "Group Tray" : orderSection === "bento" ? "Bento" : ""}
+                categoryScope={orderSection === "group-tray" ? groupTrayCategory : ""}
                 onCheckoutSuccess={() => setTab("history")}
               />
               </div>
