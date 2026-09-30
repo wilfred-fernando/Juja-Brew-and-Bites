@@ -1,4 +1,5 @@
 "use client";
+import AvailabilityToggle from "@/components/AvailabilityToggle";
 import { isOptionGroupVisibleOn } from "@/lib/menuVisibility";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -8431,7 +8432,12 @@ export default function POSPage() {
     }
   }
 
+  const [availabilityBusy, setAvailabilityBusy] = useState(false);
+
   async function toggleMenuItemAvailability(item) {
+    if (availabilityBusy) return;
+    setAvailabilityBusy(true);
+    try {
     if (!item?.id) return;
     const sid = getResolvedBranchId();
     if (!sid) return showToast("error", "Store Required", "POS store is not loaded yet.");
@@ -8451,44 +8457,27 @@ export default function POSPage() {
         : row
     )));
     showToast("success", "Store Availability Updated", `${item.name || "Item"} is now ${nextAvailable ? "available" : "unavailable"} for this store only.`);
+    } catch (error) { showToast("error", "Availability update failed", error.message); }
+    finally { setAvailabilityBusy(false); }
   }
 
   async function toggleOptionSelectionAvailability(groupName, optionName) {
+    if (availabilityBusy) return;
+    setAvailabilityBusy(true);
+    try {
     const row = optionSelectionGroups.flatMap((group) => group.options).find((option) => option.groupName === groupName && option.optionName === optionName);
     const nextAvailable = !row?.enabled;
-    const updates = (items || [])
-      .map((item) => {
-        const groups = Array.isArray(item.variants) ? item.variants : [];
-        let touched = false;
-        const nextGroups = groups.map((group) => {
-          if (String(group.name || group.id || "").trim() !== groupName) return group;
-          const options = Array.isArray(group.options) ? group.options : [];
-          const nextOptions = options.map((option) => {
-            if (String(option.name || option.label || option.id || "").trim() !== optionName) return option;
-            touched = true;
-            return { ...option, isAvailable: nextAvailable, is_available: nextAvailable };
-          });
-          return touched ? { ...group, options: nextOptions } : group;
-        });
-        return touched ? { item, nextGroups } : null;
-      })
-      .filter(Boolean);
-
-    const results = await Promise.all(
-      updates.map(({ item, nextGroups }) =>
-        supabase.from("menu_items").update({ variants: nextGroups }).eq("id", item.id)
-      )
-    );
-    const failed = results.find((res) => res.error);
-    if (failed?.error) return showToast("error", "Option Update Failed", failed.error.message);
-
-    setItems((prev) =>
-      prev.map((item) => {
-        const update = updates.find((u) => u.item.id === item.id);
-        return update ? { ...item, variants: update.nextGroups } : item;
-      })
-    );
+    const sid = getResolvedBranchId();
+    if (!sid) return showToast("error", "Store Required", "Select a store first.");
+    const { error } = await supabase.from("option_selection_store_availability").upsert({
+      store_id: String(sid), group_key: optionGroupKey(groupName), option_key: optionSelectionKey(optionName),
+      group_name: groupName, option_name: optionName, is_available: nextAvailable,
+    }, { onConflict: "store_id,group_key,option_key" });
+    if (error) throw error;
+    await fetchData();
     showToast("success", "Option Updated", `${optionName} is now ${nextAvailable ? "available" : "unavailable"}.`);
+    } catch (error) { showToast("error", "Availability update failed", error.message); }
+    finally { setAvailabilityBusy(false); }
   }
 
   function updatePrinterRole(role, enabled) {
@@ -10672,9 +10661,7 @@ export default function POSPage() {
                                 <p className="text-xs font-bold text-slate-800 truncate">{item.name}</p>
                                 <p className="text-[10px] font-semibold text-slate-400">{peso2(item.price || 0)}</p>
                               </div>
-                              <button type="button" onClick={() => toggleMenuItemAvailability(item)} className={`h-8 px-3 rounded-full text-[10px] font-black uppercase tracking-wider ${item.is_available === false ? "bg-slate-200 text-slate-500" : "bg-emerald-50 text-emerald-600 border border-emerald-100"}`}>
-                                {item.is_available === false ? "Off" : "On"}
-                              </button>
+                              <AvailabilityToggle available={item.is_available !== false} busy={availabilityBusy} name={item.name} scope="This branch" onChange={() => toggleMenuItemAvailability(item)} />
                             </div>
                           </div>
                         ))}
@@ -10698,9 +10685,7 @@ export default function POSPage() {
                             <p className="text-xs font-semibold text-slate-700 truncate">{option.optionName}</p>
                             <p className="text-[10px] font-semibold text-slate-400">{option.count} item link(s)</p>
                           </div>
-                          <button type="button" onClick={() => toggleOptionSelectionAvailability(option.groupName, option.optionName)} className={`h-8 px-3 rounded-full text-[10px] font-black uppercase tracking-wider ${option.enabled ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-slate-200 text-slate-500"}`}>
-                            {option.enabled ? "On" : "Off"}
-                          </button>
+                          <AvailabilityToggle available={option.enabled} busy={availabilityBusy} name={option.optionName} scope="This branch" onChange={() => toggleOptionSelectionAvailability(option.groupName, option.optionName)} />
                         </div>
                       ))}
                     </div>

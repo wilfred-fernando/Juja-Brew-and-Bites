@@ -1,4 +1,5 @@
 "use client";
+import AvailabilityToggle from "@/components/AvailabilityToggle";
 
 import { useState, useEffect } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -33,6 +34,7 @@ function normalizeOptionForSave(option) {
 
 export default function MenuAdminPage() {
   const [items, setItems] = useState([]);
+  const [availabilityBusy, setAvailabilityBusy] = useState(false);
   const [categories, setCategories] = useState([]);
   const [stores, setStores] = useState([]);
   const [itemStoreAvailability, setItemStoreAvailability] = useState([]);
@@ -250,6 +252,18 @@ export default function MenuAdminPage() {
       setSaving(false);
     }
   };
+
+  async function toggleAvailability(item) {
+    if (availabilityBusy) return;
+    setAvailabilityBusy(true);
+    try {
+      const available = item.is_available === false;
+      const { error } = await supabase.from("menu_items").update({ is_available: available }).eq("id", item.id);
+      if (error) throw error;
+      setItems((rows) => rows.map((row) => row.id === item.id ? { ...row, is_available: available } : row));
+    } catch (error) { alert(error.message); }
+    finally { setAvailabilityBusy(false); }
+  }
 
   // --- DELETE HANDLERS ---
   const confirmDeleteItem = (item) => setItemToDelete(item);
@@ -636,14 +650,7 @@ export default function MenuAdminPage() {
               </div>
 
               <div className="flex items-center justify-between md:justify-end w-full md:w-auto gap-3 md:gap-6 pt-3 md:pt-0 border-t md:border-none border-slate-50">
-                <span
-                  className={`px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-[9px] md:text-[10px] font-normal uppercase border flex items-center gap-1.5 ${
-                    item.is_available ? "bg-emerald-50 text-emerald-600 border-emerald-100/50" : "bg-slate-50 text-slate-500 border-slate-100"
-                  }`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${item.is_available ? "bg-emerald-500 animate-pulse" : "bg-slate-300"}`} />
-                  {item.is_available ? "Available" : "Disabled"}
-                </span>
+                <AvailabilityToggle available={item.is_available !== false} busy={availabilityBusy} name={item.name} scope="Global default" onChange={() => toggleAvailability(item)} />
 
                 <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300">
                   <button

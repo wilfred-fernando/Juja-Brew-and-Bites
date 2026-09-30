@@ -1,4 +1,5 @@
 "use client";
+import AvailabilityToggle from "@/components/AvailabilityToggle";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Clock3, Download, History, LogOut, Maximize2, PackageCheck, RefreshCcw, Trash2, Utensils, X } from "lucide-react";
@@ -515,7 +516,7 @@ export default function KitchenDisplay() {
   }
 
   async function toggleKitchenItemAvailability(item) {
-    if (!assignedStoreId || !item?.id) return;
+    if (availabilitySavingId || !assignedStoreId || !item?.id) return;
     const nextAvailable = item.is_available === false;
     setAvailabilitySavingId(String(item.id));
     const { error } = await supabase
@@ -543,7 +544,7 @@ export default function KitchenDisplay() {
   }
 
   async function toggleKitchenOptionSelectionAvailability(option) {
-    if (!assignedStoreId || !option?.groupKey || !option?.optionKey) return;
+    if (availabilitySavingId || !assignedStoreId || !option?.groupKey || !option?.optionKey) return;
     const nextAvailable = !option.enabled;
     setAvailabilitySavingId(`option:${option.key}`);
     const { error } = await supabase
@@ -1217,11 +1218,8 @@ export default function KitchenDisplay() {
                     const available = item.is_available !== false;
                     const saving = availabilitySavingId === String(item.id);
                     return (
-                      <button
+                      <div
                         key={item.id}
-                        type="button"
-                        onClick={() => toggleKitchenItemAvailability(item)}
-                        disabled={saving}
                         className={`rounded-2xl border p-4 text-left shadow-sm transition hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-70 ${
                           available
                             ? "border-emerald-200 bg-emerald-50/80 hover:bg-emerald-100"
@@ -1243,23 +1241,8 @@ export default function KitchenDisplay() {
                             {saving ? "Saving" : available ? "Available" : "Unavailable"}
                           </span>
                         </div>
-                        <div className="mt-4 flex items-center justify-between border-t border-white/70 pt-3">
-                          <span className="text-xs font-semibold text-slate-600">
-                            Tap to mark {available ? "unavailable" : "available"}
-                          </span>
-                          <span
-                            className={`h-6 w-11 rounded-full p-1 transition ${
-                              available ? "bg-emerald-500" : "bg-slate-300"
-                            }`}
-                          >
-                            <span
-                              className={`block h-4 w-4 rounded-full bg-white shadow transition ${
-                                available ? "translate-x-5" : "translate-x-0"
-                              }`}
-                            />
-                          </span>
-                        </div>
-                      </button>
+                        <AvailabilityToggle available={available} busy={saving} disabled={!!availabilitySavingId} name={item.name} scope="This branch" onChange={() => toggleKitchenItemAvailability(item)} />
+                      </div>
                     );
                   })}
                 </div>
@@ -1285,18 +1268,7 @@ export default function KitchenDisplay() {
                                   {option.count} item link{option.count === 1 ? "" : "s"}
                                 </p>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => toggleKitchenOptionSelectionAvailability(option)}
-                                disabled={saving}
-                                className={`h-8 rounded-full px-3 text-[10px] font-black uppercase tracking-wider disabled:cursor-wait disabled:opacity-70 ${
-                                  option.enabled
-                                    ? "border border-emerald-100 bg-emerald-50 text-emerald-600"
-                                    : "bg-slate-200 text-slate-500"
-                                }`}
-                              >
-                                {saving ? "..." : option.enabled ? "On" : "Off"}
-                              </button>
+                              <AvailabilityToggle available={option.enabled} busy={saving} disabled={!!availabilitySavingId} name={option.optionName} scope="This branch" onChange={() => toggleKitchenOptionSelectionAvailability(option)} />
                             </div>
                           </div>
                         );
