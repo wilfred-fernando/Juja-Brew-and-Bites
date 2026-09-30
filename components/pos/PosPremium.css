@@ -48,9 +48,9 @@
 
 /* Tablet and desktop use the available viewport; phone layout stays unchanged. */
 @media screen and (min-width:768px) {
-  body[data-pos-premium] [data-pos-terminal] { height:100vh; height:100dvh; min-height:0; display:flex; flex-direction:column; overflow:hidden; padding-bottom:0; }
+  body[data-pos-premium] [data-pos-terminal] { height:100vh; height:100dvh; height:var(--pos-viewport-height,100dvh); min-height:0; display:flex; flex-direction:column; overflow:hidden; padding-bottom:env(safe-area-inset-bottom,0px); }
   body[data-pos-premium] [data-pos-workspace] { width:100%; max-width:none; flex:1; min-height:0; padding:10px; }
-  body[data-pos-premium] [data-pos-selling-grid] { height:100%; min-height:0; grid-template-columns:minmax(0,1fr) clamp(280px,30vw,380px); gap:10px; align-items:stretch; }
+  body[data-pos-premium] [data-pos-selling-grid] { height:100%; min-height:0; grid-template-columns:minmax(0,1fr) clamp(280px,30vw,380px); grid-template-rows:minmax(0,1fr); gap:10px; align-items:stretch; }
   body[data-pos-premium] [data-pos-catalog] { display:flex; flex-direction:column; min-height:0; overflow:hidden; padding:10px; }
   body[data-pos-premium] [data-pos-catalog] > div:first-child { flex-shrink:0; flex-wrap:wrap; gap:8px; }
   body[data-pos-premium] [data-pos-catalog] > div:first-child > label,
@@ -62,7 +62,9 @@
   body[data-pos-premium] .pos-menu-item p { font-size:12px; line-height:1.35; }
   body[data-pos-premium] .pos-menu-item > p { margin-top:6px; padding-top:6px; }
   body[data-pos-premium] [data-pos-ticket] { display:flex; flex-direction:column; position:static; height:100%; max-height:none; min-height:0; overflow:hidden; }
-  body[data-pos-premium] [data-pos-order] { min-height:0; height:auto; flex:1; }
+  body[data-pos-premium] [data-pos-order] { display:grid; grid-template-rows:minmax(0,1fr) auto; min-height:0; height:auto; flex:1 1 0; overflow:hidden; }
+  body[data-pos-premium] [data-pos-ticket-content] { min-height:0; overflow-y:auto; overscroll-behavior:contain; }
+  body[data-pos-premium] [data-pos-checkout] { position:relative; flex-shrink:0; background:#fff; }
   body[data-pos-premium] [data-pos-mobile-cart],body[data-pos-premium] [data-pos-mobile-drawer] { display:none; }
 }
 @media screen and (min-width:1440px) {
