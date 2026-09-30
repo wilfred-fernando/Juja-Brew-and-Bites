@@ -56,6 +56,20 @@ export default function OrderDisplaySettings() {
     finally { setBusy(false); }
   }
 
+  async function moveImage(index, direction) {
+    const target = index + direction;
+    if (busy || target < 0 || target >= images.length) return;
+    const reordered = [...images];
+    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+    setBusy(true); setError(""); setMessage("");
+    try {
+      await requestImages({ method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: reordered.map((image) => image.id) }) });
+      setImages(reordered);
+      setMessage("Slideshow order saved. Open displays update within 30 seconds.");
+    } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  }
+
   return <div className="mx-auto max-w-6xl space-y-5 p-4 sm:p-6">
     <header className="flex flex-wrap items-start justify-between gap-4">
       <div><h1 className="text-2xl font-semibold text-slate-800">Customer Order Display</h1>
@@ -70,6 +84,7 @@ export default function OrderDisplaySettings() {
     {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
     <p role="status" className="text-sm text-slate-600">{busy ? "Saving changes…" : message}</p>
     <h2 className="text-sm font-semibold text-slate-700">Display images ({images.length})</h2>
+    <p className="text-xs text-slate-500">Use Earlier or Later to rearrange the slideshow. Each move saves automatically.</p>
     {loading ? <p>Loading images…</p> : !images.length ? <p className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-slate-500">No display images. Upload an image to start the slideshow.</p> :
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{images.map((image, index) => <article key={image.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         {/* Display assets use external storage URLs. */}
@@ -77,6 +92,10 @@ export default function OrderDisplaySettings() {
         <img src={image.url} alt={`Display image ${index + 1}`} className="aspect-video w-full bg-slate-100 object-contain" />
         <div className="flex items-center justify-between p-3"><span className="text-xs text-slate-500">Image {index + 1}</span>
           <button type="button" disabled={busy} onClick={() => remove(image)} aria-label={`Delete display image ${index + 1}`} className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 disabled:opacity-50">Delete image</button></div>
+        <div className="flex gap-2 border-t border-slate-100 p-3">
+          <button type="button" disabled={busy || index === 0} onClick={() => moveImage(index, -1)} aria-label={`Move image ${index + 1} earlier`} className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold disabled:opacity-40">Earlier</button>
+          <button type="button" disabled={busy || index === images.length - 1} onClick={() => moveImage(index, 1)} aria-label={`Move image ${index + 1} later`} className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold disabled:opacity-40">Later</button>
+        </div>
       </article>)}</div>}
   </div>;
 }

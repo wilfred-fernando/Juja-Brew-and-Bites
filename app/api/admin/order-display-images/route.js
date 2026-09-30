@@ -52,3 +52,17 @@ export async function DELETE(request) {
     return Response.json({ success: true });
   } catch (error) { return failure(error); }
 }
+
+export async function PATCH(request) {
+  try {
+    const { admin, response } = await requireAdminApi();
+    if (response) return response;
+    const { ids } = await request.json();
+    if (!Array.isArray(ids) || ids.length > 1000 || ids.some((id) => typeof id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) || new Set(ids).size !== ids.length) {
+      return Response.json({ error: "Invalid image order." }, { status: 400 });
+    }
+    const { error } = await admin.rpc("reorder_order_display_images", { image_ids: ids });
+    if (error) return Response.json({ error: error.message }, { status: 409 });
+    return Response.json({ success: true });
+  } catch (error) { return failure(error); }
+}
