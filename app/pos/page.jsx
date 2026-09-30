@@ -20,7 +20,6 @@ import {
   enqueueOutbox,
   getLocalSnapshot,
   initializeLocalData,
-  isLocalSnapshotFresh,
   listPendingOutbox,
   markOutboxFailed,
   markOutboxSynced,
@@ -135,7 +134,7 @@ const RECEIPT_LOGO_URL = "https://images.jujabrewandbites.com/SIGNAGE%20light%20
 // Realtime subscriptions are the primary update path; polling only recovers missed events.
 const POS_AUTO_REFRESH_MS = 300000;
 const POS_WEB_ORDER_FALLBACK_MS = 300000;
-const POS_CATALOG_REFRESH_MS = 3600000;
+const POS_CATALOG_REFRESH_MS = 60000;
 const POS_CATALOG_FULL_RECONCILE_MS = 7 * 24 * 60 * 60 * 1000;
 const bluetoothPrinterDeviceCache = new Map();
 const bluetoothPrinterCharacteristicCache = new Map();
@@ -6367,26 +6366,13 @@ export default function POSPage() {
       if (Array.isArray(loyaltySnapshot?.data) && loyaltySnapshot.data.length > 0) {
         setCustomers(loyaltySnapshot.data.slice(-100));
       }
-      if (cachedSnapshot?.items?.length) {
+      if (showLoadingState && cachedSnapshot?.items?.length) {
         setItems((cachedSnapshot.items || []).map((item) => ({ ...item, is_available: item.global_is_available !== false && item.is_available !== false })));
         setCategories(cachedSnapshot.categories || []);
         setRecipeRows(cachedSnapshot.recipeRows || []);
         setRecipeInventoryItems(cachedSnapshot.recipeInventoryItems || []);
         if (!loyaltySnapshot?.data?.length && cachedSnapshot.customers?.length) setCustomers(cachedSnapshot.customers);
         setLoading(false);
-      }
-      if (
-        cachedSnapshot?.items?.length
-        && opts.forceRefresh !== true
-        && isLocalSnapshotFresh(durableSnapshot, 6 * 60 * 60 * 1000)
-      ) {
-        setIsOfflineMode(false);
-        await Promise.all([
-          loadPosSettings(sid),
-          loadPrinters(sid),
-          loadBarPrinterCategories(sid, cachedSnapshot.categories || []),
-        ]);
-        return;
       }
       const lastFullSyncAt = Date.parse(cachedSnapshot?.lastFullSyncAt || "");
       const fullSyncExpired = !Number.isFinite(lastFullSyncAt)
@@ -6411,8 +6397,8 @@ export default function POSPage() {
       };
 
       const [iRes, catRes, itemStoreAvailabilityRes, optionGroupAvailabilityRes, optionSelectionAvailabilityRes] = await Promise.all([
-        changed(supabase.from("menu_items").select("*")).order("name"),
-        changed(supabase.from("menu_categories").select("*")).order("name", { ascending: true }),
+        supabase.from("menu_items").select("*").order("name"),
+        supabase.from("menu_categories").select("*").order("name", { ascending: true }),
         changed(supabase.from("menu_item_store_availability").select("item_id, store_id, is_available, updated_at").eq("store_id", sid)),
         changed(supabase.from("option_group_store_availability").select("store_id, group_key, group_name, is_available, updated_at").eq("store_id", sid)),
         changed(supabase.from("option_selection_store_availability").select("store_id, group_key, option_key, group_name, option_name, is_available, updated_at").eq("store_id", sid)),
@@ -6437,8 +6423,9 @@ export default function POSPage() {
       ].find(Boolean);
       if (catalogError) throw catalogError;
 
-      const rawItems = mergeRows(cachedSnapshot?.rawItems, iRes.data, (row) => String(row.id));
-      const cats = mergeRows(cachedSnapshot?.categories, catRes.data, (row) => String(row.id))
+      // Always replace the menu: visibility edits may not advance updated_at.
+      const rawItems = iRes.data || [];
+      const cats = (catRes.data || [])
         .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
       const itemStoreAvailability = mergeRows(cachedSnapshot?.itemStoreAvailability, itemStoreAvailabilityRes.data, (row) => `${row.store_id}:${row.item_id}`);
       const optionGroupStoreAvailability = mergeRows(cachedSnapshot?.optionGroupStoreAvailability, optionGroupAvailabilityRes.data, (row) => `${row.store_id}:${row.group_key || optionGroupKey(row.group_name)}`);
@@ -7167,7 +7154,15 @@ export default function POSPage() {
     };
 
     const timer = window.setInterval(refreshCatalog, POS_CATALOG_REFRESH_MS);
-    return () => window.clearInterval(timer);
+    window.addEventListener("focus", refreshCatalog);
+    window.addEventListener("online", refreshCatalog);
+    document.addEventListener("visibilitychange", refreshCatalog);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshCatalog);
+      window.removeEventListener("online", refreshCatalog);
+      document.removeEventListener("visibilitychange", refreshCatalog);
+    };
   }, [storeId, shiftStatus]);
 
   useEffect(() => {
