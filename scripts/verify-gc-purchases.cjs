@@ -23,6 +23,9 @@ async function main() {
     { source: 'pos', store_id: 'branch', payment_method: 'Cash', cash_received: false },
   ]) assert.throws(() => validate(changes), undefined, JSON.stringify(changes));
   assert.equal(validate({ source: 'pos', store_id: 'branch', payment_method: 'Cash', cash_received: true }).payment_proof_url, null);
+  assert.equal(validate({quantity:10,package:'ten_plus_one'}).package,'ten_plus_one');
+  assert.throws(()=>validate({quantity:9,package:'ten_plus_one'}));
+  assert.throws(()=>validate({quantity:10,package:'forged'}));
   const draft = cancellationGiftEmail({ purchase_id: 'PURCHASE-SAMPLE', customer_name: 'Juan Dela Cruz', amount: 200,
     expires_at: '2027-03-12T16:00:00Z' }, [{ code: 'SAMPLE-1' }, { code: 'SAMPLE-2' }]);
   assert.match(draft.text, /purchase .* has been approved/);

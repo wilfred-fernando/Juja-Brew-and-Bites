@@ -22,7 +22,8 @@ export async function GET(request) {
     const certificates = [];
     for (let offset = 0; ; offset += 500) {
       const { data, error } = await admin.from("booking_gc_certificates")
-        .select("id,code,amount,status,sequence_number,redeemed_at,booking_gc_batches!inner(id,booking_id,purchase_id,customer_name,customer_email,status,email_status,email_error,created_at,expires_at,approved_at,emailed_at)")
+        .select("id,code,amount,status,sequence_number,redeemed_at,booking_gc_batches!inner(id,booking_id,purchase_id,certificate_format,customer_name,customer_email,status,email_status,email_error,created_at,expires_at,approved_at,emailed_at)")
+        .or("booking_id.not.is.null,purchase_id.not.is.null", { referencedTable: "booking_gc_batches" })
         .order("id").range(offset, offset + 499);
       if (error) throw error;
       certificates.push(...data);

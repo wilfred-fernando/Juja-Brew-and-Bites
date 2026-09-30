@@ -9,7 +9,7 @@ export default function GiftCertificatesPage() {
       <Link href="/" className="text-sm text-green-800 underline">JUJA Brew & Bites</Link>
       <p className="mt-8 text-sm font-semibold uppercase tracking-widest text-[#9c5b40]">A little JUJA to share</p>
       <h1 className="mt-2 text-3xl font-bold">Buy e-Gift Certificates</h1>
-      <p className="mt-3 text-stone-600">₱100 each · Valid for six months from creation. Enter the customer’s full name and email, then submit payment for admin approval.</p>
+      <p className="mt-3 text-stone-600">₱100 each · Valid for six months from creation. Choose digital email delivery or a physical certificate, then submit payment for admin approval.</p>
       <div className="mt-6 rounded-3xl border border-stone-200 bg-white p-6 shadow-sm"><GiftCertificatePurchaseForm /></div>
     </div>
   </main>;

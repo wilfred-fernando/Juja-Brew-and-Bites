@@ -40,7 +40,7 @@ export default function BookingGiftCertificates({ bookings, onApproved, source =
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Unable to approve certificates.");
-      setMessage(action === "reject_purchase" ? "Purchase rejected. If money was collected, arrange a refund with the customer separately." : "Certificates approved and email sent to the customer.");
+      setMessage(action === "reject_purchase" ? "Purchase rejected. If money was collected, arrange a refund with the customer separately." : data.physical ? "Physical certificates approved. No email sent; download and print for handover." : "Certificates approved and email sent to the customer.");
       await refresh();
       onApproved?.();
     } catch (err) {
@@ -50,6 +50,7 @@ export default function BookingGiftCertificates({ bookings, onApproved, source =
   }
 
   const selected = batches.find((batch) => batch.id === selectedId);
+  const physical = selected?.certificate_format === "physical";
   const eligible = selected && (selected.purchase_id ? selected.status !== "rejected" : ["cancelled", "canceled", "cancelled_gc", "cancellation_requested"].includes(selected.function_room_bookings?.status));
   const exactAmount = selected && Number(selected.amount) % 100 === 0;
   const expired = selected && new Date(selected.expires_at).getTime() <= Date.now();
@@ -59,7 +60,7 @@ export default function BookingGiftCertificates({ bookings, onApproved, source =
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="font-semibold text-slate-800">{source === "purchase" ? "Purchased e-Gift Certificates" : "Cancellation e-Gift Certificates"}</h2>
-          <p className="text-sm text-slate-600">₱100 per certificate. Review the email, then approve and send to the customer.</p>
+          <p className="text-sm text-slate-600">₱100 per certificate. Digital certificates are emailed after approval; physical certificates are printed without email.</p>
         </div>
         <button type="button" disabled={busy} onClick={refresh} className="rounded-lg border px-3 py-2 text-sm">Refresh</button>
       </div>
@@ -72,7 +73,7 @@ export default function BookingGiftCertificates({ bookings, onApproved, source =
           <button key={batch.id} type="button" disabled={busy} onClick={() => { setSelectedId(batch.id); setPaymentVerified(false); setReason(""); }}
             className={`block w-full rounded-lg border p-3 text-left text-sm ${selectedId === batch.id ? "border-green-700 bg-green-50" : "border-slate-200"}`}>
             <strong>{batch.customer_name || "Customer"}</strong> · ₱{Number(batch.amount).toLocaleString()} · {batch.booking_gc_certificates.length} certificates
-            <span className="block text-xs text-slate-600">{batch.customer_email || "Missing email"} · {batch.status.replaceAll("_", " ")} · Email: {batch.email_status}</span>
+            <span className="block text-xs text-slate-600">{batch.certificate_format === "physical" ? "Physical · no email" : batch.customer_email || "Missing email"} · {batch.status.replaceAll("_", " ")} · Email: {batch.email_status}</span>
           </button>
         ))}
       </div>
@@ -80,17 +81,19 @@ export default function BookingGiftCertificates({ bookings, onApproved, source =
         <div className="mt-4 border-t pt-4">
           {selected.gc_purchases && <div className="mb-4 space-y-2 rounded-lg bg-amber-50 p-4 text-sm">
             <p className="break-all"><strong>Purchase reference:</strong> {selected.purchase_id}</p>
-            <p><strong>Source:</strong> {selected.gc_purchases.source} · <strong>Payment:</strong> {selected.gc_purchases.payment_method} · ₱{Number(selected.amount).toLocaleString()}</p>
+            <p><strong>Source:</strong> {selected.gc_purchases.source} · <strong>Payment:</strong> {selected.gc_purchases.payment_method} · ₱{Number(selected.gc_purchases.amount).toLocaleString()}</p>
+            {selected.gc_purchases.package === "ten_plus_one" && <p>10 paid + 1 free · ₱1,000 payment · ₱1,100 certificate value</p>}
             {selected.gc_purchases.store_id && <p>Branch: {selected.gc_purchases.store_id}</p>}
             <p>Created: {new Date(selected.created_at).toLocaleString("en-PH", { timeZone: "Asia/Manila" })}</p>
             {selected.gc_purchases.payment_proof_url && <a href={selected.gc_purchases.payment_proof_url} target="_blank" rel="noopener noreferrer" className="inline-block text-green-800 underline">Open payment proof</a>}
             {selected.gc_purchases.rejection_reason && <p className="text-red-700">Reason: {selected.gc_purchases.rejection_reason}</p>}
-            {selected.status === "pending_approval" && <label className="flex items-start gap-2"><input type="checkbox" disabled={busy} checked={paymentVerified} onChange={e => setPaymentVerified(e.target.checked)} className="mt-1" /><span>I verified the full payment and checked the customer name and email.</span></label>}
+            {selected.status === "pending_approval" && <label className="flex items-start gap-2"><input type="checkbox" disabled={busy} checked={paymentVerified} onChange={e => setPaymentVerified(e.target.checked)} className="mt-1" /><span>I verified the full payment and checked the customer details.</span></label>}
           </div>}
+          {physical ? <p className="font-semibold">Physical gift certificate — no email will be sent.</p> : <>
           <h3 className="font-semibold">Customer email draft</h3>
           <p className="mt-2 text-sm">To: {selected.customer_email || "Missing email"}</p>
           <p className="text-sm">Subject: {selected.email.subject}</p>
-          <pre className="my-3 max-h-96 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-4 font-sans text-sm">{selected.email.text}</pre>
+          <pre className="my-3 max-h-96 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-4 font-sans text-sm">{selected.email.text}</pre></>}
           <p className="text-sm font-semibold">Valid until: {giftCertificateValidUntil(selected.expires_at)} (Philippine time)</p>
           <details className="my-3">
             <summary className="cursor-pointer text-sm font-semibold">Preview certificate images ({selected.booking_gc_certificates.length})</summary>
@@ -113,9 +116,9 @@ export default function BookingGiftCertificates({ bookings, onApproved, source =
           {selected.email_status === "sending" && <p className="text-sm text-amber-800">Sending or awaiting delivery verification. If this persists, verify delivery with support before attempting another send.</p>}
           {selected.email_error && <p className="text-sm text-red-700">{selected.email_error}</p>}
           <button type="button" onClick={() => approve(selected)}
-            disabled={busy || (selected.purchase_id && selected.status !== "approved" && !paymentVerified) || expired || !eligible || !exactAmount || !selected.customer_email || ["sending", "sent"].includes(selected.email_status)}
+            disabled={busy || (selected.purchase_id && selected.status !== "approved" && !paymentVerified) || expired || !eligible || !exactAmount || (!physical && !selected.customer_email) || (physical && selected.status === "approved") || ["sending", "sent"].includes(selected.email_status)}
             className="mt-3 rounded-lg bg-green-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
-            {busy ? "Processing…" : selected.email_status === "sent" ? "Email sent" : selected.status === "approved" ? "Retry customer email" : "Approve certificates & send email"}
+            {busy ? "Processing…" : physical ? (selected.status === "approved" ? "Approved for physical handover" : "Approve physical certificates (no email)") : selected.email_status === "sent" ? "Email sent" : selected.status === "approved" ? "Retry customer email" : "Approve certificates & send email"}
           </button>
           {selected.purchase_id && selected.status === "pending_approval" && <div className="mt-4 border-t pt-3">
             <label className="block text-sm">Rejection reason<input value={reason} disabled={busy} maxLength={500} onChange={e => setReason(e.target.value)} className="mt-1 w-full rounded-lg border p-2" /></label>

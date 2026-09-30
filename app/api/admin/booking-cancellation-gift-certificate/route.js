@@ -87,11 +87,12 @@ export async function GET(req) {
     if (certificateId) {
       if (!/^[0-9a-f-]{36}$/i.test(certificateId)) return Response.json({ error: "Invalid certificate ID." }, { status: 400 });
       const { data: certificate, error } = await admin.from("booking_gc_certificates")
-        .select("*, booking_gc_batches!inner(expires_at,status)").eq("id", certificateId).maybeSingle();
+        .select("*, booking_gc_batches!inner(expires_at,status,stock_request_key,purchase_id)").eq("id", certificateId).maybeSingle();
       if (error) throw error;
       if (!certificate) return Response.json({ error: "Certificate not found." }, { status: 404 });
       const batch = certificate.booking_gc_batches;
       const png = await renderGiftCertificateImage({ code: certificate.code, amount: certificate.amount, expiresAt: batch.expires_at,
+        unsoldStock: Boolean(batch.stock_request_key && !batch.purchase_id),
         preview: certificate.status !== "active" || batch.status !== "approved" || new Date(batch.expires_at).getTime() <= Date.now() });
       return new Response(new Uint8Array(png), { headers: {
         "Content-Type": "image/png", "Cache-Control": "private, no-store",
@@ -141,16 +142,16 @@ export async function POST(req) {
     if (action !== "approve_email" || !batchId) {
       return Response.json({ error: "A valid action and batch ID are required." }, { status: 400 });
     }
-    if (!getEmailConfigStatus().ready) {
-      return Response.json({ error: "Email notification is not configured." }, { status: 503 });
-    }
-    const { data: sourceBatch, error: sourceError } = await admin.from("booking_gc_batches").select("purchase_id").eq("id", batchId).single();
+    const { data: sourceBatch, error: sourceError } = await admin.from("booking_gc_batches").select("purchase_id,certificate_format,stock_request_key").eq("id", batchId).single();
     if (sourceError) throw sourceError;
+    if (sourceBatch.stock_request_key && !sourceBatch.purchase_id) return Response.json({ error: "Record a paid physical stock sale before activation." }, { status: 409 });
+    if (sourceBatch.certificate_format !== "physical" && !getEmailConfigStatus().ready) return Response.json({ error: "Email notification is not configured." }, { status: 503 });
     const { error: approvalError } = await admin.rpc(sourceBatch.purchase_id ? "review_gc_purchase" : "approve_booking_gc_batch", {
       p_batch_id: batchId, p_actor: guard.requester.id,
       ...(sourceBatch.purchase_id ? { p_approve: true, p_payment_verified: paymentVerified === true } : {}),
     });
     if (approvalError) return Response.json({ error: approvalError.message }, { status: 409 });
+    if (sourceBatch.certificate_format === "physical") return Response.json({ success: true, emailSent: false, physical: true });
     // A conditional claim prevents concurrent approval clicks from sending twice.
     const { data: batch, error: claimError } = await admin.from("booking_gc_batches")
       .update({ email_status: "sending", email_started_at: new Date().toISOString(), email_error: null })
