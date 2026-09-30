@@ -4373,7 +4373,7 @@ export default function Customer() {
               <>
               <nav aria-label="Order type" className="mb-5 flex flex-wrap gap-2">
                 {[["food", "Food & Drinks"], ["gift-certificates", "Gift Certificates"]].map(([id, label]) => (
-                  <button key={id} type="button" aria-pressed={orderSection === id} onClick={() => setOrderSection(id)} className={`rounded-xl border px-4 py-3 text-sm font-semibold ${orderSection === id ? "border-slate-800 bg-slate-800 text-white" : "border-slate-200 bg-white text-slate-700"}`}>{label}</button>
+                  <button key={id} type="button" aria-pressed={orderSection === id} onClick={() => setOrderSection(id)} className={premium.orderChoice}>{label}</button>
                 ))}
               </nav>
               <div hidden={orderSection !== "food"}>
