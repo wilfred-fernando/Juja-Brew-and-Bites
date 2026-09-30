@@ -26,6 +26,7 @@ import {
 } from "@/lib/storeOrderingStatus";
 import { ensureNativeNotificationPermission, isNativeApp, registerNativeCustomerPush, showNativeNotification } from "@/lib/nativeNotifications";
 import GiftCertificatePayment from "@/components/pos/GiftCertificatePayment";
+import GiftCertificatePurchaseForm from "@/components/GiftCertificatePurchaseForm";
 import BookingTab from "@/components/BookingForm";
 import CustomerApkUpdatePrompt from "@/components/CustomerApkUpdatePrompt";
 import ApkDownloadBanner from "@/components/ApkDownloadBanner";
@@ -515,6 +516,7 @@ const CUSTOMER_TABS = [
   { id: "home", icon: Home, label: "Home", description: "Your JUJA, all in one place." },
   { id: "order", icon: ShoppingBasket, label: "Order", description: "Find your favorites and make them yours." },
   { id: "promos", icon: Gift, label: "Promos", description: "A little extra for your next visit." },
+  { id: "gift-certificates", icon: Gift, label: "e-GCs", description: "Buy JUJA e-Gift Certificates for yourself or someone special." },
   { id: "history", icon: Package, label: "Tracker", description: "Follow your orders, from preparation to pickup." },
   { id: "loyalty", icon: Star, label: "Loyalty", description: "Your points, rewards, and member benefits." },
   { id: "booking", icon: CalendarDays, label: "Book", description: "Make room for your next gathering." },
@@ -637,6 +639,7 @@ function HomeTab({ member, user, setTab }) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { icon: "🍽️", label: "Order Food", sub: "Browse menu", tab: "order" },
+            { icon: "🎁", label: "Buy e-GCs", sub: "Share a little JUJA", tab: "gift-certificates" },
             { icon: "📦", label: "Tracker", sub: "Order Status", tab: "history" },
             { icon: "⭐", label: "Loyalty", sub: "Rewards", tab: "loyalty" },
             { icon: "🗓", label: "Book Room", sub: "Function room", tab: "booking" },
@@ -4374,6 +4377,12 @@ export default function Customer() {
               />
             )}
             {tab === "history" && <TrackerTab orders={orders} loadingOrders={loadingOrders} />}
+            <section hidden={tab !== "gift-certificates"} aria-label="Buy e-Gift Certificates" className="mx-auto max-w-xl">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+                <h2 className="mb-4 text-xl font-bold text-slate-800">Buy e-Gift Certificates</h2>
+                <GiftCertificatePurchaseForm source="website" />
+              </div>
+            </section>
             {tab === "loyalty" && <LoyaltyTab member={member} setMember={setMember} user={user} />}
             {tab === "booking" && <BookingTab user={user} member={member} />}
             {tab === "profile" && <ProfileTab user={user} onLogout={logout} />}
