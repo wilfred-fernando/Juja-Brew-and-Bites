@@ -48,7 +48,7 @@
 
 /* Tablet and desktop use the available viewport; phone layout stays unchanged. */
 @media screen and (min-width:768px) {
-  body[data-pos-premium] [data-pos-terminal] { height:100dvh; min-height:0; display:flex; flex-direction:column; overflow:hidden; padding-bottom:0; }
+  body[data-pos-premium] [data-pos-terminal] { height:100vh; height:100dvh; min-height:0; display:flex; flex-direction:column; overflow:hidden; padding-bottom:0; }
   body[data-pos-premium] [data-pos-workspace] { width:100%; max-width:none; flex:1; min-height:0; padding:10px; }
   body[data-pos-premium] [data-pos-selling-grid] { height:100%; min-height:0; grid-template-columns:minmax(0,1fr) clamp(280px,30vw,380px); gap:10px; align-items:stretch; }
   body[data-pos-premium] [data-pos-catalog] { display:flex; flex-direction:column; min-height:0; overflow:hidden; padding:10px; }
@@ -67,4 +67,16 @@
 }
 @media screen and (min-width:1440px) {
   body[data-pos-premium] [data-pos-products] { grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); }
+}
+
+/* Reserve image height independently of intrinsic image sizes and aspect-ratio support. */
+@media screen and (min-width:768px) {
+  body[data-pos-premium] [data-pos-products] { grid-auto-rows:max-content; align-items:stretch; }
+  body[data-pos-premium] .pos-menu-item { display:flex; flex-direction:column; justify-content:flex-start; min-width:0; height:auto!important; overflow:hidden; align-self:stretch; }
+  body[data-pos-premium] .pos-menu-item > div { flex:0 0 auto; width:100%; min-width:0; }
+  body[data-pos-premium] .pos-menu-item .pos-menu-photo { position:relative; display:block; width:100%; height:0; padding-bottom:100%; aspect-ratio:auto; flex:none; overflow:hidden; }
+  body[data-pos-premium] .pos-menu-photo > img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  body[data-pos-premium] .pos-menu-photo > span { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); }
+  body[data-pos-premium] .pos-menu-item .pos-menu-name { display:block; white-space:normal; overflow-wrap:anywhere; word-break:normal; min-height:2.7em; color:#272b30; }
+  body[data-pos-premium] .pos-menu-item > p { flex:none; margin-top:auto; padding-top:8px; }
 }

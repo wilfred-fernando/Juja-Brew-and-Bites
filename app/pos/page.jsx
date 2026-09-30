@@ -11086,7 +11086,7 @@ export default function POSPage() {
                           </span>
                         )}
                         <div className="w-full">
-                          <div className="w-full aspect-square bg-[#FFF9FA] border border-rose-50/50 flex items-center justify-center overflow-hidden rounded-lg relative">
+                          <div className="pos-menu-photo w-full aspect-square bg-[#FFF9FA] border border-rose-50/50 flex items-center justify-center overflow-hidden rounded-lg relative">
                             {item.image_url ? (
                               <img src={item.image_url} alt={item.name} className="w-full h-full object-cover p-1 group-hover:scale-102 transition" />
                             ) : (
@@ -11095,7 +11095,7 @@ export default function POSPage() {
                           </div>
                           <div className="mt-2.5 px-0.5">                            
                             <div className="flex items-center gap-1.5">
-                              <p className="min-w-0 flex-1 text-[14px] font-bold leading-tight text-slate-800">{item.name}</p>
+                              <p className="pos-menu-name min-w-0 flex-1 text-[14px] font-bold leading-tight text-slate-800">{item.name}</p>
                               {item.channel_price_label && (
                                 <span className="rounded-full bg-cyan-50 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-cyan-800">
                                   {item.channel_price_label}
