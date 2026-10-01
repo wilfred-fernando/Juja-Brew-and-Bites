@@ -730,7 +730,7 @@ function SummaryMetricCell({ label, value, delta, active = false }) {
   return (
     <div className={`${styles.metric} ${active ? styles.featuredMetric : ""}`}>
       <p className="text-xs font-medium text-slate-700">{label}</p>
-      <p className="mt-2 text-2xl font-medium tracking-tight text-slate-950">{value}</p>
+      <p className={`mt-2 text-2xl font-medium tracking-tight ${active ? "text-white" : "text-slate-950"}`}>{value}</p>
       <p className={`mt-1 text-xs ${isPositive ? "text-emerald-700" : "text-red-600"}`}>
         {isPositive ? "+" : "-"}{peso(Math.abs(amount)).replace("PHP", "₱")} ({isPositive ? "+" : "-"}{Math.abs(percent).toFixed(2)}%)
       </p>

@@ -267,7 +267,7 @@ export default function PublicMenuPage() {
         {/* HEADER */}
         <div className="mb-4">
           <h1 className="text-3xl md:text-4xl font-bold text-slate-800">Our Menu</h1>
-          <p className="text-sm text-slate-400 mt-1">Browse all available items</p>
+          <p className="text-sm text-slate-400 mt-1">Browse our menu</p>
         </div>
 
         {/* CATEGORY DROPDOWN */}
@@ -301,7 +301,7 @@ export default function PublicMenuPage() {
 
         {/* EMPTY */}
         {!loading && !promoOpen && items.length === 0 && (
-          <p className="text-center text-slate-400">No items available</p>
+          <p className="text-center text-slate-400">No menu items to display</p>
         )}
 
         {/* MENU LIST */}

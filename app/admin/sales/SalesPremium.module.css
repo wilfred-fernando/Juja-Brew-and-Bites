@@ -33,7 +33,7 @@
 .metric > p:nth-child(2) { font-size:clamp(18px,1.6vw,26px); font-weight:600!important; color:#20324a; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
 .metric > p:last-child { font-size:10px; line-height:1.6; margin-top:10px; }
 .featuredMetric { background:#20324a; border-color:#20324a; box-shadow:0 6px 18px #20324a18; }
-.featuredMetric > p { color:#fff!important; }
+.workspace .featuredMetric > p { color:#fff!important; -webkit-text-fill-color:#fff; }
 .featuredMetric > p:first-child,.featuredMetric > p:last-child { color:#f1e6ce!important; }
 .chartPanel { padding:20px; }
 .chartLegend { display:flex; align-items:center; gap:7px; font-size:11px; color:#63748a; }
