@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import styles from "./SalesPremium.module.css";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import {
@@ -17,7 +19,6 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Clock,
   Download,
   Eye,
   FileText,
@@ -165,7 +166,7 @@ function SelectInput({ label, value, onChange, options }) {
 
 function Card({ children, className = "" }) {
   return (
-    <div className={`rounded-[26px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_55px_rgba(71,85,105,0.14)] backdrop-blur-xl transition duration-300 ${className}`}>
+    <div className={`${styles.card} ${className}`}>
       {children}
     </div>
   );
@@ -178,7 +179,7 @@ function Empty({ message }) {
 function DataTable({ columns, rows, empty, onView }) {
   if (!rows.length) return <Empty message={empty} />;
   return (
-    <div className="overflow-x-auto rounded-3xl border border-white/70 bg-white/82 shadow-[0_20px_60px_rgba(71,85,105,0.12)] backdrop-blur-xl">
+    <div className={styles.tablePanel}>
       <table className="min-w-full text-left text-sm">
         <thead className="sticky top-0 bg-slate-100/90 text-[10px] uppercase tracking-[0.18em] text-slate-500">
           <tr>
@@ -360,7 +361,7 @@ function ShiftsTable({ rows, page, rowsPerPage, onPageChange, onRowsPerPageChang
   const pageRows = rows.slice((page - 1) * rowsPerPage, page * rowsPerPage);
   if (!rows.length) return <Empty message="No shift records found for this date range." />;
   return (
-    <div className="overflow-hidden rounded-sm border border-slate-200 bg-white/94 shadow-[0_14px_38px_rgba(71,85,105,0.14)]">
+    <div className={styles.card}>
       <div onClick={onExport} className="flex h-12 cursor-pointer items-center border-b border-slate-200 px-5">
         <button className="inline-flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-slate-800">Export <span className="text-slate-500">⌄</span></button>
       </div>
@@ -634,7 +635,7 @@ function SummaryDateRangeControl({ startDate, endDate, preset, onRangeChange, on
       </button>
 
       {open ? createPortal(
-        <div ref={popupRef} role="dialog" aria-label="Select date range" style={position} className="admin-date-range-popup fixed z-[90] grid max-h-[calc(100dvh-2rem)] w-[620px] max-w-[calc(100vw-2rem)] grid-cols-1 overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.2)] md:grid-cols-[1fr_170px]">
+        <div ref={popupRef} role="dialog" aria-label="Select date range" style={position} className={`${styles.datePopup} admin-date-range-popup fixed z-[90] grid max-h-[calc(100dvh-2rem)] w-[620px] max-w-[calc(100vw-2rem)] grid-cols-1 overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.2)] md:grid-cols-[1fr_170px]`}>
           <div className="p-4">
             <div className="mb-3 flex items-center justify-between">
               <button type="button" onClick={() => setViewMonth(addMonths(viewMonth, -1))} className="flex h-8 w-8 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100" aria-label="Previous month">
@@ -727,7 +728,7 @@ function SummaryMetricCell({ label, value, delta, active = false }) {
   const percent = Number(delta?.percent || 0);
   const isPositive = amount >= 0;
   return (
-    <div className={`relative min-h-[92px] border-b px-5 py-4 sm:border-b-0 sm:border-r ${active ? "border-b-cyan-600 sm:after:absolute sm:after:bottom-0 sm:after:left-0 sm:after:h-[3px] sm:after:w-full sm:after:bg-cyan-600" : "border-slate-100"}`}>
+    <div className={`${styles.metric} ${active ? styles.featuredMetric : ""}`}>
       <p className="text-xs font-medium text-slate-700">{label}</p>
       <p className="mt-2 text-2xl font-medium tracking-tight text-slate-950">{value}</p>
       <p className={`mt-1 text-xs ${isPositive ? "text-emerald-700" : "text-red-600"}`}>
@@ -740,10 +741,10 @@ function SummaryMetricCell({ label, value, delta, active = false }) {
 function SummaryExportTable({ rows }) {
   if (!rows.length) return <Empty message="No daily sales found for this date range." />;
   return (
-    <div className="overflow-x-auto rounded-sm border border-slate-200 bg-white/92 shadow-[0_14px_38px_rgba(71,85,105,0.14)]">
+    <div className={styles.tablePanel}>
       <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-        <button className="text-xs font-semibold uppercase tracking-wide text-slate-800">Export</button>
-        <div className="h-5 w-5 rounded border-2 border-slate-500" aria-hidden="true" />
+        <div><h2 className="text-base font-semibold">Daily breakdown</h2><p className="text-xs text-slate-500">Sales performance by date</p></div>
+        <button onClick={() => exportReportToCSV(rows, "juja-daily-sales.csv")} className={styles.secondary}><Download size={15} /> Export CSV</button>
       </div>
       <table className="min-w-full text-left text-sm">
         <thead className="bg-white text-[11px] text-slate-500">
@@ -1248,22 +1249,16 @@ export default function AdminSalesPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className={styles.workspace}>
+      <header className={styles.heading}>
+        <div><p className={styles.eyebrow}>JUJA / BUSINESS PERFORMANCE</p><h1>Sales &amp; reports</h1><p className={styles.description}>A clear view of your sales, transactions, and store performance.</p></div>
+        <div className={styles.headingActions}><span className={styles.period}><CalendarDays size={15} />{formatRangeDate(filters.startDate)} — {formatRangeDate(filters.endDate)}</span><button disabled={loading} onClick={() => loadData(filters)} className={styles.primary}><RefreshCw size={15} className={loading ? styles.spinning : ""} />{loading ? "Updating…" : "Refresh"}</button></div>
+      </header>
+      <nav className={styles.reportNav} aria-label="Sales reports">
+        {REPORT_TABS.map(tab => <Link key={tab.key} href={`/admin/sales?tab=${tab.key}`} aria-current={activeTab === tab.key ? "page" : undefined}>{tab.label}</Link>)}
+      </nav>
       {activeTab !== "summary" && (
         <>
-          <section className="rounded-[20px] border border-white/70 bg-blue-300/50 p-6 text-black backdrop-blur-xl">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100">Admin Sales</p>
-                <p className="mt-2 text-3xl font-semibold">Sales Report System</p>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-100">Daily, weekly, monthly, yearly, and custom analytics for POS and completed web orders.</p>
-              </div>
-              <button onClick={() => loadData(filters)} className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/60 px-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white/20">
-                <RefreshCw className="h-4 w-4" /> Refresh
-              </button>
-            </div>
-          </section>
-
           <Card>
             <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr_1fr] xl:grid-cols-[1.5fr_1fr_1fr_1fr_1fr]">
               <div className="block">
@@ -1287,7 +1282,7 @@ export default function AdminSalesPage() {
             </div>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2 text-xs text-slate-500"><Filter className="h-4 w-4" /> Filters apply to every report tab.</div>
-              <button onClick={() => loadData(filters)} className="rounded-2xl bg-blue-300/80  px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-900/10 transition hover:-translate-y-0.5 hover:bg-blue-400/80">Apply Filters</button>
+              <button onClick={() => loadData(filters)} className={styles.primary}>Apply Filters</button>
             </div>
           </Card>
         </>
@@ -1298,11 +1293,7 @@ export default function AdminSalesPage() {
 
       {!loading && activeTab === "summary" && (
         <div className="space-y-4">
-          <div className="rounded-t-md bg-blue-300/50 px-4 py-3 shadow-sm">
-            <h1 className="text-lg font-semibold text-white">Sales summary</h1>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
+          <div className={styles.summaryToolbar}>
             <button type="button" onClick={() => shiftSummaryRange(-1)} className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-cyan-50" aria-label="Previous range">
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -1316,16 +1307,14 @@ export default function AdminSalesPage() {
             <button type="button" onClick={() => shiftSummaryRange(1)} className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-cyan-50" aria-label="Next range">
               <ChevronRight className="h-4 w-4" />
             </button>
-            <SummarySelectControl icon={Clock} value={filters.paymentMethod} onChange={(value) => updateSummaryFilters({ paymentMethod: value })} options={paymentOptions} allLabel="All day" />
+            <SummarySelectControl icon={WalletCards} value={filters.paymentMethod} onChange={(value) => updateSummaryFilters({ paymentMethod: value })} options={paymentOptions} allLabel="All payment methods" />
             <SummarySelectControl icon={Store} value={filters.branchId} onChange={(value) => updateSummaryFilters({ branchId: value })} options={branchOptions} wide />
             <SummarySelectControl icon={UserRound} value={filters.cashierId} onChange={(value) => updateSummaryFilters({ cashierId: value })} options={cashierOptions} wide />
-            <button onClick={() => loadData(filters)} className="ml-auto inline-flex h-10 items-center justify-center gap-2 rounded-md bg-blue-300/80 px-4 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-600">
-              <RefreshCw className="h-4 w-4" /> Refresh
-            </button>
+
           </div>
 
-          <div className="overflow-hidden rounded-sm border border-slate-200 bg-white/94 shadow-[0_14px_38px_rgba(71,85,105,0.14)]">
-            <div className="grid sm:grid-cols-2 lg:grid-cols-5">
+          <div className={styles.overview}>
+            <div className={styles.metrics}>
               <SummaryMetricCell active label="Gross sales" value={peso(summary.gross)} delta={metricDelta(summary.gross, previousSummary.gross)} />
               <SummaryMetricCell label="Refunds" value={peso(summary.refund)} delta={metricDelta(summary.refund, previousSummary.refund)} />
               <SummaryMetricCell label="Discounts" value={peso(summary.discount)} delta={metricDelta(summary.discount, previousSummary.discount)} />
@@ -1333,28 +1322,25 @@ export default function AdminSalesPage() {
               <SummaryMetricCell label="Gross profit" value={peso(summary.net)} delta={metricDelta(summary.net, previousSummary.net)} />
             </div>
 
-            <div className="border-t border-slate-200 px-5 py-5">
+            <div className={styles.chartPanel}>
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <h2 className="text-base font-medium text-slate-900">Gross sales</h2>
-                <div className="flex gap-6 text-xs font-medium text-slate-600">
-                  <button className="border-b border-slate-400 pb-2">Area</button>
-                  <button className="border-b border-slate-400 pb-2">Days</button>
-                </div>
+                <span className={styles.chartLegend}><span />Daily gross sales</span>
               </div>
               <div className="h-[290px]">
                 <ResponsiveContainer>
                   <AreaChart data={trendRows} margin={{ top: 12, right: 18, bottom: 12, left: 8 }}>
                     <defs>
                       <linearGradient id="summaryGross" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#64748b" stopOpacity={0.32} />
-                        <stop offset="95%" stopColor="#64748b" stopOpacity={0.05} />
+                        <stop offset="5%" stopColor="#284b74" stopOpacity={0.32} />
+                        <stop offset="95%" stopColor="#284b74" stopOpacity={0.05} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid vertical={false} stroke="#e5e7eb" />
                     <XAxis dataKey="date" tickFormatter={formatShortDate} tick={{ fontSize: 11, fill: "#475569" }} angle={-45} textAnchor="end" height={58} />
                     <YAxis tickFormatter={(value) => peso(value).replace("PHP", "P")} tick={{ fontSize: 11, fill: "#475569" }} width={82} />
                     <Tooltip formatter={(value) => peso(value)} labelFormatter={displayDate} />
-                    <Area type="monotone" dataKey="gross" stroke="#64748b" fill="url(#summaryGross)" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 2, fill: "#fff" }} activeDot={{ r: 5 }} />
+                    <Area type="monotone" dataKey="gross" stroke="#284b74" fill="url(#summaryGross)" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 2, fill: "#fff" }} activeDot={{ r: 5 }} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
