@@ -58,7 +58,7 @@ export function PublicFooter() {
       <div className="max-w-7xl mx-auto pt-2 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center text-slate-500 text-[10px] tracking-wider uppercase">
         <p>© {new Date().getFullYear()} Juja Brew &amp; Bites® · All rights reserved</p>
         <Link href="/bir-registration" className="py-2 text-slate-300 underline underline-offset-4 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">
-          BIR Registration
+          BIR REGISTERED
         </Link>
         <p>Quezon City · Philippines</p>
       </div>
