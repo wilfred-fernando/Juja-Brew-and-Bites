@@ -1,3 +1,5 @@
+@layer juja-controls;
+@import "./button-theme.css" layer(juja-controls);
 @import "tailwindcss";
 
 @keyframes financeFade {
@@ -36,11 +38,11 @@
   --app-border: #e5e7eb;
   --app-border-strong: #d1d5db;
 
-  --app-accent: #087830;
-  --app-accent-hover: #066829;
-  --app-accent-active: #055723;
-  --app-accent-soft: #e9f7ef;
-  --app-accent-border: #b9dec7;
+  --app-accent: #20324a;
+  --app-accent-hover: #314b6b;
+  --app-accent-active: #142338;
+  --app-accent-soft: #f1e6ce;
+  --app-accent-border: #d6c49e;
   --app-accent-foreground: #ffffff;
 
   --app-danger: #dc2626;
@@ -57,7 +59,7 @@
   --app-shadow: 0 12px 34px rgba(15, 23, 42, 0.12);
   --app-shadow-lg: 0 22px 54px rgba(15, 23, 42, 0.16);
 
-  --app-focus-ring: 0 0 0 4px rgba(8, 120, 48, 0.18);
+  --app-focus-ring: 0 0 0 4px rgba(49, 75, 107, 0.25);
   --app-transition: 160ms cubic-bezier(0.2, 0, 0, 1);
 
   --app-button-bg: var(--app-accent);

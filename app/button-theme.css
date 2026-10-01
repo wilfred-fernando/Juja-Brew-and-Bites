@@ -1,0 +1,194 @@
+/* Shared action colors across every route, including portal dialogs.
+   Important declarations live in the first layer to beat legacy page overrides.
+   Match complete utility tokens so hover-only classes do not recolor idle controls.
+   Switches and red destructive actions retain their semantic colors. */
+:root {
+  --juja-action: #20324a;
+  --juja-action-hover: #314b6b;
+  --juja-action-active: #142338;
+  --juja-selection: #f1e6ce;
+}
+/* Neutral actions remain light; the filled and selected rules below take precedence. */
+:is(button, a, [role="button"]):is([class~="bg-white"], [class~="bg-slate-50"], [class~="bg-slate-100"], [class~="bg-gray-100"]) {
+  background: #fff !important;
+  border-color: #cbd5e1 !important;
+  color: #20324a !important;
+  -webkit-text-fill-color: #20324a !important;
+}
+:is(button, a, [role="button"]):is([class~="bg-white"], [class~="bg-slate-50"], [class~="bg-slate-100"], [class~="bg-gray-100"]):hover:not(:disabled):not([aria-disabled="true"]) {
+  background: #f1e6ce !important;
+  border-color: #d6c49e !important;
+}
+:is(button, a, [role="button"], input[type="submit"]):not([role="switch"]):is(
+  [class~="bg-green-500"], [class~="!bg-green-500"],
+  [class~="bg-green-600"], [class~="!bg-green-600"],
+  [class~="bg-green-700"], [class~="!bg-green-700"],
+  [class~="bg-green-800"], [class~="!bg-green-800"],
+  [class~="bg-green-900"], [class~="!bg-green-900"],
+  [class~="bg-emerald-500"], [class~="!bg-emerald-500"],
+  [class~="bg-emerald-600"], [class~="!bg-emerald-600"],
+  [class~="bg-emerald-700"], [class~="!bg-emerald-700"],
+  [class~="bg-emerald-800"], [class~="!bg-emerald-800"],
+  [class~="bg-emerald-900"], [class~="!bg-emerald-900"],
+  [class~="bg-teal-500"], [class~="!bg-teal-500"],
+  [class~="bg-teal-600"], [class~="!bg-teal-600"],
+  [class~="bg-teal-700"], [class~="!bg-teal-700"],
+  [class~="bg-teal-800"], [class~="!bg-teal-800"],
+  [class~="bg-teal-900"], [class~="!bg-teal-900"],
+  [class~="bg-cyan-500"], [class~="!bg-cyan-500"],
+  [class~="bg-cyan-600"], [class~="!bg-cyan-600"],
+  [class~="bg-cyan-700"], [class~="!bg-cyan-700"],
+  [class~="bg-cyan-800"], [class~="!bg-cyan-800"],
+  [class~="bg-cyan-900"], [class~="!bg-cyan-900"],
+  [class~="bg-sky-500"], [class~="!bg-sky-500"],
+  [class~="bg-sky-600"], [class~="!bg-sky-600"],
+  [class~="bg-sky-700"], [class~="!bg-sky-700"],
+  [class~="bg-sky-800"], [class~="!bg-sky-800"],
+  [class~="bg-sky-900"], [class~="!bg-sky-900"],
+  [class~="bg-blue-500"], [class~="!bg-blue-500"],
+  [class~="bg-blue-600"], [class~="!bg-blue-600"],
+  [class~="bg-blue-700"], [class~="!bg-blue-700"],
+  [class~="bg-blue-800"], [class~="!bg-blue-800"],
+  [class~="bg-blue-900"], [class~="!bg-blue-900"],
+  [class~="bg-indigo-500"], [class~="!bg-indigo-500"],
+  [class~="bg-indigo-600"], [class~="!bg-indigo-600"],
+  [class~="bg-indigo-700"], [class~="!bg-indigo-700"],
+  [class~="bg-indigo-800"], [class~="!bg-indigo-800"],
+  [class~="bg-indigo-900"], [class~="!bg-indigo-900"],
+  [class~="bg-violet-500"], [class~="!bg-violet-500"],
+  [class~="bg-violet-600"], [class~="!bg-violet-600"],
+  [class~="bg-violet-700"], [class~="!bg-violet-700"],
+  [class~="bg-violet-800"], [class~="!bg-violet-800"],
+  [class~="bg-violet-900"], [class~="!bg-violet-900"],
+  [class~="bg-purple-500"], [class~="!bg-purple-500"],
+  [class~="bg-purple-600"], [class~="!bg-purple-600"],
+  [class~="bg-purple-700"], [class~="!bg-purple-700"],
+  [class~="bg-purple-800"], [class~="!bg-purple-800"],
+  [class~="bg-purple-900"], [class~="!bg-purple-900"],
+  [class~="bg-rose-500"], [class~="!bg-rose-500"],
+  [class~="bg-rose-600"], [class~="!bg-rose-600"],
+  [class~="bg-rose-700"], [class~="!bg-rose-700"],
+  [class~="bg-rose-800"], [class~="!bg-rose-800"],
+  [class~="bg-rose-900"], [class~="!bg-rose-900"],
+  [class~="bg-pink-500"], [class~="!bg-pink-500"],
+  [class~="bg-pink-600"], [class~="!bg-pink-600"],
+  [class~="bg-pink-700"], [class~="!bg-pink-700"],
+  [class~="bg-pink-800"], [class~="!bg-pink-800"],
+  [class~="bg-pink-900"], [class~="!bg-pink-900"],
+  [class~="bg-slate-500"], [class~="!bg-slate-500"],
+  [class~="bg-slate-600"], [class~="!bg-slate-600"],
+  [class~="bg-slate-700"], [class~="!bg-slate-700"],
+  [class~="bg-slate-800"], [class~="!bg-slate-800"],
+  [class~="bg-slate-900"], [class~="!bg-slate-900"],
+  [class~="bg-gray-500"], [class~="!bg-gray-500"],
+  [class~="bg-gray-600"], [class~="!bg-gray-600"],
+  [class~="bg-gray-700"], [class~="!bg-gray-700"],
+  [class~="bg-gray-800"], [class~="!bg-gray-800"],
+  [class~="bg-gray-900"], [class~="!bg-gray-900"],
+  [class~="bg-black"], [class~="!bg-black"],
+  [class~="bg-[#FC687D]"], [class~="!bg-[#FC687D]"],
+  [class~="bg-[#087830]"], [class~="!bg-[#087830]"],
+  [class~="bg-[#0b6942]"], [class~="!bg-[#0b6942]"]
+) {
+  background: var(--juja-action) !important;
+  border-color: var(--juja-action) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+:is(button, a, [role="button"], input[type="submit"]):not([role="switch"]):is(
+  [class~="bg-green-500"], [class~="!bg-green-500"],
+  [class~="bg-green-600"], [class~="!bg-green-600"],
+  [class~="bg-green-700"], [class~="!bg-green-700"],
+  [class~="bg-green-800"], [class~="!bg-green-800"],
+  [class~="bg-green-900"], [class~="!bg-green-900"],
+  [class~="bg-emerald-500"], [class~="!bg-emerald-500"],
+  [class~="bg-emerald-600"], [class~="!bg-emerald-600"],
+  [class~="bg-emerald-700"], [class~="!bg-emerald-700"],
+  [class~="bg-emerald-800"], [class~="!bg-emerald-800"],
+  [class~="bg-emerald-900"], [class~="!bg-emerald-900"],
+  [class~="bg-teal-500"], [class~="!bg-teal-500"],
+  [class~="bg-teal-600"], [class~="!bg-teal-600"],
+  [class~="bg-teal-700"], [class~="!bg-teal-700"],
+  [class~="bg-teal-800"], [class~="!bg-teal-800"],
+  [class~="bg-teal-900"], [class~="!bg-teal-900"],
+  [class~="bg-cyan-500"], [class~="!bg-cyan-500"],
+  [class~="bg-cyan-600"], [class~="!bg-cyan-600"],
+  [class~="bg-cyan-700"], [class~="!bg-cyan-700"],
+  [class~="bg-cyan-800"], [class~="!bg-cyan-800"],
+  [class~="bg-cyan-900"], [class~="!bg-cyan-900"],
+  [class~="bg-sky-500"], [class~="!bg-sky-500"],
+  [class~="bg-sky-600"], [class~="!bg-sky-600"],
+  [class~="bg-sky-700"], [class~="!bg-sky-700"],
+  [class~="bg-sky-800"], [class~="!bg-sky-800"],
+  [class~="bg-sky-900"], [class~="!bg-sky-900"],
+  [class~="bg-blue-500"], [class~="!bg-blue-500"],
+  [class~="bg-blue-600"], [class~="!bg-blue-600"],
+  [class~="bg-blue-700"], [class~="!bg-blue-700"],
+  [class~="bg-blue-800"], [class~="!bg-blue-800"],
+  [class~="bg-blue-900"], [class~="!bg-blue-900"],
+  [class~="bg-indigo-500"], [class~="!bg-indigo-500"],
+  [class~="bg-indigo-600"], [class~="!bg-indigo-600"],
+  [class~="bg-indigo-700"], [class~="!bg-indigo-700"],
+  [class~="bg-indigo-800"], [class~="!bg-indigo-800"],
+  [class~="bg-indigo-900"], [class~="!bg-indigo-900"],
+  [class~="bg-violet-500"], [class~="!bg-violet-500"],
+  [class~="bg-violet-600"], [class~="!bg-violet-600"],
+  [class~="bg-violet-700"], [class~="!bg-violet-700"],
+  [class~="bg-violet-800"], [class~="!bg-violet-800"],
+  [class~="bg-violet-900"], [class~="!bg-violet-900"],
+  [class~="bg-purple-500"], [class~="!bg-purple-500"],
+  [class~="bg-purple-600"], [class~="!bg-purple-600"],
+  [class~="bg-purple-700"], [class~="!bg-purple-700"],
+  [class~="bg-purple-800"], [class~="!bg-purple-800"],
+  [class~="bg-purple-900"], [class~="!bg-purple-900"],
+  [class~="bg-rose-500"], [class~="!bg-rose-500"],
+  [class~="bg-rose-600"], [class~="!bg-rose-600"],
+  [class~="bg-rose-700"], [class~="!bg-rose-700"],
+  [class~="bg-rose-800"], [class~="!bg-rose-800"],
+  [class~="bg-rose-900"], [class~="!bg-rose-900"],
+  [class~="bg-pink-500"], [class~="!bg-pink-500"],
+  [class~="bg-pink-600"], [class~="!bg-pink-600"],
+  [class~="bg-pink-700"], [class~="!bg-pink-700"],
+  [class~="bg-pink-800"], [class~="!bg-pink-800"],
+  [class~="bg-pink-900"], [class~="!bg-pink-900"],
+  [class~="bg-slate-500"], [class~="!bg-slate-500"],
+  [class~="bg-slate-600"], [class~="!bg-slate-600"],
+  [class~="bg-slate-700"], [class~="!bg-slate-700"],
+  [class~="bg-slate-800"], [class~="!bg-slate-800"],
+  [class~="bg-slate-900"], [class~="!bg-slate-900"],
+  [class~="bg-gray-500"], [class~="!bg-gray-500"],
+  [class~="bg-gray-600"], [class~="!bg-gray-600"],
+  [class~="bg-gray-700"], [class~="!bg-gray-700"],
+  [class~="bg-gray-800"], [class~="!bg-gray-800"],
+  [class~="bg-gray-900"], [class~="!bg-gray-900"],
+  [class~="bg-black"], [class~="!bg-black"],
+  [class~="bg-[#FC687D]"], [class~="!bg-[#FC687D]"],
+  [class~="bg-[#087830]"], [class~="!bg-[#087830]"],
+  [class~="bg-[#0b6942]"], [class~="!bg-[#0b6942]"]
+):hover:not(:disabled):not([aria-disabled="true"]):not([aria-pressed="true"]):not([aria-selected="true"]):not([aria-current="page"]) {
+  background: var(--juja-action-hover) !important;
+  border-color: var(--juja-action-hover) !important;
+}
+:is(button, a, [role="button"]):not([role="switch"]):is([aria-pressed="true"], [aria-selected="true"], [aria-current="page"]) {
+  background: var(--juja-selection) !important;
+  border-color: #d6c49e !important;
+  color: #20324a !important;
+  -webkit-text-fill-color: #20324a !important;
+}
+:is(button, a, [role="button"]):not([role="switch"]):is([aria-pressed="true"], [aria-selected="true"], [aria-current="page"]):hover:not(:disabled) {
+  background: #e6d6b5 !important;
+  border-color: #b39a66 !important;
+}
+:is(button, [role="button"], a):focus-visible {
+  outline: 2px solid #9b793c !important;
+  outline-offset: 3px !important;
+}
+:is(button, [role="button"], input[type="submit"]):is(:disabled, [aria-disabled="true"]):not([role="switch"]) {
+  background: #e2e8f0 !important;
+  border-color: #cbd5e1 !important;
+  color: #526174 !important;
+  -webkit-text-fill-color: #526174 !important;
+  opacity: 1 !important;
+  box-shadow: none !important;
+  cursor: not-allowed !important;
+}
