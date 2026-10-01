@@ -351,6 +351,11 @@ export default function PublicMenuPage() {
                           {mostOrdered && <span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-slate-700">Most Ordered</span>}
                         </div>
                         <p className="text-sm font-semibold leading-snug text-slate-800 sm:text-base">{item.name}</p>
+                        {item.description?.trim() && (
+                          <p className="mt-1 whitespace-pre-line break-words text-xs leading-relaxed text-slate-600">
+                            {item.description}
+                          </p>
+                        )}
                         {q && <p className="mt-1 text-[10px] uppercase tracking-wider text-slate-500">{item.category || "Others"}</p>}
                         <p className="mt-2 whitespace-nowrap text-base font-semibold text-[#284b74] sm:text-lg">{peso0(menuCardPrice(item))}</p>
                         {hasMenuOptions(item) && <p className="mt-1 text-[10px] text-slate-500">Tap for options</p>}
