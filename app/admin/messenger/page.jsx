@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BookOpen, Bot, MessageCircle, PauseCircle, PlayCircle, Plus, Save, Users } from "lucide-react";
+import { BookOpen, Bot, Brain, CheckCircle, Lightbulb, MessageCircle, PauseCircle, PlayCircle, Plus, RotateCcw, Save, Users, XCircle } from "lucide-react";
 
 const emptyFlow = { name: "", pattern: "", text: "", status: "draft" };
 const emptyAiSettings = {
@@ -12,6 +12,10 @@ const emptyAiSettings = {
   menu_item_count: 0,
   function_room_package_count: 0,
   upcoming_function_room_booking_count: 0,
+};
+const emptyLearning = {
+  stats: { remembered_customers: 0, pending_unanswered: 0, pending_live_chat: 0, approved_answers: 0 },
+  candidates: [],
 };
 
 async function api(url, options) {
@@ -108,11 +112,68 @@ function FlowCard({ flow, onSaved }) {
   );
 }
 
+function LearningReviewCard({ candidate, onReviewed }) {
+  const [answer, setAnswer] = useState(candidate.suggested_answer || "");
+  const [notes, setNotes] = useState(candidate.admin_notes || "");
+  const [saving, setSaving] = useState(false);
+
+  async function review(action) {
+    setSaving(true);
+    try {
+      const payload = await api("/api/admin/messenger/learning", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: candidate.id, action, suggested_answer: answer, admin_notes: notes }),
+      });
+      onReviewed(payload.learning || emptyLearning);
+    } catch (reviewError) {
+      alert(reviewError?.message || "Unable to review this answer.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const pending = candidate.status === "pending";
+  return (
+    <article className="rounded-2xl border border-slate-200 bg-white/90 p-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${candidate.source_type === "unanswered" ? "bg-amber-100 text-amber-700" : "bg-sky-100 text-sky-700"}`}>
+          {candidate.source_type === "unanswered" ? "Unanswered" : "Live Chat answer"}
+        </span>
+        <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${candidate.status === "approved" ? "bg-emerald-100 text-emerald-700" : candidate.status === "rejected" ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-600"}`}>
+          {candidate.status}
+        </span>
+        <span className="text-xs font-bold text-slate-500">Seen {candidate.occurrence_count} time{candidate.occurrence_count === 1 ? "" : "s"}</span>
+      </div>
+      <p className="mt-3 text-sm font-bold leading-6 text-slate-800">{candidate.sample_question}</p>
+      <label className="mt-4 block text-xs font-bold uppercase tracking-wider text-slate-500">
+        Suggested approved answer
+        <textarea value={answer} onChange={(event) => setAnswer(event.target.value)} rows={4} maxLength={4000} className="mt-2 w-full resize-y rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium normal-case leading-6 tracking-normal text-slate-800 outline-none focus:border-violet-400" />
+      </label>
+      <label className="mt-3 block text-xs font-bold uppercase tracking-wider text-slate-500">
+        Admin notes
+        <input value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={2000} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium normal-case tracking-normal text-slate-800 outline-none focus:border-violet-400" />
+      </label>
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
+        {pending ? (
+          <>
+            <button type="button" disabled={saving} onClick={() => review("reject")} className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-4 py-2 text-xs font-bold text-rose-700 disabled:opacity-50"><XCircle className="h-4 w-4" /> Reject</button>
+            <button type="button" disabled={saving} onClick={() => review("approve")} className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-50"><CheckCircle className="h-4 w-4" /> Approve answer</button>
+          </>
+        ) : (
+          <button type="button" disabled={saving} onClick={() => review("reopen")} className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-xs font-bold text-slate-700 disabled:opacity-50"><RotateCcw className="h-4 w-4" /> Reopen review</button>
+        )}
+      </div>
+    </article>
+  );
+}
+
 export default function MessengerAdminPage() {
   const [flows, setFlows] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [aiStatus, setAiStatus] = useState({ configured: false, enabled: true, model: "gpt-5.6-luna" });
   const [aiSettings, setAiSettings] = useState(emptyAiSettings);
+  const [learning, setLearning] = useState(emptyLearning);
   const [savingAiSettings, setSavingAiSettings] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -124,15 +185,17 @@ export default function MessengerAdminPage() {
     setLoading(true);
     setError("");
     try {
-      const [flowPayload, contactPayload, settingsPayload] = await Promise.all([
+      const [flowPayload, contactPayload, settingsPayload, learningPayload] = await Promise.all([
         api("/api/admin/messenger/flows"),
         api("/api/admin/messenger/contacts"),
         api("/api/admin/messenger/settings"),
+        api("/api/admin/messenger/learning"),
       ]);
       setFlows(flowPayload.flows || []);
       setAiStatus(flowPayload.ai || { configured: false, enabled: true, model: "gpt-5.6-luna" });
       setContacts(contactPayload.contacts || []);
       setAiSettings(settingsPayload.settings || emptyAiSettings);
+      setLearning(learningPayload.learning || emptyLearning);
     } catch (loadError) {
       setError(loadError?.message || "Unable to load Messenger routing.");
     } finally {
@@ -280,6 +343,35 @@ export default function MessengerAdminPage() {
           </div>
         </div>
       </form>
+
+      <section className="mb-10 rounded-3xl border border-emerald-100 bg-white/90 p-6 shadow-sm">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-slate-800"><Brain className="h-5 w-5" /><h2 className="text-lg font-extrabold">JujaBot learning review</h2></div>
+            <p className="mt-1 text-sm text-slate-500">Customer memories stay customer-scoped. Answers from Live Chat and unanswered questions are never added to JujaBot’s shared knowledge until an administrator approves them here.</p>
+          </div>
+          <span className="inline-flex items-center gap-2 self-start rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700"><Lightbulb className="h-3.5 w-3.5" /> Approval required</span>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            ["Remembered customers", learning.stats.remembered_customers, "bg-violet-50 text-violet-700"],
+            ["Unanswered questions", learning.stats.pending_unanswered, "bg-amber-50 text-amber-700"],
+            ["Live Chat candidates", learning.stats.pending_live_chat, "bg-sky-50 text-sky-700"],
+            ["Approved answers", learning.stats.approved_answers, "bg-emerald-50 text-emerald-700"],
+          ].map(([label, value, colors]) => (
+            <div key={label} className={`rounded-2xl p-4 ${colors}`}>
+              <p className="text-2xl font-extrabold">{value || 0}</p>
+              <p className="mt-1 text-xs font-bold">{label}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 space-y-4">
+          {(learning.candidates || []).map((candidate) => <LearningReviewCard key={candidate.id} candidate={candidate} onReviewed={setLearning} />)}
+          {!loading && !(learning.candidates || []).length && <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-8 text-center text-sm font-semibold text-slate-500">No unanswered questions or Live Chat answer candidates yet.</div>}
+        </div>
+      </section>
 
       <section className="mb-10">
         <div className="mb-4 flex items-center gap-2 text-slate-800"><MessageCircle className="h-5 w-5" /><h2 className="text-lg font-extrabold">Optional conversation flows</h2></div>

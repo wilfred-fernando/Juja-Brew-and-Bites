@@ -74,6 +74,16 @@ npm run verify:messenger-routing
 
 JujaBot can collect a draft order in Messenger, calculate an estimated subtotal from current live-menu prices, and ask the customer to confirm the draft. After confirmation, the router automatically pauses JujaBot and marks the conversation with the `messenger-order-draft` tag for Live Chat to verify availability and the final total. The router does not create a confirmed order, collect payment, or reserve stock. Function-room availability is a live snapshot and may change before checkout, so AI replies link customers to the public booking page to reserve. Payments, refunds, and account-specific actions remain with the website or Live Chat team.
 
+## Controlled learning and customer memory
+
+- A short memory is maintained separately for each Messenger PSID. It contains only a concise summary, preferred branch, common orders, fulfillment preference, unresolved concerns, and handoff history.
+- JujaBot can retrieve query-relevant older messages, but the database search function requires the same PSID and never searches another customer's conversation.
+- Runtime business grounding uses explicit public-field projections for menu items and function-room packages. Function-room blocking slots come from a safe database function that does not return customer details, payment-proof URLs, credentials, payroll, or internal notes.
+- When JujaBot cannot answer an informational question from verified material, it records a pending unanswered-question candidate and occurrence count.
+- A general answer sent by Live Chat can become a pending knowledge candidate. Account-specific and sensitive conversations are excluded by the application filter.
+- Pending candidates are visible in **Admin → JujaBot → JujaBot learning review**. An administrator must edit and approve an answer before it is included in future JujaBot context. Rejected or pending material is never shared with the model as approved business knowledge.
+- Deleting a Messenger contact also deletes that customer's saved memory. Shared approved answers contain no Messenger PSID and the admin API never returns candidate source-event IDs.
+
 ## Meta publishing URLs
 
 Use these public production URLs in Meta App Settings:
