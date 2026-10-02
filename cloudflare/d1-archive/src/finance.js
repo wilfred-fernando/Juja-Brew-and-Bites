@@ -2,6 +2,7 @@ const FINANCE_TABLES = new Set([
   "finance_expenses", "finance_petty_cash_entries", "finance_petty_cash_funds",
   "finance_references", "finance_delete_requests",
   "finance_daily_inventory_entries", "finance_inventory_transfers",
+  "finance_cash_accounts", "finance_cash_receivables", "finance_cash_transactions",
 ]);
 
 async function sourceRequest(env, query, method = "GET") {

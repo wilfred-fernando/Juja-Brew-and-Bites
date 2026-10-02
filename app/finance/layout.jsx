@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import FinanceFutureShell from "@/components/finance/FinanceFutureShell";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Boxes, ReceiptText, Users } from "lucide-react";
+import { Boxes, ReceiptText, Users, Wallet } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { usePortalAuth } from "@/components/usePortalAuth";
 import { useIdleLogout } from "@/components/useIdleLogout";
@@ -19,7 +19,7 @@ export default function FinanceLayout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const isLogin = pathname === "/finance/login" || pathname === "/login";
-  const activeSection = pathname.includes("/payroll") ? "payroll" : pathname.includes("/inventory") ? "inventory" : "expenses";
+  const activeSection = pathname.includes("/cash-flow") ? "cash-flow" : pathname.includes("/payroll") ? "payroll" : pathname.includes("/inventory") ? "inventory" : "expenses";
 
   const { loading, authorized, userEmail, userRole, userStoreId } = usePortalAuth({
     portal: "finance",
@@ -33,7 +33,7 @@ export default function FinanceLayout({ children }) {
       router.replace(financePath("/login"));
       return;
     }
-    if (!loading && authorized && userRole === "cashier" && pathname.includes("/payroll")) {
+    if (!loading && authorized && userRole === "cashier" && (pathname.includes("/payroll") || pathname.includes("/cash-flow"))) {
       router.replace(financePath("/expenses"));
       return;
     }
@@ -72,7 +72,7 @@ export default function FinanceLayout({ children }) {
     );
   }
 
-  if (!authorized || (userRole === "cashier" && !userStoreId)) return null;
+  if (!authorized || (userRole === "cashier" && (!userStoreId || pathname.includes("/cash-flow")))) return null;
 
   const navItems = userRole === "cashier"
     ? [
@@ -83,6 +83,7 @@ export default function FinanceLayout({ children }) {
       ["expenses", "/expenses", "Expenses", ReceiptText],
       ["inventory", "/inventory", "Inventory", Boxes],
       ["payroll", "/payroll", "Payroll", Users],
+      ["cash-flow", "/cash-flow", "Cash Flow & Position", Wallet],
     ];
 
   return <FinanceFutureShell navItems={navItems} activeSection={activeSection} financePath={financePath} userEmail={userEmail} userRole={userRole} onLogout={handleLogout}>{children}</FinanceFutureShell>;
