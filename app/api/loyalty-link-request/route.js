@@ -104,6 +104,36 @@ export async function POST(req) {
       return Response.json({ error: "Supabase client is required." }, { status: 500 });
     }
 
+    const [profileResult, memberResult] = await Promise.all([
+      supabaseAdmin.from("profiles").select("loyalty_account_id").eq("id", user.id).maybeSingle(),
+      supabaseAdmin.from("loyalty_members").select("id").eq("user_id", user.id).limit(1).maybeSingle(),
+    ]);
+    if (profileResult.error || memberResult.error) {
+      return Response.json({ error: "Unable to verify existing loyalty links. Please try again." }, { status: 500 });
+    }
+    if (profileResult.data?.loyalty_account_id || memberResult.data?.id) {
+      return Response.json({ error: "Your account is already linked to a loyalty account." }, { status: 409 });
+    }
+
+    if (matchedMemberId) {
+      const { data: targetMember, error: targetError } = await supabaseAdmin
+        .from("loyalty_members").select("id,user_id").eq("id", matchedMemberId).maybeSingle();
+      if (targetError) {
+        return Response.json({ error: "Unable to verify the loyalty account. Please try again." }, { status: 500 });
+      }
+      if (!targetMember) {
+        return Response.json({ error: "Loyalty account was not found." }, { status: 404 });
+      }
+      const { data: linkedProfile, error: linkedProfileError } = await supabaseAdmin
+        .from("profiles").select("id").eq("loyalty_account_id", targetMember.id).limit(1).maybeSingle();
+      if (linkedProfileError) {
+        return Response.json({ error: "Unable to verify existing loyalty links. Please try again." }, { status: 500 });
+      }
+      if (targetMember.user_id || linkedProfile?.id) {
+        return Response.json({ error: "This loyalty account is already linked and cannot be requested for linking again." }, { status: 409 });
+      }
+    }
+
     const { data: pendingRequest, error: pendingError } = await supabaseAdmin
       .from("loyalty_link_requests")
       .select("*")

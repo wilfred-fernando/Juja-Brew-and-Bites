@@ -3276,6 +3276,10 @@ function LoyaltyTab({ member, setMember, user, requiredSetup = false }) {
   };
 
   const requestLink = async () => {
+    if (member || matchedPreview?.user_id) {
+      setNotice("This loyalty account is already linked and cannot be requested for linking again.");
+      return;
+    }
     const b = normalizeBirthday(form.Note);
     const firstName = String(form.first_name || "").trim();
     const lastName = String(form.last_name || "").trim();
@@ -3451,10 +3455,12 @@ function LoyaltyTab({ member, setMember, user, requiredSetup = false }) {
                 {matchedPreview?.customer_code && (
                   <p className="mb-1 text-[11px] text-slate-500">{matchedPreview.customer_code}</p>
                 )}
-                <p className="text-green-600 font-bold">Profile identified matching criteria. ✅</p>
+                <p className={matchedPreview.user_id ? "text-red-500 font-semibold" : "text-green-600 font-bold"}>
+                  {matchedPreview.user_id ? "This loyalty account is already linked." : "Profile identified matching criteria. ✅"}
+                </p>
                 <button
                   onClick={requestLink}
-                  disabled={sendingLinkRequest}
+                  disabled={sendingLinkRequest || Boolean(matchedPreview.user_id)}
                   className="mt-3 w-full py-2 bg-[#FC687D] text-white rounded-lg font-bold disabled:opacity-60"
                 >
                   {sendingLinkRequest ? "Sending..." : "Submit Sync Authorization Link"}
