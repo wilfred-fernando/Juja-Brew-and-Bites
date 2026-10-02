@@ -16,8 +16,35 @@ Import existing Finance Fund Sources, then add any remaining cash, bank, and
 wallet accounts. Importing names does not import historical balances. Post each
 account's opening balance on your chosen starting date, then record subsequent
 cash movements. Do not re-enter transactions already included in that opening
-balance. Existing POS sales, expenses, petty cash, and payroll are not automatically
-assigned to accounts or duplicated into this ledger.
+balance. Existing POS sales, overall expenses, and payroll are not automatically
+assigned to accounts or duplicated into this ledger. Petty Cash is integrated below.
+
+## Petty-cash integration
+
+Apply `20261002110000_finance_petty_cash_ledger.sql` after the base migration,
+or run `node scripts/apply-finance-cash-flow.mjs --petty`. This creates a cash
+account for each branch with petty-cash records and imports existing Cash In
+and petty-cash expenses. Its balance matches all branch Cash In minus expenses.
+
+Continue recording petty-cash funding under Expenses → Petty Cash → Add Cash In.
+CASH SALES credits the branch as an inflow. A bank, wallet, or other fund source
+is debited and the branch is credited as an internal transfer. Named treasury
+accounts are included in the Cash In source selector. Legacy named sources are
+created when needed; enter correct source opening balances to account for their
+historical transfers.
+
+Inserts, edits, and deletes sync transactionally in Supabase. Corrections retain
+and reverse the old posting on its original date, then post the corrected amount.
+Correct linked records in Petty Cash; manual ledger reversals and postings to
+branch petty-cash accounts are rejected to keep both views consistent. Overall
+expense copies are not counted again.
+
+Cashiers retain assigned-branch permissions. They can select treasury fund names
+without viewing treasury balances or transactions. Do not separately enter
+opening balances that include imported petty-cash records.
+
+`node scripts/verify-finance-petty-cash-ledger.mjs` verifies the integration in a
+rollback-only transaction.
 
 ## Recording funds and collections
 

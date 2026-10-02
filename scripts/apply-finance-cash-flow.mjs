@@ -17,6 +17,14 @@ try {
  } else if (!rows[0].accounts || !rows[0].snapshot) {
   throw new Error('Partial cash-flow schema detected; migration was not applied.');
  } else console.log('Cash-flow schema already installed.');
+ if (process.argv.includes('--petty')) {
+  const installed = (await db.query("select to_regprocedure('public.finance_sync_petty_cash_row(text,jsonb,boolean)') installed")).rows[0].installed;
+  if (!installed) {
+   const pettySql = fs.readFileSync('supabase/migrations/20261002110000_finance_petty_cash_ledger.sql', 'utf8').replace(/^begin;/, '').replace(/commit;\s*$/, '');
+   await db.query(pettySql);
+   console.log('Petty cash ledger integration installed and existing records imported.');
+  } else console.log('Petty cash ledger integration already installed.');
+ }
  await db.query("notify pgrst, 'reload schema'");
  await db.query('commit');
  console.log('Supabase schema-cache reload requested.');

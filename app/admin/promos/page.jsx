@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import PublicPromoManager from "@/components/admin/PublicPromoManager";
 
 const supabase = getSupabaseClient();
 const defaultVoucherCampaignForm = {
@@ -262,6 +263,7 @@ export default function AdminPromos() {
         )}
       </div>
 
+      <PublicPromoManager />
       <section className="mt-12 rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm">
         <div className="mb-6 flex flex-col gap-4 border-b border-slate-100 pb-5 md:flex-row md:items-center md:justify-between">
           <div>

@@ -344,6 +344,7 @@ export default function FinanceExpenseManager() {
   const [overallExpenses, setOverallExpenses] = useState([]);
   const [pettyEntries, setPettyEntries] = useState([]);
   const [pettyFunds, setPettyFunds] = useState([]);
+  const [treasuryFundSources, setTreasuryFundSources] = useState([]);
   const [references, setReferences] = useState([]);
   const [expenseForm, setExpenseForm] = useState(initialExpenseForm);
   const [pettyForm, setPettyForm] = useState(initialExpenseForm);
@@ -948,6 +949,10 @@ export default function FinanceExpenseManager() {
   }
 
   function openFundModal(row = null) {
+    supabase.rpc("finance_petty_cash_sources").then(({ data, error }) => {
+      if (error) showNotice("error", "Unable to load cash-flow fund sources: " + error.message);
+      else setTreasuryFundSources((data || []).map((source) => source.name));
+    });
     setEditingFund(row || null);
     setFundForm(row ? fundFormFromRow(row) : (prev) => freshFundForm(prev));
     if (row?.store_id) setSelectedStoreId(row.store_id);
@@ -1146,7 +1151,7 @@ export default function FinanceExpenseManager() {
       } else {
         setPettyFunds((prev) => prev.map((row) => (row.id === editingFund.id ? { ...row, ...payload } : row)));
         closeFundModal();
-        showNotice("success", `${selectedStoreName} cash-in updated.`);
+        showNotice("success", `${selectedStoreName} cash-in updated and cash position synced.`);
       }
       setSaving("");
       return;
@@ -1159,7 +1164,7 @@ export default function FinanceExpenseManager() {
       setPettyFunds((prev) => [payload, ...prev]);
       setFundForm((prev) => freshFundForm(prev));
       closeFundModal();
-      showNotice("success", `${selectedStoreName} cash-in saved.`);
+      showNotice("success", `${selectedStoreName} cash-in saved and cash position synced.`);
     }
     setSaving("");
   }
@@ -1938,9 +1943,10 @@ export default function FinanceExpenseManager() {
         </Field>
         <Field label="Source of Fund">
           <Select value={fundForm.source_of_fund} onChange={(e) => setFundForm((prev) => ({ ...prev, source_of_fund: e.target.value }))}>
-            {uniqueOptions([fundForm.source_of_fund], fundSourceOptions).map((option) => <option key={option}>{option}</option>)}
+            {uniqueOptions([fundForm.source_of_fund], fundSourceOptions, treasuryFundSources).map((option) => <option key={option}>{option}</option>)}
           </Select>
         </Field>
+        <p className="text-xs leading-relaxed text-slate-600">This credits {selectedStoreName} petty cash in Cash Flow &amp; Position. CASH SALES is a cash inflow; other fund sources are debited as a transfer. Edits and deletions also sync automatically.</p>
         <Field label="Particular">
           <Input value={fundForm.particular} onChange={(e) => setFundForm((prev) => ({ ...prev, particular: e.target.value }))} />
         </Field>
