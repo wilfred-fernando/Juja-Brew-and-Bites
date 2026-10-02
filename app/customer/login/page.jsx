@@ -90,8 +90,8 @@ export default function Login() {
 
       try {
         if (mode === "signup") {
-        const firstName = form.firstName.trim().replace(/\s+/g, " ");
-        const lastName = form.lastName.trim().replace(/\s+/g, " ");
+        const firstName = form.firstName.trim();
+        const lastName = form.lastName.trim();
         const fullName = [firstName, lastName].filter(Boolean).join(" ");
         const contactNumber = form.contactNumber.trim();
         const contactDigits = contactNumber.replace(/\D/g, "");
@@ -103,17 +103,6 @@ export default function Login() {
         }
         if (!privacyAccepted) {
           throw new Error("Please review and accept the Data Privacy consent before creating your account.");
-        }
-
-        const { data: nameExists, error: nameCheckError } = await supabase.rpc(
-          "customer_signup_name_exists",
-          { p_full_name: fullName }
-        );
-        if (nameCheckError) {
-          throw new Error("Unable to check your name right now. Please try again later.");
-        }
-        if (nameExists) {
-          throw new Error("A customer account with this full name already exists. Please sign in or reset your password. If this is a different person, please contact JUJA for assistance.");
         }
 
         const { error: authError } = await supabase.auth.signUp({

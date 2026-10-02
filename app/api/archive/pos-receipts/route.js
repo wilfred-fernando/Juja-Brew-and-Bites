@@ -1,4 +1,5 @@
 import { requireArchiveRole } from "@/lib/server/archive-auth";
+import { overlayArchivedReceiptCorrections } from "@/lib/server/receipt-corrections";
 
 export async function GET(request) {
   const guard = await requireArchiveRole();
@@ -16,7 +17,8 @@ export async function GET(request) {
   target.searchParams.set("includeItems", "1");
   try {
     const response = await fetch(target, { headers: { authorization: `Bearer ${token}` }, cache: "no-store" });
-    return new Response(await response.text(), {
+    const payload = await response.json();
+    return Response.json(response.ok ? await overlayArchivedReceiptCorrections(payload) : payload, {
       status: response.status,
       headers: { "content-type": "application/json; charset=utf-8", "cache-control": "private, no-store" },
     });

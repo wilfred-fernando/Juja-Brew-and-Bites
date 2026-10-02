@@ -45,6 +45,7 @@ let loadError = null;
 const requestedRanges = [];
 const load = vm.runInNewContext(`${page.slice(loadStart, loadEnd)}; loadDiscountBeneficiaries;`, {
   setDiscountBeneficiariesLoading: () => {},
+  ensurePosBeneficiarySession: async () => {}, currentUserId: "cashier",
   setDiscountBeneficiaries: records => { loadedRecords = records; },
   showToast: (...args) => { loadError = args; },
   supabase: { from: () => {
@@ -75,6 +76,7 @@ for (const [name, required] of cases) {
     const record = { id: `${name}-${type}`, beneficiary_type: type, full_name: "Test Person", id_number: "TEST123", residency_status: residencyStatus };
     const save = vm.runInNewContext(`${page.slice(start, end)}; saveDiscountBeneficiary;`, {
       pendingBeneficiaryType: required,
+      ensurePosBeneficiarySession: async () => {}, currentUserId: "cashier",
       beneficiaryMatchesRule,
       beneficiaryTypeLabel,
       selectDiscountBeneficiary: (entry) => selected.push(entry),
@@ -93,6 +95,7 @@ for (const [name, required] of cases) {
   }
 }
 const failingSave = vm.runInNewContext(`${page.slice(start, end)}; saveDiscountBeneficiary;`, {
+  ensurePosBeneficiarySession: async () => {}, currentUserId: "cashier",
   showToast: () => {},
   supabase: { rpc: async () => ({ error: { message: "A valid ID number is required." } }) },
 });

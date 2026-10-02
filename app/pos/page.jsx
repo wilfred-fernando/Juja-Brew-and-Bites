@@ -33,6 +33,7 @@ import GiftCertificatePaymentDialog from "@/components/pos/GiftCertificatePaymen
 import { gcPaymentBreakdown } from "@/lib/posGiftCertificates";
 import OfflineSyncNotice from "@/components/pos/OfflineSyncNotice";
 import { addPosCartLine } from "@/lib/posCart";
+import { ensurePosBeneficiarySession } from "@/lib/posBeneficiarySession";
 import { receiptLineMetadata } from "@/lib/reports/receiptDetails";
 import { buildShiftDiscountBreakdown } from "@/lib/posDiscountBreakdown";
 import {
@@ -4756,6 +4757,7 @@ export default function POSPage() {
   const loadDiscountBeneficiaries = async () => {
     setDiscountBeneficiariesLoading(true);
     try {
+      await ensurePosBeneficiarySession(supabase, currentUserId);
       const beneficiaries = [];
       const pageSize = 500;
       for (let offset = 0; ; offset += pageSize) {
@@ -4804,6 +4806,7 @@ export default function POSPage() {
   };
 
   const saveDiscountBeneficiary = async ({ beneficiaryType, residencyStatus, fullName, idNumber }) => {
+    await ensurePosBeneficiarySession(supabase, currentUserId);
     const { data, error } = await supabase.rpc("save_pos_discount_beneficiary", {
       p_beneficiary_type: beneficiaryType,
       p_full_name: fullName,
@@ -7986,8 +7989,8 @@ export default function POSPage() {
           id: `WEB-${order.id}`,
           receipt_number: order.receipt_number || `WEB-${String(order.id).slice(0, 8).toUpperCase()}`,
           date: displayTimestamp ? formatReceiptDateTime(displayTimestamp) : "",
-          gross_sales: Number(order.total || order.subtotal || 0),
-          discounts: 0,
+          gross_sales: Number(order.gross_amount ?? order.total ?? order.subtotal ?? 0),
+          discounts: Number(order.discount_amount || 0),
           net_sales: Number(order.total || order.subtotal || 0),
           total_collected: Number(order.total || order.subtotal || 0),
           payment_type: order.payment_method || "Web Order",

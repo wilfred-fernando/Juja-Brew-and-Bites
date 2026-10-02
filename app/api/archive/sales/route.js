@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { overlayArchivedReceiptCorrections } from "@/lib/server/receipt-corrections";
 
 async function requesterIsAdmin() {
   const cookieStore = await cookies();
@@ -35,8 +36,8 @@ export async function GET(request) {
       headers: { authorization: `Bearer ${token}` },
       cache: "no-store",
     });
-    const body = await response.text();
-    return new Response(body, {
+    const payload = await response.json();
+    return Response.json(response.ok ? await overlayArchivedReceiptCorrections(payload) : payload, {
       status: response.status,
       headers: { "content-type": "application/json; charset=utf-8", "cache-control": "private, no-store" },
     });

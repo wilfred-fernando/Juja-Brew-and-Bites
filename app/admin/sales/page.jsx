@@ -64,6 +64,7 @@ import {
 import { loyaltyEligibleLineTotal } from "@/lib/menuPromos";
 import { enrichReceiptItemRows, receiptItemDetails } from "@/lib/reports/receiptDetails";
 import { buildShiftDiscountBreakdown } from "@/lib/posDiscountBreakdown";
+import ReceiptEditModal from "@/components/admin/ReceiptEditModal";
 
 const supabase = getSupabaseClient();
 const DEFAULT_ROWS_PER_PAGE = 10;
@@ -325,6 +326,7 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
       discountBreakdown: storedDiscountBreakdown.length ? storedDiscountBreakdown : calculatedDiscountBreakdown,
       netSales: num(summary.netSales, cashPayments + nonCashPaymentTotal - cashRefunds),
       payments: {
+        ...Object.fromEntries(Object.entries(payments).filter(([name]) => !["cash", "card", "gcash", "grabfood", "qrph", "panda", "foodpanda", "grabdineout", "nopaymentrequired"].includes(name.toLowerCase().replace(/[\s_-]+/g, "")))),
         Cash: cashNetSales,
         CARD: paymentValue("Card", "CARD"),
         GCASH: paymentValue("Gcash", "GCash", "GCASH"),
@@ -335,6 +337,7 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
         "No Payment Required": paymentValue("No Payment Required", "NO PAYMENT REQUIRED"),
       },
       paymentTransactions: {
+        ...Object.fromEntries(Object.entries(paymentTransactions).filter(([name]) => !["cash", "card", "gcash", "grabfood", "qrph", "panda", "foodpanda", "grabdineout", "nopaymentrequired"].includes(name.toLowerCase().replace(/[\s_-]+/g, "")))),
         Cash: num(paymentTransactions.Cash),
         CARD: num(paymentTransactions.Card ?? paymentTransactions.CARD),
         GCASH: num(paymentTransactions.Gcash ?? paymentTransactions.GCash ?? paymentTransactions.GCASH),
@@ -863,7 +866,7 @@ function receiptPointsEarned(order, items) {
   return Number((eligibleTotal * 0.04).toFixed(2));
 }
 
-function ReceiptDrawer({ order, items = [], onClose }) {
+function ReceiptDrawer({ order, items = [], onClose, onEdit }) {
   if (!order) return null;
   const totalCollected = Number(order.raw?.total_collected ?? order.raw?.["Total collected"] ?? order.net ?? 0);
   const change = Math.max(0, totalCollected - Number(order.net || 0));
@@ -880,7 +883,7 @@ function ReceiptDrawer({ order, items = [], onClose }) {
       <div className="h-full w-full max-w-[320px] overflow-y-auto bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
         <div className="flex h-8 items-center justify-between border-b border-slate-200 px-3 text-slate-500">
           <button onClick={onClose} className="text-2xl leading-none text-slate-500 transition hover:text-slate-900" aria-label="Close receipt">×</button>
-          <span className="text-lg leading-none text-slate-500">...</span>
+          {order.status === "Paid" && <button type="button" onClick={() => onEdit(order)} className="rounded-lg bg-slate-800 px-3 py-1 text-xs font-semibold text-white">Edit receipt</button>}
         </div>
 
         <div className="px-3 pb-6 pt-6 text-[11px] text-slate-900">
@@ -962,6 +965,8 @@ function ReceiptDrawer({ order, items = [], onClose }) {
                   </div>
               </div>
             ) : null}
+            {order.discount > 0 && <div className="mb-2 flex justify-between gap-3"><span>Discounts</span><span>-{receiptPeso(order.discount)}</span></div>}
+            {order.raw?.source_metadata?.admin_receipt_discount?.amount > 0 && <p className="mb-2 text-slate-600">{order.raw.source_metadata.admin_receipt_discount.name}: -{receiptPeso(order.raw.source_metadata.admin_receipt_discount.amount)}</p>}
             <div className="flex justify-between gap-3 font-semibold">
               <span>Total</span>
               <span>{receiptPeso(order.net)}</span>
@@ -998,6 +1003,8 @@ export default function AdminSalesPage() {
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_ROWS_PER_PAGE);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [editingOrder, setEditingOrder] = useState(null);
+  const [receiptSavedNotice, setReceiptSavedNotice] = useState("");
   const [selectedShift, setSelectedShift] = useState(null);
   const [receiptDetailItems, setReceiptDetailItems] = useState([]);
   const skippedInitialTabLoad = useRef(false);
@@ -1404,7 +1411,15 @@ export default function AdminSalesPage() {
         </Card>
       )}
 
-      <ReceiptDrawer key={selectedOrder ? `${selectedOrder.source}:${selectedOrder.id}` : "closed"} order={selectedOrder} items={selectedReceiptItems} onClose={() => setSelectedOrder(null)} />
+      {receiptSavedNotice && <div role="status" className="fixed bottom-4 left-1/2 z-[95] -translate-x-1/2 rounded-xl bg-slate-800 px-5 py-3 text-sm text-white"><span>{receiptSavedNotice}</span><button type="button" onClick={() => setReceiptSavedNotice("")} className="ml-4" aria-label="Dismiss receipt saved message">×</button></div>}
+      <ReceiptDrawer key={selectedOrder ? `${selectedOrder.source}:${selectedOrder.id}` : "closed"} order={selectedOrder} items={selectedReceiptItems} onClose={() => setSelectedOrder(null)} onEdit={setEditingOrder} />
+      {editingOrder && <ReceiptEditModal order={editingOrder} onClose={() => setEditingOrder(null)} onSaved={async () => {
+        setEditingOrder(null);
+        setSelectedOrder(null);
+        setSelectedShift(null);
+        setReceiptSavedNotice("Receipt saved. Loyalty and sales reports updated.");
+        await loadData();
+      }} />}
       <ShiftReportDrawer shift={selectedShift} onClose={() => setSelectedShift(null)} />
     </div>
   );

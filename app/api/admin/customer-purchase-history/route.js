@@ -211,7 +211,28 @@ export async function POST(req) {
         webMapper,
       }),
     ]);
-    const rows = dedupeRows([...archivedRows, ...liveRows.flat()]);
+    // Corrections can move an archived receipt to a different member. Replace
+    // matching old history and include receipts newly attached to this account.
+    const candidates = [...archivedRows, ...liveRows.flat()];
+    const sourceIds = candidates.map((row) => row.id.replace(/^(pos|web)-/, "")).filter((id) => /^[0-9a-f-]{36}$/i.test(id));
+    const corrected = new Map();
+    for (let index = 0; index < sourceIds.length; index += 200) {
+      const { data, error } = await admin.from("admin_receipt_corrections").select("*").in("source_id", sourceIds.slice(index, index + 200));
+      if (error && !["42P01", "PGRST205"].includes(error.code)) throw error;
+      for (const entry of data || []) corrected.set(`${entry.source_type}:${entry.source_id}`, entry);
+    }
+    const { data: attachedCorrections, error: correctionsError } = await admin.from("admin_receipt_corrections").select("*")
+      .eq("receipt->>loyalty_member_id", member.id).order("receipt_at", { ascending: false }).limit(250);
+    if (correctionsError && !["42P01", "PGRST205"].includes(correctionsError.code)) throw correctionsError;
+    for (const entry of attachedCorrections || []) corrected.set(`${entry.source_type}:${entry.source_id}`, entry);
+    const correctedRows = [];
+    const removedIds = new Set();
+    for (const entry of corrected.values()) {
+      removedIds.add(`${entry.source_type === "order" ? "pos" : "web"}-${entry.source_id}`);
+      if (entry.linked_web_receipt?.id) removedIds.add(`web-${entry.linked_web_receipt.id}`);
+      if (entry.receipt.loyalty_member_id === member.id) correctedRows.push(entry.source_type === "order" ? posMapper(entry.receipt) : webMapper(entry.receipt));
+    }
+    const rows = dedupeRows([...correctedRows, ...candidates.filter((row) => !removedIds.has(row.id))]);
     return Response.json({ rows });
   } catch (error) {
     return Response.json({ error: error?.message || "Unable to load purchase history." }, { status: 500 });
