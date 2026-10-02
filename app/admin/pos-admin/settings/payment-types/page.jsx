@@ -326,6 +326,19 @@ export default function Page() {
     setEditOpen(true);
   }
 
+  async function updatePaymentType(id, updates) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    const response = await fetch("/api/admin/payment-types", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ id, ...updates }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Unable to update payment type.");
+    return result.paymentType;
+  }
+
   async function saveEdit() {
     if (!editRow?.id) return;
 
@@ -340,15 +353,7 @@ export default function Page() {
 
     setBusyId(editRow.id);
     try {
-      const { data, error } = await supabase
-        .from("pos_payment_types")
-        .update({ name })
-        .eq("id", editRow.id)
-        .is("store_id", null)
-        .select("id, store_id, name, is_active, sort_order, created_at")
-        .single();
-
-      if (error) throw error;
+      const data = await updatePaymentType(editRow.id, { name });
       if (!data || data.name !== name) {
         throw new Error("Payment type name was not saved. Refresh and try again.");
       }
@@ -369,15 +374,7 @@ export default function Page() {
     setBusyId(r.id);
     try {
       const nextActive = !r.is_active;
-      const { data, error } = await supabase
-        .from("pos_payment_types")
-        .update({ is_active: nextActive })
-        .eq("id", r.id)
-        .is("store_id", null)
-        .select("id, store_id, name, is_active, sort_order, created_at")
-        .single();
-
-      if (error) throw error;
+      const data = await updatePaymentType(r.id, { is_active: nextActive });
       if (!data || data.is_active !== nextActive) {
         throw new Error("Payment type status was not saved. Refresh and try again.");
       }
@@ -580,4 +577,3 @@ export default function Page() {
     </div>
   );
 }
-``
