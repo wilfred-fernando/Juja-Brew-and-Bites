@@ -192,3 +192,22 @@
   box-shadow: none !important;
   cursor: not-allowed !important;
 }
+
+/* Checkout uses the shared navy/cream palette, including embedded e-GC controls.
+   Keep these in juja-controls so legacy important utility overrides cannot hide text. */
+.juja-checkout button {
+  background:#fff!important; border:1px solid #cbd5e1!important;
+  color:#20324a!important; -webkit-text-fill-color:#20324a!important;
+  box-shadow:none!important; opacity:1!important;
+}
+.juja-checkout button:hover:not(:disabled) { background:#f5f3ed!important; border-color:#8b9bb0!important; }
+.juja-checkout button:is([data-checkout-primary="true"],[class~="bg-green-800"]) {
+  background:var(--juja-action)!important; border-color:var(--juja-action)!important;
+  color:#fff!important; -webkit-text-fill-color:#fff!important;
+}
+.juja-checkout button:is([data-checkout-primary="true"],[class~="bg-green-800"]):hover:not(:disabled) { background:var(--juja-action-hover)!important; }
+.juja-checkout button[aria-pressed="true"] { background:var(--juja-selection)!important; border-color:#b39a66!important; color:#20324a!important; -webkit-text-fill-color:#20324a!important; }
+.juja-checkout button[aria-pressed="true"]:hover:not(:disabled) { background:#e6d6b5!important; }
+.juja-checkout button:disabled { background:#e2e8f0!important; border-color:#cbd5e1!important; color:#475569!important; -webkit-text-fill-color:#475569!important; opacity:1!important; }
+.juja-checkout button:focus-visible { outline:2px solid #314b6b!important; outline-offset:3px; }
+.juja-checkout button :is(span,svg) { color:inherit!important; -webkit-text-fill-color:inherit!important; }

@@ -4,6 +4,7 @@ import { isOptionGroupVisibleOn } from "@/lib/menuVisibility";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import premium from "@/components/CustomerPremium.module.css";
+import checkout from "@/components/CustomerCheckout.module.css";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -79,6 +80,12 @@ const isConnectivityFailure = (error) => {
 };
 
 async function insertCustomerWebOrder(orderPayload, gcCodes = []) {
+  const isDelivery = String(orderPayload.fulfillment_type || "").toUpperCase() === "DELIVERY" ||
+    String(orderPayload.dining_option || "").toUpperCase().includes("DELIVERY");
+  if (isDelivery && !String(orderPayload.delivery_address || "").trim()) {
+    throw new Error("Delivery address is required for delivery orders.");
+  }
+  orderPayload = { ...orderPayload, delivery_address: isDelivery ? String(orderPayload.delivery_address).trim() : "" };
   if (gcCodes.length) {
     const { data, error } = await supabase.rpc("submit_customer_gc_order", { p_order: orderPayload, p_codes: gcCodes });
     if (error) throw error;
@@ -412,26 +419,6 @@ function formatOrderScheduleLabel(dateString, timeString) {
     minute: "2-digit",
     hour12: true,
   }).format(date);
-}
-
-function normalizePinCoordinate(value, min, max) {
-  const number = Number(value);
-  if (!Number.isFinite(number) || number < min || number > max) return "";
-  return number.toFixed(7);
-}
-
-function hasDeliveryPin(pin) {
-  return Boolean(normalizePinCoordinate(pin?.lat, -90, 90) && normalizePinCoordinate(pin?.lng, -180, 180));
-}
-
-function deliveryMapPreviewUrl({ pin } = {}) {
-  if (!hasDeliveryPin(pin)) return "";
-  const lat = Number(normalizePinCoordinate(pin?.lat, -90, 90));
-  const lng = Number(normalizePinCoordinate(pin?.lng, -180, 180));
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return "";
-  const span = 0.006;
-  const bbox = [lng - span, lat - span, lng + span, lat + span].map((value) => value.toFixed(7)).join(",");
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat.toFixed(7)},${lng.toFixed(7)}`;
 }
 
 function genCustomerId() {
@@ -958,213 +945,20 @@ function AddToCartModal({ item, onClose, onAdd }) {
 /* ──────────────────────────────────────────────────────────────
     Interactive Checkout Confirmation Drawer
 ────────────────────────────────────────────────────────────── */
-function DeliveryPinPickerModal({ open, address, pin, onAddressChange, onPinChange, onClose }) {
-  const [draftAddress, setDraftAddress] = useState(address || "");
-  const [draftPin, setDraftPin] = useState({ lat: pin?.lat || "", lng: pin?.lng || "" });
-  const [pinLoading, setPinLoading] = useState(false);
-  const [pinError, setPinError] = useState("");
-
-  useEffect(() => {
-    if (!open) return;
-    setDraftAddress(address || "");
-    setDraftPin({ lat: pin?.lat || "", lng: pin?.lng || "" });
-    setPinError("");
-  }, [address, open, pin?.lat, pin?.lng]);
-
-  if (!open) return null;
-
-  const previewUrl = deliveryMapPreviewUrl({ pin: draftPin, address: draftAddress });
-  const pinIsValid = hasDeliveryPin(draftPin);
-  const saveDisabled = !pinIsValid || draftAddress.trim().length < 8;
-
-  const useCurrentLocation = () => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setPinError("Location access is not available on this device.");
-      return;
-    }
-    setPinLoading(true);
-    setPinError("");
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const lat = normalizePinCoordinate(position.coords.latitude, -90, 90);
-        const lng = normalizePinCoordinate(position.coords.longitude, -180, 180);
-        setDraftPin({ lat, lng });
-        setDraftAddress((current) => current.trim() || `Pinned location: ${lat}, ${lng}`);
-        setPinLoading(false);
-      },
-      (error) => {
-        setPinError(error?.message || "Location permission was denied.");
-        setPinLoading(false);
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
-    );
-  };
-
-  const savePin = () => {
-    if (saveDisabled) return;
-    onAddressChange(draftAddress.trim());
-    onPinChange({
-      lat: normalizePinCoordinate(draftPin.lat, -90, 90),
-      lng: normalizePinCoordinate(draftPin.lng, -180, 180),
-    });
-    onClose();
-  };
-
-  return (
-    <div className="fixed inset-0 z-[190] bg-black/55 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4">
-      <div className="w-full max-w-lg rounded-t-[28px] md:rounded-[24px] bg-white p-5 shadow-2xl max-h-[92vh] overflow-y-auto">
-        <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-700">Delivery Pin</p>
-            <h3 className="mt-1 text-xl font-bold text-slate-900">Select Pin Location</h3>
-            <p className="mt-1 text-xs font-semibold text-slate-500">Use the exact drop-off point plus the written address or landmark.</p>
-          </div>
-          <button type="button" onClick={onClose} className="h-10 w-10 rounded-full border border-slate-200 bg-white text-xl font-bold text-slate-700 shadow-sm">
-            x
-          </button>
-        </div>
-
-        <div className="mt-4 space-y-4">
-          <div className="overflow-hidden rounded-2xl border border-cyan-100 bg-cyan-50/80">
-            {previewUrl ? (
-              <iframe title="Delivery pin preview" src={previewUrl} className="h-56 w-full border-0" loading="lazy" />
-            ) : (
-              <div className="flex h-56 flex-col items-center justify-center gap-2 text-center text-slate-500">
-                <MapPin className="h-8 w-8 text-cyan-700" />
-                <p className="text-xs font-bold uppercase tracking-widest">No pin selected</p>
-                <p className="max-w-xs text-xs">Tap use current location or manually enter latitude and longitude.</p>
-              </div>
-            )}
-          </div>
-
-          <button
-            type="button"
-            onClick={useCurrentLocation}
-            disabled={pinLoading}
-            className="w-full rounded-xl bg-cyan-700 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-cyan-900/10 transition active:scale-[0.98] disabled:opacity-60"
-          >
-            {pinLoading ? "Getting Location..." : "Use My Current Location"}
-          </button>
-
-          {pinError ? <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">{pinError}</div> : null}
-
-          <div>
-            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-500">Delivery Address / Landmark</label>
-            <textarea
-              value={draftAddress}
-              onChange={(e) => setDraftAddress(e.target.value)}
-              className="min-h-20 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-cyan-600"
-              placeholder="House number, street, barangay, city, landmark"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-500">Latitude</label>
-              <input
-                value={draftPin.lat}
-                onChange={(e) => setDraftPin((current) => ({ ...current, lat: e.target.value }))}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-cyan-600"
-                inputMode="decimal"
-                placeholder="14.6754858"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-500">Longitude</label>
-              <input
-                value={draftPin.lng}
-                onChange={(e) => setDraftPin((current) => ({ ...current, lng: e.target.value }))}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-cyan-600"
-                inputMode="decimal"
-                placeholder="121.0438648"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-4">
-            <button
-              type="button"
-              onClick={() => {
-                setDraftPin({ lat: "", lng: "" });
-                onPinChange({ lat: "", lng: "" });
-              }}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-700"
-            >
-              Clear Pin
-            </button>
-            <button
-              type="button"
-              onClick={savePin}
-              disabled={saveDisabled}
-              className="rounded-xl bg-cyan-700 px-4 py-3 text-xs font-bold uppercase tracking-wider text-white disabled:bg-slate-200 disabled:text-slate-500"
-            >
-              Save Pin
-            </button>
-        </div>
-      </div>
-    </div>
-    </div>
-  );
-}
-
 function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEligibleSubtotal, cartItems, isSubmitting, selectedStore, selectedStoreName }) {
   const qrphImagePath = QRPH_IMAGE_BY_STORE[selectedStore?.id] || QRPH_IMAGE_PATH;
   const [diningOption, setDiningOption] = useState("TAKEOUT");
   const [fulfillmentDate, setFulfillmentDate] = useState(getManilaDateString(0));
   const [fulfillmentTime, setFulfillmentTime] = useState(getManilaTimeString(30));
   const [deliveryAddress, setDeliveryAddress] = useState("");
-  const [deliveryPin, setDeliveryPin] = useState({ lat: "", lng: "" });
-  const [deliveryAddressFocused, setDeliveryAddressFocused] = useState(false);
-  const [deliveryAddressSuggestions, setDeliveryAddressSuggestions] = useState([]);
-  const [deliveryAddressLoading, setDeliveryAddressLoading] = useState(false);
-  const [deliveryAddressSearchError, setDeliveryAddressSearchError] = useState("");
-  const [deliveryQuote, setDeliveryQuote] = useState(null);
-  const [deliveryQuoteLoading, setDeliveryQuoteLoading] = useState(false);
-  const [deliveryQuoteError, setDeliveryQuoteError] = useState("");
-  const [deliveryLocationLoading, setDeliveryLocationLoading] = useState(false);
-  const [deliveryLocationError, setDeliveryLocationError] = useState("");
-  const [deliveryLocationPermissionPrompt, setDeliveryLocationPermissionPrompt] = useState(false);
-  const [deliveryLocationPromptDismissed, setDeliveryLocationPromptDismissed] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [paymentProof, setPaymentProof] = useState(null);
   const [gcCertificates, setGcCertificates] = useState([]);
   const [checkingGc, setCheckingGc] = useState(false);
   useEffect(() => { if (!open) { setGcCertificates([]); setCheckingGc(false); } }, [open]);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
-  const autoDeliveryLocationRequestedRef = useRef(false);
   const targetTimeOptions = useMemo(() => buildTargetTimeOptions(fulfillmentDate, selectedStore), [fulfillmentDate, selectedStore]);
   const selectedTimeOption = targetTimeOptions.find((option) => option.value === fulfillmentTime);
-
-  const askDeliveryLocationPermission = () => {
-    if (hasDeliveryPin(deliveryPin)) return;
-    setDeliveryLocationError("");
-    setDeliveryLocationPermissionPrompt(true);
-  };
-
-  const requestDeliveryCurrentLocation = () => {
-    setDeliveryLocationPermissionPrompt(false);
-    setDeliveryLocationPromptDismissed(true);
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setDeliveryLocationError("Location access is not available on this device.");
-      return;
-    }
-    setDeliveryLocationLoading(true);
-    setDeliveryLocationError("");
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const lat = normalizePinCoordinate(position.coords.latitude, -90, 90);
-        const lng = normalizePinCoordinate(position.coords.longitude, -180, 180);
-        setDeliveryPin({ lat, lng });
-        setDeliveryAddress((current) => current.trim() || `Pinned location: ${lat}, ${lng}`);
-        setDeliveryLocationLoading(false);
-      },
-      (error) => {
-        setDeliveryLocationError(error?.message || "Location permission was denied.");
-        setDeliveryLocationLoading(false);
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
-    );
-  };
 
   useEffect(() => {
     if (!targetTimeOptions.length) {
@@ -1177,122 +971,6 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
     }
   }, [fulfillmentTime, targetTimeOptions]);
 
-  useEffect(() => {
-    if (!open || diningOption !== "DELIVERY") {
-      autoDeliveryLocationRequestedRef.current = false;
-      setDeliveryLocationPermissionPrompt(false);
-      setDeliveryLocationPromptDismissed(false);
-      return;
-    }
-    if (hasDeliveryPin(deliveryPin)) {
-      setDeliveryLocationPermissionPrompt(false);
-      return;
-    }
-    if (autoDeliveryLocationRequestedRef.current || deliveryLocationPromptDismissed) return;
-    autoDeliveryLocationRequestedRef.current = true;
-    setDeliveryLocationPermissionPrompt(true);
-  }, [open, diningOption, deliveryPin.lat, deliveryPin.lng, deliveryLocationPromptDismissed]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setDeliveryAddressSuggestions([]);
-    setDeliveryAddressSearchError("");
-
-    if (!open || diningOption !== "DELIVERY") {
-      setDeliveryAddressLoading(false);
-      return;
-    }
-
-    const address = deliveryAddress.trim();
-    if (address.length < 3 || hasDeliveryPin(deliveryPin)) {
-      setDeliveryAddressLoading(false);
-      return;
-    }
-
-    setDeliveryAddressLoading(true);
-    const timer = window.setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/customer/address-search?q=${encodeURIComponent(address)}`);
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok || json?.success === false) throw new Error(json?.error || "Address search failed.");
-        if (!cancelled) {
-          setDeliveryAddressSuggestions(Array.isArray(json.suggestions) ? json.suggestions : []);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setDeliveryAddressSuggestions([]);
-          setDeliveryAddressSearchError(error?.message || "Address search failed.");
-        }
-      } finally {
-        if (!cancelled) setDeliveryAddressLoading(false);
-      }
-    }, 450);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [open, diningOption, deliveryAddress, deliveryPin.lat, deliveryPin.lng]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setDeliveryQuote(null);
-    setDeliveryQuoteError("");
-
-    if (!open || diningOption !== "DELIVERY") {
-      setDeliveryQuoteLoading(false);
-      return;
-    }
-
-    const address = deliveryAddress.trim();
-    if (address.length < 8 || !selectedStore?.id) {
-      setDeliveryQuoteLoading(false);
-      return;
-    }
-
-    setDeliveryQuoteLoading(true);
-    const timer = window.setTimeout(async () => {
-      try {
-        const { session } = await getStableSession(supabase);
-        const res = await fetch("/api/customer/delivery-quote", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-          },
-          body: JSON.stringify({
-            storeId: selectedStore.id,
-            deliveryAddress: address,
-            deliveryLatitude: deliveryPin.lat || null,
-            deliveryLongitude: deliveryPin.lng || null,
-            deliveryServiceLevel: "regular",
-            subtotal,
-          }),
-        });
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok || json?.success === false) {
-          throw new Error(json?.error || "Delivery fee estimate failed.");
-        }
-        if (!cancelled) {
-          setDeliveryQuote(json.summary || null);
-          setDeliveryQuoteError("");
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setDeliveryQuote(null);
-          setDeliveryQuoteError(error?.message || "Delivery fee estimate failed.");
-        }
-      } finally {
-        if (!cancelled) setDeliveryQuoteLoading(false);
-      }
-    }, 650);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [open, diningOption, deliveryAddress, deliveryPin.lat, deliveryPin.lng, selectedStore?.id, subtotal]);
-
   if (!open) return null;
 
   const selectedTargetAt = manilaDateTime(fulfillmentDate, fulfillmentTime);
@@ -1302,80 +980,62 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
   const paymentOptions = diningOption === "DELIVERY"
     ? ["QRPH"]
     : ["Cash", "QRPH"];
-  const regularDeliveryFee = Number(deliveryQuote?.regularFee || deliveryQuote?.fee || 0);
-  const deliveryFee = diningOption === "DELIVERY" ? regularDeliveryFee : 0;
-  const orderTotal = subtotal + deliveryFee;
+  const orderTotal = subtotal;
   const gcAmount = gcCertificates.length * 100;
   const remainingPayment = Math.max(0, orderTotal - gcAmount);
-  const hasDeliveryQuote =
-    diningOption !== "DELIVERY" ||
-    (Number.isFinite(deliveryFee) && deliveryFee > 0);
-  const deliveryPinSelected = hasDeliveryPin(deliveryPin);
   const canSubmit =
     isValidTime &&
-    (diningOption !== "DELIVERY" || deliveryAddress.trim().length >= 8) &&
-    hasDeliveryQuote &&
-    !deliveryQuoteLoading &&
+    (diningOption !== "DELIVERY" || deliveryAddress.trim().length > 0) &&
     !checkingGc && gcAmount <= subtotal &&
     (remainingPayment === 0 || (paymentOptions.includes(paymentMethod) && (paymentMethod !== "QRPH" || Boolean(paymentProof))));
   const potentialPointsEarned = loyaltyPoints(loyaltyEligibleSubtotal);
-  const deliveryAddressSearchTerm = deliveryAddress.trim();
-  const deliveryMapUrl = deliveryMapPreviewUrl({ pin: deliveryPin });
-  const showDeliveryAddressSuggestions =
-    diningOption === "DELIVERY" &&
-    deliveryAddressFocused &&
-    deliveryAddressSearchTerm.length >= 3 &&
-    !deliveryPinSelected;
-
   return (
-    <div className="fixed inset-0 z-[150] bg-slate-950/55 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4">
+    <div className={checkout.overlay}>
       <div 
-        className="w-full max-w-xl bg-slate-50 rounded-t-[30px] md:rounded-[28px] shadow-2xl max-h-[94vh] overflow-hidden flex flex-col animate-in slide-in-from-bottom duration-300"
+        className={`juja-checkout ${checkout.dialog}`}
+        role="dialog" aria-modal="true" aria-labelledby="checkout-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 z-10 bg-white px-5 py-4 border-b border-slate-200/80">
+        <div className={checkout.header}>
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-[10px] uppercase font-bold tracking-[0.28em] text-cyan-700">Checkout</p>
-              <h3 className="mt-0.5 text-xl font-bold text-slate-900">Place Order</h3>
-              <p className="mt-1 text-xs font-semibold text-slate-500">Review branch, schedule, payment, and total before sending.</p>
+              <h3 id="checkout-title" className={checkout.title}>Review your order</h3>
+              <p className="mt-1 text-xs font-semibold text-slate-500">Confirm your details, then place your order.</p>
             </div>
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="h-10 w-10 shrink-0 rounded-full border border-slate-200 bg-slate-50 text-lg font-bold text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:opacity-50"
+              className={checkout.close}
               aria-label="Close checkout"
             >
-              x
+              ×
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-5 space-y-3">
-          <div className="rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm">
+        <div className={checkout.body}>
+          <div className={checkout.branch}>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-800">Sending to</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-800">Branch</p>
                 <p className="mt-1 text-base font-bold text-slate-900">{selectedStoreName || "Selected branch"}</p>
-                <p className="mt-1 text-[11px] font-semibold text-slate-500">Change the branch from the store selector above the menu before placing the order.</p>
               </div>
-              <span className="rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-cyan-800">Store</span>
             </div>
           </div>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <section className={checkout.panel}>
             <div className="mb-3 flex items-center justify-between">
               <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-500">
               ORDER TYPE
               </label>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Required</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { id: "TAKEOUT", label: "Self Pickup", icon: "🛍️" },
-                { id: "DINEIN", label: "Dine-In", icon: "🍽️" },
-                { id: "DELIVERY", label: "Delivery", icon: "🛵" },
+                { id: "TAKEOUT", label: "Self Pickup" },
+                { id: "DINEIN", label: "Dine-In" },
+                { id: "DELIVERY", label: "Delivery" },
               ].map((opt) => (
                 <button
                   key={opt.id}
@@ -1385,24 +1045,18 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                     setPaymentProof(null);
                     setPaymentMethod(opt.id === "DELIVERY" ? "QRPH" : "Cash");
                   }}
-                  className={`min-h-20 rounded-2xl border px-2 py-3 flex flex-col items-center justify-center gap-2 font-bold text-xs transition ${
-                    diningOption === opt.id
-                      ? "border-cyan-500 bg-cyan-50 text-cyan-900 shadow-sm shadow-cyan-900/10"
-                      : "border-slate-200 bg-slate-50 text-slate-600 hover:border-cyan-200 hover:bg-cyan-50/60"
-                  }`}
+                  aria-pressed={diningOption === opt.id}
+                  className={checkout.choice}
                 >
-                  <span className={`rounded-full px-3 py-1 text-[10px] uppercase tracking-wider ${diningOption === opt.id ? "bg-cyan-700 text-white" : "bg-white text-slate-500"}`}>
-                    {opt.id === "TAKEOUT" ? "Pickup" : opt.id === "DINEIN" ? "Table" : "Rider"}
-                  </span>
                   <span>{opt.label}</span>
                 </button>
               ))}
             </div>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
+          <section className={`${checkout.panel} space-y-3`}>
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Target Time</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Schedule</p>
               <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${isScheduledOrder ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>
                 {isScheduledOrder ? "Scheduled" : "Soonest"}
               </span>
@@ -1410,7 +1064,7 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1.5">
-                  Target Date
+                  Date
                 </label>
                 <input
                   type="date"
@@ -1422,11 +1076,13 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
               </div>
               <div>
                 <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1.5">
-                  Target Time
+                  Time
                 </label>
                 <div className="relative">
                   <button
                     type="button"
+                    aria-expanded={timePickerOpen}
+                    aria-controls="checkout-time-options"
                     disabled={!targetTimeOptions.length}
                     onClick={() => setTimePickerOpen((current) => !current)}
                     className="w-full bg-slate-50 border border-slate-200 px-3 py-3 rounded-xl text-left text-xs font-bold text-slate-800 outline-none transition focus:border-cyan-600 focus:ring-2 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
@@ -1434,9 +1090,10 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                     {selectedTimeOption?.label || "Select time"}
                   </button>
                   {timePickerOpen && targetTimeOptions.length > 0 && (
-                    <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[170] max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
+                    <div id="checkout-time-options" className="absolute left-0 right-0 top-[calc(100%+6px)] z-[170] max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
                       {targetTimeOptions.map((option) => (
                         <button
+                          aria-pressed={fulfillmentTime === option.value}
                           key={option.value}
                           type="button"
                           onClick={() => {
@@ -1463,170 +1120,23 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
               No available target times for this store/date. Please choose another date.
             </div>
           )}
-          {isValidTime && (
-            <div className="rounded-xl border border-cyan-100 bg-cyan-50/70 px-3 py-2 text-[11px] font-semibold text-cyan-900">
-              {isScheduledOrder ? "Advance order scheduled for " : "Earliest target time: "}
-              {formatOrderScheduleLabel(fulfillmentDate, fulfillmentTime)}
-            </div>
-          )}
           </section>
 
           {diningOption === "DELIVERY" && (
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Delivery Details</p>
-                <span className="rounded-full bg-cyan-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-cyan-800">Lalamove</span>
-              </div>
-              <div className="relative">
-                <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1.5">
-                  Search Delivery Address
-                </label>
-                <input
-                  value={deliveryAddress}
-                  onChange={(e) => {
-                    setDeliveryAddress(e.target.value);
-                    setDeliveryPin({ lat: "", lng: "" });
-                  }}
-                  onFocus={() => setDeliveryAddressFocused(true)}
-                  onBlur={() => window.setTimeout(() => setDeliveryAddressFocused(false), 180)}
-                  className="w-full bg-slate-50 border border-slate-200 px-3 py-3 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-cyan-600 focus:ring-2 focus:ring-cyan-100"
-                  placeholder="Type building, street, landmark, or city"
-                />
-                {showDeliveryAddressSuggestions ? (
-                  <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[240] max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/15">
-                    {deliveryAddressLoading ? (
-                      <div className="px-3 py-3 text-xs font-bold text-slate-500">Searching address...</div>
-                    ) : deliveryAddressSearchError ? (
-                      <div className="px-3 py-3 text-xs font-bold text-amber-700">{deliveryAddressSearchError}</div>
-                    ) : !deliveryAddressSuggestions.length ? (
-                      <div className="px-3 py-3 text-xs font-bold text-slate-500">
-                        No matching address found. Add a landmark, street, city, or barangay.
-                      </div>
-                    ) : (
-                      deliveryAddressSuggestions.map((suggestion) => (
-                        <button
-                          key={suggestion.id}
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => {
-                            setDeliveryAddress(suggestion.label);
-                            setDeliveryPin({ lat: suggestion.lat, lng: suggestion.lng });
-                            setDeliveryAddressSuggestions([]);
-                            setDeliveryAddressFocused(false);
-                          }}
-                          className="flex w-full items-start gap-3 border-b border-slate-100 px-3 py-3 text-left text-xs font-semibold text-slate-700 transition last:border-b-0 hover:bg-cyan-50"
-                        >
-                          <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
-                          <span className="leading-snug">{suggestion.label}</span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                ) : null}
-              </div>
-              {deliveryLocationPermissionPrompt ? (
-                <div className="rounded-2xl border border-sky-200 bg-sky-50 p-3 shadow-sm">
-                  <div className="flex items-start gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-200 text-sky-900">
-                      <MapPin className="h-4 w-4" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-slate-900">Enable location for delivery?</p>
-                      <p className="mt-1 text-xs font-semibold leading-relaxed text-slate-600">
-                        We will use your phone location only to place the delivery pin and estimate the Lalamove fee.
-                      </p>
-                      <div className="mt-3 grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={requestDeliveryCurrentLocation}
-                          disabled={deliveryLocationLoading}
-                          className="rounded-xl bg-sky-300 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-900 shadow-lg shadow-sky-500/20 transition hover:bg-sky-400 disabled:bg-slate-200 disabled:text-slate-500"
-                        >
-                          {deliveryLocationLoading ? "Locating..." : "Enable Location"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDeliveryLocationPermissionPrompt(false);
-                            setDeliveryLocationPromptDismissed(true);
-                          }}
-                          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-700 transition hover:bg-slate-100"
-                        >
-                          Not Now
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-              <div className="overflow-hidden rounded-2xl border border-cyan-100 bg-white shadow-sm">
-                {deliveryMapUrl ? (
-                  <iframe title="Delivery address map" src={deliveryMapUrl} className="h-60 w-full border-0 bg-cyan-50" loading="lazy" />
-                ) : (
-                  <div className="flex h-60 flex-col items-center justify-center gap-2 bg-cyan-50 text-center text-slate-500">
-                    <MapPin className="h-9 w-9 text-sky-500" />
-                    <p className="text-xs font-bold uppercase tracking-widest">
-                      {deliveryLocationLoading ? "Loading current location" : "Map preview"}
-                    </p>
-                    <p className="max-w-xs text-xs">Tap Use Phone Location or select an address suggestion to show the delivery pin.</p>
-                  </div>
-                )}
-                <div className="border-t border-cyan-100 bg-slate-50 p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-800">Map Preview</p>
-                      <p className="mt-1 text-[11px] font-semibold text-slate-600">
-                        {deliveryPinSelected ? `Selected pin: ${deliveryPin.lat}, ${deliveryPin.lng}` : "Search and select an address, or use phone location for higher accuracy."}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={askDeliveryLocationPermission}
-                      disabled={deliveryLocationLoading}
-                      className="shrink-0 rounded-xl bg-sky-300 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-900 shadow-lg shadow-sky-500/20 transition hover:bg-sky-400 disabled:bg-slate-200 disabled:text-slate-500"
-                    >
-                      {deliveryLocationLoading ? "Locating..." : "Use Phone Location"}
-                    </button>
-                  </div>
-                  {deliveryLocationError ? (
-                    <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] font-bold text-amber-800">{deliveryLocationError}</p>
-                  ) : null}
-                </div>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Delivery Fee Preview</p>
-                    <p className="mt-1 text-[11px] font-semibold text-slate-600">
-                      Regular Lalamove motorcycle estimate. Final rider booking is confirmed by the cashier.
-                    </p>
-                  </div>
-                  <p className="text-lg font-black text-cyan-900">
-                    {deliveryQuoteLoading ? "..." : deliveryQuote ? peso2(deliveryFee) : "--"}
-                  </p>
-                </div>
-                {deliveryQuote?.distanceMeters ? (
-                  <p className="mt-2 text-[10px] font-bold text-cyan-700">
-                    Estimated distance: {(Number(deliveryQuote.distanceMeters) / 1000).toFixed(2)} km
-                  </p>
-                ) : null}
-                {deliveryQuoteError ? (
-                  <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] font-bold text-amber-800">
-                    {deliveryQuoteError}
-                  </p>
-                ) : null}
-                {deliveryAddress.trim().length >= 8 && !deliveryQuote && !deliveryQuoteLoading && !deliveryQuoteError ? (
-                  <p className="mt-2 text-[10px] font-bold text-slate-500">Delivery fee will appear here before you place the order.</p>
-                ) : null}
-              </div>
+            <section className={checkout.panel}>
+              <label htmlFor="delivery-address" className="block text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-1.5">Delivery Address / Landmark</label>
+              <textarea id="delivery-address" value={deliveryAddress} onChange={(event) => setDeliveryAddress(event.target.value)} required rows={3}
+                placeholder="Enter your complete delivery address and landmark"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900" />
             </section>
           )}
 
+          <div className={checkout.gift}>
           <GiftCertificatePayment customerCheckout certificates={gcCertificates} onChange={setGcCertificates} total={subtotal}
             storeId={selectedStore?.id} disabled={isSubmitting} onChecking={setCheckingGc} />
-          {diningOption === "DELIVERY" && <p className="text-xs text-slate-600">e-GCs apply to items. Pay the delivery fee and any remaining item balance through QRPH.</p>}
+          </div>
           {remainingPayment > 0 && paymentOptions.length > 0 && (
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <section className={checkout.panel}>
               <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-3">
                 Payment Option
               </label>
@@ -1639,11 +1149,8 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                       setPaymentMethod(method);
                       if (method !== "QRPH") setPaymentProof(null);
                     }}
-                      className={`h-11 rounded-xl border text-xs font-bold uppercase tracking-wider transition ${
-                      paymentMethod === method
-                        ? "border-sky-300 bg-sky-300 text-slate-900 shadow-sm shadow-sky-500/20"
-                      : "border-slate-200 bg-sky-50 text-slate-700 hover:border-sky-200 hover:bg-sky-100"
-                    }`}
+                    aria-pressed={paymentMethod === method}
+                    className={checkout.choice}
                   >
                     {method}
                   </button>
@@ -1690,12 +1197,12 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
             </section>
           )}
 
-          <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 flex items-center justify-between text-xs text-emerald-800 font-medium shadow-sm">
-            <span className="flex items-center gap-2">⭐ <span>Points Earned</span></span>
+          <div className={checkout.points}>
+            <span className="flex items-center gap-2">⭐ <span>Estimated points</span></span>
             <span className="font-extrabold text-sm text-emerald-700">+{potentialPointsEarned.toFixed(2)} pts</span>
           </div>
 
-          <section className="bg-white border border-slate-200 p-4 rounded-2xl space-y-3 shadow-sm">
+          <section className={`${checkout.panel} space-y-3`}>
             <div className="flex items-center justify-between">
               <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500">Order Summary</p>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{cartItems.length} line(s)</span>
@@ -1718,47 +1225,23 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
                 </div>
               ))}
             </div>
-            <div className="border-t border-rose-100/60 pt-2.5 mt-2 flex justify-between items-baseline">
-              <span className="text-xs font-bold text-slate-700">Items Amount</span>
-              <span className="text-base font-black text-slate-800">{peso0(subtotal)}</span>
-            </div>
-            {diningOption === "DELIVERY" && (
-              <div className="flex justify-between items-baseline">
-                <span className="text-xs font-bold text-slate-700">Delivery Fee</span>
-                <span className="text-base font-black text-cyan-800">{deliveryQuote ? peso2(deliveryFee) : "--"}</span>
-              </div>
-            )}
-            <div className="border-t border-rose-100/60 pt-2 flex justify-between items-baseline">
-              <span className="text-xs font-bold text-slate-700">Total Amount</span>
-              <span className="text-xl font-black text-cyan-800">{peso2(orderTotal)}</span>
-            </div>
           </section>
         </div>
 
-        <div className="sticky bottom-0 z-10 border-t border-slate-200 bg-white p-4 shadow-[0_-10px_30px_rgba(15,23,42,0.08)]">
-          <div className="mb-3 space-y-1.5">
-            <div className="flex justify-between text-xs font-semibold text-slate-600">
-              <span>Items Amount</span>
-              <span className="text-slate-900">{peso0(subtotal)}</span>
+        <div className={checkout.footer}>
+          <div className={checkout.total}>
+            <div>
+              <span className={checkout.totalLabel}>{gcAmount > 0 ? "Remaining payment" : "Total amount"}</span>
+              {gcAmount > 0 && <p className={checkout.creditNote}>Order: {peso2(orderTotal)} · e-GCs: −{peso2(gcAmount)}</p>}
             </div>
-            {diningOption === "DELIVERY" && (
-              <div className="flex justify-between text-xs font-semibold text-slate-600">
-                <span>Delivery Fee</span>
-                <span className="text-cyan-800">{deliveryQuote ? peso2(deliveryFee) : "--"}</span>
-              </div>
-            )}
-            <div className="flex justify-between border-t border-slate-100 pt-2 text-sm font-bold text-slate-900">
-              <span>Total Amount</span>
-              <span className="text-xl text-cyan-800">{peso2(orderTotal)}</span>
-            </div>
+            <strong>{peso2(remainingPayment)}</strong>
           </div>
-          {gcAmount > 0 && <p className="mb-3 text-sm font-semibold">e-GCs: {peso2(gcAmount)} · Remaining payment: {peso2(remainingPayment)}</p>}
           <div className="grid grid-cols-[0.8fr_1.2fr] gap-3">
           <button
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="w-full py-3 bg-slate-50 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs uppercase tracking-wider transition hover:bg-slate-100 disabled:opacity-50"
+            className={checkout.action}
           >
             Cancel
           </button>
@@ -1769,10 +1252,6 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
               fulfillmentDate,
               fulfillmentTime,
               deliveryAddress,
-              deliveryPin,
-              deliveryServiceLevel: "regular",
-              deliveryFee,
-              deliveryQuote,
               paymentMethod: remainingPayment === 0 && gcAmount > 0 ? "JUJA e-GC" : paymentMethod,
               paymentProof: remainingPayment > 0 ? paymentProof : null,
               gcCodes: gcCertificates.map(gc => gc.code),
@@ -1781,7 +1260,8 @@ function OrderConfirmationModal({ open, onClose, onConfirm, subtotal, loyaltyEli
               isScheduled: isScheduledOrder,
             })}
             disabled={isSubmitting || !canSubmit}
-            className="w-full py-3 bg-sky-300 hover:bg-sky-400 text-slate-900 font-bold rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-sky-500/20 transition disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
+            data-checkout-primary="true"
+            className={checkout.action}
           >
             {isSubmitting ? "Sending..." : "Place Order"}
           </button>
@@ -2244,8 +1724,12 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
 
     const gcCodes = Array.isArray(fulfillmentMetadata.gcCodes) ? fulfillmentMetadata.gcCodes : [];
     const usingGc = gcCodes.length > 0;
-    const deliveryFee = fulfillmentMetadata.diningOption === "DELIVERY" ? Number(fulfillmentMetadata.deliveryFee || 0) : 0;
-    const orderTotal = Number(subtotal) + deliveryFee;
+    if (fulfillmentMetadata.diningOption === "DELIVERY" && !String(fulfillmentMetadata.deliveryAddress || "").trim()) {
+      setIsSubmitting(false);
+      alert("Please enter your delivery address.");
+      return;
+    }
+    const orderTotal = Number(subtotal);
     const gcRemainder = orderTotal - gcCodes.length * 100;
     const allowedPaymentMethods = fulfillmentMetadata.diningOption === "DELIVERY"
       ? ["QRPH"]
@@ -2300,18 +1784,7 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
       fulfillment_time: `${fulfillmentMetadata.fulfillmentDate} ${fulfillmentMetadata.fulfillmentTime}`,
       scheduled_for: fulfillmentMetadata.scheduledFor,
       schedule_label: fulfillmentMetadata.scheduleLabel,
-      delivery_address: fulfillmentMetadata.deliveryAddress || "",
-      delivery_latitude: fulfillmentMetadata.deliveryPin?.lat ? Number(fulfillmentMetadata.deliveryPin.lat) : null,
-      delivery_longitude: fulfillmentMetadata.deliveryPin?.lng ? Number(fulfillmentMetadata.deliveryPin.lng) : null,
-      delivery_provider: fulfillmentMetadata.diningOption === "DELIVERY" ? "lalamove" : "",
-      delivery_status: fulfillmentMetadata.diningOption === "DELIVERY" ? "quoted" : "",
-      delivery_service_level: "regular",
-      delivery_priority_fee: 0,
-      delivery_fee: deliveryFee || null,
-      delivery_currency: fulfillmentMetadata.deliveryQuote?.currency || "PHP",
-      delivery_quote_id: fulfillmentMetadata.deliveryQuote?.quoteId || "",
-      delivery_distance_meters: fulfillmentMetadata.deliveryQuote?.distanceMeters || null,
-      delivery_quoted_at: fulfillmentMetadata.diningOption === "DELIVERY" ? new Date().toISOString() : null,
+      delivery_address: fulfillmentMetadata.diningOption === "DELIVERY" ? fulfillmentMetadata.deliveryAddress.trim() : "",
       customer_contact: member?.Phone || member?.phone || "",
       payment_method: fulfillmentMetadata.paymentMethod,
       payment_status: isQrph ? "submitted" : "pending",
@@ -2788,12 +2261,6 @@ function TrackerTab({ orders, loadingOrders }) {
     String(order?.fulfillment_type || "").toUpperCase() === "DELIVERY" ||
     String(order?.dining_option || "").toLowerCase().includes("delivery");
 
-  const deliveryStatusLabel = (status) => {
-    const normalized = String(status || "").replace(/[_-]+/g, " ").trim();
-    return normalized ? normalized.toUpperCase() : "WAITING FOR RIDER BOOKING";
-  };
-
-
   return (
     <div className="mx-auto w-full max-w-5xl space-y-4">
       <div className="flex gap-2 border-b border-slate-200 pb-3" role="group" aria-label="Order lists">
@@ -2858,33 +2325,8 @@ function TrackerTab({ orders, loadingOrders }) {
                 ))}
               </div>
 
-              {isDeliveryOrder(order) && (
-                <div className="rounded-xl border border-cyan-100 bg-cyan-50/80 p-3 text-xs text-slate-700">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-cyan-800">Delivery Tracking</p>
-                      <p className="mt-1 font-bold text-slate-800">{deliveryStatusLabel(order.delivery_status)}</p>
-                      {order.delivery_fee ? (
-                        <p className="mt-1 text-[11px] font-semibold text-slate-600">Delivery fee: {peso2(order.delivery_fee)}</p>
-                      ) : null}
-                    </div>
-                    {(order.delivery_tracking_link || order.delivery_share_link) && (
-                      <a
-                        href={order.delivery_tracking_link || order.delivery_share_link}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="shrink-0 rounded-lg border border-cyan-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-wider text-cyan-800 shadow-sm"
-                      >
-                        Track Rider
-                      </a>
-                    )}
-                  </div>
-                  {order.delivery_last_error ? (
-                    <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10px] font-bold text-amber-800">
-                      {order.delivery_last_error}
-                    </p>
-                  ) : null}
-                </div>
+              {isDeliveryOrder(order) && order.delivery_address && (
+                <p className="rounded-xl bg-cyan-50 p-3 text-xs text-slate-700">Delivery address: {order.delivery_address}</p>
               )}
 
               <div className="flex items-center justify-between text-xs font-semibold text-slate-500 pt-1">

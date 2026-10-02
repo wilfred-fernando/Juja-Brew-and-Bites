@@ -108,7 +108,7 @@ function webOrderLineItems(entity, amountCentavos, description) {
     lineItems.push({
       amount: deliveryFee,
       currency: "PHP",
-      description: clampText(entity?.delivery_address ? `Delivery to ${entity.delivery_address}` : "Lalamove delivery fee"),
+      description: clampText(entity?.delivery_address ? `Delivery to ${entity.delivery_address}` : "Delivery fee"),
       name: "Delivery Fee",
       quantity: 1,
     });
