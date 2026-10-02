@@ -2078,6 +2078,8 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
   const visibleCategories = useMemo(() => {
     return cats
       .filter((cat) => {
+        const isGroupTrayCategory = ["group tray", "bento"].includes(String(cat.name || "").trim().toLowerCase());
+        if (groupTrayOnly !== isGroupTrayCategory) return false;
         if (!selectedBranch) return true;
         if (!isPromoCategoryName(cat.name)) return true;
         return items.some(
@@ -2087,7 +2089,7 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
         );
       })
       .sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" }));
-  }, [cats, selectedBranch, items, activeVouchers]);
+  }, [cats, selectedBranch, items, activeVouchers, groupTrayOnly]);
 
   useEffect(() => {
     if (activeTab === "ALL") return;
