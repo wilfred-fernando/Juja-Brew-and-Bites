@@ -89,7 +89,7 @@ function SortableRow({ row, busyId, onEdit, onDelete, onToggleActive }) {
     transition,
   };
 
-  const disabled = busyId === row.id;
+  const disabled = !!busyId;
 
   return (
     <div
@@ -296,28 +296,16 @@ export default function Page() {
 
     setBusyId("ADD");
 
-    const nextOrder = rows.length ? Math.max(...rows.map((r) => r.sort_order ?? 0)) + 1 : 0;
-
-    const { error } = await supabase.from("pos_payment_types").insert([
-      {
-        store_id: null,
-        name,
-        is_active: true,
-        sort_order: nextOrder,
-      },
-    ]);
-
-    setBusyId(null);
-
-    if (error) {
-      console.error(error);
-      showToast("error", error.message);
-      return;
+    try {
+      const { paymentType } = await paymentTypeRequest("POST", { name });
+      setRows((current) => current.some((row) => row.id === paymentType.id) ? current : [...current, paymentType]);
+      setNewName("");
+      showToast("green", "Added.");
+    } catch (error) {
+      showToast("error", error.message || "Unable to add payment type.");
+    } finally {
+      setBusyId(null);
     }
-
-    setNewName("");
-    showToast("green", "Added.");
-    // realtime will show it; fetchRows() not required unless you prefer
   }
 
   function openEdit(r) {
@@ -326,17 +314,17 @@ export default function Page() {
     setEditOpen(true);
   }
 
-  async function updatePaymentType(id, updates) {
+  async function paymentTypeRequest(method, body) {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData?.session?.access_token;
     const response = await fetch("/api/admin/payment-types", {
-      method: "PATCH",
+      method,
       headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify({ id, ...updates }),
+      body: JSON.stringify(body),
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Unable to update payment type.");
-    return result.paymentType;
+    return result;
   }
 
   async function saveEdit() {
@@ -353,7 +341,7 @@ export default function Page() {
 
     setBusyId(editRow.id);
     try {
-      const data = await updatePaymentType(editRow.id, { name });
+      const { paymentType: data } = await paymentTypeRequest("PATCH", { id: editRow.id, name });
       if (!data || data.name !== name) {
         throw new Error("Payment type name was not saved. Refresh and try again.");
       }
@@ -374,7 +362,7 @@ export default function Page() {
     setBusyId(r.id);
     try {
       const nextActive = !r.is_active;
-      const data = await updatePaymentType(r.id, { is_active: nextActive });
+      const { paymentType: data } = await paymentTypeRequest("PATCH", { id: r.id, is_active: nextActive });
       if (!data || data.is_active !== nextActive) {
         throw new Error("Payment type status was not saved. Refresh and try again.");
       }
@@ -395,25 +383,20 @@ export default function Page() {
 
     setBusyId(r.id);
 
-    const { error } = await supabase.from("pos_payment_types").delete().eq("id", r.id);
-
-    setBusyId(null);
-
-    if (error) {
-      console.error(error);
-      showToast("error", error.message);
-      return;
+    try {
+      await paymentTypeRequest("DELETE", { id: r.id });
+      setRows((current) => current.filter((row) => row.id !== r.id));
+      showToast("green", "Deleted.");
+    } catch (error) {
+      showToast("error", error.message || "Unable to delete payment type.");
+    } finally {
+      setBusyId(null);
     }
-
-    showToast("green", "Deleted.");
   }
 
-  // ✅ Drag end: reorder and persist sort_order safely
-  // IMPORTANT FIX: we upsert FULL ROWS (includes NOT NULL "name") to avoid:
-  // "null value in column name violates not-null constraint" [1](https://github.com/supabase/postgrest-js/issues/310)[2](https://supabase.com/docs/reference/javascript/upsert)
   async function handleDragEnd(event) {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
+    if (busyId || !over || active.id === over.id) return;
 
     const oldIndex = rows.findIndex((x) => x.id === active.id);
     const newIndex = rows.findIndex((x) => x.id === over.id);
@@ -427,27 +410,15 @@ export default function Page() {
     // update UI immediately
     setRows(nextRows);
 
-    // persist order to DB
-    // NOTE: defaultToNull:false prevents missing columns from being forced to null in bulk upserts (helpful DX). [7](https://github.com/orgs/supabase/discussions/15730)
-    const payload = nextRows.map((r) => ({
-      id: r.id,
-      store_id: r.store_id ?? null,
-      name: r.name, // ✅ required NOT NULL column
-      is_active: r.is_active ?? true,
-      sort_order: r.sort_order ?? 0,
-    }));
-
-    const { error } = await supabase
-      .from("pos_payment_types")
-      .upsert(payload, { onConflict: "id", defaultToNull: false });
-
-    if (error) {
-      console.error(error);
-      showToast("error", error.message);
-      // fallback: reload from DB
-      await fetchRows();
-    } else {
+    setBusyId("SORT");
+    try {
+      await paymentTypeRequest("PUT", { ids: nextRows.map((row) => row.id) });
       showToast("green", "Order saved.");
+    } catch (error) {
+      showToast("error", error.message || "Unable to save payment type order.");
+      await fetchRows();
+    } finally {
+      setBusyId(null);
     }
   }
 
