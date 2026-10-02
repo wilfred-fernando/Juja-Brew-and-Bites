@@ -3284,9 +3284,8 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [], catego
       ? itemDiscountOverride
       : itemDiscountBaseRule;
   const requiresDiscountBeneficiary = Boolean(itemDiscountRule?.requires_discount_beneficiary);
-  const lineSubtotal = unitPrice * Number(quantity || 1);
-  const discountBase = requiresDiscountBeneficiary ? unitPrice : lineSubtotal;
-  const discountValue = Math.max(0, Math.min(lineSubtotal, discountAmountFromRule(itemDiscountRule, discountBase)));
+  const discountBase = unitPrice;
+  const discountValue = Math.max(0, Math.min(unitPrice, discountAmountFromRule(itemDiscountRule, discountBase)));
   const canAdd = availableVariantGroups.every((g) => !g.isRequired || (selections[g.id] || []).length > 0) &&
     (!requiresDiscountBeneficiary || (itemDiscountBeneficiary?.id && discountEntitlementGroup));
 
@@ -3387,7 +3386,7 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [], catego
                 return;
               }
               const selectedRule = eligibleDiscountRules.find((rule) => String(rule.id) === String(selectedId));
-              const resolvedRule = promptForVariableDiscount(selectedRule, unitPrice * Number(quantity || 1));
+              const resolvedRule = promptForVariableDiscount(selectedRule, unitPrice);
               if (!resolvedRule) return;
               let selectedBeneficiary = null;
               if (selectedRule?.requires_discount_beneficiary) {
@@ -3411,6 +3410,11 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [], catego
               </option>
             ))}
           </select>
+          {itemDiscountRule && Number(quantity) > 1 && (
+            <p className="mt-2 text-xs text-slate-600">
+              On save, this item will split into 1 discounted unit and {Number(quantity) - 1} regular-price unit{Number(quantity) > 2 ? "s" : ""}.
+            </p>
+          )}
           {discountValue > 0 && (
             <p className="mt-1 text-[10px] font-semibold text-slate-500">
               Discount: -{peso2(discountValue)}
