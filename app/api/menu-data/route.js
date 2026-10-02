@@ -65,8 +65,6 @@ async function loadMenuData(mode, { includeTestStores = false, accessToken = "" 
     .select("*")
     .order("name");
 
-  if (isCustomer) itemQuery.eq("is_available", true);
-
   const categoryQuery = supabase
     .from("menu_categories")
     .select("*")

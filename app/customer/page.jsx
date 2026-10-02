@@ -1984,7 +1984,7 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
           }
 
           setItems((prev) => (prev.some((item) => item.id === rowId) ? prev.map((item) => (item.id === rowId ? nextItem : item)) : [...prev, nextItem]));
-          setSelectedItemForModal((current) => (current?.id === rowId && !isMenuItemVisibleToCustomers(nextItem) ? null : current));
+          setSelectedItemForModal((current) => (current?.id === rowId && (!isMenuItemVisibleToCustomers(nextItem) || nextItem.is_available === false || nextItem.available === false) ? null : current));
         }
       )
       .on(
@@ -2079,11 +2079,6 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
     return cats
       .filter((cat) => {
         if (!selectedBranch) return true;
-        const row = categoryStoreAvailability.find(
-          (entry) => String(entry.category_id) === String(cat.id) && String(entry.store_id) === String(selectedBranch)
-        );
-        const storeAvailable = row ? row.is_available !== false : true;
-        if (!storeAvailable) return false;
         if (!isPromoCategoryName(cat.name)) return true;
         return items.some(
           (item) =>
@@ -2092,7 +2087,7 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
         );
       })
       .sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" }));
-  }, [cats, categoryStoreAvailability, selectedBranch, items, activeVouchers]);
+  }, [cats, selectedBranch, items, activeVouchers]);
 
   useEffect(() => {
     if (activeTab === "ALL") return;
@@ -2102,14 +2097,13 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
   const filteredItems = useMemo(() => {
     return items
       .filter(isMenuItemVisibleToCustomers)
-      .filter((item) => !unavailableItemIds.has(String(item.id)))
       .filter((i) => visibleCategories.some((cat) => cat.name === i.category))
       .filter((i) => groupTrayOnly
         ? ["group tray", "bento"].includes(String(i.category || "").trim().toLowerCase())
         : activeTab === "ALL" || i.category === activeTab)
       .filter((i) => (!isPromoMenuItem(i) ? true : !!findVoucherForMenuItem(activeVouchers, i)))
       .filter((i) => (q ? (i.name || "").toLowerCase().includes(q) : true));
-  }, [items, unavailableItemIds, visibleCategories, activeTab, q, activeVouchers, groupTrayOnly]);
+  }, [items, visibleCategories, activeTab, q, activeVouchers, groupTrayOnly]);
 
   const filteredItemGroups = useMemo(() => {
     if (groupTrayOnly) {
@@ -2130,7 +2124,14 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
   }, [activeTab, filteredItems, q, visibleCategories, groupTrayOnly]);
 
   const isItemAvailableForSelectedStore = (item) => {
-    return !unavailableItemIds.has(String(item.id));
+    const category = cats.find((cat) => cat.name === item.category);
+    const categoryAvailable = !categoryStoreAvailability.some((entry) =>
+      String(entry.category_id) === String(category?.id)
+      && String(entry.store_id) === String(selectedBranch)
+      && entry.is_available === false
+    );
+    return item.is_available !== false && item.available !== false
+      && categoryAvailable && !unavailableItemIds.has(String(item.id));
   };
 
   const isItemOrderable = (item) =>
@@ -2580,7 +2581,7 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
 
         {filteredItems.length === 0 ? (
           <div className="bg-white rounded-2xl p-12 text-center text-slate-400 border border-slate-100">
-            ❌ No matching available products located.
+            ❌ No matching products located.
           </div>
         ) : (
           <div className="space-y-8">
@@ -2626,7 +2627,7 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
                   )}
                   <p className="mt-1 text-[10px] uppercase tracking-wider text-slate-500">{item.category || "General"}</p>
                   <p className="mt-2 whitespace-nowrap text-base font-semibold text-slate-950">{peso0(menuCardPrice(item, "customer"))}</p>
-                  {hasMenuOptions(item) && <p className="mt-1 text-[10px] text-slate-500">Tap for options</p>}
+                  {orderable && hasMenuOptions(item) && <p className="mt-1 text-[10px] text-slate-500">Tap for options</p>}
                 </div>
                             </button>
               );
