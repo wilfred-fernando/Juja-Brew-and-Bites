@@ -50,6 +50,26 @@ assert.equal(addPosCartLine([plain], { ...plain, quantity: 2 }, 0).length, 1, "R
 
 // Exercise the actual checkout claim collector without importing the Next page.
 const page = readFileSync(new URL("../app/pos/page.jsx", import.meta.url), "utf8");
+const deltaStart = page.indexOf("  const stableTicketLineKey =");
+const deltaEnd = page.indexOf("  const getKitchenPrinterGroupItems =", deltaStart);
+assert.ok(deltaStart >= 0 && deltaEnd > deltaStart);
+const addedLines = vm.runInNewContext(`${page.slice(deltaStart, deltaEnd)}; getAddedTicketLines;`, {
+  normalizeLabelLine: value => String(value || "").trim(),
+});
+const original = { ...plain, quantity: 3 };
+const discountedSplit = addPosCartLine([original], { ...original, discountRuleId: "rule", discountAmount: 20 }, 0);
+assert.equal(addedLines([original], discountedSplit).length, 0, "Discount split must not resend to KDS");
+const restoredSplit = JSON.parse(JSON.stringify(discountedSplit));
+assert.equal(addedLines(restoredSplit, restoredSplit).length, 0, "Saving again must not resend");
+const editedRemainder = addPosCartLine(restoredSplit, {
+  ...plain, cartItemId: restoredSplit[1].cartItemId, quantity: 2, discountRuleId: "other", discountAmount: 10,
+}, 1);
+assert.equal(addedLines([original], editedRemainder).length, 0, "Repeated splits preserve original KDS identity");
+assert.equal(addedLines(restoredSplit, editedRemainder).length, 0, "Editing a reopened remainder must not resend");
+const increased = addPosCartLine(restoredSplit, { ...restoredSplit[1], quantity: 3 }, 1);
+assert.equal(addedLines(restoredSplit, increased).reduce((sum, line) => sum + line.quantity, 0), 1, "Quantity increase sends only new unit");
+const newItem = addPosCartLine(restoredSplit, { ...plain, cartItemId: "new" });
+assert.equal(addedLines(restoredSplit, newItem).reduce((sum, line) => sum + line.quantity, 0), 1, "Genuine additions still reach KDS");
 const start = page.indexOf("function lineGrossAmount(");
 const end = page.indexOf("function lineNetAmount(", start);
 assert.ok(start >= 0 && end > start);

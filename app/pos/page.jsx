@@ -4691,6 +4691,7 @@ export default function POSPage() {
   };
 
   const stableTicketLineKey = (line) => {
+    if (line?.kdsSourceCartItemId) return `cart:${line.kdsSourceCartItemId}`;
     if (line?.cartItemId) return `cart:${line.cartItemId}`;
     const selectedOptions = Array.isArray(line?.selectedOptions)
       ? line.selectedOptions
