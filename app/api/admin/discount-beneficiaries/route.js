@@ -6,6 +6,39 @@ const FIELDS = "id, beneficiary_type, full_name, id_number, residency_status, is
 const PAGE_SIZE = 25;
 const BENEFICIARY_TYPES = ["pwd", "senior_citizen", "qcid", "teacher"];
 
+export async function POST(request) {
+  try {
+    const { admin, user, response } = await requireAdminApi();
+    if (response) return response;
+    const body = await request.json().catch(() => null);
+    const type = body?.beneficiary_type;
+    const residencyStatus = type === "qcid" ? body?.residency_status : null;
+    const name = formatBeneficiaryName(body?.full_name);
+    const idNumber = typeof body?.id_number === "string" ? body.id_number.trim() : "";
+    const normalized = idNumber.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+    if (["pwd", "senior_citizen"].includes(type) && !/^[0-9]{5}$/.test(idNumber)) {
+      return Response.json({ error: "SC/PWD ID must contain exactly 5 digits, including leading zeros." }, { status: 400 });
+    }
+    if (!BENEFICIARY_TYPES.includes(type) ||
+        (type === "qcid" && !["resident", "non_resident"].includes(residencyStatus)) ||
+        name.length < 3 || name.length > 200 || normalized.length < 3 || idNumber.length > 100) {
+      return Response.json({ error: "Provide a valid beneficiary type, QCID residency when applicable, full name, and ID number." }, { status: 400 });
+    }
+    // Insert only: encoding must never overwrite an existing beneficiary.
+    const { data, error } = await admin.from("pos_discount_beneficiaries").insert({
+      beneficiary_type: type, residency_status: residencyStatus,
+      full_name: name, id_number: idNumber, normalized_id_number: normalized, is_active: true, created_by: user.id,
+    }).select(FIELDS).single();
+    if (error?.code === "23505") {
+      return Response.json({ error: "A beneficiary with this name or ID already exists. Search the saved records before encoding another beneficiary." }, { status: 409 });
+    }
+    if (error) throw error;
+    return Response.json({ beneficiary: data }, { status: 201, headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) {
+    return Response.json({ error: error?.message || "Unable to save beneficiary." }, { status: 500 });
+  }
+}
+
 export async function GET(request) {
   try {
     const { admin, response } = await requireAdminApi();

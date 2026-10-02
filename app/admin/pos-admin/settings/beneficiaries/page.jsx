@@ -74,7 +74,8 @@ export default function BeneficiariesPage() {
     setSaveError("");
     setSuccess("");
     try {
-      await beneficiaryRequest(ENDPOINT, { method: "PATCH", body: JSON.stringify({
+      const creating = !editing.id;
+      await beneficiaryRequest(ENDPOINT, { method: creating ? "POST" : "PATCH", body: JSON.stringify({
         id: editing.id,
         full_name: editing.full_name,
         id_number: editing.id_number,
@@ -83,7 +84,14 @@ export default function BeneficiariesPage() {
         updated_at: editing.updated_at,
       }) });
       setEditing(null);
-      setSuccess("Beneficiary details updated.");
+      setSuccess(creating ? "Beneficiary encoded successfully." : "Beneficiary details updated.");
+      if (creating) {
+        setSearch(editing.id_number.trim());
+        setQuery(editing.id_number.trim());
+        setType(editing.beneficiary_type);
+        setStatus("active");
+        setPage(1);
+      }
       setRevision((value) => value + 1);
     } catch (error) {
       setSaveError(error.message);
@@ -116,15 +124,20 @@ export default function BeneficiariesPage() {
     <div className="space-y-5">
       <header>
         <h1 className="text-2xl font-bold text-slate-800">Discount Beneficiaries</h1>
-        <p className="mt-1 text-sm text-slate-600">Review and correct beneficiary details saved from POS across all stores.</p>
+        <p className="mt-1 text-sm text-slate-600">Encode new beneficiaries or review and correct beneficiary details across all stores.</p>
         <p className="mt-1 text-xs text-slate-500">Times used counts completed receipts across all dates and stores. Multiple discounted items on one receipt count as one use.</p>
       </header>
+
+      <button type="button" disabled={!!editing || !!deletingId} onClick={() => {
+        setEditing({ full_name: "", id_number: "", beneficiary_type: "senior_citizen", residency_status: null });
+        setSaveError(""); setSuccess("");
+      }} className={buttonClass}>Encode beneficiary</button>
 
       {success && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{success}</p>}
 
       {editing && (
         <form onSubmit={save} className="space-y-4 rounded-2xl border border-cyan-200 bg-white p-5 shadow-sm">
-          <h2 className="font-bold text-slate-800">Edit beneficiary</h2>
+          <h2 className="font-bold text-slate-800">{editing.id ? "Edit beneficiary" : "Encode beneficiary"}</h2>
           <fieldset disabled={saving} className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-1 text-sm font-semibold sm:col-span-2">
               <span>Full name</span>
@@ -166,7 +179,7 @@ export default function BeneficiariesPage() {
           </fieldset>
           {saveError && <p role="alert" className="text-sm text-red-700">{saveError}</p>}
           <div className="flex gap-2">
-            <button type="submit" disabled={saving} className="rounded-xl bg-slate-700 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-40">{saving ? "Saving..." : "Save changes"}</button>
+            <button type="submit" disabled={saving} className="rounded-xl bg-slate-700 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-40">{saving ? "Saving..." : editing.id ? "Save changes" : "Save beneficiary"}</button>
             <button type="button" disabled={saving} onClick={() => { setEditing(null); setSaveError(""); }} className={buttonClass}>Cancel</button>
           </div>
         </form>
