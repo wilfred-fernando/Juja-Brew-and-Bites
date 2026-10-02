@@ -19,6 +19,10 @@ for (const [name, expected] of cases) {
   assert.equal(requiredBeneficiaryTypeForRule({ name }), expected, name);
 }
 assert.equal(requiredBeneficiaryTypeForRule({ discount_name: "SC / PWD" }), null);
+assert.equal(requiredBeneficiaryTypeForRule({ name: "City promo", promotion_rules: { beneficiary_type: "qcid" } }), "qcid");
+assert.equal(requiredBeneficiaryTypeForRule({ name: "City promo", promotion_rules: '{"beneficiary_type":"qcid"}' }), "qcid");
+assert.equal(requiredBeneficiaryTypeForRule({ name: "City promo", promotionRules: { beneficiary_type: "qcid" } }), "qcid");
+assert.equal(requiredBeneficiaryTypeForRule({ name: "QCID Promo", promotion_rules: "invalid" }), "qcid");
 assert.equal(beneficiaryMatchesRule("invalid", null), false);
 assert.equal(beneficiaryMatchesRule("qcid", "qcid"), true);
 assert.equal(beneficiaryMatchesRule("qcid", null), false);
@@ -30,6 +34,34 @@ assert.equal(beneficiaryCategoryLabel("qcid", "resident"), "QCID Resident");
 assert.equal(beneficiaryCategoryLabel("qcid", "non_resident"), "QCID Non-resident");
 
 const page = readFileSync(new URL("../app/pos/page.jsx", import.meta.url), "utf8");
+const loadStart = page.indexOf("  const loadDiscountBeneficiaries = async");
+const loadEnd = page.indexOf("  const requestDiscountBeneficiary =", loadStart);
+assert.ok(loadStart >= 0 && loadEnd > loadStart);
+const savedRecords = Array.from({ length: 1201 }, (_, index) => ({
+  id: String(index), beneficiary_type: index === 1200 ? "qcid" : "pwd",
+}));
+let loadedRecords = [];
+let loadError = null;
+const requestedRanges = [];
+const load = vm.runInNewContext(`${page.slice(loadStart, loadEnd)}; loadDiscountBeneficiaries;`, {
+  setDiscountBeneficiariesLoading: () => {},
+  setDiscountBeneficiaries: records => { loadedRecords = records; },
+  showToast: (...args) => { loadError = args; },
+  supabase: { from: () => {
+    const query = {};
+    for (const method of ["select", "eq", "order"]) query[method] = () => query;
+    query.range = async (from, to) => {
+      requestedRanges.push([from, to]);
+      return { data: savedRecords.slice(from, to + 1), error: null };
+    };
+    return query;
+  } },
+});
+await load();
+assert.equal(loadError, null);
+assert.equal(loadedRecords.length, 1201, "Loads beneficiaries beyond the first API page");
+assert.equal(loadedRecords.filter(record => beneficiaryMatchesRule(record.beneficiary_type, "qcid")).length, 1);
+assert.deepEqual(requestedRanges, [[0, 499], [500, 999], [1000, 1499]]);
 const start = page.indexOf("  const saveDiscountBeneficiary = async");
 const end = page.indexOf("  const refreshOfflineQueueCount", start);
 assert.ok(start >= 0 && end > start);

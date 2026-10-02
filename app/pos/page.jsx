@@ -4756,14 +4756,22 @@ export default function POSPage() {
   const loadDiscountBeneficiaries = async () => {
     setDiscountBeneficiariesLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("pos_discount_beneficiaries")
-        .select("id, beneficiary_type, full_name, id_number, residency_status, is_active")
-        .eq("is_active", true)
-        .order("full_name", { ascending: true });
-      if (error) throw error;
-      setDiscountBeneficiaries(data || []);
-      return data || [];
+      const beneficiaries = [];
+      const pageSize = 500;
+      for (let offset = 0; ; offset += pageSize) {
+        const { data, error } = await supabase
+          .from("pos_discount_beneficiaries")
+          .select("id, beneficiary_type, full_name, id_number, residency_status, is_active")
+          .eq("is_active", true)
+          .order("full_name", { ascending: true })
+          .order("id", { ascending: true })
+          .range(offset, offset + pageSize - 1);
+        if (error) throw error;
+        beneficiaries.push(...(data || []));
+        if ((data || []).length < pageSize) break;
+      }
+      setDiscountBeneficiaries(beneficiaries);
+      return beneficiaries;
     } catch (error) {
       showToast("error", "Beneficiary List Failed", error.message || "Could not load saved discount beneficiaries.");
       return [];
