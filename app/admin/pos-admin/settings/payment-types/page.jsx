@@ -339,42 +339,57 @@ export default function Page() {
     if (dup) return showToast("amber", `"${name}" already exists.`);
 
     setBusyId(editRow.id);
+    try {
+      const { data, error } = await supabase
+        .from("pos_payment_types")
+        .update({ name })
+        .eq("id", editRow.id)
+        .is("store_id", null)
+        .select("id, store_id, name, is_active, sort_order, created_at")
+        .single();
 
-    const { error } = await supabase
-      .from("pos_payment_types")
-      .update({ name })
-      .eq("id", editRow.id);
+      if (error) throw error;
+      if (!data || data.name !== name) {
+        throw new Error("Payment type name was not saved. Refresh and try again.");
+      }
 
-    setBusyId(null);
-
-    if (error) {
+      setRows((current) => current.map((row) => row.id === data.id ? data : row));
+      setEditOpen(false);
+      setEditRow(null);
+      showToast("green", "Updated.");
+    } catch (error) {
       console.error(error);
-      showToast("error", error.message);
-      return;
+      showToast("error", error.message || "Unable to save payment type name.");
+    } finally {
+      setBusyId(null);
     }
-
-    setEditOpen(false);
-    setEditRow(null);
-    showToast("green", "Updated.");
   }
 
   async function toggleActive(r) {
     setBusyId(r.id);
+    try {
+      const nextActive = !r.is_active;
+      const { data, error } = await supabase
+        .from("pos_payment_types")
+        .update({ is_active: nextActive })
+        .eq("id", r.id)
+        .is("store_id", null)
+        .select("id, store_id, name, is_active, sort_order, created_at")
+        .single();
 
-    const { error } = await supabase
-      .from("pos_payment_types")
-      .update({ is_active: !r.is_active })
-      .eq("id", r.id);
+      if (error) throw error;
+      if (!data || data.is_active !== nextActive) {
+        throw new Error("Payment type status was not saved. Refresh and try again.");
+      }
 
-    setBusyId(null);
-
-    if (error) {
+      setRows((current) => current.map((row) => row.id === data.id ? data : row));
+      showToast("green", data.is_active ? "Activated." : "Deactivated.");
+    } catch (error) {
       console.error(error);
-      showToast("error", error.message);
-      return;
+      showToast("error", error.message || "Unable to update payment type status.");
+    } finally {
+      setBusyId(null);
     }
-
-    showToast("green", r.is_active ? "Deactivated." : "Activated.");
   }
 
   async function deleteRow(r) {
