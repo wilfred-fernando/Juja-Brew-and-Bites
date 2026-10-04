@@ -98,6 +98,7 @@ const emptyDateFilter = {
   to: "",
 };
 
+function matchesExpenseItem(row,query){const text=[row.description,row.item_common_name].filter(Boolean).join(" ").toLocaleLowerCase();return query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean).every(word=>text.includes(word));}
 const receiptOrder=new Intl.Collator("en-PH",{numeric:true,sensitivity:"base"});
 function sortExpenseItems(rows){return [...rows].sort((a,b)=>String(b.expense_date||"").localeCompare(String(a.expense_date||""))
  || Number(!String(a.or_si_no||"").trim())-Number(!String(b.or_si_no||"").trim())
@@ -384,6 +385,8 @@ export default function FinanceExpenseManager() {
   const [bulkReferenceModalOpen, setBulkReferenceModalOpen] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [currentProfile, setCurrentProfile] = useState(null);
+  const [overallItemSearch,setOverallItemSearch]=useState("");
+  const [pettyItemSearch,setPettyItemSearch]=useState("");
   const [overallDateFilter, setOverallDateFilter] = useState(emptyDateFilter);
   const [pettyDateFilter, setPettyDateFilter] = useState(emptyDateFilter);
   const [deleteRequests, setDeleteRequests] = useState([]);
@@ -1801,6 +1804,7 @@ export default function FinanceExpenseManager() {
     if (scope === "overall" && !canManageAll) return;
     if (scope === "petty" && !selectedStoreId) return;
     const filter = scope === "overall" ? overallDateFilter : pettyDateFilter;
+    const itemSearch=scope==="overall"?overallItemSearch:pettyItemSearch;
     const storeId = isCashier ? currentProfile?.store_id : selectedStoreId;
     if (scope === "petty" && !storeId) return;
     setExporting(scope);
@@ -1815,7 +1819,7 @@ export default function FinanceExpenseManager() {
         if (filter.to) query = query.lte("expense_date", filter.to);
         const { data, error } = await query;
         if (error) throw error;
-        rows.push(...(data || []));
+        rows.push(...(data || []).filter(row=>matchesExpenseItem(row,itemSearch)));
         if ((data || []).length < 500) break;
       }
       if (!rows.length) return showNotice("error", "No expenses match the selected filters.");
@@ -1851,7 +1855,7 @@ export default function FinanceExpenseManager() {
       if (value === "needs_mapping") return <span className="rounded-lg border border-amber-100 bg-amber-50 px-2 py-1 text-[10px] font-semibold uppercase text-amber-700">Needs Mapping</span>;
       return <span className="rounded-lg border border-slate-100 bg-slate-50 px-2 py-1 text-[10px] font-semibold uppercase text-slate-500">Not Inventory</span>;
     };
-    if (rows.length === 0) return <EmptyState message="No expense records yet." />;
+    if (rows.length === 0) return <EmptyState message="No expense records match this selection." />;
 
     return (
       <div className="overflow-x-auto rounded-2xl border border-white/70 bg-white/88 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl">
@@ -2389,6 +2393,7 @@ export default function FinanceExpenseManager() {
             <SummaryCard label="Personal" value={peso(overallSummary.personal)} icon={Wallet} tone="amber" />          
           </div>
           {renderDateFilter("Overall Expenses Date", overallDateFilter, setOverallDateFilter)}
+          <Field label="Search items"><Input type="search" value={overallItemSearch} onChange={e=>setOverallItemSearch(e.target.value)} placeholder="Description or common name" /></Field>
           <div data-finance-actions className="flex flex-nowrap items-center gap-3 overflow-x-auto pb-1 [&>button]:h-11 [&>button]:flex-1 [&>button]:shrink-0 [&>button]:whitespace-nowrap [&>button]:py-0 [&>button]:text-xs">
             {renderExportButton("overall")}
             <button
@@ -2410,7 +2415,7 @@ export default function FinanceExpenseManager() {
           {overallMonthlySummaryOpen ? <PettyCashMonthlySummary scope="overall" /> : null}
 
           {overallDailySummaryOpen ? <PettyCashMonthlySummary scope="overall" period="daily" /> : null}
-          {renderExpenseTable(filteredOverallExpenses, "finance_expenses", { showSource: true })}
+          {renderExpenseTable(filteredOverallExpenses.filter(row=>matchesExpenseItem(row,overallItemSearch)), "finance_expenses", { showSource: true })}
         </div>
       ) : tab === "petty" ? (
         <div className="space-y-5">
@@ -2427,6 +2432,7 @@ export default function FinanceExpenseManager() {
             ) : null}
             </div>
             {renderDateFilter("Petty Cash Date", pettyDateFilter, setPettyDateFilter)}
+            <Field label="Search items"><Input type="search" value={pettyItemSearch} onChange={e=>setPettyItemSearch(e.target.value)} placeholder="Description or common name" /></Field>
             <SummaryCard label={`${selectedStoreName} Expenses`} value={peso(selectedPettySummary.expenses)} icon={ArrowDownCircle} tone="amber" />
             <SummaryCard label={`${selectedStoreName} Cash On Hand`} value={peso(selectedPettySummary.cashOnHand)} icon={Wallet} />
           </div>
@@ -2495,7 +2501,7 @@ export default function FinanceExpenseManager() {
           {monthlySummaryOpen && selectedStoreId ? <PettyCashMonthlySummary storeId={isCashier ? currentProfile.store_id : selectedStoreId} storeName={selectedStoreName} /> : null}
 
           {dailySummaryOpen && selectedStoreId ? <PettyCashMonthlySummary storeId={isCashier ? currentProfile.store_id : selectedStoreId} storeName={selectedStoreName} period="daily" /> : null}
-          {renderExpenseTable(selectedStoreEntries, "finance_petty_cash_entries")}
+          {renderExpenseTable(selectedStoreEntries.filter(row=>matchesExpenseItem(row,pettyItemSearch)), "finance_petty_cash_entries")}
         </div>
       ) : (
         renderReferenceSettings()
