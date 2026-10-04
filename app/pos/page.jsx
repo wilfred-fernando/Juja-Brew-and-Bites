@@ -5201,6 +5201,8 @@ export default function POSPage() {
             .reduce((entrySum, entry) => entrySum + refundAmount * (Number(entry.amount || 0) / paidTotal), 0)
         );
       }, 0);
+    const knownPaymentKeys = ["cash", "gcash", "qrph", "grabfood", "grab dine out", "grabdineout", "card", "panda", "foodpanda", "no payment required", "nopaymentrequired"];
+    const additionalMethods = [...new Set(rows.flatMap(rowPaymentEntries).map((entry) => entry.method))].filter((method) => !paymentMatches(method, knownPaymentKeys));
     const cashPayments = paymentGrossTotal("cash");
     const cashRefunds = paymentRefundTotal("cash");
     const grossSales = rows.reduce((sum, r) => sum + Number(r.gross_sales || r.total_collected || r.net_sales || 0), 0);
@@ -5220,6 +5222,7 @@ export default function POSPage() {
       cashRefunds,
       expectedCash: Number(startingCash || 0) + cashPayments + gcCashCollected - cashRefunds,
       payments: {
+        ...Object.fromEntries(additionalMethods.map((method) => [method, paymentNetTotal(method)])),
         Cash: paymentNetTotal("cash"),
         Gcash: paymentNetTotal("gcash"),
         QRPH: paymentNetTotal("qrph"),
@@ -5230,6 +5233,7 @@ export default function POSPage() {
         "No Payment Required": paymentNetTotal("no payment required", "nopaymentrequired"),
       },
       paymentTransactions: {
+        ...Object.fromEntries(additionalMethods.map((method) => [method, paymentCount(method)])),
         Cash: paymentCount("cash"),
         Gcash: paymentCount("gcash"),
         QRPH: paymentCount("qrph"),

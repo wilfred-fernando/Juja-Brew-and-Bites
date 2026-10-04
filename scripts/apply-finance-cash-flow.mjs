@@ -25,6 +25,13 @@ try {
    console.log('Petty cash ledger integration installed and existing records imported.');
   } else console.log('Petty cash ledger integration already installed.');
  }
+ if (process.argv.includes('--position')) {
+  const installed = (await db.query("select to_regprocedure('public.finance_cash_position_snapshot(date,date)') installed")).rows[0].installed;
+  if (!installed) {
+   await db.query(fs.readFileSync('supabase/migrations/20261004120000_finance_cash_position_controls.sql', 'utf8').replace(/^begin;/, '').replace(/commit;\s*$/, ''));
+   console.log('Cash-position controls and payment queue installed.');
+  } else console.log('Cash-position controls already installed.');
+ }
  await db.query("notify pgrst, 'reload schema'");
  await db.query('commit');
  console.log('Supabase schema-cache reload requested.');

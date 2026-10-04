@@ -1,0 +1,34 @@
+"use client";
+import {useState} from "react";
+import styles from "./FinanceCashFlow.module.css";
+const money=v=>new Intl.NumberFormat("en-PH",{style:"currency",currency:"PHP"}).format(Number(v||0));
+const today=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Manila",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+const fresh=()=>({account_id:"",payee:"",particular:"",reference:"",payment_method:"Cheque",cheque_number:"",amount:"",scheduled_date:today(),due_date:today(),notes:""});
+export default function FinanceCashPaymentQueue({rows,accounts,period,busy,onSave}) {
+ const [draft,setDraft]=useState(fresh),[requestId,setRequestId]=useState(null),[filter,setFilter]=useState(""),[action,setAction]=useState(null),[history,setHistory]=useState(null);
+ const [actionDate,setActionDate]=useState(today),[actionNote,setActionNote]=useState(""),[actionId,setActionId]=useState(null);
+ function change(k,v){setDraft(p=>({...p,[k]:v}));setRequestId(null);}
+ function openAction(row,status){setAction({row,status});setActionDate(today());setActionNote("");setActionId(null);}
+ const actionLabels={released:"Release Payment",cleared:"Mark Cleared / Encashed",cancelled:"Cancel Payment",reopened:"Correct Clearance"};
+ return <section className={styles.panel}><h2>Payments & Check Register</h2><p className={styles.help}>Schedule a payment, record its release, then mark it cleared when the account is debited. This avoids deducting outstanding checks from recorded cash too early. Payments entered here must be cleared here rather than posted again as Cash Out.</p>
+  <div className={styles.stageStrip}>{["scheduled","released","cleared","cancelled"].map(stage=><button key={stage} aria-pressed={filter===stage} onClick={()=>setFilter(filter===stage?"":stage)}><span>{stage}</span><strong>{money(rows.filter(p=>p.status_as_of===stage).reduce((s,p)=>s+Number(p.amount),0))}</strong></button>)}</div>
+  <div className={styles.scroll}><table><thead><tr><th>Account</th><th>Payee / purpose</th><th>Reference / check</th><th>Due</th><th>Amount</th><th>Status as of {period.to}</th><th>Actions</th></tr></thead><tbody>{rows.filter(p=>!filter||p.status_as_of===filter).map(p=><tr key={p.id}><td>{p.account_name}</td><td>{p.payee}<small className={styles.note}>{p.particular}</small></td><td>{p.reference}<small className={styles.note}>{p.payment_method}{p.cheque_number?` · ${p.cheque_number}`:""}</small></td><td>{p.due_date}{["scheduled","released"].includes(p.status_as_of)&&p.due_date<period.to?" · Overdue":""}</td><td>{money(p.amount)}</td><td>{p.status_as_of}</td><td><div className={styles.actionRow}>{p.status_as_of===p.status&&<>{p.status==="scheduled"&&<button disabled={busy} onClick={()=>openAction(p,"released")}>Release</button>}{p.status==="released"&&<button disabled={busy} onClick={()=>openAction(p,"cleared")}>Clear</button>}{["scheduled","released"].includes(p.status)&&<button disabled={busy} onClick={()=>openAction(p,"cancelled")}>Cancel</button>}{p.status==="cleared"&&<button disabled={busy} onClick={()=>openAction(p,"reopened")}>Correct Clearance</button>}</>}<button onClick={()=>setHistory(history===p.id?null:p.id)}>History</button></div></td></tr>)}</tbody></table></div>
+  {!rows.length&&<p>No scheduled payments as of this date.</p>}
+  {history&&<div className={styles.bridge}><h3>Payment history</h3>{rows.find(p=>p.id===history)?.audit_log.filter(e=>e.date<=period.to).map((e,index)=><p key={index}>{e.date} · {e.action||e.status}{e.note?` · ${e.note}`:""}</p>)}</div>}
+  {action&&<form onSubmit={e=>{e.preventDefault();const id=actionId||crypto.randomUUID();setActionId(id);onSave("finance_cash_payment_action",{p_id:action.row.id,p_action:action.status,p_date:actionDate,p_note:actionNote,p_request_id:id},"Payment updated and cash position recalculated.",()=>{setAction(null);setActionId(null);});}}><h3>{actionLabels[action.status]} — {action.row.payee}</h3><fieldset disabled={busy} className={styles.form}>
+   <label className={styles.field}>Action date<input type="date" required min={action.row.audit_log.at(-1)?.date||action.row.scheduled_date} value={actionDate} onChange={e=>{setActionDate(e.target.value);setActionId(null);}}/></label>
+   <label className={styles.field}>Reason / notes<input required={["cancelled","reopened"].includes(action.status)} value={actionNote} onChange={e=>{setActionNote(e.target.value);setActionId(null);}}/></label>
+   {action.status==="reopened"&&<p className={styles.help}>This reverses the recorded clearance on the action date and returns the payment to Released. Clear it again with the correct date, or cancel it if the payment was not made.</p>}<button>{actionLabels[action.status]}</button><button type="button" onClick={()=>setAction(null)}>Close</button>
+  </fieldset></form>}
+  <h3>Schedule a payment</h3><form onSubmit={e=>{e.preventDefault();const id=requestId||crypto.randomUUID();setRequestId(id);onSave("finance_cash_schedule_payment",{p_data:{...draft,request_id:id}},"Payment scheduled. Funds are reserved until cancellation or clearance.",()=>{setDraft(fresh());setRequestId(null);});}}><fieldset disabled={busy} className={styles.form}>
+   <label className={styles.field}>Paying account<select required value={draft.account_id} onChange={e=>change("account_id",e.target.value)}><option value="">Choose account</option>{accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
+   {[["payee","Payee"],["particular","Purpose"],["reference","Payment / voucher reference"]].map(([key,label])=><label key={key} className={styles.field}>{label}<input required value={draft[key]} onChange={e=>change(key,e.target.value)}/></label>)}
+   <label className={styles.field}>Payment method<select value={draft.payment_method} onChange={e=>change("payment_method",e.target.value)}>{["Cheque","Bank Transfer","Wallet","Cash"].map(m=><option key={m}>{m}</option>)}</select></label>
+   {draft.payment_method==="Cheque"&&<label className={styles.field}>Check number<input required value={draft.cheque_number} onChange={e=>change("cheque_number",e.target.value)}/></label>}
+   <label className={styles.field}>Amount<input type="number" min="0.01" step="0.01" required value={draft.amount} onChange={e=>change("amount",e.target.value)}/></label>
+   <label className={styles.field}>Scheduled on<input type="date" required value={draft.scheduled_date} onChange={e=>change("scheduled_date",e.target.value)}/></label>
+   <label className={styles.field}>Due / expected release date<input type="date" required min={draft.scheduled_date} value={draft.due_date} onChange={e=>change("due_date",e.target.value)}/></label>
+   <label className={styles.field}>Notes<input value={draft.notes} onChange={e=>change("notes",e.target.value)}/></label><button disabled={!accounts.length}>Schedule Payment</button>
+  </fieldset></form>
+ </section>;
+}
