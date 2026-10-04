@@ -99,7 +99,6 @@ const emptyDateFilter = {
 };
 
 const receiptOrder=new Intl.Collator("en-PH",{numeric:true,sensitivity:"base"});
-function expenseReceiptKey(row){return JSON.stringify([row.expense_date,String(row.or_si_no||"").trim().toLowerCase(),row.store_id||"",String(row.supplier_name||"").trim().toLowerCase(),row.receipt_type||""]);}
 function sortExpenseItems(rows){return [...rows].sort((a,b)=>String(b.expense_date||"").localeCompare(String(a.expense_date||""))
  || Number(!String(a.or_si_no||"").trim())-Number(!String(b.or_si_no||"").trim())
  || receiptOrder.compare(String(a.or_si_no||"").trim(),String(b.or_si_no||"").trim())
@@ -1890,12 +1889,9 @@ export default function FinanceExpenseManager() {
               const sourceLabel = expenseSourceLabel(row, storeNameById);
               const supplier = expenseSupplierDetails(row, references);
               const startsNewDay = index === 0 || row.expense_date !== rows[index - 1].expense_date;
-              const startsNewReceipt = Boolean(String(row.or_si_no||"").trim()) && (index === 0 || expenseReceiptKey(row)!==expenseReceiptKey(rows[index-1]));
               return (
                 <Fragment key={row.id}>
-                  {startsNewDay ? <tr><td colSpan={22 + Number(showSource) + Number(showStore)} className="p-0"><div style={{ borderTop: "1px solid #0891b2", background: "#ecfeff", padding: "8px 16px", color: "#155e75", fontWeight: 700 }}>{dateText(row.expense_date)}</div></td></tr> : null}
-                  {startsNewReceipt&&<tr><td colSpan={22+Number(showSource)+Number(showStore)} className="bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-700">Receipt {row.or_si_no}{row.supplier_name?` · ${row.supplier_name}`:""}{showSource&&row.store_id?` · ${storeNameById[row.store_id]||row.store_id}`:""}</td></tr>}
-                <tr className="text-slate-700 transition duration-200 hover:bg-cyan-50/45">
+                  {startsNewDay ? <tr><td colSpan={22 + Number(showSource) + Number(showStore)} className="p-0"><div style={{ borderTop: "1px solid #0891b2", background: "#ecfeff", padding: "8px 16px", color: "#155e75", fontWeight: 700 }}>{dateText(row.expense_date)}</div></td></tr> : null}                <tr className="text-slate-700 transition duration-200 hover:bg-cyan-50/45">
                   <td className="whitespace-nowrap px-4 py-3 font-semibold">{dateText(row.expense_date)}</td>
                   {showSource ? (
                     <td className="px-4 py-3">
