@@ -98,6 +98,15 @@ const emptyDateFilter = {
   to: "",
 };
 
+const receiptOrder=new Intl.Collator("en-PH",{numeric:true,sensitivity:"base"});
+function expenseReceiptKey(row){return JSON.stringify([row.expense_date,String(row.or_si_no||"").trim().toLowerCase(),row.store_id||"",String(row.supplier_name||"").trim().toLowerCase(),row.receipt_type||""]);}
+function sortExpenseItems(rows){return [...rows].sort((a,b)=>String(b.expense_date||"").localeCompare(String(a.expense_date||""))
+ || Number(!String(a.or_si_no||"").trim())-Number(!String(b.or_si_no||"").trim())
+ || receiptOrder.compare(String(a.or_si_no||"").trim(),String(b.or_si_no||"").trim())
+ || receiptOrder.compare(String(a.store_id||""),String(b.store_id||""))
+ || receiptOrder.compare(String(a.supplier_name||""),String(b.supplier_name||""))
+ || receiptOrder.compare(String(a.receipt_type||""),String(b.receipt_type||""))
+ || String(a.created_at||"").localeCompare(String(b.created_at||"")) || receiptOrder.compare(String(a.id),String(b.id)));}
 const RECEIPT_FIELDS = ["expense_date", "supplier_name", "payment_type", "cheque_no", "cheque_date", "cheque_amount", "receipt_type", "or_si_no", "or_si_date", "submitted_by"];
 
 function receiptDetails(form) {
@@ -498,12 +507,12 @@ export default function FinanceExpenseManager() {
   }
 
   const filteredOverallExpenses = useMemo(
-    () => overallExpenses.filter((row) => isWithinDateFilter(row.expense_date, overallDateFilter)),
+    () => sortExpenseItems(overallExpenses.filter((row) => isWithinDateFilter(row.expense_date, overallDateFilter))),
     [overallDateFilter, overallExpenses]
   );
 
   const filteredPettyEntries = useMemo(
-    () => pettyEntries.filter((entry) => isWithinDateFilter(entry.expense_date, pettyDateFilter)),
+    () => sortExpenseItems(pettyEntries.filter((entry) => isWithinDateFilter(entry.expense_date, pettyDateFilter))),
     [pettyDateFilter, pettyEntries]
   );
 
@@ -1811,7 +1820,7 @@ export default function FinanceExpenseManager() {
         if ((data || []).length < 500) break;
       }
       if (!rows.length) return showNotice("error", "No expenses match the selected filters.");
-      const csv = financeExpensesCsv(rows, storeNameById, references);
+      const csv = financeExpensesCsv(sortExpenseItems(rows), storeNameById, references);
       const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
       const link = document.createElement("a");
       const branch = scope === "petty" ? `-${String(storeNameById[storeId] || storeId).replace(/[^a-z0-9]+/gi, "-")}` : "";
@@ -1880,10 +1889,12 @@ export default function FinanceExpenseManager() {
             {rows.map((row, index) => {
               const sourceLabel = expenseSourceLabel(row, storeNameById);
               const supplier = expenseSupplierDetails(row, references);
-              const startsNewDay = index > 0 && row.expense_date !== rows[index - 1].expense_date;
+              const startsNewDay = index === 0 || row.expense_date !== rows[index - 1].expense_date;
+              const startsNewReceipt = Boolean(String(row.or_si_no||"").trim()) && (index === 0 || expenseReceiptKey(row)!==expenseReceiptKey(rows[index-1]));
               return (
                 <Fragment key={row.id}>
-                  {startsNewDay ? <tr><td colSpan={23 + Number(showSource) + Number(showStore)} className="p-0"><div style={{ borderTop: "1px solid #0891b2", background: "#ecfeff", padding: "8px 16px", color: "#155e75", fontWeight: 700 }}>{dateText(row.expense_date)}</div></td></tr> : null}
+                  {startsNewDay ? <tr><td colSpan={22 + Number(showSource) + Number(showStore)} className="p-0"><div style={{ borderTop: "1px solid #0891b2", background: "#ecfeff", padding: "8px 16px", color: "#155e75", fontWeight: 700 }}>{dateText(row.expense_date)}</div></td></tr> : null}
+                  {startsNewReceipt&&<tr><td colSpan={22+Number(showSource)+Number(showStore)} className="bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-700">Receipt {row.or_si_no}{row.supplier_name?` · ${row.supplier_name}`:""}{showSource&&row.store_id?` · ${storeNameById[row.store_id]||row.store_id}`:""}</td></tr>}
                 <tr className="text-slate-700 transition duration-200 hover:bg-cyan-50/45">
                   <td className="whitespace-nowrap px-4 py-3 font-semibold">{dateText(row.expense_date)}</td>
                   {showSource ? (
