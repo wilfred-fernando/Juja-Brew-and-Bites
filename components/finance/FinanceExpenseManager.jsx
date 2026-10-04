@@ -2432,7 +2432,6 @@ export default function FinanceExpenseManager() {
             ) : null}
             </div>
             {renderDateFilter("Petty Cash Date", pettyDateFilter, setPettyDateFilter)}
-            <Field label="Search items"><Input type="search" value={pettyItemSearch} onChange={e=>setPettyItemSearch(e.target.value)} placeholder="Description or common name" /></Field>
             <SummaryCard label={`${selectedStoreName} Expenses`} value={peso(selectedPettySummary.expenses)} icon={ArrowDownCircle} tone="amber" />
             <SummaryCard label={`${selectedStoreName} Cash On Hand`} value={peso(selectedPettySummary.cashOnHand)} icon={Wallet} />
           </div>
@@ -2448,6 +2447,7 @@ export default function FinanceExpenseManager() {
               <Plus size={15} />
               Add Petty Cash Expense
             </button>
+            <div className="w-72 shrink-0" style={{order:10}}><Field label="Search items"><Input type="search" value={pettyItemSearch} onChange={e=>setPettyItemSearch(e.target.value)} placeholder="Description or common name" /></Field></div>
             <a href="/finance/cash-flow" className="text-sm font-semibold text-slate-700 underline">Add / Transfer Fund</a>
           <button type="button" disabled={!selectedStoreId} onClick={() => setCashInRecordsOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-semibold text-cyan-800 disabled:opacity-40">
             <ArrowUpCircle size={17} /> View Cash In Records
