@@ -7,8 +7,8 @@ try{
  const store=(await db.query('select petty_store_id id from finance_cash_accounts where petty_store_id is not null limit 1')).rows[0].id;
  const shift='cash_test_'+randomUUID();
  const order={id:randomUUID(),store_id:store,created_at:'2037-10-04T03:00:00Z',status:'partially_refunded',total:200,refund_amount:40,payment_splits:[{method:'Cash',amount:100},{method:'GCash',amount:100}]};
- await db.query('select finance_capture_closed_shift($1::jsonb,$2::jsonb)',[JSON.stringify({id:shift,store_id:store,cashier_id:admin,created_at:'2037-10-04T04:00:00Z',mode:'close',cash_total:100,sales_summary:{startingCash:20}}),JSON.stringify([order])]);
- await db.query('select finance_capture_closed_shift($1::jsonb,$2::jsonb)',[JSON.stringify({id:shift+'_end',store_id:store,cashier_id:admin,created_at:'2037-10-04T05:00:00Z',mode:'end_day',cash_total:130,sales_summary:{startingCash:30}}),JSON.stringify([order])]);
+ await db.query('select finance_capture_closed_shift($1::jsonb,$2::jsonb)',[JSON.stringify({id:shift,store_id:store,cashier_id:admin,created_at:'2037-10-04T04:00:00Z',mode:'close',cash_total:100,sales_summary:{startingCash:20,shiftStartedAt:"2037-10-04T01:00:00Z"}}),JSON.stringify([order])]);
+ await db.query('select finance_capture_closed_shift($1::jsonb,$2::jsonb)',[JSON.stringify({id:shift+'_end',store_id:store,cashier_id:admin,created_at:'2037-10-04T05:00:00Z',mode:'end_day',cash_total:130,sales_summary:{startingCash:30,shiftStartedAt:"2037-10-04T01:00:00Z"}}),JSON.stringify([order])]);
  const snapshot=async(date)=>(await db.query('select finance_daily_cash_snapshot($1::date) result',[date])).rows[0].result.find(r=>r.store_id===store&&r.business_date==='2037-10-04');
  let day=await snapshot('2037-10-04');assert.equal(Number(day.cash_sales),80);assert.equal(Number(day.net_declared),100);assert.equal(Number(day.variance),20);assert.equal(day.count_basis,'end_day');
  const payload={request_id:randomUUID(),store_id:store,business_date:'2037-10-04',transaction_date:'2037-10-05',amount:40,fee:5,to_account_id:(await db.query('select id from finance_cash_accounts where petty_store_id is null limit 1')).rows[0].id,reference:'Daily cash test'};

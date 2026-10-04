@@ -8778,6 +8778,7 @@ export default function POSPage() {
       gcCashCollected: verifiedGcCash,
       expectedCash: shiftSummary.expectedCash - gcCashCollected + verifiedGcCash,
       startingCash: Number(startingCash || 0),
+      shiftStartedAt: activeShiftStartMs ? new Date(activeShiftStartMs).toISOString() : null,
     };
     const record = {
       id: `${shiftCashMode}-${Date.now()}`,

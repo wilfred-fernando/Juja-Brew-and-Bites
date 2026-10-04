@@ -114,6 +114,16 @@ in a transaction that rolls back all verification records.
 
 ## Base ledger verification
 
+Cash Collection now groups by the actual POS shift start date in Asia/Manila,
+including overnight shifts. Apply `20261004170000_finance_cash_collection_shift_start.sql`
+with `--cash-shift-start`, then refresh archived closes using `--repair`.
+POS close summaries preserve `shiftStartedAt` explicitly; older closes use the
+latest matching store/cashier opening record. The receipt-window `opened_at`
+is not used as a substitute. Missing start records display a separate unknown
+group and cannot receive daily transfer allocations. Shared close dates and
+non-cash receivables retain their original meaning. Verify overnight behavior
+with `scripts/verify-finance-cash-shift-start.mjs` (rollback-only).
+
 New Cash In is entered in Cash Flow > Record Movement; Petty Cash retains
 the Cash In history and expense entry but no longer offers Add Cash In.
 The Cash Collection tab groups durable cash sales by store and Manila business

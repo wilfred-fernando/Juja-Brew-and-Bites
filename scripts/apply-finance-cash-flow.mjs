@@ -50,6 +50,13 @@ try {
    console.log('Daily cash collection and transfer monitoring installed.');
   }
  }
+ if (process.argv.includes('--cash-shift-start')) {
+  if (!(await db.query("select 1 from information_schema.columns where table_name='finance_cash_closed_shifts' and column_name='cash_shift_started_at'")).rowCount) {
+   if ((await db.query('select count(*)::int n from public.finance_cash_sales_transfers')).rows[0].n) throw new Error('Review existing daily transfer allocations before changing their sales date grouping.');
+   await db.query(fs.readFileSync('supabase/migrations/20261004170000_finance_cash_collection_shift_start.sql', 'utf8').replace(/^begin;/, '').replace(/commit;\s*$/, ''));
+   console.log('Cash collection shift-start grouping installed.');
+  }
+ }
  await db.query("notify pgrst, 'reload schema'");
  await db.query('commit');
  console.log('Supabase schema-cache reload requested.');
