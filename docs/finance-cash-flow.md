@@ -114,6 +114,19 @@ in a transaction that rolls back all verification records.
 
 ## Base ledger verification
 
+Cash Collection's source is Cash Sales, independently of petty cash balances.
+Apply `20261004180000_finance_cash_sales_receiving.sql` with
+`node scripts/apply-finance-cash-flow.mjs --cash-sales-receiving` after the
+shift-start migration. Posting uses a dedicated daily cash-sales collection:
+it credits the selected receiving account after fees and never debits a petty
+cash account. Every fund, including the same branch's petty cash, can receive.
+Petty cash receipts create a linked `CASH SALES` Cash In entry exactly once.
+The daily tracking receivable is excluded from Non-cash Collections. Reversals
+restore the amount awaiting receipt and reverse only the receiving fund credit.
+Existing manually posted Cash In may be linked to the sales date without a
+second receipt; ordinary transfers from other accounts cannot be linked as cash
+sales. Historical declarations alone do not add ledger cash.
+
 Cash Collection now groups by the actual POS shift start date in Asia/Manila,
 including overnight shifts. Apply `20261004170000_finance_cash_collection_shift_start.sql`
 with `--cash-shift-start`, then refresh archived closes using `--repair`.
@@ -133,14 +146,13 @@ count, or the latest closed-shift count provisionally; the initial fund is
 deducted once from that selected count. Missing counts remain unknown.
 
 These POS counts are monitoring evidence and do not automatically create ledger
-receipts. Record unposted cash receipts through Cash Flow before moving funds.
-Cash Collection can post a transfer from that store's petty cash account or link
-an existing active transfer without posting it again. Transfers must be on or
-after the sales date, cannot exceed untransferred declared cash, and carry a
-reference. Gross transfers reduce pending cash; fees reduce the receiving
-account credit. Cash Ledger reversals restore pending cash on their actual date.
-General transfers are not assumed to relate to cash sales unless explicitly
-linked. Existing transfer selection uses the Cash Ledger's selected date range.
+receipts. Cash Collection receives Cash Sales into the chosen fund, or links an
+existing manually posted Cash In without posting it again. Receipt dates must
+be on or after the sales date, amounts cannot exceed untransferred declared
+cash, and new postings require a reference. Gross receipts reduce pending cash;
+fees reduce the receiving account credit. Cash Ledger reversals restore pending
+cash on their actual date. Existing Cash In selection uses the Cash Ledger's
+selected date range.
 
 Apply `20261004160000_finance_daily_cash_collections.sql` after the other finance
 migrations using `node scripts/apply-finance-cash-flow.mjs --daily-cash`.

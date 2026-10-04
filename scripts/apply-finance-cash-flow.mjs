@@ -57,6 +57,12 @@ try {
    console.log('Cash collection shift-start grouping installed.');
   }
  }
+ if (process.argv.includes('--cash-sales-receiving')) {
+  if (!(await db.query("select 1 from information_schema.columns where table_name='finance_cash_receivables' and column_name='cash_sales_date'")).rowCount) {
+   await db.query(fs.readFileSync('supabase/migrations/20261004180000_finance_cash_sales_receiving.sql', 'utf8').replace(/^begin;/, '').replace(/commit;\s*$/, ''));
+   console.log('Cash Sales receiving source correction installed.');
+  }
+ }
  await db.query("notify pgrst, 'reload schema'");
  await db.query('commit');
  console.log('Supabase schema-cache reload requested.');
