@@ -33,6 +33,7 @@ import GiftCertificatePaymentDialog from "@/components/pos/GiftCertificatePaymen
 import { gcPaymentBreakdown } from "@/lib/posGiftCertificates";
 import OfflineSyncNotice from "@/components/pos/OfflineSyncNotice";
 import { addPosCartLine } from "@/lib/posCart";
+import { loyaltySearchFilter, normalizeLoyaltySearch } from "@/lib/posLoyaltySearch";
 import { ensurePosBeneficiarySession } from "@/lib/posBeneficiarySession";
 import { receiptLineMetadata } from "@/lib/reports/receiptDetails";
 import { buildShiftDiscountBreakdown } from "@/lib/posDiscountBreakdown";
@@ -5959,17 +5960,8 @@ export default function POSPage() {
   }, [attachedCustomer?.id]);
 
   useEffect(() => {
-    const query = String(customerSearch || "").trim();
+    const query = normalizeLoyaltySearch(customerSearch);
     if (query.length < 2 || attachedCustomer?.id) return undefined;
-
-    const normalizedQuery = query.toLowerCase();
-    const hasLocalMatch = customers.some((customer) => {
-      const normalized = normalizePosCustomer(customer);
-      return String(normalized.name || "").toLowerCase().includes(normalizedQuery)
-        || String(normalized.code || "").toLowerCase().includes(normalizedQuery)
-        || String(normalized.phone || normalized.contact_number || "").toLowerCase().includes(normalizedQuery);
-    });
-    if (hasLocalMatch) return undefined;
 
     let cancelled = false;
     const timer = window.setTimeout(async () => {
@@ -5985,7 +5977,7 @@ export default function POSPage() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [customerSearch, attachedCustomer?.id, customers]);
+  }, [customerSearch, attachedCustomer?.id]);
 
   useEffect(() => {
     const init = async () => {
@@ -6293,13 +6285,15 @@ export default function POSPage() {
   async function searchCustomersRemote(rawQuery, limit = 8) {
     const query = String(rawQuery || "").trim();
     if (!query) return [];
-    const escaped = query.replace(/[,%()]/g, " ").replace(/\s+/g, " ").trim();
-    if (!escaped) return [];
+    const filter = loyaltySearchFilter(query);
+    if (!filter) return [];
 
     const { data, error } = await supabase
       .from("loyalty_members")
       .select("*")
-      .or(`customer_name.ilike.%${escaped}%,customer_code.ilike.%${escaped}%`)
+      .or(filter)
+      .order("customer_name", { ascending: true })
+      .order("id", { ascending: true })
       .limit(limit);
     if (error) throw error;
     return data || [];

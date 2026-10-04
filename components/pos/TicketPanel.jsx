@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { beneficiaryResidencyLabel, beneficiaryTypeLabel } from "@/lib/posDiscountBeneficiaries";
+import { matchesLoyaltySearch, normalizeLoyaltySearch } from "@/lib/posLoyaltySearch";
 
 export default function TicketPanel({
   cart = [],
@@ -76,14 +77,11 @@ const isWelcomeVoucher = (voucher) => {
 
   /* ✅ customer suggestions */
   const suggestions =
-    customerSearch.length > 1
-      ? customers
-          .filter(
-            (c) =>
-              c.name?.toLowerCase().includes(customerSearch.toLowerCase()) ||
-              c.code?.toLowerCase().includes(customerSearch.toLowerCase())
-          )
-          .slice(0, 6)
+    normalizeLoyaltySearch(customerSearch).length > 1
+      ? (customers || [])
+          .filter((customer) => matchesLoyaltySearch(customer, customerSearch))
+          .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
+          .slice(0, 8)
       : [];
 
   return (
