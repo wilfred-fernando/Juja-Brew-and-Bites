@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownCircle,
   ArrowUpCircle,
@@ -39,6 +39,9 @@ const REF_TYPES = [
 ];
 
 const initialExpenseForm = {
+  is_cash_advance: false,
+  employee_id: "",
+  cash_advance_id: "",
   tax_type: "Non-VAT",
   receipt_type: "",
   expense_date: new Date().toISOString().slice(0, 10),
@@ -354,6 +357,8 @@ export default function FinanceExpenseManager() {
   const [dailySummaryOpen, setDailySummaryOpen] = useState(false);
   const [overallDailySummaryOpen, setOverallDailySummaryOpen] = useState(false);
   const [receiptItems, setReceiptItems] = useState([]);
+  const receiptSave=useRef(null);
+  const [payrollOptions,setPayrollOptions]=useState({employees:[],advances:[]});
   const [receiptItemIndex, setReceiptItemIndex] = useState(0);
   const [fundForm, setFundForm] = useState(initialFundForm);
   const [referenceForm, setReferenceForm] = useState(initialReferenceForm);
@@ -645,7 +650,7 @@ export default function FinanceExpenseManager() {
       deleteRequestQuery = deleteRequestQuery.eq("store_id", cashierStoreId);
     }
 
-    const [overallRes, pettyRes, fundsRes, referencesRes, deleteRequestsRes, inventoryItemsRes, inventoryCommonRes] = await Promise.all([
+    const [overallRes, pettyRes, fundsRes, referencesRes, deleteRequestsRes, inventoryItemsRes, inventoryCommonRes, payrollOptionsRes] = await Promise.all([
       overallQuery,
       pettyQuery,
       fundsQuery,
@@ -653,6 +658,7 @@ export default function FinanceExpenseManager() {
       deleteRequestQuery,
       supabase.from("inventory_items").select("id, item_name, common_name, common_name_id, unit, cost_per_unit, is_active").eq("is_active", true).order("item_name"),
       supabase.from("common_inventory_names").select("id, common_name, default_unit, is_active").eq("is_active", true).order("common_name"),
+      ["admin","super_admin"].includes(profileRole) ? supabase.rpc("finance_cash_advance_options") : Promise.resolve({data:{employees:[],advances:[]}}),
     ]);
 
     const tableError = [overallRes.error, pettyRes.error, fundsRes.error, referencesRes.error, deleteRequestsRes.error].find(Boolean);
@@ -680,6 +686,8 @@ export default function FinanceExpenseManager() {
       }
     }
 
+    setPayrollOptions(payrollOptionsRes.data||{employees:[],advances:[]});
+    if(payrollOptionsRes.error)showNotice("error",payrollOptionsRes.error.message);
     setOverallExpenses(overallRes.data || []);
     setPettyEntries(pettyRes.data || []);
     setPettyFunds(fundsRes.data || []);
@@ -718,6 +726,9 @@ export default function FinanceExpenseManager() {
     const inventoryForm = form.is_inventory_purchase ? applyInventoryPurchaseCopy(form) : null;
     return {
       id: makeId(prefix),
+      is_cash_advance: Boolean(form.is_cash_advance),
+      employee_id: form.is_cash_advance ? form.employee_id || null : null,
+      cash_advance_id: form.is_cash_advance ? form.cash_advance_id || null : null,
       expense_date: form.expense_date || new Date().toISOString().slice(0, 10),
       description: form.description.trim(),
       supplier_name: form.supplier_name.trim() || null,
@@ -791,6 +802,9 @@ export default function FinanceExpenseManager() {
   function expenseFormFromRow(row) {
     return {
       ...initialExpenseForm,
+      is_cash_advance: Boolean(row.is_cash_advance),
+      employee_id: row.employee_id || "",
+      cash_advance_id: row.cash_advance_id || "",
       expense_date: dateInputValue(row.expense_date) || initialExpenseForm.expense_date,
       description: row.description || "",
       supplier_name: row.supplier_name || "",
@@ -817,6 +831,7 @@ export default function FinanceExpenseManager() {
   }
 
   function openExpenseModal(scope, row = null) {
+    if(canManageAll)supabase.rpc("finance_cash_advance_options").then(({data,error})=>{if(error)showNotice("error",error.message);else setPayrollOptions(data);});
     setReceiptItems([]);
     setReceiptItemIndex(0);
     setEditingExpense(row ? { scope, row } : null);
@@ -830,6 +845,7 @@ export default function FinanceExpenseManager() {
   }
 
   function closeExpenseModal() {
+    receiptSave.current=null;
     setEditingExpense(null);
     setExpenseModalScope("");
     setReceiptItems([]);
@@ -871,10 +887,10 @@ export default function FinanceExpenseManager() {
     if (saving) return;
     const form = scope === "overall" ? expenseForm : pettyForm;
     const lines = expenseReceiptForms(form);
-    const invalidIndex = lines.findIndex((line) => !line.description.trim() || (scope === "overall" && line.is_inventory_purchase && !line.store_id));
+    const invalidIndex = lines.findIndex((line) => (line.is_cash_advance && (!line.employee_id || lineMath(line).total<=0 || line.is_inventory_purchase)) || !line.description.trim() || (scope === "overall" && line.is_inventory_purchase && !line.store_id));
     if (invalidIndex >= 0) {
       selectReceiptItem(scope, invalidIndex);
-      return showNotice("error", `Item ${invalidIndex + 1}: enter a description and select a store for inventory purchases.`);
+      return showNotice("error", `Item ${invalidIndex + 1}: enter a description; cash advances require an employee and a positive amount; inventory purchases require a store.`);
     }
     setSaving(scope);
     const submittedAt = new Date().toISOString();
@@ -894,23 +910,14 @@ export default function FinanceExpenseManager() {
         date_submitted: submittedAt, created_at: submittedAt,
       };
     });
+    const fingerprint=JSON.stringify({scope,lines,store:selectedStoreId});
+    if(receiptSave.current?.fingerprint===fingerprint){pettyRows.splice(0,pettyRows.length,...structuredClone(receiptSave.current.petty));overallRows.splice(0,overallRows.length,...structuredClone(receiptSave.current.overall));}
+    else receiptSave.current={fingerprint,petty:structuredClone(pettyRows),overall:structuredClone(overallRows)};
     try {
-      if (pettyRows.length) {
-        const { error } = await supabase.from("finance_petty_cash_entries").insert(pettyRows);
-        if (error) throw error;
-      }
-      const { error } = await supabase.from("finance_expenses").insert(overallRows);
-      if (error) {
-        if (pettyRows.length) {
-          const { error: rollbackError } = await supabase.from("finance_petty_cash_entries").delete().in("id", pettyRows.map((row) => row.id));
-          if (rollbackError) {
-            setPettyEntries((prev) => [...pettyRows, ...prev]);
-            closeExpenseModal();
-            throw new Error("Petty cash items were saved but could not sync to Overall Expenses. Do not re-enter this receipt; contact an administrator to reconcile it.");
-          }
-        }
-        throw error;
-      }
+      const {data:saved,error}=await supabase.rpc("finance_save_expense_receipt",{p_scope:scope,p_rows:scope==="petty"?pettyRows:overallRows,p_overall:scope==="petty"?overallRows:[]});
+      if(error)throw error;
+      pettyRows.splice(0,pettyRows.length,...(saved.petty||[]));
+      overallRows.splice(0,overallRows.length,...saved.overall);
       // The receipt is saved. Close the draft before inventory work to prevent duplicate retries.
       setOverallExpenses((prev) => [...overallRows, ...prev]);
       if (pettyRows.length) setPettyEntries((prev) => [...pettyRows, ...prev]);
@@ -989,7 +996,8 @@ export default function FinanceExpenseManager() {
       payload.id = editingExpense.row.id;
       delete payload.created_at;
       delete payload.date_submitted;
-      const { error } = await supabase.from("finance_expenses").update(payload).eq("id", editingExpense.row.id);
+      const { data:saved,error } = await supabase.rpc("finance_update_expense",{p_scope:"overall",p_id:editingExpense.row.id,p_data:payload});
+      if(saved)Object.assign(payload,saved);
       if (error) {
         showNotice("error", error.message);
       } else {
@@ -1001,12 +1009,6 @@ export default function FinanceExpenseManager() {
         delete pettyPatch.source_tag;
         delete pettyPatch.store_name;
         delete pettyPatch.petty_cash_entry_id;
-        if (editingExpense.row.petty_cash_entry_id) {
-          await supabase
-            .from("finance_petty_cash_entries")
-            .update({ ...pettyPatch, id: editingExpense.row.petty_cash_entry_id, store_id: editingExpense.row.store_id })
-            .eq("id", editingExpense.row.petty_cash_entry_id);
-        }
         setOverallExpenses((prev) => prev.map((row) => (row.id === editingExpense.row.id ? { ...row, ...payload, inventory_sync_status: sync.status } : row)));
         if (editingExpense.row.petty_cash_entry_id) {
           setPettyEntries((prev) => prev.map((row) => (
@@ -1056,7 +1058,8 @@ export default function FinanceExpenseManager() {
       payload.id = editingExpense.row.id;
       delete payload.created_at;
       delete payload.date_submitted;
-      const { error } = await supabase.from("finance_petty_cash_entries").update(payload).eq("id", editingExpense.row.id);
+      const { data:saved,error } = await supabase.rpc("finance_update_expense",{p_scope:"petty",p_id:editingExpense.row.id,p_data:payload});
+      if(saved)Object.assign(payload,saved);
       if (error) {
         showNotice("error", error.message);
       } else {
@@ -1075,7 +1078,7 @@ export default function FinanceExpenseManager() {
         };
         const overallUpdate = { ...overallPatch };
         delete overallUpdate.id;
-        await supabase.from("finance_expenses").update(overallUpdate).eq("petty_cash_entry_id", editingExpense.row.id);
+
         setPettyEntries((prev) => prev.map((row) => (row.id === editingExpense.row.id ? { ...row, ...payload, inventory_sync_status: sync.status } : row)));
         setOverallExpenses((prev) => prev.map((row) => (
           row.petty_cash_entry_id === editingExpense.row.id ? { ...row, ...overallUpdate, inventory_sync_status: sync.status } : row
@@ -1588,6 +1591,12 @@ export default function FinanceExpenseManager() {
           </div>
         ) : null}
 
+        {canManageAll&&<div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+          <Field label="Entry type"><Select value={form.is_cash_advance?"advance":"expense"} onChange={e=>{const enabled=e.target.value==="advance";updateExpenseForm(scope,"is_cash_advance",enabled);if(enabled){updateExpenseForm(scope,"is_inventory_purchase",false);if(!form.description)updateExpenseForm(scope,"description","Employee Cash Advance");}else{updateExpenseForm(scope,"employee_id","");updateExpenseForm(scope,"cash_advance_id","");}}}><option value="expense">Expense</option><option value="advance">Employee Cash Advance</option></Select></Field>
+          {form.is_cash_advance&&<><Field label="Employee"><Select required value={form.employee_id} onChange={e=>{updateExpenseForm(scope,"employee_id",e.target.value);updateExpenseForm(scope,"cash_advance_id","");}}><option value="">Select employee</option>{payrollOptions.employees.map(employee=><option key={employee.id} value={employee.id}>{employee.full_name}{employee.active===false?" (Inactive)":""}</option>)}</Select></Field>
+          <Field label="Payroll cash advance"><Select value={form.cash_advance_id} disabled={Boolean(editingThisForm&&editingExpense?.row?.cash_advance_id)} onChange={e=>updateExpenseForm(scope,"cash_advance_id",e.target.value)}><option value="">Create a new payroll cash advance</option>{payrollOptions.advances.filter(a=>a.employee_id===form.employee_id&&a.status!=="void"&&(!a.finance_source_table||a.id===form.cash_advance_id)).map(a=><option key={a.id} value={a.id}>{a.advance_date} · {peso(a.amount)} · {a.status}</option>)}</Select></Field>
+          <p className="text-xs text-slate-600">Saving links this item to one employee cash advance in Payroll. Use the expense date as the release date and the item total as the amount. Existing advances must match the employee, date and amount. Petty Cash and its Overall copy share one advance. Payroll repayments remain separate; principal details are locked after repayment.</p></>}
+        </div>}
         <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
           <Field label="Date">
             <Input type="date" value={form.expense_date} onChange={(e) => updateExpenseForm(scope, "expense_date", e.target.value)} />
@@ -1885,7 +1894,7 @@ export default function FinanceExpenseManager() {
                     </td>
                   ) : null}
                   {showStore ? <td className="px-4 py-3 font-semibold">{storeNameById[row.store_id] || "-"}</td> : null}
-                  <td className="px-4 py-3 text-slate-950">{row.description}</td>
+                  <td className="px-4 py-3 text-slate-950">{row.description}{row.is_cash_advance&&<p className="text-xs text-slate-600">Cash Advance · {payrollOptions.employees.find(e=>e.id===row.employee_id)?.full_name||"Linked employee"} · {row.cash_advance_id?"Synced to payroll":"Not linked"}</p>}</td>
                   <td className="px-4 py-3">{row.item_common_name || "-"}</td>
                   <td className="px-4 py-3">{row.supplier_name || "-"}</td>
                   <td className="px-4 py-3">{supplier.companyName || "-"}</td>

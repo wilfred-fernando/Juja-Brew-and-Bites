@@ -728,7 +728,7 @@ export default function AdminPayrollPage() {
           ...advance,
           employee: employeeById[advance.employee_id],
           repaid: paid,
-          balance: num(advance.amount) - paid,
+          balance: advance.status === "void" ? 0 : num(advance.amount) - paid,
         };
       })
       .sort(
@@ -1659,6 +1659,7 @@ export default function AdminPayrollPage() {
       !num(advanceForm.amount)
     )
       return setNotice("Cash advance employee, date, and amount are required.");
+    if (editingAdvanceId && advances.find(a=>a.id===editingAdvanceId)?.finance_source_table)return setNotice("Edit this linked advance in Finance Expenses.");
     if (editingAdvanceId && !requireSuperAdminPayrollEdit()) return;
     const advancePaid = editingAdvanceId
       ? (repaymentsByAdvance[editingAdvanceId] || []).reduce(
@@ -1997,6 +1998,7 @@ export default function AdminPayrollPage() {
     });
   }
   function editAdvance(row) {
+    if(row?.finance_source_table)return setNotice("Edit this linked cash advance in Finance Expenses. Repayments can still be recorded here.");
     if (!row?.id || !requireSuperAdminPayrollEdit()) return;
     setEditingAdvanceId(row.id);
     setSelectedEmployeeId(row.employee_id || selectedEmployeeId);
@@ -2209,6 +2211,7 @@ export default function AdminPayrollPage() {
     );
   }
   async function deleteAdvance(row) {
+    if(row?.finance_source_table)return setNotice("Correct or cancel this linked advance in Finance Expenses. Repayment history is retained.");
     if (!requireSuperAdminPayrollEdit()) return;
     if (
       !row?.id ||
@@ -4724,7 +4727,7 @@ export default function AdminPayrollPage() {
                         {dateText(row.advance_date)}
                       </p>{" "}
                       <p className="mt-1 text-xs font-semibold text-slate-500">
-                        {row.reason || "Cash advance"}
+                        {row.reason || "Cash advance"}{row.finance_source_table&&<span className="block text-xs text-slate-500">Linked from {row.finance_source_table==="finance_petty_cash_entries"?"Petty Cash":"Overall Expenses"} · {row.finance_source_id} <a href="/finance/expenses" className="underline">Manage in Finance Expenses</a></span>}
                       </p>{" "}
                     </td>{" "}
                     <td className="pt-3">{money(row.amount)}</td>{" "}
@@ -4799,6 +4802,7 @@ export default function AdminPayrollPage() {
                           {" "}
                           <button
                             type="button"
+                            disabled={Boolean(row.finance_source_table)}
                             onClick={() => editAdvance(row)}
                             className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-cyan-700 transition hover:bg-cyan-100"
                           >
@@ -4806,6 +4810,7 @@ export default function AdminPayrollPage() {
                           </button>{" "}
                           <button
                             type="button"
+                            disabled={Boolean(row.finance_source_table)}
                             onClick={() => deleteAdvance(row)}
                             className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-red-700 transition hover:bg-red-100"
                           >
