@@ -114,6 +114,31 @@ in a transaction that rolls back all verification records.
 
 ## Base ledger verification
 
+New Cash In is entered in Cash Flow > Record Movement; Petty Cash retains
+the Cash In history and expense entry but no longer offers Add Cash In.
+The Cash Collection tab groups durable cash sales by store and Manila business
+date. Sales use receipt payment splits, net refunds and the same nonoverlapping
+close windows as non-cash collections. Declared cash uses the final End Day
+count, or the latest closed-shift count provisionally; the initial fund is
+deducted once from that selected count. Missing counts remain unknown.
+
+These POS counts are monitoring evidence and do not automatically create ledger
+receipts. Record unposted cash receipts through Cash Flow before moving funds.
+Cash Collection can post a transfer from that store's petty cash account or link
+an existing active transfer without posting it again. Transfers must be on or
+after the sales date, cannot exceed untransferred declared cash, and carry a
+reference. Gross transfers reduce pending cash; fees reduce the receiving
+account credit. Cash Ledger reversals restore pending cash on their actual date.
+General transfers are not assumed to relate to cash sales unless explicitly
+linked. Existing transfer selection uses the Cash Ledger's selected date range.
+
+Apply `20261004160000_finance_daily_cash_collections.sql` after the other finance
+migrations using `node scripts/apply-finance-cash-flow.mjs --daily-cash`.
+Refresh historical metadata with the closed-shift archive importer `--repair`.
+`verify-finance-daily-cash.mjs` runs rollback-only checks for split/refunded cash,
+End Day deduplication, initial funds, transfers, fees, retry protection,
+over-transfer rejection, linking, reversals, dates and administrator access.
+
 `20261004140000_finance_all_petty_cash_movements.sql` makes every store's petty
 cash account available in Record Movement's sending and receiving selectors.
 Apply with `node scripts/apply-finance-cash-flow.mjs --all-petty-movements`

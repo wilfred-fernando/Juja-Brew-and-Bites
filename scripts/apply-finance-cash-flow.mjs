@@ -44,6 +44,12 @@ try {
    console.log('All branch petty cash movement integration installed.');
   }
  }
+ if (process.argv.includes('--daily-cash')) {
+  if (!(await db.query("select to_regprocedure('public.finance_daily_cash_snapshot(date)') installed")).rows[0].installed) {
+   await db.query(fs.readFileSync('supabase/migrations/20261004160000_finance_daily_cash_collections.sql', 'utf8').replace(/^begin;/, '').replace(/commit;\s*$/, ''));
+   console.log('Daily cash collection and transfer monitoring installed.');
+  }
+ }
  await db.query("notify pgrst, 'reload schema'");
  await db.query('commit');
  console.log('Supabase schema-cache reload requested.');

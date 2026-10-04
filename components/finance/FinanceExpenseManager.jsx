@@ -1120,6 +1120,7 @@ export default function FinanceExpenseManager() {
 
   async function savePettyFund(event) {
     event.preventDefault();
+    if (!editingFund?.id) return showNotice("error", "Record new Cash In in Finance Cash Flow.");
     if (!selectedStoreId) return showNotice("error", "Select a store first.");
     if (isCashier && String(selectedStoreId) !== String(currentProfile?.store_id || "")) {
       return showNotice("error", "Cashier accounts can only use their assigned branch.");
@@ -2425,15 +2426,7 @@ export default function FinanceExpenseManager() {
               <Plus size={15} />
               Add Petty Cash Expense
             </button>
-            <button
-              type="button"
-              onClick={() => openFundModal()}
-              disabled={!selectedStoreId}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-slate-400/78 px-4 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_0_30px_rgba(8,145,178,0.30)] transition duration-200 hover:-translate-y-0.5 hover:bg-slate-300/78 disabled:bg-slate-300"
-            >
-              <ArrowUpCircle size={15} />
-              Add Cash In
-            </button>
+            <a href="/finance/cash-flow" className="text-sm font-semibold text-slate-700 underline">Record Cash In / Transfer in Cash Flow</a>
           <button type="button" disabled={!selectedStoreId} onClick={() => setCashInRecordsOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-semibold text-cyan-800 disabled:opacity-40">
             <ArrowUpCircle size={17} /> View Cash In Records
           </button>
