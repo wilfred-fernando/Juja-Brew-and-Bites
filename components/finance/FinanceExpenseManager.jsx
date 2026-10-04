@@ -2459,7 +2459,7 @@ export default function FinanceExpenseManager() {
                       </div>
                       <div className="flex items-center gap-2">
                         <p className="text-xs font-semibold text-cyan-700">{peso(fund.amount)}</p>
-                        <button
+                        {fund.remittance_transaction_id ? <span className="text-xs text-slate-500">Manage in Cash Ledger</span> : <><button
                           type="button"
                           onClick={() => { setCashInRecordsOpen(false); openFundModal(fund); }}
                           className="inline-flex h-8 items-center justify-center gap-2 rounded-lg border border-cyan-100 bg-cyan-50 px-3 text-[10px] font-semibold uppercase text-cyan-700 transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-100"
@@ -2473,7 +2473,7 @@ export default function FinanceExpenseManager() {
                           className="inline-flex h-8 items-center justify-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 text-[10px] font-semibold uppercase text-red-600 transition duration-200 hover:-translate-y-0.5 hover:bg-red-100 disabled:bg-slate-100 disabled:text-slate-400"
                       >
                         <Trash2 size={13} className="shrink-0" />
-                        </button>
+                        </button></>}
                       </div>
                     </div>
                   ))}

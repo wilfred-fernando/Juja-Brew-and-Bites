@@ -32,6 +32,18 @@ try {
    console.log('Cash-position controls and payment queue installed.');
   } else console.log('Cash-position controls already installed.');
  }
+ if (process.argv.includes('--petty-remittances')) {
+  if (!(await db.query("select to_regprocedure('public.finance_remittance_petty_cash_trigger()') installed")).rows[0].installed) {
+   await db.query(fs.readFileSync('supabase/migrations/20261004130000_finance_petty_cash_remittances.sql', 'utf8').replace(/^begin;/, '').replace(/commit;\s*$/, ''));
+   console.log('Petty cash remittance integration installed.');
+  }
+ }
+ if (process.argv.includes('--all-petty-movements')) {
+  if (!(await db.query("select to_regclass('public.finance_petty_movement_branch') installed")).rows[0].installed) {
+   await db.query(fs.readFileSync('supabase/migrations/20261004140000_finance_all_petty_cash_movements.sql', 'utf8').replace(/^begin;/, '').replace(/commit;\s*$/, ''));
+   console.log('All branch petty cash movement integration installed.');
+  }
+ }
  await db.query("notify pgrst, 'reload schema'");
  await db.query('commit');
  console.log('Supabase schema-cache reload requested.');

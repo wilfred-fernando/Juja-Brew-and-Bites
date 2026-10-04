@@ -114,6 +114,28 @@ in a transaction that rolls back all verification records.
 
 ## Base ledger verification
 
+`20261004140000_finance_all_petty_cash_movements.sql` makes every store's petty
+cash account available in Record Movement's sending and receiving selectors.
+Apply with `node scripts/apply-finance-cash-flow.mjs --all-petty-movements`
+after the remittance migration. Manual ledger movements create linked signed
+Cash In adjustments for each affected branch: transfers debit the sender's
+gross amount and credit the receiver after fees. Reversals create opposite
+adjustments on the reversal date. These are fund movements, not expense rows.
+Existing Petty Cash expenses and Cash In entries still synchronize normally;
+correct them in their original records. Payment queue records retain their
+existing treasury-only rule. `verify-finance-all-petty-movements.mjs` tests the
+new migration with all verification changes rolled back.
+
+Collections can be remitted directly to integrated branch petty cash accounts.
+Apply `20261004130000_finance_petty_cash_remittances.sql` using
+`node scripts/apply-finance-cash-flow.mjs --petty-remittances`. Each collection
+creates a linked Cash In record for the receiving branch using the net amount
+after deductions. The link bypasses the normal petty cash ledger synchronization
+to prevent a second credit. Corrections use Cash Ledger reversal, which creates
+a dated negative Cash In adjustment and restores the receivable. Linked Cash In
+records cannot be independently edited or deleted. Verify with
+`node scripts/verify-finance-petty-remittances.mjs` (rollback-only).
+
 `node scripts/verify-finance-cash-flow.mjs` uses `DATABASE_URL` from local
 configuration. It creates test accounts and movements inside a transaction,
 tests balances, invalid postings, reversals, and access restrictions, and rolls
