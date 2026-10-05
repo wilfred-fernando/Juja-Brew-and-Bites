@@ -257,7 +257,24 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
     const key = record.id != null && String(record.id) !== "" ? `id:${record.id}` : `missing:${index}`;
     uniqueRecords.set(key, record);
   });
-  const sorted = [...uniqueRecords.values()].sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+  const closingEvents = new Map();
+  const otherRecords = [];
+  for (const record of uniqueRecords.values()) {
+    if (String(record.mode || "").toLowerCase() !== "close") {
+      otherRecords.push(record);
+      continue;
+    }
+    const time = Date.parse(record.created_at);
+    const eventKey = JSON.stringify([record.store_id, Number.isFinite(time) ? time : record.id]);
+    const existing = closingEvents.get(eventKey);
+    const summary = plainObject(record.sales_summary);
+    const previousSummary = plainObject(existing?.sales_summary);
+    const hasStart = Number.isFinite(Date.parse(summary.shiftStartedAt || summary.shift_started_at || ""));
+    const previousHasStart = Number.isFinite(Date.parse(previousSummary.shiftStartedAt || previousSummary.shift_started_at || ""));
+    // Prefer the complete snapshot when a legacy/imported copy lacks a start.
+    if (!existing || hasStart || !previousHasStart) closingEvents.set(eventKey, record);
+  }
+  const sorted = [...otherRecords, ...closingEvents.values()].sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
   const openQueues = new Map();
   const reportedClosings = new Set();
   const rows = [];
@@ -277,9 +294,6 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
     const validSavedStart = Number.isFinite(Date.parse(savedStart || "")) && Date.parse(savedStart) <= Date.parse(record.created_at);
     // A retry can have a new record ID. Identify the shift by its captured start;
     // legacy records without a start can only be matched at the same close time.
-    const closingKey = JSON.stringify([storeId, record.cashier_id || "", validSavedStart ? savedStart : record.created_at]);
-    if (reportedClosings.has(closingKey)) return;
-    reportedClosings.add(closingKey);
     const opens = openQueues.get(storeId) || [];
     let openIndex = -1;
     for (let index = opens.length - 1; index >= 0; index -= 1) {
@@ -290,6 +304,10 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
       break;
     }
     const open = openIndex >= 0 ? opens.splice(openIndex, 1)[0] : null;
+    const resolvedStart = validSavedStart ? savedStart : open?.created_at;
+    const closingKey = JSON.stringify([storeId, record.cashier_id || open?.cashier_id || "", Date.parse(resolvedStart || record.created_at)]);
+    if (reportedClosings.has(closingKey)) return;
+    reportedClosings.add(closingKey);
     const payments = plainObject(summary.payments);
     const paymentTransactions = plainObject(summary.paymentTransactions || summary.payment_transactions);
     const startingCash = num(open?.cash_total, num(summary.startingCash));
