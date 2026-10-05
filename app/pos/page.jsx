@@ -4401,6 +4401,7 @@ export default function POSPage() {
   const [startingCash, setStartingCash] = useState("");
   const [shiftCashOpen, setShiftCashOpen] = useState(false);
   const [shiftCashMode, setShiftCashMode] = useState("open");
+  const shiftCashSavingRef = useRef(false);
   const [shiftDenominations, setShiftDenominations] = useState({});
   const [shiftRecords, setShiftRecords] = useState([]);
   const [shiftStatus, setShiftStatus] = useState("loading");
@@ -8756,6 +8757,9 @@ export default function POSPage() {
   }
 
   async function saveShiftCash(totalCash) {
+    if (shiftCashSavingRef.current) return;
+    shiftCashSavingRef.current = true;
+    try {
     if (!currentUserId) {
       showToast("error", "Shift Failed", "Cashier account is still loading. Please try again.");
       return;
@@ -8847,6 +8851,9 @@ export default function POSPage() {
       } catch (printError) {
         showToast("warn", isEndDay ? "End Day Report Not Printed" : "Close Shift Report Not Printed", printError?.message || "Select and save the receipt printer in POS Settings.");
       }
+    }
+    } finally {
+      shiftCashSavingRef.current = false;
     }
   }
 

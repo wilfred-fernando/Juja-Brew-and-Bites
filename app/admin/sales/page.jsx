@@ -277,12 +277,14 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
   const sorted = [...otherRecords, ...closingEvents.values()].sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
   const openQueues = new Map();
   const reportedClosings = new Set();
+  const recentClosings = new Map();
   const rows = [];
 
   sorted.forEach((record) => {
     const mode = String(record.mode || "").toLowerCase();
     const storeId = String(record.store_id || "MAIN");
     if (mode === "open") {
+      recentClosings.delete(JSON.stringify([storeId, record.cashier_id || ""]));
       if (!openQueues.has(storeId)) openQueues.set(storeId, []);
       openQueues.get(storeId).push(record);
       return;
@@ -290,6 +292,13 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
     if (mode !== "close") return;
 
     const summary = plainObject(record.sales_summary);
+    const cashierKey = JSON.stringify([storeId, record.cashier_id || ""]);
+    const previousClose = recentClosings.get(cashierKey);
+    const closeTime = Date.parse(record.created_at);
+    const snapshot = JSON.stringify([record.cash_total, summary, plainObject(record.denominations)]);
+    // Legacy double submissions have new IDs/timestamps but identical snapshots.
+    if (previousClose && closeTime - previousClose.time <= 5000 && previousClose.snapshot === snapshot) return;
+    recentClosings.set(cashierKey, { time: closeTime, snapshot });
     const savedStart = summary.shiftStartedAt || summary.shift_started_at;
     const validSavedStart = Number.isFinite(Date.parse(savedStart || "")) && Date.parse(savedStart) <= Date.parse(record.created_at);
     // A retry can have a new record ID. Identify the shift by its captured start;
