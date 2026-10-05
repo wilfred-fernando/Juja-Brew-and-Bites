@@ -250,7 +250,14 @@ function normalizeStoreName(store) {
 
 function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters(), sales = [], lineItems = []) {
   const storeById = new Map(stores.map((store) => [String(store.id), normalizeStoreName(store)]));
-  const sorted = [...shiftRecords].sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+  // Archive rows arrive first and live rows last. Prefer the live copy before
+  // pairing opens/closes so an overlapping record cannot consume two openings.
+  const uniqueRecords = new Map();
+  shiftRecords.forEach((record, index) => {
+    const key = record.id != null && String(record.id) !== "" ? `id:${record.id}` : `missing:${index}`;
+    uniqueRecords.set(key, record);
+  });
+  const sorted = [...uniqueRecords.values()].sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
   const openQueues = new Map();
   const rows = [];
 
