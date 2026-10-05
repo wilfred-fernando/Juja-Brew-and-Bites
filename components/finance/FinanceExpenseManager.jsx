@@ -2448,7 +2448,7 @@ export default function FinanceExpenseManager() {
               Add Petty Cash Expense
             </button>
             <div className="w-72 shrink-0" style={{order:10}}><Field label="Search items"><Input type="search" value={pettyItemSearch} onChange={e=>setPettyItemSearch(e.target.value)} placeholder="Description or common name" /></Field></div>
-            <a href="/finance/cash-flow" className="text-sm font-semibold text-slate-700 underline">Add / Transfer Fund</a>
+            <a href="/finance/cash-flow" className="inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-slate-300 bg-white px-3.5 text-xs font-semibold text-slate-700 no-underline hover:bg-slate-50">Add / Transfer Fund</a>
           <button type="button" disabled={!selectedStoreId} onClick={() => setCashInRecordsOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-semibold text-cyan-800 disabled:opacity-40">
             <ArrowUpCircle size={17} /> View Cash In Records
           </button>
