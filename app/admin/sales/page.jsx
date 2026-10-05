@@ -259,6 +259,7 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
   });
   const sorted = [...uniqueRecords.values()].sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
   const openQueues = new Map();
+  const reportedClosings = new Set();
   const rows = [];
 
   sorted.forEach((record) => {
@@ -271,18 +272,33 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
     }
     if (mode !== "close") return;
 
-    const opens = openQueues.get(storeId) || [];
-    const open = opens.pop() || null;
     const summary = plainObject(record.sales_summary);
+    const savedStart = summary.shiftStartedAt || summary.shift_started_at;
+    const validSavedStart = Number.isFinite(Date.parse(savedStart || "")) && Date.parse(savedStart) <= Date.parse(record.created_at);
+    // A retry can have a new record ID. Identify the shift by its captured start;
+    // legacy records without a start can only be matched at the same close time.
+    const closingKey = JSON.stringify([storeId, record.cashier_id || "", validSavedStart ? savedStart : record.created_at]);
+    if (reportedClosings.has(closingKey)) return;
+    reportedClosings.add(closingKey);
+    const opens = openQueues.get(storeId) || [];
+    let openIndex = -1;
+    for (let index = opens.length - 1; index >= 0; index -= 1) {
+      const candidate = opens[index];
+      if (record.cashier_id && candidate.cashier_id && String(record.cashier_id) !== String(candidate.cashier_id)) continue;
+      if (validSavedStart && Date.parse(candidate.created_at) !== Date.parse(savedStart)) continue;
+      openIndex = index;
+      break;
+    }
+    const open = openIndex >= 0 ? opens.splice(openIndex, 1)[0] : null;
     const payments = plainObject(summary.payments);
     const paymentTransactions = plainObject(summary.paymentTransactions || summary.payment_transactions);
-    const startingCash = num(open?.cash_total);
+    const startingCash = num(open?.cash_total, num(summary.startingCash));
     const cashPayments = jsonNumber(summary, "cashPayments");
     const cashRefunds = jsonNumber(summary, "cashRefunds");
     const expectedCash = num(summary.expectedCash, startingCash + cashPayments - cashRefunds);
     const actualCash = num(record.cash_total);
     const difference = actualCash - expectedCash;
-    const openedAt = open?.created_at || record.created_at;
+    const openedAt = validSavedStart ? savedStart : open?.created_at || record.created_at;
     const closedAt = record.created_at;
     const rowDate = safeManilaDate(openedAt || closedAt || record.created_at);
     const storeName = storeById.get(storeId) || storeId || "Store";
