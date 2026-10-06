@@ -4,38 +4,40 @@ import { readFile } from "node:fs/promises";
 // Load the production helpers without requiring a browser or a live kitchen.
 const source = await readFile(new URL("../lib/kds.js", import.meta.url), "utf8");
 const { appendKdsTicketItems } = await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`);
-let ticket = { id: "kds-1", status: "completed", items: [{ id: "old", name: "Sandwich", quantity: 1, kdsCompleted: true }] };
+const original = { id: "old-kds", source_id: "saved-1", status: "preparing", items: [{ id: "old", name: "SPAM Kimchi Rice", quantity: 1, kdsCompleted: false }] };
+const originalSnapshot = structuredClone(original);
+const records = new Map([["saved-1", original]]);
 let writes = 0;
 let loseResponse = false;
 const supabase = { from() {
-  let patch;
+  let sourceId;
   return {
-    select() { return this; }, eq() { return this; },
-    update(value) { patch = value; return this; },
-    async maybeSingle() {
-      if (patch) {
-        writes++;
-        ticket = { ...ticket, ...patch };
-        if (loseResponse) { loseResponse = false; return { error: new Error("Response lost") }; }
-      }
-      return { data: structuredClone(ticket), error: null };
+    select() { return this; },
+    eq(field, value) { if (field === "source_id") sourceId = value; return this; },
+    async upsert(payload, options) {
+      assert.equal(options.ignoreDuplicates, true);
+      if (!records.has(payload.source_id)) { records.set(payload.source_id, { ...structuredClone(payload), id: `kds-${++writes}` }); }
+      if (loseResponse) { loseResponse = false; return { error: new Error("Response lost") }; }
+      return { error: null };
     },
+    async maybeSingle() { return { data: structuredClone(records.get(sourceId)), error: null }; },
   };
 } };
-const args = { sourceType: "pos", order: { id: "saved-1", store_id: "branch-1" }, items: [
-  { cartItemId: "snack-add-1", name: "Snack Platter", quantity: 2 },
-  { cartItemId: "cornedbeef-add-1", name: "Cornedbeef Silog", quantity: 2 },
-  { cartItemId: "sausage-add-1", name: "Sausage Silog", quantity: 1 },
+const args = { sourceType: "pos", batchId: "batch-one", order: { id: "saved-1", store_id: "branch-1" }, items: [
+  { cartItemId: "chicken-add-1", name: "Boneless Chicken", quantity: 1 },
 ] };
 loseResponse = true;
 assert.ok((await appendKdsTicketItems(supabase, args)).error);
-ticket.items[1].kitchenReady = true;
+const batch = records.get("saved-1:batch:batch-one");
+batch.items[0].kitchenReady = true;
 assert.equal((await appendKdsTicketItems(supabase, args)).error, null);
-assert.equal(writes, 1, "Lost response retry must not write the batch twice");
-assert.equal(ticket.items.length, 4);
-assert.equal(ticket.items[1].kitchenReady, true, "Retry preserves kitchen progress");
-assert.equal(ticket.items[0].kdsCompleted, true);
-assert.equal(ticket.status, "preparing");
+assert.equal(writes, 1, "Lost response retry must not create another batch");
+assert.equal(batch.items[0].kitchenReady, true, "Retry preserves kitchen progress");
+assert.deepEqual(original, originalSnapshot, "Earlier pending order is untouched");
+await appendKdsTicketItems(supabase, { ...args, batchId: "batch-two", items: [{ cartItemId: "beef-add-1", name: "Beef Pepper Rice", quantity: 1 }] });
+assert.equal(records.size, 3, "Every addition has its own kitchen order");
+assert.equal(records.get("saved-1:batch:batch-two").items.length, 1);
+assert.equal(original.items[0].kdsCompleted, false);
 
 let queue = [];
 let fail = true;
