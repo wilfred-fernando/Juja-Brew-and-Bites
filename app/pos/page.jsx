@@ -4316,6 +4316,7 @@ export default function POSPage() {
   const audioIntervalRef = useRef(null);
   const seenIncomingOrderIds = useRef(new Set());
   const autoRefreshInFlightRef = useRef(false);
+  const catalogSyncsRef = useRef(new Map());
 
   const [printerConfig, setPrinterConfig] = useState({ receipt: null, order_slip: null, cup_label: null });
   const [barPrinterCategoryIds, setBarPrinterCategoryIds] = useState([]);
@@ -6302,6 +6303,19 @@ export default function POSPage() {
 
   async function fetchData(sid, opts = {}) {
     if (!sid) return;
+    const active = catalogSyncsRef.current.get(sid);
+    if (active) return active;
+    const sync = fetchDataUncoalesced(sid, opts);
+    catalogSyncsRef.current.set(sid, sync);
+    try {
+      return await sync;
+    } finally {
+      catalogSyncsRef.current.delete(sid);
+    }
+  }
+
+  async function fetchDataUncoalesced(sid, opts = {}) {
+    if (!sid) return;
     const showLoadingState = opts.showLoading !== false;
     if (showLoadingState) setLoading(true);
     let cachedSnapshot = null;
@@ -6335,6 +6349,12 @@ export default function POSPage() {
         && Array.isArray(cachedSnapshot.optionSelectionStoreAvailability)
       );
       const syncStartedAt = new Date().toISOString();
+      const fingerprintRes = await supabase.rpc("pos_catalog_fingerprint");
+      const catalogFingerprint = !fingerprintRes.error && typeof fingerprintRes.data === "string"
+        ? fingerprintRes.data : null;
+      const reuseMenu = !opts.forceRefresh && canDeltaSync
+        && catalogFingerprint && cachedSnapshot.catalogFingerprint === catalogFingerprint
+        && Array.isArray(cachedSnapshot.categories);
       const changedSince = canDeltaSync ? cachedSnapshot.syncCursor : "";
       const changed = (query) => (changedSince ? query.gt("updated_at", changedSince) : query);
       const mergeRows = (current, incoming, keyOf) => {
@@ -6345,8 +6365,8 @@ export default function POSPage() {
       };
 
       const [iRes, catRes, itemStoreAvailabilityRes, optionGroupAvailabilityRes, optionSelectionAvailabilityRes] = await Promise.all([
-        supabase.from("menu_items").select("*").order("name"),
-        supabase.from("menu_categories").select("*").order("name", { ascending: true }),
+        reuseMenu ? Promise.resolve({ data: cachedSnapshot.rawItems }) : supabase.from("menu_items").select("*").order("name"),
+        reuseMenu ? Promise.resolve({ data: cachedSnapshot.categories }) : supabase.from("menu_categories").select("*").order("name", { ascending: true }),
         changed(supabase.from("menu_item_store_availability").select("item_id, store_id, is_available, updated_at").eq("store_id", sid)),
         changed(supabase.from("option_group_store_availability").select("store_id, group_key, group_name, is_available, updated_at").eq("store_id", sid)),
         changed(supabase.from("option_selection_store_availability").select("store_id, group_key, option_key, group_name, option_name, is_available, updated_at").eq("store_id", sid)),
@@ -6371,7 +6391,8 @@ export default function POSPage() {
       ].find(Boolean);
       if (catalogError) throw catalogError;
 
-      // Always replace the menu: visibility edits may not advance updated_at.
+      // The fingerprint detects visibility edits and deletions without sending
+      // the full menu to every device on each routine refresh.
       const rawItems = iRes.data || [];
       const cats = (catRes.data || [])
         .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
@@ -6440,6 +6461,7 @@ export default function POSPage() {
       await setLocalSnapshot("pos_catalog", {
         cached_at: new Date().toISOString(),
         syncCursor: syncStartedAt,
+        catalogFingerprint,
         lastFullSyncAt: changedSince ? cachedSnapshot?.lastFullSyncAt : syncStartedAt,
         rawItems,
         items: itemRows,
@@ -7122,7 +7144,7 @@ export default function POSPage() {
       if (row.store_id && String(row.store_id) !== String(storeId)) return;
       window.clearTimeout(refreshTimer);
       refreshTimer = window.setTimeout(() => {
-        fetchData(storeId, { showLoading: false, forceRefresh: true }).catch((err) => {
+          fetchData(storeId, { showLoading: false }).catch((err) => {
           console.warn("POS Realtime catalog refresh failed", err);
         });
       }, 500);
