@@ -24,13 +24,12 @@ export async function POST(request) {
     }
     if (payload.member_id || payload.user_id) {
       const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
-      const { data: member, error: memberError } = await admin.from("loyalty_members").select("id,user_id").eq("id", payload.member_id).maybeSingle();
-      if (memberError || !member) return Response.json({ error: "Select a valid customer account." }, { status: 400 });
-      const { data: linked, error: linkError } = await admin.from("profiles").select("id,loyalty_account_id").eq("id", payload.user_id).maybeSingle();
-      if (linkError || !linked || (member.user_id !== linked.id && linked.loyalty_account_id !== member.id)) {
-        return Response.json({ error: "The customer account link has changed. Select the account again." }, { status: 400 });
+      const { data: linked, error: linkError } = await admin.from("profiles").select("id,role").eq("id", payload.user_id).maybeSingle();
+      const { data: account, error: accountError } = await admin.auth.admin.getUserById(payload.user_id);
+      if (linkError || accountError || linked?.role !== "customer" || !account?.user?.email_confirmed_at) {
+        return Response.json({ error: "Select a confirmed customer account." }, { status: 400 });
       }
-      payload.member_id = member.id;
+      payload.member_id = null;
       payload.user_id = linked.id;
     } else {
       payload.member_id = null;

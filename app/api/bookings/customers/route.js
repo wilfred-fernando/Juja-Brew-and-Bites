@@ -16,12 +16,21 @@ export async function GET(request) {
     if (response) return response;
     const q = (new URL(request.url).searchParams.get("q") || "").trim().replace(/[^\p{L}\p{N}@ .+_-]/gu, "").slice(0, 80);
     if (q.length < 2) return Response.json({ customers: [] });
-    const { data, error } = await admin.from("loyalty_members").select('id,user_id,customer_name,"Email","Phone"')
-      .or(`customer_name.ilike.%${q}%,Email.ilike.%${q}%,Phone.ilike.%${q}%`).order("customer_name").limit(15);
+    const { data: profiles, error } = await admin.from("profiles").select("id,full_name").eq("role", "customer");
     if (error) throw error;
-    const ids = (data || []).map((row) => row.id);
-    const linked = ids.length ? await admin.from("profiles").select("id,loyalty_account_id").in("loyalty_account_id", ids) : { data: [] };
-    if (linked.error) throw linked.error;
-    return Response.json({ customers: (data || []).map((row) => ({ id: row.id, user_id: row.user_id || linked.data?.find((p) => p.loyalty_account_id === row.id)?.id, name: row.customer_name, email: row.Email, phone: row.Phone })).filter((row) => row.user_id) }, { headers: { "Cache-Control": "no-store" } });
+    const profileMap = new Map((profiles || []).map((row) => [row.id, row]));
+    const customers = [];
+    for (let page = 1; ; page += 1) {
+      const { data, error: authError } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+      if (authError) throw authError;
+      for (const user of data.users) {
+        const profile = profileMap.get(user.id);
+        if (!profile || !user.email_confirmed_at) continue;
+        const row = { id: user.id, user_id: user.id, member_id: null, name: profile.full_name || user.user_metadata?.full_name || user.email, email: user.email || "", phone: user.user_metadata?.contact_number || "" };
+        if ([row.name, row.email, row.phone].some((value) => String(value).toLowerCase().includes(q.toLowerCase()))) customers.push(row);
+      }
+      if (data.users.length < 1000) break;
+    }
+    return Response.json({ customers: customers.sort((a, b) => a.name.localeCompare(b.name)).slice(0, 15) }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) { return Response.json({ error: error.message || "Customer search failed." }, { status: 500 }); }
 }

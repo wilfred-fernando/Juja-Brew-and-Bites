@@ -832,7 +832,7 @@ export default function AdminBookingsDashboard() {
 
     setEditModal({
       booking: b,
-      customer_account: b.user_id || b.member_id ? { id: b.member_id, user_id: b.user_id, name: "Linked customer account", email: b.email || "", phone: b.contact_number || "" } : null,
+      customer_account: b.user_id || b.member_id ? { id: b.user_id || b.member_id, member_id: b.member_id, user_id: b.user_id, name: "Linked customer account", email: b.email || "", phone: b.contact_number || "" } : null,
       customer_account_changed: false,
       customer_name: b.customer_name || "",
       event_type: b.event_type || "",
@@ -878,7 +878,7 @@ export default function AdminBookingsDashboard() {
 
       if (editModal.customer_account_changed) {
         payload.user_id = editModal.customer_account?.user_id || null;
-        payload.member_id = editModal.customer_account?.id || null;
+        payload.member_id = editModal.customer_account?.member_id || null;
       }
 
       if (b.update_request_status === "pending") {
@@ -967,7 +967,7 @@ export default function AdminBookingsDashboard() {
       const endAt = computeEndAt(startAt, extensionHours);
       const payload = {
         user_id: manualModal.customer_account?.user_id || null,
-        member_id: manualModal.customer_account?.id || null,
+        member_id: manualModal.customer_account?.member_id || null,
         package_id: Number(manualModal.package_id),
         customer_name: String(manualModal.customer_name || "").trim(),
         event_type: String(manualModal.event_type || "").trim(),

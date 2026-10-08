@@ -122,7 +122,7 @@ export default function ManualBookingModal({ open, cashierName, onClose, onCreat
     try {
       const payload = {
         user_id: form.customer_account?.user_id || null,
-        member_id: form.customer_account?.id || null,
+        member_id: form.customer_account?.member_id || null,
         package_id: Number(form.package_id),
         customer_name: String(form.customer_name).trim(),
         event_type: String(form.event_type).trim(),
