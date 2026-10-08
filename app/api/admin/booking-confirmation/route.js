@@ -105,6 +105,7 @@ export async function POST(req) {
       "guest_count",
       "contact_number",
       "email",
+      "payment_method",
       "package_id",
       "extension_hours",
       "business_date",
@@ -122,6 +123,11 @@ export async function POST(req) {
       for (const key of ["guest_count", "package_id", "extension_hours"]) {
         if (key in adjustedFields) adjustedFields[key] = Number(adjustedFields[key]);
       }
+    }
+
+    if ("payment_method" in adjustedFields && adjustedFields.payment_method !== null &&
+        !["Cash", "Card", "QRPH", "Waived", booking.payment_method].includes(adjustedFields.payment_method)) {
+      return Response.json({ error: "Select Cash, Card, QRPH, or Waived for the reservation fee." }, { status: 400 });
     }
 
     if ("user_id" in adjustedFields || "member_id" in adjustedFields) {

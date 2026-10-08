@@ -844,6 +844,7 @@ export default function AdminBookingsDashboard() {
       dateISO,
       hour: isNaN(hour) ? OPERATING_START_HOUR : hour,
       admin_note: b.update_admin_note || "",
+      payment_method: b.payment_method || "",
     });
   }
 
@@ -869,6 +870,7 @@ export default function AdminBookingsDashboard() {
         guest_count: Number(editModal.guest_count || 1),
         contact_number: String(editModal.contact_number || "").trim(),
         email: String(editModal.email || "").trim(),
+        payment_method: editModal.payment_method || null,
         package_id: Number(editModal.package_id),
         extension_hours: extensionHours,
         business_date: editModal.dateISO,
@@ -2229,6 +2231,21 @@ export default function AdminBookingsDashboard() {
                         : `${labelHour(h)} (existing booking time)`}
                     </option>
                   ))}
+                </select>
+              </div>
+
+              <div className="md:col-span-2">
+                <label htmlFor="edit-reservation-payment" className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Reservation Fee Payment Type</label>
+                <select id="edit-reservation-payment" disabled={editLoading}
+                  value={editModal.payment_method}
+                  onChange={(event) => setEditModal((current) => ({ ...current, payment_method: event.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm">
+                  <option value="">Not specified</option>
+                  {editModal.payment_method && !["Cash", "Card", "QRPH", "Waived"].includes(editModal.payment_method) && <option value={editModal.payment_method}>{editModal.payment_method} (existing)</option>}
+                  <option value="Cash">Cash</option>
+                  <option value="Card">Card</option>
+                  <option value="QRPH">QRPH</option>
+                  <option value="Waived">Waived</option>
                 </select>
               </div>
 
