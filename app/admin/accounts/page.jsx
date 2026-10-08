@@ -22,6 +22,28 @@ export default function AdminAccountsPage() {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
+  const [confirmingId, setConfirmingId] = useState("");
+
+  async function confirmCustomer(account) {
+    if (confirmingId || !window.confirm(`Manually confirm ${account.email}? This lets the customer sign in without completing the email confirmation link.`)) return;
+    setConfirmingId(account.id);
+    setNotice("");
+    try {
+      const res = await fetch("/api/admin/accounts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: account.id, action: "confirm_customer" }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Unable to confirm customer account.");
+      setAccounts((current) => current.map((row) => row.id === account.id ? { ...row, ...json.account } : row));
+      setNotice(`${account.email} confirmed. The customer can now sign in with their existing password.`);
+    } catch (error) {
+      setNotice(error.message || "Unable to confirm customer account.");
+    } finally {
+      setConfirmingId("");
+    }
+  }
 
   async function loadAccounts() {
     setLoading(true);
@@ -149,6 +171,8 @@ export default function AdminAccountsPage() {
                         <th>Store</th>
                         <th>Date Created</th>
                         <th>Last Sign In</th>
+                        <th>Email Status</th>
+                        <th className="p-3">Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -159,6 +183,17 @@ export default function AdminAccountsPage() {
                           <td className="text-slate-700">{account.store_name || "All stores"}</td>
                           <td className="text-slate-700">{formatDateTime(account.created_at)}</td>
                           <td className="text-slate-700">{formatDateTime(account.last_sign_in_at)}</td>
+                          <td className="text-slate-700">
+                            {account.email_confirmed_at ? account.manual_confirmation ? "Manually confirmed" : "Confirmed" : "Pending confirmation"}
+                          </td>
+                          <td className="p-3">
+                            {group.role === "customer" && !account.email_confirmed_at && account.email ? (
+                              <button type="button" disabled={!!confirmingId} onClick={() => confirmCustomer(account)}
+                                className="rounded-xl bg-slate-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">
+                                {confirmingId === account.id ? "Confirming..." : "Confirm account"}
+                              </button>
+                            ) : "—"}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
