@@ -13,6 +13,7 @@ export default function TicketPanel({
   onSearchKeyDown,
   onOpenScanner,
   diningOption,
+  diningSelectionLocked = false,
   diningOptions,
   setDiningOption,
   occupiedDiningOptionIds,
@@ -200,6 +201,8 @@ const isWelcomeVoucher = (voucher) => {
         </label>
         <select
           value={diningOption || ""}
+          disabled={diningSelectionLocked}
+          title={diningSelectionLocked ? "The table is locked for this saved ticket." : undefined}
           onChange={(e) => {
             const selectedValue = e.target.value;
             setDiningOption(selectedValue);

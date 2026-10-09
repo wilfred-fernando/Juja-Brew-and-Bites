@@ -33,6 +33,8 @@ import GiftCertificatePaymentDialog from "@/components/pos/GiftCertificatePaymen
 import { gcPaymentBreakdown } from "@/lib/posGiftCertificates";
 import OfflineSyncNotice from "@/components/pos/OfflineSyncNotice";
 import { addPosCartLine } from "@/lib/posCart";
+import { deliverOrderSlips } from "@/lib/orderSlipDelivery";
+import { mergeReceiptCache, preferredReceiptNumber } from "@/lib/posReceiptCache";
 import { loyaltySearchFilter, normalizeLoyaltySearch } from "@/lib/posLoyaltySearch";
 import { ensurePosBeneficiarySession } from "@/lib/posBeneficiarySession";
 import { receiptLineMetadata } from "@/lib/reports/receiptDetails";
@@ -4969,6 +4971,8 @@ export default function POSPage() {
       if (kdsErr) console.warn("Offline synced sale KDS update skipped:", kdsErr);
     }
 
+    await cacheCompletedReceipt({ ...orderRow, receipt_number: generatedReceiptNumber }, draftCart, draft.customer, resolvedBranchId)
+      .catch(error => console.warn("Synced receipt cache write failed", error));
     return { orderRow, generatedReceiptNumber };
   }
 
@@ -6579,6 +6583,7 @@ export default function POSPage() {
     return printByRole(role, text, printerConfig, { fallbackToBrowser: false, ...options });
   }
 
+  const orderSlipWorkRef = useRef(Promise.resolve());
   async function autoPrintOrderSlip({
     orderId,
     slipCart = cart,
@@ -6595,16 +6600,19 @@ export default function POSPage() {
     const configuredJobs = (orderSlipPrinterGroups || [])
       .map((group) => ({
         groupName: normalizeLabelLine(group.name || "Order Slip"),
+        key: String(group.id || group.name),
         items: filterItemsByPrinterGroup(cartRows, group.categoryIds, group.categoryNames),
       }))
       .filter((job) => job.items.length > 0);
 
-    const printJobs = configuredJobs.length > 0
-      ? configuredJobs
-      : [{ groupName: "Order Slip", items: cartRows, useFullTotal: true }];
+    const routedItems = new Set(configuredJobs.flatMap(job => job.items));
+    const unmatchedItems = cartRows.filter(line => !routedItems.has(line));
+    const printJobs = [...configuredJobs, ...(unmatchedItems.length
+      ? [{ key: "unassigned", groupName: "Order Slip", items: unmatchedItems }]
+      : [])];
 
     try {
-      for (const job of printJobs) {
+      const print = async (job) => {
         const groupTitle = job.groupName.toUpperCase();
         const slipText = buildOrderSlipText({
           orderId,
@@ -6616,8 +6624,21 @@ export default function POSPage() {
           slipTitle: `${groupTitle.endsWith("ORDER SLIP") ? groupTitle : `${groupTitle} ORDER SLIP`}${titleSuffix}`,
         });
         await printByRoleWhenReady("receipt", slipText);
+      };
+      if (titleSuffix) {
+        for (const job of printJobs) await print(job);
+        return printJobs.length;
       }
-      return printJobs.length;
+      const namespace = `pos_order_slips:${orderId}`;
+      const work = () => deliverOrderSlips({
+        jobs: printJobs,
+        load: async () => (await getLocalSnapshot(namespace, { storeId }))?.data,
+        persist: printed => setLocalSnapshot(namespace, { ...printed }, { storeId }),
+        print,
+      });
+      const delivery = orderSlipWorkRef.current.then(work, work);
+      orderSlipWorkRef.current = delivery.catch(() => {});
+      return await delivery;
     } catch (printError) {
       if (throwOnError) throw printError;
       showToast("warn", "Order Slip Not Printed", printError?.message || "Select and save the receipt printer in POS Settings.");
@@ -6626,6 +6647,9 @@ export default function POSPage() {
   }
 
   const [originalTicketId, setOriginalTicketId] = useState(null);
+  const savedTableSelectionLocked = Boolean(originalTicketId && isTableDiningOption(
+    (diningOptions || []).find((option) => String(option.id) === String(diningOption))?.name || ""
+  ));
   const occupiedTableKeys = useMemo(() => {
     const keys = new Set();
 
@@ -6636,7 +6660,8 @@ export default function POSPage() {
     });
 
     (activeKitchenTables || []).forEach((ticket) => {
-      if (originalTicketId && String(ticket.source_id) === String(originalTicketId)) return;
+      if (originalTicketId && (String(ticket.source_id) === String(originalTicketId) ||
+        String(ticket.source_id).startsWith(`${originalTicketId}:batch:`))) return;
       if (ticket.key) keys.add(ticket.key);
     });
 
@@ -6674,6 +6699,17 @@ export default function POSPage() {
 
     const ticket = (data || [])[0] || null;
 
+    // Changing the dining label moves the current saved ticket. Keep its ID
+    // and existing cart so the next save compares against its original items.
+    if (originalTicketId && cart.length > 0) {
+      if (ticket && isTableDiningOption(optionName) && String(ticket.id) !== String(originalTicketId)) {
+        showToast("warn", "Table Occupied", `${optionName} already has a saved ticket. Resume it from Saved Tickets instead.`);
+        return false;
+      }
+      showToast("info", "Dining Option Changed", `${optionName}. Save to update this ticket.`);
+      return true;
+    }
+
     if (ticket) {
       if (isTableDiningOption(optionName) && String(ticket.id) !== String(originalTicketId || "")) {
         showToast("warn", "Table Occupied", `${optionName} already has a saved ticket. Resume it from Saved Tickets instead.`);
@@ -6704,13 +6740,15 @@ export default function POSPage() {
   }
 
   async function handleDiningChange(optionId) {
+    if (savedTableSelectionLocked && String(optionId) !== String(diningOption)) {
+      showToast("warn", "Table Locked", "This saved ticket must stay on its assigned table.");
+      return;
+    }
     const opt = (diningOptions || []).find((d) => String(d.id) === String(optionId));
     const name = opt?.name || "";
 
     if (!name) {
-      setDiningOption(optionId);
-      setOriginalTicketId(null);
-      clearActiveWebOrderContext();
+      showToast("warn", "Dining Option Required", "Select a valid dining option before updating this ticket.");
       return;
     }
 
@@ -6856,16 +6894,8 @@ export default function POSPage() {
             items: kitchenAddedItems,
             status: "preparing",
           });
-          if (kdsErr) throw kdsErr;
+          if (kdsErr) showToast("warn", "KDS Sync Warning", kdsErr.message || "Kitchen sync needs attention; order slips will still print.");
         }
-        await autoPrintOrderSlip({
-          orderId: savedTicketId,
-          slipCart: addedItems,
-          slipDining: name,
-          slipCustomer: attachedCustomer?.name || "Walk-in",
-          slipTotal: calcTotal(addedItems),
-          printedAt: ticketPrintedAt,
-        });
         await autoPrintBarCupLabels({
           orderId: savedTicketId,
           labelCart: addedItems,
@@ -6873,6 +6903,14 @@ export default function POSPage() {
           printedAt: ticketPrintedAt,
         });
       }
+      await autoPrintOrderSlip({
+        orderId: savedTicketId,
+        slipCart: savedItems,
+        slipDining: name,
+        slipCustomer: attachedCustomer?.name || "Walk-in",
+        slipTotal: Number(subtotal || 0),
+        printedAt: ticketPrintedAt,
+      });
     } else {
       const { data: ticketRow, error } = await supabase.from("open_tickets").insert([payload]).select("*").single();
       if (error) throw error;
@@ -6892,7 +6930,7 @@ export default function POSPage() {
         },
         status: "preparing",
       });
-      if (kdsErr) throw kdsErr;
+      if (kdsErr) showToast("warn", "KDS Sync Warning", kdsErr.message || "Kitchen sync needs attention; order slips will still print.");
       await autoPrintOrderSlip({
         orderId: ticketRow.id,
         slipCart: savedItems,
@@ -7775,18 +7813,68 @@ export default function POSPage() {
     return total;
   }
 
-  async function fetchReceiptLogs() {
+  const receiptCacheWorkRef = useRef(Promise.resolve());
+  const receiptStoreRef = useRef(storeId);
+  receiptStoreRef.current = storeId;
+  const receiptRefreshRef = useRef(null);
+  async function persistReceiptCache(incoming, sid = storeId) {
+    const work = async () => {
+      const previous = (await getLocalSnapshot("pos_receipts", { storeId: sid }))?.data || {};
+      const next = mergeReceiptCache(previous, incoming);
+      await setLocalSnapshot("pos_receipts", next, { storeId: sid });
+      if (String(receiptStoreRef.current) === String(sid)) {
+        setReceiptRows(next.rows);
+        setReceiptItemRows(next.itemRows);
+        setSelectedReceiptNumber(current => preferredReceiptNumber(next.rows, current));
+      }
+      return next;
+    };
+    const result = receiptCacheWorkRef.current.then(work, work);
+    receiptCacheWorkRef.current = result.catch(() => {});
+    return result;
+  }
+
+  async function cacheCompletedReceipt(order, lines, customer, sid = storeId) {
+    const receiptNumber = order.receipt_number || order.order_number;
+    if (!receiptNumber) return;
+    const orderTotal = Number(order.total || 0);
+    const discount = Number(order.discount || 0);
+    const row = { ...order, items: lines, order_id: order.id, receipt_number: receiptNumber,
+      date: formatReceiptDateTime(receiptDisplayTimestamp(order)),
+      gross_sales: orderTotal + discount, discounts: discount, refund_amount: 0,
+      net_sales: orderTotal, total_collected: orderTotal, payment_type: order.payment_method || "Other",
+      payment_splits: paymentSplitEntries(order.source_metadata?.payment_splits, order.payment_method, orderTotal),
+      description: order.dining_option || "POS Order", status: "Closed", customer,
+      customer_name: customerDisplayName(customer), customer_code: customerDisplayCode(customer) };
+    const itemRows = (lines || []).map((line, index) => ({ ...line,
+      id: `${receiptNumber}-local-${index}`, receipt_number: receiptNumber,
+      item: line.name, quantity: Number(line.quantity || line.qty || 1),
+      gross_sales: lineGrossAmount(line), net_sales: lineNetAmount(line), status: "Closed" }));
+    await persistReceiptCache({ rows: [row], itemRows }, sid);
+  }
+
+  async function fetchReceiptLogs(options = {}) {
+    if (!storeId) return;
+    if (receiptRefreshRef.current) return receiptRefreshRef.current;
+    const refresh = refreshReceiptLogs(options);
+    receiptRefreshRef.current = refresh;
+    try { return await refresh; } finally { receiptRefreshRef.current = null; }
+  }
+
+  async function refreshReceiptLogs({ force = false, archiveData, remoteResults } = {}) {
     fetchGcCashCollected().catch(error => showToast("error", "e-GC collections unavailable", error.message));
-    const cachedReceiptLog = (await getLocalSnapshot("pos_receipts", { storeId }))?.data;
+    const receiptSnapshot = await getLocalSnapshot("pos_receipts", { storeId });
+    const cachedReceiptLog = receiptSnapshot?.data;
     if (cachedReceiptLog?.rows?.length) {
-      setReceiptRows(cachedReceiptLog.rows);
+      const orderedCache = mergeReceiptCache({}, cachedReceiptLog);
+      setReceiptRows(orderedCache.rows);
       setReceiptItemRows(cachedReceiptLog.itemRows || []);
       setSelectedReceiptNumber((current) =>
-        cachedReceiptLog.rows.some((row) => row.receipt_number === current)
-          ? current
-          : cachedReceiptLog.rows[0]?.receipt_number || ""
+        preferredReceiptNumber(orderedCache.rows, current)
       );
     }
+    if (!force && !remoteResults && receiptSnapshot?.cachedAt &&
+      Date.now() - Date.parse(receiptSnapshot.cachedAt) < 30000) return;
     const receiptCutoff = new Date();
     receiptCutoff.setDate(receiptCutoff.getDate() - POS_RECEIPT_HISTORY_DAYS);
     const shiftCutoff = activeShiftStartMs ? new Date(activeShiftStartMs) : null;
@@ -7806,12 +7894,12 @@ export default function POSPage() {
       timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit",
     }).format(new Date(value));
     const { data: sessionData } = await supabase.auth.getSession();
-    const archiveRequest = fetch(`/api/archive/pos-receipts?from=${encodeURIComponent(archiveDateKey(receiptCutoffIso))}&to=${encodeURIComponent(archiveDateKey(new Date()))}&storeId=${encodeURIComponent(storeId || "")}`, {
+    const archiveRequest = remoteResults ? Promise.resolve(archiveData) : fetch(`/api/archive/pos-receipts?from=${encodeURIComponent(archiveDateKey(receiptCutoffIso))}&to=${encodeURIComponent(archiveDateKey(new Date()))}&storeId=${encodeURIComponent(storeId || "")}`, {
       headers: sessionData?.session?.access_token ? { authorization: `Bearer ${sessionData.session.access_token}` } : {},
       cache: "no-store",
     }).then(async (response) => response.ok ? response.json() : ({ orders: [], webOrders: [], orderItems: [] }))
       .catch(() => ({ orders: [], webOrders: [], orderItems: [] }));
-    const [receiptRes, webReceiptRes, archived] = await Promise.all([
+    const [receiptRes, webReceiptRes] = remoteResults || await Promise.all([
       supabase
       .from("orders")
       .select("*")
@@ -7827,8 +7915,14 @@ export default function POSPage() {
         .or(buildStoreOrderFilter(storeId))
         .order("created_at", { ascending: false })
         .limit(receiptLimit),
-      archiveRequest,
     ]);
+    const archived = archiveData || {};
+    if (!remoteResults) void archiveRequest.then(async history => {
+      await receiptRefreshRef.current;
+      if (history?.orders?.length || history?.webOrders?.length) {
+        await refreshReceiptLogs({ force: true, archiveData: history, remoteResults: [receiptRes, webReceiptRes] });
+      }
+    }).catch(error => console.warn("Receipt archive refresh failed", error));
     if (receiptRes.error) {
       showToast("error", "Receipts Failed", receiptRes.error.message);
       return;
@@ -7919,10 +8013,7 @@ export default function POSPage() {
         };
       });
     const rows = [...posRows, ...webRows].sort((a, b) => new Date(receiptDisplayTimestamp(b) || 0) - new Date(receiptDisplayTimestamp(a) || 0));
-    setReceiptRows(rows);
-    setSelectedReceiptNumber((current) =>
-      rows.some((row) => row.receipt_number === current) ? current : rows[0]?.receipt_number || ""
-    );
+    await persistReceiptCache({ rows });
 
     const posOrderIds = posRows.map((r) => r.order_id).filter(Boolean);
     const receiptNumberByOrderId = new Map(posRows.map((row) => [String(row.order_id), row.receipt_number]));
@@ -7958,7 +8049,7 @@ export default function POSPage() {
         }))
       );
       setReceiptItemRows(webOnlyItems);
-      await setLocalSnapshot("pos_receipts", { rows, itemRows: webOnlyItems }, { storeId });
+      await persistReceiptCache({ rows, itemRows: webOnlyItems });
       return;
     }
 
@@ -8009,9 +8100,13 @@ export default function POSPage() {
       );
       const allItems = [...posItems, ...webItems];
       setReceiptItemRows(allItems);
-      await setLocalSnapshot("pos_receipts", { rows, itemRows: allItems }, { storeId });
+      await persistReceiptCache({ rows, itemRows: allItems });
     }
   }
+
+  useEffect(() => {
+    if (storeId) fetchReceiptLogs().catch(error => console.warn("Receipt background refresh failed", error));
+  }, [storeId]);
 
   function openManagement(view) {
     setManagementView(view);
@@ -9503,6 +9598,8 @@ export default function POSPage() {
       const orderRow = usingGc ? result.data?.order : result.data;
       if (orderErr) throw new Error(orderErr.message);
       createdOrderRow = orderRow;
+      await cacheCompletedReceipt({ ...orderRow, receipt_number: generatedReceiptNumber }, cart, resolvedSaleCustomer, resolvedBranchId)
+        .catch(error => showToast("warn", "Receipt Cache Not Updated", error.message || "Sale is saved; refresh Receipts to reload it."));
       if (usingGc && result.data?.replayed) return showRecoveredGcSale(orderRow);
 
       if (!activeWebOrderId && originalTicketId) {
@@ -9622,9 +9719,9 @@ export default function POSPage() {
       setReceiptText(receipt);
       setReceiptOpen(true);
 
-      if (!originalTicketId && !activeWebOrderId) {
+      {
         await autoPrintOrderSlip({
-          orderId: generatedReceiptNumber,
+          orderId: originalTicketId || activeWebOrderId || generatedReceiptNumber,
           slipCart: cart,
           slipDining: chargedDiningLabel || "POS ORDER",
           slipCustomer: attachedCustomer?.name || "Walk-in",
@@ -9707,6 +9804,14 @@ export default function POSPage() {
 
         setReceiptText(offlineReceipt);
         setReceiptOpen(true);
+        await autoPrintOrderSlip({
+          orderId: originalTicketId || offlineReceiptNumber,
+          slipCart: cart,
+          slipDining: chargedDiningLabel || "POS ORDER",
+          slipCustomer: attachedCustomer?.name || "Walk-in",
+          slipTotal: total,
+          printedAt: chargedAt,
+        });
         if (receiptSettings?.auto_print) {
           try {
             await printByRoleWhenReady("receipt", offlineReceipt);
@@ -10287,7 +10392,7 @@ export default function POSPage() {
             </div>
             <div className="flex items-center gap-2">
               {(managementView === "receipts" || managementView === "shift") && (
-                <button type="button" onClick={fetchReceiptLogs} className="h-9 px-3 rounded-xl bg-rose-50 border border-rose-100 text-[10px] font-semibold uppercase tracking-wider text-[#FC687D]">
+                <button type="button" onClick={() => fetchReceiptLogs({ force: true })} className="h-9 px-3 rounded-xl bg-rose-50 border border-rose-100 text-[10px] font-semibold uppercase tracking-wider text-[#FC687D]">
                   Refresh
                 </button>
               )}
@@ -11046,6 +11151,7 @@ export default function POSPage() {
               diningOptions={diningOptions}
               diningOption={diningOption}
               setDiningOption={handleDiningChange}
+              diningSelectionLocked={savedTableSelectionLocked}
               occupiedDiningOptionIds={occupiedDiningOptionIds}
               grabOrderNumber={grabOrderNumber}
               setGrabOrderNumber={setGrabOrderNumber}
@@ -11159,6 +11265,7 @@ export default function POSPage() {
                 diningOptions={diningOptions}
                 diningOption={diningOption}
                 setDiningOption={handleDiningChange}
+                diningSelectionLocked={savedTableSelectionLocked}
                 occupiedDiningOptionIds={occupiedDiningOptionIds}
                 grabOrderNumber={grabOrderNumber}
                 setGrabOrderNumber={setGrabOrderNumber}

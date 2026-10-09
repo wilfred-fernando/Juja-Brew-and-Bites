@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict';
+import { deliverOrderSlips } from '../lib/orderSlipDelivery.js';
+let saved = {};
+let failure = true;
+const writes = [];
+const kitchen = { key: 'kitchen', groupName: 'Kitchen', items: [{ cartItemId: 1, name: 'Chicken', quantity: 1 }] };
+const bar = { key: 'bar', groupName: 'Bar', items: [{ cartItemId: 2, name: 'Latte', quantity: 1 }] };
+const deliver = jobs => deliverOrderSlips({
+  jobs, load: async () => structuredClone(saved), persist: async value => { saved = structuredClone(value); },
+  print: async job => { if (failure && job.key === 'kitchen') throw new Error('Disconnected'); writes.push(job); },
+});
+await assert.rejects(() => deliver([kitchen, bar]), /next save or charge/);
+assert.deepEqual(writes.map(job => job.groupName), ['Bar'], 'One group failure does not block the other group');
+failure = false;
+await deliver([kitchen, bar]);
+assert.deepEqual(writes.map(job => job.groupName), ['Bar', 'Kitchen'], 'Charge retries only the failed group');
+assert.equal(await deliver([kitchen, bar]), 0, 'Repeated save or charge does not duplicate slips');
+await deliver([{ ...bar, items: [{ ...bar.items[0], quantity: 3 }] }]);
+assert.equal(writes.at(-1).items[0].quantity, 2, 'Quantity increase prints only the addition');
+assert.equal(await deliver([{...bar,items:[{...bar.items[0],quantity:3}]}]), 0);
+await deliver([{ key: 'unassigned', groupName: 'Order Slip', items: [{ cartItemId: 3, quantity: 1 }] }]);
+assert.equal(writes.at(-1).groupName, 'Order Slip');
+console.log('PASS: independent group failures, retry on charge, acknowledged slips skipped, quantity additions, unmatched category slip');
