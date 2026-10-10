@@ -24,11 +24,18 @@ console.log('PASS: independent group failures, retry on charge, acknowledged sli
 
 saved = {};
 writes.length = 0;
-const combinedJobs = withCustomerOrderSlip([kitchen, bar], [...kitchen.items, ...bar.items]);
+const combinedJobs = withCustomerOrderSlip([kitchen, bar], [...kitchen.items, ...bar.items], 'Dine-in');
 await deliver(combinedJobs);
 assert.deepEqual(writes.map(job => job.key), ['kitchen', 'bar', 'customer-copy']);
 assert.deepEqual(writes.at(-1).items.map(item => item.name), ['Chicken', 'Latte']);
 assert.equal(await deliver(combinedJobs), 0, 'Customer copy is independently acknowledged');
-await deliver(withCustomerOrderSlip([kitchen, bar], [...kitchen.items, ...bar.items, { cartItemId: 4, name: 'Tea', quantity: 1 }]));
+await deliver(withCustomerOrderSlip([kitchen, bar], [...kitchen.items, ...bar.items, { cartItemId: 4, name: 'Tea', quantity: 1 }], 'Dine-in'));
 assert.deepEqual(writes.at(-1).items.map(item => item.name), ['Tea'], 'Customer copy prints only later additions');
 console.log('PASS: combined customer copy, no duplicates, additions only');
+for (const dining of ['Dine-in', 'Dine In', 'DINEIN', 'ONLINE: DINE-IN', 'Table 4', 'VIP Room', 'VIP Room - Birthday']) {
+  assert.equal(withCustomerOrderSlip([bar], bar.items, dining).length, 2, dining);
+}
+for (const dining of ['Takeout', 'ONLINE: TAKEOUT', 'GRABFOOD', 'GRAB - 123', 'Foodpanda', 'ShopeeFood', 'Delivery', '', 'POS ORDER']) {
+  assert.equal(withCustomerOrderSlip([bar], bar.items, dining).length, 1, dining);
+}
+console.log('PASS: customer copy limited to dine-in tables and VIP room');

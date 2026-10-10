@@ -6611,7 +6611,7 @@ export default function POSPage() {
     const unmatchedItems = cartRows.filter(line => !routedItems.has(line));
     const printJobs = withCustomerOrderSlip([...configuredJobs, ...(unmatchedItems.length
       ? [{ key: "unassigned", groupName: "Order Slip", items: unmatchedItems }]
-      : [])], cartRows);
+      : [])], cartRows, slipDining);
 
     try {
       const print = async (job) => {
