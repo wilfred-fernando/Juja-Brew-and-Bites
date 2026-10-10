@@ -1,5 +1,6 @@
 "use client";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
+import { createIncomingRingtone } from "@/lib/posIncomingRingtone";
 import { isOptionGroupVisibleOn } from "@/lib/menuVisibility";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -4320,7 +4321,7 @@ export default function POSPage() {
   // Incoming Order Realtime states
   const [incomingOrder, setIncomingOrder] = useState(null);
   const [incomingOrderModalOpen, setIncomingOrderModalOpen] = useState(false);
-  const audioIntervalRef = useRef(null);
+  const incomingRingtoneRef = useRef(null);
   const seenIncomingOrderIds = useRef(new Set());
   const autoRefreshInFlightRef = useRef(false);
   const catalogSyncsRef = useRef(new Map());
@@ -5624,21 +5625,16 @@ export default function POSPage() {
 
   // ================= CONTINUOUS LOOP AUDIO NOTIFICATION SYSTEM CONTROLLER =================
   const startContinuousAlertChime = () => {
-    stopContinuousAlertChime();
-
-    const triggerPlay = () => {
-      playPosAlertSound();
-    };
-
-    triggerPlay();
-    audioIntervalRef.current = setInterval(triggerPlay, 2500);
+    if (!incomingRingtoneRef.current) {
+      incomingRingtoneRef.current = createIncomingRingtone(
+        new Audio("/sound/incoming-web-order.mp3"), window
+      );
+    }
+    incomingRingtoneRef.current.start();
   };
 
   const stopContinuousAlertChime = () => {
-    if (audioIntervalRef.current) {
-      clearInterval(audioIntervalRef.current);
-      audioIntervalRef.current = null;
-    }
+    incomingRingtoneRef.current?.stop();
   };
 
   useEffect(() => {
