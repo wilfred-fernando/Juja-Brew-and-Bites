@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { deliverOrderSlips } from '../lib/orderSlipDelivery.js';
+import { deliverOrderSlips, withCustomerOrderSlip } from '../lib/orderSlipDelivery.js';
 let saved = {};
 let failure = true;
 const writes = [];
@@ -21,3 +21,14 @@ assert.equal(await deliver([{...bar,items:[{...bar.items[0],quantity:3}]}]), 0);
 await deliver([{ key: 'unassigned', groupName: 'Order Slip', items: [{ cartItemId: 3, quantity: 1 }] }]);
 assert.equal(writes.at(-1).groupName, 'Order Slip');
 console.log('PASS: independent group failures, retry on charge, acknowledged slips skipped, quantity additions, unmatched category slip');
+
+saved = {};
+writes.length = 0;
+const combinedJobs = withCustomerOrderSlip([kitchen, bar], [...kitchen.items, ...bar.items]);
+await deliver(combinedJobs);
+assert.deepEqual(writes.map(job => job.key), ['kitchen', 'bar', 'customer-copy']);
+assert.deepEqual(writes.at(-1).items.map(item => item.name), ['Chicken', 'Latte']);
+assert.equal(await deliver(combinedJobs), 0, 'Customer copy is independently acknowledged');
+await deliver(withCustomerOrderSlip([kitchen, bar], [...kitchen.items, ...bar.items, { cartItemId: 4, name: 'Tea', quantity: 1 }]));
+assert.deepEqual(writes.at(-1).items.map(item => item.name), ['Tea'], 'Customer copy prints only later additions');
+console.log('PASS: combined customer copy, no duplicates, additions only');

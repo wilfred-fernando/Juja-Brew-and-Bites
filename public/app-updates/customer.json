@@ -1,7 +1,7 @@
 {
   "app": "customer",
-  "latestVersion": "2.0",
-  "latestBuild": 12,
-  "apkUrl": "https://files.jujabrewandbites.com/apk-downloads/juja-customer-v2.0.apk",
-  "releaseNotes": "Adds durable local SQLite storage for the menu, basket, profile, loyalty, vouchers, bookings, orders, and notifications with offline synchronization and reduced network usage."
+  "latestVersion": "2.1",
+  "latestBuild": 13,
+  "apkUrl": "https://files.jujabrewandbites.com/apk-downloads/juja-customer-v2.1.apk",
+  "releaseNotes": "Adds live web-order progress notifications, status update alerts, and notification settings. Alerts follow your phone's sound and vibration settings."
 }

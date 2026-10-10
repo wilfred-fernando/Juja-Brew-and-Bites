@@ -35,7 +35,7 @@ import GiftCertificatePaymentDialog from "@/components/pos/GiftCertificatePaymen
 import { gcPaymentBreakdown } from "@/lib/posGiftCertificates";
 import OfflineSyncNotice from "@/components/pos/OfflineSyncNotice";
 import { addPosCartLine } from "@/lib/posCart";
-import { deliverOrderSlips } from "@/lib/orderSlipDelivery";
+import { deliverOrderSlips, withCustomerOrderSlip } from "@/lib/orderSlipDelivery";
 import { mergeReceiptCache, preferredReceiptNumber } from "@/lib/posReceiptCache";
 import { loyaltySearchFilter, normalizeLoyaltySearch } from "@/lib/posLoyaltySearch";
 import { ensurePosBeneficiarySession } from "@/lib/posBeneficiarySession";
@@ -6609,9 +6609,9 @@ export default function POSPage() {
 
     const routedItems = new Set(configuredJobs.flatMap(job => job.items));
     const unmatchedItems = cartRows.filter(line => !routedItems.has(line));
-    const printJobs = [...configuredJobs, ...(unmatchedItems.length
+    const printJobs = withCustomerOrderSlip([...configuredJobs, ...(unmatchedItems.length
       ? [{ key: "unassigned", groupName: "Order Slip", items: unmatchedItems }]
-      : [])];
+      : [])], cartRows);
 
     try {
       const print = async (job) => {
@@ -6623,7 +6623,7 @@ export default function POSPage() {
           customerName: slipCustomer,
           total: job.useFullTotal ? slipTotal : calcTotal(job.items),
           printedAt,
-          slipTitle: `${groupTitle.endsWith("ORDER SLIP") ? groupTitle : `${groupTitle} ORDER SLIP`}${titleSuffix}`,
+          slipTitle: `${job.slipTitle || (groupTitle.endsWith("ORDER SLIP") ? groupTitle : `${groupTitle} ORDER SLIP`)}${titleSuffix}`,
         });
         await printByRoleWhenReady("receipt", slipText);
       };
