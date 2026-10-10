@@ -1,0 +1,23 @@
+{
+  "appId": "com.jujabrewandbites.customer",
+  "appName": "JUJA Customer Portal",
+  "webDir": ".next",
+  "server": {
+    "url": "https://customer.jujabrewandbites.com",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert",
+        "banner",
+        "list"
+      ]
+    }
+  }
+}

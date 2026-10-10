@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies, headers } from "next/headers";
-import { sendCustomerOrderStatusPush } from "@/lib/push/customerPush";
+import { drainCustomerOrderPush } from "@/lib/push/orderPushOutbox";
 
 export const runtime = "nodejs";
 
@@ -73,9 +73,12 @@ export async function POST(req) {
     const guard = await requireStaff(admin);
     if (!guard.allowed) return Response.json({ error: guard.error }, { status: guard.status });
 
-    const { webOrderId, status } = await req.json();
-    const result = await sendCustomerOrderStatusPush({ webOrderId, status });
-    return Response.json({ success: true, ...result });
+    const { webOrderId } = await req.json();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(webOrderId || ""))) {
+      return Response.json({ error: "Valid web order ID is required." }, { status: 400 });
+    }
+    const results = await drainCustomerOrderPush(webOrderId);
+    return Response.json({ success: true, results });
   } catch (error) {
     return Response.json({ error: error?.message || "Unable to send customer push notification." }, { status: 500 });
   }

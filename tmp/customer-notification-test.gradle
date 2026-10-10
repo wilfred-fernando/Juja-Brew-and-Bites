@@ -1,0 +1,8 @@
+// Remote-hosted customer portal does not need Next.js server bundles or build caches.
+gradle.beforeProject { project ->
+    project.pluginManager.withPlugin('com.android.application') {
+        project.android.sourceSets.main.assets.setSrcDirs([
+            project.rootProject.file('../tmp/customer-notification-test-assets')
+        ])
+    }
+}

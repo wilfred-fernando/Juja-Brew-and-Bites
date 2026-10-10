@@ -51,7 +51,7 @@ export async function POST(req) {
       return Response.json({ error: "Supabase service role key is required." }, { status: 500 });
     }
 
-    const { token, platform = "native", app = "customer", deviceId = null } = await req.json();
+    const { token, platform = "native", app = "customer", deviceId = null, orderProgressSupported = false } = await req.json();
     const pushToken = String(token || "").trim();
     if (!pushToken) {
       return Response.json({ error: "Push token is required." }, { status: 400 });
@@ -67,6 +67,7 @@ export async function POST(req) {
           platform,
           app,
           device_id: deviceId,
+          order_progress_supported: platform === "android" && orderProgressSupported === true,
           enabled: true,
           last_seen_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),

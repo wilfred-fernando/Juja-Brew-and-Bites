@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {loyaltyEligibleLineTotal} from '../lib/menuPromos.js';
+const line={name:'Cheesecake Milk Tea',category:'MILK TEA (CHEESECAKE)'};
+assert.equal(loyaltyEligibleLineTotal({...line,discountName:'QCID Promo'},98.1),0);
+assert.equal(loyaltyEligibleLineTotal({...line,discountName:'QC ID 10%'},98.1),0);
+assert.equal(loyaltyEligibleLineTotal({...line,discountBeneficiaryType:'qcid'},98.1),0);
+assert.equal(loyaltyEligibleLineTotal({...line,discountBeneficiary:{beneficiary_type:'qcid'}},98.1),0);
+assert.equal(loyaltyEligibleLineTotal({...line,source_metadata:{pos_line_details:{discountName:'QCID Promo'}}},98.1),0);
+assert.equal(loyaltyEligibleLineTotal(line,109),109);
+assert.equal(loyaltyEligibleLineTotal({...line,discountName:'Senior Citizen'},87.2),87.2);
+assert.equal(loyaltyEligibleLineTotal({...line,appliedVoucher:{reward_type:'welcome'}},109),0);
+const mixed=[{...line,discountName:'QCID Promo',net:98.1},{name:'Sandwich',category:'FOOD',net:150}];
+assert.equal(mixed.reduce((sum,item)=>sum+loyaltyEligibleLineTotal(item,item.net),0),150);
+console.log('PASS: QCID names, beneficiary metadata and restored lines earn zero; unrelated purchases retain normal earning.');

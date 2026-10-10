@@ -14,6 +14,7 @@ import { markKdsTicketItemVoided, markKdsTicketStatus, upsertKdsTicket, webDinin
 import { queueKdsAdditions, retryKdsAdditions } from "@/lib/kdsOutbox";
 import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib/loyalty/annualReset";
 import { isWelcomeVoucher, WELCOME_VOUCHER_REWARD_TEXT } from "@/lib/loyalty/welcomeVoucher";
+import { welcomeVoucherDiscount, welcomeVoucherSelectionError, welcomeVoucherSettlementError, welcomeVoucherPaidPartnerExclusions } from "@/lib/posWelcomeVoucher";
 import { loyaltyEligibleLineTotal } from "@/lib/menuPromos";
 import { ensureNativeNotificationPermission, isNativeApp, showNativeNotification } from "@/lib/nativeNotifications";
 import {
@@ -3063,7 +3064,7 @@ function DiningOptionModal({ open, onClose, options, onPick, occupiedOptionIds }
   );
 }
 
-function VouchersModal({ open, onClose, vouchers, appliedVoucher, selectedCartItem, onApply, onRemove }) {
+function VouchersModal({ open, onClose, vouchers, appliedVoucher, selectedCartItem, cart, onApply, onRemove }) {
   return (
     <ModalShell open={open} onClose={onClose} title="Vouchers" subtitle="Apply Voucher" z={145}>
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 mb-3">
@@ -3086,7 +3087,8 @@ function VouchersModal({ open, onClose, vouchers, appliedVoucher, selectedCartIt
           <div className="p-4 rounded-xl border border-slate-200 bg-white text-slate-500 text-xs font-medium text-center">No active vouchers available for this customer.</div>
         ) : (
           vouchers.map((v) => {
-            const disabled = !selectedCartItem;
+            const welcomeError = isWelcomeVoucher(v) ? welcomeVoucherSelectionError(cart, selectedCartItem?.cartItemId) : "";
+            const disabled = !selectedCartItem || Boolean(welcomeError);
             return (
               <button
                 key={v.id}
@@ -3096,6 +3098,7 @@ function VouchersModal({ open, onClose, vouchers, appliedVoucher, selectedCartIt
               >
                 <p className="text-sm font-bold text-slate-800">{v.code}</p>
                 <p className="text-xs text-slate-500 mt-0.5 font-medium">{v.reward_text}</p>
+                {welcomeError && <p className="mt-2 text-xs text-amber-800">{welcomeError}</p>}
                 <p className="text-[10px] text-slate-400 mt-2 font-semibold">
                   {v.reward_type === "birthday" ? "Birthday Special" : v.reward_type === "welcome" ? "Welcome Voucher" : "Points Voucher"}
                   {v.expires_at ? ` • Exp: ${formatDate(v.expires_at)}` : ""}
@@ -4232,7 +4235,9 @@ function restoreVoucherLine(line) {
 }
 
 function cartLoyaltyEligibleTotal(lines = []) {
-  return (lines || []).reduce((sum, line) => sum + loyaltyEligibleLineTotal(line, lineNetAmount(line)), 0);
+  const exclusions = welcomeVoucherPaidPartnerExclusions(lines || []);
+  return (lines || []).reduce((sum, line) => sum + loyaltyEligibleLineTotal(line,
+    Math.max(0, lineNetAmount(line) - (exclusions.get(line.cartItemId)?.amount || 0))), 0);
 }
 
 function jsonSafeValue(value) {
@@ -5824,6 +5829,7 @@ export default function POSPage() {
         .maybeSingle();
       if (updateErr) throw updateErr;
       if (!acceptedRow?.id) throw new Error("This web order changed on another POS device and was not accepted again.");
+      if (!scheduledOrder) await sendCustomerOrderPush(incomingOrder.id, "accepted");
 
       const { error: kdsErr } = await upsertKdsTicket(supabase, {
         sourceType: "web",
@@ -9171,7 +9177,9 @@ export default function POSPage() {
           const orig = typeof line._origUnitPrice === "number" ? line._origUnitPrice : line.unitPrice;
           const originalDiscount = Number(line._origDiscountAmount ?? line.discountAmount ?? line.discount_amount ?? 0);
           const restoredLine = { ...line, _origUnitPrice: orig, unitPrice: orig, discountAmount: originalDiscount };
-          const voucherDiscount = lineGrossAmount(restoredLine) * voucherDiscountRate(t.applied_voucher);
+          const voucherDiscount = isWelcomeVoucher(t.applied_voucher)
+            ? welcomeVoucherDiscount(restoredLine)
+            : lineGrossAmount(restoredLine) * voucherDiscountRate(t.applied_voucher);
           return {
             ...restoredLine,
             _origDiscountAmount: originalDiscount,
@@ -9377,6 +9385,8 @@ export default function POSPage() {
     const discount = Number(itemDiscountTotal + orderDiscount);
     const grossTotal = Number(cart.reduce((sum, line) => sum + lineGrossAmount(line), 0));
     const loyaltyEligibleTotal = cartLoyaltyEligibleTotal(cart);
+    const welcomeError = welcomeVoucherSettlementError(cart);
+    if (welcomeError) return showToast("error", "Welcome Voucher", welcomeError);
     const appliedCartVouchers = getAppliedCartVouchers(cart);
     const voucherToRedeem = appliedCartVouchers[0] || null;
     const chargedDiningLabel = activeWebOrderId
@@ -9915,6 +9925,10 @@ export default function POSPage() {
       showToast("info", "Select Item", "Tap a ticket item first to set voucher target.");
       return;
     }
+    if (isWelcomeVoucher(voucher)) {
+      const error = welcomeVoucherSelectionError(cart, voucherTargetCartItemId);
+      if (error) return showToast("warn", "Welcome Voucher", error);
+    }
     const duplicateLine = cart.find((line) => {
       const lineVoucher = line?.appliedVoucher || line?.applied_voucher || null;
       return lineVoucher?.id && String(lineVoucher.id) === String(voucher?.id) && line.cartItemId !== voucherTargetCartItemId;
@@ -9932,7 +9946,9 @@ export default function POSPage() {
 
         const orig = typeof cleared.unitPrice === "number" ? cleared.unitPrice : 0;
         const originalDiscount = Number(cleared.discountAmount || cleared.discount_amount || 0);
-        const voucherDiscount = lineGrossAmount(cleared) * voucherDiscountRate(voucher);
+        const voucherDiscount = isWelcomeVoucher(voucher)
+          ? welcomeVoucherDiscount(cleared)
+          : lineGrossAmount(cleared) * voucherDiscountRate(voucher);
         cleared._origUnitPrice = orig;
         cleared._origDiscountAmount = originalDiscount;
         cleared.discountAmount = Math.max(originalDiscount, voucherDiscount);
@@ -11378,6 +11394,7 @@ export default function POSPage() {
         occupiedOptionIds={occupiedDiningOptionIds}
       />
       <VouchersModal
+        cart={cart}
         open={voucherModalOpen}
         onClose={() => setVoucherModalOpen(false)}
         vouchers={availableVouchers}

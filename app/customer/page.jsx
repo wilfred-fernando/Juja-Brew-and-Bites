@@ -25,7 +25,8 @@ import {
   storeOrderingStatusFromError,
   storeOrderingStatusMessage,
 } from "@/lib/storeOrderingStatus";
-import { ensureNativeNotificationPermission, isNativeApp, registerNativeCustomerPush, showNativeNotification } from "@/lib/nativeNotifications";
+import { ensureNativeNotificationPermission, isNativeApp, registerNativeCustomerPush, showNativeNotification, supportsOrderProgress, openCustomerOrderAlertSettings } from "@/lib/nativeNotifications";
+import { orderProgressData } from "@/lib/push/orderProgress";
 import GiftCertificatePayment from "@/components/pos/GiftCertificatePayment";
 import GiftCertificatePurchaseForm from "@/components/GiftCertificatePurchaseForm";
 import BookingTab from "@/components/BookingForm";
@@ -123,6 +124,14 @@ async function fetchStoreOrderingStatus(storeId) {
 
 async function notifyStoreOfCustomerOrder(order, { itemCount = 0, items = [], storeName = "" } = {}) {
   if (!order?.id || !order?.store_id) return;
+  if (supportsOrderProgress()) {
+    showCustomerPanelNotification({
+      title: "JUJA Brew & Bites",
+      body: "We received your order.",
+      tag: `web-order:${order.id}`,
+      data: orderProgressData(order),
+    }).catch(console.warn);
+  }
   const channel = supabase.channel(`store-alerts:${order.store_id}`);
   channel.subscribe((status, error) => {
     if (error || status !== "SUBSCRIBED") return;
@@ -3501,6 +3510,7 @@ export default function Customer() {
           if (String(incomingUserId) !== String(user.id)) return;
 
           if (payload.eventType === "INSERT") {
+            if (supportsOrderProgress()) notifyOrderStatus(payload.new);
             if (payload.new?.id) {
               orderStatusSnapshotRef.current.set(String(payload.new.id), `${String(payload.new.status || "").toLowerCase()}:${String(payload.new.delivery_status || "").toLowerCase()}`);
             }
@@ -3655,6 +3665,7 @@ export default function Customer() {
     const permission = await requestCustomerNotificationPermission();
     setShowNotificationBanner(permission === "default");
     if (permission === "granted") {
+      if (isNativeApp() && user?.id) await registerNativeCustomerPush({ supabase, userId: user.id });
       showToast("success", "Notifications Enabled", "Order-ready alerts will appear in your device notification panel.");
     } else if (permission === "denied") {
       showToast("error", "Notifications Blocked", "Enable notifications in your browser or app settings to receive order alerts.");
@@ -3686,6 +3697,16 @@ export default function Customer() {
   const notifyOrderStatus = async (order) => {
     const status = String(order?.status || "").toLowerCase();
     const deliveryStatus = String(order?.delivery_status || "").toLowerCase();
+    if (supportsOrderProgress()) {
+      await showCustomerPanelNotification({
+        title: "JUJA Brew & Bites",
+        body: orderProgressData(order).progress_label,
+        tag: `web-order:${order.id}`,
+        data: orderProgressData(order),
+      });
+      // Android owns sound/vibration; HTML audio uses media volume and can ignore silent mode.
+      return;
+    }
     const isReady = status === "ready";
     const isDelivered = status === "delivered" || status === "completed";
     const hasDeliveryUpdate =
@@ -3847,7 +3868,17 @@ export default function Customer() {
               </div>
               </>
             )}
-            {tab === "history" && <TrackerTab orders={orders} loadingOrders={loadingOrders} />}
+            {tab === "history" && <>
+              {supportsOrderProgress() && <div className="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-white p-4 mb-4">
+                <p className="text-sm font-semibold text-slate-800">Order notifications</p>
+                <p className="text-xs text-slate-600 mt-1">Track your order in the notification panel. Sound and vibration follow your phone settings.</p>
+                <button type="button" className="juja-controls mt-3 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+                  onClick={() => openCustomerOrderAlertSettings().catch(() => showToast("error", "Settings unavailable", "Open your phone settings to manage JUJA order alerts."))}>
+                  Order alert settings
+                </button>
+              </div>}
+              <TrackerTab orders={orders} loadingOrders={loadingOrders} />
+            </>}
             <section hidden={tab !== "order" || orderSection !== "gift-certificates"} aria-label="Buy gift certificates" className="mx-auto max-w-xl">
               <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
                 <h2 className="mb-4 text-xl font-bold text-slate-800">Buy Gift Certificates</h2>
