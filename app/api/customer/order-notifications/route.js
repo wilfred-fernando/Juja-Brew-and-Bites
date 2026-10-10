@@ -4,7 +4,7 @@ import { drainCustomerOrderPush } from "@/lib/push/orderPushOutbox";
 export const maxDuration = 240;
 
 export async function GET(req) {
-  const secret = process.env.CRON_SECRET;
+  const secret = process.env.CUSTOMER_ORDER_CRON_SECRET || process.env.CRON_SECRET;
   const expected = Buffer.from(`Bearer ${secret || ""}`);
   const actual = Buffer.from(req.headers.get("authorization") || "");
   if (!secret || expected.length !== actual.length || !timingSafeEqual(expected, actual)) {

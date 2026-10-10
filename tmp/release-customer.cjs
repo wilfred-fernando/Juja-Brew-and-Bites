@@ -9,6 +9,32 @@ for (const name of ['.env.local', '.env.r2-migration']) {
   }
 }
 async function main() {
+  if (process.argv[2] === 'scheduler-pause' || process.argv[2] === 'scheduler-activate' || process.argv[2] === 'scheduler-verify') {
+    const db=new Client({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false}}); await db.connect();
+    if(process.argv[2] !== 'scheduler-verify') await db.query("select cron.alter_job(jobid, active := $1) from cron.job where jobname='customer-order-status-push'",[process.argv[2]==='scheduler-activate']);
+    console.log((await db.query("select jobid,jobname,schedule,active from cron.job where jobname='customer-order-status-push'")).rows);
+    if(process.argv[2] === 'scheduler-verify') console.log((await db.query("select status_code,error_msg,created from net._http_response order by id desc limit 3")).rows);
+    await db.end(); return;
+  }
+  if (process.argv[2] === 'scheduler-install') {
+    const db=new Client({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false}}); await db.connect();
+    await db.query('BEGIN');
+    try {await db.query(fs.readFileSync('supabase/migrations/20261010130000_customer_order_push_scheduler.sql','utf8'));await db.query('COMMIT');}
+    catch(e){await db.query('ROLLBACK');throw e;}
+    console.log((await db.query("select jobid,jobname,schedule,active from cron.job where jobname='customer-order-status-push'")).rows);await db.end(); return;
+  }
+  if (process.argv[2] === 'scheduler-inspect') {
+    const db=new Client({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false}}); await db.connect();
+    console.log((await db.query("select name,installed_version from pg_available_extensions where name in ('pg_cron','pg_net','supabase_vault')")).rows);
+    await db.end(); return;
+  }
+  if (process.argv[2] === 'scheduler-secret') {
+    const db=new Client({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false}}); await db.connect();
+    const found=await db.query("select decrypted_secret from vault.decrypted_secrets where name='customer_order_cron_secret'");
+    const secret=found.rows[0]?.decrypted_secret || crypto.randomBytes(32).toString('hex');
+    if(!found.rows.length) await db.query("select vault.create_secret($1, 'customer_order_cron_secret', 'Customer order notification scheduler authentication')",[secret]);
+    await db.end(); console.log(JSON.stringify({secret})); return;
+  }
   if (process.argv[2] === 'database') {
     const db = new Client({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false}});
     await db.connect();

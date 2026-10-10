@@ -15,13 +15,15 @@ No ETA is displayed because the existing order source does not supply one.
 ## Activate
 
 1. Apply `supabase/migrations/20261010120000_customer_order_progress_push.sql`.
-2. Configure the existing Firebase server credentials and `CRON_SECRET` in the
-   production deployment. Keep `CRON_SECRET` out of browser environment variables.
-3. Deploy the web app. The authenticated `/api/customer/order-notifications` worker
-   runs every minute from `vercel.json`. This schedule requires Vercel Pro/Enterprise.
-   For Hobby, remove that cron entry and use a Supabase Cron or other server scheduler
-   to call the same HTTPS endpoint every minute with `Authorization: Bearer <CRON_SECRET>`.
-   Do not put the secret in a public URL or frontend code.
+2. Configure the existing Firebase server credentials and a dedicated
+   `CUSTOMER_ORDER_CRON_SECRET` in the production deployment. Store its matching
+   value in Supabase Vault as `customer_order_cron_secret`. Keep both out of
+   browser environment variables, public URLs and frontend code.
+3. Deploy the web app, then apply
+   `supabase/migrations/20261010130000_customer_order_push_scheduler.sql`.
+   Supabase Cron calls the authenticated `/api/customer/order-notifications`
+   worker every minute with its Vault secret. This works with Vercel Hobby;
+   the existing daily Vercel cron jobs continue using `CRON_SECRET`.
 4. Sync/build the **customer** APK with `CAPACITOR_APP_TARGET=customer`, using the
    existing customer signing key and an increased version code for upgrades.
 5. Install the APK and sign in. Push registration marks that device as supporting
