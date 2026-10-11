@@ -29,7 +29,7 @@ async function main() {
     for (const column of ['gc_codes','gc_amount','gc_remainder_method','gc_released_at']) await client.query(`ALTER TABLE ${schema}.web_orders DROP COLUMN IF EXISTS ${column}`);
     await client.query(`CREATE TABLE ${schema}.open_tickets (LIKE public.open_tickets INCLUDING DEFAULTS)`);
     await client.query(`CREATE FUNCTION ${schema}.complete_pos_discount_claims(uuid,uuid,text) RETURNS void LANGUAGE sql AS 'SELECT'`);
-    for (const file of ['20260912090000_booking_gc_approval_batches.sql','20260912100000_pos_booking_gc_redemption.sql','20260912120000_gc_purchases.sql','20260913090000_customer_gc_redemption.sql']) {
+    for (const file of ['20260912090000_booking_gc_approval_batches.sql','20260912100000_pos_booking_gc_redemption.sql','20260912120000_gc_purchases.sql','20260913090000_customer_gc_redemption.sql','20261011093000_fix_saved_ticket_gc_checkout.sql']) {
       const migration = readFileSync('supabase/migrations/'+file,'utf8')
         .replaceAll('public.', schema + '.').replaceAll('set search_path = public', 'set search_path = ' + schema)
         .replaceAll('set search_path=public', 'set search_path=' + schema);
@@ -66,12 +66,18 @@ async function main() {
     await rejects(()=>submit(randomUUID(),order,[{...items[0],name:'FAIL'}]),/test_failure/);
     assert.equal((await client.query(`SELECT count(*)::int n FROM ${schema}.orders`)).rows[0].n,0);
     assert.equal((await client.query(`SELECT count(*)::int n FROM ${schema}.booking_gc_certificates WHERE status='active'`)).rows[0].n,10);
+    const ticketId=randomUUID();
+    await client.query(`INSERT INTO ${schema}.open_tickets(id,store_id,items,total_amount) VALUES ($1,$2,'[]',350)`,[ticketId,store]);
+    order.source_metadata.open_ticket_id=ticketId;
     const key=randomUUID();
     const result=(await submit(key)).rows[0].result;
     assert.equal(result.replayed,false);
     await client.query('SET CONSTRAINTS ALL IMMEDIATE');
     await client.query('SET CONSTRAINTS ALL DEFERRED');
     assert.equal((await submit(key)).rows[0].result.replayed,true);
+    await rejects(()=>submit(randomUUID()),/Saved ticket already charged/);
+    delete order.source_metadata.open_ticket_id;
+    console.log('PASS: saved-ticket GC charge succeeds, same-key retry replays, second charge is blocked.');
     assert.equal((await client.query(`SELECT count(*)::int n FROM ${schema}.orders`)).rows[0].n,1);
     assert.equal((await client.query(`SELECT count(*)::int n FROM ${schema}.order_items`)).rows[0].n,1);
     const ledger=(await client.query(`SELECT * FROM ${schema}.booking_gc_redemptions`)).rows;
@@ -175,3 +181,4 @@ async function main() {
   } finally { await client.query('ROLLBACK'); await client.end(); }
 }
 main().catch(error => { console.error(error.message); process.exitCode=1; });
+

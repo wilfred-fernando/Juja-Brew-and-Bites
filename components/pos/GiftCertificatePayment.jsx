@@ -16,18 +16,24 @@ export default function GiftCertificatePayment({ certificates, onChange, total, 
   async function add(scannedCode) {
     if (disabled || checkingRef.current) return;
     const normalized = (scannedCode ?? code).trim().toUpperCase();
+    const codes = customerCheckout ? [normalized] : normalized.split(/[\s,;]+/).filter(Boolean);
     setError("");
     if (!normalized) return setError("Enter or scan a certificate code.");
-    if (certificates.some((gc) => gc.code === normalized)) return setError("This code is already applied.");
-    if ((certificates.length + 1) * 100 > Number(total)) return setError("A ₱100 certificate cannot exceed the remaining bill. Certificates do not give cash change.");
+    if (new Set(codes).size !== codes.length || codes.some(value => certificates.some(gc => gc.code === value))) return setError("A code is duplicated or already applied. Remove the duplicate and try again.");
+    if (certificates.length + codes.length > 100) return setError("A transaction can redeem up to 100 certificates.");
+    if ((certificates.length + codes.length) * 100 > Number(total)) return setError("A ₱100 certificate cannot exceed the remaining bill. Certificates do not give cash change.");
     checkingRef.current = true;
     setChecking(true);
     onChecking(true);
     try {
-      const { data, error: validationError } = await getSupabaseClient().rpc(customerCheckout ? "validate_customer_gc" : "validate_pos_booking_gc", customerCheckout ? { p_code: normalized } : { p_code: normalized, p_store_id: storeId });
-      if (!mounted.current) return;
-      if (validationError) throw validationError;
-      onChange([...certificates, data]);
+      const additions = [];
+      for (const value of codes) {
+        const { data, error: validationError } = await getSupabaseClient().rpc(customerCheckout ? "validate_customer_gc" : "validate_pos_booking_gc", customerCheckout ? { p_code: value } : { p_code: value, p_store_id: storeId });
+        if (!mounted.current) return;
+        if (validationError) throw new Error(`${value}: ${validationError.message}. No new codes were added.`);
+        additions.push(data);
+      }
+      onChange([...certificates, ...additions]);
       setCode("");
     } catch (err) { if (mounted.current) setError(err.message || "Unable to validate the certificate. Check your connection."); }
     finally { checkingRef.current = false; if (mounted.current) { setChecking(false); onChecking(false); } }
@@ -35,15 +41,20 @@ export default function GiftCertificatePayment({ certificates, onChange, total, 
 
   return (
     <div className="rounded-xl border border-green-200 bg-green-50 p-3">
-      <h3 className="text-sm font-bold text-green-900">Redeem e-GC</h3>
+      <h3 className="text-sm font-bold text-green-900">Redeem e-GCs ({certificates.length} applied)</h3>
+      {!customerCheckout && <p className="mt-1 text-sm text-green-800">Add multiple certificates to this sale. Paste codes separated by a new line, space or comma, or scan each certificate.</p>}
       <p className="mt-1 text-xs text-green-800">₱100 per approved code. Internet required. {customerCheckout ? "Codes are applied when you place the order." : "Codes are used when the sale is saved."}</p>
       <div className="mt-2 flex gap-2">
-        <input aria-label="e-GC code" value={code} disabled={disabled || checking || scanning} autoComplete="off"
+        {customerCheckout ? <input aria-label="e-GC code" value={code} disabled={disabled || checking || scanning} autoComplete="off"
           onChange={(event) => setCode(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); add(); } }}
-          placeholder="Enter or scan JUJA-GC code" className="min-w-0 flex-1 rounded-lg border bg-white p-2 text-xs" />
-        <button type="button" onClick={() => add()} disabled={disabled || checking || scanning} className="rounded-lg bg-green-800 px-3 text-xs font-bold text-white disabled:opacity-40">{checking ? "Checking…" : "Apply"}</button>
+          placeholder="Enter or scan JUJA-GC code" className="min-w-0 flex-1 rounded-lg border bg-white p-2 text-xs" /> :
+        <textarea aria-label="e-GC codes" rows={3} value={code} disabled={disabled || checking || scanning} autoComplete="off"
+          onChange={event => setCode(event.target.value)}
+          onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void add(); } }}
+          placeholder="Paste one or more JUJA-GC codes" className="min-w-0 flex-1 rounded-lg border bg-white p-2 text-sm" />}
+        <button type="button" onClick={() => add()} disabled={disabled || checking || scanning} className="rounded-lg bg-green-800 px-3 text-xs font-bold text-white disabled:opacity-40">{checking ? "Checking…" : customerCheckout ? "Apply" : "Apply codes"}</button>
       </div>
-      {!scanning && <button type="button" disabled={disabled || checking} onClick={() => { setError(""); setScanning(true); onChecking(true); }} className="mt-2 w-full rounded-lg border border-green-600 bg-white p-2 text-xs font-semibold disabled:opacity-40">Scan e-GC with camera</button>}
+      {!scanning && <button type="button" disabled={disabled || checking} onClick={() => { setError(""); setScanning(true); onChecking(true); }} className="mt-2 w-full rounded-lg border border-green-600 bg-white p-2 text-xs font-semibold disabled:opacity-40">{certificates.length ? "Scan another e-GC" : "Scan e-GC with camera"}</button>}
       {scanning && <GiftCertificateScanner onClose={() => { setScanning(false); onChecking(false); }} onResult={value => {
         setScanning(false); onChecking(false); setCode(value); void add(value);
       }} />}
