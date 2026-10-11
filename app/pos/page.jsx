@@ -8,7 +8,7 @@ import { createPortal } from "react-dom";
 import { findBeneficiaryDuplicates } from "@/lib/beneficiaryDuplicates";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { createCoalescedRefresh } from "@/lib/coalescedRefresh";
-import { getStableSession } from "@/lib/supabase/session";
+import { getStableSession, maintainPortalSession } from "@/lib/supabase/session";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { deductInventoryForOrder, normalizeUnit, restoreInventoryForOrder } from "@/lib/inventory";
 import { markKdsTicketItemVoided, markKdsTicketStatus, upsertKdsTicket, webDiningOptionLabel } from "@/lib/kds";
@@ -4307,6 +4307,7 @@ function isVipRoomDiningOptionName(value) {
 
 export default function POSPage() {
   const supabase = getSupabaseClient();
+  useEffect(() => maintainPortalSession(supabase, window, document), [supabase]);
   const [storeId, setStoreId] = useState(null);
   const [currentStore, setCurrentStore] = useState(null);
   const [storeOrderingStatusSaving, setStoreOrderingStatusSaving] = useState(false);
@@ -5991,7 +5992,11 @@ export default function POSPage() {
     const init = async () => {
       const { session, error: sessionError } = await getStableSession(supabase);
 
-      if (sessionError || !session) {
+      if (sessionError) {
+        showToast("warn", "Session Connection", "Unable to restore your session. Check the connection and reopen POS.");
+        return;
+      }
+      if (!session) {
         window.location.replace("/pos/login");
         return;
       }

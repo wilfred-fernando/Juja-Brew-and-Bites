@@ -33,7 +33,7 @@ import BookingTab from "@/components/BookingForm";
 import CustomerApkUpdatePrompt from "@/components/CustomerApkUpdatePrompt";
 import ApkDownloadBanner from "@/components/ApkDownloadBanner";
 import CommunityPromoBanners from "@/components/CommunityPromoBanners";
-import { getStableSession } from "@/lib/supabase/session";
+import { getStableSession, maintainPortalSession } from "@/lib/supabase/session";
 import { uploadProofFile } from "@/lib/storage/uploadProof";
 import {
   enqueueOutbox,
@@ -3239,6 +3239,7 @@ function ProfileTab({ user, onLogout }) {
     Main Responsive Customer Hub Page Controller
 ────────────────────────────────────────────────────────────── */
 export default function Customer() {
+  useEffect(() => maintainPortalSession(supabase, window, document), []);
   const [user, setUser] = useState(null);
   const [member, setMember] = useState(null);
   const [tab, setTab] = useState("home");
