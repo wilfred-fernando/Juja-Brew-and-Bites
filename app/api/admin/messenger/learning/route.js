@@ -4,6 +4,22 @@ function clean(value) {
   return String(value || "").trim();
 }
 
+export async function DELETE(request) {
+  try {
+    const { admin, response } = await requireAdminApi();
+    if (response) return response;
+    const body = await request.json().catch(() => null);
+    const id = clean(body?.id);
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return Response.json({ error: "Select a valid learning entry." }, { status: 400 });
+    const { data, error } = await admin.from("messenger_knowledge_candidates").delete().eq("id", id).select("id").maybeSingle();
+    if (error) throw error;
+    if (!data) return Response.json({ error: "This learning entry is no longer available." }, { status: 404 });
+    return Response.json({ success: true, learning: await loadLearning(admin) });
+  } catch (error) {
+    return Response.json({ error: error?.message || "Unable to delete learning entry." }, { status: 500 });
+  }
+}
+
 async function loadLearning(admin) {
   const [memoryCountResult, pendingUnansweredResult, pendingLiveChatResult, approvedResult, candidatesResult] = await Promise.all([
     admin.from("messenger_customer_memories").select("psid", { count: "exact", head: true }),

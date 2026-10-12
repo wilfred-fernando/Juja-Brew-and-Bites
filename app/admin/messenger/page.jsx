@@ -118,10 +118,12 @@ function LearningReviewCard({ candidate, onReviewed }) {
   const [saving, setSaving] = useState(false);
 
   async function review(action) {
+    if (saving) return;
+    if (action === "delete" && !window.confirm("Delete this learning entry? An approved answer will also be removed from JujaBot’s learned knowledge.")) return;
     setSaving(true);
     try {
       const payload = await api("/api/admin/messenger/learning", {
-        method: "PATCH",
+        method: action === "delete" ? "DELETE" : "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: candidate.id, action, suggested_answer: answer, admin_notes: notes }),
       });
@@ -155,6 +157,7 @@ function LearningReviewCard({ candidate, onReviewed }) {
         <input value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={2000} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium normal-case tracking-normal text-slate-800 outline-none focus:border-violet-400" />
       </label>
       <div className="mt-4 flex flex-wrap justify-end gap-2">
+        <button type="button" disabled={saving} onClick={() => review("delete")} className="rounded-full bg-rose-50 px-4 py-2 text-xs font-bold text-rose-700 disabled:opacity-50">Delete</button>
         {pending ? (
           <>
             <button type="button" disabled={saving} onClick={() => review("reject")} className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-4 py-2 text-xs font-bold text-rose-700 disabled:opacity-50"><XCircle className="h-4 w-4" /> Reject</button>
@@ -174,6 +177,7 @@ export default function MessengerAdminPage() {
   const [aiStatus, setAiStatus] = useState({ configured: false, enabled: true, model: "gpt-5.6-luna" });
   const [aiSettings, setAiSettings] = useState(emptyAiSettings);
   const [learning, setLearning] = useState(emptyLearning);
+  const [learningOpen, setLearningOpen] = useState(false);
   const [savingAiSettings, setSavingAiSettings] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -344,7 +348,10 @@ export default function MessengerAdminPage() {
         </div>
       </form>
 
-      <section className="mb-10 rounded-3xl border border-emerald-100 bg-white/90 p-6 shadow-sm">
+      <button type="button" aria-expanded={learningOpen} aria-controls="jujabot-learning-review" onClick={() => setLearningOpen((open) => !open)} className="mb-5 inline-flex items-center gap-2 rounded-full bg-slate-800 px-5 py-3 text-sm font-bold text-white">
+        <Brain className="h-5 w-5" /> JujaBot learning review ({learning.stats.pending_unanswered + learning.stats.pending_live_chat})
+      </button>
+      {learningOpen && <section id="jujabot-learning-review" className="mb-10 rounded-3xl border border-emerald-100 bg-white/90 p-6 shadow-sm">
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="flex items-center gap-2 text-slate-800"><Brain className="h-5 w-5" /><h2 className="text-lg font-extrabold">JujaBot learning review</h2></div>
@@ -368,10 +375,10 @@ export default function MessengerAdminPage() {
         </div>
 
         <div className="mt-6 space-y-4">
-          {(learning.candidates || []).map((candidate) => <LearningReviewCard key={candidate.id} candidate={candidate} onReviewed={setLearning} />)}
+          {(learning.candidates || []).map((candidate) => <LearningReviewCard key={`${candidate.id}:${candidate.updated_at}`} candidate={candidate} onReviewed={setLearning} />)}
           {!loading && !(learning.candidates || []).length && <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-8 text-center text-sm font-semibold text-slate-500">No unanswered questions or Live Chat answer candidates yet.</div>}
         </div>
-      </section>
+      </section>}
 
       <section className="mb-10">
         <div className="mb-4 flex items-center gap-2 text-slate-800"><MessageCircle className="h-5 w-5" /><h2 className="text-lg font-extrabold">Optional conversation flows</h2></div>
