@@ -6,6 +6,7 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/dateFormat";
 import { packageExtensionPolicyText } from "@/lib/bookings/extensionPolicy";
 import { createManualBooking } from "@/lib/bookings/createManualBooking";
+import { adjustedBookingHours } from "@/lib/bookings/slots.mjs";
 import BookingGiftCertificates from "@/components/BookingGiftCertificates";
 
 const supabase = getSupabaseClient();
@@ -15,7 +16,7 @@ const supabase = getSupabaseClient();
 ======================= */
 const OPERATING_START_HOUR = 10; // 10AM
 const BOOKING_SLOT_HOURS = [10, 14, 18, 22];
-const ADMIN_MANUAL_HOURLY_STARTS = Array.from({ length: 13 }, (_, index) => OPERATING_START_HOUR + index);
+const ADMIN_MANUAL_HOURLY_STARTS = Array.from({ length: 14 }, (_, index) => OPERATING_START_HOUR + index);
 const BASE_BOOKING_MINUTES = 3 * 60;
 const MAX_EXTENSION_HOURS = 5;
 const PAYMENT_HOLD_HOURS = 24;
@@ -52,10 +53,11 @@ function buildSlotHours() {
 }
 function labelHour(h) {
   const dayOffset = h >= 24 ? " (+1)" : "";
-  const hh = h % 24;
+  const hh = Math.floor(h) % 24;
+  const minutes = Math.round((h % 1) * 60);
   const ampm = hh >= 12 ? "PM" : "AM";
   const disp = ((hh + 11) % 12) + 1;
-  return `${disp}:00 ${ampm}${dayOffset}`;
+  return `${disp}:${String(minutes).padStart(2, "0")} ${ampm}${dayOffset}`;
 }
 function labelBookingSlot(hour) {
   const compactHour = (value) => labelHour(value).replace(":00", "").replace(" (+1)", "");
@@ -72,7 +74,7 @@ function computeDateTime(dateISO, hourLike) {
   const [year, month, day] = String(dateISO).split("-").map(Number);
   const h = hourLike % 24;
   const dayAdd = hourLike >= 24 ? 1 : 0;
-  return new Date(Date.UTC(year, month - 1, day + dayAdd, h - 8, 0, 0, 0));
+  return new Date(Date.UTC(year, month - 1, day + dayAdd, Math.floor(h) - 8, Math.round((h % 1) * 60), 0, 0));
 }
 function computeEndAt(startAt, extensionHours) {
   const totalMinutes = BASE_BOOKING_MINUTES + Number(extensionHours || 0) * 60;
@@ -1033,9 +1035,12 @@ export default function AdminBookingsDashboard() {
 
   const calendarRows = useMemo(() => {
     const hours = new Set(slotHours);
+    for (const day of weekDays) {
+      for (const hour of adjustedBookingHours(bookingISODate(day), bookings)) hours.add(hour);
+    }
     for (const booking of bookingsInWeek) hours.add(hourLikeFromStartAt(booking.start_at));
     return Array.from(hours).sort((a, b) => a - b);
-  }, [bookingsInWeek, slotHours]);
+  }, [bookingsInWeek, slotHours, weekDays, bookings]);
 
   const calendarWeekStats = useMemo(
     () => ({
@@ -1428,7 +1433,7 @@ export default function AdminBookingsDashboard() {
                           )
                           .sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
                         const slotStart = computeDateTime(dayISO, hour);
-                        const canCreate = cellBookings.length === 0 && slotStart >= now && BOOKING_SLOT_HOURS.includes(hour);
+                        const canCreate = cellBookings.length === 0 && slotStart >= now && adjustedBookingHours(dayISO, bookings).includes(hour);
 
                         return (
                           <div key={dayISO} className={`min-h-[150px] border-l border-emerald-950/10 p-2 ${isToday ? "bg-emerald-50/40" : "bg-white"}`}>
@@ -2024,7 +2029,7 @@ export default function AdminBookingsDashboard() {
                   onChange={(e) => setManualModal((p) => ({ ...p, hour: Number(e.target.value) }))}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
                 >
-                  {(manualModal.hourlySelection ? ADMIN_MANUAL_HOURLY_STARTS : slotHours).map((h) => (
+                  {(manualModal.hourlySelection ? ADMIN_MANUAL_HOURLY_STARTS : adjustedBookingHours(manualModal.dateISO, bookings)).map((h) => (
                     <option key={h} value={h}>
                       {manualModal.hourlySelection ? labelHour(h) : labelBookingSlot(h)}
                     </option>

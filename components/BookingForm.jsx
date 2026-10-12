@@ -5,6 +5,7 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { uploadProofFile } from "@/lib/storage/uploadProof";
 import { getLocalSnapshot, isLocalSnapshotFresh, setLocalSnapshot } from "@/lib/localData";
+import { adjustedBookingHours } from "@/lib/bookings/slots.mjs";
 import { packageExtensionPolicyText } from "@/lib/bookings/extensionPolicy";
 
 const supabase = getSupabaseClient();
@@ -16,9 +17,8 @@ const OPERATING_START_HOUR = 10; // 10AM
 const BUFFER_HOURS = 1; // 1 hour buffer before & after
 const MIN_ADVANCE_HOURS = 3; // must be at least 3 hours in advance
 const RESCHEDULE_MIN_DAYS = 2; // update/reschedule allowed only if >= 2 days before start
-const BOOKING_SLOT_HOURS = [10, 14, 18, 22];
 
-// Customer and public bookings use fixed three-hour slots.
+// Customer and public bookings use three-hour slots adjusted around reservations.
 const BASE_BOOKING_MINUTES = 3 * 60;
 
 const DEPOSIT_AMOUNT = 1000;
@@ -306,15 +306,16 @@ function formatPeso(n) {
 function toISODate(d) {
   return d.toISOString().split("T")[0];
 }
-function buildSlotHours() {
-  return BOOKING_SLOT_HOURS;
+function buildSlotHours(dateISO, bookings) {
+  return adjustedBookingHours(dateISO, bookings);
 }
 function labelHour(h) {
   const dayOffset = h >= 24 ? " (+1)" : "";
-  const hh = h % 24;
+  const hh = Math.floor(h) % 24;
+  const minutes = Math.round((h % 1) * 60);
   const ampm = hh >= 12 ? "PM" : "AM";
   const disp = ((hh + 11) % 12) + 1;
-  return `${disp}:00 ${ampm}${dayOffset}`;
+  return `${disp}:${String(minutes).padStart(2, "0")} ${ampm}${dayOffset}`;
 }
 function labelBookingSlot(_dateISO, hour) {
   const compactHour = (value) => labelHour(value).replace(":00", "").replace(" (+1)", "");
@@ -328,7 +329,7 @@ function computeDateTime(businessDateISO, hourLike) {
   const h = hourLike % 24;
   const dayAdd = hourLike >= 24 ? 1 : 0;
   const manilaOffsetHours = 8;
-  return new Date(Date.UTC(year, month - 1, day + dayAdd, h - manilaOffsetHours, 0, 0, 0));
+  return new Date(Date.UTC(year, month - 1, day + dayAdd, Math.floor(h) - manilaOffsetHours, Math.round((h % 1) * 60), 0, 0));
 }
 function toManilaOffsetISOString(value) {
   const date = value instanceof Date ? value : new Date(value);
@@ -388,7 +389,7 @@ export function BookingAvailabilityOnly({
   const [loadingBookings, setLoadingBookings] = useState(false);
   const [notice, setNotice] = useState(null);
 
-  const slotHours = useMemo(() => buildSlotHours(dateISO), [dateISO]);
+  const slotHours = useMemo(() => buildSlotHours(dateISO, bookings), [dateISO, bookings]);
 
   useEffect(() => {
     async function fetchBookingsForDate() {
@@ -646,10 +647,10 @@ export default function BookingForm({ user, member }) {
     fetchBookingsForDate();
   }, [dateISO]);
 
-  const slotHours = useMemo(() => buildSlotHours(dateISO), [dateISO]);
+  const slotHours = useMemo(() => buildSlotHours(dateISO, bookings), [dateISO, bookings]);
   const reschedSlotHours = useMemo(
-    () => buildSlotHours(reschedDateISO),
-    [reschedDateISO]
+    () => buildSlotHours(reschedDateISO, reschedBookings),
+    [reschedDateISO, reschedBookings]
   );
 
   useEffect(() => {
@@ -819,7 +820,7 @@ export default function BookingForm({ user, member }) {
     if (!form.event_type.trim()) return "Event type is required.";
     if (!dateISO) return "Date is required.";
     if (selectedHour == null) return "Time is required.";
-    if (!buildSlotHours(dateISO).includes(selectedHour)) {
+    if (!slotHours.includes(selectedHour)) {
       return "Please select one of the available booking slots for this date.";
     }
     if (!form.package_id) return "Please select a package.";
@@ -1476,8 +1477,8 @@ export default function BookingForm({ user, member }) {
           </div>
 
           <div className="text-[11px] text-slate-500">
-            Booking slots: <b>10:00 AM - 1:00 PM</b>, <b>2:00 PM - 5:00 PM</b>,{" "}
-            <b>6:00 PM - 9:00 PM</b>, and <b>10:00 PM - 1:00 AM</b> (next day).
+            Default booking slots: <b>10:00 AM - 1:00 PM</b>, <b>2:00 PM - 5:00 PM</b>,{" "}
+            <b>6:00 PM - 9:00 PM</b>, and <b>10:00 PM - 1:00 AM</b> (next day). Available slots adjust around existing bookings with a one-hour gap, ending by 2 AM.
             A one-hour preparation buffer is protected before and after every reservation.
           </div>
 

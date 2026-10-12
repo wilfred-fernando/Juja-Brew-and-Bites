@@ -8,7 +8,7 @@ import { packageExtensionPolicyText } from "@/lib/bookings/extensionPolicy";
 import { createManualBooking } from "@/lib/bookings/createManualBooking";
 
 const supabase = getSupabaseClient();
-const START_HOURS = Array.from({ length: 13 }, (_, index) => 10 + index);
+const START_HOURS = Array.from({ length: 14 }, (_, index) => 10 + index);
 const MAX_EXTENSION_HOURS = 5;
 const BASE_BOOKING_MINUTES = 180;
 
