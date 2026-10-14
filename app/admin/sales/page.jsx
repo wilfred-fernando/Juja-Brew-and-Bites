@@ -1328,16 +1328,19 @@ export default function AdminSalesPage() {
         <>
           <Card>
             <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr_1fr] xl:grid-cols-[1.5fr_1fr_1fr_1fr_1fr]">
-              <div className="block">
-                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Date range</span>
-                <SummaryDateRangeControl
-                  startDate={filters.startDate}
-                  endDate={filters.endDate}
-                  preset={filters.preset}
-                  onRangeChange={(startDate, endDate) => updateSummaryFilters({ startDate, endDate, preset: "custom" })}
-                  onPresetChange={updatePreset}
-                  buttonClassName="w-full justify-start"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Start date</span>
+                  <input type="date" value={filters.startDate} max={filters.endDate}
+                    onChange={(event) => { if (event.target.value && event.target.value <= filters.endDate) updateSummaryFilters({ startDate: event.target.value, preset: "custom" }); }}
+                    className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-800 outline-none focus:border-cyan-400" />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">End date</span>
+                  <input type="date" value={filters.endDate} min={filters.startDate}
+                    onChange={(event) => { if (event.target.value && event.target.value >= filters.startDate) updateSummaryFilters({ endDate: event.target.value, preset: "custom" }); }}
+                    className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-white px-3 text-xs text-slate-800 outline-none focus:border-cyan-400" />
+                </label>
               </div>
               <SelectInput label="Branch" value={filters.branchId} onChange={(value) => updateFilter("branchId", value)} options={branchOptions} />
               <SelectInput label="Payment" value={filters.paymentMethod} onChange={(value) => updateFilter("paymentMethod", value)} options={paymentOptions} />
