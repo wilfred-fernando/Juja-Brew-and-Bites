@@ -327,7 +327,8 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
     const difference = actualCash - expectedCash;
     const openedAt = validSavedStart ? savedStart : open?.created_at || record.created_at;
     const closedAt = record.created_at;
-    const rowDate = safeManilaDate(openedAt || closedAt || record.created_at);
+    const explicitDate = summary.businessDate || summary.business_date || plainObject(open?.sales_summary).businessDate;
+    const rowDate = /^\d{4}-\d{2}-\d{2}$/.test(explicitDate || "") ? explicitDate : safeManilaDate(openedAt || closedAt || record.created_at);
     const storeName = storeById.get(storeId) || storeId || "Store";
     const openedAtMs = Date.parse(openedAt || "");
     const closedAtMs = Date.parse(closedAt || "");
