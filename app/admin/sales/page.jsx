@@ -65,6 +65,8 @@ import { loyaltyEligibleLineTotal } from "@/lib/menuPromos";
 import { enrichReceiptItemRows, receiptItemDetails } from "@/lib/reports/receiptDetails";
 import { buildShiftDiscountBreakdown } from "@/lib/posDiscountBreakdown";
 import ReceiptEditModal from "@/components/admin/ReceiptEditModal";
+import MonthlySalesReport from "@/components/admin/MonthlySalesReport";
+import { monthRange } from "@/lib/reports/monthlySales";
 
 const supabase = getSupabaseClient();
 const DEFAULT_ROWS_PER_PAGE = 10;
@@ -1067,7 +1069,7 @@ export default function AdminSalesPage() {
     setError("");
     const comparisonRange = previousRange(nextFilters.startDate, nextFilters.endDate);
     const requestedStart = comparisonRange.startDate;
-    const includeItems = ["items", "categories", "modifiers", "receipts", "shifts", "exports"].includes(reportTab);
+    const includeItems = ["monthly", "items", "categories", "modifiers", "receipts", "shifts", "exports"].includes(reportTab);
     let archiveData = null;
     try {
       const archiveParams = new URLSearchParams({
@@ -1155,7 +1157,14 @@ export default function AdminSalesPage() {
       skippedInitialTabLoad.current = true;
       return;
     }
-    loadData(filters, { reportTab: activeTab });
+    if (activeTab === "monthly") {
+      const range = monthRange(filters.startDate.slice(0, 7));
+      const next = { ...filters, startDate: range.startDate, endDate: range.endDate, preset: "custom" };
+      setFilters(next);
+      loadData(next, { reportTab: activeTab });
+    } else {
+      loadData(filters, { reportTab: activeTab });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
@@ -1348,6 +1357,8 @@ export default function AdminSalesPage() {
 
       {error ? <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">{error}</div> : null}
       {loading ? <div className="rounded-3xl border border-white/70 bg-white/80 p-10 text-center text-sm font-semibold text-slate-500">Loading sales report...</div> : null}
+
+      {activeTab === "monthly" && <MonthlySalesReport sales={filtered.sales} lineItems={filtered.lineItems} startDate={filters.startDate} endDate={filters.endDate} branch={branchOptions.find((option) => option.value === filters.branchId)?.label || "All stores"} loading={loading} onMonthChange={(startDate, endDate) => updateSummaryFilters({ startDate, endDate })} />}
 
       {!loading && activeTab === "summary" && (
         <div className="space-y-4">
