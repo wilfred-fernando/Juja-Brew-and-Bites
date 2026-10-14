@@ -117,7 +117,7 @@ const PACKAGE_POLICIES = {
       capacity:
         "Capacity: up to 15 Guests (children aged 4 years and below are not counted in the headcount).",
       additional_guests:
-        "Additional guests: ₱300 worth of food & drinks per person (maximum of 5 additional guests).",
+        "Additional guests: ₱300 worth of food & drinks per person (maximum of 3 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
     },
     rental_fees_inclusions: {
@@ -150,7 +150,7 @@ const PACKAGE_POLICIES = {
       capacity:
         "Capacity: up to 30 Guests (children aged 4 years and below are not counted in the headcount).",
       additional_guests:
-        "Additional guests: ₱300 worth of food & drinks per person (maximum of 5 additional guests).",
+        "Additional guests: ₱300 worth of food & drinks per person (maximum of 3 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
     },
     rental_fees_inclusions: {
@@ -183,7 +183,7 @@ const PACKAGE_POLICIES = {
       capacity:
         "Capacity: up to 60 Guests (children aged 4 years and below are not counted in the headcount).",
       additional_guests:
-        "Additional guests: ₱300 worth of food & drinks per person (maximum of 5 additional guests).",
+        "Additional guests: ₱300 worth of food & drinks per person (maximum of 3 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
     },
     rental_fees_inclusions: {
@@ -217,7 +217,7 @@ const PACKAGE_POLICIES = {
       capacity:
         "Capacity: up to 15 Guests (children aged 4 years and below are not counted in the headcount).",
       additional_guests:
-        "Additional guests: ₱150 per person (maximum of 5 additional guests).",
+        "Additional guests: ₱150 per person (maximum of 3 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
     },
     rental_fees_inclusions: {
@@ -246,7 +246,7 @@ const PACKAGE_POLICIES = {
       capacity:
         "Capacity: up to 30 Guests (children aged 4 years and below are not counted in the headcount).",
       additional_guests:
-        "Additional guests: ₱150 per person (maximum of 5 additional guests).",
+        "Additional guests: ₱150 per person (maximum of 3 additional guests).",
       rental_duration: "Rental duration: 3 hours.",
     },
     rental_fees_inclusions: {
@@ -1564,6 +1564,9 @@ export default function BookingForm({ user, member }) {
                     <div className="mt-2 space-y-1 min-w-0">
                       <p className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
                         Capacity up to {p.capacity} guests
+                      </p>
+                      <p className="text-[11px] leading-relaxed text-slate-600">
+                        {policy?.room_usage.additional_guests}
                       </p>
                       <p className="text-[11px] text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">
                         {roomRentalOnly

@@ -6,6 +6,7 @@ import { PublicFooter as Footer } from "@/components/PublicFooter";
 import { useEffect, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/dateFormat";
+import { packageConfirmationDetails } from "@/lib/bookings/packageConfirmation";
 import { packageExtensionSummary } from "@/lib/bookings/extensionPolicy";
 
 // ✅ Reuse booking system availability UI (must be exported from BookingForm.jsx)
@@ -120,6 +121,7 @@ export default function FunctionRoomPage() {
           "Private use of function room",
           "Order from the full menu catalog",
           "Use of entertainment amenities: Videoke, YouTube & Netflix",
+          packageConfirmationDetails(1).additionalGuests.replaceAll("PHP ", "₱"),
           packageExtensionSummary(1),
         ],
       },
@@ -133,6 +135,7 @@ export default function FunctionRoomPage() {
           "Private use of function room",
           "Order from the full menu catalog",
           "Use of entertainment amenities: Videoke, YouTube & Netflix",
+          packageConfirmationDetails(2).additionalGuests.replaceAll("PHP ", "₱"),
           packageExtensionSummary(2),
         ],
       },
@@ -146,6 +149,7 @@ export default function FunctionRoomPage() {
           "Exclusive use of the entire store",
           "Order from the full menu catalog",
           "Use of entertainment amenities: Videoke, YouTube & Netflix",
+          packageConfirmationDetails(3).additionalGuests.replaceAll("PHP ", "₱"),
           packageExtensionSummary(3),
         ],
       },
@@ -161,6 +165,7 @@ export default function FunctionRoomPage() {
           "Private use of function room",
           "Inclusive of corkage for food and drinks",
           "Use of entertainment amenities: Videoke, YouTube & Netflix",
+          packageConfirmationDetails(4).additionalGuests.replaceAll("PHP ", "₱"),
           packageExtensionSummary(4),
         ],
       },
@@ -174,6 +179,7 @@ export default function FunctionRoomPage() {
           "Private use of function room",
           "Inclusive of corkage for food and drinks",
           "Use of entertainment amenities: Videoke, YouTube & Netflix",
+          packageConfirmationDetails(5).additionalGuests.replaceAll("PHP ", "₱"),
           packageExtensionSummary(5),
         ],
       },
@@ -187,6 +193,7 @@ export default function FunctionRoomPage() {
           "Exclusive use of the entire store",
           "Inclusive of corkage for food and drinks",
           "Use of entertainment amenities: Videoke, YouTube & Netflix",
+          packageConfirmationDetails(6).additionalGuests.replaceAll("PHP ", "₱"),
           packageExtensionSummary(6),
         ],
       },

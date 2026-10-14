@@ -41,8 +41,6 @@ export default function MonthlySalesReport({ sales, lineItems, startDate, endDat
         <tr>{["Recorded net sales", "VATable transactions", "VAT-exempt transactions", ...report.labels, "Total discounts"].map((label) => <th key={label} className={`${cell} min-w-28 whitespace-normal text-center`}>{label}</th>)}</tr>
       </thead><tbody>{report.rows.map(renderRow)}</tbody><tfoot>{renderRow(report.totals)}</tfoot></table></div>
       <div className="ml-auto mt-5 max-w-md space-y-2 text-sm">{[["Gross sales", report.totals.gross], ["Less: discounts", report.totals.discount], ["Less: refunds", report.totals.refund], ["Net sales", report.totals.net]].map(([label, value]) => <p key={label} className={`flex justify-between border-b border-slate-200 py-1 ${label === "Net sales" ? "border-double border-slate-800 font-bold" : ""}`}><span>{label}</span><span>₱{amount(value)}</span></p>)}</div>
-      <p className="mt-4 text-xs text-slate-500">Amounts use the recorded business date and current report filters. Discount columns reflect saved labels; SC/PWD may be combined. VATable/VAT-exempt sales and promo approval are not separately recorded, so unavailable fields are shown as — and exported blank. No tax or rent calculations are inferred.</p>
-      <div className="mt-8 grid gap-6 text-sm sm:grid-cols-3">{["Prepared by", "Reviewed by", "Certified correct by"].map((label) => <div key={label}><p>{label}:</p><div className="mt-8 border-b border-slate-500" /></div>)}</div>
     </>}
   </section>;
 }

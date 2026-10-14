@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import styles from "./SalesPremium.module.css";
-import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import {
   Area,
@@ -57,7 +56,6 @@ import {
   number,
   peso,
   previousRange,
-  rangeFromPreset,
   uniqueOptions,
   normalizeSalesData,
 } from "@/lib/reports/salesReports";
@@ -108,45 +106,6 @@ function formatRangeDate(value) {
   if (!value) return "";
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit", year: "numeric" }).format(new Date(`${value}T00:00:00+08:00`));
 }
-
-function formatSlashDate(value) {
-  if (!value) return "";
-  const [year, month, day] = value.split("-");
-  return `${month}/${day}/${year}`;
-}
-
-function monthLabel(monthKey) {
-  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(new Date(`${monthKey}-01T00:00:00+08:00`));
-}
-
-function addMonths(monthKey, offset) {
-  const [year, month] = monthKey.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1 + offset, 1));
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
-function calendarDays(monthKey) {
-  const [year, month] = monthKey.split("-").map(Number);
-  const first = new Date(Date.UTC(year, month - 1, 1));
-  const start = new Date(Date.UTC(year, month - 1, 1 - first.getUTCDay()));
-  return Array.from({ length: 42 }, (_, index) => {
-    const date = new Date(start);
-    date.setUTCDate(start.getUTCDate() + index);
-    return date.toISOString().slice(0, 10);
-  });
-}
-
-const SUMMARY_DATE_PRESETS = [
-  { value: "today", label: "Today" },
-  { value: "yesterday", label: "Yesterday" },
-  { value: "this_week", label: "This week" },
-  { value: "last_week", label: "Last week" },
-  { value: "this_month", label: "This month" },
-  { value: "last_month", label: "Last month" },
-  { value: "last_7_days", label: "Last 7 days" },
-  { value: "last_30_days", label: "Last 30 days" },
-  { value: "this_year", label: "This year" },
-];
 
 function SelectInput({ label, value, onChange, options }) {
   return (
@@ -606,177 +565,19 @@ function SummarySelectControl({ icon: Icon, value, onChange, options, wide = fal
   );
 }
 
-function SummaryDateRangeControl({ startDate, endDate, preset, onRangeChange, onPresetChange, buttonClassName = "" }) {
-  const [open, setOpen] = useState(false);
-  const triggerRef = useRef(null);
-  const popupRef = useRef(null);
-  const [position, setPosition] = useState({ top: 16, left: 16 });
-  const [activeEndpoint, setActiveEndpoint] = useState("start");
-  const [viewMonth, setViewMonth] = useState((startDate || manilaDate()).slice(0, 7));
-  const days = useMemo(() => calendarDays(viewMonth), [viewMonth]);
-  const start = startDate || manilaDate();
-  const end = endDate || start;
-
-  useEffect(() => {
-    setViewMonth((startDate || endDate || manilaDate()).slice(0, 7));
-  }, [startDate, endDate]);
-
-  useEffect(() => {
-    if (!open) return;
-    function placePopup() {
-      const anchor = triggerRef.current?.getBoundingClientRect();
-      if (!anchor) return;
-      const width = Math.min(620, window.innerWidth - 32);
-      const height = Math.min(popupRef.current?.scrollHeight || 450, window.innerHeight - 32);
-      setPosition({
-        left: Math.max(16, Math.min(anchor.left, window.innerWidth - width - 16)),
-        top: Math.max(16, Math.min(anchor.bottom + 8, window.innerHeight - height - 16)),
-      });
-    }
-    function dismiss(event) {
-      if (!popupRef.current?.contains(event.target) && !triggerRef.current?.contains(event.target)) setOpen(false);
-    }
-    function onKeyDown(event) {
-      if (event.key === "Escape") { setOpen(false); triggerRef.current?.focus(); }
-    }
-    function onScroll(event) {
-      if (!popupRef.current?.contains(event.target)) placePopup();
-    }
-    placePopup();
-    window.addEventListener("resize", placePopup);
-    window.addEventListener("scroll", onScroll, true);
-    document.addEventListener("pointerdown", dismiss);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("resize", placePopup);
-      window.removeEventListener("scroll", onScroll, true);
-      document.removeEventListener("pointerdown", dismiss);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
-
-  function chooseDate(date) {
-    if (activeEndpoint === "start") {
-      onRangeChange(date, date > end ? date : end);
-      setActiveEndpoint("end");
-      return;
-    }
-    onRangeChange(date < start ? date : start, date);
-    setActiveEndpoint("start");
-    setOpen(false);
-  }
-
-  function handleInputChange(endpoint, value) {
-    if (!value) return;
-    setActiveEndpoint(endpoint === "start" ? "end" : "start");
-    if (endpoint === "start") {
-      onRangeChange(value, value > end ? value : end);
-      return;
-    }
-    onRangeChange(value < start ? value : start, value);
-  }
-
-  return (
-    <div className="relative">
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        className={`inline-flex h-10 min-w-[250px] items-center gap-2 rounded-md border border-slate-200 bg-white/95 px-3 text-xs font-semibold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-200 hover:bg-cyan-50 ${buttonClassName}`}
-        aria-expanded={open}
-        aria-haspopup="dialog"
-      >
-        <CalendarDays className="h-4 w-4 shrink-0 text-slate-500" />
-        <span className="truncate">{formatRangeDate(start)} - {formatRangeDate(end)}</span>
-      </button>
-
-      {open ? createPortal(
-        <div ref={popupRef} role="dialog" aria-label="Select date range" style={position} className={`${styles.datePopup} admin-date-range-popup fixed z-[90] grid max-h-[calc(100dvh-2rem)] w-[620px] max-w-[calc(100vw-2rem)] grid-cols-1 overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.2)] md:grid-cols-[1fr_170px]`}>
-          <div className="p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <button type="button" onClick={() => setViewMonth(addMonths(viewMonth, -1))} className="flex h-8 w-8 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100" aria-label="Previous month">
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <p className="text-sm font-medium text-slate-900">{monthLabel(viewMonth)}</p>
-              <button type="button" onClick={() => setViewMonth(addMonths(viewMonth, 1))} className="flex h-8 w-8 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100" aria-label="Next month">
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-7 text-center text-[11px] font-medium text-slate-700">
-              {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => <div key={day} className="py-1">{day}</div>)}
-            </div>
-            <div className="grid grid-cols-7 overflow-hidden rounded-xl border border-slate-100">
-              {days.map((date) => {
-                const isCurrentMonth = date.slice(0, 7) === viewMonth;
-                const isStart = date === start;
-                const isEnd = date === end;
-                const isInRange = date >= start && date <= end;
-                return (
-                  <button
-                    key={date}
-                    aria-label={date}
-                    aria-pressed={isStart || isEnd}
-                    type="button"
-                    onClick={() => chooseDate(date)}
-                    className={`h-9 text-xs transition ${isCurrentMonth ? "text-slate-800" : "text-slate-300"} ${isInRange ? "bg-lime-100" : "bg-white hover:bg-cyan-50"} ${isStart || isEnd ? "font-semibold text-white" : ""}`}
-                  >
-                    <span className={`mx-auto flex h-7 w-7 items-center justify-center rounded-full ${isStart || isEnd ? "bg-lime-500 shadow-sm" : ""}`}>
-                      {Number(date.slice(8, 10))}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-6 border-t border-slate-200 pt-3">
-              <label className="text-[11px] font-medium text-slate-500">
-                Start date
-                <input
-                  type="date"
-                  value={start}
-                  onChange={(event) => handleInputChange("start", event.target.value)}
-                  onFocus={() => setActiveEndpoint("start")}
-                  className="mt-1 block w-full border-b border-slate-200 bg-transparent pb-1 text-xs font-medium text-slate-800 outline-none focus:border-cyan-500"
-                  aria-label="Sales summary start date"
-                />
-                <span className="mt-1 block text-xs text-slate-700">{formatSlashDate(start)}</span>
-              </label>
-              <label className="text-[11px] font-medium text-slate-500">
-                End date
-                <input
-                  type="date"
-                  value={end}
-                  onChange={(event) => handleInputChange("end", event.target.value)}
-                  onFocus={() => setActiveEndpoint("end")}
-                  className="mt-1 block w-full border-b border-slate-200 bg-transparent pb-1 text-xs font-medium text-slate-800 outline-none focus:border-cyan-500"
-                  aria-label="Sales summary end date"
-                />
-                <span className="mt-1 block text-xs text-slate-700">{formatSlashDate(end)}</span>
-              </label>
-            </div>
-          </div>
-
-          <div className="border-t border-slate-200 bg-slate-50 md:border-l md:border-t-0">
-            {SUMMARY_DATE_PRESETS.map((option) => (
-              <button
-                key={option.value}
-                data-preset="true"
-                type="button"
-                onClick={() => {
-                  onPresetChange(option.value);
-                  setOpen(false);
-                }}
-                className={`block w-full px-4 py-3 text-left text-sm transition ${preset === option.value ? "bg-slate-200 text-slate-950" : "text-slate-700 hover:bg-white"}`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>, document.body
-      ) : null}
-    </div>
-  );
+function SummaryDateRangeControl({ startDate, endDate, onRangeChange }) {
+  return <div className="flex flex-wrap items-center gap-3">
+    <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Start date
+      <input type="date" value={startDate} max={endDate}
+        onChange={(event) => { const value = event.target.value; if (value && value <= endDate) onRangeChange(value, endDate); }}
+        className="mt-1 block h-10 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold normal-case tracking-normal text-slate-800 outline-none focus:border-cyan-400" />
+    </label>
+    <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">End date
+      <input type="date" value={endDate} min={startDate}
+        onChange={(event) => { const value = event.target.value; if (value && value >= startDate) onRangeChange(startDate, value); }}
+        className="mt-1 block h-10 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold normal-case tracking-normal text-slate-800 outline-none focus:border-cyan-400" />
+    </label>
+  </div>;
 }
 
 function SummaryMetricCell({ label, value, delta, active = false }) {
@@ -1248,13 +1049,6 @@ export default function AdminSalesPage() {
   const productOptions = useMemo(() => [{ value: "All", label: "All products" }, ...uniqueOptions(rawData.lineItems, "itemId", "itemName")], [rawData.lineItems]);
   const branchOptions = useMemo(() => [{ value: "All", label: "All stores" }, ...uniqueOptions(rawData.sales, "storeId", "storeName")], [rawData.sales]);
 
-  function updatePreset(preset) {
-    const range = rangeFromPreset(preset);
-    const next = { ...filters, preset, ...range };
-    setFilters(next);
-    setPage(1);
-    loadData(next);
-  }
 
   function updateFilter(key, value) {
     const next = { ...filters, [key]: value, preset: key === "startDate" || key === "endDate" ? "custom" : filters.preset };
@@ -1372,9 +1166,7 @@ export default function AdminSalesPage() {
             <SummaryDateRangeControl
               startDate={filters.startDate}
               endDate={filters.endDate}
-              preset={filters.preset}
               onRangeChange={(startDate, endDate) => updateSummaryFilters({ startDate, endDate, preset: "custom" })}
-              onPresetChange={updatePreset}
             />
             <button type="button" onClick={() => shiftSummaryRange(1)} className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-cyan-50" aria-label="Next range">
               <ChevronRight className="h-4 w-4" />
