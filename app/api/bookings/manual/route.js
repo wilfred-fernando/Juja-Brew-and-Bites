@@ -26,7 +26,7 @@ export async function POST(request) {
       const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
       const { data: linked, error: linkError } = await admin.from("profiles").select("id,role").eq("id", payload.user_id).maybeSingle();
       const { data: account, error: accountError } = await admin.auth.admin.getUserById(payload.user_id);
-      if (linkError || accountError || linked?.role !== "customer" || !account?.user?.email_confirmed_at) {
+      if (linkError || accountError || !["customer", "admin", "super_admin"].includes(String(linked?.role || "").toLowerCase()) || !account?.user?.email_confirmed_at) {
         return Response.json({ error: "Select a confirmed customer account." }, { status: 400 });
       }
       payload.member_id = null;

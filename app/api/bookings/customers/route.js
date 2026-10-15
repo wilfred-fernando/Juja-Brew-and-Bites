@@ -16,7 +16,7 @@ export async function GET(request) {
     if (response) return response;
     const q = (new URL(request.url).searchParams.get("q") || "").trim().replace(/[^\p{L}\p{N}@ .+_-]/gu, "").slice(0, 80);
     if (q.length < 2) return Response.json({ customers: [] });
-    const { data: profiles, error } = await admin.from("profiles").select("id,full_name").eq("role", "customer");
+    const { data: profiles, error } = await admin.from("profiles").select("id,full_name").in("role", ["customer", "admin", "super_admin"]);
     if (error) throw error;
     const profileMap = new Map((profiles || []).map((row) => [row.id, row]));
     const customers = [];

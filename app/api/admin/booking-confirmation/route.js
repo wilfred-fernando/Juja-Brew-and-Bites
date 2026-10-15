@@ -137,7 +137,7 @@ export async function POST(req) {
       } else {
         const { data: account, error: accountError } = await admin.from("profiles").select("id,role").eq("id", adjustedFields.user_id).maybeSingle();
         const { data: authAccount, error: authError } = await admin.auth.admin.getUserById(adjustedFields.user_id);
-        if (accountError || authError || account?.role !== "customer" || !authAccount?.user?.email_confirmed_at) {
+        if (accountError || authError || !["customer", "admin", "super_admin"].includes(String(account?.role || "").toLowerCase()) || !authAccount?.user?.email_confirmed_at) {
           return Response.json({ error: "Select a confirmed customer account." }, { status: 400 });
         }
         adjustedFields.member_id = null;
