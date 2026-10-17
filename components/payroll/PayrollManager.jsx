@@ -5391,37 +5391,6 @@ export default function AdminPayrollPage() {
                       <DetailLine key={label} label={label} value={value} />
                     ))}{" "}
                   </div>{" "}
-                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">
-                    Contributions
-                  </h3>{" "}
-                  <div className="mt-3 space-y-2 text-sm">
-                    {" "}
-                    <AmountLine
-                      label="SSS"
-                      value={payslipEntry.sss_deduction}
-                      negative
-                    />{" "}
-                    <AmountLine
-                      label="PhilHealth"
-                      value={payslipEntry.philhealth_deduction}
-                      negative
-                    />{" "}
-                    <AmountLine
-                      label="HMDF"
-                      value={payslipEntry.hmdf_deduction}
-                      negative
-                    />{" "}
-                    <AmountLine
-                      label="Total"
-                      value={
-                        num(payslipEntry.sss_deduction) +
-                        num(payslipEntry.philhealth_deduction) +
-                        num(payslipEntry.hmdf_deduction)
-                      }
-                      negative
-                      strong
-                    />{" "}
-                  </div>{" "}
                 </section>{" "}
                 <section className="rounded-2xl border border-slate-200 bg-white/92 p-4">
                   {" "}
@@ -5470,42 +5439,13 @@ export default function AdminPayrollPage() {
                     Allowances
                   </h3>{" "}
                   <div className="mt-3 space-y-2 text-sm">
-                    {" "}
-                    <AmountLine
-                      label="Allowance 15th"
-                      value={payslipEntry.allowance_15th}
-                    />{" "}
-                    <AmountLine
-                      label="Allowance 30th"
-                      value={payslipEntry.allowance_30th}
-                    />{" "}
-                    <AmountLine
-                      label="Allowance"
-                      value={payslipEntry.payroll_allowance}
-                    />{" "}
-                    <AmountLine
-                      label="Total"
-                      value={payrollAllowanceTotal(payslipEntry)}
-                      strong
-                    />{" "}
+                    <AmountLine label="Allowance" value={payrollAllowanceTotal(payslipEntry)} />
                   </div>{" "}
                   <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">
                     Adjustments
                   </h3>{" "}
                   <div className="mt-3 space-y-2 text-sm">
-                    {" "}
-                    <AmountLine
-                      label="Payroll Adjustment"
-                      value={payslipEntry.payroll_adjustment}
-                      negative={num(payslipEntry.payroll_adjustment) < 0}
-                    />{" "}
-                    <AmountLine label="Other Adjustment" value={0} />{" "}
-                    <AmountLine
-                      label="Total"
-                      value={payslipEntry.payroll_adjustment}
-                      negative={num(payslipEntry.payroll_adjustment) < 0}
-                      strong
-                    />{" "}
+                    <AmountLine label="Adjustment" value={payslipEntry.payroll_adjustment} negative={num(payslipEntry.payroll_adjustment) < 0} />
                   </div>{" "}
                   {num(payslipEntry.thirteenth_month_pay) ? (
                     <div className="mt-8 rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4 text-sm">
