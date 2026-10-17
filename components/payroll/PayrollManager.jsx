@@ -5435,15 +5435,9 @@ export default function AdminPayrollPage() {
                       strong
                     />{" "}
                   </div>{" "}
-                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">
-                    Allowances
-                  </h3>{" "}
                   <div className="mt-3 space-y-2 text-sm">
                     <AmountLine label="Allowance" value={payrollAllowanceTotal(payslipEntry)} />
                   </div>{" "}
-                  <h3 className="mt-8 text-sm font-semibold uppercase tracking-wider text-slate-950">
-                    Adjustments
-                  </h3>{" "}
                   <div className="mt-3 space-y-2 text-sm">
                     <AmountLine label="Adjustment" value={payslipEntry.payroll_adjustment} negative={num(payslipEntry.payroll_adjustment) < 0} />
                   </div>{" "}
