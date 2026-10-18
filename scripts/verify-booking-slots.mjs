@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { adjustedBookingHours } from '../lib/bookings/slots.mjs';
+import { adjustedBookingHours, visibleBookingHours } from '../lib/bookings/slots.mjs';
 
 const day = '2026-12-15';
 const booking = (start, end, extra = {}) => ({
@@ -8,6 +8,9 @@ const booking = (start, end, extra = {}) => ({
   status: 'confirmed', ...extra,
 });
 assert.deepEqual(adjustedBookingHours(day), [10, 14, 18, 22]);
+assert.deepEqual(visibleBookingHours(day, [booking('10:00', '13:00')]), [10, 14, 18, 22]);
+assert.deepEqual(visibleBookingHours(day, [booking('19:00', '22:00')]), [10, 14, 18, 19, 22, 23]);
+assert.deepEqual(visibleBookingHours(day, [booking('19:00', '22:00', { status: 'cancelled' })]), [10, 14, 18, 22]);
 assert.deepEqual(adjustedBookingHours(day, [booking('19:00', '22:00')]), [10, 14, 23]);
 assert.deepEqual(adjustedBookingHours(day, [booking('18:00', '21:00')]), [10, 14, 22]);
 assert.deepEqual(adjustedBookingHours(day, [booking('11:00', '14:00')]), [15, 19, 23]);

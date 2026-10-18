@@ -5,7 +5,7 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate, formatDateTime } from "@/lib/dateFormat";
 import { uploadProofFile } from "@/lib/storage/uploadProof";
 import { getLocalSnapshot, isLocalSnapshotFresh, setLocalSnapshot } from "@/lib/localData";
-import { adjustedBookingHours } from "@/lib/bookings/slots.mjs";
+import { visibleBookingHours } from "@/lib/bookings/slots.mjs";
 import { packageExtensionPolicyText } from "@/lib/bookings/extensionPolicy";
 
 const supabase = getSupabaseClient();
@@ -307,7 +307,7 @@ function toISODate(d) {
   return d.toISOString().split("T")[0];
 }
 function buildSlotHours(dateISO, bookings) {
-  return adjustedBookingHours(dateISO, bookings);
+  return visibleBookingHours(dateISO, bookings);
 }
 function labelHour(h) {
   const dayOffset = h >= 24 ? " (+1)" : "";
