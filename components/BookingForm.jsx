@@ -482,7 +482,7 @@ export function BookingAvailabilityOnly({
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {availability.map((s) => {
+          {availability.filter((slot) => slot.reason !== "buffer").map((s) => {
             const status = reasonToLabel(s.reason);
 
             const cardClass = availabilityCardClass(s);
@@ -1488,7 +1488,7 @@ export default function BookingForm({ user, member }) {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {availability.map((s) => {
+              {availability.filter((slot) => slot.reason !== "buffer").map((s) => {
                 const status = reasonToLabel(s.reason);
                 const statusClass = availabilityStatusClass(s);
 
@@ -2030,7 +2030,7 @@ export default function BookingForm({ user, member }) {
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {reschedAvailability.map((s) => {
+                {reschedAvailability.filter((slot) => slot.reason !== "buffer").map((s) => {
                   const status = reasonToLabel(s.reason);
                   const statusClass = availabilityStatusClass(s);
 
