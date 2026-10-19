@@ -1,4 +1,5 @@
 "use client";
+import { reservationBookingName, reservationReceiptItems } from "@/lib/bookings/receiptDisplay.mjs";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
 import { shiftReportDay } from "@/lib/businessDay";
 import { shouldAutoPrintCupLabels, cupLabelJobs } from "@/lib/posCupLabelDelivery";
@@ -1716,7 +1717,7 @@ function buildReceiptText({
   }
   if (voucher?.code || appliedDiscount?.name) lines.push(receiptLine());
 
-  cart.forEach((x) => {
+  reservationReceiptItems(order, cart).forEach((x) => {
     const quantity = Number(x.quantity || 1);
     const unitPrice = Number(x.unitPrice || 0);
     const lineTotal = unitPrice * quantity;
@@ -1758,7 +1759,7 @@ function buildReceiptText({
     } else lines.push(receiptPair(paidBy, receiptAmount(totalValue)));
   }
   if (order?.source_metadata?.transaction_kind === "booking_reservation_fee") {
-    lines.push("Booking: " + order.source_metadata.reservation_fee_booking_id);
+    lines.push("Booking: " + (reservationBookingName(order) || "Function Room"));
     lines.push("Voucher: " + order.source_metadata.reservation_voucher_code);
   }
   for (const code of order?.source_metadata?.gc_codes || []) lines.push(`e-GC: ${code}`);
@@ -2102,7 +2103,7 @@ function receiptSourceItems(receipt) {
 }
 
 function normalizeReceiptSourceItems(receipt) {
-  return receiptSourceItems(receipt).map((item, idx) => {
+  return reservationReceiptItems(receipt, receiptSourceItems(receipt)).map((item, idx) => {
     const qty = Math.max(1, Number(item.quantity || item.qty || 1));
     const unitPrice = Number(item.unitPrice ?? item.unit_price ?? item.price ?? item.base_price ?? 0);
     const discountAmount = Number(item.discountAmount ?? item.discount_amount ?? item.discount ?? 0);
@@ -5222,7 +5223,7 @@ export default function POSPage() {
   const selectedReceiptItems = useMemo(
     () => {
       const rows = receiptItemRows.filter((row) => row.receipt_number === selectedReceipt?.receipt_number);
-      if (rows.length || !selectedReceipt?.receipt_number) return rows;
+      if (rows.length || !selectedReceipt?.receipt_number) return reservationReceiptItems(selectedReceipt, rows);
       return normalizeReceiptSourceItems(selectedReceipt);
     },
     [receiptItemRows, selectedReceipt]
@@ -8359,7 +8360,7 @@ export default function POSPage() {
       }) || null;
     };
 
-    return (rows || []).map((row, index) => {
+    return reservationReceiptItems(receipt, rows || []).map((row, index) => {
       const sourceLine = findSourceLine(row, index);
       const quantity = Number(row.quantity || 1);
       const lineGross = Number(row.gross_sales ?? row.line_gross ?? row.net_sales ?? row.line_total ?? 0);
@@ -8388,7 +8389,7 @@ export default function POSPage() {
   function receiptItemsForReceipt(receipt) {
     if (!receipt?.receipt_number) return [];
     const rows = receiptItemRows.filter((row) => row.receipt_number === receipt.receipt_number);
-    return rows.length ? rows : normalizeReceiptSourceItems(receipt);
+    return rows.length ? reservationReceiptItems(receipt, rows) : normalizeReceiptSourceItems(receipt);
   }
 
   async function loadReceiptItemsForAction(receipt) {
