@@ -3,7 +3,7 @@ import AvailabilityToggle from "@/components/AvailabilityToggle";
 import { createIncomingRingtone } from "@/lib/posIncomingRingtone";
 import { isOptionGroupVisibleOn } from "@/lib/menuVisibility";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { findBeneficiaryDuplicates } from "@/lib/beneficiaryDuplicates";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -31,6 +31,8 @@ import {
 import { isMenuVisibleOn } from "@/lib/menuVisibility";
 import TicketPanel from "@/components/pos/TicketPanel";
 import GiftCertificatePurchaseForm from "@/components/GiftCertificatePurchaseForm";
+import BookingReservationSelector from "@/components/pos/BookingReservationSelector";
+import { withVipBookingOption, reservationPayment, reservationCollectionSummary } from "@/lib/bookings/reservationPayment.mjs";
 import GiftCertificatePaymentDialog from "@/components/pos/GiftCertificatePaymentDialog";
 import { gcPaymentBreakdown } from "@/lib/posGiftCertificates";
 import OfflineSyncNotice from "@/components/pos/OfflineSyncNotice";
@@ -1738,7 +1740,18 @@ function buildReceiptText({
     lines.push(receiptPair("Discount", `-${receiptAmount(discountValue)}`));
   }
   lines.push(receiptPair("Total", receiptAmount(totalValue)));
-  if (rs.show_payment_type !== false) lines.push(receiptPair(paidBy, receiptAmount(totalValue)));
+  if (Number(order?.source_metadata?.reservation_credit || 0) > 0) {
+    lines.push(receiptPair("Reservation fee applied", receiptAmount(order.source_metadata.reservation_credit)));
+    lines.push(receiptPair("Collected this bill", receiptAmount(order.source_metadata.reservation_remaining_collected)));
+    lines.push("Booking: " + order.source_metadata.booking_id);
+  }
+  if (rs.show_payment_type !== false) {
+    if (order?.source_metadata?.booking_id) {
+      for (const entry of order.source_metadata.payment_splits || []) {
+        if (entry.method !== "Reservation Fee Applied") lines.push(receiptPair(entry.method, receiptAmount(entry.amount)));
+      }
+    } else lines.push(receiptPair(paidBy, receiptAmount(totalValue)));
+  }
   for (const code of order?.source_metadata?.gc_codes || []) lines.push(`e-GC: ${code}`);
   if (showCashTenderDetails) {
     lines.push(receiptPair("Cash tendered", receiptAmount(cashTenderedValue)));
@@ -1788,7 +1801,7 @@ function buildOrderSlipText({ orderId, cart, diningOptionName, customerName, tot
   return lines.join("\n");
 }
 
-function buildBillText({ receiptSettings, orderId, cart, diningOptionName, customerName, subtotal, discount, total, printedAt, store, appliedDiscount }) {
+function buildBillText({ receiptSettings, orderId, cart, diningOptionName, customerName, subtotal, discount, total, printedAt, store, appliedDiscount, reservationCredit = 0 }) {
   const rs = receiptSettings || {};
   const header = (rs.header_text || "").trim();
   const branchName = store?.store_name || store?.name || store?.branch_name || "Pasong Tamo";
@@ -1845,7 +1858,11 @@ function buildBillText({ receiptSettings, orderId, cart, diningOptionName, custo
     lines.push(receiptPair("Subtotal", receiptAmount(subtotalValue)));
     lines.push(receiptPair("Discount", `-${receiptAmount(discountValue)}`));
   }
-  lines.push(receiptPair("Total Due", receiptAmount(totalValue)));
+  if (reservationCredit > 0) {
+    lines.push(receiptPair("Bill Total", receiptAmount(totalValue)));
+    lines.push(receiptPair("Reservation fee credit", `-${receiptAmount(reservationCredit)}`));
+  }
+  lines.push(receiptPair("Total Due", receiptAmount(Math.max(0, totalValue - reservationCredit))));
   lines.push(receiptLine());
   lines.push(receiptPair("Printed", formatReceiptFooterDate(printedAt || new Date())));
   return lines.join("\n");
@@ -1897,6 +1914,8 @@ function buildEndDayReportText({ store, cashierName, startingCash, actualCash, d
     receiptPair("Starting cash", receiptAmount(startingCash || 0)),
     receiptPair("Cash payments", receiptAmount(summary?.cashPayments || 0)),
     receiptPair("e-GC cash collected", receiptAmount(summary?.gcCashCollected || 0)),
+    receiptPair("Reservation fees collected", receiptAmount(summary?.reservationFeeCollected || 0)),
+    receiptPair("Reservation cash collected", receiptAmount(summary?.reservationCashCollected || 0)),
     receiptPair("Cash refunds", receiptAmount(summary?.cashRefunds || 0)),
     receiptPair("Expected cash", receiptAmount(expectedCash)),
     receiptPair("Actual cash", receiptAmount(actualCashValue)),
@@ -3640,7 +3659,7 @@ function DiscountBeneficiaryModal({ open, loading, beneficiaries = [], ruleName,
   );
 }
 
-function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, onConfirm, total, paymentAmount, setPaymentAmount, storeId, charging, webCertificates = [] }) {
+function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, onConfirm, total, paymentAmount, setPaymentAmount, storeId, charging, webCertificates = [], reservationCredit = 0, bookingPayment = false }) {
   const [certificates, setCertificates] = useState([]);
   const [checkingGc, setCheckingGc] = useState(false);
   const [gcDialogOpen, setGcDialogOpen] = useState(false);
@@ -3657,7 +3676,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
   const isCash = normalizePaymentMethodName(selectedPayment) === "Cash";
   const amt = Number(paymentAmount || 0);
   const due = Math.max(0, Number(total || 0) - gcTotal);
-  const availableTypes = (paymentTypes || []).filter(type => !["giftcertificate", "jujaegc"].includes(String(type.name).toLowerCase().replace(/[^a-z]/g, "")));
+  const availableTypes = (paymentTypes || []).filter(type => (!bookingPayment || ["Cash", "Card", "QRPH", "Gcash"].includes(type.name)) && !["giftcertificate", "jujaegc"].includes(String(type.name).toLowerCase().replace(/[^a-z]/g, "")));
 
   useEffect(() => {
     if (!open) {
@@ -3735,6 +3754,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
   return (
     <ModalShell open={open} onClose={() => !charging && !checkingGc && !gcDialogOpen && onClose()} title="Payment" subtitle="Select Payment Type" z={150} wide>
       <fieldset disabled={charging} className="space-y-4">
+        {bookingPayment && <p className="rounded-xl bg-slate-100 p-3 text-sm text-slate-800">Final bill: {peso2(Number(total) + reservationCredit)} · Reservation fee applied: {peso2(reservationCredit)} · Remaining to collect: {peso2(total)}</p>}
         {open && gcDialogOpen && <GiftCertificatePaymentDialog onClose={() => setGcDialogOpen(false)} checking={checkingGc} certificates={certificates} onChange={changeCertificates} total={total} storeId={storeId} disabled={charging} onChecking={setCheckingGc} />}
         <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
         <div className="space-y-4">
@@ -3763,7 +3783,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
                   className="h-10 rounded-lg border border-slate-200 bg-slate-50 px-2 text-sm font-bold text-slate-700 outline-none"
                 >
                   {availableTypes.map((p) => <option key={p.id || p.name} value={p.name}>{p.name}</option>)}
-                  <option value="__gift_certificate">Gift Certificate</option>
+                  {!bookingPayment && <option value="__gift_certificate">Gift Certificate</option>}
                 </select>
                 <div className="flex items-center gap-1 h-10 rounded-lg border border-slate-200 bg-slate-50 px-2">
                   <span className="text-slate-400 font-bold text-sm">₱</span>
@@ -3807,7 +3827,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
                 {p.name}
               </button>
             ))}
-            <button type="button" onClick={() => setGcDialogOpen(true)}
+            <button type="button" disabled={bookingPayment} onClick={() => setGcDialogOpen(true)}
               className={`h-11 rounded-xl border text-sm font-bold uppercase tracking-wider transition ${gcTotal > 0 ? "border-rose-300 bg-rose-50 text-[#FC687D]" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
               Gift Certificate
             </button>
@@ -4335,6 +4355,11 @@ export default function POSPage() {
   const [categories, setCategories] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [diningOptions, setDiningOptions] = useState([]);
+  const [confirmedBookings, setConfirmedBookings] = useState([]);
+  const [reservationCollections, setReservationCollections] = useState([]);
+  const [bookingBusy, setBookingBusy] = useState(false);
+  const [bookingError, setBookingError] = useState("");
+  const bookingCheckoutKeyRef = useRef(null);
   const [recipeRows, setRecipeRows] = useState([]);
   const [recipeInventoryItems, setRecipeInventoryItems] = useState([]);
   const [recipeCategoryFilter, setRecipeCategoryFilter] = useState("all");
@@ -4457,16 +4482,20 @@ export default function POSPage() {
   const isGrabDiningOption = /grab/i.test(diningOptionName || "");
   const isShopeeDiningOption = /shopee/i.test(diningOptionName || "");
   const isPandaDiningOption = /panda|foodpanda/i.test(diningOptionName || "");
+  const isVipBooking = diningOptionName === "VIP Booking";
   const isVipRoomDiningOption = isVipRoomDiningOptionName(diningOptionName);
   const activeMenuChannel = (isGrabDiningOption || isShopeeDiningOption) ? "grab" : isPandaDiningOption ? "panda" : "standard";
   const trimmedGrabOrderNumber = String(grabOrderNumber || "")
     .trim()
-    .replace(isGrabDiningOption ? /^grab[\s-]*/i : isShopeeDiningOption ? /^shopee(?:\s*food)?[\s-]*/i : isVipRoomDiningOption ? /^vip\s*room[\s-]*/i : "", "");
-  const requiresDiningReference = isGrabDiningOption || isShopeeDiningOption || isVipRoomDiningOption;
+    .replace(isGrabDiningOption ? /^grab[\s-]*/i : isShopeeDiningOption ? /^shopee(?:\s*food)?[\s-]*/i : isVipBooking ? /^vip\s*booking[\s-]*/i : isVipRoomDiningOption ? /^vip\s*room[\s-]*/i : "", "");
+  const requiresDiningReference = isGrabDiningOption || isShopeeDiningOption || isVipRoomDiningOption || isVipBooking;
   const diningReferenceLabel = isGrabDiningOption ? "GRAB Order Number" : isShopeeDiningOption ? "ShopeeFood Order Number" : isVipRoomDiningOption ? "VIP Room Reference" : "";
   const diningReferencePrefix = isGrabDiningOption ? "GRAB" : isShopeeDiningOption ? "SHOPEEFOOD" : isVipRoomDiningOption ? "VIP ROOM" : "";
   const diningReferencePlaceholder = (isGrabDiningOption || isShopeeDiningOption) ? "335" : "A1 / Private Event";
   const ticketDiningLabel = requiresDiningReference && trimmedGrabOrderNumber ? `${diningOptionName} ${trimmedGrabOrderNumber}` : diningOptionName;
+  const selectedBooking = isVipBooking ? confirmedBookings.find(row => row.id === trimmedGrabOrderNumber) : null;
+  const reservationCredit = Number(selectedBooking?.voucher?.amount || 0);
+  const reservationSummary = useMemo(() => reservationCollectionSummary(reservationCollections), [reservationCollections]);
   const itemPriceForChannel = (item, channel = activeMenuChannel) => {
     const basePrice = Number(item?.price || 0);
     if (channel === "grab" && item?.grab_price !== null && item?.grab_price !== undefined && item?.grab_price !== "") {
@@ -5098,7 +5127,7 @@ export default function POSPage() {
   const itemCount = useMemo(() => cart.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0), [cart]);
 
   const selectedCartItem = useMemo(() => cart.find((x) => x.cartItemId === voucherTargetCartItemId) || null, [cart, voucherTargetCartItemId]);
-  const ticketTitle = activeWebOrderId ? `Web Order: #${activeWebOrderId.slice(0,8).toUpperCase()}` : (ticketDiningLabel || "Select Dining Option");
+  const ticketTitle = isVipBooking && selectedBooking ? `VIP Booking · ${selectedBooking.customer_name}` : activeWebOrderId ? `Web Order: #${activeWebOrderId.slice(0,8).toUpperCase()}` : (ticketDiningLabel || "Select Dining Option");
   const ticketSubtitle = attachedCustomer?.name ? `Loyalty Member: ${attachedCustomer.name}` : "Walk-in Customer";
   const activeShiftRecord = useMemo(() => {
     if (shiftStatus !== "open") return null;
@@ -5111,6 +5140,42 @@ export default function POSPage() {
     const parsed = coerceReceiptTimestamp(stamp);
     return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
   }, [activeShiftRecord]);
+  const fetchConfirmedBookings = useCallback(async () => {
+    if (!storeId) return;
+    const { data, error } = await supabase.rpc("list_pos_confirmed_bookings", { p_store_id: storeId });
+    if (error) { setBookingError(error.message); throw error; }
+    setConfirmedBookings(data || []);
+    setBookingError("");
+  }, [storeId, supabase]);
+  const fetchReservationCollections = useCallback(async () => {
+    if (!storeId) return [];
+    const from = activeShiftStartMs ? new Date(activeShiftStartMs).toISOString() : new Date().toISOString();
+    const { data, error } = await supabase.rpc("list_pos_reservation_collections", { p_store_id: storeId, p_from: from });
+    if (error) throw error;
+    setReservationCollections(data || []);
+    return data || [];
+  }, [storeId, activeShiftStartMs, supabase]);
+  useEffect(() => {
+    setConfirmedBookings([]);
+    setReservationCollections([]);
+    fetchConfirmedBookings().catch(() => {});
+    fetchReservationCollections().catch(error => setBookingError(error.message));
+  }, [fetchConfirmedBookings, fetchReservationCollections]);
+  const bookingControl = isVipBooking ? <BookingReservationSelector
+    bookings={confirmedBookings} selectedId={trimmedGrabOrderNumber} busy={bookingBusy || charging} selectionLocked={Boolean(originalTicketId)}
+    error={bookingError} onRefresh={() => fetchConfirmedBookings().catch(() => {})}
+    onSelect={id => { setGrabOrderNumber(id); bookingCheckoutKeyRef.current = crypto.randomUUID(); }}
+    onCollect={async (id, method) => {
+      if (!confirm("Record this reservation fee as received/verified in the current shift? Do not record money already included in an earlier shift.")) return;
+      setBookingBusy(true);
+      try {
+        const { data, error } = await supabase.rpc("collect_booking_reservation_fee", { p_booking_id: id, p_store_id: storeId, p_method: method });
+        if (error) throw error;
+        await Promise.all([fetchConfirmedBookings(), fetchReservationCollections()]);
+        showToast("success", "Reservation Fee Recorded", data.code);
+      } catch (error) { setBookingError(error.message); }
+      finally { setBookingBusy(false); }
+    }} /> : null;
   const selectedReceipt = useMemo(
     () => receiptRows.find((row) => row.receipt_number === selectedReceiptNumber) || receiptRows[0] || null,
     [receiptRows, selectedReceiptNumber]
@@ -5217,7 +5282,7 @@ export default function POSPage() {
       }, 0);
     const knownPaymentKeys = ["cash", "gcash", "qrph", "grabfood", "grab dine out", "grabdineout", "card", "panda", "foodpanda", "no payment required", "nopaymentrequired"];
     const additionalMethods = [...new Set(rows.flatMap(rowPaymentEntries).map((entry) => entry.method))].filter((method) => !paymentMatches(method, knownPaymentKeys));
-    const cashPayments = paymentGrossTotal("cash");
+    const cashPayments = paymentGrossTotal("cash") + reservationSummary.cash;
     const cashRefunds = paymentRefundTotal("cash");
     const grossSales = rows.reduce((sum, r) => sum + Number(r.gross_sales || r.total_collected || r.net_sales || 0), 0);
     const discounts = rows.reduce((sum, r) => sum + Number(r.discounts || r.discount || 0), 0);
@@ -5233,16 +5298,20 @@ export default function POSPage() {
       netSales,
       cashPayments,
       gcCashCollected,
+      reservationFeeCollected: reservationSummary.total,
+      reservationCashCollected: reservationSummary.cash,
+      reservationCollectionPayments: reservationSummary.payments,
+      reservationCollections,
       cashRefunds,
       expectedCash: Number(startingCash || 0) + cashPayments + gcCashCollected - cashRefunds,
       payments: {
         ...Object.fromEntries(additionalMethods.map((method) => [method, paymentNetTotal(method)])),
-        Cash: paymentNetTotal("cash"),
+        Cash: paymentNetTotal("cash") + reservationSummary.payments.Cash,
         Gcash: paymentNetTotal("gcash"),
-        QRPH: paymentNetTotal("qrph"),
+        QRPH: paymentNetTotal("qrph") + reservationSummary.payments.QRPH,
         GrabFood: paymentNetTotal("grabfood"),
         "Grab Dine Out": paymentNetTotal("grab dine out", "grabdineout"),
-        Card: paymentNetTotal("card"),
+        Card: paymentNetTotal("card") + reservationSummary.payments.Card,
         Panda: paymentNetTotal("panda", "foodpanda"),
         "No Payment Required": paymentNetTotal("no payment required", "nopaymentrequired"),
       },
@@ -5258,7 +5327,7 @@ export default function POSPage() {
         "No Payment Required": paymentCount("no payment required", "nopaymentrequired"),
       },
     };
-  }, [receiptRows, receiptItemRows, startingCash, activeShiftStartMs, gcCashCollected]);
+  }, [receiptRows, receiptItemRows, startingCash, activeShiftStartMs, gcCashCollected, reservationCollections, reservationSummary]);
   const shiftSalesRows = useMemo(() => {
     const todayKey = formatDate(new Date());
     const todaysRows = (receiptRows || []).filter((row) => {
@@ -5270,15 +5339,15 @@ export default function POSPage() {
       }
       return formatDate(stamp) === todayKey;
     });
-    return todaysRows.map((row) => ({
+    return [...reservationCollections.map(row => ({ receipt: row.code, time: formatReceiptTime(row.collected_at), payment: row.payment_method, dining: `Reservation Fee Collected · ${row.customer_name}`, status: "Collected", total: Number(row.amount) })), ...todaysRows.map((row) => ({
       receipt: row.receipt_number,
       time: receiptDisplayTimestamp(row) ? formatReceiptTime(receiptDisplayTimestamp(row)) : row.date,
       payment: row.payment_type || "Other",
       dining: row.description || row.dining_option || "POS Order",
       status: row.status || "Closed",
       total: Number(row.total_collected || row.net_sales || 0),
-    }));
-  }, [receiptRows, activeShiftStartMs]);
+    }))];
+  }, [receiptRows, activeShiftStartMs, reservationCollections]);
   const closedShiftReportRecords = useMemo(() => {
     return (shiftRecords || [])
       .filter((record) => {
@@ -6231,7 +6300,7 @@ export default function POSPage() {
       if (!snapshot) return;
       const dining = snapshot.diningOptions || [];
       setPaymentTypes(mergeGlobalThenStore(snapshot.paymentTypes || []));
-      setDiningOptions(dining);
+      setDiningOptions(withVipBookingOption(dining));
       setTicketTemplates(snapshot.ticketTemplates || []);
       setDiscountRules(mergeDiscountRules(snapshot.discountRules || []));
       setReceiptSettings(snapshot.receiptSettings || null);
@@ -6768,10 +6837,11 @@ export default function POSPage() {
     if (!changed) return;
 
     setDiningOption(optionId);
-    if (!/grab|shopee/i.test(name) && !isVipRoomDiningOptionName(name)) setGrabOrderNumber("");
+    if (!/grab|shopee/i.test(name) && !isVipRoomDiningOptionName(name) && name !== "VIP Booking") setGrabOrderNumber("");
   }
 
   async function saveTableOrder() {
+    if (isVipBooking && !selectedBooking) throw new Error("Select a confirmed booking before saving its ticket.");
     const savedItems = jsonSafeValue(enrichOrderItemsForKds(cart));
 
     if (activeWebOrderId) {
@@ -7869,6 +7939,7 @@ export default function POSPage() {
   }
 
   async function refreshReceiptLogs({ force = false, archiveData, remoteResults } = {}) {
+    fetchReservationCollections().catch(error => setBookingError(error.message));
     fetchGcCashCollected().catch(error => showToast("error", "e-GC collections unavailable", error.message));
     const receiptSnapshot = await getLocalSnapshot("pos_receipts", { storeId });
     const cachedReceiptLog = receiptSnapshot?.data;
@@ -8894,11 +8965,24 @@ export default function POSPage() {
       try { verifiedGcCash = await fetchGcCashCollected(); }
       catch { showToast("error", "Connect before closing", "Unable to verify e-GC cash collections. Reconnect and retry closing the shift."); return; }
     }
+    let verifiedReservationRows = reservationCollections;
+    if (shiftCashMode !== "open") {
+      try { verifiedReservationRows = await fetchReservationCollections(); }
+      catch { showToast("error", "Connect before closing", "Unable to verify reservation fee collections."); return; }
+    }
+    const verifiedReservation = reservationCollectionSummary(verifiedReservationRows);
     const isEndDay = shiftCashMode === "end_day";
     const capturedShiftSummary = {
       ...shiftSummary,
       gcCashCollected: verifiedGcCash,
-      expectedCash: shiftSummary.expectedCash - gcCashCollected + verifiedGcCash,
+      expectedCash: shiftSummary.expectedCash - gcCashCollected + verifiedGcCash - reservationSummary.cash + verifiedReservation.cash,
+      cashPayments: shiftSummary.cashPayments - reservationSummary.cash + verifiedReservation.cash,
+      reservationFeeCollected: verifiedReservation.total,
+      reservationCashCollected: verifiedReservation.cash,
+      reservationCollectionPayments: verifiedReservation.payments,
+      reservationCollections: verifiedReservationRows,
+      payments: { ...shiftSummary.payments, ...Object.fromEntries(["Cash", "Card", "QRPH"].map(method => [method,
+        Number(shiftSummary.payments[method] || 0) - reservationSummary.payments[method] + verifiedReservation.payments[method]])) },
       startingCash: Number(startingCash || 0),
       shiftStartedAt: activeShiftStartMs ? new Date(activeShiftStartMs).toISOString() : null,
     };
@@ -9160,7 +9244,7 @@ export default function POSPage() {
     const name = t.order_type || t.ticket_name || "";
     const opt = (diningOptions || []).find((d) => d.name === name || (name.toLowerCase().startsWith(`${String(d.name || "").toLowerCase()} `)));
     setDiningOption(opt?.id || "");
-    if (opt?.name && (/grab|shopee/i.test(opt.name) || isVipRoomDiningOptionName(opt.name))) {
+    if (opt?.name && (/grab|shopee/i.test(opt.name) || isVipRoomDiningOptionName(opt.name) || opt.name === "VIP Booking")) {
       setGrabOrderNumber(name.slice(String(opt.name).length).trim());
     } else {
       setGrabOrderNumber("");
@@ -9247,6 +9331,7 @@ export default function POSPage() {
       subtotal: grossTotal,
       discount: itemDiscountTotal + discountAmount,
       total: totalDue,
+      reservationCredit: isVipBooking ? reservationCredit : 0,
       printedAt: new Date(),
       store: currentStore,
       appliedDiscount,
@@ -9333,6 +9418,13 @@ export default function POSPage() {
   }
 
   async function handleChargeOrder() {
+    if (isVipBooking) {
+      if (!selectedBooking) return showToast("error", "Booking Required", "Select a confirmed booking.");
+      if (Number(selectedBooking.deposit_amount) > 0 && selectedBooking.payment_method !== "Waived" && !selectedBooking.voucher)
+        return showToast("error", "Reservation Fee Required", "Record the reservation fee before final checkout.");
+      if (totalDue < reservationCredit) return showToast("error", "Bill Below Reservation Credit", "The final bill must cover the reservation voucher in full.");
+      bookingCheckoutKeyRef.current ||= crypto.randomUUID();
+    }
     if (charging) return;
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before charging.");
     if (!activeWebOrderId && (!diningOption || !diningOptionName)) {
@@ -9349,23 +9441,36 @@ export default function POSPage() {
 
   async function confirmCharge(paymentPayload = {}) {
     if (charging) return;
+    const usingBooking = isVipBooking;
+    if (usingBooking && !selectedBooking) return showToast("error", "Booking Required", "Refresh and select a confirmed booking.");
     const gcCodes = Array.isArray(paymentPayload.gcCodes) ? paymentPayload.gcCodes : [];
     const usingGc = gcCodes.length > 0;
-    const total = usingGc ? Number(Number(totalDue || 0).toFixed(2)) : Number(totalDue || 0);
+    const usingAtomic = usingGc || usingBooking;
+    if (usingBooking && usingGc) return showToast("error", "Payment Method", "Use Cash, Card, QRPH, or Gcash for a booking balance.");
+    const total = usingAtomic ? Number(Number(totalDue || 0).toFixed(2)) : Number(totalDue || 0);
     const splitPaymentsPayload = Array.isArray(paymentPayload.payments) ? paymentPayload.payments.filter((p) => p.method && Number(p.amount || 0) > 0) : [];
-    const normalizedSplitPayments = splitPaymentsPayload
+    let normalizedSplitPayments = splitPaymentsPayload
       .map((p) => ({
         method: normalizePaymentMethodName(p.method),
         amount: Number(p.amount || 0),
       }))
       .filter((p) => p.method && p.amount > 0);
+    const bookingBalance = Math.max(0, Math.round((total - reservationCredit) * 100) / 100);
+    if (usingBooking) {
+      try {
+        normalizedSplitPayments = reservationPayment(total, reservationCredit,
+          normalizedSplitPayments.length ? normalizedSplitPayments
+          : bookingBalance > 0 ? [{ method: normalizePaymentMethodName(selectedPayment), amount: bookingBalance }] : [],
+          normalizedSplitPayments.length ? Number(paymentPayload.changeDue || 0) : 0);
+      } catch (error) { return showToast("error", "Booking Payment", error.message); }
+    }
     const paymentLabel = normalizedSplitPayments.length > 0
       ? normalizedSplitPayments.map((p) => `${p.method} ${peso2(p.amount)}`).join(" + ")
       : selectedPayment || (total <= 0 ? "No Payment Required" : "");
     if (!paymentLabel) return showToast("error", "Payment Required", "Select a payment type.");
-    const isCashTransaction = normalizedSplitPayments.length === 0 && normalizePaymentMethodName(paymentLabel) === "Cash";
-    const cashTendered = usingGc ? paymentPayload.gcCashTendered : isCashTransaction ? Math.max(total, Number(paymentPayload.amountPaid || 0)) : null;
-    const cashChange = usingGc ? paymentPayload.gcCashChange : isCashTransaction ? Math.max(0, Number(paymentPayload.changeDue ?? cashTendered - total)) : null;
+    const isCashTransaction = (!usingBooking ? normalizedSplitPayments.length === 0 : splitPaymentsPayload.length === 0) && normalizePaymentMethodName(usingBooking ? selectedPayment : paymentLabel) === "Cash";
+    const cashTendered = usingGc ? paymentPayload.gcCashTendered : isCashTransaction ? Math.max(usingBooking ? bookingBalance : total, Number(paymentPayload.amountPaid || 0)) : null;
+    const cashChange = usingGc ? paymentPayload.gcCashChange : isCashTransaction ? Math.max(0, Number(paymentPayload.changeDue ?? cashTendered - (usingBooking ? bookingBalance : total))) : null;
     const resolvedBranchId = getResolvedBranchId();
     if (!resolvedBranchId) return showToast("error", "Branch not set", "Please sign out and sign in again so POS can load your branch.");
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before charging.");
@@ -9446,7 +9551,7 @@ export default function POSPage() {
       setReceiptOpen(true);
       clearTicketSoft();
       setPaymentOpen(false);
-      showToast("warn", "Sale Already Saved", "The e-GCs were redeemed on this receipt. Check receipt logs for any follow-up needed; do not charge again.");
+      showToast("warn", "Sale Already Saved", "The payment credit was applied on this receipt. Check receipt logs for any follow-up needed; do not charge again.");
     }
 
     setCharging(true);
@@ -9511,7 +9616,7 @@ export default function POSPage() {
         discountClaimsReserved = true;
       }
 
-      if (appliedCartVouchers.length > 0 && !usingGc) {
+      if (appliedCartVouchers.length > 0 && !usingAtomic) {
         const { data: sessionData } = await supabase.auth.getSession();
         const accessToken = sessionData?.session?.access_token;
         const redeemedIds = new Set();
@@ -9599,19 +9704,24 @@ export default function POSPage() {
         discount_amount: lineDiscountAmount(line),
         net_amount: lineNetAmount(line),
       }));
-      const result = usingGc
+      const result = usingBooking
+        ? await supabase.rpc("complete_pos_booking_sale", {
+            p_key: bookingCheckoutKeyRef.current, p_booking_id: selectedBooking.id,
+            p_order: orderPayload, p_items: itemRows, p_voucher_ids: appliedCartVouchers.map(voucher => voucher.id),
+          })
+        : usingGc
         ? await supabase.rpc("complete_pos_gc_sale", {
             p_key: paymentPayload.gcCheckoutKey, p_order: orderPayload, p_items: itemRows,
             p_codes: gcCodes, p_voucher_ids: appliedCartVouchers.map((voucher) => voucher.id),
           })
         : await supabase.from("orders").insert([orderPayload]).select("*").single();
       const orderErr = result.error;
-      const orderRow = usingGc ? result.data?.order : result.data;
+      const orderRow = usingAtomic ? result.data?.order : result.data;
       if (orderErr) throw new Error(orderErr.message);
       createdOrderRow = orderRow;
       await cacheCompletedReceipt({ ...orderRow, receipt_number: generatedReceiptNumber }, cart, resolvedSaleCustomer, resolvedBranchId)
         .catch(error => showToast("warn", "Receipt Cache Not Updated", error.message || "Sale is saved; refresh Receipts to reload it."));
-      if (usingGc && result.data?.replayed) return showRecoveredGcSale(orderRow);
+      if (usingAtomic && result.data?.replayed) return showRecoveredGcSale(orderRow);
 
       if (!activeWebOrderId && originalTicketId) {
         const addedItems = getKitchenPrinterGroupItems(getAddedTicketLines(
@@ -9641,13 +9751,13 @@ export default function POSPage() {
         if (kdsErr) showToast("warn", "KDS Sync Warning", kdsErr.message);
       }
 
-      if (!usingGc) {
+      if (!usingAtomic) {
         const { error: itemsErr } = await supabase.from("order_items").insert(itemRows.map((item) => ({ ...item, order_id: orderRow.id })));
         if (itemsErr) throw new Error(itemsErr.message);
       }
-      if (usingGc) discountClaimsCompleted = discountClaimsReserved;
+      if (usingAtomic) discountClaimsCompleted = discountClaimsReserved;
 
-      if (discountClaimsReserved && !usingGc) {
+      if (discountClaimsReserved && !usingAtomic) {
         const { error: claimCompleteError } = await supabase.rpc("complete_pos_discount_claims", {
           p_claim_key: discountClaimKey,
           p_order_id: orderRow.id,
@@ -9775,11 +9885,11 @@ export default function POSPage() {
         });
         if (releaseError) console.error("Discount claim release failed:", releaseError);
       }
-      if (usingGc && createdOrderRow) {
+      if (usingAtomic && createdOrderRow) {
         showRecoveredGcSale(createdOrderRow);
         return;
       }
-      if (!usingGc && !createdOrderRow && !activeWebOrderId && appliedCartVouchers.length === 0 && discountClaims.length === 0 && isProbablyOfflineError(err)) {
+      if (!usingAtomic && !createdOrderRow && !activeWebOrderId && appliedCartVouchers.length === 0 && discountClaims.length === 0 && isProbablyOfflineError(err)) {
         await queueOfflineCharge(offlineDraft);
         setIsOfflineMode(true);
 
@@ -10000,6 +10110,8 @@ export default function POSPage() {
     setAppliedDiscount(null);
     setSelectedPayment("");
     setGrabOrderNumber("");
+    bookingCheckoutKeyRef.current = null;
+    fetchConfirmedBookings().catch(() => {});
     setSplitMode(false);
     setSplitSelected([]);
     setOriginalTicketId(null);
@@ -10587,6 +10699,8 @@ export default function POSPage() {
                 {[
                   ["Cash payments", shiftSummary.cashPayments],
                   ["e-GC cash collected", shiftSummary.gcCashCollected],
+                  ["Reservation fees collected", shiftSummary.reservationFeeCollected],
+                  ["Reservation cash collected", shiftSummary.reservationCashCollected],
                   ["Cash refunds", shiftSummary.cashRefunds],
                   ["Expected cash amount", shiftSummary.expectedCash],
                 ].map(([label, value]) => (
@@ -11172,7 +11286,8 @@ export default function POSPage() {
               occupiedDiningOptionIds={occupiedDiningOptionIds}
               grabOrderNumber={grabOrderNumber}
               setGrabOrderNumber={setGrabOrderNumber}
-              showGrabOrderNumber={requiresDiningReference && !activeWebOrderId}
+              showGrabOrderNumber={requiresDiningReference && !activeWebOrderId && !isVipBooking}
+              bookingControl={!activeWebOrderId ? bookingControl : null}
               diningReferenceLabel={diningReferenceLabel}
               diningReferencePrefix={diningReferencePrefix}
               diningReferencePlaceholder={diningReferencePlaceholder}
@@ -11286,7 +11401,8 @@ export default function POSPage() {
                 occupiedDiningOptionIds={occupiedDiningOptionIds}
                 grabOrderNumber={grabOrderNumber}
                 setGrabOrderNumber={setGrabOrderNumber}
-                showGrabOrderNumber={requiresDiningReference && !activeWebOrderId}
+                showGrabOrderNumber={requiresDiningReference && !activeWebOrderId && !isVipBooking}
+              bookingControl={!activeWebOrderId ? bookingControl : null}
                 diningReferenceLabel={diningReferenceLabel}
                 diningReferencePrefix={diningReferencePrefix}
                 diningReferencePlaceholder={diningReferencePlaceholder}
@@ -11435,7 +11551,7 @@ export default function POSPage() {
         onAllow={handlePrinterPermissionAllow}
       />
       {shiftCashModal}
-      <PaymentModal open={paymentOpen} onClose={() => setPaymentOpen(false)} paymentTypes={paymentTypes} selectedPayment={selectedPayment} onSelect={(name) => setSelectedPayment(name)} onConfirm={confirmCharge} total={totalDue} paymentAmount={paymentAmount} setPaymentAmount={setPaymentAmount} storeId={getResolvedBranchId()} charging={charging} webCertificates={activeWebGcCodes} />
+      <PaymentModal open={paymentOpen} onClose={() => setPaymentOpen(false)} paymentTypes={paymentTypes} selectedPayment={selectedPayment} onSelect={(name) => setSelectedPayment(name)} onConfirm={confirmCharge} total={isVipBooking ? Math.max(0, totalDue - reservationCredit) : totalDue} reservationCredit={isVipBooking ? reservationCredit : 0} bookingPayment={isVipBooking} paymentAmount={paymentAmount} setPaymentAmount={setPaymentAmount} storeId={getResolvedBranchId()} charging={charging} webCertificates={activeWebGcCodes} />
       <ReceiptPreviewModal open={receiptOpen} onClose={() => setReceiptOpen(false)} receiptText={receiptText} />
     </div>
   );

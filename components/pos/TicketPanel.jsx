@@ -15,6 +15,7 @@ export default function TicketPanel({
   diningOption,
   diningSelectionLocked = false,
   diningOptions,
+  bookingControl = null,
   setDiningOption,
   occupiedDiningOptionIds,
   grabOrderNumber = "",
@@ -194,6 +195,7 @@ const isWelcomeVoucher = (voucher) => {
         )}
       </div>
 
+      {bookingControl}
       {/* ✅ Repaired Dining Options Dropdown Component */}
       <div className="flex-none pb-3 mb-3 border-b border-slate-100">
         <label className="block text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-1.5">

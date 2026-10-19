@@ -328,6 +328,8 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
       startingCash,
       cashPayments,
       cashRefunds,
+      reservationFeeCollected: num(summary.reservationFeeCollected),
+      reservationCashCollected: num(summary.reservationCashCollected),
       paidIn: 0,
       paidOut: 0,
       expectedCash,
@@ -450,6 +452,8 @@ function ShiftReportDrawer({ shift, onClose }) {
         <ReportDrawerSection title="Cash drawer">
           <DrawerAmount label="Starting cash" value={shift.startingCash} />
           <DrawerAmount label="Cash payments" value={shift.cashPayments} />
+          <DrawerAmount label="Reservation fees collected" value={shift.reservationFeeCollected} />
+          <DrawerAmount label="Reservation cash collected" value={shift.reservationCashCollected} />
           <DrawerAmount label="Cash refunds" value={shift.cashRefunds} />
           <DrawerAmount label="Paid in" value={shift.paidIn} />
           <DrawerAmount label="Paid out" value={shift.paidOut} />
