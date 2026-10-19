@@ -1,5 +1,7 @@
 "use client";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
+import { shiftReportDay } from "@/lib/businessDay";
+import { shouldAutoPrintCupLabels, cupLabelJobs } from "@/lib/posCupLabelDelivery";
 import { createIncomingRingtone } from "@/lib/posIncomingRingtone";
 import { isOptionGroupVisibleOn } from "@/lib/menuVisibility";
 
@@ -1898,7 +1900,7 @@ function buildCashBreakdownReportText({ store, cashierName, denominations, expec
   return lines.join("\n");
 }
 
-function buildEndDayReportText({ store, cashierName, startingCash, actualCash, denominations, summary, printedAt, title = "END DAY SALES REPORT" }) {
+function buildEndDayReportText({ store, cashierName, startingCash, actualCash, denominations, summary, printedAt, shiftDateFallback, title = "END DAY SALES REPORT" }) {
   const branchName = store?.store_name || store?.name || store?.branch_name || "Store";
   const expectedCash = Number(summary?.expectedCash || 0);
   const actualCashValue = Number(actualCash || 0);
@@ -1907,6 +1909,7 @@ function buildEndDayReportText({ store, cashierName, startingCash, actualCash, d
     centerReceiptText(title),
     centerReceiptText(branchName),
     receiptLine(),
+    receiptPair("Shift day", shiftReportDay(summary, shiftDateFallback || printedAt)),
     receiptPair("Printed", formatReceiptFooterDate(printedAt || new Date())),
     receiptPair("Cashier", normalizeLabelLine(cashierName || "Operator")),
     receiptLine(),
@@ -2170,11 +2173,6 @@ function buildCupLabels({ orderId, cart, diningOptionName, printedAt, storeName 
     }
   });
   return labels;
-}
-
-function shouldAutoPrintCupLabels(diningOptionName) {
-  const compactName = String(diningOptionName || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
-  return ["grabfood", "shopeefood", "foodpanda"].some((name) => compactName.includes(name));
 }
 
 const peso0 = (n) => `₱${Number(n || 0).toLocaleString("en-PH", { maximumFractionDigits: 0 })}`;
@@ -6583,28 +6581,30 @@ export default function POSPage() {
     labelDining = diningOptionName || "WEB ORDER",
     printedAt = new Date(),
   } = {}) {
-    const autoPrint = shouldAutoPrintCupLabels(labelDining);
-    const isTakeout = String(labelDining || "").toLowerCase().replace(/[^a-z0-9]+/g, "").includes("takeout");
-    if (!autoPrint && !isTakeout) return;
+    if (!shouldAutoPrintCupLabels(labelDining)) return;
 
-    const labels = buildCupLabels({
+    const jobs = cupLabelJobs(labelCart, lines => buildCupLabels({
       orderId,
-      cart: labelCart,
+      cart: lines,
       diningOptionName: labelDining,
       printedAt,
       storeName: currentStore?.store_name || currentStore?.name || currentStore?.branch_name || "Juja Brew & Bites",
       barCategoryIds: barPrinterCategoryIds,
       barCategoryNames: barPrinterCategoryNames,
-    });
-
-    if (labels.length === 0) return;
-
-    if (!autoPrint && !confirm("Print cup labels for this takeout order?")) return;
+    }));
+    if (!jobs.length) return;
 
     try {
-      for (const label of labels) {
-        await printByRoleWhenReady("cup_label", label);
-      }
+      const namespace = `pos_cup_labels:${orderId}`;
+      const work = () => deliverOrderSlips({
+        jobs,
+        load: async () => (await getLocalSnapshot(namespace, { storeId }))?.data,
+        persist: printed => setLocalSnapshot(namespace, { ...printed }, { storeId }),
+        print: job => printByRoleWhenReady("cup_label", job.text),
+      });
+      const delivery = orderSlipWorkRef.current.then(work, work);
+      orderSlipWorkRef.current = delivery.catch(() => {});
+      await delivery;
     } catch (printError) {
       showToast("warn", "Cup Label Not Printed", printError?.message || "Select and save the Bluetooth cup label printer in POS Settings.");
     }
@@ -6973,13 +6973,13 @@ export default function POSPage() {
           });
           if (kdsErr) showToast("warn", "KDS Sync Warning", kdsErr.message || "Kitchen sync needs attention; order slips will still print.");
         }
-        await autoPrintBarCupLabels({
-          orderId: savedTicketId,
-          labelCart: addedItems,
-          labelDining: name,
-          printedAt: ticketPrintedAt,
-        });
       }
+      await autoPrintBarCupLabels({
+        orderId: savedTicketId,
+        labelCart: savedItems,
+        labelDining: name,
+        printedAt: ticketPrintedAt,
+      });
       await autoPrintOrderSlip({
         orderId: savedTicketId,
         slipCart: savedItems,
@@ -9112,6 +9112,7 @@ export default function POSPage() {
       denominations,
       summary,
       printedAt: new Date(),
+      shiftDateFallback: matchingOpen?.created_at || record.created_at,
       title: mode.includes("end_day") ? "END DAY SALES REPORT" : "CLOSE SHIFT REPORT",
     });
 
@@ -9851,10 +9852,9 @@ export default function POSPage() {
         });
       }
 
-      const shouldAskCupLabelOnCharge = !originalTicketId && !activeWebOrderId;
-      if (shouldAskCupLabelOnCharge) {
+      {
         await autoPrintBarCupLabels({
-          orderId: generatedReceiptNumber,
+          orderId: originalTicketId || activeWebOrderId || generatedReceiptNumber,
           labelCart: cart,
           labelDining: chargedDiningLabel || "WEB ORDER",
           printedAt: orderRow.paid_at || orderRow.created_at || new Date(),
@@ -9931,6 +9931,12 @@ export default function POSPage() {
           slipDining: chargedDiningLabel || "POS ORDER",
           slipCustomer: attachedCustomer?.name || "Walk-in",
           slipTotal: total,
+          printedAt: chargedAt,
+        });
+        await autoPrintBarCupLabels({
+          orderId: originalTicketId || offlineReceiptNumber,
+          labelCart: cart,
+          labelDining: chargedDiningLabel || "POS ORDER",
           printedAt: chargedAt,
         });
         if (receiptSettings?.auto_print) {
