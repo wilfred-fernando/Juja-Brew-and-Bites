@@ -3,7 +3,7 @@
 ## Cashier flow
 
 1. Open an online POS shift. Select **VIP Booking** as the dining option.
-2. Choose a confirmed booking by customer, date, time and package. Pending,
+2. Choose a confirmed booking by customer, date, time and package. Pending, past (ended), expired,
    cancelled and already-settled bookings cannot be charged through this flow.
 3. Approving a positive paid reservation fee now automatically creates its normal numbered POS receipt and booking voucher in the branch’s open shift. Unpaid/waived fees do not create sales. If a confirmed fee has not yet been received, select Cash, Card or QRPH and choose
    **Record fee & issue voucher**. Confirm only payments actually received or
@@ -73,3 +73,5 @@ attempting to recreate the tables. Both forms require `DATABASE_URL` and perform
 only rollback-based fixture verification.
 
 To install the receipt follow-up after the base migrations, run `node scripts/apply-booking-fee-receipts.cjs --apply`. Only add `--repair-booking <UUID>` for a specific audited booking approved today whose receipt is missing. The helper is idempotent and does not bulk-convert older bookings. Approval requires an online open shift in the booking branch; if none exists, approval rolls back with a clear error.
+
+VIP Booking purchases, reservation-fee receipts and final bills do not earn loyalty points, even when a loyalty customer is attached. The database award RPC returns the member unchanged for these receipts.
