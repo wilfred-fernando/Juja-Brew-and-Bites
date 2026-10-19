@@ -4,7 +4,7 @@ create or replace function public.booking_order_excludes_loyalty(p_order public.
 returns boolean language sql immutable set search_path=public as $$
   select coalesce(p_order.source_metadata->>'exclude_loyalty','false')='true'
     or nullif(p_order.source_metadata->>'booking_id','') is not null
-    or p_order.source_metadata->>'transaction_kind'='booking_reservation_fee'
+    or coalesce(p_order.source_metadata->>'transaction_kind','')='booking_reservation_fee'
     or coalesce(p_order.dining_option,'') ~* '^VIP Booking( |$)'
     or coalesce(p_order.order_type,'') ~* '^VIP Booking( |$)'
 $$;

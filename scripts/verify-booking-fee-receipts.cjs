@@ -105,6 +105,17 @@ async function main(){
     const gc=(await one('select public.complete_pos_gc_sale($1,$2::jsonb,$3::jsonb,$4::text[]) sale',[randomUUID(),JSON.stringify(gcOrder),JSON.stringify(gcItems),[cert.code]])).sale.order;
     assert.equal(Number(gc.net_amount),400);assert.equal(Number(gc.source_metadata.reservation_bill_total),500);checks+=2;
     assert.equal(Number((await one('select sum(net_amount) n from public.order_items where order_id=$1',[gc.id])).n),400);checks++;
+    if(process.argv.includes('--no-booking-loyalty')) {
+      const member=(await one('select to_jsonb(m) member from public.loyalty_members m limit 1')).member;assert.ok(member);
+      for(const receipt of [fee,final]) {
+        const result=(await one('select to_jsonb(public.award_loyalty_points_for_order($1,$2,40,1000)) member',[receipt.id,member.id])).member;
+        assert.deepEqual(result,member);checks++;
+        assert.equal((await one("select count(*)::int n from public.loyalty_point_award_events where source_type='order' and source_id=$1",[receipt.id])).n,0);checks++;
+      }
+      assert.equal((await one('select source_metadata from public.orders where id=$1',[final.id])).source_metadata.exclude_loyalty,true);checks++;
+      await reject('update public.orders set loyalty_points_awarded=40 where id=$1',[final.id],/VIP booking|booking/i);
+      assert.equal((await one("select public.booking_order_excludes_loyalty(jsonb_populate_record(null::public.orders,'{\"dining_option\":\"Dine In\",\"source_metadata\":{}}')) excluded")).excluded,false);checks++;
+    }
     await query('set constraints all immediate');
     console.log(`Booking approval/normal receipt verification passed (${checks} assertions); all fixture writes rolled back.`);
   }finally{await query('rollback');await db.end();}
