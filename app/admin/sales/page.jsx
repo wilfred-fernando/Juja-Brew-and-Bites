@@ -64,6 +64,7 @@ import { enrichReceiptItemRows, receiptItemDetails } from "@/lib/reports/receipt
 import { buildShiftDiscountBreakdown } from "@/lib/posDiscountBreakdown";
 import ReceiptEditModal from "@/components/admin/ReceiptEditModal";
 import MonthlySalesReport from "@/components/admin/MonthlySalesReport";
+import NonCashMonitoring from "@/components/admin/NonCashMonitoring";
 import { monthRange } from "@/lib/reports/monthlySales";
 
 const supabase = getSupabaseClient();
@@ -958,7 +959,12 @@ export default function AdminSalesPage() {
       skippedInitialTabLoad.current = true;
       return;
     }
-    if (activeTab === "monthly") {
+    if (activeTab === "noncash") {
+      const date = filters.endDate > manilaDate() ? manilaDate() : filters.endDate;
+      const next = { ...filters, startDate: date, endDate: date, preset: "custom" };
+      setFilters(next);
+      loadData(next, { reportTab: activeTab });
+    } else if (activeTab === "monthly") {
       const range = monthRange(filters.startDate.slice(0, 7));
       const next = { ...filters, startDate: range.startDate, endDate: range.endDate, preset: "custom" };
       setFilters(next);
@@ -1156,6 +1162,8 @@ export default function AdminSalesPage() {
       {loading ? <div className="rounded-3xl border border-white/70 bg-white/80 p-10 text-center text-sm font-semibold text-slate-500">Loading sales report...</div> : null}
 
       {activeTab === "monthly" && <MonthlySalesReport sales={filtered.sales} lineItems={filtered.lineItems} startDate={filters.startDate} endDate={filters.endDate} branch={branchOptions.find((option) => option.value === filters.branchId)?.label || "All stores"} loading={loading} onMonthChange={(startDate, endDate) => updateSummaryFilters({ startDate, endDate })} />}
+
+      {!loading && activeTab === "noncash" && <NonCashMonitoring sales={filtered.sales} startDate={filters.startDate} endDate={filters.endDate} onDateChange={(date) => updateSummaryFilters({ startDate: date, endDate: date })} />}
 
       {!loading && activeTab === "summary" && (
         <div className="space-y-4">
