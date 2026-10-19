@@ -10,6 +10,12 @@ const files = ['supabase/migrations/20261019090000_booking_reservation_vouchers.
 async function main() {
   const db = new Client({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false},connectionTimeoutMillis:10000});
   await db.connect();
+  const current=(await db.query("select to_regprocedure('public.ensure_booking_reservation_receipt(uuid,text,uuid)') installed")).rows[0].installed;
+  if(current){
+    await db.end();
+    require('node:child_process').execFileSync(process.execPath,['scripts/verify-booking-fee-receipts.cjs','--installed'],{stdio:'inherit'});
+    return;
+  }
   let checks=0;
   const query = (sql,args=[])=>db.query(sql,args);
   const one = async(sql,args=[]) => (await query(sql,args)).rows[0];

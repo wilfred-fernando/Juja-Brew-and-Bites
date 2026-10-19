@@ -19,6 +19,7 @@ export default function BookingReservationSelector({ bookings, selectedId, onSel
     {booking?.voucher ? <div className="space-y-1">
       <p className="font-semibold">Reservation credit: ₱{Number(booking.voucher.amount).toFixed(2)}</p>
       <p className="break-all text-[10px]">{booking.voucher.code}</p>
+      {booking.voucher.collection_receipt_number && <p className="font-semibold">Fee receipt: {booking.voucher.collection_receipt_number}</p>}
       <p>Applied once to this booking’s final bill.</p>
     </div> : booking && Number(booking.deposit_amount) > 0 && booking.payment_method !== 'Waived' ? <div className="space-y-2">
       <p>Reservation fee: ₱{Number(booking.deposit_amount).toFixed(2)}</p>

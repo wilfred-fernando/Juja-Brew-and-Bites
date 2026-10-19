@@ -5,7 +5,7 @@
 1. Open an online POS shift. Select **VIP Booking** as the dining option.
 2. Choose a confirmed booking by customer, date, time and package. Pending,
    cancelled and already-settled bookings cannot be charged through this flow.
-3. If the fee has not been recorded, select Cash, Card or QRPH and choose
+3. Approving a positive paid reservation fee now automatically creates its normal numbered POS receipt and booking voucher in the branch’s open shift. Unpaid/waived fees do not create sales. If a confirmed fee has not yet been received, select Cash, Card or QRPH and choose
    **Record fee & issue voucher**. Confirm only payments actually received or
    verified in this shift. The booking's configured reservation amount is used.
 4. Add the complete final bill to the POS ticket. Saving the ticket preserves its
@@ -23,13 +23,11 @@ settlement. Retrying a collection or the same checkout does not issue credit twi
 
 ## Reporting
 
-- The original collection appears in that shift's activity as **Reservation Fee
-  Collected**, with its voucher reference and actual payment method.
+- The original collection appears in ordinary Sales and Receipts as **Reservation Fee**, with a normal receipt number, voucher reference and actual payment method.
 - Shift summaries and Admin shift details show reservation collections separately.
   Cash collections enter expected drawer cash. Card and QRPH enter their collection
   channels. Shift closure refreshes the ledger values at the database boundary.
-- Merchandise sales revenue is recorded on the full final bill. The original fee
-  collection is not inserted as another merchandise sale.
+- The reservation fee is recognized on its own receipt. The final receipt recognizes only the remaining amount, and retains the full bill and reservation credit for printing/reprints. A PHP 1,000 fee plus a PHP 4,000 remaining bill therefore records PHP 5,000 across both receipts.
 - The final receipt payment split shows **Reservation Fee Applied** separately from
   new Cash/Card/QRPH/Gcash payment. Finance excludes that credit from new receivables
   and includes the original fee on its collection day.
@@ -55,6 +53,7 @@ New migrations:
 
 - `20261019090000_booking_reservation_vouchers.sql`
 - `20261019091000_reservation_shift_collections.sql`
+- `20261019120000_booking_fee_receipts.sql`
 
 After live database installation has been authorized, run
 `node scripts/apply-reservation-vouchers.cjs --apply`, deploy the frontend and fully
@@ -62,9 +61,15 @@ reopen POS. Installing migrations alone does not update the hosted POS interface
 
 Local payment-math checks: `node scripts/verify-reservation-payment.mjs`.
 
-Before installation, `node scripts/verify-reservation-vouchers.cjs` installs the
+For the current receipt flow use `node scripts/verify-booking-fee-receipts.cjs` before installation, or add `--installed` after installation. It checks approval, receipt generation, sales recognition, cash/QRPH, retries, cancellation certificates and full-credit final bills.
+
+`node scripts/verify-vip-booking-render.cjs --selected` renders the actual POS VIP selection branch through React without network/native effects.
+
+The original baseline verifier `node scripts/verify-reservation-vouchers.cjs` installs the
 definitions and exercises real tables inside a single rolled-back transaction.
 It leaves no bookings, shifts, payments, vouchers or receipts behind. After
 installation, use `--installed` to exercise installed definitions without
 attempting to recreate the tables. Both forms require `DATABASE_URL` and perform
 only rollback-based fixture verification.
+
+To install the receipt follow-up after the base migrations, run `node scripts/apply-booking-fee-receipts.cjs --apply`. Only add `--repair-booking <UUID>` for a specific audited booking approved today whose receipt is missing. The helper is idempotent and does not bulk-convert older bookings. Approval requires an online open shift in the booking branch; if none exists, approval rolls back with a clear error.

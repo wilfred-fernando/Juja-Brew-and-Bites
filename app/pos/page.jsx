@@ -1660,14 +1660,14 @@ function buildReceiptText({
   const storedCashChange = order?.source_metadata?.cash_change;
   const cashTenderedValue = cashTendered ?? storedCashTendered;
   const cashChangeValue = changeDue ?? storedCashChange;
-  const showCashTenderDetails = (isCashPayment || (order?.source_metadata?.gc_codes?.length > 0 && Number(cashTenderedValue) > 0))
+  const showCashTenderDetails = (isCashPayment || ((order?.source_metadata?.gc_codes?.length > 0 || order?.source_metadata?.booking_id) && Number(cashTenderedValue) > 0))
     && cashTenderedValue !== null
     && cashTenderedValue !== undefined
     && cashTenderedValue !== ""
     && Number.isFinite(Number(cashTenderedValue));
-  const subtotalValue = Number(subtotal || 0);
+  const subtotalValue = Number(order?.source_metadata?.reservation_bill_subtotal ?? subtotal ?? 0);
   const discountValue = Number(discount || 0);
-  const totalValue = Number(total || subtotalValue - discountValue || 0);
+  const totalValue = Number(order?.source_metadata?.reservation_bill_total ?? total ?? subtotalValue - discountValue);
   const customerName = customerDisplayName(customer);
   const customerPhone = customerDisplayPhone(customer);
   const pointsBaseValue = loyaltyEligibleTotal === null || typeof loyaltyEligibleTotal === "undefined"
@@ -1753,6 +1753,10 @@ function buildReceiptText({
         if (entry.method !== "Reservation Fee Applied") lines.push(receiptPair(entry.method, receiptAmount(entry.amount)));
       }
     } else lines.push(receiptPair(paidBy, receiptAmount(totalValue)));
+  }
+  if (order?.source_metadata?.transaction_kind === "booking_reservation_fee") {
+    lines.push("Booking: " + order.source_metadata.reservation_fee_booking_id);
+    lines.push("Voucher: " + order.source_metadata.reservation_voucher_code);
   }
   for (const code of order?.source_metadata?.gc_codes || []) lines.push(`e-GC: ${code}`);
   if (showCashTenderDetails) {
@@ -4404,6 +4408,7 @@ export default function POSPage() {
   const [ticketDrawerOpen, setTicketDrawerOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
+  const [originalTicketId, setOriginalTicketId] = useState(null);
   const [savedTickets, setSavedTickets] = useState([]);
   const [savedTicketAuditLogs, setSavedTicketAuditLogs] = useState([]);
   const [savedTicketAuditLoading, setSavedTicketAuditLoading] = useState(false);
@@ -4494,6 +4499,7 @@ export default function POSPage() {
   const selectedBooking = isVipBooking ? confirmedBookings.find(row => row.id === trimmedGrabOrderNumber) : null;
   const reservationCredit = Number(selectedBooking?.voucher?.amount || 0);
   const reservationSummary = useMemo(() => reservationCollectionSummary(reservationCollections), [reservationCollections]);
+  const reservationExtra = useMemo(() => reservationCollectionSummary(reservationCollections.filter(row => !row.collection_order_id)), [reservationCollections]);
   const itemPriceForChannel = (item, channel = activeMenuChannel) => {
     const basePrice = Number(item?.price || 0);
     if (channel === "grab" && item?.grab_price !== null && item?.grab_price !== undefined && item?.grab_price !== "") {
@@ -5159,6 +5165,16 @@ export default function POSPage() {
     fetchConfirmedBookings().catch(() => {});
     fetchReservationCollections().catch(error => setBookingError(error.message));
   }, [fetchConfirmedBookings, fetchReservationCollections]);
+  useEffect(() => {
+    if (!storeId) return;
+    const channel = supabase.channel(`pos-reservation-receipts-${storeId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders", filter: `store_id=eq.${storeId}` }, event => {
+        if (event.new?.source_metadata?.transaction_kind !== "booking_reservation_fee") return;
+        fetchConfirmedBookings().catch(error => setBookingError(error.message));
+        fetchReceiptLogs({ force: true }).catch(error => setBookingError(error.message));
+      }).subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [storeId, supabase, fetchConfirmedBookings]);
   const bookingControl = isVipBooking ? <BookingReservationSelector
     bookings={confirmedBookings} selectedId={trimmedGrabOrderNumber} busy={bookingBusy || charging} selectionLocked={Boolean(originalTicketId)}
     error={bookingError} onRefresh={() => fetchConfirmedBookings().catch(() => {})}
@@ -5169,7 +5185,16 @@ export default function POSPage() {
       try {
         const { data, error } = await supabase.rpc("collect_booking_reservation_fee", { p_booking_id: id, p_store_id: storeId, p_method: method });
         if (error) throw error;
-        await Promise.all([fetchConfirmedBookings(), fetchReservationCollections()]);
+        await Promise.all([fetchConfirmedBookings(), fetchReservationCollections(), fetchReceiptLogs({ force: true })]);
+        if (data.collection_order_id) {
+          const result = await supabase.from("orders").select("*").eq("id", data.collection_order_id).eq("store_id", storeId).single();
+          if (result.error) throw result.error;
+          const order = result.data;
+          setReceiptText(buildReceiptText({ receiptSettings, order, cart: order.items || [],
+            diningOptionName: "Reservation Fee", payment: order.payment_method, customer: null,
+            subtotal: Number(order.subtotal), discount: 0, total: Number(order.total), store: currentStore, cashierName }));
+          setReceiptOpen(true);
+        }
         showToast("success", "Reservation Fee Recorded", data.code);
       } catch (error) { setBookingError(error.message); }
       finally { setBookingBusy(false); }
@@ -5280,7 +5305,7 @@ export default function POSPage() {
       }, 0);
     const knownPaymentKeys = ["cash", "gcash", "qrph", "grabfood", "grab dine out", "grabdineout", "card", "panda", "foodpanda", "no payment required", "nopaymentrequired"];
     const additionalMethods = [...new Set(rows.flatMap(rowPaymentEntries).map((entry) => entry.method))].filter((method) => !paymentMatches(method, knownPaymentKeys));
-    const cashPayments = paymentGrossTotal("cash") + reservationSummary.cash;
+    const cashPayments = paymentGrossTotal("cash") + reservationExtra.cash;
     const cashRefunds = paymentRefundTotal("cash");
     const grossSales = rows.reduce((sum, r) => sum + Number(r.gross_sales || r.total_collected || r.net_sales || 0), 0);
     const discounts = rows.reduce((sum, r) => sum + Number(r.discounts || r.discount || 0), 0);
@@ -5298,18 +5323,19 @@ export default function POSPage() {
       gcCashCollected,
       reservationFeeCollected: reservationSummary.total,
       reservationCashCollected: reservationSummary.cash,
-      reservationCollectionPayments: reservationSummary.payments,
+      reservationCollectionPayments: reservationExtra.payments,
+      reservationCashAdjustment: reservationExtra.cash,
       reservationCollections,
       cashRefunds,
       expectedCash: Number(startingCash || 0) + cashPayments + gcCashCollected - cashRefunds,
       payments: {
         ...Object.fromEntries(additionalMethods.map((method) => [method, paymentNetTotal(method)])),
-        Cash: paymentNetTotal("cash") + reservationSummary.payments.Cash,
+        Cash: paymentNetTotal("cash") + reservationExtra.payments.Cash,
         Gcash: paymentNetTotal("gcash"),
-        QRPH: paymentNetTotal("qrph") + reservationSummary.payments.QRPH,
+        QRPH: paymentNetTotal("qrph") + reservationExtra.payments.QRPH,
         GrabFood: paymentNetTotal("grabfood"),
         "Grab Dine Out": paymentNetTotal("grab dine out", "grabdineout"),
-        Card: paymentNetTotal("card") + reservationSummary.payments.Card,
+        Card: paymentNetTotal("card") + reservationExtra.payments.Card,
         Panda: paymentNetTotal("panda", "foodpanda"),
         "No Payment Required": paymentNetTotal("no payment required", "nopaymentrequired"),
       },
@@ -5325,7 +5351,7 @@ export default function POSPage() {
         "No Payment Required": paymentCount("no payment required", "nopaymentrequired"),
       },
     };
-  }, [receiptRows, receiptItemRows, startingCash, activeShiftStartMs, gcCashCollected, reservationCollections, reservationSummary]);
+  }, [receiptRows, receiptItemRows, startingCash, activeShiftStartMs, gcCashCollected, reservationCollections, reservationSummary, reservationExtra]);
   const shiftSalesRows = useMemo(() => {
     const todayKey = formatDate(new Date());
     const todaysRows = (receiptRows || []).filter((row) => {
@@ -5337,7 +5363,7 @@ export default function POSPage() {
       }
       return formatDate(stamp) === todayKey;
     });
-    return [...reservationCollections.map(row => ({ receipt: row.code, time: formatReceiptTime(row.collected_at), payment: row.payment_method, dining: `Reservation Fee Collected · ${row.customer_name}`, status: "Collected", total: Number(row.amount) })), ...todaysRows.map((row) => ({
+    return [...reservationCollections.filter(row => !row.collection_order_id).map(row => ({ receipt: row.code, time: formatReceiptTime(row.collected_at), payment: row.payment_method, dining: `Reservation Fee Collected · ${row.customer_name}`, status: "Collected", total: Number(row.amount) })), ...todaysRows.map((row) => ({
       receipt: row.receipt_number,
       time: receiptDisplayTimestamp(row) ? formatReceiptTime(receiptDisplayTimestamp(row)) : row.date,
       payment: row.payment_type || "Other",
@@ -6722,7 +6748,7 @@ export default function POSPage() {
     }
   }
 
-  const [originalTicketId, setOriginalTicketId] = useState(null);
+
   const savedTableSelectionLocked = Boolean(originalTicketId && isTableDiningOption(
     (diningOptions || []).find((option) => String(option.id) === String(diningOption))?.name || ""
   ));
@@ -8971,18 +8997,20 @@ export default function POSPage() {
       catch { showToast("error", "Connect before closing", "Unable to verify reservation fee collections."); return; }
     }
     const verifiedReservation = reservationCollectionSummary(verifiedReservationRows);
+    const verifiedExtra = reservationCollectionSummary(verifiedReservationRows.filter(row => !row.collection_order_id));
     const isEndDay = shiftCashMode === "end_day";
     const capturedShiftSummary = {
       ...shiftSummary,
       gcCashCollected: verifiedGcCash,
-      expectedCash: shiftSummary.expectedCash - gcCashCollected + verifiedGcCash - reservationSummary.cash + verifiedReservation.cash,
-      cashPayments: shiftSummary.cashPayments - reservationSummary.cash + verifiedReservation.cash,
+      expectedCash: shiftSummary.expectedCash - gcCashCollected + verifiedGcCash - reservationExtra.cash + verifiedExtra.cash,
+      cashPayments: shiftSummary.cashPayments - reservationExtra.cash + verifiedExtra.cash,
       reservationFeeCollected: verifiedReservation.total,
       reservationCashCollected: verifiedReservation.cash,
-      reservationCollectionPayments: verifiedReservation.payments,
+      reservationCollectionPayments: verifiedExtra.payments,
+      reservationCashAdjustment: verifiedExtra.cash,
       reservationCollections: verifiedReservationRows,
       payments: { ...shiftSummary.payments, ...Object.fromEntries(["Cash", "Card", "QRPH"].map(method => [method,
-        Number(shiftSummary.payments[method] || 0) - reservationSummary.payments[method] + verifiedReservation.payments[method]])) },
+        Number(shiftSummary.payments[method] || 0) - reservationExtra.payments[method] + verifiedExtra.payments[method]])) },
       startingCash: Number(startingCash || 0),
       shiftStartedAt: activeShiftStartMs ? new Date(activeShiftStartMs).toISOString() : null,
     };
