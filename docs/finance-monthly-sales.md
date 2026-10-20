@@ -32,7 +32,7 @@ posting or stored sale is changed. Verify with
 `node scripts/verify-finance-vat-reference.mjs`.
 
 Finance > Monthly Sales Report (`/finance/monthly-sales`, or `/monthly-sales`
-on the Finance subdomain) provides store-filtered daily gross sales, discount
+on the Finance subdomain) provides single-store daily gross sales, discount
 breakdowns, refunds and net sales for a selected month, with CSV export.
 Administrators and super administrators can use it. Cashiers are redirected to
 Expenses; the report endpoint independently validates the authenticated role.
@@ -57,3 +57,8 @@ store selection, discounts, refunds, unpaid exclusion, deduplication and the
 unchanged default Admin full-month behavior. Lint, build and authenticated
 browser/runtime verification are separate checks. Frontend/API deployment is
 required before the new page is available on the deployed site.
+
+The Finance store selector has no All stores option. On initial load the API
+selects the first available store by name; explicit unknown or All store IDs
+are rejected. Archive and live queries always require the resolved store ID,
+so the report and internal SI sequence cannot combine stores.
