@@ -1,5 +1,24 @@
 import { requireAdminApi } from "@/lib/server/admin-api";
 
+export async function PUT(request) {
+  try {
+    const { admin, response } = await requireAdminApi();
+    if (response) return response;
+    const body = await request.json().catch(() => null);
+    const ids = body?.ids;
+    if (!Array.isArray(ids) || !ids.length || ids.length > 1000 || new Set(ids).size !== ids.length ||
+        !ids.every((id) => typeof id === "string" && /^[a-zA-Z0-9-]{1,100}$/.test(id))) {
+      return Response.json({ error: "Provide a valid discount order." }, { status: 400 });
+    }
+    const { error } = await admin.rpc("reorder_pos_discounts", { p_ids: ids });
+    if (error?.code === "22023") return Response.json({ error: "Discounts changed. Refresh the list and try again." }, { status: 409 });
+    if (error) throw error;
+    return Response.json({ success: true });
+  } catch (error) {
+    return Response.json({ error: error?.message || "Unable to save discount order." }, { status: 500 });
+  }
+}
+
 export async function PATCH(request) {
   try {
     const { admin, response } = await requireAdminApi();

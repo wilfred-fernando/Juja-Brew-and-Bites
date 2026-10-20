@@ -3,6 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { promotionRuleSummary } from "@/lib/posDiscountRules";
+import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { SortableContext, useSortable, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+function SortableDiscount({ row, disabled, children }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: row.id, disabled });
+  return <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} className={`flex items-center gap-3 p-3 border-b last:border-b-0 ${isDragging ? "relative z-10 bg-sky-50 shadow-lg" : "bg-white"}`}>
+    <button type="button" disabled={disabled} aria-label={`Drag to sort ${row.name}`} title="Drag to sort; use Space and arrow keys with keyboard" {...attributes} {...listeners} className="touch-none cursor-grab rounded border border-slate-200 px-2 py-3 text-slate-500 active:cursor-grabbing disabled:opacity-40">⠿</button>
+    <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-4">{children}</div>
+  </div>;
+}
 
 function usePosStoreId() {
   return useMemo(() => {
@@ -43,6 +54,33 @@ export default function DiscountsSettingsPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+
+  async function reorder({ active, over }) {
+    if (saving || !over || active.id === over.id) return;
+    const from = rows.findIndex((row) => row.id === active.id);
+    const to = rows.findIndex((row) => row.id === over.id);
+    if (from < 0 || to < 0) return;
+    const previous = rows;
+    const next = arrayMove(rows, from, to).map((row, sort_order) => ({ ...row, sort_order }));
+    setRows(next);
+    setSaving(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data?.session?.access_token;
+      const response = await fetch("/api/admin/discounts", { method: "PUT", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ ids: next.map((row) => String(row.id)) }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Unable to save discount order.");
+      setSuccessMessage("Discount order saved.");
+    } catch (error) {
+      setRows(previous);
+      setErrorMessage(error.message || "Unable to save discount order.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   function resetForm() {
     setEditingId(null);
@@ -155,6 +193,7 @@ export default function DiscountsSettingsPage() {
   }
 
   async function toggle(row) {
+    if (saving) return;
     setErrorMessage("");
     const { error } = await supabase.from("pos_discounts").update({ is_active: !row.is_active }).eq("id", row.id);
     if (error) setErrorMessage(error.message);
@@ -162,6 +201,7 @@ export default function DiscountsSettingsPage() {
   }
 
   async function toggleVariable(row) {
+    if (saving) return;
     setErrorMessage("");
     const { error } = await supabase.from("pos_discounts").update({ is_variable: !row.is_variable }).eq("id", row.id);
     if (error) setErrorMessage(error.message);
@@ -169,6 +209,7 @@ export default function DiscountsSettingsPage() {
   }
 
   async function toggleBeneficiary(row) {
+    if (saving) return;
     setErrorMessage("");
     const nextValue = !row.requires_discount_beneficiary;
     const { error } = await supabase
@@ -180,6 +221,7 @@ export default function DiscountsSettingsPage() {
   }
 
   async function remove(row) {
+    if (saving) return;
     setErrorMessage("");
     const { error } = await supabase.from("pos_discounts").delete().eq("id", row.id);
     if (error) setErrorMessage(error.message);
@@ -283,9 +325,11 @@ export default function DiscountsSettingsPage() {
       {loading ? (
         <div className="text-sm text-slate-500">Loading...</div>
       ) : (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={reorder}>
+        <SortableContext items={rows.map((row) => row.id)} strategy={verticalListSortingStrategy}>
         <div className="bg-white border rounded-xl overflow-hidden">
           {rows.map((r) => (
-            <div key={r.id} className="flex items-center justify-between gap-4 p-3 border-b last:border-b-0">
+            <SortableDiscount key={r.id} row={r} disabled={saving}>
               <div>
                 <div className="font-semibold">{r.name}</div>
                 <div className="text-xs text-slate-500">
@@ -312,10 +356,12 @@ export default function DiscountsSettingsPage() {
                   Delete
                 </button>
               </div>
-            </div>
+            </SortableDiscount>
           ))}
           {rows.length === 0 && <div className="p-4 text-sm text-slate-500">No discounts yet.</div>}
         </div>
+        </SortableContext>
+        </DndContext>
       )}
     </div>
   );
