@@ -1711,6 +1711,7 @@ export default function AdminBookingsDashboard() {
                             {/* DETAILS */}
                             <div className="mt-2 text-[12px] text-slate-600 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
                               <p><b>Name:</b> {b.customer_name}</p>
+                              <p><b>Reservation created:</b> {bookingDateTime(b.created_at)} (Philippine time)</p>
                               <p><b>Event:</b> {b.event_type}</p>
                               <p><b>Guests:</b> {b.guest_count}</p>
                               <p><b>Contact:</b> {b.contact_number}</p>
