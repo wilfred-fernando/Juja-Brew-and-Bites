@@ -65,6 +65,7 @@ import { buildShiftDiscountBreakdown } from "@/lib/posDiscountBreakdown";
 import ReceiptEditModal from "@/components/admin/ReceiptEditModal";
 import MonthlySalesReport from "@/components/admin/MonthlySalesReport";
 import NonCashMonitoring from "@/components/admin/NonCashMonitoring";
+import { buildNonCashMonitoring } from "@/lib/reports/nonCashMonitoring";
 import { monthRange } from "@/lib/reports/monthlySales";
 
 const supabase = getSupabaseClient();
@@ -965,7 +966,7 @@ export default function AdminSalesPage() {
     }
     if (activeTab === "noncash") {
       const date = filters.endDate > manilaDate() ? manilaDate() : filters.endDate;
-      const next = { ...filters, startDate: date, endDate: date, preset: "custom" };
+      const next = { ...filters, startDate: date, endDate: date, paymentMethod: "All", preset: "custom" };
       setFilters(next);
       loadData(next, { reportTab: activeTab });
     } else if (activeTab === "monthly") {
@@ -979,7 +980,7 @@ export default function AdminSalesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  const filtered = useMemo(() => applyFilters(rawData, filters), [rawData, filters]);
+  const filtered = useMemo(() => applyFilters(rawData, activeTab === "noncash" ? { ...filters, paymentMethod: "All" } : filters), [rawData, filters, activeTab]);
   const searchedSales = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return filtered.sales;
@@ -1053,7 +1054,9 @@ export default function AdminSalesPage() {
     };
   }, [rawData.lineItems, selectedOrder]);
 
-  const paymentOptions = useMemo(() => [{ value: "All", label: "All payment methods" }, ...uniqueOptions(rawData.sales, "paymentMethod")], [rawData.sales]);
+  const paymentOptions = useMemo(() => activeTab === "noncash"
+    ? [{ value: "All", label: "All non-cash payment types" }, ...uniqueOptions(buildNonCashMonitoring(rawData.sales), "paymentMethod")]
+    : [{ value: "All", label: "All payment methods" }, ...uniqueOptions(rawData.sales, "paymentMethod")], [rawData.sales, activeTab]);
   const cashierOptions = useMemo(() => [{ value: "All", label: "All employees" }, ...uniqueOptions(rawData.sales, "cashierId", "cashierName")], [rawData.sales]);
   const categoryOptions = useMemo(() => [{ value: "All", label: "All categories" }, ...uniqueOptions(rawData.lineItems, "category")], [rawData.lineItems]);
   const productOptions = useMemo(() => [{ value: "All", label: "All products" }, ...uniqueOptions(rawData.lineItems, "itemId", "itemName")], [rawData.lineItems]);
@@ -1167,7 +1170,7 @@ export default function AdminSalesPage() {
 
       {activeTab === "monthly" && <MonthlySalesReport sales={filtered.sales} lineItems={filtered.lineItems} startDate={filters.startDate} endDate={filters.endDate} branch={branchOptions.find((option) => option.value === filters.branchId)?.label || "All stores"} loading={loading} onMonthChange={(startDate, endDate) => updateSummaryFilters({ startDate, endDate })} />}
 
-      {!loading && activeTab === "noncash" && <NonCashMonitoring sales={filtered.sales} startDate={filters.startDate} endDate={filters.endDate} onDateChange={(date) => updateSummaryFilters({ startDate: date, endDate: date })} />}
+      {!loading && activeTab === "noncash" && <NonCashMonitoring sales={filtered.sales} paymentMethod={filters.paymentMethod} startDate={filters.startDate} endDate={filters.endDate} onDateChange={(date) => updateSummaryFilters({ startDate: date, endDate: date })} />}
 
       {!loading && activeTab === "summary" && (
         <div className="space-y-4">

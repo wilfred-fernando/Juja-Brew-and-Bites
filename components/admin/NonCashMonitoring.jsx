@@ -8,8 +8,8 @@ const time = (value) => Number.isFinite(Date.parse(value)) ? new Intl.DateTimeFo
 const amounts = ["amount", "refund", "net"];
 const columns = [["date", "Business date"], ["time", "Transaction time"], ["receiptNumber", "Receipt number"], ["paymentMethod", "Payment type"], ["reference", "Reference number"], ["amount", "Amount"], ["refund", "Refunds / voids"], ["net", "Net amount"], ["branch", "Branch"], ["cashier", "Cashier"], ["status", "Status"]];
 
-export default function NonCashMonitoring({ sales, startDate, endDate, onDateChange }) {
-  const rows = useMemo(() => buildNonCashMonitoring(sales), [sales]);
+export default function NonCashMonitoring({ sales, paymentMethod = "All", startDate, endDate, onDateChange }) {
+  const rows = useMemo(() => buildNonCashMonitoring(sales).filter((row) => paymentMethod === "All" || row.paymentMethod === paymentMethod), [sales, paymentMethod]);
   const totals = Object.fromEntries(amounts.map((field) => [field, rows.reduce((sum, row) => sum + Math.round(row[field] * 100), 0) / 100]));
   function exportCsv() {
     const output = rows.map((row) => ({ ...row, time: time(row.time), ...Object.fromEntries(amounts.map((field) => [field, row[field].toFixed(2)])) }));

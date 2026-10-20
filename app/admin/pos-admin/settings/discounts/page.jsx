@@ -41,6 +41,46 @@ export default function DiscountsSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [successMessage, setSuccessMessage] = useState("");
+
+  function resetForm() {
+    setEditingId(null);
+    setErrorMessage("");
+    setForm({ name: "", type: "percent", scope: "receipt", value: 0, is_variable: false, requires_discount_beneficiary: false });
+  }
+
+  function edit(row) {
+    setEditingId(row.id);
+    setForm({ name: row.name || "", type: row.type, scope: row.requires_discount_beneficiary ? "item" : row.scope, value: row.value || 0,
+      is_variable: !!row.is_variable, requires_discount_beneficiary: !!row.requires_discount_beneficiary });
+    setErrorMessage("");
+    setSuccessMessage("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function saveEdit() {
+    if (saving) return;
+    setSaving(true);
+    setErrorMessage("");
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data?.session?.access_token;
+      const response = await fetch("/api/admin/discounts", {
+        method: "PATCH", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ id: editingId, ...form }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Unable to update discount.");
+      setRows((current) => current.map((row) => row.id === result.discount.id ? result.discount : row));
+      resetForm();
+      setSuccessMessage("Discount updated.");
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to update discount.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const [form, setForm] = useState({
     name: "",
@@ -154,6 +194,8 @@ export default function DiscountsSettingsPage() {
       </div>
 
       <div className="bg-white border rounded-xl p-4 space-y-3">
+        {editingId !== null && <h2 className="font-bold text-slate-800">Edit discount</h2>}
+        {successMessage && <p role="status" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{successMessage}</p>}
         <input
           value={form.name}
           onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
@@ -229,12 +271,13 @@ export default function DiscountsSettingsPage() {
         {errorMessage && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{errorMessage}</div>}
 
         <button
-          onClick={add}
+          onClick={editingId !== null ? saveEdit : add}
           disabled={saving || !form.name.trim()}
           className="px-4 py-2 rounded font-bold bg-slate-700 text-white text-sm disabled:opacity-50"
         >
-          {saving ? "Saving..." : "Add Discount"}
+          {saving ? "Saving..." : editingId !== null ? "Save Changes" : "Add Discount"}
         </button>
+        {editingId !== null && <button type="button" disabled={saving} onClick={resetForm} className="ml-2 rounded border px-4 py-2 text-sm font-semibold disabled:opacity-50">Cancel</button>}
       </div>
 
       {loading ? (
@@ -251,6 +294,7 @@ export default function DiscountsSettingsPage() {
                 {promotionRuleSummary(r) && <div className="mt-1 text-xs font-medium text-cyan-700">{promotionRuleSummary(r)}</div>}
               </div>
               <div className="flex gap-2">
+                <button type="button" disabled={saving} onClick={() => edit(r)} className="px-3 py-2 text-xs rounded border disabled:opacity-50">Edit</button>
                 <button onClick={() => toggleBeneficiary(r)} className="px-3 py-2 text-xs rounded border">
                   {r.requires_discount_beneficiary ? "Remove Beneficiary Rule" : "Require Beneficiary"}
                 </button>
