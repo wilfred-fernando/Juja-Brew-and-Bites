@@ -2,7 +2,7 @@ import {createServerClient} from '@supabase/ssr';
 import {cookies} from 'next/headers';
 import {overlayArchivedReceiptCorrections} from '@/lib/server/receipt-corrections';
 import {normalizeSalesData,addDays} from '@/lib/reports/salesReports';
-import {financeSalesRange,buildFinanceMonthlySales} from '@/lib/reports/financeMonthlySales';
+import {FINANCE_SALES_START,financeSalesRange,buildFinanceMonthlySales} from '@/lib/reports/financeMonthlySales';
 
 const headers={'cache-control':'private, no-store'};
 async function allRows(query){
@@ -21,12 +21,12 @@ export async function GET(request){
  try{
   const api=String(process.env.D1_ARCHIVE_API_URL||'').replace(/\/$/,''),token=process.env.D1_ARCHIVE_API_TOKEN;
   if(!api||!token)return Response.json({error:'The sales archive is not configured. Complete historical monthly totals cannot be verified.'},{status:503,headers});
-  const target=new URL(`${api}/v1/sales`);target.searchParams.set('from',range.startDate);target.searchParams.set('to',addDays(range.endDate,1));target.searchParams.set('includeItems','1');
+  const target=new URL(`${api}/v1/sales`);target.searchParams.set('from',FINANCE_SALES_START);target.searchParams.set('to',addDays(range.endDate,1));target.searchParams.set('includeItems','1');
   if(storeId!=='All')target.searchParams.set('storeId',storeId);
   const response=await fetch(target,{headers:{authorization:`Bearer ${token}`},cache:'no-store'});
   if(!response.ok)throw new Error('The sales archive is unavailable. Please retry; incomplete totals have not been displayed.');
   const archived=await overlayArchivedReceiptCorrections(await response.json());
-  const start=`${range.startDate}T00:00:00+08:00`,end=`${addDays(range.endDate,2)}T00:00:00+08:00`,contextStart=`${addDays(range.startDate,-2)}T00:00:00+08:00`;
+  const start=`${FINANCE_SALES_START}T00:00:00+08:00`,end=`${addDays(range.endDate,2)}T00:00:00+08:00`,contextStart=`${addDays(FINANCE_SALES_START,-2)}T00:00:00+08:00`;
   const scoped=(table,dateStart)=>{let query=supabase.from(table).select('*').gte('created_at',dateStart).lt('created_at',end).order('created_at').order('id');return storeId==='All'?query:query.eq('store_id',storeId);};
   const results=await Promise.allSettled([
    allRows(()=>scoped('orders',start)),allRows(()=>scoped('web_orders',start)),allRows(()=>scoped('cashier_pos',contextStart)),

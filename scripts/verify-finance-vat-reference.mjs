@@ -44,4 +44,21 @@ assert.equal(grouped.rows[1].invoiceFrom, '007');
 assert.equal(grouped.rows[1].invoiceTo, '007');
 assert.equal(grouped.totals.invoiceTo, '007');
 assert.equal(grouped.totals.grossSales - grouped.totals.totalDiscounts, grouped.totals.referenceNet);
+const continued = {
+  sales: [sale('before', 112, 0, {date: '2026-08-10'}), sale('aug', 112, 0),
+    sale('aug-review', 112, 0), sale('sep', 112, 0, {date: '2026-09-30'}),
+    sale('other-store', 112, 0, {date: '2026-09-30', storeId: 'b'}),
+    sale('unpaid', 112, 0, {date: '2026-09-30', status: 'Pending'}),
+    sale('oct', 112, 0, {date: '2026-10-01'}), sale('nov', 112, 0, {date: '2026-11-01'})],
+  lineItems: [],
+};
+const september = buildFinanceMonthlySales(continued, '2026-09', 'a');
+assert.equal(september.vatReference.totals.invoiceFrom, '003');
+assert.equal(september.vatReference.totals.invoiceTo, '003');
+const october = buildFinanceMonthlySales(continued, '2026-10', 'a');
+assert.equal(october.vatReference.rows[0].invoiceFrom, '004');
+assert.equal(october.vatReference.totals.invoiceCount, 1);
+assert.equal(october.report.totals.gross, 112, 'Prior months only offset the SI, never current month sales');
+assert.equal(buildFinanceMonthlySales(continued, '2026-10').vatReference.totals.invoiceFrom, '005');
+assert.equal(buildFinanceMonthlySales(continued, '2026-11', 'a').vatReference.totals.invoiceFrom, '005');
 console.log('PASS: VAT-inclusive mixed receipt, SC/PWD, voucher exclusion, cent rounding, refunds and missing details flagged, cutoff/store filters, reconciliation, immutable recorded sales.');

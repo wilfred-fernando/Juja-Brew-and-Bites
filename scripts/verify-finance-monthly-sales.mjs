@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';
-import {financeSalesRange,buildFinanceMonthlySales} from '../lib/reports/financeMonthlySales.js';
+import {FINANCE_SALES_START,financeSalesRange,buildFinanceMonthlySales} from '../lib/reports/financeMonthlySales.js';
 import {buildMonthlySales} from '../lib/reports/monthlySales.js';
 import {enrichReceiptItemRows,receiptItemDetails} from '../lib/reports/receiptDetails.js';
 import {buildShiftDiscountBreakdown} from '../lib/posDiscountBreakdown.js';
@@ -18,7 +18,7 @@ const routeSource=fs.readFileSync('app/api/finance/monthly-sales/route.js','utf8
 function endpoint(role,configured=false){
  const query=table=>{const q={select:()=>q,eq:()=>q,gte:()=>q,lt:()=>q,order:()=>q,range:async()=>({data:[],error:null}),maybeSingle:async()=>({data:{role}}),then:resolve=>resolve({data:table==='stores'?[{id:'pasong',name:'Pasong Tamo'}]:[],error:null})};return q;};
  const client={auth:{getUser:async()=>({data:{user:role?{id:'admin'}:null}})},from:query};
- return vm.runInNewContext(`${routeSource};({GET});`,{URL,Response,Promise,Date,JSON,process:{env:configured?{D1_ARCHIVE_API_URL:'https://example.test',D1_ARCHIVE_API_TOKEN:'test'}:{}},cookies:async()=>({getAll:()=>[]}),createServerClient:()=>client,normalizeSalesData,financeSalesRange,buildFinanceMonthlySales,addDays:(date,n)=>{const d=new Date(`${date}T00:00:00Z`);d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);},overlayArchivedReceiptCorrections:async value=>value,fetch:async url=>{assert.equal(url.searchParams.get('from'),'2026-08-11');return Response.json({archiveThrough:'2026-08-31',orders:[duplicate],webOrders:[],orderItems:[],shiftRecords:[]});}}).GET;
+ return vm.runInNewContext(`${routeSource};({GET});`,{URL,Response,Promise,Date,JSON,FINANCE_SALES_START,process:{env:configured?{D1_ARCHIVE_API_URL:'https://example.test',D1_ARCHIVE_API_TOKEN:'test'}:{}},cookies:async()=>({getAll:()=>[]}),createServerClient:()=>client,normalizeSalesData,financeSalesRange,buildFinanceMonthlySales,addDays:(date,n)=>{const d=new Date(`${date}T00:00:00Z`);d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);},overlayArchivedReceiptCorrections:async value=>value,fetch:async url=>{assert.equal(url.searchParams.get('from'),'2026-08-11');return Response.json({archiveThrough:'2026-08-31',orders:[duplicate],webOrders:[],orderItems:[],shiftRecords:[]});}}).GET;
 }
 assert.equal((await endpoint(null)({url:'https://example.test/api/finance/monthly-sales?month=2026-08'})).status,403);
 assert.equal((await endpoint('cashier')({url:'https://example.test/api/finance/monthly-sales?month=2026-08'})).status,403);

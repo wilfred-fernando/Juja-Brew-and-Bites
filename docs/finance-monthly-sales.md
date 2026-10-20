@@ -4,9 +4,11 @@ Finance also displays a separate internal VAT accounting reference and CSV.
 The table follows the internal worksheet: Date; Service Invoice From, To and
 TOTAL SI; Gross Sales; VATable Transactions; VAT-exempt Transactions; Output
 VAT; SC | PWD; Employees Meal; Employees Discount; Promos; Loyalty; Total
-Discounts; Refunds; Net Sales. The Service Invoice range is a derived monthly
-transaction sequence starting at 001 for the selected store scope, counting
-all transactions (including those requiring review). It is recalculated from
+Discounts; Refunds; Net Sales. The Service Invoice range is a derived continuous
+transaction sequence starting at 001 on August 11, 2026 for the selected store scope, counting
+all transactions (including those requiring review), without resetting each month.
+Historical archive/live sales since August 11 are normalized and deduplicated
+before counting the preceding months. It is recalculated from
 the selected report data, is not a persisted invoice identifier, and never
 changes receipt numbering. Late historical corrections can change the range.
 Free maps to Employees Meal; Special Discount, Special Discount % and Whole
