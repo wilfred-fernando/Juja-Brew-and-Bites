@@ -28,3 +28,14 @@ assert.equal((await endpoint('admin',true)({url:'https://example.test/api/financ
 assert.equal((await endpoint('admin',true)({url:'https://example.test/api/finance/monthly-sales?month=2026-08&storeId=unknown'})).status,400);
 const response=await endpoint('admin',true)({url:'https://example.test/api/finance/monthly-sales?month=2026-08'});assert.equal(response.status,200);const payload=await response.json();assert.equal(payload.storeId,'pasong');assert.equal(payload.report.totals.net,90);assert.equal(payload.report.rows[0].date,'2026-08-11');assert.ok(!payload.orders&&!payload.sales);
 console.log('PASS: August 11 inclusive; August partial month; invalid/early months; store filters; refunds and discounts; unpaid exclusion; deduplication; legacy Admin behavior; API role/cutoff checks; archive failure; aggregate-only response. No database writes.');
+
+const mergedSpecial = buildMonthlySales([
+  {id:'special-percent',date:'2026-10-01',gross:100,net:89.99,discount:10.01,discount_type:'Special discount %'},
+  {id:'special-whole',date:'2026-10-01',gross:100,net:79.98,discount:20.02,discount_type:'Whole item discount'},
+  {id:'special-existing',date:'2026-10-02',gross:100,net:69.97,discount:30.03,discount_type:'Special Discount'},
+], [], '2026-10');
+assert.deepEqual(mergedSpecial.labels,['Special Discount']);
+assert.equal(mergedSpecial.rows[0].breakdown['Special Discount'],30.03);
+assert.equal(mergedSpecial.totals.breakdown['Special Discount'],60.06);
+assert.equal(mergedSpecial.totals.discount,60.06);
+console.log('PASS: Special Discount combines percentage, whole-item and existing labels without losing cents or changing discount totals.');
