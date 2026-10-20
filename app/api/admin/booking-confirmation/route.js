@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies, headers } from "next/headers";
 import { confirmationHtml } from "@/lib/bookings/confirmationEmail";
+import { bookingRejectedHtml } from "@/lib/bookings/cashierReviewEmails";
 import { bookingUpdatedCustomerHtml } from "@/lib/bookings/updateEmails";
 import { sendNotificationEmail } from "@/lib/email/notifications";
 
@@ -76,7 +77,7 @@ export async function POST(req) {
 
     const { bookingId, action = "approve", updates = {}, adminNote = "" } = await req.json();
     if (!bookingId) return Response.json({ error: "Booking ID is required." }, { status: 400 });
-    if (!["approve", "adjust"].includes(action)) {
+    if (!["approve", "adjust", "reject"].includes(action)) {
       return Response.json({ error: "Unsupported booking approval action." }, { status: 400 });
     }
 
@@ -96,6 +97,25 @@ export async function POST(req) {
     const isUpdateRequest = booking.update_request_status === "pending";
     if (action === "adjust" && !isUpdateRequest) {
       return Response.json({ error: "Only a pending customer update request can be adjusted here." }, { status: 409 });
+    }
+
+    if (action === "reject") {
+      if (new Date(booking.start_at) <= new Date()) return Response.json({ error: "Past bookings cannot be rejected." }, { status: 409 });
+      const { data: rejectedBooking, error: rejectError } = await admin.from("function_room_bookings")
+        .update({ status: "cancelled", ...(isUpdateRequest ? { update_request_status: "rejected", update_reviewed_at: new Date().toISOString() } : {}) })
+        .eq("id", booking.id).eq("status", "pending").select("*").maybeSingle();
+      if (rejectError) throw rejectError;
+      if (!rejectedBooking) return Response.json({ error: "Booking status changed. Refresh and try again." }, { status: 409 });
+      let email = { sent: false, publicError: "The booking has no customer email address." };
+      if (String(rejectedBooking.email || "").trim()) {
+        try {
+          email = await sendNotificationEmail({ to: rejectedBooking.email.trim(), subject: "Function Room Booking Not Approved - " + rejectedBooking.customer_name, html: bookingRejectedHtml(rejectedBooking) });
+        } catch (error) {
+          console.error("Booking rejection email failed:", error);
+          email = { sent: false, publicError: "Customer rejection email could not be sent." };
+        }
+      }
+      return Response.json({ success: true, booking: rejectedBooking, emailSent: email.sent, emailError: email.sent ? "" : email.publicError || email.error });
     }
 
     const allowedUpdateFields = new Set([

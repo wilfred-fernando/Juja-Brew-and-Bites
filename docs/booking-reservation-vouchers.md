@@ -1,5 +1,7 @@
 # VIP booking reservation credits
 
+Cashier-created bookings start pending Admin approval. Admin receives the new-booking email; the customer receives confirmation only after approval, or a rejection email after rejection. Approval creates the reservation-fee receipt in the open branch shift. Pending and rejected cashier requests do not create a sale. Email delivery failures are reported without undoing the saved booking or decision. Existing bookings are not reclassified by this change.
+
 ## Cashier flow
 
 1. Open an online POS shift. Select **VIP Booking** as the dining option.

@@ -61,7 +61,7 @@ function initialForm() {
     hour: 10,
     deposit_amount: 0,
     payment_method: "Cash",
-    status: "confirmed",
+    status: "pending",
   };
 }
 
@@ -143,13 +143,13 @@ export default function ManualBookingModal({ open, cashierName, onClose, onCreat
               : "submitted",
         payment_method: form.payment_method,
         payment_proof_url: null,
-        status: form.status,
+        status: "pending",
         created_via: "pos",
       };
       const result = await createManualBooking(supabase, payload);
       onCreated?.(result.booking);
       onClose?.();
-      if (result.emailError) onWarning?.(`Booking saved, but confirmation email was not sent: ${result.emailError}`);
+      if (result.emailError) onWarning?.(`Booking saved, but the email notification was not sent: ${result.emailError}`);
     } catch (error) {
       const message = String(error?.message || "Manual booking failed.");
       onError?.(
@@ -204,7 +204,7 @@ export default function ManualBookingModal({ open, cashierName, onClose, onCreat
             </select>
             <span className="mt-1.5 block text-[10px] normal-case leading-relaxed tracking-normal text-amber-700">{packageExtensionPolicyText(form.package_id)}</span>
           </Field>
-          <Field label="Status"><select value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))} className="field"><option value="confirmed">Confirmed</option><option value="pending">Pending</option></select></Field>
+          <p className="text-xs text-slate-600">Pending Admin approval. The customer receives an email after Admin approves or rejects the booking.</p>
         </div>
 
         <div className="mt-4 rounded-xl border border-rose-100 bg-rose-50/50 p-3 text-xs text-slate-600">

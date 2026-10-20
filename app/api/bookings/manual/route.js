@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { confirmationHtml } from "@/lib/bookings/confirmationEmail";
-import { sendNotificationEmail } from "@/lib/email/notifications";
+import { notificationRecipient, sendNotificationEmail } from "@/lib/email/notifications";
+import { cashierBookingAdminHtml } from "@/lib/bookings/cashierReviewEmails";
 
 export const runtime = "nodejs";
 
@@ -35,9 +36,30 @@ export async function POST(request) {
       payload.member_id = null;
       payload.user_id = null;
     }
+    const isCashier = String(profile.role || "").toLowerCase() === "cashier";
+    if (isCashier) {
+      payload.status = "pending";
+      payload.created_via = "pos";
+      payload.payment_status = payload.payment_method === "Waived" ? "waived" : payload.payment_method === "Cash" ? "cash_pending" : "submitted";
+    }
     // Keep the existing RPC's validation, overlap checks and authenticated creator attribution.
     const { data: booking, error } = await client.rpc("create_manual_booking", { data: payload });
     if (error) return Response.json({ error: error.message }, { status: 400 });
+    if (isCashier) {
+      let notification;
+      try {
+        notification = await sendNotificationEmail({
+          to: notificationRecipient(),
+          subject: `Cashier Booking Awaiting Approval - ${booking.customer_name || booking.reference_code}`,
+          html: cashierBookingAdminHtml(booking),
+        });
+      } catch (error) {
+        console.error("Cashier booking admin notification failed:", error);
+        notification = { sent: false, publicError: "Admin notification could not be sent." };
+      }
+      return Response.json({ booking, emailSent: false, emailDeferred: true, adminEmailSent: notification.sent,
+        emailError: notification.sent ? "" : notification.publicError || "Admin notification could not be sent." });
+    }
     if (booking.status !== "confirmed") {
       return Response.json({ booking, emailSent: false, emailError: "", emailDeferred: true });
     }

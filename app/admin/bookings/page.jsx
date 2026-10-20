@@ -740,6 +740,10 @@ export default function AdminBookingsDashboard() {
                 emailError: result.emailSent ? "" : result.emailError,
               };
             }
+            if (type === "reject_bulk" && booking?.status === "pending") {
+              const result = await approveBookingAndSendConfirmation(id, { action: "reject" });
+              return { id, payload: result.booking, emailError: result.emailSent ? "" : result.emailError };
+            }
             const payload = statusUpdatePayload(type, booking);
             const { error } = await supabase
               .from("function_room_bookings")
@@ -762,7 +766,7 @@ export default function AdminBookingsDashboard() {
           alert(`Updated ${eligibleIds.length}. Skipped ${skipped} (past/confirmed).`);
         }
         if (emailFailures.length > 0) {
-          alert(`${emailFailures.length} booking(s) were approved, but their customer email could not be sent.`);
+          alert(`${emailFailures.length} booking(s) were updated, but their customer email could not be sent.`);
         }
       } else {
         // SINGLE
@@ -802,6 +806,14 @@ export default function AdminBookingsDashboard() {
           if (!result.emailSent) {
             alert(`Booking approved, but the customer email could not be sent: ${result.emailError}`);
           }
+          setActionModal(null);
+          return;
+        }
+
+        if (type === "reject" && booking.status === "pending") {
+          const result = await approveBookingAndSendConfirmation(booking.id, { action: "reject" });
+          setBookings(prev => prev.map(row => row.id === booking.id ? { ...row, ...result.booking } : row));
+          if (!result.emailSent) alert("Booking rejected, but customer email could not be sent: " + result.emailError);
           setActionModal(null);
           return;
         }
