@@ -1,0 +1,31 @@
+import fs from 'node:fs';import pg from 'pg';import nextEnv from '@next/env';import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';
+nextEnv.loadEnvConfig(process.cwd());const db=new pg.Client({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false},connectionTimeoutMillis:10000,statement_timeout:60000});await db.connect();
+try{
+ await db.query('begin');
+ if(!(await db.query("select to_regclass('public.finance_cash_reporting_transactions') installed")).rows[0].installed)await db.query(fs.readFileSync('supabase/migrations/20261020090000_finance_reporting_start_date.sql','utf8').replace(/^begin;/,'').replace(/commit;\s*$/,''));
+ const admin=(await db.query("select id from profiles where lower(role) in ('admin','super_admin') limit 1")).rows[0].id;await db.query("select set_config('request.jwt.claim.sub',$1,true)",[admin]);
+ const account=(await db.query("select finance_cash_create_account($1,'bank') id",['Cutoff verification '+randomUUID()])).rows[0].id;
+ const post=async(kind,date,amount,extra={})=>(await db.query('select finance_cash_post($1::jsonb) id',[JSON.stringify({request_id:randomUUID(),kind,transaction_date:date,amount,reference:'Boundary verification',...(kind==='outflow'?{from_account_id:account}:{to_account_id:account}),...extra})])).rows[0].id;
+ const oldOpening=await post('opening','2026-08-10',1000);const opening=await post('opening','2026-08-11',100);const inflow=await post('inflow','2026-08-11',50);await post('outflow','2026-08-12',10);
+ const receivable=async(date)=>(await db.query('select finance_cash_create_receivable($1::jsonb) id',[JSON.stringify({channel:'QRPH',period_start:date,period_end:date,gross_amount:300,reference:randomUUID()})])).rows[0].id;
+ const oldReceivable=await receivable('2026-08-10'),validReceivable=await receivable('2026-08-11');
+ const oldCollection=await post('collection','2026-08-12',110,{receivable_id:oldReceivable,fee:10});const validCollection=await post('collection','2026-08-12',110,{receivable_id:validReceivable,fee:10});
+ await db.query("select finance_cash_reverse($1,'2026-08-13','Old opening reversal')",[oldOpening]);await db.query("select finance_cash_reverse($1,'2026-08-13','Old sale reversal')",[oldCollection]);
+ const snapshot=async(from,to)=>(await db.query('select finance_cash_position_snapshot($1::date,$2::date) result',[from,to])).rows[0].result;
+ let result=await snapshot('2026-08-01','2026-08-13');let a=result.accounts.find(r=>r.id===account);assert.equal(Number(a.balance),240);assert.equal(Number(a.opening),0);assert.equal(Number(a.collections),100);assert.equal(Number(a.cash_in),50);
+ assert.ok(!result.transactions.some(t=>[oldOpening,oldCollection].includes(t.id)||[oldOpening,oldCollection].includes(t.reversal_of)));assert.ok(result.transactions.some(t=>t.id===opening));assert.ok(result.transactions.some(t=>t.id===validCollection));
+ result=await snapshot('2026-08-12','2026-08-13');a=result.accounts.find(r=>r.id===account);assert.equal(Number(a.opening),150);assert.equal(Number(a.balance),240);
+ result=await snapshot('2026-08-01','2026-08-10');assert.equal(Number(result.accounts.find(r=>r.id===account).balance),0);assert.equal(result.transactions.length,0);
+ const collections=(await db.query("select finance_cash_collection_snapshot('2026-08-13') result")).rows[0].result;assert.ok(!collections.some(r=>r.id===oldReceivable));assert.equal(Number(collections.find(r=>r.id===validReceivable).outstanding),190);
+ await db.query("select finance_cash_reverse($1,'2026-08-14','Valid receipt reversal')",[inflow]);assert.equal(Number((await snapshot('2026-08-11','2026-08-14')).accounts.find(r=>r.id===account).balance),190);
+ const store=(await db.query('select petty_store_id id from finance_cash_accounts where petty_store_id is not null limit 1')).rows[0].id;
+ const shift='cutoff_shift_'+randomUUID();
+ await db.query("insert into finance_cash_closed_shifts(id,store_id,opened_at,closed_at,business_date,mode,payments,cash_sales,declared_cash,initial_fund,cash_shift_started_at) values($1,$2,'2026-08-10T15:00:00Z','2026-08-10T17:00:00Z','2026-08-11','close','{}',100,120,20,'2026-08-10T15:00:00Z')",[shift,store]);
+ await db.query('insert into finance_cash_receivables(channel,period_start,period_end,gross_amount,reference,store_id,shift_id) values($1,$2,$2,100,$3,$4,$5)',['QRPH','2026-08-11',shift,store,shift]);
+ const overnight=(await db.query("select finance_cash_collection_snapshot('2026-08-11') result")).rows[0].result;assert.ok(!overnight.some(r=>r.shift_id===shift));
+ const daily=(await db.query("select finance_daily_cash_snapshot('2026-08-13') result")).rows[0].result;assert.ok(daily.every(r=>r.business_date>='2026-08-11'));
+ assert.equal((await db.query('select count(*)::int n from finance_cash_transactions where id=$1',[oldOpening])).rows[0].n,1);
+ await db.query('set local role authenticated');await db.query('savepoint private_view');let denied=false;try{await db.query('select * from finance_cash_reporting_transactions');}catch{denied=true;}await db.query('rollback to savepoint private_view');assert.ok(denied);
+ await db.query("select set_config('request.jwt.claim.sub','',true)");await db.query('savepoint no_admin');denied=false;try{await snapshot('2026-08-11','2026-08-13');}catch{denied=true;}await db.query('rollback to savepoint no_admin');assert.ok(denied);
+ console.log('PASS: August 11 inclusive; prior balances excluded; late receipts for old sales and reversals excluded; later From dates retain eligible opening balance; shift-start boundary; historical records retained; view and RPC access protected. All test writes rolled back.');
+}finally{await db.query('rollback');await db.end();}

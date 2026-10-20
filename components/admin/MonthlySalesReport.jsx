@@ -6,11 +6,11 @@ import { exportReportToCSV } from "@/lib/reports/exportCsv";
 
 const amount = (value) => Number(value || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export default function MonthlySalesReport({ sales, lineItems, startDate, endDate, branch, loading, onMonthChange }) {
+export default function MonthlySalesReport({ sales = [], lineItems = [], startDate, endDate, branch, loading, onMonthChange, minimumDate = "", reportData = null, showMonthPicker = true }) {
   const month = startDate.slice(0, 7);
   const range = monthRange(month);
-  const report = useMemo(() => buildMonthlySales(sales, lineItems, month), [sales, lineItems, month]);
-  const completeRange = range && startDate === range.startDate && endDate === range.endDate;
+  const report = useMemo(() => reportData || buildMonthlySales(sales, lineItems, month, minimumDate), [reportData, sales, lineItems, month, minimumDate]);
+  const completeRange = range && startDate === (minimumDate && range.startDate < minimumDate ? minimumDate : range.startDate) && endDate === range.endDate;
   const title = range ? new Intl.DateTimeFormat("en-PH", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${range.startDate}T00:00:00Z`)) : month;
   function exportCsv() {
     const columns = ["Period", "Branch", "Day", "Date", "Net sales", "VATable net sales", "VAT-exempt net sales", ...report.labels.map((label) => `Discount: ${label}`), "Total discounts", "Refunds", "Gross sales"];
@@ -30,10 +30,10 @@ export default function MonthlySalesReport({ sales, lineItems, startDate, endDat
   </tr>;
   return <section className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-900">
     <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-      <label className="text-sm font-semibold">Report month<input type="month" value={month} disabled={loading} onChange={(event) => { const next = monthRange(event.target.value); if (next) onMonthChange(next.startDate, next.endDate); }} className="mt-1 block rounded-lg border border-slate-300 bg-white px-3 py-2" /></label>
-      <div className="flex gap-2">{!completeRange && <button type="button" disabled={loading} onClick={() => onMonthChange(range.startDate, range.endDate)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold">Load full month</button>}<button type="button" disabled={loading || !completeRange} onClick={exportCsv} className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Export CSV</button></div>
+      {showMonthPicker&&<label className="text-sm font-semibold">Report month<input type="month" min={minimumDate?minimumDate.slice(0,7):undefined} value={month} disabled={loading} onChange={(event) => { const next = monthRange(event.target.value); if (next && (!minimumDate || next.endDate >= minimumDate)) onMonthChange(minimumDate && next.startDate < minimumDate ? minimumDate : next.startDate, next.endDate); }} className="mt-1 block rounded-lg border border-slate-300 bg-white px-3 py-2" /></label>}
+      <div className="flex gap-2">{!completeRange && <button type="button" disabled={loading} onClick={() => onMonthChange(minimumDate && range.startDate < minimumDate ? minimumDate : range.startDate, range.endDate)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold">Load full month</button>}<button type="button" disabled={loading || !completeRange} onClick={exportCsv} className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Export CSV</button></div>
     </div>
-    <div className="mb-5 text-center"><p className="font-bold uppercase">JUJA BREW &amp; BITES — {branch}</p><h2 className="font-bold uppercase">Monthly Sales Report</h2><p className="text-sm">For the month of {title}</p></div>
+    <div className="mb-5 text-center"><p className="font-bold uppercase">JUJA BREW &amp; BITES — {branch}</p><h2 className="font-bold uppercase">Monthly Sales Report</h2><p className="text-sm">For the month of {title}</p>{minimumDate && range?.startDate < minimumDate && <p className="text-sm">Reporting starts {minimumDate}; earlier days are excluded.</p>}</div>
     {!completeRange && <p role="status" className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">The current date range covers only part of this month. Load the full month before exporting.</p>}
     {loading ? <p role="status">Loading monthly sales…</p> : <>
       <div className="overflow-x-auto"><table className="w-full border-collapse text-xs"><thead className="bg-slate-100 text-center">

@@ -6,13 +6,14 @@ import FinanceShiftCollections from "./FinanceShiftCollections";
 import FinanceCashPositionOverview from "./FinanceCashPositionOverview";
 import FinanceCashCollections from "./FinanceCashCollections";
 import FinanceCashPaymentQueue from "./FinanceCashPaymentQueue";
+const CASH_FLOW_START = "2026-08-11";
 const money = v => new Intl.NumberFormat("en-PH", {style:"currency",currency:"PHP"}).format(Number(v || 0));
 const today = () => new Intl.DateTimeFormat("en-CA", {timeZone:"Asia/Manila",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
 const fresh = () => ({kind:"transfer",transaction_date:today(),from_account_id:"",to_account_id:"",amount:"",fee:"0",reference:"",notes:"",receivable_id:""});
 function Field({label,children}) { return <label className={styles.field}><span>{label}</span>{children}</label>; }
 export default function FinanceCashFlowManager() {
  const supabase = getSupabaseClient();
- const [period,setPeriod] = useState(() => ({from:today().slice(0,7)+"-01",to:today()}));
+ const [period,setPeriod] = useState(() => ({from:CASH_FLOW_START,to:today()}));
  const [data,setData] = useState(null), [error,setError] = useState(""), [notice,setNotice] = useState(""), [busy,setBusy] = useState(false), [loading,setLoading] = useState(true), [tab,setTab] = useState("position");
  const [form,setForm] = useState(fresh), [requestId,setRequestId] = useState(null);
  const [account,setAccount] = useState({name:"",kind:"bank"});
@@ -42,11 +43,11 @@ export default function FinanceCashFlowManager() {
  }
  return <div className={`${styles.page} juja-controls`}>
   <header className={styles.header}><div><small>FINANCE / TREASURY</small><h1>Cash Flow & Cash Position</h1><p>Funds, transfers, and aggregator settlements.</p></div><button disabled={busy||loading} onClick={load}>Refresh</button></header>
-  <div className={styles.period}>{[["from","From"],["to","As of / To"]].map(([key,label])=><Field key={key} label={label}><input type="date" required value={period[key]} onChange={e=>e.target.value&&setPeriod({...period,[key]:e.target.value})}/></Field>)}</div>
+  <div className={styles.period}>{[["from","From"],["to","As of / To"]].map(([key,label])=><Field key={key} label={label}><input type="date" required min={CASH_FLOW_START} value={period[key]} onChange={e=>e.target.value&&setPeriod({...period,[key]:e.target.value<CASH_FLOW_START?CASH_FLOW_START:e.target.value})}/></Field>)}</div>
   {error&&<p role="alert" className={styles.error}>{error}</p>}{notice&&<p role="status" className={styles.notice}>{notice}</p>}{loading&&<p role="status">Loading cash position…</p>}
   {data&&<>
    <div className={styles.metrics}>{[["Recorded cash",total],["Available after commitments",accounts.reduce((s,a)=>s+Number(a.available||0),0)],["Net collections & inflows",data.flow.inflow],["Payments & transfer fees",data.flow.outflow],["Outstanding collections",receivables.reduce((s,r)=>s+Number(r.outstanding),0)]].map(([label,value])=><div key={label}><span>{label}</span><strong>{money(value)}</strong></div>)}</div>
-   <p className={styles.help}>Balances include postings through {period.to}. Internal transfers do not count as income or expense. Fees and deductions: {money(data.flow.fees)}. Petty-cash Cash In and expenses sync automatically, including existing records. Petty cash is available as a sending or receiving account. Ledger movements create linked branch Cash In adjustments. Other expenses and POS sales require cash postings; set opening balances without duplicating imported petty-cash movements.</p>
+   <p className={styles.help}>Balances include eligible postings from August 11, 2026 through {period.to}. Earlier sales and collections are excluded, including later receipts against those sales. Use August 11 opening balances for funds already held at the start. Internal transfers do not count as income or expense. Fees and deductions: {money(data.flow.fees)}. Petty-cash Cash In and expenses sync automatically, including existing records. Petty cash is available as a sending or receiving account. Ledger movements create linked branch Cash In adjustments. Other expenses and POS sales require cash postings; set opening balances without duplicating imported petty-cash movements.</p>
    <nav className={styles.tabs} aria-label="Cash flow sections">{[["position","Cash Position"],["payments","Payments & Checks"],["post","Record Movement"],["cashCollections","Cash Collection"],["collections","Non-cash Collections"],["ledger","Cash Ledger"]].map(([key,label])=><button key={key} aria-pressed={tab===key} onClick={()=>setTab(key)}>{label}</button>)}</nav>
    {tab==="position"&&<><FinanceCashPositionOverview accounts={accounts} period={period} busy={busy} onSave={run}/><section className={styles.panel}><h2>Manage fund sources</h2>
     {!accounts.length&&<p>Add accounts or import your existing finance fund sources.</p>}

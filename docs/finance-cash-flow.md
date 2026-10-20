@@ -1,5 +1,27 @@
 # Cash flow and cash position
 
+## Reporting start: August 11, 2026
+
+Cash Flow starts on August 11, 2026, inclusively. The date selector defaults to
+that day and cannot select an earlier reporting date. Database snapshots exclude
+earlier movements from balances, opening balances, period totals and ledger
+exports. Later collections against sales before the boundary, and reversals of
+excluded movements, are also excluded. Cash Collection uses the Manila shift
+start date; closed-shift non-cash receivables use that same start when available.
+Manual receivables use their period start. Unknown cash-shift start dates are
+not included in the dated cash-sales report.
+
+Historical records remain stored and available to their original expense/payroll
+workflows. No data is deleted or silently carried into an opening balance. Enter
+funds held at the reporting start as explicit August 11 opening balances if
+needed. A later From date shows the accumulated eligible opening balance from
+August 11. Older bank statement comparisons are hidden, and payment queue
+commitments scheduled before the reporting start are not included.
+
+Apply `20261020090000_finance_reporting_start_date.sql` using
+`node scripts/apply-finance-reporting-start.mjs`. Verify using
+`node scripts/verify-finance-reporting-start.mjs` (rollback-only).
+
 Administrators and super administrators can open Finance → Cash Flow & Position
 (`/finance/cash-flow`, or `/cash-flow` on the finance subdomain). Cashiers cannot
 access the page or the database RPCs.

@@ -66,6 +66,7 @@ import ReceiptEditModal from "@/components/admin/ReceiptEditModal";
 import MonthlySalesReport from "@/components/admin/MonthlySalesReport";
 import NonCashMonitoring from "@/components/admin/NonCashMonitoring";
 import { buildNonCashMonitoring } from "@/lib/reports/nonCashMonitoring";
+import { individualPaymentOptions, paymentPortionData } from "@/lib/reports/paymentSelection";
 import { monthRange } from "@/lib/reports/monthlySales";
 
 const supabase = getSupabaseClient();
@@ -971,7 +972,7 @@ export default function AdminSalesPage() {
       loadData(next, { reportTab: activeTab });
     } else if (activeTab === "monthly") {
       const range = monthRange(filters.startDate.slice(0, 7));
-      const next = { ...filters, startDate: range.startDate, endDate: range.endDate, preset: "custom" };
+      const next = { ...filters, startDate: range.startDate, endDate: range.endDate, paymentMethod: "All", preset: "custom" };
       setFilters(next);
       loadData(next, { reportTab: activeTab });
     } else {
@@ -980,7 +981,7 @@ export default function AdminSalesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  const filtered = useMemo(() => applyFilters(rawData, activeTab === "noncash" ? { ...filters, paymentMethod: "All" } : filters), [rawData, filters, activeTab]);
+  const filtered = useMemo(() => applyFilters(activeTab === "monthly" ? paymentPortionData(rawData, filters.paymentMethod) : rawData, activeTab === "noncash" ? { ...filters, paymentMethod: "All" } : filters), [rawData, filters, activeTab]);
   const searchedSales = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return filtered.sales;
@@ -1056,6 +1057,7 @@ export default function AdminSalesPage() {
 
   const paymentOptions = useMemo(() => activeTab === "noncash"
     ? [{ value: "All", label: "All non-cash payment types" }, ...uniqueOptions(buildNonCashMonitoring(rawData.sales), "paymentMethod")]
+    : activeTab === "monthly" ? [{ value: "All", label: "All payment methods" }, ...individualPaymentOptions(rawData.sales)]
     : [{ value: "All", label: "All payment methods" }, ...uniqueOptions(rawData.sales, "paymentMethod")], [rawData.sales, activeTab]);
   const cashierOptions = useMemo(() => [{ value: "All", label: "All employees" }, ...uniqueOptions(rawData.sales, "cashierId", "cashierName")], [rawData.sales]);
   const categoryOptions = useMemo(() => [{ value: "All", label: "All categories" }, ...uniqueOptions(rawData.lineItems, "category")], [rawData.lineItems]);
