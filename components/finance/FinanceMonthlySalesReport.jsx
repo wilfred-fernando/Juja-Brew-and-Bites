@@ -1,6 +1,7 @@
 "use client";
 import {useEffect,useState} from 'react';
 import MonthlySalesReport from '@/components/admin/MonthlySalesReport';
+import FinanceVatReference from './FinanceVatReference';
 import {FINANCE_SALES_START,financeSalesRange} from '@/lib/reports/financeMonthlySales';
 import {manilaDate} from '@/lib/reports/salesReports';
 import styles from './FinanceCashFlow.module.css';
@@ -17,5 +18,6 @@ export default function FinanceMonthlySalesReport(){
   <div className={styles.period}><label className={styles.field}>Report month<input type="month" min="2026-08" value={month} onChange={e=>{if(financeSalesRange(e.target.value))setMonth(e.target.value);}}/></label><label className={styles.field}>Store<select value={store} onChange={e=>setStore(e.target.value)}><option value="All">All stores</option>{stores.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label></div>
   {error&&<p role="alert" className={styles.error}>{error}</p>}{loading&&<p role="status">Loading monthly sales…</p>}
   {data&&!error&&<MonthlySalesReport startDate={range.startDate} endDate={range.endDate} minimumDate={FINANCE_SALES_START} reportData={data.report} showMonthPicker={false} branch={stores.find(row=>row.id===store)?.name||'All stores'} loading={loading} onMonthChange={start=>setMonth(start.slice(0,7))}/>}
+  {data?.vatReference&&!error&&<FinanceVatReference report={data.vatReference} month={month} branch={stores.find(row=>row.id===store)?.name||'All stores'}/>}
  </div>;
 }

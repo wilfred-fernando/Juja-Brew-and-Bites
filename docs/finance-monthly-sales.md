@@ -1,5 +1,20 @@
 # Finance Monthly Sales Report
 
+Finance also displays a separate internal VAT accounting reference and CSV.
+From August 11, 2026, existing item gross prices are treated as 12% VAT-inclusive.
+Discounted lines identified as SC/PWD by their saved discount label or beneficiary
+type (excluding vouchers) use gross / 1.12, rounded to centavos, then a 20%
+discount rounded to centavos. Other lines retain their recorded discounts and
+split the remaining VAT-inclusive amount into base and VAT. The exempt base is
+before the SC/PWD discount. Recorded less reference shows the collection difference.
+Refunded/voided receipts and receipts without reconciled line gross/discount
+amounts are excluded and counted for review; no receipt-level eligible share is
+guessed. Reference and comparison totals cover included receipts only.
+The original report continues to show all recorded amounts. This is a derived,
+Finance-only reference; no POS pricing, receipt output, catalog price, database
+posting or stored sale is changed. Verify with
+`node scripts/verify-finance-vat-reference.mjs`.
+
 Finance > Monthly Sales Report (`/finance/monthly-sales`, or `/monthly-sales`
 on the Finance subdomain) provides store-filtered daily gross sales, discount
 breakdowns, refunds and net sales for a selected month, with CSV export.
