@@ -19,9 +19,29 @@ assert.equal(vatReference.totals.difference, 19.2);
 assert.equal(vatReference.totals.reviewCount, 2);
 assert.equal(vatReference.totals.vatableSales, 189.29);
 assert.equal(vatReference.totals.outputVat, 22.71);
+assert.equal(vatReference.rows[0].invoiceFrom, '001');
+assert.equal(vatReference.rows[0].invoiceTo, '005');
+assert.equal(vatReference.totals.invoiceCount, 5);
+assert.equal(vatReference.rows[1].invoiceFrom, '');
+assert.equal(vatReference.totals.loyalty, 12);
+assert.equal(vatReference.totals.grossSales - vatReference.totals.vatRemoved - vatReference.totals.totalDiscounts - vatReference.totals.refunds, vatReference.totals.referenceNet);
 assert.equal(report.totals.net, 560.4, 'Recorded report unchanged, including refunds and incomplete receipts');
 assert.equal(JSON.stringify(data), snapshot, 'No input mutation');
 const mismatched = buildFinanceMonthlySales({ sales: [sale('x', 224, 44.8)], lineItems: [item('x', 112, 22.4, { discountName: 'SC' })] }, '2026-08');
 assert.equal(mismatched.vatReference.totals.reviewCount, 1);
 assert.equal(mismatched.vatReference.totals.referenceNet, 0);
+const labels = ['Free', 'Special Discount', 'Special Discount %', 'Whole Item Discount', 'QCID Promo', 'Teacher Promo', 'Birthday Voucher'];
+const grouped = buildFinanceMonthlySales({
+  sales: labels.map((name, index) => sale(`group-${index}`, 112, 12, { date: index === 6 ? '2026-08-12' : date })),
+  lineItems: labels.map((discountName, index) => item(`group-${index}`, 112, 12, { discountName })),
+}, '2026-08').vatReference;
+assert.equal(grouped.totals.employeeMeal, 12);
+assert.equal(grouped.totals.employeeDiscount, 36);
+assert.equal(grouped.totals.promos, 24);
+assert.equal(grouped.totals.loyalty, 12);
+assert.equal(grouped.totals.totalDiscounts, 84);
+assert.equal(grouped.rows[1].invoiceFrom, '007');
+assert.equal(grouped.rows[1].invoiceTo, '007');
+assert.equal(grouped.totals.invoiceTo, '007');
+assert.equal(grouped.totals.grossSales - grouped.totals.totalDiscounts, grouped.totals.referenceNet);
 console.log('PASS: VAT-inclusive mixed receipt, SC/PWD, voucher exclusion, cent rounding, refunds and missing details flagged, cutoff/store filters, reconciliation, immutable recorded sales.');

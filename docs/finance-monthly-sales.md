@@ -1,6 +1,20 @@
 # Finance Monthly Sales Report
 
 Finance also displays a separate internal VAT accounting reference and CSV.
+The table follows the internal worksheet: Date; Service Invoice From, To and
+TOTAL SI; Gross Sales; VATable Transactions; VAT-exempt Transactions; Output
+VAT; SC | PWD; Employees Meal; Employees Discount; Promos; Loyalty; Total
+Discounts; Refunds; Net Sales. The Service Invoice range is a derived monthly
+transaction sequence starting at 001 for the selected store scope, counting
+all transactions (including those requiring review). It is recalculated from
+the selected report data, is not a persisted invoice identifier, and never
+changes receipt numbering. Late historical corrections can change the range.
+Free maps to Employees Meal; Special Discount, Special Discount % and Whole
+Item Discount map to Employees Discount; vouchers and loyalty labels map to
+Loyalty; remaining discounts map to Promos. The SC/PWD discount is computed
+using the VAT-exempt base. VAT removed and recorded/reference reconciliation
+remain visible below the worksheet. Net Sales includes output VAT; gross less
+SC/PWD VAT removed, total discounts and refunds equals internal net sales.
 From August 11, 2026, existing item gross prices are treated as 12% VAT-inclusive.
 Discounted lines identified as SC/PWD by their saved discount label or beneficiary
 type (excluding vouchers) use gross / 1.12, rounded to centavos, then a 20%
