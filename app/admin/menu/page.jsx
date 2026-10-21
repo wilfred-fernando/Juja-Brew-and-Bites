@@ -1,5 +1,6 @@
 "use client";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
+import { optionTemplateKey } from "@/lib/optionGroupTemplates";
 
 import { useState, useEffect } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -333,6 +334,8 @@ export default function MenuAdminPage() {
       };
       if (/^variants?$/i.test(payload.name)) throw new Error("Variants belong to individual items, not saved templates.");
       if (!payload.name || !payload.options.length || payload.options.some((option) => !String(option.name || "").trim())) throw new Error("Enter a template name and named options.");
+      const duplicate = groupTemplates.find((group) => String(group.id) !== String(editingTemplate.id) && optionTemplateKey(group) === optionTemplateKey(payload));
+      if (duplicate) throw new Error("An identical optional group already exists. Select it from Add From Template instead.");
       const query = editingTemplate.id
         ? supabase.from("option_group_templates").update(payload).eq("id", editingTemplate.id)
         : supabase.from("option_group_templates").insert([payload]);
@@ -1338,10 +1341,10 @@ export default function MenuAdminPage() {
                         {local ? <>
                           <label className="block text-xs font-semibold">Group name<input value={group.name} onChange={(event) => update({ name: event.target.value })} className="mt-1 w-full rounded-lg border px-3 py-2" /></label>
                           <MenuVisibilitySelection value={group} onChange={(value) => update(value)} />
-                          {group.options.map((option, index) => <div key={option.id} className="grid gap-2 sm:grid-cols-5">
-                            <input aria-label="Variant name" placeholder="Variant name" value={option.name} onChange={(event) => update({ options: group.options.map((entry, i) => i === index ? { ...entry, name: event.target.value } : entry) })} className="rounded-lg border px-2 py-2 text-xs" />
-                            {[['price','Price'],['grab_price','Grab / ShopeeFood / Foodpanda price']].map(([field,label]) => <label key={field} className="text-[10px]">{label}<input type="number" min="0" step="0.01" value={option[field] ?? ""} onChange={(event) => update({ options: group.options.map((entry,i) => i === index ? { ...entry, [field]: event.target.value } : entry) })} className="w-full rounded-lg border px-2 py-2 text-xs" /></label>)}
-                            <button type="button" onClick={() => update({ options: group.options.filter((_,i) => i !== index) })} className="text-xs text-red-700">Remove option</button>
+                          {group.options.map((option, index) => <div key={option.id} className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[repeat(3,minmax(0,1fr))_auto]">
+                            <label className="min-w-0 text-[10px]"><span className="flex h-8 items-end pb-1">Variant name</span><input placeholder="Variant name" value={option.name} onChange={(event) => update({ options: group.options.map((entry, i) => i === index ? { ...entry, name: event.target.value } : entry) })} className="h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-xs" /></label>
+                            {[['price','Price'],['grab_price','Grab / ShopeeFood / Foodpanda price']].map(([field,label]) => <label key={field} className="min-w-0 text-[10px]"><span className="flex h-8 items-end pb-1 leading-tight">{label}</span><input type="number" min="0" step="0.01" value={option[field] ?? ""} onChange={(event) => update({ options: group.options.map((entry,i) => i === index ? { ...entry, [field]: event.target.value } : entry) })} className="h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-xs" /></label>)}
+                            <button type="button" onClick={() => update({ options: group.options.filter((_,i) => i !== index) })} className="h-10 rounded-lg border border-slate-200 px-3 text-xs text-red-700">Remove option</button>
                           </div>)}
                           <button type="button" onClick={() => update({ options: [...group.options, { id: crypto.randomUUID(), name: "", price: 0, grab_price: "", panda_price: "" }] })} className="rounded-lg border px-3 py-2 text-xs">Add variant option</button>
                         </> : <p className="text-xs text-slate-600">{group.options.map((option) => `${option.name} (PHP ${Number(option.price || 0).toFixed(2)})`).join(" · ")}</p>}
