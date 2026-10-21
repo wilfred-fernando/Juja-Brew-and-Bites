@@ -28,7 +28,7 @@ function normalizeOptionForSave(option) {
     ...option,
     price: optionalPriceValue(option.price) ?? 0,
     grab_price: optionalPriceValue(option.grab_price),
-    panda_price: optionalPriceValue(option.panda_price),
+    panda_price: optionalPriceValue(option.grab_price),
   };
 }
 
@@ -109,7 +109,7 @@ export default function MenuAdminPage() {
 
     if (itemRes.data) setItems(itemRes.data);
     if (catRes.data) setCategories(catRes.data);
-    if (templateRes.data) setGroupTemplates(templateRes.data);
+    if (templateRes.data) setGroupTemplates(templateRes.data.filter((group) => !group.is_required && !/^variants?$/i.test(String(group.name || "").trim())));
     if (storeRes.data) setStores(storeRes.data);
     if (availabilityRes.error) {
       setAvailabilityNotice("Run the new Supabase SQL setup to save store availability per item.");
@@ -190,6 +190,10 @@ export default function MenuAdminPage() {
 
   const handleSave = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
+    if (optionGroups.some((group) => !String(group.name || "").trim() || !group.options?.length || group.options.some((option) => !String(option.name || "").trim()))) {
+      alert("Each variant or option group needs a name and at least one named option.");
+      return;
+    }
 
     if (!form.name.trim() || !form.category || form.price === "") {
       alert("Please ensure Name, Category, and Price are filled out.");
@@ -202,11 +206,12 @@ export default function MenuAdminPage() {
         ...form, ...visibilityFields(form), pos_only: !visibilityFields(form).show_public && !visibilityFields(form).show_customer,
         price: parseFloat(form.price) || 0,
         grab_price: form.grab_price === "" || form.grab_price == null ? null : parseFloat(form.grab_price) || 0,
-        panda_price: form.panda_price === "" || form.panda_price == null ? null : parseFloat(form.panda_price) || 0,
+        panda_price: form.grab_price === "" || form.grab_price == null ? null : parseFloat(form.grab_price) || 0,
         grab_available: form.grab_available !== false,
         panda_available: form.panda_available !== false,
         variants: optionGroups.map((group) => ({
           ...group,
+          templateId: group.isRequired || /^variants?$/i.test(String(group.name || "").trim()) ? undefined : group.templateId,
           posOnly: !!group.posOnly,
           hidePublic: !!group.hidePublic,
           maxSelection: group.isMultiSelect ? normalizeMaxSelection(group.maxSelection ?? group.max_selection) : null,
@@ -321,11 +326,12 @@ export default function MenuAdminPage() {
     setTemplateSaving(true);
     try {
       const payload = {
-        name: templateForm.name.trim(), is_required: templateForm.is_required, is_multi_select: templateForm.is_multi_select,
+        name: templateForm.name.trim(), is_required: false, is_multi_select: templateForm.is_multi_select,
         max_selection: templateForm.is_multi_select ? normalizeMaxSelection(templateForm.max_selection) : null,
         ...visibilityFields(templateForm), pos_only: !visibilityFields(templateForm).show_public && !visibilityFields(templateForm).show_customer, hide_public: !visibilityFields(templateForm).show_public,
         options: (templateForm.options || []).map(normalizeOptionForSave),
       };
+      if (/^variants?$/i.test(payload.name)) throw new Error("Variants belong to individual items, not saved templates.");
       if (!payload.name || !payload.options.length || payload.options.some((option) => !String(option.name || "").trim())) throw new Error("Enter a template name and named options.");
       const query = editingTemplate.id
         ? supabase.from("option_group_templates").update(payload).eq("id", editingTemplate.id)
@@ -885,7 +891,8 @@ export default function MenuAdminPage() {
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
-                  checked={templateForm.is_required}
+                  checked={false}
+                  disabled
                   onChange={(e) => setTemplateForm({ ...templateForm, is_required: e.target.checked })}
                 />
                 Required
@@ -949,19 +956,8 @@ export default function MenuAdminPage() {
                         updated[idx].grab_price = e.target.value;
                         setTemplateForm({ ...templateForm, options: updated });
                       }}
-                      placeholder="GRAB"
+                      placeholder="Grab / ShopeeFood / Foodpanda"
                       className="border border-cyan-100 bg-cyan-50/40 rounded-xl px-3 py-2 text-sm"
-                    />
-                    <input
-                      type="number"
-                      value={opt.panda_price ?? ""}
-                      onChange={(e) => {
-                        const updated = [...templateForm.options];
-                        updated[idx].panda_price = e.target.value;
-                        setTemplateForm({ ...templateForm, options: updated });
-                      }}
-                      placeholder="PANDA"
-                      className="border border-slate-200 bg-slate-50 rounded-xl px-3 py-2 text-sm"
                     />
                     <button type="button" onClick={() => setTemplateForm((current) => ({ ...current, options: current.options.filter((_, optionIndex) => optionIndex !== idx) }))} className="text-xs text-red-600">Remove option</button>
                   </div>
@@ -1152,7 +1148,7 @@ export default function MenuAdminPage() {
                           />
                         </label>
                         <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                          GRAB Price
+                          Grab / ShopeeFood / Foodpanda Price
                           <input
                             type="number"
                             step="0.01"
@@ -1175,14 +1171,14 @@ export default function MenuAdminPage() {
                           />
                         </label>
                         <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                          PANDA Price
+                          Same as Grab price
                           <input
                             type="number"
                             step="0.01"
                             min="0"
-                            value={form.panda_price}
+                            value={form.grab_price}
                             placeholder="Blank = base price"
-                            onChange={(e) => setForm({ ...form, panda_price: e.target.value })}
+                            readOnly
                             className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium normal-case tracking-normal text-slate-800 outline-none transition focus:border-sky-500"
                           />
                         </label>
@@ -1233,15 +1229,16 @@ export default function MenuAdminPage() {
               ) : (
                 <div className="flex flex-col h-full animate-in fade-in duration-300 pb-2">
                   <p className="text-xs text-slate-500 mb-5 font-medium leading-relaxed px-1">
-                    Changes in Saved Templates update every attached item. Group 1 can be used for <strong className="text-slate-700">Variants</strong> (e.g. Regular/Spicy). The item base price remains editable on the Details tab.
+                    Variants are edited on this item only. Saved templates are for optional groups such as add-ons and flavors.
                   </p>
 
+                  <button type="button" onClick={() => setOptionGroups((groups) => [...groups, { id: crypto.randomUUID(), name: "Variant", isRequired: true, isMultiSelect: false, options: [{ id: crypto.randomUUID(), name: "", price: 0, grab_price: "", panda_price: "" }] }])} className="mb-3 w-full rounded-xl border border-slate-300 bg-white py-3 text-sm font-bold">+ Add Item Variant</button>
                   <button
                     type="button"
                     onClick={addOptionGroup}
                     className="w-full py-3.5 md:py-4 border-2 border-dashed border-slate-200 text-slate-700 font-bold text-xs rounded-xl hover:bg-sky-50 hover:border-sky-200 transition-all mb-6 active:scale-95"
                   >
-                    + Create Saved Template
+                    + Create Optional Group Template
                   </button>
 
                   <div className="mb-5">
@@ -1333,11 +1330,23 @@ export default function MenuAdminPage() {
                   </div>
 
                   <div className="space-y-3 mb-6">
-                    {optionGroups.map((group) => <div key={group.id} className="rounded-xl border border-slate-200 bg-white p-4">
-                      <div className="flex items-center justify-between gap-3"><div><h4 className="text-sm font-semibold">{group.name}</h4><p className="text-xs text-slate-500">Linked template · Edit in Saved Templates above</p></div>
-                        <button type="button" onClick={() => removeOptionGroup(group.id)} className="rounded-lg border px-3 py-2 text-xs">Remove from item</button></div>
-                      <p className="mt-2 text-xs text-slate-600">{group.options.map((option) => `${option.name} (₱${Number(option.price || 0).toFixed(2)})`).join(" · ")}</p>
-                    </div>)}
+                    {optionGroups.map((group) => {
+                      const local = group.isRequired || /^variants?$/i.test(String(group.name || "").trim()) || !group.templateId;
+                      const update = (patch) => setOptionGroups((groups) => groups.map((entry) => entry.id === group.id ? { ...entry, ...patch } : entry));
+                      return <div key={group.id} className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+                        <div className="flex items-center justify-between gap-3"><div><h4 className="text-sm font-semibold">{group.name}</h4><p className="text-xs text-slate-500">{local ? "Item-specific variant" : "Linked optional group · Edit in Saved Templates above"}</p></div><button type="button" onClick={() => removeOptionGroup(group.id)} className="rounded-lg border px-3 py-2 text-xs">Remove from item</button></div>
+                        {local ? <>
+                          <label className="block text-xs font-semibold">Group name<input value={group.name} onChange={(event) => update({ name: event.target.value })} className="mt-1 w-full rounded-lg border px-3 py-2" /></label>
+                          <MenuVisibilitySelection value={group} onChange={(value) => update(value)} />
+                          {group.options.map((option, index) => <div key={option.id} className="grid gap-2 sm:grid-cols-5">
+                            <input aria-label="Variant name" placeholder="Variant name" value={option.name} onChange={(event) => update({ options: group.options.map((entry, i) => i === index ? { ...entry, name: event.target.value } : entry) })} className="rounded-lg border px-2 py-2 text-xs" />
+                            {[['price','Price'],['grab_price','Grab / ShopeeFood / Foodpanda price']].map(([field,label]) => <label key={field} className="text-[10px]">{label}<input type="number" min="0" step="0.01" value={option[field] ?? ""} onChange={(event) => update({ options: group.options.map((entry,i) => i === index ? { ...entry, [field]: event.target.value } : entry) })} className="w-full rounded-lg border px-2 py-2 text-xs" /></label>)}
+                            <button type="button" onClick={() => update({ options: group.options.filter((_,i) => i !== index) })} className="text-xs text-red-700">Remove option</button>
+                          </div>)}
+                          <button type="button" onClick={() => update({ options: [...group.options, { id: crypto.randomUUID(), name: "", price: 0, grab_price: "", panda_price: "" }] })} className="rounded-lg border px-3 py-2 text-xs">Add variant option</button>
+                        </> : <p className="text-xs text-slate-600">{group.options.map((option) => `${option.name} (PHP ${Number(option.price || 0).toFixed(2)})`).join(" · ")}</p>}
+                      </div>;
+                    })}
                   </div>
                 </div>
               )}

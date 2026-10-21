@@ -1,6 +1,7 @@
 "use client";
 import { reservationBookingName, reservationReceiptItems } from "@/lib/bookings/receiptDisplay.mjs";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
+import { priceForMenuChannel } from "@/lib/deliveryPricing";
 import { shiftReportDay } from "@/lib/businessDay";
 import { shouldAutoPrintCupLabels, cupLabelJobs } from "@/lib/posCupLabelDelivery";
 import { createIncomingRingtone } from "@/lib/posIncomingRingtone";
@@ -4504,26 +4505,8 @@ export default function POSPage() {
   const reservationCredit = Number(selectedBooking?.voucher?.amount || 0);
   const reservationSummary = useMemo(() => reservationCollectionSummary(reservationCollections), [reservationCollections]);
   const reservationExtra = useMemo(() => reservationCollectionSummary(reservationCollections.filter(row => !row.collection_order_id)), [reservationCollections]);
-  const itemPriceForChannel = (item, channel = activeMenuChannel) => {
-    const basePrice = Number(item?.price || 0);
-    if (channel === "grab" && item?.grab_price !== null && item?.grab_price !== undefined && item?.grab_price !== "") {
-      return Number(item.grab_price) || 0;
-    }
-    if (channel === "panda" && item?.panda_price !== null && item?.panda_price !== undefined && item?.panda_price !== "") {
-      return Number(item.panda_price) || 0;
-    }
-    return basePrice;
-  };
-  const optionPriceForChannel = (option, channel = activeMenuChannel) => {
-    const basePrice = Number(option?.price || 0);
-    if (channel === "grab" && option?.grab_price !== null && option?.grab_price !== undefined && option?.grab_price !== "") {
-      return Number(option.grab_price) || 0;
-    }
-    if (channel === "panda" && option?.panda_price !== null && option?.panda_price !== undefined && option?.panda_price !== "") {
-      return Number(option.panda_price) || 0;
-    }
-    return basePrice;
-  };
+  const itemPriceForChannel = (item, channel = activeMenuChannel) => priceForMenuChannel(item, channel);
+  const optionPriceForChannel = (option, channel = activeMenuChannel) => priceForMenuChannel(option, channel);
   const itemAvailableForChannel = (item, channel = activeMenuChannel) => {
     if (channel === "grab") return item?.grab_available !== false;
     if (channel === "panda") return item?.panda_available !== false;
