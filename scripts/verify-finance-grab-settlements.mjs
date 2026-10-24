@@ -1,0 +1,31 @@
+import fs from 'node:fs';import pg from 'pg';import nextEnv from '@next/env';import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';
+nextEnv.loadEnvConfig(process.cwd());const db=new pg.Client({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false},connectionTimeoutMillis:10000,statement_timeout:60000});await db.connect();
+try{
+ await db.query('begin');if(!(await db.query("select to_regprocedure('public.finance_grab_settlement(numeric,numeric)') installed")).rows[0].installed)await db.query(fs.readFileSync('supabase/migrations/20261024120000_finance_grab_settlements.sql','utf8').replace(/^begin;/,'').replace(/commit;\s*$/,''));
+ const admin=(await db.query("select id from profiles where lower(role) in ('admin','super_admin') limit 1")).rows[0].id;await db.query("select set_config('request.jwt.claim.sub',$1,true)",[admin]);await db.query('set local role authenticated');
+ const calc=async gross=>(await db.query('select finance_grab_settlement($1,0) result',[gross])).rows[0].result;
+ const first=await calc(159);assert.equal(first.commission,-35.49);assert.equal(first.tax_on_commission,-4.26);assert.equal(first.gross_remittance,141.51);assert.equal(first.ewt,-.71);assert.equal(first.net_sales,118.54);
+ assert.equal((await db.query("select finance_shopee_settlement(3436,0) result")).rows[0].result.net_sales,2497.58);
+ const create=async(gross,channel='GrabFood')=>(await db.query('select finance_cash_create_receivable($1::jsonb) id',[JSON.stringify({channel,period_start:'2038-10-04',period_end:'2038-10-04',gross_amount:gross,reference:'Grab verify '+randomUUID()})])).rows[0].id;
+ const id=await create(159),id2=await create(159),other=await create(100,'GCash');
+ const account=(await db.query('select id from finance_cash_accounts where petty_store_id is not null limit 1')).rows[0].id;
+ const snapshot=async(date='2038-10-08')=>(await db.query('select finance_cash_collection_snapshot($1::date) result',[date])).rows[0].result;
+ let row=(await snapshot()).find(r=>r.id===id);assert.equal(row.outstanding,118.54);assert.equal(row.gross_outstanding,159);assert.equal((await snapshot()).find(r=>r.id===other).outstanding,100);
+ const post=async(receivable,net,date,request=randomUUID())=>(await db.query('select finance_grab_post_remittance($1::jsonb) id',[JSON.stringify({request_id:request,receivable_id:receivable,transaction_date:date,net_amount:net,to_account_id:account,reference:'Grab remittance verification'})])).rows[0].id;
+ const req=randomUUID(),t=await post(id,50,'2038-10-05',req);assert.equal(await post(id,50,'2038-10-05',req),t);
+ row=(await snapshot()).find(r=>r.id===id);assert.equal(row.outstanding,68.54);assert.equal(row.remitted,50);
+ const cashIn=(await db.query('select amount from finance_petty_cash_funds where remittance_transaction_id=$1',[t])).rows[0];assert.equal(Number(cashIn.amount),50);
+ const final=await post(id,68.54,'2038-10-06');row=(await snapshot()).find(r=>r.id===id);assert.equal(row.outstanding,0);assert.equal(row.gross_outstanding,0);assert.equal(row.deductions,40.46);
+ assert.equal((await snapshot('2038-10-04')).find(r=>r.id===id).outstanding,118.54);
+ await db.query("select finance_cash_reverse($1,'2038-10-07','Settlement correction')",[final]);assert.equal((await snapshot()).find(r=>r.id===id).outstanding,68.54);
+ const adjustment={request_id:randomUUID(),receivable_id:id2,effective_date:'2038-10-06',others:-3.54,notes:'Statement deduction'};
+ const adjust=async data=>(await db.query('select finance_grab_save_adjustment($1::jsonb) id',[JSON.stringify(data)])).rows[0].id;
+ const aid=await adjust(adjustment);assert.equal(await adjust(adjustment),aid);assert.equal((await snapshot('2038-10-05')).find(r=>r.id===id2).net_sales,118.54);assert.equal((await snapshot()).find(r=>r.id===id2).net_sales,115);
+ await post(id2,115,'2038-10-07');assert.equal((await snapshot()).find(r=>r.id===id2).outstanding,0);
+ const reject=async fn=>{await db.query('savepoint invalid');let failed=false;try{await fn();}catch{failed=true;}await db.query('rollback to savepoint invalid');assert.ok(failed);};
+ await reject(()=>post(id2,.01,'2038-10-08'));await reject(()=>post(id,10,'2038-10-04'));await reject(()=>adjust({...adjustment,request_id:randomUUID(),others:-100,effective_date:'2038-10-08'}));
+ await reject(()=>db.query('select finance_cash_post($1::jsonb)',[JSON.stringify({request_id:randomUUID(),kind:'collection',receivable_id:id,to_account_id:account,transaction_date:'2038-10-08',amount:100,fee:0,reference:'Invalid manual deductions'})]));
+ assert.equal((await db.query('select count(*)::int n from finance_entry_edit_logs where source_table=$1 and record_id=$2',['finance_grab_adjustments',aid])).rows[0].n,1);
+ await db.query("select set_config('request.jwt.claim.sub','',true)");await reject(()=>snapshot());assert.equal((await db.query('select count(*)::int n from finance_grab_adjustments')).rows[0].n,0);
+ console.log('PASS: GrabFood supplied example and unchanged ShopeeFood formula; gross/net computations; partial and final remittances; no cent residual; actual petty cash receipt; dated Others; retries; reversals; over-remittance/manual-fee rejection; audit and admin access. All verification writes rolled back.');
+}finally{await db.query('rollback');await db.end();}
