@@ -37,7 +37,7 @@ import { isMenuVisibleOn } from "@/lib/menuVisibility";
 import TicketPanel from "@/components/pos/TicketPanel";
 import GiftCertificatePurchaseForm from "@/components/GiftCertificatePurchaseForm";
 import BookingReservationSelector from "@/components/pos/BookingReservationSelector";
-import { withVipBookingOption, reservationPayment, reservationCollectionSummary } from "@/lib/bookings/reservationPayment.mjs";
+import { withVipBookingOption, reservationPayment, reservationCollectionSummary, bookingPaymentMethod } from "@/lib/bookings/reservationPayment.mjs";
 import GiftCertificatePaymentDialog from "@/components/pos/GiftCertificatePaymentDialog";
 import { gcPaymentBreakdown } from "@/lib/posGiftCertificates";
 import OfflineSyncNotice from "@/components/pos/OfflineSyncNotice";
@@ -3685,7 +3685,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
   const isCash = normalizePaymentMethodName(selectedPayment) === "Cash";
   const amt = Number(paymentAmount || 0);
   const due = Math.max(0, Number(total || 0) - gcTotal);
-  const availableTypes = (paymentTypes || []).filter(type => (!bookingPayment || ["Cash", "Card", "QRPH", "Gcash"].includes(type.name)) && !["giftcertificate", "jujaegc"].includes(String(type.name).toLowerCase().replace(/[^a-z]/g, "")));
+  const availableTypes = (paymentTypes || []).filter(type => (!bookingPayment || bookingPaymentMethod(type.name)) && !["giftcertificate", "jujaegc"].includes(String(type.name).toLowerCase().replace(/[^a-z]/g, "")));
 
   useEffect(() => {
     if (!open) {
@@ -3725,7 +3725,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
       ? false
       : useSplitPayment
       ? !splitReady
-      : !selectedPayment ||
+      : !selectedPayment || (bookingPayment && !bookingPaymentMethod(selectedPayment)) ||
         !paymentAmount ||
         isNaN(amt) ||
         amt <= 0 ||
@@ -3836,10 +3836,10 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
                 {p.name}
               </button>
             ))}
-            <button type="button" disabled={bookingPayment} onClick={() => setGcDialogOpen(true)}
+            {!bookingPayment && <button type="button" onClick={() => setGcDialogOpen(true)}
               className={`h-11 rounded-xl border text-sm font-bold uppercase tracking-wider transition ${gcTotal > 0 ? "border-rose-300 bg-rose-50 text-[#FC687D]" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
               Gift Certificate
-            </button>
+            </button>}
           </div>
         )}
         {gcTotal > 0 && <p className="text-sm text-green-800">{certificates.length} e-GCs applied · {peso2(gcTotal)}. Remaining payment: {peso2(due)}. {due > 0 ? "Select another payment method for the balance." : "The bill is fully covered by e-GCs."}</p>}
