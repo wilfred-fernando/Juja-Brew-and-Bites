@@ -39,3 +39,16 @@ assert.equal(mergedSpecial.rows[0].breakdown['Special Discount'],30.03);
 assert.equal(mergedSpecial.totals.breakdown['Special Discount'],60.06);
 assert.equal(mergedSpecial.totals.discount,60.06);
 console.log('PASS: Special Discount combines percentage, whole-item and existing labels without losing cents or changing discount totals.');
+
+const paymentReport = buildMonthlySales([
+ {id:'split',date:'2026-10-01',gross:120,discount:10,refund:10,net:100,paymentSplits:[{method:'Cash',amount:66},{method:'GCash',amount:44}]},
+ {id:'grab',date:'2026-10-01',gross:159,discount:0,refund:0,net:159,paymentMethod:'GrabFood'},
+ {id:'gcash',date:'2026-10-02',gross:10.01,discount:0,refund:0,net:10.01,paymentMethod:'GCash'},
+], [], '2026-10');
+assert.deepEqual(paymentReport.paymentTypes,['Cash','GCash','GrabFood']);
+assert.equal(paymentReport.rows[0].payments.Cash,60);
+assert.equal(paymentReport.rows[0].payments.GCash,40);
+assert.equal(paymentReport.totals.payments.GCash,50.01);
+assert.equal(paymentReport.totals.payments.GrabFood,159);
+assert.equal(Object.values(paymentReport.totals.payments).reduce((sum,n)=>sum+Math.round(n*100),0),Math.round(paymentReport.totals.net*100));
+console.log('PASS: daily/monthly payment types, split tender refund allocation and exact net reconciliation.');
