@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import { bookingDisplayLabel } from '../lib/bookings/posBookingDisplay.mjs';
+const id='41904af8-fa94-44b7-8319-a656e4bd5f0f';
+const rows=[{id,customer_name:'Micah Songco'}];
+assert.equal(bookingDisplayLabel(`VIP Booking ${id}`,rows),'VIP Booking · Micah Songco');
+assert.equal(bookingDisplayLabel(`VIP Booking ${id}`,[],{booking_id:id,reservation_booking_name:'Micah Songco'}),'VIP Booking · Micah Songco');
+assert(!bookingDisplayLabel(`VIP Booking ${id}`).includes(id));
+assert.equal(bookingDisplayLabel('GRAB 123',rows),'GRAB 123');
+assert.equal(rows[0].id,id,'Internal booking identity is preserved');
+console.log('PASS: legacy ID lookup, receipt name snapshot, UUID hidden, other dining unchanged');

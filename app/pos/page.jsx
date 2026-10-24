@@ -1,5 +1,6 @@
 "use client";
 import { reservationBookingName, reservationReceiptItems } from "@/lib/bookings/receiptDisplay.mjs";
+import { bookingDisplayLabel } from "@/lib/bookings/posBookingDisplay.mjs";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
 import { priceForMenuChannel } from "@/lib/deliveryPricing";
 import { shiftReportDay } from "@/lib/businessDay";
@@ -1653,7 +1654,7 @@ function buildReceiptText({
   const receiptTitle = store?.receipt_title || `${branchName}`;
   const address = store?.address || "36D Visayas Ave., Pasong Tamo, Quezon City";
   const receiptId = order.receipt_number || order.order_number || order.id;
-  const dining = diningOptionName || order.dining_option || order.order_type || "-";
+  const dining = bookingDisplayLabel(diningOptionName || order.dining_option || order.order_type || "-", [], order.source_metadata);
   const employee = cashierName || order.cashier_name || "Owner";
   const posName = `Cashier - ${branchName}`;
   const paidBy = payment || order.payment_method || "QRPH";
@@ -1750,7 +1751,7 @@ function buildReceiptText({
   if (Number(order?.source_metadata?.reservation_credit || 0) > 0) {
     lines.push(receiptPair("Reservation fee applied", receiptAmount(order.source_metadata.reservation_credit)));
     lines.push(receiptPair("Collected this bill", receiptAmount(order.source_metadata.reservation_remaining_collected)));
-    lines.push("Booking: " + order.source_metadata.booking_id);
+    lines.push("Booking: " + (order.source_metadata.reservation_booking_name || "Customer name unavailable"));
   }
   if (rs.show_payment_type !== false) {
     if (order?.source_metadata?.booking_id) {
@@ -2611,6 +2612,7 @@ function SavedTicketsModal({
   open,
   onClose,
   tickets,
+  bookingRows = [],
   onSelect,
   onRefresh,
   onVoid,
@@ -2688,7 +2690,7 @@ function SavedTicketsModal({
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className={`text-xs font-black uppercase tracking-wide ${isAddition ? "text-emerald-700" : isMutation ? "text-amber-700" : "text-red-700"}`}>{actionLabel}</p>
-                        <p className="mt-1 truncate text-sm font-bold text-slate-800">{log.order_type || log.ticket_name || "Saved Ticket"}</p>
+                        <p className="mt-1 truncate text-sm font-bold text-slate-800">{bookingDisplayLabel(log.order_type || log.ticket_name || "Saved Ticket", bookingRows)}</p>
                         {log.item_name && <p className="mt-0.5 text-xs font-semibold text-slate-700">Item: {log.item_name}</p>}
                       </div>
                       <span className="shrink-0 text-[10px] font-semibold text-slate-500">{formatReceiptDateTime(log.created_at)} PHT</span>
@@ -2715,7 +2717,7 @@ function SavedTicketsModal({
                       onClick={() => setSelectedTicketId(t.id)}
                       className="min-w-0 flex-1 text-left"
                     >
-                      <p className="font-bold text-slate-800 text-sm truncate">{t.order_type || t.ticket_name}</p>
+                      <p className="font-bold text-slate-800 text-sm truncate">{bookingDisplayLabel(t.order_type || t.ticket_name, bookingRows)}</p>
                       <p className="text-xs text-slate-500 mt-0.5">Active lines: {activeItems.length} / {(t.items || []).length} • <span className="font-bold text-slate-700">{peso0(t.total_amount)}</span></p>
                       <p className="text-[11px] font-medium text-slate-500 mt-1 truncate">Client: {t._customerName || "Walk-in"}</p>
                       <div className="mt-2 space-y-0.5 text-[10px] font-medium text-slate-500">
@@ -2748,7 +2750,7 @@ function SavedTicketsModal({
       <ModalShell
         open={Boolean(selectedTicket)}
         onClose={() => setSelectedTicketId(null)}
-        title={selectedTicket?.order_type || selectedTicket?.ticket_name || "Saved Ticket"}
+        title={bookingDisplayLabel(selectedTicket?.order_type || selectedTicket?.ticket_name || "Saved Ticket", bookingRows)}
         subtitle={`${selectedTicket?._customerName || "Walk-in"} • ${peso0(selectedTicket?.total_amount || 0)}`}
         z={155}
       >
@@ -4363,6 +4365,8 @@ export default function POSPage() {
   const [customers, setCustomers] = useState([]);
   const [diningOptions, setDiningOptions] = useState([]);
   const [confirmedBookings, setConfirmedBookings] = useState([]);
+  const [bookingsLoading, setBookingsLoading] = useState(false);
+  const bookingFetchVersionRef = useRef(0);
   const [reservationCollections, setReservationCollections] = useState([]);
   const [bookingBusy, setBookingBusy] = useState(false);
   const [bookingError, setBookingError] = useState("");
@@ -5118,7 +5122,7 @@ export default function POSPage() {
   const itemCount = useMemo(() => cart.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0), [cart]);
 
   const selectedCartItem = useMemo(() => cart.find((x) => x.cartItemId === voucherTargetCartItemId) || null, [cart, voucherTargetCartItemId]);
-  const ticketTitle = isVipBooking && selectedBooking ? `VIP Booking · ${selectedBooking.customer_name}` : activeWebOrderId ? `Web Order: #${activeWebOrderId.slice(0,8).toUpperCase()}` : (ticketDiningLabel || "Select Dining Option");
+  const ticketTitle = isVipBooking ? bookingDisplayLabel(ticketDiningLabel, confirmedBookings) : activeWebOrderId ? `Web Order: #${activeWebOrderId.slice(0,8).toUpperCase()}` : (ticketDiningLabel || "Select Dining Option");
   const ticketSubtitle = attachedCustomer?.name ? `Loyalty Member: ${attachedCustomer.name}` : "Walk-in Customer";
   const activeShiftRecord = useMemo(() => {
     if (shiftStatus !== "open") return null;
@@ -5133,11 +5137,24 @@ export default function POSPage() {
   }, [activeShiftRecord]);
   const fetchConfirmedBookings = useCallback(async () => {
     if (!storeId) return;
-    const { data, error } = await supabase.rpc("list_pos_confirmed_bookings", { p_store_id: storeId });
-    if (error) { setBookingError(error.message); throw error; }
-    setConfirmedBookings(data || []);
-    setBookingError("");
+    const version = ++bookingFetchVersionRef.current;
+    setBookingsLoading(true);
+    try {
+      const { data, error } = await supabase.rpc("list_pos_confirmed_bookings", { p_store_id: storeId });
+      if (version !== bookingFetchVersionRef.current) return;
+      if (error) throw error;
+      setConfirmedBookings(data || []);
+      setBookingError("");
+    } catch (error) {
+      if (version === bookingFetchVersionRef.current) setBookingError(error.message || "Unable to load bookings. Tap Refresh to retry.");
+      throw error;
+    } finally {
+      if (version === bookingFetchVersionRef.current) setBookingsLoading(false);
+    }
   }, [storeId, supabase]);
+  useEffect(() => {
+    if (isVipBooking) fetchConfirmedBookings().catch(() => {});
+  }, [isVipBooking, originalTicketId, fetchConfirmedBookings]);
   const fetchReservationCollections = useCallback(async () => {
     if (!storeId) return [];
     const from = activeShiftStartMs ? new Date(activeShiftStartMs).toISOString() : new Date().toISOString();
@@ -5163,7 +5180,7 @@ export default function POSPage() {
     return () => { supabase.removeChannel(channel); };
   }, [storeId, supabase, fetchConfirmedBookings]);
   const bookingControl = isVipBooking ? <BookingReservationSelector
-    bookings={confirmedBookings} selectedId={trimmedGrabOrderNumber} busy={bookingBusy || charging} selectionLocked={Boolean(originalTicketId)}
+    bookings={confirmedBookings} selectedId={trimmedGrabOrderNumber} busy={bookingBusy || charging} loading={bookingsLoading} selectionLocked={Boolean(originalTicketId)}
     error={bookingError} onRefresh={() => fetchConfirmedBookings().catch(() => {})}
     onSelect={id => { setGrabOrderNumber(id); bookingCheckoutKeyRef.current = crypto.randomUUID(); }}
     onCollect={async (id, method) => {
@@ -6678,6 +6695,7 @@ export default function POSPage() {
     slipCart = cart,
     slipDining = diningOptionName || "POS ORDER",
     slipCustomer = attachedCustomer?.name || "",
+    slipBookingName = "",
     slipTotal = totalDue,
     printedAt = new Date(),
     titleSuffix = "",
@@ -6706,7 +6724,7 @@ export default function POSPage() {
         const slipText = buildOrderSlipText({
           orderId,
           cart: job.items,
-          diningOptionName: slipDining,
+          diningOptionName: bookingDisplayLabel(slipDining, confirmedBookings, { reservation_booking_name: slipBookingName }),
           customerName: slipCustomer,
           total: job.useFullTotal ? slipTotal : calcTotal(job.items),
           printedAt,
@@ -8482,6 +8500,7 @@ export default function POSPage() {
         orderId: receipt.receipt_number,
         slipCart,
         slipDining: receipt.dining_option || receipt.order_type || receipt.description || "Receipt",
+        slipBookingName: receipt.source_metadata?.reservation_booking_name || "",
         slipCustomer: receipt.customer_name || receipt.customer?.name || "Walk-in",
         slipTotal: Number(receipt.net_sales || receipt.total_collected || receipt.total || 0),
         printedAt: new Date(),
@@ -9689,6 +9708,7 @@ export default function POSPage() {
           status: "paid",
           payment_method: paymentLabel,
           source_metadata: {
+            ...(usingBooking ? { reservation_booking_name: selectedBooking.customer_name } : {}),
             payment_splits: normalizedSplitPayments,
             payment_label: paymentLabel,
             cash_tendered: cashTendered,
@@ -11502,6 +11522,7 @@ export default function POSPage() {
         open={savedOpen}
         onClose={() => setSavedOpen(false)}
         tickets={savedTickets}
+        bookingRows={confirmedBookings}
         onRefresh={fetchSavedTickets}
         auditLogs={savedTicketAuditLogs}
         auditLoading={savedTicketAuditLoading}

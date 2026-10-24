@@ -2,20 +2,22 @@
 
 import { useId, useState } from 'react';
 
-export default function BookingReservationSelector({ bookings, selectedId, onSelect, onRefresh, onCollect, busy, error, selectionLocked = false }) {
+export default function BookingReservationSelector({ bookings, selectedId, onSelect, onRefresh, onCollect, busy, loading = false, error, selectionLocked = false }) {
   const [method, setMethod] = useState('Cash');
   const selectId = useId();
   const booking = bookings.find(row => row.id === selectedId);
   return <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800">
     <div className="flex items-center justify-between gap-2">
       <label htmlFor={selectId} className="font-semibold">Confirmed booking</label>
-      <button type="button" disabled={busy} onClick={onRefresh} className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-slate-800">Refresh</button>
+      <button type="button" disabled={busy || loading} onClick={onRefresh} className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-slate-800">{loading ? 'Loading…' : 'Refresh'}</button>
     </div>
-    <select id={selectId} value={selectedId || ''} disabled={busy || selectionLocked} onChange={event => onSelect(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-800">
-      <option value="">Select a confirmed booking</option>
+    <select id={selectId} value={selectedId || ''} disabled={busy || loading || selectionLocked} onChange={event => onSelect(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-800">
+      <option value="">{loading ? 'Loading confirmed bookings…' : 'Select a confirmed booking'}</option>
       {bookings.map(row => <option key={row.id} value={row.id}>{row.customer_name} · {row.business_date} · {new Date(row.start_at).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })} · Package {row.package_id}</option>)}
     </select>
     {error && <p role="alert" className="text-red-700">{error}</p>}
+    {!loading && !error && bookings.length === 0 && <p role="status">No confirmed, unsettled bookings are available for this branch.</p>}
+    {!loading && selectedId && !booking && <p role="alert" className="text-red-700">This ticket’s booking is unavailable. Refresh the list before charging.</p>}
     {booking?.voucher ? <div className="space-y-1">
       <p className="font-semibold">Reservation credit: ₱{Number(booking.voucher.amount).toFixed(2)}</p>
       <p className="break-all text-[10px]">{booking.voucher.code}</p>
