@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { bookingDisplayLabel } from '../lib/bookings/posBookingDisplay.mjs';
+import { bookingDisplayLabel, bookingReceiptLabel } from '../lib/bookings/posBookingDisplay.mjs';
 const id='41904af8-fa94-44b7-8319-a656e4bd5f0f';
 const rows=[{id,customer_name:'Micah Songco'}];
 assert.equal(bookingDisplayLabel(`VIP Booking ${id}`,rows),'VIP Booking · Micah Songco');
@@ -7,4 +7,8 @@ assert.equal(bookingDisplayLabel(`VIP Booking ${id}`,[],{booking_id:id,reservati
 assert(!bookingDisplayLabel(`VIP Booking ${id}`).includes(id));
 assert.equal(bookingDisplayLabel('GRAB 123',rows),'GRAB 123');
 assert.equal(rows[0].id,id,'Internal booking identity is preserved');
+const legacyReceipt={description:`VIP Booking ${id}`,customer_name:'Micah Songco'};
+assert.equal(bookingReceiptLabel(legacyReceipt),'VIP Booking · Micah Songco','Cached completed receipts resolve their customer name');
+assert.equal(bookingReceiptLabel({...legacyReceipt,source_metadata:{reservation_booking_name:'Booking customer'}}),'VIP Booking · Booking customer','Booking snapshot takes priority');
+assert.equal(bookingReceiptLabel({description:'Takeout',customer_name:'Micah Songco'}),'Takeout');
 console.log('PASS: legacy ID lookup, receipt name snapshot, UUID hidden, other dining unchanged');

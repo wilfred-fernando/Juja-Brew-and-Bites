@@ -1,6 +1,6 @@
 "use client";
 import { reservationBookingName, reservationReceiptItems } from "@/lib/bookings/receiptDisplay.mjs";
-import { bookingDisplayLabel } from "@/lib/bookings/posBookingDisplay.mjs";
+import { bookingDisplayLabel, bookingReceiptLabel } from "@/lib/bookings/posBookingDisplay.mjs";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
 import { priceForMenuChannel } from "@/lib/deliveryPricing";
 import { shiftReportDay } from "@/lib/businessDay";
@@ -1654,7 +1654,7 @@ function buildReceiptText({
   const receiptTitle = store?.receipt_title || `${branchName}`;
   const address = store?.address || "36D Visayas Ave., Pasong Tamo, Quezon City";
   const receiptId = order.receipt_number || order.order_number || order.id;
-  const dining = bookingDisplayLabel(diningOptionName || order.dining_option || order.order_type || "-", [], order.source_metadata);
+  const dining = bookingReceiptLabel({ ...order, description: diningOptionName || order.dining_option || order.order_type || "-" });
   const employee = cashierName || order.cashier_name || "Owner";
   const posName = `Cashier - ${branchName}`;
   const paidBy = payment || order.payment_method || "QRPH";
@@ -1751,7 +1751,7 @@ function buildReceiptText({
   if (Number(order?.source_metadata?.reservation_credit || 0) > 0) {
     lines.push(receiptPair("Reservation fee applied", receiptAmount(order.source_metadata.reservation_credit)));
     lines.push(receiptPair("Collected this bill", receiptAmount(order.source_metadata.reservation_remaining_collected)));
-    lines.push("Booking: " + (order.source_metadata.reservation_booking_name || "Customer name unavailable"));
+    lines.push("Booking: " + (order.source_metadata.reservation_booking_name || order.customer_name || "Customer name unavailable"));
   }
   if (rs.show_payment_type !== false) {
     if (order?.source_metadata?.booking_id) {
@@ -8500,7 +8500,7 @@ export default function POSPage() {
         orderId: receipt.receipt_number,
         slipCart,
         slipDining: receipt.dining_option || receipt.order_type || receipt.description || "Receipt",
-        slipBookingName: receipt.source_metadata?.reservation_booking_name || "",
+        slipBookingName: receipt.source_metadata?.reservation_booking_name || receipt.customer_name || "",
         slipCustomer: receipt.customer_name || receipt.customer?.name || "Walk-in",
         slipTotal: Number(receipt.net_sales || receipt.total_collected || receipt.total || 0),
         printedAt: new Date(),
@@ -10622,7 +10622,7 @@ export default function POSPage() {
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <h3 className="text-base font-black text-slate-800">{selectedReceipt.receipt_number}</h3>
-                        <p className="text-xs font-semibold text-slate-500">{selectedReceipt.description || "Receipt details"}</p>
+                        <p className="text-xs font-semibold text-slate-500">{bookingReceiptLabel(selectedReceipt)}</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <button
