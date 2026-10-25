@@ -18,14 +18,15 @@ const OPERATING_START_HOUR = 10; // 10AM
 const BOOKING_SLOT_HOURS = [10, 14, 18, 22];
 const ADMIN_MANUAL_HOURLY_STARTS = Array.from({ length: 14 }, (_, index) => OPERATING_START_HOUR + index);
 const BASE_BOOKING_MINUTES = 3 * 60;
-const MAX_EXTENSION_HOURS = 5;
+
 const PAYMENT_HOLD_HOURS = 24;
 const EXPIRED_BOOKING_STATUS = "expired";
 const BOOKING_TIME_ZONE = "Asia/Manila";
 const BOOKING_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function clampExtensionHours(value) {
-  return Math.max(0, Math.min(MAX_EXTENSION_HOURS, Number(value || 0)));
+  const hours = Number(value || 0);
+  return Number.isSafeInteger(hours) && hours >= 0 ? hours : 0;
 }
 
 /* =======================
@@ -2052,15 +2053,11 @@ export default function AdminBookingsDashboard() {
 
               <div>
                 <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Extension Hours</label>
-                <select
+                <input type="number" min="0" step="1"
                   value={manualModal.extension_hours}
-                  onChange={(e) => setManualModal((p) => ({ ...p, extension_hours: Number(e.target.value) }))}
+                  onChange={(e) => setManualModal((p) => ({ ...p, extension_hours: e.target.value }))}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
-                >
-                  {Array.from({ length: MAX_EXTENSION_HOURS + 1 }, (_, hours) => (
-                    <option key={hours} value={hours}>{hours}</option>
-                  ))}
-                </select>
+                />
                 <p className="mt-1.5 text-[10px] leading-relaxed text-amber-700">{packageExtensionPolicyText(manualModal.package_id)}</p>
               </div>
 
@@ -2167,15 +2164,11 @@ export default function AdminBookingsDashboard() {
                 <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
                   Extension Hours
                 </label>
-                <select
+                <input type="number" min="0" step="1"
                   value={editModal.extension_hours}
-                  onChange={(e) => setEditModal((p) => ({ ...p, extension_hours: Number(e.target.value) }))}
+                  onChange={(e) => setEditModal((p) => ({ ...p, extension_hours: e.target.value }))}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
-                >
-                  {Array.from({ length: MAX_EXTENSION_HOURS + 1 }, (_, hours) => (
-                    <option key={hours} value={hours}>{hours}</option>
-                  ))}
-                </select>
+                />
                 <p className="mt-1.5 text-[10px] leading-relaxed text-amber-700">{packageExtensionPolicyText(editModal.package_id)}</p>
               </div>
 
