@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
-import { buildReceiptCorrection, applyReceiptCorrections, receiptPaymentSplits } from "../lib/reports/receiptCorrections.js";
+import { buildReceiptCorrection as buildCorrection, applyReceiptCorrections, receiptPaymentSplits } from "../lib/reports/receiptCorrections.js";
 import { enrichReceiptItemRows, receiptItemDetails } from "../lib/reports/receiptDetails.js";
 import { buildShiftDiscountBreakdown } from "../lib/posDiscountBreakdown.js";
+
+const paymentMethods = ["Cash", "Card", "QRPH", "GCash", "QRPH - Bukupay", "QRPH - GrabPay", "GIFT CERTIFICATE"];
+const buildReceiptCorrection = (context, draft) => buildCorrection({ paymentMethods, ...context }, draft);
 
 const businessDay = readFileSync(new URL("../lib/businessDay.js", import.meta.url), "utf8").replace(/^export /gm, "");
 const { shiftBusinessDate } = vm.runInNewContext(`${businessDay}; ({shiftBusinessDate});`, { Intl, Date });
@@ -18,6 +21,14 @@ const receipt = {id:"sale",status:"paid",receipt_number:"TEST",customer_name:"Te
   gross_amount:100,subtotal:100,total:"90",net_amount:90,discount_amount:10,discount:"10",payment_method:"Cash",items,
   source_metadata:{order_discount:{name:"Existing receipt discount",amount:5},payment_splits:[{method:"Cash",amount:90}]}};
 const patch = buildReceiptCorrection({receipt,items},{discountType:"percent",discountValue:10,discountName:"Service recovery",payments:[{method:"Card",amount:0}]});
+const paymentDraft = (method) => ({ discountType:"amount", discountValue:0, payments:[{method,amount:0}] });
+for (const method of ["QRPH - Bukupay", "QRPH - GrabPay"]) {
+  assert.equal(buildReceiptCorrection({receipt,items}, paymentDraft(method)).receipt.payment_method, method);
+}
+assert.throws(() => buildReceiptCorrection({receipt,items}, paymentDraft("Maya")), /current payment type/);
+assert.throws(() => buildReceiptCorrection({receipt,items,paymentMethods:["Cash"]}, paymentDraft("QRPH - Bukupay")), /current payment type/);
+assert.equal(buildReceiptCorrection({receipt,items,paymentMethods:[]}, paymentDraft("Cash")).receipt.payment_method, "Cash");
+assert.throws(() => buildReceiptCorrection({receipt,items}, { ...paymentDraft("GIFT CERTIFICATE"), payments:[{method:"GIFT CERTIFICATE",amount:90}] }), /Gift certificate/);
 assert.equal(patch.net,81); assert.equal(patch.discount,19);
 assert.equal(patch.items.reduce((sum,row)=>sum+Math.round(row.net_amount*100),0),8100);
 assert.equal(patch.items.reduce((sum,row)=>sum+Math.round(row.discount_amount*100),0),1900);

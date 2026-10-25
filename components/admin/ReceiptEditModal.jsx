@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { buildReceiptCorrection, isGiftCertificatePayment, receiptPaymentSplits, RECEIPT_PAYMENT_METHODS } from "@/lib/reports/receiptCorrections";
+import { buildReceiptCorrection, isGiftCertificatePayment, receiptPaymentSplits } from "@/lib/reports/receiptCorrections";
 import { peso, displayDateTime } from "@/lib/reports/salesReports";
 
 async function adminRequest(url, options = {}) {
@@ -67,7 +67,8 @@ export default function ReceiptEditModal({ order, onClose, onSaved }) {
     setError("");
   };
   const memberOptions = selectedMember && !members.some((row) => row.id === selectedMember.id) ? [selectedMember, ...members] : members;
-  const paymentOptions = [...new Set([...RECEIPT_PAYMENT_METHODS, ...(draft?.payments || []).map((row) => row.method)])];
+  const paymentOptions = (context?.paymentMethods || []).filter((method) => !isGiftCertificatePayment(method));
+  const nextPaymentMethod = paymentOptions.find((method) => !draft?.payments.some((row) => row.method.toLowerCase() === method.toLowerCase()));
   const inputClass = "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900";
 
   async function save(event) {
@@ -118,12 +119,12 @@ export default function ReceiptEditModal({ order, onClose, onSaved }) {
                 {draft.payments.map((payment, index) => {
                   const gift = isGiftCertificatePayment(payment.method);
                   return <div key={index} className="mt-2 flex items-end gap-2">
-                    <label className="min-w-0 flex-1 text-xs text-slate-700">Method<select disabled={gift} value={payment.method} onChange={(event) => update({ payments: draft.payments.map((row, i) => i === index ? { ...row, method: event.target.value } : row) })} className={inputClass}>{paymentOptions.filter((method) => gift || !isGiftCertificatePayment(method)).map((method) => <option key={method} value={method}>{method}</option>)}</select></label>
+                    <label className="min-w-0 flex-1 text-xs text-slate-700">Method<select disabled={gift} value={payment.method} onChange={(event) => update({ payments: draft.payments.map((row, i) => i === index ? { ...row, method: event.target.value } : row) })} className={inputClass}>{!paymentOptions.includes(payment.method) && <option value={payment.method}>{payment.method} (recorded)</option>}{paymentOptions.map((method) => <option key={method} value={method}>{method}</option>)}</select></label>
                     {draft.payments.length > 1 && <label className="w-28 text-xs text-slate-700">Amount<input disabled={gift} type="number" min="0" step="0.01" value={payment.amount} onChange={(event) => update({ payments: draft.payments.map((row, i) => i === index ? { ...row, amount: event.target.value } : row) })} className={inputClass} /></label>}
                     {draft.payments.length > 1 && !gift && <button type="button" onClick={() => update({ payments: draft.payments.filter((_, i) => i !== index) })} className="pb-2 text-xs font-semibold text-rose-700" aria-label={`Remove ${payment.method} payment`}>Remove</button>}
                   </div>;
                 })}
-                <button type="button" onClick={() => update({ payments: [...draft.payments, { method: RECEIPT_PAYMENT_METHODS.find((method) => !draft.payments.some((row) => row.method === method)) || "Cash", amount: 0 }] })} className="mt-3 text-xs font-semibold text-cyan-800">Add split payment</button>
+                <button type="button" disabled={!nextPaymentMethod} onClick={() => { if (nextPaymentMethod) update({ payments: [...draft.payments, { method: nextPaymentMethod, amount: 0 }] }); }} className="mt-3 text-xs font-semibold text-cyan-800 disabled:opacity-50">Add split payment</button>
                 {draft.payments.some((row) => isGiftCertificatePayment(row.method)) && <p className="mt-2 text-xs text-slate-600">Gift certificate amounts retain their recorded redemption value.</p>}
               </div>
               <label className="block text-sm font-medium text-slate-700">Correction reason<textarea required minLength={3} maxLength={500} value={draft.reason} onChange={(event) => update({ reason: event.target.value })} className={inputClass} placeholder="Explain why this receipt is being corrected" /></label>

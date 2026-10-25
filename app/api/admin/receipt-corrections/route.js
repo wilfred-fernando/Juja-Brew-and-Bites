@@ -20,6 +20,14 @@ async function contextFor(admin, source, id, date) {
   const archive = live ? {} : await loadReceiptArchive(source, id, date, admin);
   const { data: context, error } = await admin.rpc("admin_receipt_edit_context", { p_source: source, p_id: id, p_archive: archive });
   if (error) throw error;
+  let paymentQuery = admin.from("pos_payment_types").select("name").eq("is_active", true)
+    .order("sort_order", { ascending: true }).order("name");
+  paymentQuery = context.receipt.store_id
+    ? paymentQuery.or(`store_id.eq.${context.receipt.store_id},store_id.is.null`)
+    : paymentQuery.is("store_id", null);
+  const { data: paymentTypes, error: paymentError } = await paymentQuery;
+  if (paymentError) throw paymentError;
+  context.paymentMethods = [...new Set((paymentTypes || []).map((row) => row.name.trim()).filter(Boolean))];
   const memberId = context.receipt.loyalty_member_id || context.receipt.customer_id;
   let member = null;
   if (uuid.test(memberId || "")) {

@@ -40,7 +40,7 @@ async function main() {
     const shiftRow = async () => (await db.query('select * from cashier_pos where id=$1', [shift])).rows[0];
     const totals = (receipt, items) => ({ ...helper.receiptMoney(receipt), payments: helper.receiptPaymentSplits(receipt), discountBreakdown: breakdown.buildShiftDiscountBreakdown([receipt], items) });
     async function correct(context, { member = b, amount = 10, method = 'Card', requestId = randomUUID(), source = 'order', sourceId = id, archive = {}, shifts = null } = {}) {
-      const patch = helper.buildReceiptCorrection(context, { discountType: 'amount', discountValue: amount, discountName: 'Service recovery', payments: [{ method, amount: 0 }] });
+      const patch = helper.buildReceiptCorrection({ ...context, paymentMethods: ['Cash', 'Card', 'GCash', 'QRPH'] }, { discountType: 'amount', discountValue: amount, discountName: 'Service recovery', payments: [{ method, amount: 0 }] });
       const points = member ? Number((patch.items.reduce((sum, row) => sum + row.net_amount, 0) * 0.04).toFixed(2)) : 0;
       const result = await db.query('select correct_admin_receipt($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) result',
         [source, sourceId, archive, context.version, requestId, actor, 'Receipt regression test', patch, member, points, patch.net, totals(context.receipt, context.items), totals(patch.receipt, patch.items), JSON.stringify(shifts || [await shiftRow()])]);
