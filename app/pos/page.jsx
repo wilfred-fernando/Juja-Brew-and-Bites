@@ -1,4 +1,5 @@
 "use client";
+import { excludesFunctionRoomLoyalty } from "@/lib/bookings/loyaltyEligibility.mjs";
 import { reservationBookingName, reservationReceiptItems } from "@/lib/bookings/receiptDisplay.mjs";
 import { bookingDisplayLabel, bookingReceiptLabel } from "@/lib/bookings/posBookingDisplay.mjs";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
@@ -1676,9 +1677,7 @@ function buildReceiptText({
   const pointsBaseValue = loyaltyEligibleTotal === null || typeof loyaltyEligibleTotal === "undefined"
     ? totalValue
     : Number(loyaltyEligibleTotal || 0);
-  const excludesLoyalty = order?.source_metadata?.exclude_loyalty === true
-    || Boolean(order?.source_metadata?.booking_id)
-    || /^VIP Booking(?:\s|$)/i.test(String(order?.dining_option || order?.order_type || diningOptionName || ""));
+  const excludesLoyalty = excludesFunctionRoomLoyalty({ ...order, dining_option: order?.dining_option || diningOptionName });
   const pointsEarned = customerName && !excludesLoyalty ? calcLoyaltyPoints(pointsBaseValue) : 0;
   const availablePoints = customerName
     ? Number((customerAvailablePoints(customer) + (loyaltyAlreadyAwarded ? 0 : pointsEarned)).toFixed(2))
@@ -4986,7 +4985,7 @@ export default function POSPage() {
 
     if (draft.customer?.id) {
       try {
-        const draftLoyaltyEligibleTotal = cartLoyaltyEligibleTotal(draftCart);
+        const draftLoyaltyEligibleTotal = excludesFunctionRoomLoyalty(orderRow) ? 0 : cartLoyaltyEligibleTotal(draftCart);
         await awardMemberLoyaltyPoints(draft.customer.id, calcLoyaltyPoints(draftLoyaltyEligibleTotal), draft.total, orderRow.id);
       } catch (loyaltyError) {
         console.warn("Offline synced sale loyalty update skipped:", loyaltyError);
@@ -9525,7 +9524,7 @@ export default function POSPage() {
     const orderDiscount = Number(discountAmount || 0);
     const discount = Number(itemDiscountTotal + orderDiscount);
     const grossTotal = Number(cart.reduce((sum, line) => sum + lineGrossAmount(line), 0));
-    const loyaltyEligibleTotal = usingBooking ? 0 : cartLoyaltyEligibleTotal(cart);
+    const loyaltyEligibleTotal = usingBooking || isVipRoomDiningOption ? 0 : cartLoyaltyEligibleTotal(cart);
     const welcomeError = welcomeVoucherSettlementError(cart);
     if (welcomeError) return showToast("error", "Welcome Voucher", welcomeError);
     const appliedCartVouchers = getAppliedCartVouchers(cart);
@@ -9848,7 +9847,7 @@ export default function POSPage() {
           showToast("warn", "Loyalty Points Not Added", loyaltyError?.message || "Sale completed, but loyalty points need review.");
         }
       } else {
-        if (attachedCustomer?.id && !usingBooking) {
+        if (attachedCustomer?.id && !usingBooking && !isVipRoomDiningOption) {
           try {
             const updatedCustomer = await awardMemberLoyaltyPoints(attachedCustomer.id, calcLoyaltyPoints(loyaltyEligibleTotal), total, orderRow.id);
             if (updatedCustomer?.id) {
