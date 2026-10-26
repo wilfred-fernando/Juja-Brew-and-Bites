@@ -919,7 +919,7 @@ export default function AdminBookingsDashboard() {
         return;
       }
 
-      const pendingPayload = { ...payload, status: "pending" };
+      const pendingPayload = { ...payload, status: b.status };
 
       const { error } = await supabase.from("function_room_bookings").update(pendingPayload).eq("id", b.id);
 
