@@ -1,0 +1,376 @@
+{
+  "checkedAt": "2026-10-26T17:21:38.286Z",
+  "bookings": 83,
+  "liveOrders": 4864,
+  "archivedOrders": 7481,
+  "distinctOrders": 8702,
+  "distinctWebOrders": 80,
+  "archiveThrough": "2026-07-30",
+  "feeReceipts": 8,
+  "roomReceipts": 130,
+  "affectedReceipts": 28,
+  "affectedMembers": 22,
+  "receiptPoints": 622.65,
+  "candidates": [
+    {
+      "sourceType": "order",
+      "id": "7e9a4c6a-da82-48ae-afa9-a70e2ca64904",
+      "receipt": "P2101082",
+      "dining": "VIP ROOM 3",
+      "date": "2026-10-04T21:06:49.693118+08:00",
+      "receiptPoints": 5.96,
+      "ledgerPoints": 5.96,
+      "memberId": "03182946-70b4-493a-949d-be796417f4c9",
+      "metadata": {},
+      "live": false
+    },
+    {
+      "sourceType": "order",
+      "id": "8fc68778-04ee-4fce-8d99-37b26ac42a08",
+      "receipt": "P8846488",
+      "dining": "VIP ROOM 3",
+      "date": "2026-10-04T21:05:29.411057+08:00",
+      "receiptPoints": 0.8,
+      "ledgerPoints": 0.8,
+      "memberId": "bdf84dba-3ebd-414b-b258-f0b32101d912",
+      "metadata": {},
+      "live": false
+    },
+    {
+      "sourceType": "order",
+      "id": "a89fcfae-53aa-4404-bee3-c1637208f31d",
+      "receipt": "P2771162",
+      "dining": "VIP ROOM 2",
+      "date": "2026-10-04T21:04:34.725759+08:00",
+      "receiptPoints": 3.96,
+      "ledgerPoints": 3.96,
+      "memberId": "968ab7cb-7477-4ecf-aecf-701d7e68511f",
+      "metadata": {},
+      "live": false
+    },
+    {
+      "sourceType": "order",
+      "id": "fb2848d2-fe01-40ac-b400-393eda50b8d5",
+      "receipt": "P1151678",
+      "dining": "VIP ROOM 1",
+      "date": "2026-10-04T21:03:04.608688+08:00",
+      "receiptPoints": 7.76,
+      "ledgerPoints": 7.76,
+      "memberId": "bdf84dba-3ebd-414b-b258-f0b32101d912",
+      "metadata": {},
+      "live": false
+    },
+    {
+      "sourceType": "order",
+      "id": "f653ea50-cba3-4ba9-86fe-77c0ff4f924d",
+      "receipt": "P6401463",
+      "dining": "VIP ROOM TABLE 6",
+      "date": "2026-09-22T13:39:22.712876+08:00",
+      "receiptPoints": 7.96,
+      "ledgerPoints": 7.96,
+      "memberId": "685e291b-6f77-4b04-9f7e-830d51f294c4",
+      "metadata": {},
+      "live": false
+    },
+    {
+      "sourceType": "order",
+      "id": "36cc2d24-fdfd-42fb-b97f-5afc5b763992",
+      "receipt": "P5342185",
+      "dining": "VIP ROOM TABLE 6",
+      "date": "2026-09-22T13:14:12.628955+08:00",
+      "receiptPoints": 26.24,
+      "ledgerPoints": 26.24,
+      "memberId": "685e291b-6f77-4b04-9f7e-830d51f294c4",
+      "metadata": {},
+      "live": false
+    },
+    {
+      "sourceType": "order",
+      "id": "86ad35b4-3034-4ea8-987b-ca45026dffa2",
+      "receipt": "P2660839",
+      "dining": "VIP ROOM TABLE 1",
+      "date": "2026-09-22T13:11:26.127904+08:00",
+      "receiptPoints": 4.6,
+      "ledgerPoints": 4.6,
+      "memberId": "ce86bedf-55c2-4a72-8f54-a29237195aa6",
+      "metadata": {},
+      "live": false
+    },
+    {
+      "sourceType": "order",
+      "id": "a9fbe82e-4023-4fa0-928e-dbaee535d232",
+      "receipt": "P8115802",
+      "dining": "VIP ROOM 11",
+      "date": "2026-09-21T21:00:34.109471+08:00",
+      "receiptPoints": 5.16,
+      "ledgerPoints": 5.16,
+      "memberId": "d5347686-e407-40c9-802f-238c41c9d676",
+      "metadata": {},
+      "live": false
+    },
+    {
+      "sourceType": "order",
+      "id": "47c0d8b5-7343-4429-b9f6-16a313939030",
+      "receipt": "P7927239",
+      "dining": "VIP ROOM TABLE 11",
+      "date": "2026-09-21T20:28:48.069626+08:00",
+      "receiptPoints": 7.92,
+      "ledgerPoints": 7.92,
+      "memberId": "917f1719-77da-4c1d-b80e-9b3ccf67bad7",
+      "metadata": {},
+      "live": false
+    },
+    {
+      "sourceType": "order",
+      "id": "75dfecd6-86f1-47d7-8807-8b33c7e903e3",
+      "receipt": "P9214500",
+      "dining": "VIP ROOM",
+      "date": "2026-09-11T21:54:15.044851+08:00",
+      "receiptPoints": 9.12,
+      "ledgerPoints": 9.12,
+      "memberId": "8b3a1c78-9f2f-444d-b836-cca8a609fe3e",
+      "metadata": {},
+      "live": false
+    },
+    {
+      "sourceType": "order",
+      "id": "f3acbb45-18ed-41eb-84ed-8652fea16826",
+      "receipt": "P4580243",
+      "dining": "VIP ROOM 1",
+      "date": "2026-08-31T15:37:35.599801+08:00",
+      "receiptPoints": 3.96,
+      "ledgerPoints": 3.96,
+      "memberId": "ce86bedf-55c2-4a72-8f54-a29237195aa6",
+      "metadata": {},
+      "live": false
+    },
+    {
+      "sourceType": "order",
+      "id": "2625ba7b-d27f-4d94-b3b7-f226cfc61cdd",
+      "receipt": "P4714820",
+      "dining": "VIP ROOM EVA",
+      "date": "2026-08-28T17:28:44.867136+08:00",
+      "receiptPoints": 13.12,
+      "ledgerPoints": 13.12,
+      "memberId": "f0b273ab-70ac-41cc-b055-f4c5bea83665",
+      "metadata": {},
+      "live": false
+    },
+    {
+      "sourceType": "order",
+      "id": "6e803ecb-8553-4d7f-af07-d4fc4bd3096d",
+      "receipt": "P3742708",
+      "dining": "VIP ROOM 2-pm- 5pm aug 21",
+      "date": "2026-08-23T12:34:28.860025+08:00",
+      "receiptPoints": 200,
+      "ledgerPoints": 200,
+      "memberId": "93fe1807-3ba8-4d30-82b5-ae18a4586262",
+      "metadata": {},
+      "live": false
+    },
+    {
+      "sourceType": "order",
+      "id": "0c0659af-a1ac-426c-ac2c-e088802cda65",
+      "receipt": "P6324172",
+      "dining": "VIP ROOM 2pm - 5pm",
+      "date": "2026-08-23T11:21:58.810772+08:00",
+      "receiptPoints": 0,
+      "ledgerPoints": 120,
+      "memberId": "93fe1807-3ba8-4d30-82b5-ae18a4586262",
+      "metadata": {},
+      "live": false
+    },
+    {
+      "sourceType": "order",
+      "id": "75b4fe91-2307-437d-af47-53983250f3be",
+      "receipt": "P1187937",
+      "dining": "VIP ROOM 1",
+      "date": "2026-08-11T11:27:24.662936+08:00",
+      "receiptPoints": 104.44,
+      "ledgerPoints": 104.44,
+      "memberId": "3e7bea73-d894-4028-939b-4b832c9a1935",
+      "metadata": {},
+      "live": false
+    },
+    {
+      "sourceType": "order",
+      "id": "0da522d2-a63b-4b5e-b25a-7e523d0216c2",
+      "receipt": "P1475640",
+      "dining": "VIP ROOM",
+      "date": "2026-07-08T13:09:35.687Z",
+      "receiptPoints": 47.24,
+      "ledgerPoints": 47.24,
+      "memberId": "ad03f765-98b1-48ce-8a7e-f814a6107233",
+      "metadata": {
+        "backfilled": true
+      },
+      "live": true
+    },
+    {
+      "sourceType": "order",
+      "id": "0be3f8c6-8621-49d4-9b93-881872b1ee24",
+      "receipt": "P9883585",
+      "dining": "VIP ROOM",
+      "date": "2026-07-08T12:18:38.757Z",
+      "receiptPoints": 9.52,
+      "ledgerPoints": 9.52,
+      "memberId": "c370ffd1-7481-4fe5-bcd0-acdc94117d69",
+      "metadata": {
+        "backfilled": true
+      },
+      "live": true
+    },
+    {
+      "sourceType": "order",
+      "id": "387312b9-62ad-4c8b-a035-da81eee80477",
+      "receipt": "P4857869",
+      "dining": "VIP ROOM",
+      "date": "2026-07-03T11:16:15.114Z",
+      "receiptPoints": 4.4,
+      "ledgerPoints": 4.4,
+      "memberId": "1f577f7f-9e82-4d5e-9dd9-ab39f8681f2e",
+      "metadata": {
+        "backfilled": true
+      },
+      "live": true
+    },
+    {
+      "sourceType": "order",
+      "id": "fd69b45e-923b-4543-a4ae-0a0ee1a400bf",
+      "receipt": "P0271050",
+      "dining": "VIP ROOM",
+      "date": "2026-07-03T10:53:23.601Z",
+      "receiptPoints": 5.56,
+      "ledgerPoints": 5.56,
+      "memberId": "626ef0c6-6308-4bc9-b986-ce40490ad9cb",
+      "metadata": {
+        "backfilled": true
+      },
+      "live": true
+    },
+    {
+      "sourceType": "order",
+      "id": "f4a89e1d-ba36-4462-a73b-acdfc827047e",
+      "receipt": "P5962276",
+      "dining": "VIP ROOM",
+      "date": "2026-07-03T10:52:39.252Z",
+      "receiptPoints": 8.76,
+      "ledgerPoints": 8.76,
+      "memberId": "4f64206d-b667-49d7-b6b0-02ea69f0ad4c",
+      "metadata": {
+        "backfilled": true
+      },
+      "live": true
+    },
+    {
+      "sourceType": "order",
+      "id": "7d3a6d43-eb29-4258-8964-2715813b93e1",
+      "receipt": "P0011632",
+      "dining": "VIP ROOM",
+      "date": "2026-07-03T10:51:08.767Z",
+      "receiptPoints": 9.16,
+      "ledgerPoints": 9.16,
+      "memberId": "1f577f7f-9e82-4d5e-9dd9-ab39f8681f2e",
+      "metadata": {
+        "backfilled": true
+      },
+      "live": true
+    },
+    {
+      "sourceType": "order",
+      "id": "42dd75e5-d645-4c86-a99e-d70331950cb0",
+      "receipt": "P4458553",
+      "dining": "VIP ROOM",
+      "date": "2026-07-03T10:49:45.746Z",
+      "receiptPoints": 77.57,
+      "ledgerPoints": 77.57,
+      "memberId": "cef37891-3af9-4dac-84db-e261a6f02f4e",
+      "metadata": {
+        "backfilled": true
+      },
+      "live": true
+    },
+    {
+      "sourceType": "order",
+      "id": "de638b8f-206b-4c66-a526-1df9a9ad3bdf",
+      "receipt": "P7560071",
+      "dining": "VIP ROOM",
+      "date": "2026-06-30T14:23:34.190Z",
+      "receiptPoints": 11.12,
+      "ledgerPoints": 11.12,
+      "memberId": "28a271b3-b677-47af-887b-08d1873923be",
+      "metadata": {
+        "backfilled": true
+      },
+      "live": true
+    },
+    {
+      "sourceType": "order",
+      "id": "8fa17b8a-86a7-4a2e-9772-98ee828dfb41",
+      "receipt": "P7172990",
+      "dining": "VIP ROOM",
+      "date": "2026-06-30T14:10:54.281Z",
+      "receiptPoints": 22.08,
+      "ledgerPoints": 22.08,
+      "memberId": "f1e74253-2a1b-461a-ab1f-08b0280b9c4a",
+      "metadata": {
+        "backfilled": true
+      },
+      "live": true
+    },
+    {
+      "sourceType": "order",
+      "id": "55642e67-953b-4b67-9a30-d3c0b5b1b184",
+      "receipt": "P8146480",
+      "dining": "VIP ROOM",
+      "date": "2026-06-30T14:08:24.211Z",
+      "receiptPoints": 6.36,
+      "ledgerPoints": 6.36,
+      "memberId": "f1e74253-2a1b-461a-ab1f-08b0280b9c4a",
+      "metadata": {
+        "backfilled": true
+      },
+      "live": true
+    },
+    {
+      "sourceType": "order",
+      "id": "7972867d-2e47-47ce-affe-73d3b706f7ee",
+      "receipt": "P0953086",
+      "dining": "VIP ROOM",
+      "date": "2026-06-29T10:27:38.329Z",
+      "receiptPoints": 5.56,
+      "ledgerPoints": 5.56,
+      "memberId": "9561f16a-6038-46e5-ba73-4b3fb725ec9d",
+      "metadata": {
+        "backfilled": true
+      },
+      "live": true
+    },
+    {
+      "sourceType": "order",
+      "id": "cf266b89-fa45-4ba2-913d-ab8e1de5abb4",
+      "receipt": "P8312303",
+      "dining": "VIP ROOM",
+      "date": "2026-06-29T10:21:54.807Z",
+      "receiptPoints": 8.36,
+      "ledgerPoints": 8.36,
+      "memberId": "cf805b6d-dae4-4a3b-b2b5-4147f3114db5",
+      "metadata": {
+        "backfilled": true
+      },
+      "live": true
+    },
+    {
+      "sourceType": "order",
+      "id": "137043e4-641a-47d4-801d-91d5615a147f",
+      "receipt": "P0630102",
+      "dining": "VIP ROOM 1248",
+      "date": "2026-08-14T04:48:54.227Z",
+      "receiptPoints": 5.96,
+      "ledgerPoints": 5.96,
+      "memberId": "6f229b6b-ea5a-4836-b295-b54487cf5450",
+      "metadata": {},
+      "live": true
+    }
+  ]
+}
