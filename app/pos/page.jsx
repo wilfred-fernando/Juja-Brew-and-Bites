@@ -38,7 +38,7 @@ import { isMenuVisibleOn } from "@/lib/menuVisibility";
 import TicketPanel from "@/components/pos/TicketPanel";
 import GiftCertificatePurchaseForm from "@/components/GiftCertificatePurchaseForm";
 import BookingReservationSelector from "@/components/pos/BookingReservationSelector";
-import { withVipBookingOption, reservationPayment, reservationCollectionSummary, bookingPaymentMethod } from "@/lib/bookings/reservationPayment.mjs";
+import { withVipBookingOption, reservationPayment, reservationCollectionSummary, reservationQrphCollected, bookingPaymentMethod } from "@/lib/bookings/reservationPayment.mjs";
 import GiftCertificatePaymentDialog from "@/components/pos/GiftCertificatePaymentDialog";
 import { gcPaymentBreakdown } from "@/lib/posGiftCertificates";
 import OfflineSyncNotice from "@/components/pos/OfflineSyncNotice";
@@ -1926,7 +1926,7 @@ function buildEndDayReportText({ store, cashierName, startingCash, actualCash, d
     receiptPair("Starting cash", receiptAmount(startingCash || 0)),
     receiptPair("Cash payments", receiptAmount(summary?.cashPayments || 0)),
     receiptPair("e-GC cash collected", receiptAmount(summary?.gcCashCollected || 0)),
-    receiptPair("Reservation fees collected", receiptAmount(summary?.reservationFeeCollected || 0)),
+    receiptPair("Reservation QRPH collected", receiptAmount(reservationQrphCollected(summary))),
     receiptPair("Reservation cash collected", receiptAmount(summary?.reservationCashCollected || 0)),
     receiptPair("Cash refunds", receiptAmount(summary?.cashRefunds || 0)),
     receiptPair("Expected cash", receiptAmount(expectedCash)),
@@ -5325,6 +5325,7 @@ export default function POSPage() {
       cashPayments,
       gcCashCollected,
       reservationFeeCollected: reservationSummary.total,
+      reservationQrphCollected: reservationSummary.payments.QRPH,
       reservationCashCollected: reservationSummary.cash,
       reservationCollectionPayments: reservationExtra.payments,
       reservationCashAdjustment: reservationExtra.cash,
@@ -9010,6 +9011,7 @@ export default function POSPage() {
       expectedCash: shiftSummary.expectedCash - gcCashCollected + verifiedGcCash - reservationExtra.cash + verifiedExtra.cash,
       cashPayments: shiftSummary.cashPayments - reservationExtra.cash + verifiedExtra.cash,
       reservationFeeCollected: verifiedReservation.total,
+      reservationQrphCollected: verifiedReservation.payments.QRPH,
       reservationCashCollected: verifiedReservation.cash,
       reservationCollectionPayments: verifiedExtra.payments,
       reservationCashAdjustment: verifiedExtra.cash,
@@ -10739,7 +10741,7 @@ export default function POSPage() {
                 {[
                   ["Cash payments", shiftSummary.cashPayments],
                   ["e-GC cash collected", shiftSummary.gcCashCollected],
-                  ["Reservation fees collected", shiftSummary.reservationFeeCollected],
+                  ["Reservation QRPH collected", reservationQrphCollected(shiftSummary)],
                   ["Reservation cash collected", shiftSummary.reservationCashCollected],
                   ["Cash refunds", shiftSummary.cashRefunds],
                   ["Expected cash amount", shiftSummary.expectedCash],

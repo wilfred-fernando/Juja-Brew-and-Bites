@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { reservationQrphCollected } from "@/lib/bookings/reservationPayment.mjs";
 import styles from "./SalesPremium.module.css";
 import { useSearchParams } from "next/navigation";
 import {
@@ -330,7 +331,7 @@ function buildShiftRows(shiftRecords = [], stores = [], filters = defaultFilters
       startingCash,
       cashPayments,
       cashRefunds,
-      reservationFeeCollected: num(summary.reservationFeeCollected),
+      reservationQrphCollected: reservationQrphCollected(summary),
       reservationCashCollected: num(summary.reservationCashCollected),
       paidIn: 0,
       paidOut: 0,
@@ -454,7 +455,7 @@ function ShiftReportDrawer({ shift, onClose }) {
         <ReportDrawerSection title="Cash drawer">
           <DrawerAmount label="Starting cash" value={shift.startingCash} />
           <DrawerAmount label="Cash payments" value={shift.cashPayments} />
-          <DrawerAmount label="Reservation fees collected" value={shift.reservationFeeCollected} />
+          <DrawerAmount label="Reservation QRPH collected" value={shift.reservationQrphCollected} />
           <DrawerAmount label="Reservation cash collected" value={shift.reservationCashCollected} />
           <DrawerAmount label="Cash refunds" value={shift.cashRefunds} />
           <DrawerAmount label="Paid in" value={shift.paidIn} />
