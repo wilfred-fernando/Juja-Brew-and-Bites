@@ -3,6 +3,7 @@ import { excludesFunctionRoomLoyalty } from "@/lib/bookings/loyaltyEligibility.m
 import { reservationBookingName, reservationReceiptItems } from "@/lib/bookings/receiptDisplay.mjs";
 import { bookingDisplayLabel, bookingReceiptLabel } from "@/lib/bookings/posBookingDisplay.mjs";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
+import BookingReminders from "@/components/pos/BookingReminders";
 import { priceForMenuChannel } from "@/lib/deliveryPricing";
 import { shiftReportDay } from "@/lib/businessDay";
 import { shouldAutoPrintCupLabels, cupLabelJobs } from "@/lib/posCupLabelDelivery";
@@ -10429,6 +10430,7 @@ export default function POSPage() {
         onClose={() => setBookingCalendarOpen(false)}
         onError={(message) => showToast("error", "Calendar Failed", message)}
       />
+      <BookingReminders storeId={storeId} enabled={Boolean(currentUserId && storeId)} />
 
       <ApkDownloadBanner
         manifestUrl="/app-updates/pos.json"

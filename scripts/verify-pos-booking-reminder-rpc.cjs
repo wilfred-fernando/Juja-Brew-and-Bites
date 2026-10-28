@@ -1,0 +1,26 @@
+const {loadEnvConfig}=require('@next/env');loadEnvConfig(process.cwd());
+const {Client}=require('pg'),fs=require('fs'),assert=require('assert/strict'),{randomUUID}=require('crypto');
+(async()=>{const db=new Client({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false}});await db.connect();
+const one=async(sql,args=[])=>(await db.query(sql,args)).rows[0];
+const actor=async(id)=>db.query("select set_config('request.jwt.claim.sub',$1,true),set_config('request.jwt.claims',$2,true)",[id,JSON.stringify({sub:id,role:'authenticated'})]);
+try{await db.query('begin');await db.query("set local lock_timeout='5s'");
+if(!(await one("select to_regprocedure('public.list_pos_booking_reminders(text)') installed")).installed)await db.query(fs.readFileSync('supabase/migrations/20261028090000_pos_booking_reminders.sql','utf8').replace(/^begin;\s*/,'').replace(/commit;\s*$/,''));
+await db.query('savepoint fixtures');
+const admin=await one("select id from profiles where lower(role) in ('admin','super_admin') limit 1");
+const cashier=await one("select p.id,p.store_id from profiles p join stores s on s.id::text=p.store_id::text where lower(p.role)='cashier' and coalesce(s.store_name,s.name,'') ilike '%Pasong Tamo%' limit 1");
+const otherStore=await one('select id from stores where id::text<>$1 limit 1',[String(cashier.store_id)]);
+await actor(admin.id);
+const schedule=await one("select (now()+interval '150 minutes') start_at,to_char((now()+interval '150 minutes') at time zone 'Asia/Manila','YYYY-MM-DD') business_date");
+const b=(await one('select public.create_manual_booking($1::json) b',[JSON.stringify({customer_name:'ROLLBACK REMINDER TEST',event_type:'Test',business_date:schedule.business_date,start_at:schedule.start_at.toISOString(),duration_hours:3,extension_hours:0,package_id:1,guest_count:4,contact_number:'0000000000',email:'rollback@example.invalid',deposit_amount:0,payment_method:'Waived',payment_status:'waived',status:'confirmed'})])).b;
+await actor(cashier.id);const list=async store=>(await one('select public.list_pos_booking_reminders($1) b',[String(store)])).b;
+assert.ok((await list(cashier.store_id)).some(row=>row.id===b.id));
+await actor(admin.id);assert.deepEqual(await list(otherStore.id),[]);
+for(const status of ['pending','cancelled','expired']){await db.query('update function_room_bookings set status=$1 where id=$2',[status,b.id]);assert.ok(!(await list(cashier.store_id)).some(row=>row.id===b.id));}
+await db.query("update function_room_bookings set status='confirmed',start_at=now()+interval '6 hours' where id=$1",[b.id]);assert.ok(!(await list(cashier.store_id)).some(row=>row.id===b.id));
+await db.query("update function_room_bookings set start_at=now()-interval '1 day' where id=$1",[b.id]);assert.ok(!(await list(cashier.store_id)).some(row=>row.id===b.id));
+const customer=await one("select id from profiles where lower(role)='customer' limit 1");await actor(customer.id);await db.query('savepoint denied');let denied=false;try{await list(cashier.store_id);}catch(e){assert.match(e.message,/Staff login/);denied=true;}assert.ok(denied);await db.query('rollback to savepoint denied');
+assert.equal((await one("select has_function_privilege('anon','public.list_pos_booking_reminders(text)','execute') allowed")).allowed,false);
+await db.query('set constraints all immediate');await db.query('rollback to savepoint fixtures');
+if(process.argv.includes('--apply'))await db.query('commit');else await db.query('rollback');
+console.log('Booking reminder RPC branch, authentication, upcoming/confirmed/status filtering and anonymous access checks passed; fixtures rolled back; migration '+(process.argv.includes('--apply')?'installed':'rolled back'));
+}catch(e){await db.query('rollback');throw e;}finally{await db.end();}})().catch(e=>{console.error(e.message,e.where||'');process.exitCode=1});

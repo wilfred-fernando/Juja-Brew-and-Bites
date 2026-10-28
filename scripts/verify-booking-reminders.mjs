@@ -1,0 +1,47 @@
+import assert from 'node:assert/strict';
+import { bookingReminderCandidates, claimBookingReminder, acknowledgeBookingReminder, releaseBookingReminder } from '../lib/bookings/reminders.mjs';
+import { createIncomingRingtone } from '../lib/posIncomingRingtone.js';
+
+const hour = 3600000, start = Date.parse('2026-12-01T10:00:00+08:00');
+const booking = { id: 'booking-1', status: 'confirmed', start_at: new Date(start).toISOString() };
+const due = hours => bookingReminderCandidates([booking], start - hours * hour);
+assert.equal(due(3.001).length, 0);
+assert.equal(due(3)[0].hours, 3);
+assert.equal(due(2.01)[0].hours, 3);
+assert.equal(due(2)[0].hours, 2);
+assert.equal(due(1.5)[0].hours, 2);
+assert.equal(due(1)[0].hours, 1);
+assert.equal(due(0.001)[0].hours, 1);
+assert.equal(due(0).length, 0);
+assert.equal(due(-1).length, 0);
+for (const status of ['pending', 'cancelled', 'expired', 'rejected']) assert.equal(bookingReminderCandidates([{ ...booking, status }], start - hour).length, 0);
+assert.equal(bookingReminderCandidates([{ ...booking, start_at: 'invalid' }]).length, 0);
+assert.equal(bookingReminderCandidates([{ ...booking, payment_status: 'expired' }], start - hour).length, 0);
+assert.equal(due(2)[0].key, bookingReminderCandidates([{ ...booking, extension_hours: 5 }], start - 2 * hour)[0].key);
+assert.notEqual(due(2)[0].key, bookingReminderCandidates([{ ...booking, start_at: new Date(start + hour).toISOString() }], start - hour)[0].key);
+
+const memory = new Map(), storage = { getItem: key => memory.get(key), setItem: (key, value) => memory.set(key, value) };
+const now = start - 3 * hour, reminder = due(3)[0];
+assert.equal(claimBookingReminder(storage, 'store-1', reminder, 'tab-1', now), true);
+assert.equal(claimBookingReminder(storage, 'store-1', reminder, 'tab-2', now), false);
+assert.equal(claimBookingReminder(storage, 'store-2', reminder, 'tab-2', now), true);
+assert.equal(claimBookingReminder(storage, 'store-1', reminder, 'tab-2', now + 46000), true);
+releaseBookingReminder(storage, 'store-1', reminder.key, 'tab-1', now + 47000);
+assert.equal(claimBookingReminder(storage, 'store-1', reminder, 'tab-3', now + 47000), false);
+acknowledgeBookingReminder(storage, 'store-1', reminder, now + 48000);
+assert.equal(claimBookingReminder(storage, 'store-1', reminder, 'after-refresh', now + 49000), false);
+assert.equal(claimBookingReminder(storage, 'store-1', due(2)[0], 'after-refresh', start - 2 * hour), true);
+releaseBookingReminder(storage, 'store-1', due(2)[0].key, 'after-refresh', start - 2 * hour);
+assert.equal(claimBookingReminder(storage, 'store-1', due(2)[0], 'another-tab', start - 2 * hour), true);
+memory.set('corrupt', 'bad-json');
+assert.equal(claimBookingReminder(storage, 'corrupt', reminder, 'tab', now), true);
+
+const events = new Map(); let plays = 0;
+const audio = { paused: true, currentTime: 5, play() { plays++; this.paused = false; return Promise.resolve(); }, pause() { this.paused = true; } };
+const target = { addEventListener: (key, fn) => events.set(key, fn), removeEventListener: key => events.delete(key) };
+const ringtone = createIncomingRingtone(audio, target);
+ringtone.start(); ringtone.start();
+assert.equal(plays, 1); assert.equal(audio.loop, true);
+audio.paused = true; events.get('pointerdown')(); assert.equal(plays, 2);
+ringtone.stop(); assert.equal(audio.paused, true); assert.equal(audio.currentTime, 0); assert.equal(events.size, 0);
+console.log('Booking reminder thresholds, catch-up, cancellations, rescheduling, branch-scoped acknowledgements, cross-tab leases, refresh deduplication and ringtone start/stop passed.');
