@@ -3,6 +3,7 @@ import { excludesFunctionRoomLoyalty } from "@/lib/bookings/loyaltyEligibility.m
 import { reservationBookingName, reservationReceiptItems } from "@/lib/bookings/receiptDisplay.mjs";
 import { bookingDisplayLabel, bookingReceiptLabel } from "@/lib/bookings/posBookingDisplay.mjs";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
+import { initialItemSelections } from "@/lib/posItemSelections.mjs";
 import BookingReminders from "@/components/pos/BookingReminders";
 import { priceForMenuChannel } from "@/lib/deliveryPricing";
 import { shiftReportDay } from "@/lib/businessDay";
@@ -3180,19 +3181,7 @@ function AddToCartModal({ item, onClose, onAddToCart, discountRules = [], catego
       residency_status: source.discountBeneficiaryResidency,
     } : null));
 
-    const selected = {};
-    if (source.variantDetails && item.variants) {
-      source.variantDetails.split(", ").forEach((name) => {
-        item.variants.forEach((g) => {
-          const match = (g.options || []).find((o) => o.name === name);
-          if (match) {
-            selected[g.id] = selected[g.id] || [];
-            selected[g.id].push(match);
-          }
-        });
-      });
-    }
-    setSelections(selected);
+    setSelections(initialItemSelections(item));
 
     const c = {};
     (item.variants || []).filter((g) => isOptionGroupVisibleOn(g, "pos")).forEach((g) => (c[g.id] = !g.isRequired));
