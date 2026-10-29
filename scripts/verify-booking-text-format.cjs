@@ -1,0 +1,14 @@
+const {loadEnvConfig}=require('@next/env');loadEnvConfig(process.cwd());const fs=require('fs'),assert=require('assert/strict'),{Client}=require('pg');
+(async()=>{const d=new Client({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false}});await d.connect();try{await d.query('begin');await d.query("set local lock_timeout='10s'");
+const snapshot=async()=>(await d.query("select id,status,payment_status,payment_method,deposit_amount,start_at,end_at,extension_hours,first_confirmed_at from function_room_bookings order by id")).rows;
+const before=await snapshot();const receiptsBefore=(await d.query('select count(*)::int n from orders')).rows[0].n;
+const changesBefore=(await d.query("select count(*)::int n from function_room_bookings where customer_name is distinct from initcap(regexp_replace(btrim(customer_name),'[[:space:]]+',' ','g')) or event_type is distinct from initcap(regexp_replace(btrim(event_type),'[[:space:]]+',' ','g'))")).rows[0].n;
+await d.query(fs.readFileSync('supabase/migrations/20261029090000_booking_text_format.sql','utf8').replace(/^begin;\s*/,'').replace(/commit;\s*$/,''));
+assert.deepEqual(await snapshot(),before);assert.equal((await d.query('select count(*)::int n from orders')).rows[0].n,receiptsBefore);
+for(const [input,expected] of [['  ave  gail   viola  ','Ave Gail Viola'],['BIRTHDAY PARTY','Birthday Party'],['emmanuel & samantha','Emmanuel & Samantha'],["o'neill meeting","O'neill Meeting"],['18th birthday','18th Birthday']])assert.equal((await d.query('select public.format_booking_label($1) value',[input])).rows[0].value,expected);
+await d.query('savepoint edit_fixture');const id=before[0].id;
+await d.query("update function_room_bookings set customer_name='  formatting TEST ',event_type='team BUILDING' where id=$1",[id]);let row=(await d.query('select customer_name,event_type from function_room_bookings where id=$1',[id])).rows[0];assert.deepEqual(row,{customer_name:'Formatting Test',event_type:'Team Building'});await d.query('rollback to savepoint edit_fixture');
+assert.deepEqual(await snapshot(),before);assert.equal((await d.query('select count(*)::int n from orders')).rows[0].n,receiptsBefore);await d.query('set constraints all immediate');
+const example=(await d.query("select reference_code,customer_name,event_type from function_room_bookings where reference_code='JUJA-20261029-c282f'")).rows[0];
+if(process.argv.includes('--apply'))await d.query('commit');else await d.query('rollback');console.log(JSON.stringify({applied:process.argv.includes('--apply'),bookingsChecked:before.length,bookingsFormatted:changesBefore,financialAndScheduleFieldsUnchanged:true,noNewReceipts:true,example}));
+}catch(e){await d.query('rollback');throw e;}finally{await d.end();}})().catch(e=>{console.error(e.message);process.exitCode=1});
