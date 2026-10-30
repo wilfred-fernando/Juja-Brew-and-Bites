@@ -348,6 +348,8 @@ export default function AdminBookingsDashboard() {
   const [editLoading, setEditLoading] = useState(false);
   const [manualModal, setManualModal] = useState(null);
   const [manualLoading, setManualLoading] = useState(false);
+  const [paymentSelections, setPaymentSelections] = useState({});
+  const [paymentSavingId, setPaymentSavingId] = useState(null);
 
   // Filters
   const [q, setQ] = useState("");
@@ -411,6 +413,23 @@ export default function AdminBookingsDashboard() {
       status: json?.booking?.status || "cancelled",
       giftCertificate: json?.giftCertificate || null,
     };
+  }
+
+  async function saveBookingPayment(booking) {
+    setPaymentSavingId(booking.id);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const res = await fetch('/api/admin/booking-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(data?.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {}) },
+        body: JSON.stringify({ bookingId: booking.id, paymentStatus: paymentSelections[booking.id] || 'pending' }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Unable to save payment.');
+      setBookings(prev => prev.map(row => row.id === booking.id ? { ...row, ...result.booking } : row));
+      setPaymentSelections(prev => { const next = { ...prev }; delete next[booking.id]; return next; });
+    } catch (error) { alert(error.message || 'Unable to save payment.'); }
+    finally { setPaymentSavingId(null); }
   }
 
   async function approveBookingAndSendConfirmation(bookingId, options = {}) {
@@ -958,6 +977,7 @@ export default function AdminBookingsDashboard() {
       payment_method: "Cash",
       status: "confirmed",
       payment_status: "submitted",
+      manual_payment_review: "pending",
     });
   }
 
@@ -997,12 +1017,11 @@ export default function AdminBookingsDashboard() {
         contact_number: String(manualModal.contact_number || "").trim(),
         email: String(manualModal.email || "").trim(),
         deposit_amount: Number(manualModal.deposit_amount || 0),
+        manual_payment_review: manualModal.manual_payment_review || "pending",
         payment_status:
-          manualModal.payment_method === "Cash"
-            ? "cash_pending"
-            : manualModal.payment_method === "Waived"
-              ? "waived"
-              : "submitted",
+          manualModal.payment_method === "Waived" ? "waived"
+            : manualModal.manual_payment_review === "approved" ? "approved"
+              : manualModal.payment_method === "Cash" ? "cash_pending" : "submitted",
         payment_method: manualModal.payment_method,
         payment_proof_url: null,
         status: manualModal.status || "confirmed",
@@ -1729,6 +1748,21 @@ export default function AdminBookingsDashboard() {
                             </div>
 
                             {/* Hints */}
+                            {!past && !expired && b.status === "confirmed" && ["cash_pending", "submitted", "waiting_for_payment"].includes(b.payment_status) && b.payment_method !== "Waived" && (
+                              <div className="mt-3 flex flex-wrap items-end gap-2">
+                                <label className="text-xs font-semibold text-slate-700">Payment status
+                                  <select aria-label={`Payment status for ${b.customer_name}`} value={paymentSelections[b.id] || "pending"} disabled={paymentSavingId === b.id}
+                                    onChange={event => setPaymentSelections(prev => ({ ...prev, [b.id]: event.target.value }))}
+                                    className="ml-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900">
+                                    <option value="pending">Pending</option><option value="approved">Approved</option>
+                                  </select>
+                                </label>
+                                <button type="button" disabled={Boolean(paymentSavingId)} onClick={() => saveBookingPayment(b)} className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">
+                                  {paymentSavingId === b.id ? "Saving…" : "Save payment"}
+                                </button>
+                                <p className="w-full text-xs text-slate-500">Approve only after receiving or verifying the reservation payment. This does not resend the confirmation email.</p>
+                              </div>
+                            )}
                             {expired && (
                               <p className="text-[11px] text-slate-500 mt-2">
                                 Expired booking - payment proof was not submitted within 24 hours.
@@ -1741,7 +1775,7 @@ export default function AdminBookingsDashboard() {
                             )}
                             {!past && b.status === "confirmed" && (
                               <p className="text-[11px] text-green-600 mt-2">
-                                Approved — Approve/Reject disabled.
+                                Booking confirmed. Payment approval is managed separately above when pending.
                               </p>
                             )}
                           </div>
@@ -2006,6 +2040,16 @@ export default function AdminBookingsDashboard() {
                   <option value="QRPH">QRPH</option>
                   <option value="Waived">Waived</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Payment Status</label>
+                <select value={manualModal.manual_payment_review || "pending"} disabled={manualModal.payment_method === "Waived"}
+                  onChange={event => setManualModal(prev => ({ ...prev, manual_payment_review: event.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm">
+                  <option value="pending">Pending</option><option value="approved">Approved</option>
+                </select>
+                <p className="mt-1 text-xs text-slate-500">{manualModal.payment_method === "Waived" ? "Reservation fee is waived." : "Approved confirms money received; a positive confirmed fee creates its receipt in the open branch shift."}</p>
               </div>
 
               <div className="md:col-span-2">

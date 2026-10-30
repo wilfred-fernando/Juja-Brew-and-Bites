@@ -1,5 +1,7 @@
 # VIP booking reservation credits
 
+Admin manual booking creation has an explicit **Payment Status: Pending / Approved** selector, separate from the booking status. Waived fees keep their waived status. Confirmed upcoming bookings with pending payment also have a separate **Save payment** control on their booking card. Explicit approval records the positive fee in the branch's open shift once; a closed shift rolls the entire approval back. Repeated approval and schedule/extension-only edits do not create another receipt. Previously issued historical-credit vouchers remain voucher-only. Paid reservations cannot be reset to Pending through this control; use the reversal process instead. Saving payment status does not send or resend a customer email.
+
 Cashier-created bookings start pending Admin approval. Admin receives the new-booking email; the customer receives confirmation only after approval, or a rejection email after rejection. Approval creates the reservation-fee receipt in the open branch shift. Pending and rejected cashier requests do not create a sale. Email delivery failures are reported without undoing the saved booking or decision. Existing bookings are not reclassified by this change.
 
 ## Cashier flow
