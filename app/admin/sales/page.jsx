@@ -60,7 +60,7 @@ import {
   uniqueOptions,
   normalizeSalesData,
 } from "@/lib/reports/salesReports";
-import { loyaltyEligibleLineTotal } from "@/lib/menuPromos";
+import { receiptPointsEarned } from "@/lib/loyalty/receiptPoints.mjs";
 import { enrichReceiptItemRows, receiptItemDetails } from "@/lib/reports/receiptDetails";
 import { buildShiftDiscountBreakdown } from "@/lib/posDiscountBreakdown";
 import ReceiptEditModal from "@/components/admin/ReceiptEditModal";
@@ -715,17 +715,6 @@ function voucherLabel(value) {
     voucher.code || voucher.voucher_code || voucher.id,
     voucher.reward_text || voucher.reward || voucher.name || voucher.title || voucher.description,
   ].map(normalizeReceiptText).filter(Boolean).join(" - ");
-}
-
-function receiptPointsEarned(order, items) {
-  const storedPoints = Number(order?.loyaltyPointsAwarded ?? order?.raw?.loyalty_points_awarded ?? order?.raw?.points_earned);
-  if (Number.isFinite(storedPoints)) return storedPoints;
-
-  const detailItems = items.length
-    ? items
-    : [{ itemName: order.raw?.description || order.raw?.Description || "Receipt total", quantity: 1, unitPrice: order.net, net: order.net }];
-  const eligibleTotal = detailItems.reduce((sum, item) => sum + loyaltyEligibleLineTotal(item, item.net), 0);
-  return Number((eligibleTotal * 0.04).toFixed(2));
 }
 
 function ReceiptDrawer({ order, items = [], onClose, onEdit }) {

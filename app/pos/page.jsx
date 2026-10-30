@@ -3,6 +3,7 @@ import { excludesFunctionRoomLoyalty } from "@/lib/bookings/loyaltyEligibility.m
 import { reservationBookingName, reservationReceiptItems } from "@/lib/bookings/receiptDisplay.mjs";
 import { bookingDisplayLabel, bookingReceiptLabel } from "@/lib/bookings/posBookingDisplay.mjs";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
+import { receiptPointsEarned } from "@/lib/loyalty/receiptPoints.mjs";
 import { initialItemSelections } from "@/lib/posItemSelections.mjs";
 import BookingReminders from "@/components/pos/BookingReminders";
 import { priceForMenuChannel } from "@/lib/deliveryPricing";
@@ -1644,8 +1645,6 @@ function buildReceiptText({
   cashierName,
   cashTendered = null,
   changeDue = null,
-  loyaltyAlreadyAwarded = false,
-  loyaltyEligibleTotal = null,
 }) {
   const rs = receiptSettings || {};
   const lines = [];
@@ -1676,13 +1675,9 @@ function buildReceiptText({
   const totalValue = Number(order?.source_metadata?.reservation_bill_total ?? total ?? subtotalValue - discountValue);
   const customerName = customerDisplayName(customer);
   const customerPhone = customerDisplayPhone(customer);
-  const pointsBaseValue = loyaltyEligibleTotal === null || typeof loyaltyEligibleTotal === "undefined"
-    ? totalValue
-    : Number(loyaltyEligibleTotal || 0);
-  const excludesLoyalty = excludesFunctionRoomLoyalty({ ...order, dining_option: order?.dining_option || diningOptionName });
-  const pointsEarned = customerName && !excludesLoyalty ? calcLoyaltyPoints(pointsBaseValue) : 0;
+  const pointsEarned = receiptPointsEarned({ ...order, dining_option: order?.dining_option || diningOptionName });
   const availablePoints = customerName
-    ? Number((customerAvailablePoints(customer) + (loyaltyAlreadyAwarded ? 0 : pointsEarned)).toFixed(2))
+    ? Number(Number(order?.receipt_points_balance ?? customerAvailablePoints(customer)).toFixed(2))
     : 0;
 
   lines.push(centerReceiptText(businessName));
@@ -1739,9 +1734,9 @@ function buildReceiptText({
     if (itemDiscount > 0) lines.push(receiptPair("  Item discount", `-${receiptAmount(itemDiscount)}`));
   });
   lines.push(receiptLine());
-  if (customerName) {
-    lines.push(receiptPair("Points earned", receiptAmount(pointsEarned)));
-    lines.push(receiptPair("Points balance", receiptAmount(availablePoints)));
+  if (customerName || excludesFunctionRoomLoyalty({ ...order, dining_option: order?.dining_option || diningOptionName })) {
+    lines.push(receiptPair("Points earned", pointsEarned.toFixed(2)));
+    if (customerName) lines.push(receiptPair("Points balance", availablePoints.toFixed(2)));
     lines.push(receiptLine());
   }
   if (discountValue > 0) {
@@ -9856,6 +9851,16 @@ export default function POSPage() {
         } else {
           console.warn("Charge completed without an attached open ticket id; skipped open_tickets cleanup.");
         }
+      }
+
+      if (loyaltyAlreadyAwarded) {
+        try {
+          const { data: recordedAward, error: recordedError } = await supabase.from("orders")
+            .select("loyalty_points_awarded,loyalty_points_awarded_at,receipt_points_balance")
+            .eq("id", orderRow.id).maybeSingle();
+          if (!recordedError && recordedAward) Object.assign(orderRow, recordedAward);
+          else console.warn("Receipt award snapshot unavailable:", recordedError?.message);
+        } catch (error) { console.warn("Receipt award snapshot unavailable:", error?.message); }
       }
 
       const receipt = buildReceiptText({
