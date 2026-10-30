@@ -50,6 +50,7 @@ Meta must reach the callback over public HTTPS with a valid certificate. The POS
 - In the default `agent` mode, every normal text message and postback is answered by AI using recent conversation history.
 - JujaBot loads customer-visible names, descriptions, base prices, variant prices, and availability directly from `menu_items` before each AI answer.
 - JujaBot loads active package details from `function_room_packages` and derives the next 60 days of fixed-slot availability from `function_room_bookings`. Booking customer details and booking IDs are never sent to the AI.
+- Function-room extension prices come from the shared `lib/bookings/extensionPolicy.js` policy used by the booking UI. Extension charges are fees only and never add consumable food-and-drink credit; legacy `extension_option1`/`extension_option2` package text is not sent to JujaBot.
 - JujaBot fetches the Messenger customer profile once when needed, stores the provided first name in `messenger_contacts`, and includes that verified first name in AI replies. It does not guess names.
 - Administrators can edit AI instructions, verified business reference notes, live-menu grounding, and function-room grounding from `/admin/messenger`.
 - Menu questions include `https://www.jujabrewandbites.com/menu`, while function-room questions include `https://www.jujabrewandbites.com/function-room`.
