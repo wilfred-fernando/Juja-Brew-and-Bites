@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeftRight, Boxes, CalendarDays, RefreshCw, Save, Send, Table2 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { convertQuantity, normalizeUnit } from "@/lib/inventory";
+import { convertQuantity, loadPurchasedInventoryItemIds, normalizeUnit } from "@/lib/inventory";
 import { manilaDate, shiftBusinessDate } from "@/lib/businessDay";
 
 const supabase = getSupabaseClient();
@@ -240,13 +240,14 @@ export default function FinanceInventoryManager() {
       return;
     }
 
-    const [storesRes, itemsRes, refsRes] = await Promise.all([
+    const [storesRes, itemsRes, refsRes, purchasedRes] = await Promise.all([
       supabase.from("stores").select("id, name, is_active, sort_order, created_at").order("sort_order").order("created_at"),
       supabase.from("inventory_items").select("id, item_name, common_name, common_name_id, category, unit, is_active").eq("is_active", true).order("item_name"),
       supabase.from("finance_references").select("name, common_name, item_category, reference_quantity, reference_unit, show_to_cashier").eq("ref_type", "item").eq("is_active", true),
+      loadPurchasedInventoryItemIds(supabase),
     ]);
 
-    const error = [storesRes.error, itemsRes.error, refsRes.error].find(Boolean);
+    const error = [storesRes.error, itemsRes.error, refsRes.error, purchasedRes.error].find(Boolean);
     if (error) {
       showNotice("error", `Inventory setup failed: ${error.message}`);
       setLoading(false);
@@ -262,7 +263,8 @@ export default function FinanceInventoryManager() {
     const profileIsCashier = String(profileRow?.role || "").toLowerCase() === "cashier";
     const referenceRows = (refsRes.data || []).filter((row) => !profileIsCashier || row.show_to_cashier !== false);
     const visibleItemNames = new Set(referenceRows.map((row) => normalizeText(row.name)));
-    const itemRows = (itemsRes.data || []).filter((item) => !profileIsCashier || visibleItemNames.size === 0 || visibleItemNames.has(normalizeText(item.item_name)));
+    const itemRows = (itemsRes.data || []).filter((item) => purchasedRes.data.has(String(item.id))
+      && (!profileIsCashier || visibleItemNames.has(normalizeText(item.item_name))));
     setItems(itemRows);
     setReferences(referenceRows);
     setSelectedStoreId((prev) => {

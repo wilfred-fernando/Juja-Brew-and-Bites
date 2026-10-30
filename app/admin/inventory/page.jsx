@@ -17,7 +17,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { INVENTORY_UNITS, normalizeUnit } from "@/lib/inventory";
+import { INVENTORY_UNITS, loadPurchasedInventoryItemIds, normalizeUnit } from "@/lib/inventory";
 import { formatDateTime } from "@/lib/dateFormat";
 
 const supabase = getSupabaseClient();
@@ -163,7 +163,7 @@ export default function AdminInventoryPage() {
 
   async function loadData() {
     setLoading(true);
-    const [itemRes, commonRes, txRes, recipeRes, menuRes, warningRes, settingsRes, financeRefRes] = await Promise.all([
+    const [itemRes, commonRes, txRes, recipeRes, menuRes, warningRes, settingsRes, financeRefRes, purchasedRes] = await Promise.all([
       supabase.from("inventory_items").select("*, common_inventory_names(common_name)").order("item_name"),
       supabase.from("common_inventory_names").select("*").order("common_name"),
       supabase.from("inventory_transactions").select("*, inventory_items(item_name, common_name), common_inventory_names(common_name)").order("created_at", { ascending: false }).limit(300),
@@ -172,21 +172,27 @@ export default function AdminInventoryPage() {
       supabase.from("inventory_warnings").select("*").eq("is_resolved", false).order("created_at", { ascending: false }).limit(100),
       supabase.from("inventory_settings").select("*").eq("id", "default").maybeSingle(),
       supabase.from("finance_references").select("name, reference_quantity, reference_unit").eq("ref_type", "item").eq("is_active", true),
+      loadPurchasedInventoryItemIds(supabase),
     ]);
 
-    const error = [itemRes.error, commonRes.error, txRes.error, recipeRes.error, menuRes.error, warningRes.error, settingsRes.error].find(Boolean);
+    const error = [itemRes.error, commonRes.error, txRes.error, recipeRes.error, menuRes.error, warningRes.error, settingsRes.error, purchasedRes.error].find(Boolean);
     if (error) {
       showNotice("error", `Inventory tables unavailable. Run supabase/inventory_system_setup.sql first. ${error.message}`);
       setLoading(false);
       return;
     }
-    setItems(itemRes.data || []);
+    const purchasedItems = (itemRes.data || []).filter((item) => purchasedRes.data.has(String(item.id)));
+    const purchasedCommonIds = new Set(purchasedItems.map((item) => item.common_name_id).filter(Boolean));
+    const isPurchasedItemRow = (row) => row.inventory_item_id
+      ? purchasedRes.data.has(String(row.inventory_item_id))
+      : purchasedCommonIds.has(row.common_name_id);
+    setItems(purchasedItems);
     setCommonNames(commonRes.data || []);
-    setTransactions(txRes.data || []);
+    setTransactions((txRes.data || []).filter(isPurchasedItemRow));
     setRecipes(recipeRes.data || []);
     setMenuItems(menuRes.data || []);
     setFinanceItemReferences(financeRefRes.error ? [] : financeRefRes.data || []);
-    setWarnings(warningRes.data || []);
+    setWarnings((warningRes.data || []).filter(isPurchasedItemRow));
     setSettings(settingsRes.data || null);
     setLoading(false);
   }
