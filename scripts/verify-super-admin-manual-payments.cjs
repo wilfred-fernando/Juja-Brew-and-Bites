@@ -1,0 +1,22 @@
+const {loadEnvConfig}=require('@next/env');loadEnvConfig(process.cwd());
+const {Client}=require('pg'),fs=require('fs'),assert=require('assert/strict'),{randomUUID}=require('crypto');
+(async()=>{const d=new Client({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false}});await d.connect();
+const one=async(s,a=[])=>(await d.query(s,a)).rows[0];
+const actor=async(id)=>d.query("select set_config('request.jwt.claim.sub',$1,true),set_config('request.jwt.claims',$2,true)",[id,JSON.stringify({sub:id,role:'authenticated'})]);
+try{await d.query('begin');await d.query("set local lock_timeout='5s'");
+await d.query(fs.readFileSync('supabase/migrations/20261030100000_super_admin_manual_payment_approval.sql','utf8').replace(/^begin;\s*/,'').replace(/commit;\s*$/,''));
+await d.query('savepoint fixtures');
+const admin=await one("select id from profiles where lower(role)='super_admin' limit 1");
+const cashier=await one("select p.id,p.store_id from profiles p join stores s on s.id::text=p.store_id::text where lower(p.role)='cashier' and coalesce(s.store_name,s.name,'') ilike '%Pasong Tamo%' limit 1");assert.ok(admin&&cashier);
+await d.query("insert into cashier_pos(id,store_id,cashier_id,mode,cash_total,created_at) values($1,$2,$3,'open',0,clock_timestamp())",['test-super-manual-'+randomUUID(),cashier.store_id,cashier.id]);
+let day=10,checks=0;
+const seed=async(method,extra={})=>{const date='2087-03-'+day++;return (await one('select public.create_manual_booking($1::json) b',[JSON.stringify({customer_name:'ROLLBACK SUPER ADMIN',event_type:'Verification',business_date:date,start_at:date+'T10:00:00+08:00',duration_hours:3,extension_hours:0,package_id:1,guest_count:1,contact_number:'0000000000',email:'rollback@example.invalid',deposit_amount:1000,payment_method:method,payment_status:'submitted',status:'confirmed',created_via:'admin',...extra})])).b;};
+await actor(admin.id);
+for(const method of ['Cash','Card','QRPH']){const b=await seed(method);assert.equal(b.status,'confirmed');assert.equal(b.payment_status,'approved');const v=await one('select * from booking_reservation_vouchers where booking_id=$1',[b.id]);assert.ok(v.collection_order_id);assert.equal(v.payment_method,method);assert.equal(Number(v.amount),1000);checks+=5;}
+const waived=await seed('Waived',{deposit_amount:0});assert.equal(waived.payment_status,'waived');assert.equal((await one('select count(*)::int n from booking_reservation_vouchers where booking_id=$1',[waived.id])).n,0);checks+=2;
+const pending=await seed('QRPH',{status:'pending'});assert.equal(pending.status,'pending');assert.equal(pending.payment_status,'approved');assert.equal((await one('select count(*)::int n from booking_reservation_vouchers where booking_id=$1',[pending.id])).n,0);checks+=3;
+await actor(cashier.id);const staff=await seed('Cash',{role:'super_admin'});assert.equal(staff.status,'pending');assert.equal(staff.payment_status,'cash_pending');assert.equal((await one('select count(*)::int n from booking_reservation_vouchers where booking_id=$1',[staff.id])).n,0);checks+=3;
+await d.query('set constraints all immediate');await d.query('rollback to savepoint fixtures');
+if(process.argv.includes('--apply'))await d.query('commit');else await d.query('rollback');
+console.log(checks+' Super Admin Cash/Card/QRPH approval, waived fee, pending schedule and cashier role-spoofing checks passed. Fixtures rolled back; migration '+(process.argv.includes('--apply')?'installed':'rolled back')+'.');
+}catch(e){await d.query('rollback');throw e;}finally{await d.end();}})().catch(e=>{console.error(e.message,e.where||'');process.exitCode=1});
