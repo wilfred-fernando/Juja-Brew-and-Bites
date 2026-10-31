@@ -1,0 +1,24 @@
+require('@next/env').loadEnvConfig(process.cwd());
+const fs=require('fs'),assert=require('node:assert/strict');const {createClient}=require('@supabase/supabase-js');
+(async()=>{
+ const lib=await import('data:text/javascript;base64,'+Buffer.from(fs.readFileSync('lib/inventory.js')).toString('base64'));
+ const {loadInventoryRowsByIds}=lib;
+ const calls=[];const mock={from(){return{select(){return this},in(column,ids){assert(ids.length<=100);this.ids=ids;return this},order(){return this},async range(start,end){calls.push(this.ids);return {data:this.ids.map(id=>({id})).slice(start,end+1),error:null}}}}};
+ const ids=Array.from({length:579},(_,i)=>`id-${i}`);
+ assert.equal((await loadInventoryRowsByIds(mock,'orders','id',[...ids,ids[0]])).data.length,579);assert.equal(calls.length,6);
+ assert.deepEqual((await loadInventoryRowsByIds(mock,'orders','id',[])).data,[]);
+ const s=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false}});
+ const store='bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e';
+ const e=await s.from('finance_expenses').select('id,expense_date,store_id,petty_cash_entry_id,inventory_item_id,quantity,unit').lte('expense_date','2026-10-30').order('expense_date').limit(10000);assert.ifError(e.error);
+ const expenses=e.data.filter(row=>row.store_id===store);
+ const links=await loadInventoryRowsByIds(s,'expense_inventory_links','expense_id',expenses.map(row=>row.id));assert.ifError(links.error);assert.equal(links.data.length,6);
+ const {data:items,error}=await s.from('inventory_items').select('*').in('id',links.data.map(row=>row.inventory_item_id));assert.ifError(error);
+ const source=fs.readFileSync('components/finance/FinanceInventoryManager.jsx','utf8');
+ const fn=source.slice(source.indexOf('  function calculateSourceTotals('),source.indexOf('  async function loadBase()'));
+ const calc=new Function('items','toBulk','selectedStoreId',`${fn};return calculateSourceTotals`)(items,(_item,qty)=>Number(qty),store);
+ const totals=calc({purchaseLinks:links.data,expenseRows:expenses});
+ assert.equal(totals.purchaseRows,6);
+ console.log(JSON.stringify({batchedIds:579,requests:6,oct31Beginning:items.map(item=>({item:item.item_name,quantity:totals.purchases[item.id]}))}));
+ for(const item of items)assert.equal(totals.purchases[item.id],item.item_name.includes('Lid')?500:1000);
+ console.log('PASS: live historical requests, correct opening quantities, no double counting, batching and empty results.');
+})().catch(e=>{console.error(e.message);process.exitCode=1});

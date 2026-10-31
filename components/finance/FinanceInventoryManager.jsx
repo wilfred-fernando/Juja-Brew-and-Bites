@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeftRight, Boxes, CalendarDays, RefreshCw, Save, Send, Table2 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { convertQuantity, loadPurchasedInventoryItemIds, normalizeUnit } from "@/lib/inventory";
+import { convertQuantity, loadInventoryRowsByIds, loadPurchasedInventoryItemIds, normalizeUnit } from "@/lib/inventory";
 import { manilaDate, shiftBusinessDate } from "@/lib/businessDay";
 
 const supabase = getSupabaseClient();
@@ -322,12 +322,10 @@ export default function FinanceInventoryManager() {
     ));
     const historicalExpenseIds = historicalRelevantExpenses.map((row) => row.id);
 
-    const linksRes = expenseIds.length
-      ? await supabase.from("expense_inventory_links").select("*").in("expense_id", expenseIds)
-      : { data: [], error: null };
-    const historicalLinksRes = historicalExpenseIds.length
-      ? await supabase.from("expense_inventory_links").select("*").in("expense_id", historicalExpenseIds)
-      : { data: [], error: null };
+    const [linksRes, historicalLinksRes] = await Promise.all([
+      loadInventoryRowsByIds(supabase, "expense_inventory_links", "expense_id", expenseIds),
+      loadInventoryRowsByIds(supabase, "expense_inventory_links", "expense_id", historicalExpenseIds),
+    ]);
 
     const orderIds = [...new Set(currentTxRows
       .filter((tx) => tx.reference_type === "pos_order" && tx.reference_id)
@@ -335,12 +333,10 @@ export default function FinanceInventoryManager() {
     const historicalOrderIds = [...new Set(historicalTxRows
       .filter((tx) => tx.reference_type === "pos_order" && tx.reference_id)
       .map((tx) => tx.reference_id))];
-    const ordersRes = orderIds.length
-      ? await supabase.from("orders").select("id, store_id, branch_id").in("id", orderIds)
-      : { data: [], error: null };
-    const historicalOrdersRes = historicalOrderIds.length
-      ? await supabase.from("orders").select("id, store_id, branch_id").in("id", historicalOrderIds)
-      : { data: [], error: null };
+    const [ordersRes, historicalOrdersRes] = await Promise.all([
+      loadInventoryRowsByIds(supabase, "orders", "id", orderIds, "id, store_id, branch_id"),
+      loadInventoryRowsByIds(supabase, "orders", "id", historicalOrderIds, "id, store_id, branch_id"),
+    ]);
 
     if (linksRes.error || historicalLinksRes.error || ordersRes.error || historicalOrdersRes.error) {
       showNotice("error", (linksRes.error || historicalLinksRes.error || ordersRes.error || historicalOrdersRes.error).message);
