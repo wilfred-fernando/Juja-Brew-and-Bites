@@ -697,7 +697,7 @@ export default function AdminInventoryPage() {
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Recipe Sorting</p>
             <p className="text-sm text-slate-700">Recipes are sorted by menu category, then menu item name. Ingredients use Common Name totals.</p>
-            <p className="mt-1 text-xs text-slate-500">Category cup rules use one cup per drink. Drinks without a size use Regular; Hot drinks use Hot Cup 12oz.</p>
+            <p className="mt-1 text-xs text-slate-500">Category cup rules use one cup per takeout, GrabFood, ShopeeFood or online takeout/delivery drink. Dine-in and VIP use reusable cups. Drinks without a size use Regular; Hot drinks use Hot Cup 12oz.</p>
           </div>
           <div className="grid gap-2 sm:min-w-[520px] sm:grid-cols-[1fr_1fr_auto] sm:items-end">
             <Field label="Search Menu Items">

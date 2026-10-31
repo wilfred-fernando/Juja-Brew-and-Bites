@@ -20,6 +20,7 @@ join menu_item_ingredients r on r.menu_item_id='category:'||coalesce(nullif(line
 join common_inventory_names c on c.id=r.common_name_id
 join inventory_items i on i.common_name_id=c.id and i.is_active is true
 where coalesce(o.store_id,o.branch_id)=$1 and o.created_at >=$2::timestamptz
+ and inventory_uses_disposable_cups(o.dining_option,o.order_type)
  and o.status in ('paid','completed') and o.voided_at is null and o.refunded_at is null
  and coalesce((line->>'quantity')::numeric,0)>0
  and c.common_name in ('Slim Cup - 16oz','Slim Cup - 22oz','Pet Cup - 16oz','Pet Cup - 20oz','Hot Cup 12oz')

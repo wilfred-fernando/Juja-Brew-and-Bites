@@ -2,7 +2,7 @@ const { loadEnvConfig } = require('@next/env'); loadEnvConfig(process.cwd());
 const { Client } = require('pg');
 const fs = require('fs');
 const assert = require('node:assert/strict');
-const migrations = ['supabase/migrations/20261031090000_category_cup_inventory.sql', 'supabase/migrations/20261031100000_hot_cup_inventory.sql'];
+const migrations = ['supabase/migrations/20261031090000_category_cup_inventory.sql', 'supabase/migrations/20261031100000_hot_cup_inventory.sql', 'supabase/migrations/20261031110000_disposable_cup_dining_policy.sql'];
 (async () => {
   const db = new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
   await db.connect();
@@ -22,11 +22,15 @@ const migrations = ['supabase/migrations/20261031090000_category_cup_inventory.s
     const store = await one('select id from stores limit 1');
     const categories = (await db.query("select distinct substring(menu_item_id from 10) category from menu_item_ingredients where menu_item_id like 'category:%'")).rows;
     let count=0;
-    async function check(category, label, expected, legacy=false) {
+    async function check(category, label, expected, legacy=false, dining='TAKEOUT', orderType=null) {
+      if (/vip/i.test(`${dining} ${orderType || ''}`)) {
+        assert.equal((await one('select inventory_uses_disposable_cups($1,$2) allowed',[dining,orderType])).allowed,false);
+        count++; return;
+      }
       const menu = await one('select id,name from menu_items where category=$1 limit 1',[category]);
       const options = label ? [{groupName:'Variant', name:label}] : [];
       const savedLine = {id:menu.id, name:menu.name, quantity:2, selectedOptions:options};
-      const order = await one("insert into orders(branch_id,store_id,items,status) values($1,$1,$2,'completed') returning id",[String(store.id),JSON.stringify([savedLine])]);
+      const order = await one("insert into orders(branch_id,store_id,items,status,dining_option,order_type) values($1,$1,$2,'completed',$3,$4) returning id",[String(store.id),JSON.stringify([savedLine]),dining,orderType]);
       const line={menu_item_id:menu.id,name:menu.name,quantity:2};
       if(!legacy)line.selected_options=options;
       const call=async()=> (await one('select deduct_inventory_for_pos_order($1,$2,$3) result',[String(order.id),JSON.stringify([line]),admin.id])).result;
@@ -52,6 +56,11 @@ const migrations = ['supabase/migrations/20261031090000_category_cup_inventory.s
     await check('SHAKE',null,'Slim Cup - 16oz');
     await check('PARFAIT',null,'Pet Cup - 16oz');
     await check('CAKE','Large',null);
+    for (const dining of ['Take-out','GRAB 022','GrabFood','ShopeeFood 59','SHOPEE - 123','ONLINE: TAKEOUT','ONLINE: DELIVERY'])
+      await check('LATTE (COFFEE)','Iced (L)','Pet Cup - 20oz',false,dining);
+    for (const dining of ['Dine-in','TABLE 1','VIP Booking abc','ONLINE: DINE-IN','Foodpanda',''])
+      await check('LATTE (COFFEE)','Hot (R)',null,false,dining);
+    await check('LATTE (COFFEE)','Regular',null,false,'TAKEOUT','VIP Booking abc');
     await db.query('set constraints all immediate');
     await db.query('rollback to savepoint fixtures');
     const after=await one('select coalesce(sum(current_stock),0) stock from inventory_items');
