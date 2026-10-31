@@ -1,0 +1,17 @@
+require('@next/env').loadEnvConfig(process.cwd());const {Client}=require('pg'),fs=require('fs'),assert=require('node:assert/strict');
+(async()=>{const db=new Client({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false}});await db.connect();const one=async(sql,args=[])=>(await db.query(sql,args)).rows[0];
+try{await db.query('begin');await db.query(fs.readFileSync('supabase/migrations/20261031120000_inventory_reusable_cup_totals.sql','utf8').replace(/^begin;$/m,'').replace(/^commit;$/m,''));
+const before=await one("select md5(string_agg(md5(to_jsonb(i)::text),'' order by id)) hash from inventory_items i");
+const admin=await one("select id from profiles where lower(role) in ('admin','super_admin') limit 1");await db.query("select set_config('request.jwt.claim.sub',$1,true)",[admin.id]);
+const store='bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e';
+const rows=(await db.query('select c.common_name,t.quantity from list_inventory_reusable_cup_totals($1,$2) t join common_inventory_names c on c.id=t.common_name_id order by c.common_name',[store,'2026-10-30'])).rows;
+const expected={'Hot Cup 12oz':5,'Pet Cup - 16oz':29,'Pet Cup - 20oz':8,'Slim Cup - 16oz':28,'Slim Cup - 22oz':1};for(const row of rows)assert.equal(Number(row.quantity),expected[row.common_name]);assert.equal(rows.reduce((n,r)=>n+Number(r.quantity),0),71);
+const currentRows=(await db.query('select * from list_inventory_reusable_cup_totals($1,$2)',[store,'2026-10-31'])).rows;
+assert.deepEqual((await db.query('select * from list_inventory_reusable_cup_totals($1,$2)',[store,'2099-01-01'])).rows,[]);
+const cashier=await one("select id from profiles where lower(role)='cashier' and store_id::text<>$1 limit 1",[store]);assert(cashier);
+await db.query("select set_config('request.jwt.claim.sub',$1,true)",[cashier.id]);await db.query('savepoint denied');let denied=false;try{await db.query('select * from list_inventory_reusable_cup_totals($1,$2)',[store,'2026-10-30']);}catch(e){assert.match(e.message,/assigned store/);denied=true;}assert(denied);await db.query('rollback to savepoint denied');
+assert.equal((await one("select has_function_privilege('anon','public.list_inventory_reusable_cup_totals(text,date)','execute') allowed")).allowed,false);
+assert.deepEqual(await one("select md5(string_agg(md5(to_jsonb(i)::text),'' order by id)) hash from inventory_items i"),before);
+if(process.argv.includes('--apply'))await db.query('commit');else await db.query('rollback');
+console.log(JSON.stringify({mode:process.argv.includes('--apply')?'INSTALLED':'ROLLBACK VERIFIED',dineInVip:rows,total:71,oct31:currentRows.reduce((n,r)=>n+Number(r.quantity),0),stockUnchanged:true,cashierStoreIsolation:true,anonymousDenied:true}));
+}catch(e){await db.query('rollback');throw e;}finally{await db.end()}})().catch(e=>{console.error(e.message,e.where||'');process.exitCode=1});

@@ -76,6 +76,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
   const [pettyRows, setPettyRows] = useState([]);
   const [posTransactions, setPosTransactions] = useState([]);
   const [ordersById, setOrdersById] = useState({});
+  const [reusableCupTotals, setReusableCupTotals] = useState([]);
   const [transfers, setTransfers] = useState([]);
   const [edits, setEdits] = useState({});
   const [itemSearch, setItemSearch] = useState("");
@@ -282,7 +283,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
     const previousDate = addDays(inventoryDate, -1);
     const { start, end } = dateRangeForManila(inventoryDate);
 
-    const [entriesRes, historicalEntriesRes, transfersRes, expensesRes, pettyRes, txRes, historicalTransfersRes, historicalExpensesRes, historicalPettyRes, historicalTxRes, shiftRes] = await Promise.all([
+    const [entriesRes, historicalEntriesRes, transfersRes, expensesRes, pettyRes, txRes, historicalTransfersRes, historicalExpensesRes, historicalPettyRes, historicalTxRes, shiftRes, reusableRes] = await Promise.all([
       supabase.from("finance_daily_inventory_entries").select("*").eq("store_id", selectedStoreId).eq("inventory_date", inventoryDate),
       supabase.from("finance_daily_inventory_entries").select("*").eq("store_id", selectedStoreId).lte("inventory_date", previousDate).order("inventory_date").limit(10000),
       supabase.from("finance_inventory_transfers").select("*").eq("transfer_date", inventoryDate).or(`from_store_id.eq.${selectedStoreId},to_store_id.eq.${selectedStoreId}`),
@@ -294,9 +295,10 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
       supabase.from("finance_petty_cash_entries").select("id, expense_date, inventory_item_id, quantity, unit").eq("store_id", selectedStoreId).lte("expense_date", previousDate).order("expense_date").limit(10000),
       supabase.from("inventory_transactions").select("*").eq("transaction_type", "pos_deduction").lt("created_at", start).order("created_at").limit(10000),
       supabase.from("cashier_pos").select("*").lte("created_at", addDays(inventoryDate, 2) + "T00:00:00+08:00").order("created_at").limit(10000),
+      supabase.rpc("list_inventory_reusable_cup_totals", { p_store_id: selectedStoreId, p_inventory_date: inventoryDate }),
     ]);
 
-    const error = [entriesRes.error, historicalEntriesRes.error, transfersRes.error, expensesRes.error, pettyRes.error, txRes.error, historicalTransfersRes.error, historicalExpensesRes.error, historicalPettyRes.error, historicalTxRes.error, shiftRes.error].find(Boolean);
+    const error = [entriesRes.error, historicalEntriesRes.error, transfersRes.error, expensesRes.error, pettyRes.error, txRes.error, historicalTransfersRes.error, historicalExpensesRes.error, historicalPettyRes.error, historicalTxRes.error, shiftRes.error, reusableRes.error].find(Boolean);
     if (error) {
       showNotice("error", `Daily inventory failed: ${error.message}`);
       setLoading(false);
@@ -389,6 +391,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
     }));
 
     setDailyEntries(entriesRes.data || []);
+    setReusableCupTotals(reusableRes.data || []);
     setPreviousEntries(previousComputedEntries);
     setTransfers(transfersRes.data || []);
     setPurchaseLinks(linksRes.data || []);
@@ -658,7 +661,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className={`w-full border-collapse text-sm ${isCashier ? "min-w-[1540px]" : "min-w-[1680px]"}`}>
+          <table className={`w-full border-collapse text-sm ${isCashier ? "min-w-[1640px]" : "min-w-[1780px]"}`}>
             <thead className="bg-slate-100 text-slate-800">
               <tr className="border-b border-slate-300 text-center text-[11px] font-semibold uppercase tracking-[0.12em]">
                 {!isCashier ? <th rowSpan={2} className="border-r border-slate-300 px-3 py-3 text-left">Item Name</th> : null}
@@ -669,6 +672,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
                 <th colSpan={2} className="border-r border-slate-300 px-3 py-2">Total</th>
                 <th colSpan={2} className="border-r border-slate-300 px-3 py-2">Transfer</th>
                 <th className="w-[88px] border-r border-slate-300 px-2 py-2">POS Auto Deduct</th>
+                <th rowSpan={2} className="w-[100px] border-r border-slate-300 px-2 py-2" title="Dine-in and VIP drinks use reusable cups. This total does not reduce inventory.">Dine-in / VIP<br /><span className="text-[9px] font-normal normal-case tracking-normal">No deduction</span></th>
                 <th colSpan={3} className="border-r border-slate-300 px-2 py-2">Manual Adjustment</th>
                 <th colSpan={2} className="w-[170px] px-4 py-2">Ending</th>
               </tr>
@@ -708,6 +712,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
                     <td className="border-r border-slate-200 px-3 py-3"><QuantityCell item={row.item} value={row.transfer} part="bulk" /></td>
                     <td className="border-r border-slate-200 px-3 py-3"><QuantityCell item={row.item} value={row.transfer} part="small" /></td>
                     <td className="border-r border-slate-200 px-2 py-3 text-right text-xs tabular-nums text-red-700">{qty(posSmall.small || posSmall.bulk)} {posSmall.smallUnit}</td>
+                    <td className="border-r border-slate-200 px-2 py-3 text-right text-xs tabular-nums text-slate-600">{qty(reusableCupTotals.find((total) => total.common_name_id === row.item.common_name_id)?.quantity)} pc</td>
                     <td className="border-r border-slate-200 px-1.5 py-2"><ManualInput item={row.item} row={row} part="bulk" /></td>
                     <td className="border-r border-slate-200 px-1.5 py-2"><ManualInput item={row.item} row={row} part="small" /></td>
                     <td className="border-r border-slate-200 px-2 py-2"><Input value={row.note} onChange={(e) => updateRow(row.item, "note", e.target.value)} placeholder="Note" /></td>
