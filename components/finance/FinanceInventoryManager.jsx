@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeftRight, Boxes, CalendarDays, RefreshCw, Save, Send, Table2 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { convertQuantity, loadInventoryRowsByIds, loadPurchasedInventoryItemIds, normalizeUnit } from "@/lib/inventory";
+import { convertQuantity, loadInventoryPurchases, loadInventoryRowsByIds, loadPurchasedInventoryItemIds, normalizeUnit } from "@/lib/inventory";
 import { manilaDate, shiftBusinessDate } from "@/lib/businessDay";
 
 const supabase = getSupabaseClient();
@@ -71,9 +71,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
   const [references, setReferences] = useState([]);
   const [dailyEntries, setDailyEntries] = useState([]);
   const [previousEntries, setPreviousEntries] = useState([]);
-  const [purchaseLinks, setPurchaseLinks] = useState([]);
   const [expenseRows, setExpenseRows] = useState([]);
-  const [pettyRows, setPettyRows] = useState([]);
   const [posTransactions, setPosTransactions] = useState([]);
   const [ordersById, setOrdersById] = useState({});
   const [reusableCupTotals, setReusableCupTotals] = useState([]);
@@ -256,8 +254,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
     }
 
     const visibleStores = (storesRes.data || [])
-      .filter((store) => store.is_active !== false)
-      .filter((store) => String(profileRow?.role || "").toLowerCase() !== "cashier" || String(store.id) === String(profileRow?.store_id));
+      .filter((store) => store.is_active !== false);
 
     setProfile(profileRow || null);
     setStores(visibleStores);
@@ -283,29 +280,25 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
     const previousDate = addDays(inventoryDate, -1);
     const { start, end } = dateRangeForManila(inventoryDate);
 
-    const [entriesRes, historicalEntriesRes, transfersRes, expensesRes, pettyRes, txRes, historicalTransfersRes, historicalExpensesRes, historicalPettyRes, historicalTxRes, shiftRes, reusableRes] = await Promise.all([
+    const [entriesRes, historicalEntriesRes, transfersRes, purchasesRes, txRes, historicalTransfersRes, historicalTxRes, shiftRes, reusableRes] = await Promise.all([
       supabase.from("finance_daily_inventory_entries").select("*").eq("store_id", selectedStoreId).eq("inventory_date", inventoryDate),
       supabase.from("finance_daily_inventory_entries").select("*").eq("store_id", selectedStoreId).lte("inventory_date", previousDate).order("inventory_date").limit(10000),
       supabase.from("finance_inventory_transfers").select("*").eq("transfer_date", inventoryDate).or(`from_store_id.eq.${selectedStoreId},to_store_id.eq.${selectedStoreId}`),
-      supabase.from("finance_expenses").select("id, expense_date, store_id, petty_cash_entry_id, inventory_item_id, quantity, unit").eq("expense_date", inventoryDate),
-      supabase.from("finance_petty_cash_entries").select("id, expense_date, inventory_item_id, quantity, unit").eq("store_id", selectedStoreId).eq("expense_date", inventoryDate),
+      loadInventoryPurchases(supabase, selectedStoreId, inventoryDate),
       supabase.from("inventory_transactions").select("*").eq("transaction_type", "pos_deduction").lt("created_at", addDays(inventoryDate, 2) + "T00:00:00+08:00").order("created_at").limit(10000),
       supabase.from("finance_inventory_transfers").select("*").lte("transfer_date", previousDate).or(`from_store_id.eq.${selectedStoreId},to_store_id.eq.${selectedStoreId}`).order("transfer_date").limit(10000),
-      supabase.from("finance_expenses").select("id, expense_date, store_id, petty_cash_entry_id, inventory_item_id, quantity, unit").lte("expense_date", previousDate).order("expense_date").limit(10000),
-      supabase.from("finance_petty_cash_entries").select("id, expense_date, inventory_item_id, quantity, unit").eq("store_id", selectedStoreId).lte("expense_date", previousDate).order("expense_date").limit(10000),
       supabase.from("inventory_transactions").select("*").eq("transaction_type", "pos_deduction").lt("created_at", start).order("created_at").limit(10000),
       supabase.from("cashier_pos").select("*").lte("created_at", addDays(inventoryDate, 2) + "T00:00:00+08:00").order("created_at").limit(10000),
       supabase.rpc("list_inventory_reusable_cup_totals", { p_store_id: selectedStoreId, p_inventory_date: inventoryDate }),
     ]);
 
-    const error = [entriesRes.error, historicalEntriesRes.error, transfersRes.error, expensesRes.error, pettyRes.error, txRes.error, historicalTransfersRes.error, historicalExpensesRes.error, historicalPettyRes.error, historicalTxRes.error, shiftRes.error, reusableRes.error].find(Boolean);
+    const error = [entriesRes.error, historicalEntriesRes.error, transfersRes.error, purchasesRes.error, txRes.error, historicalTransfersRes.error, historicalTxRes.error, shiftRes.error, reusableRes.error].find(Boolean);
     if (error) {
       showNotice("error", `Daily inventory failed: ${error.message}`);
       setLoading(false);
       return;
     }
 
-    const selectedPettyIds = new Set((pettyRes.data || []).map((row) => String(row.id)));
     const shiftRows = shiftRes.data || [];
     const currentTxRows = (txRes.data || []).filter((tx) => (
       shiftBusinessDate(tx.created_at, selectedStoreId, shiftRows) === inventoryDate
@@ -313,23 +306,8 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
     const historicalTxRows = (historicalTxRes.data || []).filter((tx) => (
       shiftBusinessDate(tx.created_at, selectedStoreId, shiftRows) <= previousDate
     ));
-    const relevantExpenses = (expensesRes.data || []).filter((row) => (
-      String(row.store_id || "") === String(selectedStoreId)
-      || (row.petty_cash_entry_id && selectedPettyIds.has(String(row.petty_cash_entry_id)))
-    ));
-    const expenseIds = relevantExpenses.map((row) => row.id);
-
-    const historicalPettyIds = new Set((historicalPettyRes.data || []).map((row) => String(row.id)));
-    const historicalRelevantExpenses = (historicalExpensesRes.data || []).filter((row) => (
-      String(row.store_id || "") === String(selectedStoreId)
-      || (row.petty_cash_entry_id && historicalPettyIds.has(String(row.petty_cash_entry_id)))
-    ));
-    const historicalExpenseIds = historicalRelevantExpenses.map((row) => row.id);
-
-    const [linksRes, historicalLinksRes] = await Promise.all([
-      loadInventoryRowsByIds(supabase, "expense_inventory_links", "expense_id", expenseIds),
-      loadInventoryRowsByIds(supabase, "expense_inventory_links", "expense_id", historicalExpenseIds),
-    ]);
+    const relevantExpenses = (purchasesRes.data || []).filter((row) => row.expense_date === inventoryDate);
+    const historicalRelevantExpenses = (purchasesRes.data || []).filter((row) => row.expense_date <= previousDate);
 
     const orderIds = [...new Set(currentTxRows
       .filter((tx) => tx.reference_type === "pos_order" && tx.reference_id)
@@ -342,8 +320,8 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
       loadInventoryRowsByIds(supabase, "orders", "id", historicalOrderIds, "id, store_id, branch_id"),
     ]);
 
-    if (linksRes.error || historicalLinksRes.error || ordersRes.error || historicalOrdersRes.error) {
-      showNotice("error", (linksRes.error || historicalLinksRes.error || ordersRes.error || historicalOrdersRes.error).message);
+    if (ordersRes.error || historicalOrdersRes.error) {
+      showNotice("error", (ordersRes.error || historicalOrdersRes.error).message);
       setLoading(false);
       return;
     }
@@ -352,7 +330,6 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
     const dates = [...new Set([
       ...(historicalEntriesRes.data || []).map((row) => row.inventory_date),
       ...historicalRelevantExpenses.map((row) => row.expense_date),
-      ...(historicalPettyRes.data || []).map((row) => row.expense_date),
       ...(historicalTransfersRes.data || []).map((row) => row.transfer_date),
       ...historicalTxRows.map((row) => shiftBusinessDate(row.created_at, selectedStoreId, shiftRows)),
     ].filter(Boolean))].sort();
@@ -363,12 +340,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
         .filter((row) => row.inventory_date === date)
         .map((row) => [row.inventory_item_id, row]));
       const dateSources = calculateSourceTotals({
-        purchaseLinks: (historicalLinksRes.data || []).filter((link) => {
-          const expense = historicalRelevantExpenses.find((row) => row.id === link.expense_id);
-          return expense?.expense_date === date;
-        }),
         expenseRows: historicalRelevantExpenses.filter((row) => row.expense_date === date),
-        pettyRows: (historicalPettyRes.data || []).filter((row) => row.expense_date === date),
         transfers: (historicalTransfersRes.data || []).filter((row) => row.transfer_date === date),
         posTransactions: historicalTxRows.filter((row) => shiftBusinessDate(row.created_at, selectedStoreId, shiftRows) === date),
         ordersById: historicalOrdersById,
@@ -394,15 +366,13 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
     setReusableCupTotals(reusableRes.data || []);
     setPreviousEntries(previousComputedEntries);
     setTransfers(transfersRes.data || []);
-    setPurchaseLinks(linksRes.data || []);
     setExpenseRows(relevantExpenses);
-    setPettyRows(pettyRes.data || []);
     setPosTransactions(currentTxRows);
     setOrdersById(Object.fromEntries((ordersRes.data || []).map((row) => [String(row.id), row])));
     setEdits({});
     setTransferForm((prev) => ({
       ...prev,
-      from_store_id: prev.from_store_id || selectedStoreId,
+      from_store_id: isCashier ? selectedStoreId : prev.from_store_id || selectedStoreId,
       to_store_id: prev.to_store_id && String(prev.to_store_id) !== String(selectedStoreId) ? prev.to_store_id : "",
     }));
     setLoading(false);
@@ -418,14 +388,12 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
 
   const sourceTotals = useMemo(() => {
     return calculateSourceTotals({
-      purchaseLinks,
       expenseRows,
-      pettyRows,
       transfers,
       posTransactions,
       ordersById,
     });
-  }, [expenseRows, items, ordersById, pettyRows, posTransactions, purchaseLinks, selectedStoreId, transfers]);
+  }, [expenseRows, items, ordersById, posTransactions, selectedStoreId, transfers]);
 
   const rows = useMemo(() => items.map((item) => {
     const saved = entriesByItem[item.id];
@@ -504,6 +472,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
     if (!transferForm.from_store_id || !transferForm.to_store_id || transferForm.from_store_id === transferForm.to_store_id) {
       return showNotice("error", "Select different source and receiving stores.");
     }
+    if (isCashier && String(transferForm.from_store_id) !== String(profile?.store_id)) return showNotice("error", "Transfers must start from your assigned store.");
     const amount = combineBulkSmall(item, transferForm.bulk, transferForm.small);
     if (amount <= 0) return showNotice("error", "Enter transfer quantity.");
     const { data: sessionData } = await supabase.auth.getSession();
@@ -628,13 +597,13 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
             <option value="">Select item</option>
             {items.map((item) => <option key={item.id} value={item.id}>{isCashier ? inventoryDisplayName(item) : item.item_name}</option>)}
           </Select>
-          <Select value={transferForm.from_store_id} onChange={(e) => setTransferForm((p) => ({ ...p, from_store_id: e.target.value }))}>
+          <Select disabled={isCashier} value={transferForm.from_store_id} onChange={(e) => setTransferForm((p) => ({ ...p, from_store_id: e.target.value }))}>
             <option value="">From store</option>
             {stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
           </Select>
           <Select value={transferForm.to_store_id} onChange={(e) => setTransferForm((p) => ({ ...p, to_store_id: e.target.value }))}>
             <option value="">To store</option>
-            {stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
+            {stores.filter((store) => String(store.id) !== String(transferForm.from_store_id)).map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
           </Select>
           <Input placeholder="Bulk qty" value={transferForm.bulk} onChange={(e) => setTransferForm((p) => ({ ...p, bulk: e.target.value }))} />
           <Input placeholder="Small qty" value={transferForm.small} onChange={(e) => setTransferForm((p) => ({ ...p, small: e.target.value }))} />
