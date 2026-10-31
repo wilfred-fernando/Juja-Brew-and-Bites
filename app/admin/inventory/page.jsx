@@ -673,8 +673,13 @@ export default function AdminInventoryPage() {
   function renderRecipes() {
     const menuSearch = normalizeText(recipeMenuSearch);
     const recipesByMenu = recipes.reduce((map, row) => {
-      map[row.menu_item_id] = map[row.menu_item_id] || [];
-      map[row.menu_item_id].push(row);
+      const targets = row.menu_item_id.startsWith("category:")
+        ? menuItems.filter((menu) => `category:${menu.category}` === row.menu_item_id).map((menu) => String(menu.id))
+        : [row.menu_item_id];
+      targets.forEach((id) => {
+        map[id] = map[id] || [];
+        map[id].push(row);
+      });
       return map;
     }, {});
     const sortedMenuItems = [...menuItems].sort((a, b) => {
@@ -692,6 +697,7 @@ export default function AdminInventoryPage() {
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Recipe Sorting</p>
             <p className="text-sm text-slate-700">Recipes are sorted by menu category, then menu item name. Ingredients use Common Name totals.</p>
+            <p className="mt-1 text-xs text-slate-500">Category cup rules use one cup per drink. Drinks without a size use Regular; Hot drinks use Hot Cup 12oz.</p>
           </div>
           <div className="grid gap-2 sm:min-w-[520px] sm:grid-cols-[1fr_1fr_auto] sm:items-end">
             <Field label="Search Menu Items">
@@ -732,7 +738,9 @@ export default function AdminInventoryPage() {
                               <p className="font-medium text-slate-800">{row.common_inventory_names?.common_name || row.inventory_items?.common_name || "Common name"}</p>
                               <p className="text-[11px] text-slate-500">Available: {aggregateCommonStockDisplay(commonNameId)}</p>
                             </div>
-                            <button onClick={() => openRecipe(row)} className="shrink-0 text-cyan-700">{row.quantity_required} {unitLabel(row.unit)}</button>
+                            {row.menu_item_id.startsWith("category:") ? (
+                              <span className="shrink-0 text-xs text-cyan-700">{row.variant_name}: {row.quantity_required} {unitLabel(row.unit)} / drink</span>
+                            ) : <button onClick={() => openRecipe(row)} className="shrink-0 text-cyan-700">{row.quantity_required} {unitLabel(row.unit)}</button>}
                           </div>
                         );
                       }) : <p className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs text-amber-700">No recipe set. POS will complete sale but log a missing recipe warning.</p>}
