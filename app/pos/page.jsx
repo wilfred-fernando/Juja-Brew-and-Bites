@@ -1,4 +1,5 @@
 "use client";
+import dynamic from "next/dynamic";
 import { excludesFunctionRoomLoyalty } from "@/lib/bookings/loyaltyEligibility.mjs";
 import { reservationBookingName, reservationReceiptItems } from "@/lib/bookings/receiptDisplay.mjs";
 import { bookingDisplayLabel, bookingReceiptLabel } from "@/lib/bookings/posBookingDisplay.mjs";
@@ -77,6 +78,10 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 import { BleClient, ScanMode } from "@capacitor-community/bluetooth-le";
 
 // Initialize Supabase Client instance cleanly at layout bundle level
+const PosInventoryManager = dynamic(() => import("@/components/finance/FinanceInventoryManager"), {
+  loading: () => <p className="p-6 text-center text-sm text-slate-500">Loading inventory…</p>,
+});
+
 const supabaseGlobalInstance = getSupabaseClient();
 
 const POS_ALLOWED_ROLES = new Set(["cashier", "admin", "super_admin"]);
@@ -10493,6 +10498,7 @@ export default function POSPage() {
                     ["shift", "Shift"],
                     ["items", "Items"],
                     ["recipes", "Recipes"],
+                    ["inventory", "Inventory"],
                     ["settings", "Settings"],
                   ].map(([key, label]) => (
                     <button
@@ -10549,12 +10555,12 @@ export default function POSPage() {
 
         {managementOpen && (
           <div className="fixed inset-0 z-[140] bg-slate-950/45 backdrop-blur-sm p-3 sm:p-6 flex items-center justify-center" onClick={() => setManagementOpen(false)}>
-            <div data-pos-management className="flex w-full max-w-5xl max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-3rem)] flex-col rounded-2xl border border-rose-100 bg-white p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div data-pos-management className={`flex w-full ${managementView === "inventory" ? "max-w-[1600px]" : "max-w-5xl"} max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-3rem)] flex-col rounded-2xl border border-rose-100 bg-white p-4 shadow-2xl`} onClick={(e) => e.stopPropagation()}>
           <div className="shrink-0 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-rose-50 pb-3 mb-3">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-[#FC687D]">POS Control</p>
               <h2 className="text-md font-black text-slate-800">
-                {managementView === "receipts" ? "Receipts" : managementView === "shift" ? "Shift" : managementView === "items" ? "Items" : managementView === "recipes" ? "Recipes" : "Settings"}
+                {managementView === "receipts" ? "Receipts" : managementView === "shift" ? "Shift" : managementView === "items" ? "Items" : managementView === "recipes" ? "Recipes" : managementView === "inventory" ? "Inventory" : "Settings"}
               </h2>
             </div>
             <div className="flex items-center gap-2">
@@ -10570,6 +10576,7 @@ export default function POSPage() {
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+          {managementView === "inventory" && <PosInventoryManager initialStoreId={storeId} />}
           {managementView === "receipts" && (
             <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
               <div className="space-y-2 max-h-200 overflow-y-auto pr-">

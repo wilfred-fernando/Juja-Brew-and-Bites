@@ -62,7 +62,7 @@ function Card({ children, className = "", ...props }) {
   );
 }
 
-export default function FinanceInventoryManager() {
+export default function FinanceInventoryManager({ initialStoreId = "" }) {
   const [profile, setProfile] = useState(null);
   const [stores, setStores] = useState([]);
   const [selectedStoreId, setSelectedStoreId] = useState("");
@@ -269,7 +269,9 @@ export default function FinanceInventoryManager() {
     setReferences(referenceRows);
     setSelectedStoreId((prev) => {
       if (profileRow?.store_id && String(profileRow.role || "").toLowerCase() === "cashier") return profileRow.store_id;
-      return prev && visibleStores.some((store) => String(store.id) === String(prev)) ? prev : visibleStores[0]?.id || "";
+      const preferredStoreId = prev || initialStoreId;
+      return preferredStoreId && visibleStores.some((store) => String(store.id) === String(preferredStoreId))
+        ? preferredStoreId : visibleStores[0]?.id || "";
     });
     setLoading(false);
   }
