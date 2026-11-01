@@ -2840,12 +2840,20 @@ function WebOrdersModal({
   onReady,
   onDelivered,
   onRemoveItem,
+  onChangeOrderType,
+  changingOrderTypeId,
 }) {
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [nextOrderType, setNextOrderType] = useState("");
+  const [nextDeliveryAddress, setNextDeliveryAddress] = useState("");
   const selectedOrder = useMemo(
     () => orders.find((order) => String(order.id) === String(selectedOrderId)) || null,
     [orders, selectedOrderId]
   );
+  useEffect(() => {
+    setNextOrderType(webDiningOptionLabel(selectedOrder?.fulfillment_type || selectedOrder?.dining_option).replace("ONLINE: ", ""));
+    setNextDeliveryAddress(selectedOrder?.delivery_address || "");
+  }, [selectedOrder?.id, selectedOrder?.fulfillment_type, selectedOrder?.dining_option, selectedOrder?.delivery_address]);
 
   const webOrderPaymentLabel = (order) => {
     const raw =
@@ -2960,6 +2968,24 @@ function WebOrdersModal({
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                   <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Order Type</p>
                   <p className="mt-1 text-xs font-bold text-slate-800">{orderTypeLabel}</p>
+                  {["accepted", "preparing", "ready", ...(selectedOrder.accepted_at ? ["scheduled"] : [])].includes(status) && <div className="mt-2 space-y-2">
+                    <select aria-label="Change accepted web order type" value={nextOrderType}
+                      disabled={Boolean(changingOrderTypeId)} onChange={event => setNextOrderType(event.target.value)}
+                      className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs text-slate-800">
+                      <option value="DINE-IN">Dine-in</option>
+                      <option value="TAKEOUT">Takeout</option>
+                      <option value="DELIVERY">Delivery</option>
+                    </select>
+                    {nextOrderType === "DELIVERY" && <textarea aria-label="Delivery address" value={nextDeliveryAddress}
+                      disabled={Boolean(changingOrderTypeId)} onChange={event => setNextDeliveryAddress(event.target.value)}
+                      placeholder="Enter delivery address" rows={3} className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs text-slate-800" />}
+                    <p className="text-[10px] text-slate-600">Order total and recorded delivery fees stay unchanged.</p>
+                    <button type="button" disabled={Boolean(changingOrderTypeId) || (nextOrderType === "DELIVERY" && !nextDeliveryAddress.trim()) || (`ONLINE: ${nextOrderType}` === orderTypeLabel && (nextOrderType !== "DELIVERY" || nextDeliveryAddress.trim() === (selectedOrder.delivery_address || "")))}
+                      onClick={() => onChangeOrderType(selectedOrder, nextOrderType, nextDeliveryAddress)}
+                      className="w-full rounded-lg bg-slate-800 px-2 py-2 text-xs font-bold text-white disabled:opacity-40">
+                      {changingOrderTypeId === selectedOrder.id ? "Saving…" : "Save order type"}
+                    </button>
+                  </div>}
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                   <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Payment Type</p>
@@ -4414,6 +4440,7 @@ export default function POSPage() {
   const [savedMode, setSavedMode] = useState("resume");
   const [webOrdersOpen, setWebOrdersOpen] = useState(false);
   const [webOrders, setWebOrders] = useState([]);
+  const [changingWebOrderTypeId, setChangingWebOrderTypeId] = useState(null);
   const [splitMode, setSplitMode] = useState(false);
   const [splitSelected, setSplitSelected] = useState([]);
   const [diningOptionPickOpen, setDiningOptionPickOpen] = useState(false);
@@ -6875,14 +6902,12 @@ export default function POSPage() {
           items: savedItems,
           subtotal: Number(subtotal),
           total: Number(subtotal),
-          dining_option: webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName),
-          fulfillment_type: activeWebOrderFulfillmentType || diningOptionName || null,
         })
         .eq("id", activeWebOrderId)
         .or(buildStoreOrderFilter(activeWebOrderStore))
         .in("status", TARGET_WEB_STATUSES)
         .is("receipt_number", null)
-        .select("id")
+        .select("id, fulfillment_type, dining_option")
         .maybeSingle();
       if (error) throw error;
       if (!savedWebOrder?.id) {
@@ -6891,10 +6916,12 @@ export default function POSPage() {
         await fetchAcceptedWebOrders();
         throw new Error("This web order was already charged or closed on another POS device. The stale cart was cleared.");
       }
+      const savedWebDining = webDiningOptionLabel(savedWebOrder.fulfillment_type || savedWebOrder.dining_option);
+      setActiveWebOrderFulfillmentType(savedWebOrder.fulfillment_type || savedWebOrder.dining_option);
       await autoPrintOrderSlip({
         orderId: activeWebOrderId,
         slipCart: savedItems,
-        slipDining: webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName),
+        slipDining: savedWebDining,
         slipCustomer: attachedCustomer?.name || "Web Customer",
         slipTotal: Number(subtotal || 0),
         printedAt: new Date(),
@@ -6903,7 +6930,7 @@ export default function POSPage() {
       await autoPrintBarCupLabels({
         orderId: activeWebOrderId,
         labelCart: savedItems,
-        labelDining: webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName),
+        labelDining: savedWebDining,
         printedAt: new Date(),
       });
       return;
@@ -7304,6 +7331,30 @@ export default function POSPage() {
   async function openAcceptedWebOrders() {
     await fetchAcceptedWebOrders();
     setWebOrdersOpen(true);
+  }
+
+  async function changeAcceptedWebOrderType(order, nextType, deliveryAddress) {
+    if (!order?.id || changingWebOrderTypeId) return;
+    setChangingWebOrderTypeId(order.id);
+    try {
+      const { data: updated, error } = await supabase.rpc("change_pos_web_order_type", {
+        p_order_id: order.id, p_store_id: storeId, p_order_type: nextType,
+        p_expected_updated_at: order.updated_at,
+        p_delivery_address: nextType === "DELIVERY" ? deliveryAddress.trim() : null,
+      });
+      if (error) throw error;
+      if (!updated?.id) throw new Error("Order type was not updated. Refresh and try again.");
+      setWebOrders(rows => rows.map(row => row.id === updated.id ? updated : row));
+      if (activeWebOrderId === updated.id) {
+        setActiveWebOrderFulfillmentType(updated.fulfillment_type);
+        const option = diningOptions.find(row => String(row.name).toUpperCase() === nextType);
+        setDiningOption(option?.id || "");
+      }
+      showToast("success", "Order Type Updated", webDiningOptionLabel(updated.fulfillment_type));
+    } catch (error) {
+      showToast("error", "Order Type Not Changed", error.message);
+      await fetchAcceptedWebOrders();
+    } finally { setChangingWebOrderTypeId(null); }
   }
 
   function editAcceptedWebOrder(order) {
@@ -9521,7 +9572,7 @@ export default function POSPage() {
     if (welcomeError) return showToast("error", "Welcome Voucher", welcomeError);
     const appliedCartVouchers = getAppliedCartVouchers(cart);
     const voucherToRedeem = appliedCartVouchers[0] || null;
-    const chargedDiningLabel = activeWebOrderId
+    let chargedDiningLabel = activeWebOrderId
       ? webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName)
       : ticketDiningLabel;
     const offlineReceiptNumber = `OFF-${Date.now().toString(36).toUpperCase()}`;
@@ -9607,6 +9658,7 @@ export default function POSPage() {
           return showToast("error", "Web Order Already Charged", "This web order already has a receipt or is no longer active.");
         }
         activeWebOrderForCharge = webOrderForCharge;
+        chargedDiningLabel = webDiningOptionLabel(webOrderForCharge.fulfillment_type || webOrderForCharge.dining_option);
         const webOrderCustomer = await resolveWebOrderLoyaltyCustomer(webOrderForCharge);
         if (webOrderCustomer?.id) {
           resolvedSaleCustomer = webOrderCustomer;
@@ -11548,6 +11600,8 @@ export default function POSPage() {
         onReady={markWebOrderReady}
         onDelivered={openWebOrderCharge}
         onRemoveItem={removeAcceptedWebOrderItem}
+        onChangeOrderType={changeAcceptedWebOrderType}
+        changingOrderTypeId={changingWebOrderTypeId}
       />
       <DiningOptionModal
         open={diningOptionPickOpen}
