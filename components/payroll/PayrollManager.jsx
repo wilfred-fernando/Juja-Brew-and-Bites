@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { monthlyPayrollPeriod, monthlyAttendance, monthlyDeductions } from "@/lib/payroll/monthlyPayroll";
+import { monthlyAttendance, monthlyDeductions } from "@/lib/payroll/monthlyPayroll";
+import MonthlyPayrollSummary from "./MonthlyPayrollSummary";
 import { thirteenthMonthPeriodId, existingThirteenthMonthEntry } from "@/lib/payroll/thirteenthMonth";
 import { formatDate } from "@/lib/dateFormat";
 const supabase = getSupabaseClient();
@@ -602,7 +603,6 @@ export default function AdminPayrollPage() {
       payday: addDays(start, 7),
     };
   });
-  const [monthlyForm, setMonthlyForm] = useState(() => ({employee_id:"",month:localDate().slice(0,7)}));
   const [thirteenthMonthForm, setThirteenthMonthForm] = useState(() => {
     const year = new Date().getFullYear();
     return { employee_id: "", year: String(year), pay_date: `${year}-12-24` };
@@ -2512,32 +2512,6 @@ export default function AdminPayrollPage() {
     );
     setSaving(false);
   }
-  async function generateMonthlyPayroll(event) {
-    event.preventDefault();
-    const employee = employeeById[monthlyForm.employee_id];
-    if (!employee) return setNotice("Select an employee for monthly payroll.");
-    setSaving(true);
-    try {
-      const period = monthlyPayrollPeriod(monthlyForm.month);
-      const rows = monthlyAttendance(attendance,employee.id,period);
-      if (!rows.length) throw new Error("No attendance found for this employee in the selected month.");
-      const row = buildPayrollEntryFromAttendance({employee,period,rows,
-        repaymentRows:monthlyDeductions(repayments,employee.id,period,periods),
-        loanRepaymentRows:monthlyDeductions(loanRepayments,employee.id,period,periods),
-        miscDeductionRows:monthlyDeductions(miscDeductions,employee.id,period,periods),rateChanges});
-      row.notes = "Monthly payroll generated from attendance for " + monthlyForm.month + ".";
-      const {data,error} = await supabase.rpc("payroll_generate_monthly",{p_month:monthlyForm.month,p_entry:row});
-      if (error) throw error;
-      if (!data?.entry || !data?.period) throw new Error("Monthly payroll was not returned. Refresh before retrying.");
-      setPeriods(previous=>[data.period,...previous.filter(p=>p.id!==data.period.id)]);
-      setEntries(previous=>[data.entry,...previous.filter(e=>e.id!==data.entry.id)]);
-      setSelectedPeriodId(data.period.id);
-      setSelectedEmployeeId(employee.id);
-      setActiveTab("payroll");
-      setNotice("Monthly payroll generated for " + employee.full_name + ". Review the draft before approval.");
-    } catch(error) {setNotice("Monthly Payroll Failed: " + error.message);}
-    finally {setSaving(false);}
-  }
   async function generateThirteenthMonthPayroll(e) {
     e.preventDefault();
     const year = String(thirteenthMonthForm.year || "").trim();
@@ -2914,12 +2888,7 @@ export default function AdminPayrollPage() {
               {saving ? "Generating..." : "Generate Payroll"}{" "}
             </button>{" "}
           </form>{" "}
-          <form onSubmit={generateMonthlyPayroll} className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-5 lg:grid-cols-3">
-            <div className="lg:col-span-3"><h2 className="text-sm font-semibold text-slate-950">Monthly Payroll per Employee</h2><p className="mt-1 text-xs text-slate-500">Generate a draft for the full calendar month from attendance and applicable payroll deductions. Payday is the first day of the following month. Existing overlapping payroll must be reviewed first.</p></div>
-            <label className="text-xs font-semibold text-slate-600">Employee<select required disabled={saving} value={monthlyForm.employee_id} onChange={e=>setMonthlyForm(current=>({...current,employee_id:e.target.value}))} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"><option value="">Select employee</option>{employees.map(employee=><option key={employee.id} value={employee.id}>{employee.employee_no ? employee.employee_no+' - ' : ''}{employee.full_name}</option>)}</select></label>
-            <label className="text-xs font-semibold text-slate-600">Payroll month<input required disabled={saving} type="month" value={monthlyForm.month} onChange={e=>setMonthlyForm(current=>({...current,month:e.target.value}))} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"/></label>
-            <button disabled={saving} className="mt-6 h-11 rounded-xl bg-slate-800 px-5 text-xs font-semibold text-white disabled:bg-slate-300">{saving?'Generating...':'Generate Monthly Payroll'}</button>
-          </form>
+          <MonthlyPayrollSummary employees={employees} entries={entries} periods={periods}/>
           {thirteenthMonthGenerationForm}{" "}
         </div>
       ) : activeTab === "payroll" ? (

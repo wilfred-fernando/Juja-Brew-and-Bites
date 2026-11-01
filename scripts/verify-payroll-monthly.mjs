@@ -1,23 +1,7 @@
-import fs from 'node:fs';import pg from 'pg';import nextEnv from '@next/env';import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';
-import {monthlyPayrollPeriod,monthlyAttendance,monthlyDeductions} from '../lib/payroll/monthlyPayroll.js';
-const period=monthlyPayrollPeriod('2028-02');assert.equal(period.period_end,'2028-02-29');assert.equal(period.pay_date,'2028-03-01');assert.equal(monthlyPayrollPeriod('2026-12').pay_date,'2027-01-01');assert.throws(()=>monthlyPayrollPeriod('2026-13'));
-assert.equal(monthlyAttendance([{employee_id:'a',work_date:'2028-02-01',id:'1',updated_at:'1'},{employee_id:'a',work_date:'2028-02-01',id:'2',updated_at:'2'},{employee_id:'b',work_date:'2028-02-01'}],'a',period)[0].id,'2');
-assert.equal(monthlyDeductions([{employee_id:'a',payment_date:'2028-02-01',method:'cash',amount:10},{employee_id:'a',payment_date:'2028-02-02',method:'payroll deduction',amount:20}],'a',period,[]).length,1);
-nextEnv.loadEnvConfig(process.cwd());const db=new pg.Client({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false},connectionTimeoutMillis:10000,statement_timeout:60000});await db.connect();
-try{
- await db.query('begin');if(!(await db.query("select to_regprocedure('public.payroll_generate_monthly(text,jsonb)') installed")).rows[0].installed)await db.query(fs.readFileSync('supabase/migrations/20261101100000_payroll_monthly_generation.sql','utf8').replace(/^begin;/,'').replace(/commit;\s*$/,''));
- const admin=(await db.query("select id from profiles where lower(role) in ('admin','super_admin') limit 1")).rows[0].id;await db.query("select set_config('request.jwt.claim.sub',$1,true)",[admin]);
- const id='monthly-test-'+randomUUID(),id2=id+'-other';await db.query('insert into payroll_employees(id,full_name) values($1,$1),($2,$2)',[id,id2]);
- await db.query("insert into payroll_attendance(id,employee_id,work_date,period_id,status) select $1,$1,'2038-02-01',id,'present' from payroll_periods limit 1",[id]);
- const generate=async (employee=id,amount=500)=>(await db.query('select payroll_generate_monthly($1,$2) result',['2038-02',JSON.stringify({employee_id:employee,daily_rate:500,days_worked:1,gross_total:amount,net_total:amount})])).rows[0].result;
- const first=await generate();assert.equal(first.entry.employee_id,id);assert.equal(first.entry.net_total,500);assert.equal(first.period.period_end,'2038-02-28');assert.equal(first.entry.status,'draft');assert.equal((await generate(id,999)).entry.net_total,500);
- await db.query("insert into payroll_periods(id,label,period_start,period_end,pay_date) values($1,$1,'2038-02-01','2038-02-07','2038-02-08')",[id]);
- const reject=async fn=>{await db.query('savepoint invalid');let failed=false;try{await fn();}catch{failed=true;}await db.query('rollback to savepoint invalid');assert.ok(failed);};
- await reject(()=>db.query('insert into payroll_entries(id,employee_id,period_id) values($1,$1,$1)',[id]));
- await reject(()=>generate(id2));
- await db.query("insert into payroll_entries(id,employee_id,period_id) values($1,$1,$2)",[id2,id]);
- await db.query("insert into payroll_attendance(id,employee_id,work_date,period_id,status) values($1,$1,'2038-02-02',$2,'present')",[id2,id]);
- await reject(()=>generate(id2));
- await db.query("select set_config('request.jwt.claim.sub','',true)");await reject(()=>generate());
- console.log('PASS: month boundaries, leap year, unique attendance dates, payroll-only deductions, single employee draft, retry without overwrite, overlap guards in both directions, no attendance rejection and administrator access. All database writes rolled back.');
-}finally{await db.query('rollback');await db.end();}
+import assert from 'node:assert/strict';
+import {buildMonthlyPayrollSummary} from '../lib/payroll/monthlySummary.js';
+const periods=[{id:'oct',label:'October cutoff paid November',period_end:'2026-10-30',pay_date:'2026-11-01'},{id:'nov',label:'November cutoff',period_end:'2026-11-07',pay_date:'2026-11-08'},{id:'old',period_end:'2026-10-23',pay_date:'2026-10-24'},{id:'13th-month-2026-employee-a',period_end:'2026-12-31',pay_date:'2026-11-01'},{id:'fallback',period_end:'2026-11-30'}];
+const entries=[{id:'a1',employee_id:'a',period_id:'oct',status:'paid',days_worked:5,gross_total:2000.01,deduction_total:20.01,cash_advance_deduction:100,net_total:1880},{id:'a2',employee_id:'a',period_id:'nov',status:'draft',days_worked:6,gross_total:2400,deduction_total:0,cash_advance_deduction:0,net_total:2400},{id:'other',employee_id:'b',period_id:'nov',status:'approved',net_total:999},{id:'old',employee_id:'a',period_id:'old',status:'paid',net_total:999},{id:'void',employee_id:'a',period_id:'nov',status:'void',net_total:999},{id:'13',employee_id:'a',period_id:'13th-month-2026-employee-a',status:'paid',thirteenth_month_pay:5000,net_total:5000},{id:'fallback',employee_id:'a',period_id:'fallback',status:'approved',net_total:10.01}];
+const before=JSON.stringify({entries,periods});const report=buildMonthlyPayrollSummary(entries,periods,'a','2026-11');
+assert.deepEqual(report.rows.map(row=>row.id),['a1','a2','fallback']);assert.equal(report.totals.gross_total,4400.01);assert.equal(report.totals.net_total,4290.01);assert.equal(report.totals.deduction_total,20.01);assert.equal(report.totals.cash_advance_deduction,100);assert.equal(report.totals.days_worked,11);assert.equal(JSON.stringify({entries,periods}),before);assert.equal(buildMonthlyPayrollSummary(entries,periods,'missing','2026-11').rows.length,0);assert.throws(()=>buildMonthlyPayrollSummary(entries,periods,'a','2026-13'));
+console.log('PASS: recorded payroll only; employee and payday-month scope; missing-payday fallback; draft/approved/paid included; void and 13th month excluded; cent-exact totals; no input mutation or database writes.');
