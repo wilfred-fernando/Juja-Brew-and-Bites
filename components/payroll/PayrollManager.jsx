@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { monthlyPayrollPeriod, monthlyAttendance, monthlyDeductions } from "@/lib/payroll/monthlyPayroll";
+import { thirteenthMonthPeriodId, existingThirteenthMonthEntry } from "@/lib/payroll/thirteenthMonth";
 import { formatDate } from "@/lib/dateFormat";
 const supabase = getSupabaseClient();
 const money = (n) =>
@@ -2548,10 +2549,10 @@ export default function AdminPayrollPage() {
         "Enter a valid calendar year and a payday within that year.",
       );
     }
-    const periodId = `13th-month-${year}`;
-    const existing = entries.find(entry => entry.period_id === periodId && entry.employee_id === employee.id);
+    const periodId = thirteenthMonthPeriodId(year, employee.id);
+    const existing = existingThirteenthMonthEntry(entries, periods, year, employee.id);
     if (existing) {
-      setSelectedPeriodId(periodId);
+      setSelectedPeriodId(existing.period_id);
       setSelectedEmployeeId(employee.id);
       setActiveTab("thirteenthMonth");
       return setNotice("13th-month payroll already exists for this employee and year. Existing amounts and approval status were retained.");
@@ -2560,7 +2561,7 @@ export default function AdminPayrollPage() {
     const periodEnd = `${year}-12-31`;
     const periodPayload = {
       id: periodId,
-      label: `13th Month Pay ${year}`,
+      label: `13th Month Pay ${year} - ${employee.full_name}`,
       source_sheet: null,
       period_start: periodStart,
       period_end: periodEnd,
@@ -2614,7 +2615,7 @@ export default function AdminPayrollPage() {
     const existingPeriod = periods.find(period => period.id === periodId);
     if (existingPeriod && existingPeriod.pay_date !== payDate) {
       setSaving(false);
-      return setNotice("This year's 13th-month payroll uses payday " + dateText(existingPeriod.pay_date) + ". Choose that payday to retain other employees' records.");
+      return setNotice("This employee's 13th-month period already uses payday " + dateText(existingPeriod.pay_date) + ". Review that period before changing the payday.");
     }
     const { data: period, error: periodError } = existingPeriod
       ? {data:existingPeriod,error:null}
