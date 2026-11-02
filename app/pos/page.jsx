@@ -4,6 +4,8 @@ import { excludesFunctionRoomLoyalty } from "@/lib/bookings/loyaltyEligibility.m
 import { reservationBookingName, reservationReceiptItems } from "@/lib/bookings/receiptDisplay.mjs";
 import { bookingDisplayLabel, bookingReceiptLabel } from "@/lib/bookings/posBookingDisplay.mjs";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
+import PrinterSetupCard from "@/components/pos/PrinterSetupCard";
+import { getCupLabelSize, resizeLabelCanvas, printerMediaKey } from "@/lib/printerLabelSize.mjs";
 import AvailabilityCategoryNav from "@/components/pos/AvailabilityCategoryNav";
 import { receiptPointsEarned } from "@/lib/loyalty/receiptPoints.mjs";
 import { initialItemSelections } from "@/lib/posItemSelections.mjs";
@@ -224,6 +226,7 @@ function createPrinterProfile(role, source = {}) {
     enabled: Boolean(source?.id || source?.is_active),
     name: source?.ble_device_name || source?.name || (isCupLabel ? "NIIMBOT B1 Pro" : `${PRINTER_ROLE_LABELS[role] || "POS"} Printer`),
     model,
+    ...(isCupLabel ? { label_size: getCupLabelSize(source, isClabelCt221b ? "ct221b" : "niimbot").key } : {}),
     interface: source?.interface || "Bluetooth",
     paper_width_mm: isCupLabel ? 50 : Number(source?.paper_width_mm || PRINTER_ROLE_DEFAULT_WIDTH[role] || THERMAL_PAPER_WIDTH_MM),
     service_uuid: isClabelCt221b && savedNiimbotPair ? defaultServiceUuid : source?.ble_service_uuid || defaultServiceUuid,
@@ -936,8 +939,8 @@ function createNiimbotCupLabelCanvas(text) {
   return canvas;
 }
 
-function renderNiimbotCupLabelImage(text) {
-  const canvas = createNiimbotCupLabelCanvas(text);
+function renderNiimbotCupLabelImage(text, cfg = {}) {
+  const canvas = resizeLabelCanvas(createNiimbotCupLabelCanvas(text), getCupLabelSize(cfg));
   return canvas.toDataURL("image/png");
 }
 
@@ -1047,16 +1050,17 @@ function createCt221bCupLabelCanvas(text) {
   return canvas;
 }
 
-function buildCt221bCupLabelBytes(text) {
+function buildCt221bCupLabelBytes(text, cfg = {}) {
   const encoder = new TextEncoder();
-  const canvas = createCt221bCupLabelCanvas(text);
+  const size = getCupLabelSize(cfg, "ct221b");
+  const canvas = resizeLabelCanvas(createCt221bCupLabelCanvas(text), size);
   const { buf, stride, height } = niimbotCanvasToPacked(canvas);
   const invertedBitmap = new Uint8Array(buf.length);
   for (let index = 0; index < buf.length; index += 1) {
     invertedBitmap[index] = buf[index] ^ 0xff;
   }
   const prefix = encoder.encode([
-    `SIZE ${CT221B_53X40_LABEL_SIZE.w_mm} mm,${CT221B_53X40_LABEL_SIZE.h_mm} mm`,
+    `SIZE ${size.w_mm} mm,${size.h_mm} mm`,
     "GAP 2 mm,0 mm",
     "DENSITY 8",
     "SPEED 2",
@@ -1075,7 +1079,7 @@ function buildCt221bCupLabelBytes(text) {
 }
 
 async function printCt221bCupLabel(text, cfg) {
-  const bytes = buildCt221bCupLabelBytes(text);
+  const bytes = buildCt221bCupLabelBytes(text, cfg);
   if (isNativeBluetoothApp()) {
     await printNativeClassicCt221b(bytes, cfg);
     return true;
@@ -1251,10 +1255,10 @@ async function printNativeNiimbotCupLabel(text, cfg) {
     }
   };
 
-  const canvas = createNiimbotCupLabelCanvas(text);
+  const canvas = resizeLabelCanvas(createNiimbotCupLabelCanvas(text), getCupLabelSize(cfg));
   const packed = niimbotCanvasToPacked(canvas);
-  const width = NIIMBOT_50X40_LABEL_SIZE.w_px;
-  const height = NIIMBOT_50X40_LABEL_SIZE.h_px;
+  const width = canvas.width;
+  const height = canvas.height;
   const copies = 1;
 
   await writeRaw(new Uint8Array([0x03, 0x55, 0x55, 0xc1, 0x01, 0x01, 0xc1, 0xaa, 0xaa]));
@@ -1310,11 +1314,11 @@ async function printNiimbotCupLabel(text, cfg) {
     return printNativeNiimbotCupLabel(text, cfg);
   }
   const Niimbot = await getNiimbotDriver();
-  const imageUrl = renderNiimbotCupLabelImage(text);
+  const imageUrl = renderNiimbotCupLabelImage(text, cfg);
   await withRememberedNiimbotDevice(cfg, () =>
     Niimbot.printImage(imageUrl, {
       model: NIIMBOT_B1_PRO_MODEL,
-      size: NIIMBOT_50X40_LABEL_SIZE,
+      size: getCupLabelSize(cfg),
       copies: 1,
     })
   );
@@ -6226,7 +6230,11 @@ export default function POSPage() {
 
   async function loadPrinters(sid) {
     if (!sid) return;
-    const cached = (await getLocalSnapshot("pos_printers", { storeId: sid }))?.data;
+    const media = (await getLocalSnapshot("pos_printer_media", { storeId: sid }))?.data || {};
+    const withMedia = map => ({ ...map, cup_label: map.cup_label
+      ? { ...map.cup_label, ...(media[printerMediaKey(map.cup_label)] || {}) } : null });
+    const cachedRaw = (await getLocalSnapshot("pos_printers", { storeId: sid }))?.data;
+    const cached = cachedRaw ? withMedia(cachedRaw) : null;
     if (cached) {
       setPrinterConfig(cached);
       setPrinterForm(createPrinterProfiles(cached));
@@ -6243,7 +6251,7 @@ export default function POSPage() {
     }
 
     const map = { receipt: null, order_slip: null, cup_label: null };
-    (data || []).forEach((p) => { map[p.role] = p; });
+    (data || []).forEach((p) => { map[p.role] = p.role === "cup_label" ? { ...p, ...(media[printerMediaKey(p)] || {}) } : p; });
     await setLocalSnapshot("pos_printers", map, { storeId: sid });
     await warmBluetoothPrinterDeviceCache(map).catch((err) => console.warn("Bluetooth remembered-device cache skipped", err));
     setPrinterConfig(map);
@@ -8770,6 +8778,7 @@ export default function POSPage() {
         [role]: {
           ...current,
           model,
+          ...(isCupLabel ? { label_size: getCupLabelSize(current, /clabel|ct221b/i.test(model) ? "ct221b" : "niimbot").key } : {}),
           ...defaults,
           name: isCupLabel && defaultCupNames.has(String(current.name || "").trim()) ? model.replace(" label printer", "") : current.name,
         },
@@ -8812,6 +8821,7 @@ export default function POSPage() {
       ble_characteristic_uuid: characteristicUuid,
       ble_device_id: form.device_id || null,
       is_active: true,
+      ...(role === "cup_label" ? { label_size: getCupLabelSize(form, isClabelCt221b ? "ct221b" : "niimbot").key } : {}),
     };
   }
 
@@ -8827,9 +8837,10 @@ export default function POSPage() {
       if (selectedRoles.includes(role)) {
         const form = printerForm?.[role] || createPrinterProfile(role);
         if (!form.name?.trim()) return showToast("error", "Printer Name Required", `Enter a name for ${PRINTER_ROLE_LABELS[role]}.`);
+        const { label_size, ...databaseConfig } = buildPrinterConfigFromForm(role);
         const payload = {
           store_id: storeId,
-          ...buildPrinterConfigFromForm(role),
+          ...databaseConfig,
         };
         const res = existing?.id
           ? await supabase.from("pos_printers").update(payload).eq("id", existing.id)
@@ -8852,6 +8863,14 @@ export default function POSPage() {
       .upsert(receiptPayload, { onConflict: "store_id" });
     if (receiptError) return showToast("error", "Printer Save Failed", receiptError.message);
 
+    const cupForm = printerForm?.cup_label;
+    if (cupForm?.enabled) {
+      const previousMedia = (await getLocalSnapshot("pos_printer_media", { storeId }))?.data || {};
+      await setLocalSnapshot("pos_printer_media", { ...previousMedia, [printerMediaKey(cupForm)]: {
+        label_size: getCupLabelSize(cupForm, /clabel|ct221b/i.test(cupForm.model) ? "ct221b" : "niimbot").key,
+        model: cupForm.model,
+      } }, { storeId });
+    }
     await loadPrinters(storeId);
     showToast("success", "Printers Saved", "Receipt, order slip, and cup label printers were updated.");
   }
@@ -11164,187 +11183,14 @@ export default function POSPage() {
 
               <div className="grid gap-4 px-4 py-5 lg:grid-cols-3">
                 {Object.entries(PRINTER_ROLE_LABELS).map(([role, label]) => {
-                  const roleForm = printerForm?.[role] || createPrinterProfile(role);
-                  const isCupLabel = role === "cup_label";
-                  const savedPrinter = printerConfig?.[role];
-                  const hasDevice = Boolean(roleForm.device_id || savedPrinter?.ble_device_id);
-
-                  return (
-                    <div key={role} className={`rounded-2xl border p-4 shadow-sm transition ${roleForm.enabled ? "border-cyan-200 bg-cyan-50/40" : "border-slate-200 bg-white"}`}>
-                      <div className="mb-3 flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-black uppercase tracking-wider text-slate-900">{label}</p>
-                          <p className="mt-1 text-[11px] font-semibold leading-4 text-slate-500">{PRINTER_ROLE_HINTS[role]}</p>
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            <PrinterStatusPill active={!!roleForm.enabled} tone="cyan">{roleForm.enabled ? "Enabled" : "Disabled"}</PrinterStatusPill>
-                            <PrinterStatusPill active={!!savedPrinter?.id} tone="emerald">{savedPrinter?.id ? "Saved" : "Unsaved"}</PrinterStatusPill>
-                            <PrinterStatusPill active={hasDevice} tone="amber">{hasDevice ? "Device linked" : "No device"}</PrinterStatusPill>
-                          </div>
-                        </div>
-                        <PrinterSwitch label="" checked={!!roleForm.enabled} onChange={(v) => updatePrinterRole(role, v)} />
-                      </div>
-
-                      <div className="space-y-4">
-                        <PrinterEditField label="Printer name">
-                          <input
-                            value={roleForm.name}
-                            onChange={(e) => updatePrinterProfile(role, { name: e.target.value })}
-                            className="h-8 w-full bg-transparent text-sm font-semibold text-slate-900 outline-none"
-                            placeholder={`${label} Printer`}
-                          />
-                        </PrinterEditField>
-
-                        <div className="rounded-2xl border border-slate-100 bg-white/80 p-3">
-                          <div className="mb-2 flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Purpose</p>
-                              <p className="text-xs font-semibold text-slate-800">{PRINTER_ROLE_STATUS[role]}</p>
-                            </div>
-                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-50 text-cyan-700">
-                              <Bluetooth size={17} />
-                            </div>
-                          </div>
-                          <p className="text-[11px] font-medium leading-4 text-slate-500">
-                            {isCupLabel
-                              ? "Use this for automatic drink cup labels after save, charge, or accepted web orders."
-                              : role === "order_slip"
-                              ? "Use this for prep slips and kitchen order copies."
-                              : "Use this for customer receipts and reprints."}
-                          </p>
-                        </div>
-
-                        <PrinterEditField label="Printer model">
-                          <select
-                            value={roleForm.model}
-                            onChange={(e) => updatePrinterModel(role, e.target.value)}
-                            className="h-10 w-full bg-transparent text-sm font-semibold text-slate-900 outline-none"
-                          >
-                            <option>Other model</option>
-                            <option>Niimbot B1 Pro label printer</option>
-                            <option>{CLABEL_CT221B_MODEL_NAME}</option>
-                            <option>XP-Z58C thermal label printer</option>
-                            <option>Xprinter thermal printer</option>
-                            <option>ESC/POS compatible</option>
-                          </select>
-                        </PrinterEditField>
-
-                        <PrinterEditField label="Interface">
-                          <select
-                            value={roleForm.interface}
-                            onChange={(e) => updatePrinterProfile(role, { interface: e.target.value })}
-                            className="h-10 w-full bg-transparent text-sm font-semibold text-slate-900 outline-none"
-                          >
-                            <option>Bluetooth</option>
-                          </select>
-                        </PrinterEditField>
-
-                        <div className="grid grid-cols-[1fr_92px] items-end gap-3">
-                          <PrinterEditField label="Bluetooth printer">
-                            <input
-                              value={roleForm.device_id || roleForm.name}
-                              readOnly
-                              className="h-10 w-full bg-transparent text-sm font-semibold text-slate-700 outline-none"
-                              placeholder="Select paired printer"
-                            />
-                          </PrinterEditField>
-                          <button type="button" onClick={() => selectBluetoothPrinterDevice(role)} className="inline-flex h-10 items-center justify-center gap-2 rounded border border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-700 shadow-sm transition hover:bg-slate-100">
-                            <Search size={14} />
-                            Search
-                          </button>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <button type="button" onClick={() => reconnectPrinter(role)} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-cyan-100 bg-cyan-50 text-[11px] font-black uppercase tracking-wider text-cyan-800 transition hover:bg-cyan-100">
-                            <Bluetooth size={14} />
-                            Reconnect
-                          </button>
-                          <button type="button" onClick={() => printPrinterTest(role)} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-[11px] font-black uppercase tracking-wider text-slate-800 transition hover:bg-slate-50">
-                            <Printer size={15} className="text-slate-500" />
-                            Test
-                          </button>
-                        </div>
-
-                        <PrinterEditField label={isCupLabel ? "Sticker size" : "Paper width"}>
-                          {isCupLabel ? (
-                            <div className="flex min-h-10 items-center justify-between gap-2 text-sm font-semibold text-slate-900">
-                              <span>53mm W x 40mm H</span>
-                              <span className="rounded-full bg-cyan-100 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-cyan-700">Thermal sticker</span>
-                            </div>
-                          ) : (
-                            <select
-                              value={String(roleForm.paper_width_mm)}
-                              onChange={(e) => updatePrinterProfile(role, { paper_width_mm: Number(e.target.value) })}
-                              className="h-10 w-full bg-transparent text-sm font-semibold text-slate-900 outline-none"
-                            >
-                              <option value="50">50 mm</option>
-                              <option value="58">58 mm</option>
-                              <option value="80">80 mm</option>
-                            </select>
-                          )}
-                        </PrinterEditField>
-
-                        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                          <div className="mb-3 flex items-center justify-between gap-2">
-                            <div>
-                              <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Bluetooth UUID settings</p>
-                              <p className="text-[11px] font-semibold text-slate-400">
-                                Use the printer service and write characteristic exposed by the selected Bluetooth printer.
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => updatePrinterProfile(role, {
-                                ...printerUuidDefaultsForModel(role, roleForm.model),
-                              })}
-                              className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[10px] font-black uppercase tracking-wider text-slate-600 transition hover:bg-slate-100"
-                            >
-                              UUID defaults
-                            </button>
-                          </div>
-                          <div className="grid gap-2">
-                            <PrinterEditField label="Service UUID">
-                              <input
-                                value={roleForm.service_uuid}
-                                onChange={(e) => updatePrinterProfile(role, { service_uuid: e.target.value })}
-                                className="h-9 w-full bg-transparent text-xs font-semibold text-slate-800 outline-none"
-                              />
-                            </PrinterEditField>
-                            <PrinterEditField label="Characteristic UUID">
-                              <input
-                                value={roleForm.characteristic_uuid}
-                                onChange={(e) => updatePrinterProfile(role, { characteristic_uuid: e.target.value })}
-                                className="h-9 w-full bg-transparent text-xs font-semibold text-slate-800 outline-none"
-                              />
-                            </PrinterEditField>
-                          </div>
-                        </div>
-
-                        {isCupLabel ? (
-                          <div className="space-y-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-[11px] font-semibold leading-4 text-amber-900">
-                            <p className="font-black uppercase tracking-wider">Cup label setup</p>
-                            <p>For Niimbot B1 Pro, use the Niimbot model option. For Clabel CT221B V2.0, use the Clabel option so POS sends a 53mm x 40mm gap-label command at density 8 and offset 0mm.</p>
-                            <p>The Clabel Bluetooth name should begin with {CLABEL_CT221B_BLUETOOTH_NAME_PREFIX} (for example, CT221B-7500).</p>
-                            <p>Pair the printer first in the device Bluetooth settings, then tap Search once in POS to grant permission. If a test does not print, verify the Service UUID and Characteristic UUID shown above.</p>
-                          </div>
-                        ) : (
-                          <div className="rounded-2xl border border-cyan-100 bg-cyan-50 p-3 text-[11px] font-semibold leading-4 text-cyan-900">
-                            Saved Bluetooth permission is reused after refresh when supported by Chrome or Edge. If reconnect fails, use Search once again.
-                          </div>
-                        )}
-
-                        <div className="grid grid-cols-2 gap-2 pt-2">
-                          <button type="button" onClick={() => resetPrinterProfile(role)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-[11px] font-black uppercase tracking-wider text-slate-700 transition hover:bg-slate-50">
-                            <RotateCcw size={15} />
-                            Default
-                          </button>
-                          <button type="button" onClick={() => deletePrinterSettings(role)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-red-100 bg-red-50 text-[11px] font-black uppercase tracking-wider text-red-600 transition hover:bg-red-100">
-                            <Trash2 size={15} />
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
+                  const form = printerForm?.[role] || createPrinterProfile(role);
+                  return <PrinterSetupCard key={role} role={role} label={label} form={form} saved={printerConfig?.[role]}
+                    onUpdate={patch => updatePrinterProfile(role, patch)}
+                    onModelChange={model => updatePrinterModel(role, model)}
+                    onChoose={() => selectBluetoothPrinterDevice(role)} onReconnect={() => reconnectPrinter(role)}
+                    onTest={() => printPrinterTest(role)} onReset={() => resetPrinterProfile(role)}
+                    onDelete={() => deletePrinterSettings(role)}
+                    onUuidDefaults={() => updatePrinterProfile(role, printerUuidDefaultsForModel(role, form.model))} />;
                 })}
               </div>
             </div>
