@@ -5,12 +5,19 @@
   body[data-pos-premium] [data-pos-management="items"] > div:first-child h2 { font-size:24px; line-height:1.3; }
   body[data-pos-premium] [data-pos-management="items"] > div:first-child p { font-size:14px; }
   body[data-pos-premium] [data-pos-management="items"] > div:first-child button { min-width:48px; min-height:48px; font-size:18px; }
-  body[data-pos-premium] [data-pos-item-manager] { font-size:16px; line-height:1.5; }
+  body[data-pos-premium] [data-pos-item-manager] { display:grid; grid-template-columns:minmax(240px,32%) minmax(0,1fr); grid-template-rows:auto auto minmax(0,1fr); gap:8px 16px; align-items:start; height:min(70vh,700px); font-size:16px; line-height:1.5; }
+  body[data-pos-premium] [data-pos-item-manager] > * { margin-block:0; }
+  body[data-pos-premium] [data-pos-item-manager] .pos-item-manager-tabs { grid-column:1; grid-row:1; }
+  body[data-pos-premium] [data-pos-item-manager] .pos-items-toolbar { grid-column:1; grid-row:2; flex-direction:column; align-items:stretch; gap:8px; }
+  body[data-pos-premium] [data-pos-item-manager] .pos-items-toolbar label { flex:auto; }
   body[data-pos-premium] [data-pos-item-manager] .pos-item-manager-tabs button { height:auto; min-height:44px; padding:6px 10px; font-size:16px; letter-spacing:.02em; }
   body[data-pos-premium] [data-pos-item-manager] label > span { font-size:14px; color:#334155; }
   body[data-pos-premium] [data-pos-item-manager] label > div { height:auto; min-height:44px; }
   body[data-pos-premium] [data-pos-item-manager] input[type="search"] { width:100%; min-height:42px; padding:6px; font-size:18px; line-height:1.4; }
-  body[data-pos-premium] [data-pos-item-manager] .pos-availability-list { max-height:min(56vh,620px); overscroll-behavior:contain; }
+  body[data-pos-premium] [data-pos-item-manager] .pos-availability-list { grid-column:2; grid-row:1 / 4; height:100%; min-height:0; max-height:none; overscroll-behavior:contain; }
+  body[data-pos-premium] [data-pos-item-manager] .pos-availability-layout { display:contents; }
+  body[data-pos-premium] [data-pos-item-manager] .pos-availability-categories { grid-column:1; grid-row:3; display:flex; flex-direction:column; gap:6px; height:100%; min-height:0; padding-right:4px; overflow-y:auto; overscroll-behavior:contain; }
+  body[data-pos-premium] [data-pos-item-manager] .pos-availability-categories button { flex-shrink:0; line-height:1.4; }
   body[data-pos-premium] [data-pos-item-manager] .pos-availability-category { padding:6px 12px; font-size:15px; letter-spacing:.04em; }
   body[data-pos-premium] [data-pos-item-manager] .pos-availability-card { padding:8px 12px; }
   body[data-pos-premium] [data-pos-item-manager] .pos-option-group-card { padding:10px 12px; }
@@ -25,11 +32,17 @@
 }
 @media screen and (max-width:600px) {
   body[data-pos-premium] [data-pos-management="items"] { padding:12px; }
+  body[data-pos-premium] [data-pos-item-manager] { display:block; height:auto; }
+  body[data-pos-premium] [data-pos-item-manager] > * + * { margin-top:8px; }
   body[data-pos-premium] [data-pos-item-manager] .pos-items-toolbar { gap:6px; }
   body[data-pos-premium] [data-pos-item-manager] .pos-items-toolbar input { font-size:16px; padding:4px; }
   body[data-pos-premium] [data-pos-item-manager] .pos-unavailable-filter { font-size:14px; padding-inline:8px; gap:6px; }
   body[data-pos-premium] [data-pos-item-manager] .pos-availability-row { flex-direction:column; align-items:stretch; gap:12px; }
   body[data-pos-premium] [data-pos-item-manager] .pos-availability-row [role="switch"] { align-self:flex-start; }
+  body[data-pos-premium] [data-pos-item-manager] .pos-availability-layout { display:block; }
+  body[data-pos-premium] [data-pos-item-manager] .pos-availability-list { height:auto; max-height:56vh; }
+  body[data-pos-premium] [data-pos-item-manager] .pos-availability-categories { flex-direction:row; height:auto; max-height:none; padding:0 0 4px; margin-bottom:8px; overflow-x:auto; }
+  body[data-pos-premium] [data-pos-item-manager] .pos-availability-categories button { width:auto; min-width:140px; max-width:220px; }
 }
 @media screen {
   .pos-premium { min-height:100vh; background:#f7f7f8; color:#272b30; font-family:Arial,sans-serif; }

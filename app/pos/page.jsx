@@ -4,6 +4,7 @@ import { excludesFunctionRoomLoyalty } from "@/lib/bookings/loyaltyEligibility.m
 import { reservationBookingName, reservationReceiptItems } from "@/lib/bookings/receiptDisplay.mjs";
 import { bookingDisplayLabel, bookingReceiptLabel } from "@/lib/bookings/posBookingDisplay.mjs";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
+import AvailabilityCategoryNav from "@/components/pos/AvailabilityCategoryNav";
 import { receiptPointsEarned } from "@/lib/loyalty/receiptPoints.mjs";
 import { initialItemSelections } from "@/lib/posItemSelections.mjs";
 import BookingReminders from "@/components/pos/BookingReminders";
@@ -4455,6 +4456,8 @@ export default function POSPage() {
   const [itemsManagementTab, setItemsManagementTab] = useState("items");
   const [itemsManagementSearch, setItemsManagementSearch] = useState("");
   const [itemsUnavailableOnly, setItemsUnavailableOnly] = useState(false);
+  const [itemsManagementCategory, setItemsManagementCategory] = useState(null);
+  const [optionsManagementGroup, setOptionsManagementGroup] = useState(null);
   const [receiptRows, setReceiptRows] = useState([]);
   const [receiptItemRows, setReceiptItemRows] = useState([]);
   const [receiptRefunds, setReceiptRefunds] = useState({});
@@ -5427,6 +5430,9 @@ export default function POSPage() {
       .filter((group) => group.rows.length > 0)
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [categories, items, itemsManagementSearch, itemsUnavailableOnly]);
+  const activeItemsManagementCategory = itemsByManagementCategory.some(group => group.name === itemsManagementCategory) ? itemsManagementCategory : null;
+  const displayedManagementCategories = activeItemsManagementCategory === null ? itemsByManagementCategory
+    : itemsByManagementCategory.filter(group => group.name === activeItemsManagementCategory);
 
   const visibleMenuItems = useMemo(() => {
     const search = menuSearch.trim().toLowerCase();
@@ -5536,6 +5542,9 @@ export default function POSPage() {
         && (!search || `${group.groupName} ${option.optionName}`.toLowerCase().includes(search))) }))
       .filter(group => group.options.length > 0);
   }, [optionSelectionGroups, itemsUnavailableOnly, itemsManagementSearch]);
+  const activeOptionsManagementGroup = displayedOptionSelectionGroups.some(group => group.groupName === optionsManagementGroup) ? optionsManagementGroup : null;
+  const displayedManagementOptions = activeOptionsManagementGroup === null ? displayedOptionSelectionGroups
+    : displayedOptionSelectionGroups.filter(group => group.groupName === activeOptionsManagementGroup);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -10924,13 +10933,16 @@ export default function POSPage() {
               </div>
 
               {itemsManagementTab === "items" ? (
-                <div className="space-y-2">
+                <div className="pos-availability-layout">
+                  <AvailabilityCategoryNav
+                    groups={itemsByManagementCategory.map(group => ({ key: group.name, label: group.name, count: group.rows.length }))}
+                    selected={activeItemsManagementCategory} onSelect={setItemsManagementCategory} />
                   <div className="pos-availability-list space-y-2 max-h-80 overflow-y-auto pr-1">
                     {itemsByManagementCategory.length === 0 ? (
                       <div className="rounded-xl border border-dashed border-slate-200 p-4 text-xs font-semibold text-slate-400">
                         {itemsUnavailableOnly ? (itemsManagementSearch.trim() ? "No unavailable items match your search." : "No unavailable items. All items are available.") : itemsManagementSearch.trim() ? "No menu items match your search." : "No items found."}
                       </div>
-                    ) : itemsByManagementCategory.map((category) => (
+                    ) : displayedManagementCategories.map((category) => (
                       <div key={category.name} className="space-y-2">
                         <div className="pos-availability-category sticky top-0 z-10 rounded-lg bg-rose-50 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-rose-700">
                           {category.name}
@@ -10951,10 +10963,14 @@ export default function POSPage() {
                   </div>
                 </div>
               ) : (
+                <div className="pos-availability-layout">
+                  <AvailabilityCategoryNav label="Option groups" allLabel="All groups"
+                    groups={displayedOptionSelectionGroups.map(group => ({ key: group.groupName, label: group.groupName, count: group.options.length }))}
+                    selected={activeOptionsManagementGroup} onSelect={setOptionsManagementGroup} />
                 <div className="pos-availability-list space-y-2 max-h-96 overflow-y-auto pr-1">
                   {displayedOptionSelectionGroups.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-slate-200 p-4 text-xs font-semibold text-slate-400">{itemsUnavailableOnly ? "No unavailable option selections." : "No option selections found."}</div>
-                  ) : displayedOptionSelectionGroups.map((group) => (
+                  ) : displayedManagementOptions.map((group) => (
                     <div key={group.groupName} className="pos-option-group-card rounded-xl border border-slate-100 bg-slate-50 p-3 space-y-2">
                       <div>
                         <p className="text-xs font-black text-slate-800 truncate">{group.groupName}</p>
@@ -10971,6 +10987,7 @@ export default function POSPage() {
                       ))}
                     </div>
                   ))}
+                </div>
                 </div>
               )}
             </div>
