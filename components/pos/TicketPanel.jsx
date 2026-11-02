@@ -57,6 +57,8 @@ export default function TicketPanel({
   onOpenPosMenu,
   pendingCount = 0,
   ticketTitle,
+  ticketLocked = false,
+  onOpenShift,
 }) {
   const [showManageDropdown, setShowManageDropdown] = useState(false);
 
@@ -116,6 +118,7 @@ const isWelcomeVoucher = (voucher) => {
             <div className="mt-2 flex flex-wrap gap-1.5">
               <button
                 type="button"
+                disabled={ticketLocked}
                 onClick={onViewCustomer || onChangeCustomer}
                 className="px-2.5 py-1 rounded-full border border-slate-200 bg-white text-[10px] font-semibold uppercase tracking-wide text-slate-700 hover:bg-slate-50 transition"
               >
@@ -123,6 +126,7 @@ const isWelcomeVoucher = (voucher) => {
               </button>
               <button
                 type="button"
+                disabled={ticketLocked}
                 onClick={onRemoveCustomer}
                 className="px-2.5 py-1 rounded-full border border-rose-100 bg-rose-50 text-[10px] font-semibold uppercase tracking-wide text-rose-700 hover:bg-rose-100 transition"
               >
@@ -161,6 +165,12 @@ const isWelcomeVoucher = (voucher) => {
       </div>
 
       {/* Customer Search */}
+      {ticketLocked && <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <p role="status" className="text-sm font-semibold text-slate-800">Shift closed. Open a shift to edit or charge tickets.</p>
+        <button type="button" onClick={onOpenShift} className="mt-2 min-h-11 w-full rounded-lg bg-slate-800 px-3 text-sm font-bold text-white">Open Shift</button>
+      </div>}
+      <fieldset disabled={ticketLocked} inert={ticketLocked || undefined}
+        className={`min-w-0 border-0 p-0 ${ticketLocked ? "pointer-events-none opacity-50" : ""}`}>
       <div className="relative flex gap-2 mb-3">
         <input
           value={customerSearch}
@@ -480,6 +490,7 @@ const isWelcomeVoucher = (voucher) => {
       </div>
 
       {/* Checkout Computations Layout Footer */}
+      </fieldset>
       </div>
       <div data-pos-checkout className="relative z-10 shrink-0 mt-3 pt-1 space-y-3 bg-white">
         <div className="flex justify-between items-baseline">
@@ -493,14 +504,14 @@ const isWelcomeVoucher = (voucher) => {
         <div className="grid grid-cols-2 gap-2 pt-1 [&>button]:min-h-12">
           <button
             onClick={onSave}
-            disabled={savingTicket || cart.length === 0}
+            disabled={ticketLocked || savingTicket || cart.length === 0}
             className="text-[13px] font-bold rounded-xl bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 transition disabled:opacity-40 active:scale-95"
           >
             {savingTicket ? "Saving..." : "Save Ticket"}
           </button>
           <button
             onClick={onCharge}
-            disabled={charging || cart.length === 0}
+            disabled={ticketLocked || charging || cart.length === 0}
             className="text-[13px] font-bold tracking-wider rounded-xl bg-[#FC687D] hover:bg-[#fa546c] text-white shadow-md shadow-rose-200 transition disabled:opacity-40 active:scale-95 flex items-center justify-center"
           >
             {charging ? "Charging..." : "Charge"}

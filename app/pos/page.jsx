@@ -4749,6 +4749,19 @@ export default function POSPage() {
     setToast({ type, title, message });
     setTimeout(() => setToast(null), 3500);
   };
+  const requireOpenTicketShift = () => {
+    if (shiftStatus === "open") return true;
+    showToast("warn", "Shift Closed", "Open a shift before editing, saving, or charging a ticket.");
+    return false;
+  };
+  useEffect(() => {
+    if (shiftStatus !== "closed") return;
+    setPaymentOpen(false);
+    setSelectedItemForModal(null);
+    setScannerOpen(false);
+    setVoucherModalOpen(false);
+    setDiningOptionPickOpen(false);
+  }, [shiftStatus]);
 
   const loadDiscountBeneficiaries = async () => {
     setDiscountBeneficiariesLoading(true);
@@ -7411,6 +7424,7 @@ export default function POSPage() {
   }
 
   function editAcceptedWebOrder(order) {
+    if (!requireOpenTicketShift()) return false;
     if (String(getWebOrderStoreId(order) || "") !== String(storeId || "")) {
       showToast("error", "Wrong Store Order", "This web order belongs to another store.");
       fetchAcceptedWebOrders();
@@ -9391,6 +9405,7 @@ export default function POSPage() {
   }
 
   async function resumeTicket(t) {
+    if (!requireOpenTicketShift()) return;
     try {
       assertTicketInCurrentStore(t, "resume it");
     } catch (err) {
@@ -9442,6 +9457,7 @@ export default function POSPage() {
   }
 
   async function handleSaveTicket() {
+    if (!requireOpenTicketShift()) return;
     if (savingTicket) return;
     if (cart.length === 0) return showToast("error", "Empty Ticket", "Add items before saving.");
     if (!activeWebOrderId && !diningOption) return showToast("error", "Dining Option Required", "Please select a dining option.");
@@ -9600,6 +9616,7 @@ export default function POSPage() {
   }
 
   async function confirmCharge(paymentPayload = {}) {
+    if (!requireOpenTicketShift()) return;
     if (charging) return;
     const usingBooking = isVipBooking;
     if (usingBooking && !selectedBooking) return showToast("error", "Booking Required", "Refresh and select a confirmed booking.");
@@ -10130,6 +10147,7 @@ export default function POSPage() {
   }
 
   const handleCodeInput = async (raw) => {
+    if (!requireOpenTicketShift()) return;
     const q = String(raw || "").trim().toLowerCase();
     if (!q) return;
 
@@ -10445,6 +10463,7 @@ export default function POSPage() {
   };
 
   const onAddToCart = (addedLineItem) => {
+    if (!requireOpenTicketShift()) return;
     const editIndex = selectedItemForModal?.editData ? selectedItemForModal.editIndex : null;
     const previousLine = editIndex === null || editIndex === undefined ? null : cart[editIndex];
     setCart((prevCart) => addPosCartLine(
@@ -10509,26 +10528,6 @@ export default function POSPage() {
         <div className="min-h-screen flex items-center justify-center p-6">
           <div className="h-10 w-10 rounded-full border-4 border-rose-100 border-t-[#FC687D] animate-spin" />
         </div>
-      </div>
-    );
-  }
-
-  if (shiftStatus === "closed") {
-    return (
-      <div className="min-h-screen overscroll-none bg-[#FFF5F7] font-sans antialiased text-slate-800" style={{ overscrollBehaviorY: "none" }}>
-        <PosApkUpdatePrompt />
-        <Toast toast={toast} onClose={() => setToast(null)} />
-        <div className="min-h-screen flex items-center justify-center p-6">
-          <button
-            type="button"
-            disabled={!storeId}
-            onClick={() => openShiftCashModal("open")}
-            className="h-14 min-w-48 rounded-2xl bg-[#FC687D] px-8 text-sm font-black uppercase tracking-wider text-white shadow-lg shadow-rose-200/70 transition active:scale-95 disabled:cursor-not-allowed disabled:bg-rose-200 disabled:shadow-none"
-          >
-            {storeId ? "Open Shift" : "Loading"}
-          </button>
-        </div>
-        {shiftCashModal}
       </div>
     );
   }
@@ -10841,7 +10840,7 @@ export default function POSPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button type="button" onClick={printXReading} disabled={xReadingBusy || shiftStatus !== "open"}
                     className="min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-800 disabled:opacity-40">{xReadingBusy ? "Printing X-Reading…" : "Print X-Reading"}</button>
-                  <button type="button" disabled={xReadingBusy} onClick={() => openShiftCashModal("close")} className="h-10 rounded-xl bg-[#FC687D] text-white text-[10px] font-black uppercase tracking-wider">Close Shift</button>
+                  <button type="button" disabled={xReadingBusy} onClick={() => openShiftCashModal(shiftStatus === "open" ? "close" : "open")} className="h-10 rounded-xl bg-[#FC687D] text-white text-[10px] font-black uppercase tracking-wider">{shiftStatus === "open" ? "Close Shift" : "Open Shift"}</button>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-2">
                   <label className="block text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Reprint close shift report</label>
@@ -11418,6 +11417,7 @@ export default function POSPage() {
                         disabled={!orderable}
                         onClick={() => {
                           if (!orderable) return;
+                          if (!requireOpenTicketShift()) return;
                           setSelectedItemForModal(item);
                         }}
                         className={`pos-menu-item group relative border rounded-xl p-2.5 text-left transition-all duration-200 flex flex-col h-full justify-between ${
@@ -11465,6 +11465,8 @@ export default function POSPage() {
             {kdsSyncError && <p role="alert" className="mb-3 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-900">{kdsSyncError}</p>}
             <OfflineSyncNotice offline={isOfflineMode} pending={offlineQueueCount} syncing={offlineSyncing} error={offlineSyncError} onRetry={() => void syncOfflineCharges()} />
             <TicketPanel
+              ticketLocked={shiftStatus !== "open"}
+              onOpenShift={() => openShiftCashModal("open")}
               cart={cart}
               customers={customers}
               customerSearch={customerSearch}
@@ -11580,6 +11582,8 @@ export default function POSPage() {
               {kdsSyncError && <p role="alert" className="mb-3 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-900">{kdsSyncError}</p>}
               <OfflineSyncNotice offline={isOfflineMode} pending={offlineQueueCount} syncing={offlineSyncing} error={offlineSyncError} onRetry={() => void syncOfflineCharges()} />
               <TicketPanel
+                ticketLocked={shiftStatus !== "open"}
+                onOpenShift={() => openShiftCashModal("open")}
                 cart={cart}
                 customers={customers}
                 customerSearch={customerSearch}
