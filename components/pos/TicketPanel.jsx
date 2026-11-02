@@ -196,12 +196,14 @@ const isWelcomeVoucher = (voucher) => {
       </div>
 
       {bookingControl}
+      <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 border-b border-slate-100 pb-3">
       {/* ✅ Repaired Dining Options Dropdown Component */}
-      <div className="flex-none pb-3 mb-3 border-b border-slate-100">
+      <div className="min-w-0">
         <label className="block text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-1.5">
           Serving Destination
         </label>
         <select
+          aria-label="Serving Destination"
           value={diningOption || ""}
           disabled={diningSelectionLocked}
           title={diningSelectionLocked ? "The table is locked for this saved ticket." : undefined}
@@ -255,24 +257,11 @@ const isWelcomeVoucher = (voucher) => {
       </div>
 
       {/* Controls */}
-      <div className="grid grid-cols-2 gap-2 mb-3 relative z-30">
-        <button
-          onClick={() =>
-            appliedVoucher ? onRemoveVoucher() : onOpenVouchers()
-          }
-          className={`py-2 rounded-xl border text-xs font-semibold flex items-center justify-center ${
-            appliedVoucher
-              ? "border-rose-200 bg-rose-50 text-rose-600"
-              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-          }`}
-        >
-          🎟️ {appliedVoucher ? "Remove Voucher" : "Apply Voucher"}
-        </button>
-
+      <div className="relative z-30 pt-[22px]">
         <div className="relative">
           <button
             onClick={() => setShowManageDropdown((p) => !p)}
-            className="w-full py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 tracking-wide transition flex items-center justify-center gap-1.5 active:scale-95"
+            className="w-full whitespace-nowrap px-3 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 tracking-wide transition flex items-center justify-center gap-1.5 active:scale-95"
           >
             ⚙️ Manage Ticket ▾
           </button>
@@ -381,6 +370,7 @@ const isWelcomeVoucher = (voucher) => {
         </div>
       </div>
 
+      </div>
       {/* Split Selection State Alert Strip */}
       {splitMode && (
         <div className="mb-3 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl px-3 py-2 text-[11px] text-center font-semibold tracking-wide animate-pulse">
