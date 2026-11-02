@@ -10952,7 +10952,6 @@ export default function POSPage() {
                             <div className="pos-availability-row flex items-center justify-between gap-3">
                               <div className="min-w-0">
                                 <p className="text-xs font-bold text-slate-800 truncate">{item.name}</p>
-                                <p className="text-[10px] font-semibold text-slate-400">{peso2(item.price || 0)}</p>
                               </div>
                               <AvailabilityToggle available={item.is_available !== false} busy={availabilityBusy} name={item.name} scope="Shared status" onChange={() => toggleMenuItemAvailability(item)} />
                             </div>
