@@ -4454,6 +4454,7 @@ export default function POSPage() {
   const [managementView, setManagementView] = useState("receipts");
   const [itemsManagementTab, setItemsManagementTab] = useState("items");
   const [itemsManagementSearch, setItemsManagementSearch] = useState("");
+  const [itemsUnavailableOnly, setItemsUnavailableOnly] = useState(false);
   const [receiptRows, setReceiptRows] = useState([]);
   const [receiptItemRows, setReceiptItemRows] = useState([]);
   const [receiptRefunds, setReceiptRefunds] = useState({});
@@ -5414,6 +5415,7 @@ export default function POSPage() {
     const categoryNames = (categories || []).map((cat) => cat?.name || cat?.label || cat).filter(Boolean);
     categoryNames.forEach((name) => map.set(name, []));
     (items || [])
+      .filter((item) => !itemsUnavailableOnly || item.is_available === false)
       .filter((item) => !search || `${item.name || ""} ${item.category || ""}`.toLowerCase().includes(search))
       .forEach((item) => {
         const key = item.category || "Uncategorized";
@@ -5424,7 +5426,7 @@ export default function POSPage() {
       .map(([name, rows]) => ({ name, rows: rows.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))) }))
       .filter((group) => group.rows.length > 0)
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [categories, items, itemsManagementSearch]);
+  }, [categories, items, itemsManagementSearch, itemsUnavailableOnly]);
 
   const visibleMenuItems = useMemo(() => {
     const search = menuSearch.trim().toLowerCase();
@@ -5526,6 +5528,9 @@ export default function POSPage() {
       });
     return Array.from(byGroup.entries()).map(([groupName, options]) => ({ groupName, options }));
   }, [items]);
+  const displayedOptionSelectionGroups = useMemo(() => optionSelectionGroups
+    .map(group => ({ ...group, options: group.options.filter(option => !itemsUnavailableOnly || !option.enabled) }))
+    .filter(group => group.options.length > 0), [optionSelectionGroups, itemsUnavailableOnly]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -10607,7 +10612,7 @@ export default function POSPage() {
 
         {managementOpen && (
           <div className="fixed inset-0 z-[140] bg-slate-950/45 backdrop-blur-sm p-3 sm:p-6 flex items-center justify-center" onClick={() => setManagementOpen(false)}>
-            <div data-pos-management className={`flex w-full ${managementView === "inventory" ? "max-w-[1600px]" : "max-w-5xl"} max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-3rem)] flex-col rounded-2xl border border-rose-100 bg-white p-4 shadow-2xl`} onClick={(e) => e.stopPropagation()}>
+            <div data-pos-management={managementView} className={`flex w-full ${managementView === "inventory" ? "max-w-[1600px]" : "max-w-5xl"} max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-3rem)] flex-col rounded-2xl border border-rose-100 bg-white p-4 shadow-2xl`} onClick={(e) => e.stopPropagation()}>
           <div className="shrink-0 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-rose-50 pb-3 mb-3">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-[#FC687D]">POS Control</p>
@@ -10872,8 +10877,8 @@ export default function POSPage() {
           )}
 
           {managementView === "items" && (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2 rounded-xl bg-rose-50 border border-rose-100 p-1">
+            <div data-pos-item-manager className="space-y-4">
+              <div className="pos-item-manager-tabs grid grid-cols-2 gap-2 rounded-xl bg-rose-50 border border-rose-100 p-1">
                 {[
                   ["items", "Items"],
                   ["optionGroups", "Option Groups"],
@@ -10887,6 +10892,17 @@ export default function POSPage() {
                     {label}
                   </button>
                 ))}
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p role="status" className="text-base font-semibold text-slate-700">
+                  {itemsUnavailableOnly ? "Showing unavailable only" : "Showing all availability statuses"}
+                </p>
+                <button type="button" role="switch" aria-checked={itemsUnavailableOnly}
+                  aria-label="Unavailable only" onClick={() => setItemsUnavailableOnly(value => !value)}
+                  className="pos-unavailable-filter inline-flex min-h-12 items-center gap-3 rounded-xl border border-slate-300 bg-white px-4 py-3 text-base font-bold text-slate-800">
+                  <span aria-hidden="true" className={`flex h-7 w-12 items-center rounded-full p-1 ${itemsUnavailableOnly ? "justify-end bg-slate-800" : "justify-start bg-slate-400"}`}><span className="h-5 w-5 rounded-full bg-white" /></span>
+                  Unavailable only
+                </button>
               </div>
 
               {itemsManagementTab === "items" ? (
@@ -10904,19 +10920,19 @@ export default function POSPage() {
                       />
                     </div>
                   </label>
-                  <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                  <div className="pos-availability-list space-y-3 max-h-80 overflow-y-auto pr-1">
                     {itemsByManagementCategory.length === 0 ? (
                       <div className="rounded-xl border border-dashed border-slate-200 p-4 text-xs font-semibold text-slate-400">
-                        {itemsManagementSearch.trim() ? "No menu items match your search." : "No items found."}
+                        {itemsUnavailableOnly ? (itemsManagementSearch.trim() ? "No unavailable items match your search." : "No unavailable items. All items are available.") : itemsManagementSearch.trim() ? "No menu items match your search." : "No items found."}
                       </div>
                     ) : itemsByManagementCategory.map((category) => (
                       <div key={category.name} className="space-y-2">
-                        <div className="sticky top-0 z-10 rounded-lg bg-rose-50 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-rose-700">
+                        <div className="pos-availability-category sticky top-0 z-10 rounded-lg bg-rose-50 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-rose-700">
                           {category.name}
                         </div>
                         {category.rows.map((item) => (
                           <div key={item.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                            <div className="flex items-center justify-between gap-3">
+                            <div className="pos-availability-row flex items-center justify-between gap-3">
                               <div className="min-w-0">
                                 <p className="text-xs font-bold text-slate-800 truncate">{item.name}</p>
                                 <p className="text-[10px] font-semibold text-slate-400">{peso2(item.price || 0)}</p>
@@ -10930,17 +10946,17 @@ export default function POSPage() {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-                  {optionSelectionGroups.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-slate-200 p-4 text-xs font-semibold text-slate-400">No option selections found.</div>
-                  ) : optionSelectionGroups.map((group) => (
+                <div className="pos-availability-list space-y-3 max-h-96 overflow-y-auto pr-1">
+                  {displayedOptionSelectionGroups.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 p-4 text-xs font-semibold text-slate-400">{itemsUnavailableOnly ? "No unavailable option selections." : "No option selections found."}</div>
+                  ) : displayedOptionSelectionGroups.map((group) => (
                     <div key={group.groupName} className="rounded-xl border border-slate-100 bg-slate-50 p-3 space-y-2">
                       <div>
                         <p className="text-xs font-black text-slate-800 truncate">{group.groupName}</p>
                         <p className="text-[10px] font-semibold text-slate-400">{group.options.length} option selection(s)</p>
                       </div>
                       {group.options.map((option) => (
-                        <div key={option.key} className="flex items-center justify-between gap-3 rounded-lg border border-white bg-white p-2">
+                        <div key={option.key} className="pos-availability-row flex items-center justify-between gap-3 rounded-lg border border-white bg-white p-2">
                           <div className="min-w-0">
                             <p className="text-xs font-semibold text-slate-700 truncate">{option.optionName}</p>
                             <p className="text-[10px] font-semibold text-slate-400">{option.count} item link(s)</p>
