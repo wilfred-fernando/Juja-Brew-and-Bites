@@ -1912,7 +1912,7 @@ function buildCashBreakdownReportText({ store, cashierName, denominations, expec
   return lines.join("\n");
 }
 
-function buildEndDayReportText({ store, cashierName, startingCash, actualCash, denominations, summary, printedAt, shiftDateFallback, title = "END DAY SALES REPORT" }) {
+function buildEndDayReportText({ store, cashierName, startingCash, actualCash, denominations, summary, printedAt, shiftDateFallback, title = "END DAY SALES REPORT", interim = false }) {
   const branchName = store?.store_name || store?.name || store?.branch_name || "Store";
   const expectedCash = Number(summary?.expectedCash || 0);
   const actualCashValue = Number(actualCash || 0);
@@ -1924,6 +1924,7 @@ function buildEndDayReportText({ store, cashierName, startingCash, actualCash, d
     receiptPair("Shift day", shiftReportDay(summary, shiftDateFallback || printedAt)),
     receiptPair("Printed", formatReceiptFooterDate(printedAt || new Date())),
     receiptPair("Cashier", normalizeLabelLine(cashierName || "Operator")),
+    ...(interim && summary?.shiftStartedAt ? [receiptPair("Shift opened", formatReceiptFooterDate(summary.shiftStartedAt))] : []),
     receiptLine(),
     "CASH DRAWER",
     receiptPair("Starting cash", receiptAmount(startingCash || 0)),
@@ -1933,16 +1934,17 @@ function buildEndDayReportText({ store, cashierName, startingCash, actualCash, d
     receiptPair("Reservation cash collected", receiptAmount(summary?.reservationCashCollected || 0)),
     receiptPair("Cash refunds", receiptAmount(summary?.cashRefunds || 0)),
     receiptPair("Expected cash", receiptAmount(expectedCash)),
-    receiptPair("Actual cash", receiptAmount(actualCashValue)),
-    receiptPair("Difference", `${difference < 0 ? "-" : ""}${receiptAmount(Math.abs(difference))}`),
-    receiptLine(),
-    "CASH BREAKDOWN",
   ];
 
-  SHIFT_DENOMINATIONS.forEach((denom) => {
-    const count = Number(denominations?.[denom] || 0);
-    if (count > 0) lines.push(receiptPair(`${receiptAmount(denom)} x ${count}`, receiptAmount(denom * count)));
-  });
+  if (!interim) {
+    lines.push(receiptPair("Actual cash", receiptAmount(actualCashValue)));
+    lines.push(receiptPair("Difference", `${difference < 0 ? "-" : ""}${receiptAmount(Math.abs(difference))}`));
+    lines.push(receiptLine(), "CASH BREAKDOWN");
+    SHIFT_DENOMINATIONS.forEach((denom) => {
+      const count = Number(denominations?.[denom] || 0);
+      if (count > 0) lines.push(receiptPair(`${receiptAmount(denom)} x ${count}`, receiptAmount(denom * count)));
+    });
+  }
 
   lines.push(receiptLine());
   lines.push("SALES SUMMARY");
@@ -1958,7 +1960,7 @@ function buildEndDayReportText({ store, cashierName, startingCash, actualCash, d
     lines.push(receiptPair(label, receiptAmount(value || 0)));
   });
   lines.push("");
-  lines.push(centerReceiptText("END OF DAY"));
+  lines.push(centerReceiptText(interim ? "SHIFT REMAINS OPEN" : "END OF DAY"));
   return lines.join("\n");
 }
 
@@ -4359,6 +4361,7 @@ export default function POSPage() {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
+  const cashierName = isMounted && typeof window !== "undefined" ? (localStorage.getItem("cashier_name") || "Operator") : "Operator";
 
   // PWA Add To Home Screen Hook States
   const [installPrompt, setInstallPrompt] = useState(null);
@@ -4472,6 +4475,10 @@ export default function POSPage() {
   const [shiftDenominations, setShiftDenominations] = useState({});
   const [shiftRecords, setShiftRecords] = useState([]);
   const [shiftStatus, setShiftStatus] = useState("loading");
+  const [xReadingBusy, setXReadingBusy] = useState(false);
+  const [xReadingRequest, setXReadingRequest] = useState(null);
+  const xReadingBusyRef = useRef(false);
+  const xReadingPrintStartedRef = useRef(false);
   const [selectedShiftReportId, setSelectedShiftReportId] = useState("");
   const [printerForm, setPrinterForm] = useState(() => createPrinterProfiles());
 
@@ -5377,6 +5384,33 @@ export default function POSPage() {
       },
     };
   }, [receiptRows, receiptItemRows, startingCash, activeShiftStartMs, gcCashCollected, reservationCollections, reservationSummary, reservationExtra]);
+  useEffect(() => {
+    if (!xReadingRequest || xReadingPrintStartedRef.current) return;
+    xReadingPrintStartedRef.current = true;
+    const print = async () => {
+      try {
+        if (shiftStatus !== "open" || storeId !== xReadingRequest.storeId || activeShiftRecord?.id !== xReadingRequest.shiftId) {
+          throw new Error("The active shift changed. Open Shift and print the X-reading again.");
+        }
+        const reportText = buildEndDayReportText({
+          store: currentStore, cashierName, startingCash, interim: true, title: "X-READING REPORT",
+          summary: { ...shiftSummary, shiftStartedAt: activeShiftRecord.created_at }, printedAt: new Date(),
+        });
+        setReceiptText(reportText);
+        setReceiptOpen(true);
+        await printByRoleWhenReady("receipt", reportText);
+        showToast("success", "X-Reading Printed", "Current totals printed. The shift remains open.");
+      } catch (error) {
+        showToast("error", "X-Reading Not Printed", error.message || "Check the receipt printer and try again.");
+      } finally {
+        setXReadingRequest(null);
+        setXReadingBusy(false);
+        xReadingBusyRef.current = false;
+        xReadingPrintStartedRef.current = false;
+      }
+    };
+    void print();
+  }, [xReadingRequest, shiftSummary, shiftStatus, storeId, activeShiftRecord, currentStore, cashierName, startingCash]);
   const shiftSalesRows = useMemo(() => {
     const todayKey = formatDate(new Date());
     const todaysRows = (receiptRows || []).filter((row) => {
@@ -8023,15 +8057,20 @@ export default function POSPage() {
 
   async function fetchReceiptLogs(options = {}) {
     if (!storeId) return;
-    if (receiptRefreshRef.current) return receiptRefreshRef.current;
+    if (receiptRefreshRef.current) {
+      if (!options.strict) return receiptRefreshRef.current;
+      await receiptRefreshRef.current;
+    }
     const refresh = refreshReceiptLogs(options);
     receiptRefreshRef.current = refresh;
     try { return await refresh; } finally { receiptRefreshRef.current = null; }
   }
 
-  async function refreshReceiptLogs({ force = false, archiveData, remoteResults } = {}) {
-    fetchReservationCollections().catch(error => setBookingError(error.message));
-    fetchGcCashCollected().catch(error => showToast("error", "e-GC collections unavailable", error.message));
+  async function refreshReceiptLogs({ force = false, archiveData, remoteResults, strict = false } = {}) {
+    if (!strict) {
+      fetchReservationCollections().catch(error => setBookingError(error.message));
+      fetchGcCashCollected().catch(error => showToast("error", "e-GC collections unavailable", error.message));
+    }
     const receiptSnapshot = await getLocalSnapshot("pos_receipts", { storeId });
     const cachedReceiptLog = receiptSnapshot?.data;
     if (cachedReceiptLog?.rows?.length) {
@@ -8093,9 +8132,11 @@ export default function POSPage() {
       }
     }).catch(error => console.warn("Receipt archive refresh failed", error));
     if (receiptRes.error) {
+      if (strict) throw receiptRes.error;
       showToast("error", "Receipts Failed", receiptRes.error.message);
       return;
     }
+    if (strict && webReceiptRes.error) throw webReceiptRes.error;
 
     let refunds = receiptRefunds;
     if (typeof window !== "undefined") {
@@ -9178,6 +9219,26 @@ export default function POSPage() {
       showToast("success", "Cash Breakdown Printed", `${peso2(totalCash)} sent to the receipt printer.`);
     } catch (printError) {
       showToast("warn", "Cash Breakdown Not Printed", printError?.message || "Select and save the receipt printer in POS Settings.");
+    }
+  }
+
+  async function printXReading() {
+    if (xReadingBusyRef.current) return;
+    if (shiftStatus !== "open" || !activeShiftRecord?.id || !storeId) {
+      showToast("error", "Open Shift Required", "Open a shift before printing an X-reading.");
+      return;
+    }
+    const request = { storeId, shiftId: activeShiftRecord.id };
+    xReadingBusyRef.current = true;
+    setXReadingBusy(true);
+    try {
+      await Promise.all([fetchReceiptLogs({ force: true, strict: true }), fetchGcCashCollected(), fetchReservationCollections()]);
+      // Print after the refreshed receipts/collections have rendered into shiftSummary.
+      setXReadingRequest(request);
+    } catch (error) {
+      xReadingBusyRef.current = false;
+      setXReadingBusy(false);
+      showToast("error", "X-Reading Unavailable", error.message || "Connect to refresh shift totals, then try again.");
     }
   }
 
@@ -10418,8 +10479,6 @@ export default function POSPage() {
     showToast("success", "Item Added", addedLineItem.name);
   };
 
-  const cashierName = isMounted && typeof window !== "undefined" ? (localStorage.getItem("cashier_name") || "Operator") : "Operator";
-
   const signOut = async () => {
     await supabase.auth.signOut();
     if (typeof window !== "undefined") {
@@ -10780,7 +10839,9 @@ export default function POSPage() {
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-3">
                 <h3 className="text-sm font-black text-slate-800">Cash Drawer</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <button type="button" onClick={() => openShiftCashModal("close")} className="h-10 rounded-xl bg-[#FC687D] text-white text-[10px] font-black uppercase tracking-wider">Close Shift</button>              
+                  <button type="button" onClick={printXReading} disabled={xReadingBusy || shiftStatus !== "open"}
+                    className="min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-800 disabled:opacity-40">{xReadingBusy ? "Printing X-Reading…" : "Print X-Reading"}</button>
+                  <button type="button" disabled={xReadingBusy} onClick={() => openShiftCashModal("close")} className="h-10 rounded-xl bg-[#FC687D] text-white text-[10px] font-black uppercase tracking-wider">Close Shift</button>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-2">
                   <label className="block text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Reprint close shift report</label>
