@@ -5528,9 +5528,14 @@ export default function POSPage() {
       });
     return Array.from(byGroup.entries()).map(([groupName, options]) => ({ groupName, options }));
   }, [items]);
-  const displayedOptionSelectionGroups = useMemo(() => optionSelectionGroups
-    .map(group => ({ ...group, options: group.options.filter(option => !itemsUnavailableOnly || !option.enabled) }))
-    .filter(group => group.options.length > 0), [optionSelectionGroups, itemsUnavailableOnly]);
+  const displayedOptionSelectionGroups = useMemo(() => {
+    const search = itemsManagementSearch.trim().toLowerCase();
+    return optionSelectionGroups
+      .map(group => ({ ...group, options: group.options.filter(option =>
+        (!itemsUnavailableOnly || !option.enabled)
+        && (!search || `${group.groupName} ${option.optionName}`.toLowerCase().includes(search))) }))
+      .filter(group => group.options.length > 0);
+  }, [optionSelectionGroups, itemsUnavailableOnly, itemsManagementSearch]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -8640,11 +8645,14 @@ export default function POSPage() {
     const nextAvailable = !row?.enabled;
     const sid = getResolvedBranchId();
     if (!sid) return showToast("error", "Store Required", "Select a store first.");
-    const { error } = await supabase.from("option_selection_store_availability").upsert({
+    const { data: savedAvailability, error } = await supabase.from("option_selection_store_availability").upsert({
       store_id: String(sid), group_key: optionGroupKey(groupName), option_key: optionSelectionKey(optionName),
       group_name: groupName, option_name: optionName, is_available: nextAvailable,
-    }, { onConflict: "store_id,group_key,option_key" });
+    }, { onConflict: "store_id,group_key,option_key" }).select("store_id,group_key,option_key,is_available").single();
     if (error) throw error;
+    if (String(savedAvailability?.store_id) !== String(sid) || savedAvailability.is_available !== nextAvailable) {
+      throw new Error("Option availability was not saved. Refresh and try again.");
+    }
     await fetchData();
     showToast("success", "Option Updated", `${optionName} is now ${nextAvailable ? "available" : "unavailable"}.`);
     } catch (error) { showToast("error", "Availability update failed", error.message); }
@@ -10877,7 +10885,7 @@ export default function POSPage() {
           )}
 
           {managementView === "items" && (
-            <div data-pos-item-manager className="space-y-4">
+            <div data-pos-item-manager className="space-y-2">
               <div className="pos-item-manager-tabs grid grid-cols-2 gap-2 rounded-xl bg-rose-50 border border-rose-100 p-1">
                 {[
                   ["items", "Items"],
@@ -10893,34 +10901,31 @@ export default function POSPage() {
                   </button>
                 ))}
               </div>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p role="status" className="text-base font-semibold text-slate-700">
+              <div className="pos-items-toolbar flex items-center gap-3">
+                <label className="min-w-0 flex-1">
+                  <span className="sr-only">{itemsManagementTab === "items" ? "Search menu items" : "Search option groups"}</span>
+                  <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3">
+                    <Search size={18} className="shrink-0 text-slate-500" />
+                    <input type="search" value={itemsManagementSearch}
+                      onChange={event => setItemsManagementSearch(event.target.value)}
+                      placeholder={itemsManagementTab === "items" ? "Search by item or category" : "Search by group or option"}
+                      className="min-w-0 flex-1 bg-transparent font-semibold text-slate-800 outline-none" />
+                  </div>
+                </label>
+                <p role="status" className="sr-only">
                   {itemsUnavailableOnly ? "Showing unavailable only" : "Showing all availability statuses"}
                 </p>
                 <button type="button" role="switch" aria-checked={itemsUnavailableOnly}
                   aria-label="Unavailable only" onClick={() => setItemsUnavailableOnly(value => !value)}
-                  className="pos-unavailable-filter inline-flex min-h-12 items-center gap-3 rounded-xl border border-slate-300 bg-white px-4 py-3 text-base font-bold text-slate-800">
+                  className="pos-unavailable-filter inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-3 py-2 text-base font-bold text-slate-800">
                   <span aria-hidden="true" className={`flex h-7 w-12 items-center rounded-full p-1 ${itemsUnavailableOnly ? "justify-end bg-slate-800" : "justify-start bg-slate-400"}`}><span className="h-5 w-5 rounded-full bg-white" /></span>
                   Unavailable only
                 </button>
               </div>
 
               {itemsManagementTab === "items" ? (
-                <div className="space-y-3">
-                  <label className="block space-y-1">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Search Menu Items</span>
-                    <div className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 focus-within:border-rose-300 focus-within:ring-2 focus-within:ring-rose-100">
-                      <Search size={14} className="shrink-0 text-slate-400" />
-                      <input
-                        type="search"
-                        value={itemsManagementSearch}
-                        onChange={(event) => setItemsManagementSearch(event.target.value)}
-                        placeholder="Search by item or category"
-                        className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-slate-700 outline-none placeholder:text-slate-400"
-                      />
-                    </div>
-                  </label>
-                  <div className="pos-availability-list space-y-3 max-h-80 overflow-y-auto pr-1">
+                <div className="space-y-2">
+                  <div className="pos-availability-list space-y-2 max-h-80 overflow-y-auto pr-1">
                     {itemsByManagementCategory.length === 0 ? (
                       <div className="rounded-xl border border-dashed border-slate-200 p-4 text-xs font-semibold text-slate-400">
                         {itemsUnavailableOnly ? (itemsManagementSearch.trim() ? "No unavailable items match your search." : "No unavailable items. All items are available.") : itemsManagementSearch.trim() ? "No menu items match your search." : "No items found."}
@@ -10931,7 +10936,7 @@ export default function POSPage() {
                           {category.name}
                         </div>
                         {category.rows.map((item) => (
-                          <div key={item.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                          <div key={item.id} className="pos-availability-card rounded-xl border border-slate-100 bg-slate-50 p-3">
                             <div className="pos-availability-row flex items-center justify-between gap-3">
                               <div className="min-w-0">
                                 <p className="text-xs font-bold text-slate-800 truncate">{item.name}</p>
@@ -10946,11 +10951,11 @@ export default function POSPage() {
                   </div>
                 </div>
               ) : (
-                <div className="pos-availability-list space-y-3 max-h-96 overflow-y-auto pr-1">
+                <div className="pos-availability-list space-y-2 max-h-96 overflow-y-auto pr-1">
                   {displayedOptionSelectionGroups.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-slate-200 p-4 text-xs font-semibold text-slate-400">{itemsUnavailableOnly ? "No unavailable option selections." : "No option selections found."}</div>
                   ) : displayedOptionSelectionGroups.map((group) => (
-                    <div key={group.groupName} className="rounded-xl border border-slate-100 bg-slate-50 p-3 space-y-2">
+                    <div key={group.groupName} className="pos-option-group-card rounded-xl border border-slate-100 bg-slate-50 p-3 space-y-2">
                       <div>
                         <p className="text-xs font-black text-slate-800 truncate">{group.groupName}</p>
                         <p className="text-[10px] font-semibold text-slate-400">{group.options.length} option selection(s)</p>
