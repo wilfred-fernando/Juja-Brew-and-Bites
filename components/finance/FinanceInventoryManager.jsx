@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeftRight, Boxes, CalendarDays, RefreshCw, Save, Send, Table2 } from "lucide-react";
+import { ArrowLeftRight, Boxes, CalendarDays, Plus, RefreshCw, Save, Send, Table2 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { convertQuantity, loadInventoryPurchases, loadInventoryRowsByIds, loadPurchasedInventoryItemIds, normalizeUnit } from "@/lib/inventory";
+import { INVENTORY_UNITS, convertQuantity, loadInventoryPurchases, loadInventoryRowsByIds, loadPurchasedInventoryItemIds, normalizeUnit } from "@/lib/inventory";
 import { manilaDate, shiftBusinessDate } from "@/lib/businessDay";
 
 const supabase = getSupabaseClient();
@@ -83,6 +83,8 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState(null);
+  const [stockForm, setStockForm] = useState(null);
+  const [addingStock, setAddingStock] = useState(false);
 
   const isCashier = String(profile?.role || "").toLowerCase() === "cashier";
   const canChooseStore = !isCashier;
@@ -241,7 +243,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
 
     const [storesRes, itemsRes, refsRes, purchasedRes] = await Promise.all([
       supabase.from("stores").select("id, name, is_active, sort_order, created_at").order("sort_order").order("created_at"),
-      supabase.from("inventory_items").select("id, item_name, common_name, common_name_id, category, unit, is_active").eq("is_active", true).order("item_name"),
+      supabase.from("inventory_items").select("id, item_name, common_name, common_name_id, category, unit, is_active, is_manual").eq("is_active", true).order("item_name"),
       supabase.from("finance_references").select("name, common_name, item_category, reference_quantity, reference_unit, show_to_cashier").eq("ref_type", "item").eq("is_active", true),
       loadPurchasedInventoryItemIds(supabase),
     ]);
@@ -262,7 +264,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
     const referenceRows = (refsRes.data || []).filter((row) => !profileIsCashier || row.show_to_cashier !== false);
     const visibleItemNames = new Set(referenceRows.map((row) => normalizeText(row.name)));
     const itemRows = (itemsRes.data || []).filter((item) => purchasedRes.data.has(String(item.id))
-      && (!profileIsCashier || visibleItemNames.has(normalizeText(item.item_name))));
+      && (!profileIsCashier || item.is_manual || visibleItemNames.has(normalizeText(item.item_name))));
     setItems(itemRows);
     setReferences(referenceRows);
     setSelectedStoreId((prev) => {
@@ -384,7 +386,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
 
   useEffect(() => {
     loadDailyData();
-  }, [selectedStoreId, inventoryDate]);
+  }, [selectedStoreId, inventoryDate, items]);
 
   const sourceTotals = useMemo(() => {
     return calculateSourceTotals({
@@ -463,6 +465,37 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
     if (error) return showNotice("error", error.message);
     showNotice("success", "Daily inventory saved.");
     loadDailyData();
+  }
+
+  async function addStock(e) {
+    e.preventDefault();
+    if (addingStock || !stockForm || !selectedStoreId) return;
+    const existingItem = items.find((item) => item.id === stockForm.itemId);
+    const amount = Number(stockForm.quantity || 0);
+    if (!Number.isFinite(amount) || amount < 0 || (stockForm.mode === "existing" && (!existingItem || amount <= 0))) {
+      return showNotice("error", "Select an item and enter a valid stock quantity.");
+    }
+    if (stockForm.mode === "new" && !stockForm.itemName.trim()) return showNotice("error", "Enter an item name.");
+    setAddingStock(true);
+    try {
+      const { data, error } = await supabase.rpc("add_manual_inventory_stock", {
+        p_request_id: stockForm.requestId, p_store_id: selectedStoreId, p_inventory_date: inventoryDate,
+        p_inventory_item_id: stockForm.mode === "existing" ? existingItem.id : null,
+        p_item_name: stockForm.itemName.trim(), p_common_name: stockForm.commonName.trim() || stockForm.itemName.trim(),
+        p_category: stockForm.category.trim(), p_quantity: amount,
+        p_unit: stockForm.mode === "existing" ? normalizeUnit(existingItem.unit) : stockForm.unit,
+        p_note: stockForm.note.trim(),
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error("Stock was not saved.");
+      setStockForm(null);
+      showNotice("success", "Manual stock saved. No expense was created.");
+      await loadBase();
+    } catch (error) {
+      showNotice("error", error.message || "Unable to add stock.");
+    } finally {
+      setAddingStock(false);
+    }
   }
 
   async function saveTransfer(e) {
@@ -545,11 +578,33 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
               
             </p>
           </div>
+          <div className="flex flex-wrap gap-2">
+          <button type="button" disabled={!selectedStoreId || addingStock} onClick={() => setStockForm({ requestId: crypto.randomUUID(), mode: "existing", itemId: "", itemName: "", commonName: "", category: "", quantity: "", unit: "pc", note: "" })} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/12 px-4 text-xs font-semibold uppercase tracking-wider text-white hover:bg-white/20 disabled:opacity-50"><Plus size={15} /> Add Item / Stock</button>
           <button onClick={loadDailyData} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/12 px-4 text-xs font-semibold uppercase tracking-wider text-white transition hover:-translate-y-0.5 hover:bg-white/20">
             <RefreshCw size={15} /> Refresh
           </button>
+          </div>
         </div>
       </section>
+
+      {stockForm ? <Card>
+        <form onSubmit={addStock}>
+          <h2 className="text-base font-semibold text-slate-950">Add Item / Stock</h2>
+          <p className="mt-1 text-xs text-slate-600">Stock received for {storeNameById[String(selectedStoreId)]} on {inventoryDate}. This does not create an expense.</p>
+          <fieldset disabled={addingStock} className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <label className="text-xs font-semibold">Action<Select value={stockForm.mode} onChange={(e) => setStockForm((form) => ({ ...form, mode: e.target.value }))}><option value="existing">Add stock to existing item</option><option value="new">Create new item</option></Select></label>
+            {stockForm.mode === "existing" ? <label className="text-xs font-semibold">Item<Select required value={stockForm.itemId} onChange={(e) => setStockForm((form) => ({ ...form, itemId: e.target.value }))}><option value="">Select item</option>{items.map((item) => <option key={item.id} value={item.id}>{isCashier ? inventoryDisplayName(item) : item.item_name}</option>)}</Select></label> : <>
+              <label className="text-xs font-semibold">Item name<Input required value={stockForm.itemName} onChange={(e) => setStockForm((form) => ({ ...form, itemName: e.target.value }))} /></label>
+              <label className="text-xs font-semibold">Common name<Input value={stockForm.commonName} placeholder="Defaults to item name" onChange={(e) => setStockForm((form) => ({ ...form, commonName: e.target.value }))} /></label>
+              <label className="text-xs font-semibold">Category<Input value={stockForm.category} onChange={(e) => setStockForm((form) => ({ ...form, category: e.target.value }))} /></label>
+            </>}
+            <label className="text-xs font-semibold">{stockForm.mode === "new" ? "Opening quantity" : "Quantity to add"}<Input required={stockForm.mode === "existing"} type="number" min={stockForm.mode === "new" ? "0" : "0.001"} step="0.001" value={stockForm.quantity} onChange={(e) => setStockForm((form) => ({ ...form, quantity: e.target.value }))} /></label>
+            <label className="text-xs font-semibold">Unit{stockForm.mode === "existing" ? <Input readOnly value={normalizeUnit(items.find((item) => item.id === stockForm.itemId)?.unit || "")} /> : <Select value={stockForm.unit} onChange={(e) => setStockForm((form) => ({ ...form, unit: e.target.value }))}>{INVENTORY_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}</Select>}</label>
+            <label className="text-xs font-semibold">Note<Input value={stockForm.note} onChange={(e) => setStockForm((form) => ({ ...form, note: e.target.value }))} /></label>
+          </fieldset>
+          <div className="mt-3 flex gap-2"><button type="submit" disabled={addingStock} className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{addingStock ? "Saving…" : "Save Item / Stock"}</button><button type="button" disabled={addingStock} onClick={() => setStockForm(null)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm">Cancel</button></div>
+        </form>
+      </Card> : null}
 
       <Card>
         <div className="grid gap-3 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
@@ -557,12 +612,12 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
             Inventory Date
             <div className="relative mt-1">
               <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input type="date" value={inventoryDate} onChange={(e) => setInventoryDate(e.target.value)} className="pl-9" />
+              <Input type="date" disabled={addingStock} value={inventoryDate} onChange={(e) => setInventoryDate(e.target.value)} className="pl-9" />
             </div>
           </label>
           <label className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
             Store
-            <Select value={selectedStoreId} onChange={(e) => setSelectedStoreId(e.target.value)} disabled={!canChooseStore}>
+            <Select value={selectedStoreId} onChange={(e) => setSelectedStoreId(e.target.value)} disabled={!canChooseStore || addingStock}>
               {stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
             </Select>
           </label>
@@ -572,7 +627,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
         </div>
         {sourceTotals.purchaseRows === 0 ? (
           <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            No reorder purchases found for {storeNameById[String(selectedStoreId)] || "selected store"} on {inventoryDate}. Check the store/date, or set the Inventory Store when saving an Overall Expense purchase.
+            No stock received for {storeNameById[String(selectedStoreId)] || "selected store"} on {inventoryDate}. Add stock manually, or record an Inventory Purchase expense for this store.
           </div>
         ) : (
           <div className="mt-3 rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-800">
@@ -582,7 +637,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
       </Card>
 
       <div data-finance-stats className="grid gap-4 md:grid-cols-3">
-        <Card data-finance-stat><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Reorder Purchases</p><p className="mt-2 text-2xl font-semibold text-slate-950">{qty(summary.reorder)}</p></Card>
+        <Card data-finance-stat><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Stock Received</p><p className="mt-2 text-2xl font-semibold text-slate-950">{qty(summary.reorder)}</p></Card>
         <Card data-finance-stat><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">POS Auto Deduct</p><p className="mt-2 text-2xl font-semibold text-slate-950">{qty(summary.deductions)}</p></Card>
         <Card data-finance-stat><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Manual Adjustment</p><p className="mt-2 text-2xl font-semibold text-slate-950">{qty(summary.manual)}</p></Card>
       </div>
@@ -637,7 +692,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
                 <th rowSpan={2} className="border-r border-slate-300 px-3 py-3 text-left">Common Name</th>
                 <th colSpan={2} className="border-r border-slate-300 px-3 py-2">Reference</th>
                 <th colSpan={2} className="border-r border-slate-300 px-3 py-2">Beginning</th>
-                <th className="border-r border-slate-300 px-3 py-2">Reorder</th>
+                <th className="border-r border-slate-300 px-3 py-2">Reorder / Added</th>
                 <th colSpan={2} className="border-r border-slate-300 px-3 py-2">Total</th>
                 <th colSpan={2} className="border-r border-slate-300 px-3 py-2">Transfer</th>
                 <th className="w-[88px] border-r border-slate-300 px-2 py-2">POS Auto Deduct</th>
