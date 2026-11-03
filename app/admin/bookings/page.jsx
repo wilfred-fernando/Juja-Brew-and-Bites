@@ -64,9 +64,9 @@ function labelBookingSlot(hour) {
   const compactHour = (value) => labelHour(value).replace(":00", "").replace(" (+1)", "");
   return `${compactHour(hour)} - ${compactHour(hour + 3)}`;
 }
-function editSlotHours(currentHour, hourlySelection = false) {
+function editSlotHours(currentHour) {
   const hour = Number(currentHour);
-  const hours = hourlySelection ? ADMIN_MANUAL_HOURLY_STARTS : BOOKING_SLOT_HOURS;
+  const hours = ADMIN_MANUAL_HOURLY_STARTS;
   return hours.includes(hour)
     ? hours
     : [...hours, hour].sort((a, b) => a - b);
@@ -2270,20 +2270,16 @@ export default function AdminBookingsDashboard() {
 
               <div>
                 <label className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">
-                  Start Time
+                  Start Time (Hourly)
                 </label>
                 <select
                   value={editModal.hour}
                   onChange={(e) => setEditModal((p) => ({ ...p, hour: Number(e.target.value) }))}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
                 >
-                  {editSlotHours(editModal.hour, isConfirmedBooking(editModal.booking)).map((h) => (
+                  {editSlotHours(editModal.hour).map((h) => (
                     <option key={h} value={h}>
-                      {isConfirmedBooking(editModal.booking)
-                        ? `${labelHour(h)}${ADMIN_MANUAL_HOURLY_STARTS.includes(h) ? "" : " (existing booking time)"}`
-                        : BOOKING_SLOT_HOURS.includes(h)
-                        ? labelBookingSlot(h)
-                        : `${labelHour(h)} (existing booking time)`}
+                      {`${labelHour(h)}${ADMIN_MANUAL_HOURLY_STARTS.includes(h) ? "" : " (existing booking time)"}`}
                     </option>
                   ))}
                 </select>
