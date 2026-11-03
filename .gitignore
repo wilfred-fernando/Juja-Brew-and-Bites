@@ -54,3 +54,8 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# Local project relocation backups and audit records
+/tmp/old-project-backup-*.zip
+/tmp/old-project-backup-verification.json
+/tmp/old-project-cleanup-audit.json
