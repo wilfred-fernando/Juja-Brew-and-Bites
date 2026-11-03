@@ -182,6 +182,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
     const transferMap = {};
     const deductions = {};
     let purchaseRows = 0;
+    let incomingTransferRows = 0;
     const linkedExpenseIds = new Set();
     const expensePettyIds = new Set();
 
@@ -213,8 +214,13 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
     transferList.forEach((transfer) => {
       const item = items.find((row) => row.id === transfer.inventory_item_id);
       if (!item) return;
-      const direction = String(transfer.from_store_id) === String(selectedStoreId) ? 1 : -1;
-      transferMap[item.id] = (transferMap[item.id] || 0) + direction * toBulk(item, transfer.quantity, transfer.unit);
+      const amount = toBulk(item, transfer.quantity, transfer.unit);
+      if (String(transfer.from_store_id) === String(selectedStoreId)) {
+        transferMap[item.id] = (transferMap[item.id] || 0) + amount;
+      } else if (String(transfer.to_store_id) === String(selectedStoreId)) {
+        purchases[item.id] = (purchases[item.id] || 0) + amount;
+        incomingTransferRows += 1;
+      }
     });
 
     txList.forEach((tx) => {
@@ -225,7 +231,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
       deductions[item.id] = (deductions[item.id] || 0) + Math.abs(toBulk(item, tx.quantity_effect || tx.quantity, tx.unit));
     });
 
-    return { purchases, transfers: transferMap, deductions, purchaseRows };
+    return { purchases, transfers: transferMap, deductions, purchaseRows, receivedRows: purchaseRows + incomingTransferRows };
   }
 
   async function loadBase() {
@@ -625,13 +631,13 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
             <Save size={15} /> {saving ? "Saving..." : "Save Daily Inventory"}
           </button>
         </div>
-        {sourceTotals.purchaseRows === 0 ? (
+        {sourceTotals.receivedRows === 0 ? (
           <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             No stock received for {storeNameById[String(selectedStoreId)] || "selected store"} on {inventoryDate}. Add stock manually, or record an Inventory Purchase expense for this store.
           </div>
         ) : (
           <div className="mt-3 rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-800">
-            Found {sourceTotals.purchaseRows} reorder purchase{sourceTotals.purchaseRows === 1 ? "" : "s"} for this store/date.
+            Found {sourceTotals.receivedRows} stock receipt{sourceTotals.receivedRows === 1 ? "" : "s"} for this store/date, including incoming branch transfers.
           </div>
         )}
       </Card>
@@ -694,7 +700,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
                 <th colSpan={2} className="border-r border-slate-300 px-3 py-2">Beginning</th>
                 <th className="border-r border-slate-300 px-3 py-2">Reorder / Added</th>
                 <th colSpan={2} className="border-r border-slate-300 px-3 py-2">Total</th>
-                <th colSpan={2} className="border-r border-slate-300 px-3 py-2">Transfer</th>
+                <th colSpan={2} className="border-r border-slate-300 px-3 py-2">Transfer Out</th>
                 <th className="w-[88px] border-r border-slate-300 px-2 py-2">POS Auto Deduct</th>
                 <th rowSpan={2} className="w-[100px] border-r border-slate-300 px-2 py-2" title="Dine-in and VIP drinks use reusable cups. This total does not reduce inventory.">Dine-in / VIP<br /><span className="text-[9px] font-normal normal-case tracking-normal">No deduction</span></th>
                 <th colSpan={3} className="border-r border-slate-300 px-2 py-2">Manual Adjustment</th>
