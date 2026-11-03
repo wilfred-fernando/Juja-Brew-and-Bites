@@ -7,6 +7,7 @@ import { uploadProofFile } from "@/lib/storage/uploadProof";
 import { getLocalSnapshot, isLocalSnapshotFresh, setLocalSnapshot } from "@/lib/localData";
 import { visibleBookingHours } from "@/lib/bookings/slots.mjs";
 import { packageExtensionPolicyText } from "@/lib/bookings/extensionPolicy";
+import { DECEMBER_BOOKING_POLICY, isDecemberBooking, rescheduleMinimumDays, canRescheduleBooking } from "@/lib/bookings/decemberPolicy.mjs";
 
 const supabase = getSupabaseClient();
 
@@ -34,6 +35,16 @@ const CUSTOMER_READ_ONLY_BOOKING_STATUSES = new Set([
   "cancelled_gc",
   "cancellation_requested",
 ]);
+
+function DecemberBookingPolicyNote({ date }) {
+  if (!isDecemberBooking(date)) return null;
+  return (
+    <div role="note" className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-xs leading-relaxed text-amber-900">
+      <b>December booking policy</b>
+      <p className="mt-1">{DECEMBER_BOOKING_POLICY}</p>
+    </div>
+  );
+}
 
 function isCustomerBookingReadOnly(booking) {
   return CUSTOMER_READ_ONLY_BOOKING_STATUSES.has(
@@ -475,6 +486,8 @@ export function BookingAvailabilityOnly({
           </div>
         </div>
       </div>
+
+      <DecemberBookingPolicyNote date={dateISO} />
 
       {loadingBookings ? (
         <div className="py-10 flex justify-center">
@@ -1191,6 +1204,9 @@ export default function BookingForm({ user, member }) {
     const isExpired = b.status === EXPIRED_BOOKING_STATUS;
     const isReadOnly = isCustomerBookingReadOnly(b);
     const allowChange = !isReadOnly && !isPast && (isPending || canChangeBooking(b.start_at));
+    const allowReschedule = !isReadOnly && !isPast && (
+      (isPending && !isDecemberBooking(b)) || canRescheduleBooking(b)
+    );
     const canCancel = !isReadOnly && !isPast && (isPending || isConfirmed);
 
     const statusMap = {
@@ -1319,16 +1335,16 @@ export default function BookingForm({ user, member }) {
               </button>
 
               <button
-                disabled={!allowChange}
+                disabled={!allowReschedule}
                 onClick={() => {
-                  if (!allowChange) return;
+                  if (!allowReschedule) return;
                   setReschedBooking(b);
                   setReschedDateISO(toISODate(new Date(b.start_at)));
                   setReschedHour(null);
                   setReschedOpen(true);
                 }}
                 className={`w-full py-2 rounded-lg text-xs font-bold ${
-                  allowChange
+                  allowReschedule
                     ? "border border-slate-200 bg-white hover:bg-slate-50"
                     : "bg-slate-100 text-slate-500 cursor-not-allowed"
                 }`}
@@ -1340,7 +1356,9 @@ export default function BookingForm({ user, member }) {
               <button
                 onClick={async () => {
                   const nextStatus = isPending ? "cancelled" : "cancellation_requested";
-                  const message = isPending
+                  const message = isDecemberBooking(b)
+                    ? "Cancel this December booking? The reservation fee is forfeited and will not be converted to a gift certificate (GC)."
+                    : isPending
                     ? "Cancel this pending booking?"
                     : "Request cancellation for this approved booking? Admin approval is required before the reservation fee is converted to a gift certificate.";
                   const ok = confirm(
@@ -1369,7 +1387,9 @@ export default function BookingForm({ user, member }) {
                   }
 
                   setNotice(
-                    isPending
+                    isDecemberBooking(b)
+                      ? (isPending ? "Booking cancelled. The reservation fee is forfeited; no GC will be issued." : "Cancellation request sent. The reservation fee is forfeited; no GC will be issued.")
+                      : isPending
                       ? "Booking cancelled."
                       : "Cancellation request sent. Admin will review the gift certificate conversion."
                   );
@@ -1481,6 +1501,8 @@ export default function BookingForm({ user, member }) {
             <b>6:00 PM - 9:00 PM</b>, and <b>10:00 PM - 1:00 AM</b> (next day). Available slots adjust around existing bookings with a one-hour gap, ending by 2 AM.
             A one-hour preparation buffer is protected before and after every reservation.
           </div>
+
+          <DecemberBookingPolicyNote date={dateISO} />
 
           {loadingBookings ? (
             <div className="min-h-[120px] flex items-center justify-center">
@@ -1698,6 +1720,8 @@ export default function BookingForm({ user, member }) {
             After submitting, choose Cash or QRPH within {PAYMENT_HOLD_HOURS} hours to keep this schedule.
           </div>
 
+          <DecemberBookingPolicyNote date={dateISO} />
+
           <button
             type="button"
             onClick={onBookNowClick}
@@ -1717,7 +1741,7 @@ export default function BookingForm({ user, member }) {
               <div>
                 <h3 className="text-xl font-semibold text-slate-800">Manage Your Bookings</h3>
                 <p className="text-sm text-slate-500 mt-1">
-                  Update or reschedule at least <b>{RESCHEDULE_MIN_DAYS} days</b> before your event.
+                  Updates require at least <b>{RESCHEDULE_MIN_DAYS} days</b> before your event. Rescheduling follows your booking date’s policy.
                 </p>
               </div>
 
@@ -2063,9 +2087,9 @@ export default function BookingForm({ user, member }) {
                     setReschedOpen(false);
                     return;
                   }
-                  if (!canChangeBooking(reschedBooking.start_at)) {
+                  if (!canRescheduleBooking(reschedBooking, reschedDateISO)) {
                     setNotice(
-                      `Reschedule allowed only if at least ${RESCHEDULE_MIN_DAYS} days before booking.`
+                      `Reschedule allowed only if at least ${rescheduleMinimumDays(reschedBooking, reschedDateISO)} days before booking.`
                     );
                     return;
                   }

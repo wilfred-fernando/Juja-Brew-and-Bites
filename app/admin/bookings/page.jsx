@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/dateFormat";
 import { packageExtensionPolicyText } from "@/lib/bookings/extensionPolicy";
 import { createManualBooking } from "@/lib/bookings/createManualBooking";
 import { adjustedBookingHours } from "@/lib/bookings/slots.mjs";
+import { isDecemberBooking } from "@/lib/bookings/decemberPolicy.mjs";
 import BookingGiftCertificates from "@/components/BookingGiftCertificates";
 
 const supabase = getSupabaseClient();
@@ -1913,7 +1914,9 @@ export default function AdminBookingsDashboard() {
             </p>
 
             {actionModal.type === "cancel" && <p className="mb-4 text-sm text-slate-600">
-              {actionModal.booking?.payment_status === "approved" && Number(actionModal.booking?.deposit_amount) >= 100
+              {isDecemberBooking(actionModal.booking)
+                ? "December cancellation: the reservation fee is forfeited and will not be converted to a GC."
+                : actionModal.booking?.payment_status === "approved" && Number(actionModal.booking?.deposit_amount) >= 100
                 ? "The paid reservation fee will queue ₱100 e-GCs for separate admin approval. Customer email delivery happens only after that approval."
                 : "The booking slot will be released. No e-GCs are issued without an approved reservation payment of at least ₱100."}
             </p>}
