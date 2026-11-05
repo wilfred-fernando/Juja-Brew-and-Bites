@@ -1675,7 +1675,7 @@ function buildReceiptText({
   const storedCashChange = order?.source_metadata?.cash_change;
   const cashTenderedValue = cashTendered ?? storedCashTendered;
   const cashChangeValue = changeDue ?? storedCashChange;
-  const showCashTenderDetails = (isCashPayment || ((order?.source_metadata?.gc_codes?.length > 0 || order?.source_metadata?.booking_id) && Number(cashTenderedValue) > 0))
+  const showCashTenderDetails = (isCashPayment || ((order?.source_metadata?.gc_codes?.length > 0 || order?.source_metadata?.legacy_gc_serials?.length > 0 || order?.source_metadata?.booking_id) && Number(cashTenderedValue) > 0))
     && cashTenderedValue !== null
     && cashTenderedValue !== undefined
     && cashTenderedValue !== ""
@@ -1771,6 +1771,7 @@ function buildReceiptText({
     lines.push("Voucher: " + order.source_metadata.reservation_voucher_code);
   }
   for (const code of order?.source_metadata?.gc_codes || []) lines.push(`e-GC: ${code}`);
+  for (const serial of order?.source_metadata?.legacy_gc_serials || []) lines.push(...splitReceiptText(`Physical GC: ${serial} · P100.00`));
   if (showCashTenderDetails) {
     lines.push(receiptPair("Cash tendered", receiptAmount(cashTenderedValue)));
     lines.push(receiptPair("Change", receiptAmount(Math.max(0, Number(cashChangeValue ?? Number(cashTenderedValue) - totalValue)))));
@@ -3696,6 +3697,11 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
   const [gcDialogOpen, setGcDialogOpen] = useState(false);
   const gcKeyRef = useRef(null);
   const gcTotal = certificates.length * 100;
+  const legacyGc = certificates.some(gc => gc.legacy);
+  function openGcDialog(legacy = false) {
+    if (certificates.length && legacy !== legacyGc) return alert("Remove applied GCs before switching between e-GCs and legacy physical GCs.");
+    setGcDialogOpen(legacy ? "legacy" : "digital");
+  }
   function changeCertificates(next) {
     setCertificates(next);
     gcKeyRef.current = crypto.randomUUID();
@@ -3707,7 +3713,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
   const isCash = normalizePaymentMethodName(selectedPayment) === "Cash";
   const amt = Number(paymentAmount || 0);
   const due = Math.max(0, Number(total || 0) - gcTotal);
-  const availableTypes = (paymentTypes || []).filter(type => (!bookingPayment || bookingPaymentMethod(type.name)) && !["giftcertificate", "jujaegc"].includes(String(type.name).toLowerCase().replace(/[^a-z]/g, "")));
+  const availableTypes = (paymentTypes || []).filter(type => (!bookingPayment || bookingPaymentMethod(type.name)) && !["giftcertificate", "jujaegc", "legacyphysicalgc"].includes(String(type.name).toLowerCase().replace(/[^a-z]/g, "")));
 
   useEffect(() => {
     if (!open) {
@@ -3759,9 +3765,10 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
       : { amountPaid: isZeroDue ? 0 : amt, changeDue: isZeroDue ? 0 : change };
     if (gcTotal > 0) {
       const otherPayments = isZeroDue ? [] : useSplitPayment ? payload.payments : [{ method: selectedPayment, amount: amt }];
-      try { Object.assign(payload, gcPaymentBreakdown(total, certificates.length, otherPayments)); }
+      try { Object.assign(payload, gcPaymentBreakdown(total, certificates.length, otherPayments, legacyGc ? "Legacy Physical GC" : "JUJA e-GC")); }
       catch (error) { return alert(error.message); }
-      payload.gcCodes = certificates.map((gc) => gc.code);
+      if (legacyGc) payload.legacyGcSerials = certificates.map(gc => gc.code);
+      else payload.gcCodes = certificates.map((gc) => gc.code);
       payload.gcCheckoutKey = gcKeyRef.current;
     }
     onConfirm(payload);
@@ -3786,7 +3793,7 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
     <ModalShell open={open} onClose={() => !charging && !checkingGc && !gcDialogOpen && onClose()} title="Payment" subtitle="Select Payment Type" z={150} wide>
       <fieldset disabled={charging} className="space-y-4">
         {bookingPayment && <p className="rounded-xl bg-slate-100 p-3 text-sm text-slate-800">Final bill: {peso2(Number(total) + reservationCredit)} · Reservation fee applied: {peso2(reservationCredit)} · Remaining to collect: {peso2(total)}</p>}
-        {open && gcDialogOpen && <GiftCertificatePaymentDialog onClose={() => setGcDialogOpen(false)} checking={checkingGc} certificates={certificates} onChange={changeCertificates} total={total} storeId={storeId} disabled={charging} onChecking={setCheckingGc} />}
+        {open && gcDialogOpen && <GiftCertificatePaymentDialog legacy={gcDialogOpen === "legacy"} onClose={() => setGcDialogOpen(false)} checking={checkingGc} certificates={certificates} onChange={changeCertificates} total={total} storeId={storeId} disabled={charging} onChecking={setCheckingGc} />}
         <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
         <div className="space-y-4">
         <div className="flex items-center justify-between rounded-xl border border-rose-100 bg-rose-50/60 px-3 py-2">
@@ -3810,11 +3817,12 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
               <div key={row.id} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center rounded-xl border border-slate-200 bg-white p-2">
                 <select
                   value={row.method}
-                  onChange={(e) => { if (e.target.value === "__gift_certificate") setGcDialogOpen(true); else updateSplitPayment(idx, { method: e.target.value }); }}
+                  onChange={(e) => { if (e.target.value === "__gift_certificate") openGcDialog(); else if (e.target.value === "__legacy_gc") openGcDialog(true); else updateSplitPayment(idx, { method: e.target.value }); }}
                   className="h-10 rounded-lg border border-slate-200 bg-slate-50 px-2 text-sm font-bold text-slate-700 outline-none"
                 >
                   {availableTypes.map((p) => <option key={p.id || p.name} value={p.name}>{p.name}</option>)}
                   {!bookingPayment && <option value="__gift_certificate">Gift Certificate</option>}
+                  {!bookingPayment && <option value="__legacy_gc">Legacy Physical GC</option>}
                 </select>
                 <div className="flex items-center gap-1 h-10 rounded-lg border border-slate-200 bg-slate-50 px-2">
                   <span className="text-slate-400 font-bold text-sm">₱</span>
@@ -3858,13 +3866,14 @@ function PaymentModal({ open, onClose, paymentTypes, selectedPayment, onSelect, 
                 {p.name}
               </button>
             ))}
-            {!bookingPayment && <button type="button" onClick={() => setGcDialogOpen(true)}
+            {!bookingPayment && <button type="button" onClick={() => openGcDialog()}
               className={`h-11 rounded-xl border text-sm font-bold uppercase tracking-wider transition ${gcTotal > 0 ? "border-rose-300 bg-rose-50 text-[#FC687D]" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
               Gift Certificate
             </button>}
+            {!bookingPayment && <button type="button" onClick={() => openGcDialog(true)} className="h-11 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700">Legacy Physical GC</button>}
           </div>
         )}
-        {gcTotal > 0 && <p className="text-sm text-green-800">{certificates.length} e-GCs applied · {peso2(gcTotal)}. Remaining payment: {peso2(due)}. {due > 0 ? "Select another payment method for the balance." : "The bill is fully covered by e-GCs."}</p>}
+        {gcTotal > 0 && <p className="text-sm text-green-800">{certificates.length} {legacyGc ? "legacy physical GCs" : "e-GCs"} applied · {peso2(gcTotal)}. Remaining payment: {peso2(due)}. {due > 0 ? "Select another payment method for the balance." : "The bill is fully covered by GCs."}</p>}
 
         </div>
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3 shadow-inner">
@@ -9640,7 +9649,10 @@ export default function POSPage() {
     const usingBooking = isVipBooking;
     if (usingBooking && !selectedBooking) return showToast("error", "Booking Required", "Refresh and select a confirmed booking.");
     const gcCodes = Array.isArray(paymentPayload.gcCodes) ? paymentPayload.gcCodes : [];
-    const usingGc = gcCodes.length > 0;
+    const legacyGcSerials = Array.isArray(paymentPayload.legacyGcSerials) ? paymentPayload.legacyGcSerials : [];
+    const usingLegacyGc = legacyGcSerials.length > 0;
+    if (usingLegacyGc && gcCodes.length) return showToast("error", "Payment Method", "Use either e-GCs or legacy physical GCs in this sale.");
+    const usingGc = gcCodes.length > 0 || usingLegacyGc;
     const usingAtomic = usingGc || usingBooking;
     if (usingBooking && usingGc) return showToast("error", "Payment Method", "Use Cash, Card, QRPH, or Gcash for a booking balance.");
     const total = usingAtomic ? Number(Number(totalDue || 0).toFixed(2)) : Number(totalDue || 0);
@@ -9908,9 +9920,9 @@ export default function POSPage() {
             p_order: orderPayload, p_items: itemRows, p_voucher_ids: appliedCartVouchers.map(voucher => voucher.id),
           })
         : usingGc
-        ? await supabase.rpc("complete_pos_gc_sale", {
+        ? await supabase.rpc(usingLegacyGc ? "complete_pos_legacy_gc_sale" : "complete_pos_gc_sale", {
             p_key: paymentPayload.gcCheckoutKey, p_order: orderPayload, p_items: itemRows,
-            p_codes: gcCodes, p_voucher_ids: appliedCartVouchers.map((voucher) => voucher.id),
+            ...(usingLegacyGc ? { p_serials: legacyGcSerials } : { p_codes: gcCodes }), p_voucher_ids: appliedCartVouchers.map((voucher) => voucher.id),
           })
         : await supabase.from("orders").insert([orderPayload]).select("*").single();
       const orderErr = result.error;

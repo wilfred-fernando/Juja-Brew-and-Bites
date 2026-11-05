@@ -3,8 +3,9 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import GiftCertificatePayment from "./GiftCertificatePayment";
+import LegacyGiftCertificatePayment from "./LegacyGiftCertificatePayment";
 
-export default function GiftCertificatePaymentDialog({ onClose, checking, ...paymentProps }) {
+export default function GiftCertificatePaymentDialog({ onClose, checking, legacy = false, ...paymentProps }) {
   const dialog = useRef(null);
   useEffect(() => {
     const element = dialog.current;
@@ -16,10 +17,10 @@ export default function GiftCertificatePaymentDialog({ onClose, checking, ...pay
       onCancel={event => { event.preventDefault(); if (!checking) onClose(); }}
       className="m-auto max-h-[90vh] w-[calc(100%_-_2rem)] max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl backdrop:bg-black/50">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 id="pos-gc-dialog-title" className="text-lg font-bold">Gift Certificate payment</h2>
+        <h2 id="pos-gc-dialog-title" className="text-lg font-bold">{legacy ? "Legacy Physical GC" : "Gift Certificate payment"}</h2>
         <button type="button" aria-label="Close gift certificate payment" disabled={checking} onClick={onClose} className="rounded-lg border px-3 py-2 disabled:opacity-40">✕</button>
       </div>
-      <GiftCertificatePayment {...paymentProps} />
+      {legacy ? <LegacyGiftCertificatePayment {...paymentProps} /> : <GiftCertificatePayment {...paymentProps} />}
       <button type="button" disabled={checking} onClick={onClose} className="mt-4 w-full rounded-xl bg-green-800 p-3 font-semibold text-white disabled:opacity-40">Done</button>
     </dialog>, document.body,
   );
