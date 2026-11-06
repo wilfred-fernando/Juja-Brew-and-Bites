@@ -18,6 +18,7 @@ const supabase = getSupabaseClient();
 const OPERATING_START_HOUR = 10; // 10AM
 const BOOKING_SLOT_HOURS = [10, 14, 18, 22];
 const ADMIN_MANUAL_HOURLY_STARTS = Array.from({ length: 14 }, (_, index) => OPERATING_START_HOUR + index);
+const SUPER_ADMIN_HOURLY_STARTS = Array.from({ length: 24 }, (_, index) => index);
 const BASE_BOOKING_MINUTES = 3 * 60;
 
 const PAYMENT_HOLD_HOURS = 24;
@@ -65,9 +66,9 @@ function labelBookingSlot(hour) {
   const compactHour = (value) => labelHour(value).replace(":00", "").replace(" (+1)", "");
   return `${compactHour(hour)} - ${compactHour(hour + 3)}`;
 }
-function editSlotHours(currentHour) {
+function editSlotHours(currentHour, superAdmin = false) {
   const hour = Number(currentHour);
-  const hours = ADMIN_MANUAL_HOURLY_STARTS;
+  const hours = superAdmin ? SUPER_ADMIN_HOURLY_STARTS : ADMIN_MANUAL_HOURLY_STARTS;
   return hours.includes(hour)
     ? hours
     : [...hours, hour].sort((a, b) => a - b);
@@ -334,6 +335,7 @@ function DonutChart({ title, segments }) {
  Component
 ======================= */
 export default function AdminBookingsDashboard() {
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [view, setView] = useState("dashboard"); // dashboard | calendar | list
 
   const [bookings, setBookings] = useState([]);
@@ -449,6 +451,11 @@ export default function AdminBookingsDashboard() {
   ======================= */
   async function loadAll() {
     setLoading(true);
+    const { data: auth } = await supabase.auth.getUser();
+    const { data: actor } = auth?.user
+      ? await supabase.from("profiles").select("role").eq("id", auth.user.id).maybeSingle()
+      : { data: null };
+    setIsSuperAdmin(String(actor?.role || "").toLowerCase() === "super_admin");
     await fetch("/api/bookings/expire-stale", { method: "POST" }).catch(() => null);
     const [{ data: pkgData, error: pkgErr }, { data: bookingData, error: bookErr }] =
       await Promise.all([
@@ -862,8 +869,10 @@ export default function AdminBookingsDashboard() {
   function openEditModal(b) {
     if (disableEdit(b)) return; // ✅ past = locked
 
-    const dateISO = bookingISODate(b.start_at);
-    const hour = hourLikeFromStartAt(b.start_at);
+    const dateISO = isSuperAdmin ? (b.business_date || bookingISODate(b.start_at)) : bookingISODate(b.start_at);
+    const hour = isSuperAdmin
+      ? (new Date(b.start_at).getTime() - computeDateTime(dateISO, 0).getTime()) / 3600000
+      : hourLikeFromStartAt(b.start_at);
 
     setEditModal({
       booking: b,
@@ -973,7 +982,7 @@ export default function AdminBookingsDashboard() {
       extension_hours: 0,
       dateISO: prefill.dateISO || bookingISODate(new Date()),
       hour: Number.isFinite(Number(prefill.hour)) ? Number(prefill.hour) : OPERATING_START_HOUR,
-      hourlySelection: Boolean(prefill.hourlySelection),
+      hourlySelection: isSuperAdmin || Boolean(prefill.hourlySelection),
       deposit_amount: 0,
       payment_method: "Cash",
       status: "confirmed",
@@ -2090,7 +2099,7 @@ export default function AdminBookingsDashboard() {
                   onChange={(e) => setManualModal((p) => ({ ...p, hour: Number(e.target.value) }))}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
                 >
-                  {(manualModal.hourlySelection ? ADMIN_MANUAL_HOURLY_STARTS : adjustedBookingHours(manualModal.dateISO, bookings)).map((h) => (
+                  {(isSuperAdmin ? SUPER_ADMIN_HOURLY_STARTS : manualModal.hourlySelection ? ADMIN_MANUAL_HOURLY_STARTS : adjustedBookingHours(manualModal.dateISO, bookings)).map((h) => (
                     <option key={h} value={h}>
                       {manualModal.hourlySelection ? labelHour(h) : labelBookingSlot(h)}
                     </option>
@@ -2280,9 +2289,9 @@ export default function AdminBookingsDashboard() {
                   onChange={(e) => setEditModal((p) => ({ ...p, hour: Number(e.target.value) }))}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm"
                 >
-                  {editSlotHours(editModal.hour).map((h) => (
+                  {editSlotHours(editModal.hour, isSuperAdmin).map((h) => (
                     <option key={h} value={h}>
-                      {`${labelHour(h)}${ADMIN_MANUAL_HOURLY_STARTS.includes(h) ? "" : " (existing booking time)"}`}
+                      {`${labelHour(h)}${(isSuperAdmin ? SUPER_ADMIN_HOURLY_STARTS : ADMIN_MANUAL_HOURLY_STARTS).includes(h) ? "" : " (existing booking time)"}`}
                     </option>
                   ))}
                 </select>
