@@ -866,8 +866,9 @@ export default function AdminBookingsDashboard() {
     }
   }
 
-  function openEditModal(b) {
+  async function openEditModal(b) {
     if (disableEdit(b)) return; // ✅ past = locked
+    const { data: reservationCredit, error: creditError } = await supabase.rpc("admin_booking_fee_is_recorded", { p_booking_id: b.id });
 
     const dateISO = isSuperAdmin ? (b.business_date || bookingISODate(b.start_at)) : bookingISODate(b.start_at);
     const hour = isSuperAdmin
@@ -889,6 +890,9 @@ export default function AdminBookingsDashboard() {
       hour: isNaN(hour) ? OPERATING_START_HOUR : hour,
       admin_note: b.update_admin_note || "",
       payment_method: b.payment_method || "",
+      deposit_amount: Number(b.deposit_amount || 0),
+      reservation_fee_locked: Boolean(reservationCredit || creditError),
+      reservation_fee_lookup_error: Boolean(creditError),
     });
   }
 
@@ -907,6 +911,12 @@ export default function AdminBookingsDashboard() {
       const extensionHours = clampExtensionHours(editModal.extension_hours);
       const startAt = computeDateTime(editModal.dateISO, Number(editModal.hour));
       const endAt = computeEndAt(startAt, extensionHours);
+      const reservationFee = Number(editModal.deposit_amount);
+      if (String(editModal.deposit_amount).trim() === "" || !Number.isFinite(reservationFee) || reservationFee < 0 ||
+          Math.abs(reservationFee * 100 - Math.round(reservationFee * 100)) > 0.000001) {
+        alert("Enter a valid reservation fee amount with up to two decimal places.");
+        return;
+      }
 
       const payload = {
         customer_name: String(editModal.customer_name || "").trim(),
@@ -915,6 +925,7 @@ export default function AdminBookingsDashboard() {
         contact_number: String(editModal.contact_number || "").trim(),
         email: String(editModal.email || "").trim(),
         payment_method: editModal.payment_method || null,
+        deposit_amount: reservationFee,
         package_id: Number(editModal.package_id),
         extension_hours: extensionHours,
         business_date: editModal.dateISO,
@@ -2297,9 +2308,20 @@ export default function AdminBookingsDashboard() {
                 </select>
               </div>
 
-              <div className="md:col-span-2">
+              <div>
+                <label htmlFor="edit-reservation-amount" className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Reservation Fee Amount (₱)</label>
+                <input id="edit-reservation-amount" type="number" min="0" step="0.01"
+                  disabled={editLoading || editModal.reservation_fee_locked}
+                  value={editModal.deposit_amount}
+                  onChange={(event) => setEditModal((current) => ({ ...current, deposit_amount: event.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm disabled:opacity-60" />
+                {editModal.reservation_fee_locked && <p className="mt-1 text-[11px] text-slate-500">{editModal.reservation_fee_lookup_error ? "Unable to verify reservation credit. Reopen the editor to retry." : "Recorded reservation credit is locked. Use the payment reversal process for corrections."}</p>}
+                {!editModal.reservation_fee_locked && editModal.booking.status === "confirmed" && editModal.booking.payment_status === "approved" && Number(editModal.booking.deposit_amount || 0) === 0 && editModal.payment_method !== "Waived" && <p className="mt-1 text-[11px] text-slate-500">Saving a paid amount creates a receipt and voucher in the current open shift.</p>}
+              </div>
+
+              <div>
                 <label htmlFor="edit-reservation-payment" className="block text-[10px] uppercase tracking-widest text-slate-500 mb-1">Reservation Fee Payment Type</label>
-                <select id="edit-reservation-payment" disabled={editLoading}
+                <select id="edit-reservation-payment" disabled={editLoading || editModal.reservation_fee_locked}
                   value={editModal.payment_method}
                   onChange={(event) => setEditModal((current) => ({ ...current, payment_method: event.target.value }))}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm">

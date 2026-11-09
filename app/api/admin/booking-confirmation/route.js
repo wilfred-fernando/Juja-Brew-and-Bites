@@ -126,6 +126,7 @@ export async function POST(req) {
       "contact_number",
       "email",
       "payment_method",
+      "deposit_amount",
       "package_id",
       "extension_hours",
       "business_date",
@@ -140,7 +141,7 @@ export async function POST(req) {
       for (const key of ["customer_name", "event_type", "contact_number", "email", "business_date", "start_at", "end_at"]) {
         if (key in adjustedFields) adjustedFields[key] = String(adjustedFields[key] || "").trim();
       }
-      for (const key of ["guest_count", "package_id", "extension_hours"]) {
+      for (const key of ["guest_count", "package_id", "extension_hours", "deposit_amount"]) {
         if (key in adjustedFields) adjustedFields[key] = Number(adjustedFields[key]);
       }
     }
@@ -148,6 +149,10 @@ export async function POST(req) {
     if ("payment_method" in adjustedFields && adjustedFields.payment_method !== null &&
         !["Cash", "Card", "QRPH", "Waived", booking.payment_method].includes(adjustedFields.payment_method)) {
       return Response.json({ error: "Select Cash, Card, QRPH, or Waived for the reservation fee." }, { status: 400 });
+    }
+    if ("deposit_amount" in adjustedFields && (!Number.isFinite(adjustedFields.deposit_amount) || adjustedFields.deposit_amount < 0 ||
+        Math.abs(adjustedFields.deposit_amount * 100 - Math.round(adjustedFields.deposit_amount * 100)) > 0.000001)) {
+      return Response.json({ error: "Enter a valid reservation fee amount with up to two decimal places." }, { status: 400 });
     }
 
     if ("user_id" in adjustedFields || "member_id" in adjustedFields) {
