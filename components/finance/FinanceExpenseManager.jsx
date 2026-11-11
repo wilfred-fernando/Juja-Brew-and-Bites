@@ -17,6 +17,7 @@ import {
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/dateFormat";
 import { financeExpensesCsv } from "@/lib/financeCsv";
+import { expenseItemCategory } from "@/lib/financeExpenseItemCategory";
 import PettyCashMonthlySummary from "./PettyCashMonthlySummary";
 import { expenseSupplierDetails } from "@/lib/financeSuppliers";
 import { EXPENSE_TAX_TYPES, expenseVatBreakdown } from "@/lib/financeVat";
@@ -1648,6 +1649,7 @@ export default function FinanceExpenseManager() {
               {commonNameOptions.map((option) => <option key={option} value={option} />)}
             </datalist>
           </Field>
+          <Field label="Item Category"><Input readOnly value={expenseItemCategory(form, references)} /><p className="mt-1 text-xs text-slate-500">From the item’s category in References.</p></Field>
           <Field label="Category">
             <Select value={form.category} onChange={(e) => updateExpenseForm(scope, "category", e.target.value)}>
               {uniqueOptions([form.category], categoryOptions).map((option) => <option key={option}>{option}</option>)}
@@ -1867,6 +1869,7 @@ export default function FinanceExpenseManager() {
               {showStore ? <th className="px-4 py-3">Store</th> : null}
               <th className="px-4 py-3">Description</th>
               <th className="px-4 py-3">Common Name</th>
+              <th className="px-4 py-3">Item Category</th>
               <th className="px-4 py-3">Supplier / Name</th>
               <th className="px-4 py-3">Company Name</th>
               <th className="px-4 py-3">TIN Number</th>
@@ -1895,7 +1898,7 @@ export default function FinanceExpenseManager() {
               const startsNewDay = index === 0 || row.expense_date !== rows[index - 1].expense_date;
               return (
                 <Fragment key={row.id}>
-                  {startsNewDay ? <tr><td colSpan={22 + Number(showSource) + Number(showStore)} className="p-0"><div style={{ borderTop: "1px solid #0891b2", background: "#ecfeff", padding: "8px 16px", color: "#155e75", fontWeight: 700 }}>{dateText(row.expense_date)}</div></td></tr> : null}                <tr className="text-slate-700 transition duration-200 hover:bg-cyan-50/45">
+                  {startsNewDay ? <tr><td colSpan={23 + Number(showSource) + Number(showStore)} className="p-0"><div style={{ borderTop: "1px solid #0891b2", background: "#ecfeff", padding: "8px 16px", color: "#155e75", fontWeight: 700 }}>{dateText(row.expense_date)}</div></td></tr> : null}                <tr className="text-slate-700 transition duration-200 hover:bg-cyan-50/45">
                   <td className="whitespace-nowrap px-4 py-3 font-semibold">{dateText(row.expense_date)}</td>
                   {showSource ? (
                     <td className="px-4 py-3">
@@ -1907,6 +1910,7 @@ export default function FinanceExpenseManager() {
                   {showStore ? <td className="px-4 py-3 font-semibold">{storeNameById[row.store_id] || "-"}</td> : null}
                   <td className="px-4 py-3 text-slate-950">{row.description}{row.payroll_entry_id&&<p className="text-xs text-slate-600">Salary · {row.supplier_name} · Managed by Payroll</p>}{row.is_cash_advance&&<p className="text-xs text-slate-600">Cash Advance · {payrollOptions.employees.find(e=>e.id===row.employee_id)?.full_name||"Linked employee"} · {row.cash_advance_id?"Synced to payroll":"Not linked"}</p>}</td>
                   <td className="px-4 py-3">{row.item_common_name || "-"}</td>
+                  <td className="px-4 py-3">{expenseItemCategory(row, references)}</td>
                   <td className="px-4 py-3">{row.supplier_name || "-"}</td>
                   <td className="px-4 py-3">{supplier.companyName || "-"}</td>
                   <td className="px-4 py-3">{supplier.tinNumber || "-"}</td>
