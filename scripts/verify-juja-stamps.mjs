@@ -32,6 +32,7 @@ await db.exec(`
   select set_config('test.uid','${user}',false);
 `);
 await db.exec((await readFile(new URL('../supabase/migrations/20261112090000_juja_tumbler_stamps.sql', import.meta.url),'utf8')));
+await db.exec((await readFile(new URL('../supabase/migrations/20261112100000_juja_tumbler_25_stamps.sql', import.meta.url),'utf8')));
 // Only this disposable database gets a controllable clock.
 await db.exec(`
   select set_config('test.clock_offset',(timestamptz '2026-11-15 00:00:01+08'-clock_timestamp())::text,false);
@@ -74,22 +75,26 @@ try {
   const web = (await one('insert into web_orders(loyalty_member_id,items) values($1,$2) returning id',[member,JSON.stringify([line('MILK TEA (CLASSIC)',4)])])).id;
   await sale([line('MILK TEA (CLASSIC)',4)],{webId:web});
   assert.equal((await card()).drink_stamps,4,'Web-to-POS copy must count only once');
-  const final = await sale([line('MILK TEA (CLASSIC)',11)]);
+  await sale([line('MILK TEA (CLASSIC)',11)]);
+  assert.equal((await card()).drink_stamps,15);
+  assert.equal((await one('select count(*)::int n from vouchers')).n,0,'The former 20-stamp total must not issue a reward');
+  const final = await sale([line('MILK TEA (CLASSIC)',5)]);
   // Inspect before portal refresh to prove reward is created at checkout.
   const earned = await one('select voucher_id from juja_stamp_cards where member_id=$1',[member]);
   assert.ok(earned.voucher_id);
+  assert.equal((await one('select reward_text from vouchers')).reward_text,'FREE 26oz JUJA Tumbler — 25 JUJA Stamps');
   await card(); await card();
   assert.equal((await one('select count(*)::int n from vouchers')).n,1,'Retries create only one voucher');
   await db.query("update orders set status='refunded' where id=$1",[final]);
-  assert.equal((await card()).drink_stamps,4);
+  assert.equal((await card()).drink_stamps,15);
   assert.equal((await one('select status from vouchers')).status,'expired','Refund invalidates an unclaimed reward');
   await db.query("update orders set status='paid' where id=$1",[final]);
   assert.equal((await one('select status from vouchers')).status,'active');
   assert.equal((await card()).voucher_id,earned.voucher_id,'Re-qualification reuses the voucher');
   // Persisted receipt items override JSON; an individual drink refund removes its stamps.
-  await db.query('insert into order_items(order_id,category_name,quantity,unit_price,net_amount) values($1,$2,11,100,1100)',[final,'MILK TEA (CLASSIC)']);
+  await db.query('insert into order_items(order_id,category_name,quantity,unit_price,net_amount) values($1,$2,5,100,500)',[final,'MILK TEA (CLASSIC)']);
   await db.query('update order_items set refund_amount=200 where order_id=$1',[final]);
-  assert.equal((await card()).drink_stamps,13);
+  assert.equal((await card()).drink_stamps,18);
   await db.query('update order_items set refund_amount=0 where order_id=$1',[final]);
   await db.exec("update vouchers set status='redeemed',redeemed_at=clock_timestamp()");
   await db.query("update orders set status='refunded' where id=$1",[signatures]);

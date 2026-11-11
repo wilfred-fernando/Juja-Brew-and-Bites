@@ -4,9 +4,9 @@ Promo period: **November 15, 2026, 12:00 AM through January 15, 2027, 11:59:59 P
 
 The customer Home tab has a JUJA Digital Stamps banner. Customers must link a loyalty account and explicitly tap **Join now** before earning stamps. Enrollment is idempotent and is verified against the authenticated account on the server.
 
-Each purchased drink earns one stamp. Five slots require **LATTE (SIGNATURE)**; fifteen slots require other categories marked `drink` in the menu's discount entitlement groups. Signature purchases fill only signature slots. Category eligibility is snapshotted in `juja_stamp_categories` when the migration is applied; new drink categories need to be added there. Food, add-ons, unpaid/cancelled orders, and booking collections are excluded. Purchases dated before enrollment do not count.
+Each purchased drink earns one stamp. Five slots require **LATTE (SIGNATURE)**; twenty slots require other categories marked `drink` in the menu's discount entitlement groups. Signature purchases fill only signature slots. Category eligibility is snapshotted in `juja_stamp_categories` when the migration is applied; new drink categories need to be added there. Food, add-ons, unpaid/cancelled orders, and booking collections are excluded. Purchases dated before enrollment do not count.
 
-The card completes only at 5 signature + 15 other drink stamps. Checkout creates one `juja_tumbler` voucher in the existing voucher wallet. Existing POS voucher redemption handles claiming the physical tumbler. This campaign awards one tumbler per loyalty member; it does not reset automatically. Stamps and the reward have no expiry, and no loyalty points are consumed.
+The card completes only at 5 signature + 20 other drink stamps (25 total). Checkout creates one free 26oz JUJA tumbler `juja_tumbler` voucher in the existing voucher wallet. Existing POS voucher redemption handles claiming the physical tumbler. This campaign awards one tumbler per loyalty member; it does not reset automatically. Stamps and the reward have no expiry, and no loyalty points are consumed.
 
 The stamp ledger keeps archived receipts from erasing progress. Refunds of active receipts recalculate quantities and expire an unredeemed reward if the card no longer qualifies. Re-qualifying restores that same voucher. A redeemed voucher stays redeemed.
 
