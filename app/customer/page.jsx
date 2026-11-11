@@ -34,6 +34,7 @@ import BookingTab from "@/components/BookingForm";
 import CustomerApkUpdatePrompt from "@/components/CustomerApkUpdatePrompt";
 import ApkDownloadBanner from "@/components/ApkDownloadBanner";
 import CommunityPromoBanners from "@/components/CommunityPromoBanners";
+import JujaStampBanner from "@/components/JujaStampBanner";
 import { getStableSession, maintainPortalSession } from "@/lib/supabase/session";
 import { uploadProofFile } from "@/lib/storage/uploadProof";
 import {
@@ -629,6 +630,8 @@ function HomeTab({ member, user, setTab, onOpenGiftCertificates }) {
           </div>
         </div>
       </div>
+
+      <JujaStampBanner key={member?.id || "unlinked"} member={member} onViewVouchers={() => setTab("loyalty")} onLinkAccount={() => setTab("loyalty")} />
 
       <div>
         <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">Quick Shortcuts</p>
@@ -3038,7 +3041,7 @@ function LoyaltyTab({ member, setMember, user, requiredSetup = false }) {
                       </div>
                       <div className="border-t border-slate-50 pt-2.5 mt-3 flex items-center justify-between text-[10px] font-mono text-slate-400">
                         <span>Code: {v.code}</span>
-                        <span className="font-sans font-bold text-slate-500">{voucherView === "active" ? "Exp: " + fmtDate(v.expires_at) : voucherView === "redeemed" ? "Used" : "Expired"}</span>
+                        <span className="font-sans font-bold text-slate-500">{voucherView === "active" ? (v.expires_at ? "Exp: " + fmtDate(v.expires_at) : "No expiry") : voucherView === "redeemed" ? "Used" : "Expired"}</span>
                       </div>
                     </div>
                   );
