@@ -3,6 +3,7 @@ import dynamic from "next/dynamic";
 import { excludesFunctionRoomLoyalty } from "@/lib/bookings/loyaltyEligibility.mjs";
 import { reservationBookingName, reservationReceiptItems } from "@/lib/bookings/receiptDisplay.mjs";
 import { bookingDisplayLabel, bookingReceiptLabel } from "@/lib/bookings/posBookingDisplay.mjs";
+import ChargedDiningOptionDialog from "@/components/pos/ChargedDiningOptionDialog";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
 import PrinterSetupCard from "@/components/pos/PrinterSetupCard";
 import { getCupLabelSize, resizeLabelCanvas, printerMediaKey } from "@/lib/printerLabelSize.mjs";
@@ -4477,6 +4478,7 @@ export default function POSPage() {
   const [receiptRows, setReceiptRows] = useState([]);
   const [receiptItemRows, setReceiptItemRows] = useState([]);
   const [receiptRefunds, setReceiptRefunds] = useState({});
+  const [chargedDiningReceipt, setChargedDiningReceipt] = useState(null);
   const [selectedReceiptNumber, setSelectedReceiptNumber] = useState("");
   const [reprintingReceipt, setReprintingReceipt] = useState(false);
   const [reprintingOrderSlip, setReprintingOrderSlip] = useState(false);
@@ -10578,6 +10580,15 @@ export default function POSPage() {
     <div data-pos-terminal className="min-h-screen overscroll-none bg-[#FFF5F7] pb-24 lg:pb-0 font-sans antialiased text-slate-800" style={{ overscrollBehaviorY: "none" }}>
       <PosApkUpdatePrompt />
       <Toast toast={toast} onClose={() => setToast(null)} />
+      {chargedDiningReceipt && <ChargedDiningOptionDialog receipt={chargedDiningReceipt} onClose={() => setChargedDiningReceipt(null)} onSaved={async order => {
+        const updated = { ...chargedDiningReceipt, dining_option: order.dining_option, order_type: order.order_type,
+          description: order.dining_option, updated_at: order.updated_at };
+        setReceiptRows(previous => previous.map(row => row.id === updated.id ? updated : row));
+        showToast("success", "Dining Option Updated", `${updated.receipt_number} · ${updated.dining_option}`);
+        await persistReceiptCache({ rows: [updated] }, order.store_id)
+          .catch(error => showToast("warn", "Receipt Saved", `Dining option changed. Local receipt refresh needs retry: ${error.message}`));
+        void fetchReceiptLogs({ force: true }).catch(error => console.warn("Receipt refresh after dining change:", error));
+      }} />}
       {gcPurchaseOpen && createPortal(<div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="gc-purchase-title">
         <div className="max-h-[90vh] w-full max-w-xl overflow-auto rounded-2xl bg-white p-6">
           <div className="mb-5 flex items-center justify-between gap-3"><h2 id="gc-purchase-title" className="text-xl font-semibold">Sell e-GCs</h2><button type="button" disabled={gcPurchaseBusy} onClick={() => setGcPurchaseOpen(false)} className="rounded-lg border px-3 py-2 disabled:opacity-40">Close</button></div>
@@ -10830,6 +10841,8 @@ export default function POSPage() {
                         <button type="button" onClick={() => refundTicket(selectedReceipt)} className="h-9 px-3 rounded-xl bg-red-50 border border-red-100 text-[10px] font-bold uppercase tracking-wider text-red-600">
                           Refund Ticket
                         </button>
+                        {selectedReceipt.source !== "web_order" && !/refund|void/i.test(selectedReceipt.status || "") && <button type="button" onClick={() => setChargedDiningReceipt(selectedReceipt)}
+                          className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-[10px] font-bold uppercase tracking-wider text-slate-700">Change Dining Option</button>}
                       </div>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">

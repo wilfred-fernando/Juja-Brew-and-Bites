@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeftRight, Boxes, CalendarDays, Plus, RefreshCw, Save, Send, Table2 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { INVENTORY_UNITS, convertQuantity, loadInventoryPurchases, loadInventoryRowsByIds, loadPurchasedInventoryItemIds, normalizeUnit } from "@/lib/inventory";
+import { INVENTORY_UNITS, convertQuantity, loadInventoryPurchases, loadInventoryRowsByIds, loadPurchasedInventoryItemIds, normalizeUnit, posInventoryConsumption } from "@/lib/inventory";
 import { manilaDate, shiftBusinessDate } from "@/lib/businessDay";
 
 const supabase = getSupabaseClient();
@@ -228,7 +228,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
       if (!order || (String(order.store_id || order.branch_id) !== String(selectedStoreId))) return;
       const item = items.find((row) => row.id === tx.inventory_item_id);
       if (!item) return;
-      deductions[item.id] = (deductions[item.id] || 0) + Math.abs(toBulk(item, tx.quantity_effect || tx.quantity, tx.unit));
+      deductions[item.id] = (deductions[item.id] || 0) + toBulk(item, posInventoryConsumption(tx), tx.unit);
     });
 
     return { purchases, transfers: transferMap, deductions, purchaseRows, receivedRows: purchaseRows + incomingTransferRows };
@@ -293,9 +293,9 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
       supabase.from("finance_daily_inventory_entries").select("*").eq("store_id", selectedStoreId).lte("inventory_date", previousDate).order("inventory_date").limit(10000),
       supabase.from("finance_inventory_transfers").select("*").eq("transfer_date", inventoryDate).or(`from_store_id.eq.${selectedStoreId},to_store_id.eq.${selectedStoreId}`),
       loadInventoryPurchases(supabase, selectedStoreId, inventoryDate),
-      supabase.from("inventory_transactions").select("*").eq("transaction_type", "pos_deduction").lt("created_at", addDays(inventoryDate, 2) + "T00:00:00+08:00").order("created_at").limit(10000),
+      supabase.from("inventory_transactions").select("*").in("transaction_type", ["pos_deduction", "correction"]).eq("reference_type", "pos_order").lt("created_at", addDays(inventoryDate, 2) + "T00:00:00+08:00").order("created_at").limit(10000),
       supabase.from("finance_inventory_transfers").select("*").lte("transfer_date", previousDate).or(`from_store_id.eq.${selectedStoreId},to_store_id.eq.${selectedStoreId}`).order("transfer_date").limit(10000),
-      supabase.from("inventory_transactions").select("*").eq("transaction_type", "pos_deduction").lt("created_at", start).order("created_at").limit(10000),
+      supabase.from("inventory_transactions").select("*").in("transaction_type", ["pos_deduction", "correction"]).eq("reference_type", "pos_order").lt("created_at", start).order("created_at").limit(10000),
       supabase.from("cashier_pos").select("*").lte("created_at", addDays(inventoryDate, 2) + "T00:00:00+08:00").order("created_at").limit(10000),
       supabase.rpc("list_inventory_reusable_cup_totals", { p_store_id: selectedStoreId, p_inventory_date: inventoryDate }),
     ]);
