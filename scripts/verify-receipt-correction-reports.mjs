@@ -4,6 +4,7 @@ import vm from "node:vm";
 import { buildReceiptCorrection as buildCorrection, applyReceiptCorrections, receiptPaymentSplits } from "../lib/reports/receiptCorrections.js";
 import { enrichReceiptItemRows, receiptItemDetails } from "../lib/reports/receiptDetails.js";
 import { buildShiftDiscountBreakdown } from "../lib/posDiscountBreakdown.js";
+import { bookingReceiptLabel } from "../lib/bookings/posBookingDisplay.mjs";
 
 const paymentMethods = ["Cash", "Card", "QRPH", "GCash", "QRPH - Bukupay", "QRPH - GrabPay", "GIFT CERTIFICATE"];
 const buildReceiptCorrection = (context, draft) => buildCorrection({ paymentMethods, ...context }, draft);
@@ -12,7 +13,7 @@ const businessDay = readFileSync(new URL("../lib/businessDay.js", import.meta.ur
 const { shiftBusinessDate } = vm.runInNewContext(`${businessDay}; ({shiftBusinessDate});`, { Intl, Date });
 const reportSource = readFileSync(new URL("../lib/reports/salesReports.js", import.meta.url), "utf8").replace(/^import .*;\r?\n/gm, "").replace(/^export /gm, "");
 const reports = vm.runInNewContext(`${reportSource}; ({normalizeSalesData,getSalesSummary,getProductSalesReport,getCategorySalesReport,getPaymentReport,getCashierReport,getDiscountReport});`,
-  { Intl, Date, shiftBusinessDate, enrichReceiptItemRows, receiptItemDetails, buildShiftDiscountBreakdown });
+  { Intl, Date, shiftBusinessDate, enrichReceiptItemRows, receiptItemDetails, buildShiftDiscountBreakdown, bookingReceiptLabel });
 const items = [
   {id:"a",order_id:"sale",menu_item_id:"product-a",name:"Drink",category_name:"Drinks",quantity:1,unit_price:40,gross_amount:40,discount_amount:5,net_amount:35,line_total:35,discountName:"Existing item discount"},
   {id:"b",order_id:"sale",menu_item_id:"product-b",name:"Meal",category_name:"Meals",quantity:1,unit_price:60,gross_amount:60,discount_amount:0,net_amount:60,line_total:60},
@@ -36,6 +37,8 @@ assert.deepEqual(buildShiftDiscountBreakdown([patch.receipt],patch.items),[
   {label:"Service recovery",amount:9},{label:"Existing item discount",amount:5},{label:"Existing receipt discount",amount:5},
 ]);
 const normalized = reports.normalizeSalesData({orders:[patch.receipt],orderItems:patch.items});
+const vip = reports.normalizeSalesData({orders:[{...patch.receipt,order_type:'VIP Booking faea2d6d-d4c3-4edc-9ae4-3092513a60aa',source_metadata:{...patch.receipt.source_metadata,reservation_booking_name:'Arlyn Castillo'}}],orderItems:patch.items});
+assert.equal(vip.sales[0].orderType,'VIP Booking · Arlyn Castillo');
 const summary = reports.getSalesSummary(normalized.sales);
 assert.equal(summary.net,81); assert.equal(summary.gross,100); assert.equal(summary.discount,19);
 const productRows = reports.getProductSalesReport(normalized.lineItems,summary.net);

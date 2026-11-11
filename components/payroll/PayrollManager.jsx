@@ -697,7 +697,6 @@ export default function AdminPayrollPage() {
   const canMarkEntryPaid = (entry) => {
     const status = String(entry?.status || "").toLowerCase();
     if (status === "paid") return false;
-    if (canApprovePayroll) return true;
     return canMarkPayrollPaid && status === "approved";
   };
   const requireSuperAdminPayrollEdit = () => {
@@ -2417,11 +2416,10 @@ export default function AdminPayrollPage() {
       );
     if (
       status === "paid" &&
-      !canApprovePayroll &&
       String(entry?.status || "").toLowerCase() !== "approved"
     ) {
       return setNotice(
-        "Payroll must be approved by a super admin before admin can tag it as paid.",
+        "Payroll must be approved before it can be marked paid.",
       );
     }
     const { data, error } = await supabase
@@ -2432,6 +2430,7 @@ export default function AdminPayrollPage() {
       .maybeSingle();
     if (error) return setNotice(`Status Failed: ${error.message}`);
     setEntries((prev) => prev.map((row) => (row.id === entry.id ? data : row)));
+    setNotice(status === "paid" ? "Payroll marked paid. Salary expense added to Overall Expenses for this employee." : "Payroll status updated.");
   }
   async function generateCutoffPayroll(e) {
     e.preventDefault();

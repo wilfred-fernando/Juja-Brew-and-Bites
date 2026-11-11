@@ -1,5 +1,6 @@
 "use client";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
+import { bookingReceiptLabel } from "@/lib/bookings/posBookingDisplay.mjs";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Clock3, Download, History, LogOut, Maximize2, PackageCheck, RefreshCcw, Trash2, Utensils, X } from "lucide-react";
@@ -577,12 +578,12 @@ export default function KitchenDisplay() {
 
   const showNewTicketAlert = (ticket) => {
     if (getKitchenItems(ticket).length === 0) return;
-    const label = ticket?.dining_option || ticket?.ticket_number || "Kitchen order";
+    const label = bookingReceiptLabel(ticket);
     setAlertMessage(`New kitchen order: ${label}`);
     playAlert();
     if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
       new Notification("New KDS Order", {
-        body: `${ticket?.dining_option || "Kitchen"} - ${ticket?.customer_name || "Customer"}`,
+        body: `${bookingReceiptLabel(ticket)} - ${ticket?.customer_name || "Customer"}`,
         icon: "/images/juja-logo.png",
         badge: "/images/juja-logo.png",
         tag: `kds-${ticket?.id}`,
@@ -972,7 +973,7 @@ export default function KitchenDisplay() {
                         <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-800">
                           {ticket.created_at ? formatDateTime(ticket.created_at) : "-"}
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-lg font-bold text-slate-950">{ticket.dining_option || "Kitchen Order"}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-lg font-bold text-slate-950">{bookingReceiptLabel(ticket)}</td>
                         <td className="px-4 py-3 text-slate-700">{ticket.customer_name || "Walk-in"}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-slate-700">{String(ticket.source_type || "").toUpperCase()}</td>
                         <td className="px-4 py-3 text-slate-700">{items.length}</td>
@@ -1030,7 +1031,7 @@ export default function KitchenDisplay() {
                   }`}>
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-2xl font-bold tracking-tight text-slate-950">{ticket.dining_option || "Kitchen Order"}</p>
+                        <p className="text-2xl font-bold tracking-tight text-slate-950">{bookingReceiptLabel(ticket)}</p>
                         <p className="mt-1 text-xs font-semibold text-slate-500">
                           {ticket.customer_name || "Walk-in"} - {activeTimestamp ? getTimeAgo(activeTimestamp) : "Just now"}
                         </p>
@@ -1288,7 +1289,7 @@ export default function KitchenDisplay() {
             <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50 px-5 py-4">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-slate-500">Order Details</p>
-                <h2 className="mt-1 text-3xl font-bold text-slate-950">{selectedHistoryTicket.dining_option || "Kitchen Order"}</h2>
+                <h2 className="mt-1 text-3xl font-bold text-slate-950">{bookingReceiptLabel(selectedHistoryTicket)}</h2>
                 <p className="mt-1 text-sm font-semibold text-slate-600">
                   {selectedHistoryTicket.customer_name || "Walk-in"} - {selectedHistoryTicket.created_at ? formatDateTime(selectedHistoryTicket.created_at) : ""}
                 </p>

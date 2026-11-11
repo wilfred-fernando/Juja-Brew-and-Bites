@@ -1905,7 +1905,7 @@ export default function FinanceExpenseManager() {
                     </td>
                   ) : null}
                   {showStore ? <td className="px-4 py-3 font-semibold">{storeNameById[row.store_id] || "-"}</td> : null}
-                  <td className="px-4 py-3 text-slate-950">{row.description}{row.is_cash_advance&&<p className="text-xs text-slate-600">Cash Advance · {payrollOptions.employees.find(e=>e.id===row.employee_id)?.full_name||"Linked employee"} · {row.cash_advance_id?"Synced to payroll":"Not linked"}</p>}</td>
+                  <td className="px-4 py-3 text-slate-950">{row.description}{row.payroll_entry_id&&<p className="text-xs text-slate-600">Salary · {row.supplier_name} · Managed by Payroll</p>}{row.is_cash_advance&&<p className="text-xs text-slate-600">Cash Advance · {payrollOptions.employees.find(e=>e.id===row.employee_id)?.full_name||"Linked employee"} · {row.cash_advance_id?"Synced to payroll":"Not linked"}</p>}</td>
                   <td className="px-4 py-3">{row.item_common_name || "-"}</td>
                   <td className="px-4 py-3">{row.supplier_name || "-"}</td>
                   <td className="px-4 py-3">{supplier.companyName || "-"}</td>
@@ -1932,6 +1932,8 @@ export default function FinanceExpenseManager() {
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-2">
                       <button
+                        disabled={Boolean(row.payroll_entry_id)}
+                        title={row.payroll_entry_id ? "Managed by Payroll" : "Edit expense"}
                         onClick={() => openExpenseModal(tableName === "finance_petty_cash_entries" ? "petty" : "overall", row)}
                         className="inline-flex h-8 items-center justify-center gap-2 rounded-lg border border-cyan-100 bg-cyan-50 px-3 text-[10px] font-semibold uppercase text-cyan-700 transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-100"
                       >
@@ -1939,7 +1941,7 @@ export default function FinanceExpenseManager() {
                       </button>
                       <button
                         onClick={() => removeRow(tableName, row)}
-                        disabled={saving === `delete_request_${row.id}`}
+                        disabled={Boolean(row.payroll_entry_id) || saving === `delete_request_${row.id}`}
                          className="inline-flex h-8 items-center justify-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 text-[10px] font-semibold uppercase text-red-600 transition duration-200 hover:-translate-y-0.5 hover:bg-red-100 disabled:bg-slate-100 disabled:text-slate-400"
                       >
                         <Trash2 size={13} className="shrink-0" />

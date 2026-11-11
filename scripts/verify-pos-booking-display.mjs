@@ -11,4 +11,7 @@ const legacyReceipt={description:`VIP Booking ${id}`,customer_name:'Micah Songco
 assert.equal(bookingReceiptLabel(legacyReceipt),'VIP Booking · Micah Songco','Cached completed receipts resolve their customer name');
 assert.equal(bookingReceiptLabel({...legacyReceipt,source_metadata:{reservation_booking_name:'Booking customer'}}),'VIP Booking · Booking customer','Booking snapshot takes priority');
 assert.equal(bookingReceiptLabel({description:'Takeout',customer_name:'Micah Songco'}),'Takeout');
+assert.equal(bookingDisplayLabel(`VIP Booking ${id}`,[],{ticket_name:'VIP Booking · Micah Songco'}),'VIP Booking · Micah Songco');
+assert.equal(bookingReceiptLabel({dining_option:`VIP Booking ${id}`,customer_name:'Walk-in'}),'VIP Booking · Customer name unavailable');
+assert.equal(bookingReceiptLabel({dining_option:'VIP Booking · Micah Songco',customer_name:'Walk-in'}),'VIP Booking · Micah Songco');
 console.log('PASS: legacy ID lookup, receipt name snapshot, UUID hidden, other dining unchanged');

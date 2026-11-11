@@ -8,6 +8,7 @@ const DISPLAY_HEIGHT = 4606;
 const SLIDE_INTERVAL_MS = 10000;
 
 import { DEFAULT_DISPLAY_SLIDES } from "@/lib/orderDisplaySlides";
+import { bookingReceiptLabel } from "@/lib/bookings/posBookingDisplay.mjs";
 const LOGO_SRC = "/images/juja-logo.png";
 
 function itemLabel(count) {
@@ -193,7 +194,7 @@ export default function CustomerOrderDisplayPage() {
                   >
                     <div className="flex items-center justify-between gap-4">
                       <div className="min-w-0">
-                        <p className="truncate text-[18px] font-bold uppercase tracking-tight text-slate-950">{order.dining_option}</p>
+                        <p className="truncate text-[18px] font-bold uppercase tracking-tight text-slate-950">{bookingReceiptLabel(order)}</p>
                         <div className="mt-.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-600">
                           <Clock3 className="h-2 w-2" />
                           {displayTime(order.updated_at)}

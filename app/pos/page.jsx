@@ -2699,7 +2699,7 @@ function SavedTicketsModal({
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className={`text-xs font-black uppercase tracking-wide ${isAddition ? "text-emerald-700" : isMutation ? "text-amber-700" : "text-red-700"}`}>{actionLabel}</p>
-                        <p className="mt-1 truncate text-sm font-bold text-slate-800">{bookingDisplayLabel(log.order_type || log.ticket_name || "Saved Ticket", bookingRows)}</p>
+                        <p className="mt-1 truncate text-sm font-bold text-slate-800">{bookingDisplayLabel(log.order_type || log.ticket_name || "Saved Ticket", bookingRows, { ...log.ticket_snapshot, ticket_name: log.ticket_name })}</p>
                         {log.item_name && <p className="mt-0.5 text-xs font-semibold text-slate-700">Item: {log.item_name}</p>}
                       </div>
                       <span className="shrink-0 text-[10px] font-semibold text-slate-500">{formatReceiptDateTime(log.created_at)} PHT</span>
@@ -2726,7 +2726,7 @@ function SavedTicketsModal({
                       onClick={() => setSelectedTicketId(t.id)}
                       className="min-w-0 flex-1 text-left"
                     >
-                      <p className="font-bold text-slate-800 text-sm truncate">{bookingDisplayLabel(t.order_type || t.ticket_name, bookingRows)}</p>
+                      <p className="font-bold text-slate-800 text-sm truncate">{bookingDisplayLabel(t.order_type || t.ticket_name, bookingRows, t)}</p>
                       <p className="text-xs text-slate-500 mt-0.5">Active lines: {activeItems.length} / {(t.items || []).length} • <span className="font-bold text-slate-700">{peso0(t.total_amount)}</span></p>
                       <p className="text-[11px] font-medium text-slate-500 mt-1 truncate">Client: {t._customerName || "Walk-in"}</p>
                       <div className="mt-2 space-y-0.5 text-[10px] font-medium text-slate-500">
@@ -2759,7 +2759,7 @@ function SavedTicketsModal({
       <ModalShell
         open={Boolean(selectedTicket)}
         onClose={() => setSelectedTicketId(null)}
-        title={bookingDisplayLabel(selectedTicket?.order_type || selectedTicket?.ticket_name || "Saved Ticket", bookingRows)}
+        title={bookingDisplayLabel(selectedTicket?.order_type || selectedTicket?.ticket_name || "Saved Ticket", bookingRows, selectedTicket || {})}
         subtitle={`${selectedTicket?._customerName || "Walk-in"} • ${peso0(selectedTicket?.total_amount || 0)}`}
         z={155}
       >
@@ -4546,6 +4546,7 @@ export default function POSPage() {
   const diningReferencePlaceholder = (isGrabDiningOption || isShopeeDiningOption) ? "335" : "A1 / Private Event";
   const ticketDiningLabel = requiresDiningReference && trimmedGrabOrderNumber ? `${diningOptionName} ${trimmedGrabOrderNumber}` : diningOptionName;
   const selectedBooking = isVipBooking ? confirmedBookings.find(row => row.id === trimmedGrabOrderNumber) : null;
+  const bookingLabelMetadata = { ...(savedTickets || []).find(row => row.id === originalTicketId), reservation_booking_name: selectedBooking?.customer_name };
   const reservationCredit = Number(selectedBooking?.voucher?.amount || 0);
   const reservationSummary = useMemo(() => reservationCollectionSummary(reservationCollections), [reservationCollections]);
   const reservationExtra = useMemo(() => reservationCollectionSummary(reservationCollections.filter(row => !row.collection_order_id)), [reservationCollections]);
@@ -5175,7 +5176,7 @@ export default function POSPage() {
   const itemCount = useMemo(() => cart.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0), [cart]);
 
   const selectedCartItem = useMemo(() => cart.find((x) => x.cartItemId === voucherTargetCartItemId) || null, [cart, voucherTargetCartItemId]);
-  const ticketTitle = isVipBooking ? bookingDisplayLabel(ticketDiningLabel, confirmedBookings) : activeWebOrderId ? `Web Order: #${activeWebOrderId.slice(0,8).toUpperCase()}` : (ticketDiningLabel || "Select Dining Option");
+  const ticketTitle = isVipBooking ? bookingDisplayLabel(ticketDiningLabel, confirmedBookings, bookingLabelMetadata) : activeWebOrderId ? `Web Order: #${activeWebOrderId.slice(0,8).toUpperCase()}` : (ticketDiningLabel || "Select Dining Option");
   const ticketSubtitle = attachedCustomer?.name ? `Loyalty Member: ${attachedCustomer.name}` : "Walk-in Customer";
   const activeShiftRecord = useMemo(() => {
     if (shiftStatus !== "open") return null;
@@ -5452,7 +5453,7 @@ export default function POSPage() {
       receipt: row.receipt_number,
       time: receiptDisplayTimestamp(row) ? formatReceiptTime(receiptDisplayTimestamp(row)) : row.date,
       payment: row.payment_type || "Other",
-      dining: row.description || row.dining_option || "POS Order",
+      dining: bookingReceiptLabel(row),
       status: row.status || "Closed",
       total: Number(row.total_collected || row.net_sales || 0),
     }))];
@@ -6716,7 +6717,7 @@ export default function POSPage() {
     const jobs = cupLabelJobs(labelCart, lines => buildCupLabels({
       orderId,
       cart: lines,
-      diningOptionName: labelDining,
+      diningOptionName: bookingDisplayLabel(labelDining, confirmedBookings, bookingLabelMetadata),
       printedAt,
       storeName: currentStore?.store_name || currentStore?.name || currentStore?.branch_name || "Juja Brew & Bites",
       barCategoryIds: barPrinterCategoryIds,
@@ -6795,7 +6796,7 @@ export default function POSPage() {
     slipCart = cart,
     slipDining = diningOptionName || "POS ORDER",
     slipCustomer = attachedCustomer?.name || "",
-    slipBookingName = "",
+    slipBookingName = selectedBooking?.customer_name || "",
     slipTotal = totalDue,
     printedAt = new Date(),
     titleSuffix = "",
@@ -6824,7 +6825,7 @@ export default function POSPage() {
         const slipText = buildOrderSlipText({
           orderId,
           cart: job.items,
-          diningOptionName: bookingDisplayLabel(slipDining, confirmedBookings, { reservation_booking_name: slipBookingName }),
+          diningOptionName: bookingDisplayLabel(slipDining, confirmedBookings, { ...bookingLabelMetadata, reservation_booking_name: slipBookingName }),
           customerName: slipCustomer,
           total: job.useFullTotal ? slipTotal : calcTotal(job.items),
           printedAt,
@@ -7211,7 +7212,7 @@ export default function POSPage() {
     const [savedResult, cartResult] = await Promise.all([
       supabase
         .from("saved_ticket_audit_logs")
-        .select("id, ticket_id, action, reason, actor_name, ticket_name, order_type, item_name, created_at")
+        .select("id, ticket_id, action, reason, actor_name, ticket_name, order_type, item_name, created_at, ticket_snapshot")
         .eq("store_id", sid)
         .in("action", ["item_voided", "ticket_voided", "ticket_deleted", "ticket_items_changed"])
         .order("created_at", { ascending: false })
@@ -7241,9 +7242,19 @@ export default function POSPage() {
         : log.cart_context?.dining_option || "Active POS Cart",
       reason: log.cart_context?.operation ? String(log.cart_context.operation).replaceAll("_", " ") : "POS cart action",
     }));
-    setSavedTicketAuditLogs([...(savedResult.data || []), ...cartLogs]
+    const history = [...(savedResult.data || []), ...cartLogs]
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-      .slice(0, 200));
+      .slice(0, 200);
+    const labels = [...new Set(history.map(log => log.order_type || log.ticket_name).filter(label => /^VIP Booking(?:\s|$)/i.test(label || "")))];
+    let names = {};
+    if (labels.length) {
+      const result = await supabase.rpc("resolve_pos_booking_labels", { p_store_id: sid, p_labels: labels });
+      if (result.error) console.warn("Booking history names could not be loaded:", result.error.message);
+      else names = result.data || {};
+    }
+    setSavedTicketAuditLogs(history.map(log => ({ ...log, ticket_snapshot: {
+      ...log.ticket_snapshot, reservation_booking_name: names[log.order_type || log.ticket_name] || log.ticket_snapshot?.reservation_booking_name,
+    } })));
   }
 
   async function fetchActiveKitchenTables(sid = storeId, printerGroups = orderSlipPrinterGroups) {
@@ -9528,9 +9539,9 @@ export default function POSPage() {
     const itemDiscountTotal = cart.reduce((sum, line) => sum + lineDiscountAmount(line), 0);
     const bill = buildBillText({
       receiptSettings,
-      orderId: activeWebOrderId || originalTicketId || ticketDiningLabel || "Current Ticket",
+      orderId: activeWebOrderId || originalTicketId || ticketTitle || "Current Ticket",
       cart,
-      diningOptionName: activeWebOrderId ? webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName) : ticketDiningLabel,
+      diningOptionName: activeWebOrderId ? webDiningOptionLabel(activeWebOrderFulfillmentType || diningOptionName) : bookingDisplayLabel(ticketDiningLabel, confirmedBookings, bookingLabelMetadata),
       customerName: attachedCustomer?.name || "",
       subtotal: grossTotal,
       discount: itemDiscountTotal + discountAmount,

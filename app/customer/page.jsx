@@ -1,5 +1,6 @@
 "use client";
 import { isOptionGroupVisibleOn } from "@/lib/menuVisibility";
+import { bookingReceiptLabel } from "@/lib/bookings/posBookingDisplay.mjs";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
@@ -2296,7 +2297,7 @@ function TrackerTab({ orders, loadingOrders }) {
                   <span className="text-sm font-semibold text-slate-800">#{String(order.id).slice(0, 8).toUpperCase()}</span>
                   <span className={`rounded-md border px-2 py-1 text-[10px] font-semibold capitalize ${getStatusColor(order.status)}`}>{statusLabel(order.status)}</span>
                 </div>
-                <p className="mt-1 text-xs text-slate-500">{order.created_at ? formatDateTime(order.created_at) : ""} · {order.dining_option || "Takeout"}</p>
+                <p className="mt-1 text-xs text-slate-500">{order.created_at ? formatDateTime(order.created_at) : ""} · {bookingReceiptLabel(order)}</p>
                 <p className="mt-1 truncate text-xs text-slate-500">{Array.isArray(order.items) ? order.items.map((line) => `${line.name} ×${line.quantity}`).join(", ") : "View order details"}</p>
               </div>
               <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-slate-800">{peso2(order.total ?? order.subtotal)}</span>
@@ -2340,7 +2341,7 @@ function TrackerTab({ orders, loadingOrders }) {
 
               <div className="flex items-center justify-between text-xs font-semibold text-slate-500 pt-1">
                 <div className="flex items-center gap-2">
-                  <span className="uppercase tracking-wide font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-700 text-[10px]">{order.dining_option || "Takeout"}</span>
+                  <span className="uppercase tracking-wide font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-700 text-[10px]">{bookingReceiptLabel(order)}</span>
                   {(String(order.status).toLowerCase() === "accepted" || String(order.status).toLowerCase() === "completed") && (
                     <span className="text-emerald-700 font-black bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 text-[10px]">
                       ⭐ +{loyaltyPoints(order.subtotal).toFixed(2)} pts Earned

@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 // Load the production helpers without requiring a browser or a live kitchen.
-const source = await readFile(new URL("../lib/kds.js", import.meta.url), "utf8");
+const displaySource = await readFile(new URL("../lib/bookings/posBookingDisplay.mjs", import.meta.url), "utf8");
+const displayUrl = `data:text/javascript;base64,${Buffer.from(displaySource).toString("base64")}`;
+const source = (await readFile(new URL("../lib/kds.js", import.meta.url), "utf8")).replace('"./bookings/posBookingDisplay.mjs"', JSON.stringify(displayUrl));
 const { appendKdsTicketItems } = await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`);
 const original = { id: "old-kds", source_id: "saved-1", status: "preparing", items: [{ id: "old", name: "SPAM Kimchi Rice", quantity: 1, kdsCompleted: false }] };
 const originalSnapshot = structuredClone(original);
