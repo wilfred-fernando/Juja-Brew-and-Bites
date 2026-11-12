@@ -1,7 +1,7 @@
 {
   "app": "pos",
-  "latestVersion": "2.2",
-  "latestBuild": 18,
-  "apkUrl": "https://files.jujabrewandbites.com/apk-downloads/juja-pos-v2.2.apk",
-  "releaseNotes": "Uses fixed three-hour booking slots year-round while retaining booking buffers, overnight handling, and extension rules."
+  "latestVersion": "2.3",
+  "latestBuild": 19,
+  "apkUrl": "https://files.jujabrewandbites.com/apk-downloads/juja-pos-v2.3.apk",
+  "releaseNotes": "Adds the Android home-screen Booking Calendar widget with monthly booking indicators, daily booking names/times/payment status, and background refresh. Open POS and sign in, then add JUJA Booking Calendar from Android Widgets."
 }

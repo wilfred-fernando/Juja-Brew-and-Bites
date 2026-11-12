@@ -1,6 +1,12 @@
 require('@next/env').loadEnvConfig(process.cwd());
 const fs=require('node:fs'),assert=require('node:assert/strict'),{createHash}=require('node:crypto');
 const {S3Client,HeadObjectCommand,PutObjectCommand}=require('@aws-sdk/client-s3');
+// Match the existing storage migration's local R2 configuration without logging secrets.
+if(fs.existsSync('.env.r2-migration'))for(const line of fs.readFileSync('.env.r2-migration','utf8').replace(/^\uFEFF/,'').split(/\r?\n/)){
+  const match=line.trim().match(/^([A-Z][A-Z0-9_]*)\s*=\s*(.*)$/);if(!match||!/^CLOUDFLARE_/.test(match[1])||process.env[match[1]])continue;
+  let value=match[2].trim();if((value.startsWith('"')&&value.endsWith('"'))||(value.startsWith("'")&&value.endsWith("'")))value=value.slice(1,-1);
+  process.env[match[1]]=value;
+}
 (async()=>{
   if(!process.argv.includes('--apply'))throw new Error('Pass --apply to publish the verified POS v2.3 APK.');
   const body=fs.readFileSync('artifacts/android-widget/juja-pos-v2.3.apk'),sha=createHash('sha256').update(body).digest('hex');
