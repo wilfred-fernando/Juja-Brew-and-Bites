@@ -631,7 +631,7 @@ function HomeTab({ member, user, setTab, onOpenGiftCertificates }) {
         </div>
       </div>
 
-      <JujaStampBanner key={member?.id || "unlinked"} member={member} onViewVouchers={() => setTab("loyalty")} onLinkAccount={() => setTab("loyalty")} />
+      <JujaStampBanner key={`${user?.id || "guest"}:${member?.id || "unlinked"}`} userId={user?.id} member={member} onViewVouchers={() => setTab("loyalty")} onLinkAccount={() => setTab("loyalty")} />
 
       <div>
         <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">Quick Shortcuts</p>

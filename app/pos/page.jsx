@@ -4,6 +4,7 @@ import { excludesFunctionRoomLoyalty } from "@/lib/bookings/loyaltyEligibility.m
 import { reservationBookingName, reservationReceiptItems } from "@/lib/bookings/receiptDisplay.mjs";
 import { bookingDisplayLabel, bookingReceiptLabel } from "@/lib/bookings/posBookingDisplay.mjs";
 import ChargedDiningOptionDialog from "@/components/pos/ChargedDiningOptionDialog";
+import { saveMenuAvailability, applyMenuAvailability, updateCatalogAvailability, updateCatalogOptionAvailability } from "@/lib/menuAvailability.mjs";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
 import PrinterSetupCard from "@/components/pos/PrinterSetupCard";
 import { getCupLabelSize, resizeLabelCanvas, printerMediaKey } from "@/lib/printerLabelSize.mjs";
@@ -4388,6 +4389,14 @@ export default function POSPage() {
   const seenIncomingOrderIds = useRef(new Set());
   const autoRefreshInFlightRef = useRef(false);
   const catalogSyncsRef = useRef(new Map());
+  const catalogAvailabilityRevision = useRef(0);
+  const menuAvailabilitySaving = useRef(false);
+  const catalogCacheWork = useRef(Promise.resolve());
+  async function serializeCatalogCache(work) {
+    const result = catalogCacheWork.current.then(work, work);
+    catalogCacheWork.current = result.catch(() => {});
+    return result;
+  }
 
   const [printerConfig, setPrinterConfig] = useState({ receipt: null, order_slip: null, cup_label: null });
   const [barPrinterCategoryIds, setBarPrinterCategoryIds] = useState([]);
@@ -6513,7 +6522,7 @@ export default function POSPage() {
   }
 
   async function fetchData(sid, opts = {}) {
-    if (!sid) return;
+    if (!sid || menuAvailabilitySaving.current) return;
     const active = catalogSyncsRef.current.get(sid);
     if (active) return active;
     const sync = fetchDataUncoalesced(sid, opts);
@@ -6527,6 +6536,7 @@ export default function POSPage() {
 
   async function fetchDataUncoalesced(sid, opts = {}) {
     if (!sid) return;
+    const availabilityRevision = catalogAvailabilityRevision.current;
     const showLoadingState = opts.showLoading !== false;
     if (showLoadingState) setLoading(true);
     let cachedSnapshot = null;
@@ -6539,7 +6549,7 @@ export default function POSPage() {
       if (Array.isArray(loyaltySnapshot?.data) && loyaltySnapshot.data.length > 0) {
         setCustomers(loyaltySnapshot.data.slice(-100));
       }
-      if (showLoadingState && cachedSnapshot?.items?.length) {
+      if (showLoadingState && !items.length && cachedSnapshot?.items?.length && availabilityRevision === catalogAvailabilityRevision.current) {
         setItems((cachedSnapshot.items || []).map((item) => ({ ...item, is_available: item.global_is_available !== false && item.is_available !== false })));
         setCategories(cachedSnapshot.categories || []);
         setRecipeRows(cachedSnapshot.recipeRows || []);
@@ -6600,6 +6610,7 @@ export default function POSPage() {
         optionGroupAvailabilityRes.error,
         optionSelectionAvailabilityRes.error,
       ].find(Boolean);
+      if (availabilityRevision !== catalogAvailabilityRevision.current) return;
       if (catalogError) throw catalogError;
 
       // The fingerprint detects visibility edits and deletions without sending
@@ -6669,6 +6680,8 @@ export default function POSPage() {
       if (cachedCustomers.length > 0) {
         setCustomers((current) => (current.length > 0 ? current : cachedCustomers));
       }
+      await serializeCatalogCache(async () => {
+      if (availabilityRevision !== catalogAvailabilityRevision.current) return;
       await setLocalSnapshot("pos_catalog", {
         cached_at: new Date().toISOString(),
         syncCursor: syncStartedAt,
@@ -6684,6 +6697,7 @@ export default function POSPage() {
         recipeRows: recipeRes.error ? cachedSnapshot?.recipeRows || [] : recipeRows,
         recipeInventoryItems: recipeInventoryRes.error ? cachedSnapshot?.recipeInventoryItems || [] : recipeInventoryItems,
       }, { storeId: sid });
+      });
       localStorage.removeItem(POS_OFFLINE_CACHE_KEY);
       setIsOfflineMode(false);
 
@@ -6691,9 +6705,10 @@ export default function POSPage() {
       await loadPrinters(sid);
       await loadBarPrinterCategories(sid, cats);
     } catch (e) {
+      if (availabilityRevision !== catalogAvailabilityRevision.current) return;
       const cached = cachedSnapshot || (await getLocalSnapshot("pos_catalog", { storeId: sid }))?.data;
       if (cached?.items?.length) {
-        setItems((cached.items || []).map((item) => ({ ...item, is_available: item.global_is_available !== false && item.is_available !== false })));
+        if (!items.length) setItems((cached.items || []).map((item) => ({ ...item, is_available: item.global_is_available !== false && item.is_available !== false })));
         setCategories(cached.categories || []);
         setCustomers(cached.customers || []);
         setRecipeRows(cached.recipeRows || []);
@@ -8712,27 +8727,31 @@ export default function POSPage() {
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
 
   async function toggleMenuItemAvailability(item) {
-    if (availabilityBusy) return;
+    if (availabilityBusy || menuAvailabilitySaving.current) return;
+    menuAvailabilitySaving.current = true;
+    catalogAvailabilityRevision.current += 1;
     setAvailabilityBusy(true);
     try {
     if (!item?.id) return;
     const sid = getResolvedBranchId();
     if (!sid) return showToast("error", "Store Required", "POS store is not loaded yet.");
     const nextAvailable = item.is_available === false;
-    const { error } = await supabase.rpc("set_shared_menu_availability", { item_key: String(item.id), available: nextAvailable });
-    if (error) return showToast("error", "Item Update Failed", error.message);
-    setItems((prev) => prev.map((row) => (
-      String(row.id) === String(item.id)
-        ? { ...row, is_available: nextAvailable, global_is_available: nextAvailable, store_is_available: nextAvailable }
-        : row
-    )));
-    showToast("success", "Store Availability Updated", `${item.name || "Item"} is now ${nextAvailable ? "available" : "unavailable"} across Admin, POS and KDS.`);
+    const saved = await saveMenuAvailability(supabase, item, nextAvailable, "pos");
+    setItems((prev) => prev.map(row => applyMenuAvailability(row, saved)));
+    let cacheError = null;
+    await serializeCatalogCache(async () => {
+      const snapshot = (await getLocalSnapshot("pos_catalog", { storeId: sid }))?.data;
+      if (snapshot) await setLocalSnapshot("pos_catalog", updateCatalogAvailability(snapshot, saved), { storeId: sid });
+    }).catch(error => { cacheError = error; });
+    showToast(cacheError ? "warn" : "success", "Shared Availability Saved", `${item.name || "Item"} is now ${nextAvailable ? "available" : "unavailable"} across Admin, POS and KDS.${cacheError ? " Local cache could not be updated; refresh while online before reopening POS." : ""}`);
     } catch (error) { showToast("error", "Availability update failed", error.message); }
-    finally { setAvailabilityBusy(false); }
+    finally { menuAvailabilitySaving.current = false; setAvailabilityBusy(false); }
   }
 
   async function toggleOptionSelectionAvailability(groupName, optionName) {
-    if (availabilityBusy) return;
+    if (availabilityBusy || menuAvailabilitySaving.current) return;
+    menuAvailabilitySaving.current = true;
+    catalogAvailabilityRevision.current += 1;
     setAvailabilityBusy(true);
     try {
     const row = optionSelectionGroups.flatMap((group) => group.options).find((option) => option.groupName === groupName && option.optionName === optionName);
@@ -8742,15 +8761,22 @@ export default function POSPage() {
     const { data: savedAvailability, error } = await supabase.from("option_selection_store_availability").upsert({
       store_id: String(sid), group_key: optionGroupKey(groupName), option_key: optionSelectionKey(optionName),
       group_name: groupName, option_name: optionName, is_available: nextAvailable,
-    }, { onConflict: "store_id,group_key,option_key" }).select("store_id,group_key,option_key,is_available").single();
+    }, { onConflict: "store_id,group_key,option_key" }).select("store_id,group_key,group_name,option_key,option_name,is_available,updated_at").single();
     if (error) throw error;
     if (String(savedAvailability?.store_id) !== String(sid) || savedAvailability.is_available !== nextAvailable) {
       throw new Error("Option availability was not saved. Refresh and try again.");
     }
-    await fetchData();
+    setItems(current => updateCatalogOptionAvailability({ items: current }, savedAvailability, optionGroupKey, optionSelectionKey).items);
+    await serializeCatalogCache(async () => {
+      const snapshot = (await getLocalSnapshot("pos_catalog", { storeId: sid }))?.data;
+      if (snapshot) await setLocalSnapshot("pos_catalog", updateCatalogOptionAvailability(snapshot, savedAvailability, optionGroupKey, optionSelectionKey), { storeId: sid });
+    });
+    menuAvailabilitySaving.current = false;
+    await catalogSyncsRef.current.get(sid);
+    await fetchData(sid, { forceRefresh: true, showLoading: false });
     showToast("success", "Option Updated", `${optionName} is now ${nextAvailable ? "available" : "unavailable"}.`);
     } catch (error) { showToast("error", "Availability update failed", error.message); }
-    finally { setAvailabilityBusy(false); }
+    finally { menuAvailabilitySaving.current = false; setAvailabilityBusy(false); }
   }
 
   function updatePrinterRole(role, enabled) {

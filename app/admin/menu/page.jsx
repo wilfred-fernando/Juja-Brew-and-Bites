@@ -1,8 +1,9 @@
 "use client";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
+import { saveMenuAvailability, applyMenuAvailability } from "@/lib/menuAvailability.mjs";
 import { optionTemplateKey } from "@/lib/optionGroupTemplates";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
 const supabase = getSupabaseClient();
@@ -41,7 +42,9 @@ export default function MenuAdminPage() {
   const [itemStoreAvailability, setItemStoreAvailability] = useState([]);
   const [categoryStoreAvailability, setCategoryStoreAvailability] = useState([]);
   const [storeAvailability, setStoreAvailability] = useState({});
+  const storeAvailabilityAtOpen = useRef({});
   const [categoryAvailability, setCategoryAvailability] = useState({});
+  const categoryAvailabilityAtOpen = useRef({});
   const [availabilityNotice, setAvailabilityNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -138,6 +141,7 @@ export default function MenuAdminPage() {
         nextStoreAvailability[store.id] = row ? row.is_available !== false : true;
       });
       setStoreAvailability(nextStoreAvailability);
+      storeAvailabilityAtOpen.current = { ...nextStoreAvailability };
 
       // ✅ ADD: pos_only prefill
       setForm({
@@ -224,10 +228,15 @@ export default function MenuAdminPage() {
       let savedItemId = editingItem?.id;
 
       if (editingItem) {
-        const { error } = await supabase
+        delete finalPayload.is_available;
+        if (!editingItem.updated_at) throw new Error("Reload the item list before editing this item.");
+        const { data: saved, error } = await supabase
           .from("menu_items")
           .update(finalPayload)
-          .eq("id", editingItem.id);
+          .eq("id", editingItem.id)
+          .eq("updated_at", editingItem.updated_at)
+          .select("id").maybeSingle();
+        if (!error && !saved) throw new Error("This item changed on another device. Reopen the item editor before saving.");
         responseError = error;
       } else {
         const { data, error } = await supabase.from("menu_items").insert([finalPayload]).select("id").maybeSingle();
@@ -237,15 +246,15 @@ export default function MenuAdminPage() {
 
       if (responseError) throw responseError;
       if (savedItemId && stores.length > 0) {
-        const rows = stores.map((store) => ({
+        const rows = stores.filter(store => !editingItem || (storeAvailability[store.id] !== false) !== (storeAvailabilityAtOpen.current[store.id] !== false)).map((store) => ({
           item_id: String(savedItemId),
           store_id: String(store.id),
           is_available: storeAvailability[store.id] !== false,
           updated_at: new Date().toISOString(),
         }));
-        const { error: availabilityError } = await supabase
+        const { error: availabilityError } = rows.length ? await supabase
           .from("menu_item_store_availability")
-          .upsert(rows, { onConflict: "item_id,store_id" });
+          .upsert(rows, { onConflict: "item_id,store_id" }) : { error: null };
         if (availabilityError) throw availabilityError;
       }
 
@@ -262,7 +271,7 @@ export default function MenuAdminPage() {
   useEffect(() => {
     const channel = supabase.channel("admin-menu-availability")
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "menu_items" }, ({ new: row }) => {
-        setItems((items) => items.map((item) => String(item.id) === String(row.id) ? { ...item, is_available: row.is_available } : item));
+        setItems((items) => items.map((item) => applyMenuAvailability(item, row)));
       }).subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
@@ -272,10 +281,9 @@ export default function MenuAdminPage() {
     setAvailabilityBusy(true);
     try {
       const available = item.is_available === false;
-      const { error } = await supabase.rpc("set_shared_menu_availability", { item_key: String(item.id), available });
-      if (error) throw error;
-      setItems((rows) => rows.map((row) => row.id === item.id ? { ...row, is_available: available } : row));
-    } catch (error) { alert(error.message); }
+      const saved = await saveMenuAvailability(supabase, item, available, "admin");
+      setItems((rows) => rows.map((row) => applyMenuAvailability(row, saved)));
+    } catch (error) { alert(error.message); await fetchData(); }
     finally { setAvailabilityBusy(false); }
   }
 
@@ -381,6 +389,7 @@ export default function MenuAdminPage() {
         nextCategoryAvailability[store.id] = row ? row.is_available !== false : true;
       });
       setCategoryAvailability(nextCategoryAvailability);
+      categoryAvailabilityAtOpen.current = { ...nextCategoryAvailability };
       setCatForm({
         name: cat.name,
         is_active: cat.is_active,
@@ -433,12 +442,13 @@ export default function MenuAdminPage() {
 
   async function saveCategoryStoreAvailability(categoryId) {
     if (!categoryId || stores.length === 0) return;
-    const rows = stores.map((store) => ({
+    const rows = stores.filter(store => !editingCategory || (categoryAvailability[store.id] !== false) !== (categoryAvailabilityAtOpen.current[store.id] !== false)).map((store) => ({
       category_id: String(categoryId),
       store_id: String(store.id),
       is_available: categoryAvailability[store.id] !== false,
       updated_at: new Date().toISOString(),
     }));
+    if (!rows.length) return;
     const { error } = await supabase
       .from("menu_category_store_availability")
       .upsert(rows, { onConflict: "category_id,store_id" });
@@ -1106,13 +1116,14 @@ export default function MenuAdminPage() {
                       <div className="relative flex items-center justify-center">
                         <input
                           type="checkbox"
-                          checked={form.is_available}
+                          checked={editingItem ? (items.find(item => item.id === editingItem.id)?.is_available ?? editingItem.is_available) !== false : form.is_available}
+                          disabled={Boolean(editingItem)}
                           onChange={(e) => setForm({ ...form, is_available: e.target.checked })}
                           className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-sky-500 checked:bg-slate-600 transition-all cursor-pointer"
                         />
                         <span className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xs font-bold">✓</span>
                       </div>
-                      <span className="text-xs md:text-sm font-medium text-slate-700">Available to Order</span>
+                      <span className="text-xs md:text-sm font-medium text-slate-700">{editingItem ? "Use the item list switch to change availability" : "Available to Order"}</span>
                     </label>
 
                     <label className="flex items-center gap-3 cursor-pointer group">

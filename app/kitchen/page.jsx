@@ -1,6 +1,7 @@
 "use client";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
 import { bookingReceiptLabel } from "@/lib/bookings/posBookingDisplay.mjs";
+import { saveMenuAvailability, applyMenuAvailability } from "@/lib/menuAvailability.mjs";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Clock3, Download, History, LogOut, Maximize2, PackageCheck, RefreshCcw, Trash2, Utensils, X } from "lucide-react";
@@ -206,6 +207,8 @@ export default function KitchenDisplay() {
   const [availabilityGroups, setAvailabilityGroups] = useState([]);
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [availabilitySavingId, setAvailabilitySavingId] = useState("");
+  const availabilityRevision = useRef(0);
+  const availabilityWritePending = useRef(false);
   const [availabilitySearch, setAvailabilitySearch] = useState("");
   const [authLoading, setAuthLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
@@ -397,6 +400,8 @@ export default function KitchenDisplay() {
   }
 
   async function loadKitchenAvailabilityItems(resources = null, storeIdOverride = null) {
+    if (availabilityWritePending.current) return;
+    const revision = availabilityRevision.current;
     const storeId = storeIdOverride || assignedStoreId;
     if (!storeId) {
       setAvailabilityItems([]);
@@ -409,7 +414,7 @@ export default function KitchenDisplay() {
     const [itemsRes, availabilityRes, groupAvailabilityRes, optionAvailabilityRes] = await Promise.all([
       supabase
         .from("menu_items")
-        .select("id, name, category, is_available, variants")
+        .select("id, name, category, is_available, variants, updated_at")
         .order("category", { ascending: true })
         .order("name", { ascending: true }),
       supabase
@@ -426,6 +431,7 @@ export default function KitchenDisplay() {
         .eq("store_id", storeId),
     ]);
 
+    if (revision !== availabilityRevision.current) { setAvailabilityLoading(false); return; }
     if (itemsRes.error || availabilityRes.error || groupAvailabilityRes.error || optionAvailabilityRes.error) {
       setLoadError(itemsRes.error?.message || availabilityRes.error?.message || groupAvailabilityRes.error?.message || optionAvailabilityRes.error?.message || "Unable to load kitchen availability.");
       setAvailabilityLoading(false);
@@ -522,29 +528,34 @@ export default function KitchenDisplay() {
   }, [showAvailabilityPanel, assignedStoreId, availabilitySavingId]);
 
   async function toggleKitchenItemAvailability(item) {
-    if (availabilitySavingId || !assignedStoreId || !item?.id) return;
+    if (availabilitySavingId || availabilityWritePending.current || !assignedStoreId || !item?.id) return;
+    availabilityWritePending.current = true;
+    availabilityRevision.current += 1;
     const nextAvailable = item.is_available === false;
     setAvailabilitySavingId(String(item.id));
-    const { error } = await supabase.rpc("set_shared_menu_availability", { item_key: String(item.id), available: nextAvailable });
-
-    if (error) {
-      setAlertMessage(`Availability update failed: ${error.message}`);
-      setTimeout(() => setAlertMessage(""), 6000);
-    } else {
-      setAvailabilityItems((prev) =>
-        prev.map((row) => (String(row.id) === String(item.id) ? { ...row, is_available: nextAvailable } : row))
-      );
+    try {
+      const saved = await saveMenuAvailability(supabase, item, nextAvailable, "kds");
+      setAvailabilityItems(prev => prev.map(row => applyMenuAvailability(row, saved)));
       setAlertMessage(`${item.name} is now ${nextAvailable ? "available" : "unavailable"}.`);
       setTimeout(() => setAlertMessage(""), 4000);
+    } catch (error) {
+      setAlertMessage(`Availability update failed: ${error.message}`);
+      setTimeout(() => setAlertMessage(""), 6000);
+    } finally {
+      availabilityWritePending.current = false;
+      setAvailabilitySavingId("");
+      setAvailabilityLoading(false);
     }
-    setAvailabilitySavingId("");
   }
 
   async function toggleKitchenOptionSelectionAvailability(option) {
-    if (availabilitySavingId || !assignedStoreId || !option?.groupKey || !option?.optionKey) return;
+    if (availabilitySavingId || availabilityWritePending.current || !assignedStoreId || !option?.groupKey || !option?.optionKey) return;
+    availabilityWritePending.current = true;
+    availabilityRevision.current += 1;
     const nextAvailable = !option.enabled;
     setAvailabilitySavingId(`option:${option.key}`);
-    const { error } = await supabase
+    try {
+    const { data: saved, error } = await supabase
       .from("option_selection_store_availability")
       .upsert(
         {
@@ -556,11 +567,13 @@ export default function KitchenDisplay() {
           is_available: nextAvailable,
         },
         { onConflict: "store_id,group_key,option_key" }
-      );
+      ).select("store_id,is_available").single();
 
     if (error) {
       setAlertMessage(`Option update failed: ${error.message}`);
       setTimeout(() => setAlertMessage(""), 6000);
+    } else if (String(saved?.store_id) !== String(assignedStoreId) || saved?.is_available !== nextAvailable) {
+      setAlertMessage("Option update was not confirmed. Refresh and retry.");
     } else {
       setAvailabilityGroups((prev) =>
         prev.map((group) => ({
@@ -573,7 +586,13 @@ export default function KitchenDisplay() {
       setAlertMessage(`${option.optionName} is now ${nextAvailable ? "available" : "unavailable"}.`);
       setTimeout(() => setAlertMessage(""), 4000);
     }
-    setAvailabilitySavingId("");
+    } catch (error) {
+      setAlertMessage(`Option update failed: ${error.message}`);
+    } finally {
+      availabilityWritePending.current = false;
+      setAvailabilitySavingId("");
+      setAvailabilityLoading(false);
+    }
   }
 
   const showNewTicketAlert = (ticket) => {

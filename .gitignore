@@ -60,3 +60,8 @@ next-env.d.ts
 /tmp/old-project-backup-*.zip
 /tmp/old-project-backup-verification.json
 /tmp/old-project-cleanup-audit.json
+
+# Android release binaries are distributed outside Git.
+*.apk
+*.aab
+/artifacts/android-widget/
