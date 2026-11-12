@@ -1,0 +1,4 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_booking" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="1dp" android:background="@drawable/booking_widget_confirmed">
+ <TextView android:id="@+id/widget_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:singleLine="true" android:ellipsize="end" android:includeFontPadding="false" android:textStyle="bold" android:textSize="8sp" android:textColor="#334155" />
+ <TextView android:id="@+id/widget_time" android:layout_width="match_parent" android:layout_height="wrap_content" android:singleLine="true" android:ellipsize="end" android:textSize="7sp" android:textColor="#475569" />
+</LinearLayout>

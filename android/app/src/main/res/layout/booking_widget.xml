@@ -1,16 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@drawable/booking_widget_background" android:padding="12dp">
-    <TextView android:id="@+id/widget_title" android:layout_width="match_parent" android:layout_height="24dp" android:text="JUJA · BOOKING CALENDAR" android:textStyle="bold" android:textSize="13sp" android:textColor="#142A3E" />
-    <LinearLayout android:layout_width="match_parent" android:layout_height="32dp" android:orientation="horizontal" android:gravity="center_vertical">
-        <TextView android:id="@+id/widget_prev" android:layout_width="32dp" android:layout_height="match_parent" android:gravity="center" android:text="‹" android:contentDescription="Previous month" android:textSize="24sp" android:textColor="#142A3E" />
-        <TextView android:id="@+id/widget_month" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:textStyle="bold" android:textSize="14sp" android:textColor="#142A3E" />
-        <TextView android:id="@+id/widget_next" android:layout_width="32dp" android:layout_height="match_parent" android:gravity="center" android:text="›" android:contentDescription="Next month" android:textSize="24sp" android:textColor="#142A3E" />
-        <TextView android:id="@+id/widget_today" android:layout_width="45dp" android:layout_height="match_parent" android:gravity="center" android:text="Today" android:textSize="11sp" android:textColor="#0B6942" />
-        <TextView android:id="@+id/widget_refresh" android:layout_width="32dp" android:layout_height="match_parent" android:gravity="center" android:text="↻" android:contentDescription="Refresh bookings" android:textSize="22sp" android:textColor="#0B6942" />
-    </LinearLayout>
-    <LinearLayout android:id="@+id/widget_weekdays" android:layout_width="match_parent" android:layout_height="20dp" android:orientation="horizontal" />
-    <LinearLayout android:id="@+id/widget_days" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
-    <TextView android:id="@+id/widget_selected" android:layout_width="match_parent" android:layout_height="26dp" android:gravity="center_vertical" android:textSize="11sp" android:textStyle="bold" android:textColor="#142A3E" />
-    <LinearLayout android:id="@+id/widget_bookings" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="vertical" />
-    <TextView android:id="@+id/widget_updated" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="2" android:text="Open POS and sign in to connect" android:textSize="10sp" android:textColor="#64748B" />
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@drawable/booking_widget_background" android:padding="10dp">
+ <TextView android:layout_width="match_parent" android:layout_height="12dp" android:text="VIEW ONLY" android:textStyle="bold" android:textSize="8sp" android:textColor="#475569" />
+ <TextView android:id="@+id/widget_title" android:layout_width="match_parent" android:layout_height="24dp" android:text="Booking Calendar" android:textStyle="bold" android:textSize="17sp" android:textColor="#0F172A" />
+ <TextView android:layout_width="match_parent" android:layout_height="14dp" android:text="Pending and confirmed upcoming bookings" android:textSize="9sp" android:textColor="#475569" />
+ <LinearLayout android:layout_width="match_parent" android:layout_height="34dp" android:orientation="horizontal" android:gravity="center_vertical">
+  <TextView android:id="@+id/widget_month" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Booking calendar" android:textStyle="bold" android:textSize="13sp" android:textColor="#0F172A" />
+  <TextView android:id="@+id/widget_prev" android:layout_width="30dp" android:layout_height="30dp" android:gravity="center" android:text="←" android:contentDescription="Previous month" android:background="@drawable/booking_widget_cell" android:textSize="16sp" android:textColor="#334155" />
+  <TextView android:id="@+id/widget_today" android:layout_width="42dp" android:layout_height="30dp" android:gravity="center" android:text="TODAY" android:background="@drawable/booking_widget_cell_muted" android:textSize="8sp" android:textColor="#334155" />
+  <TextView android:id="@+id/widget_next" android:layout_width="30dp" android:layout_height="30dp" android:gravity="center" android:text="→" android:contentDescription="Next month" android:background="@drawable/booking_widget_cell" android:textSize="16sp" android:textColor="#334155" />
+  <TextView android:id="@+id/widget_refresh" android:layout_width="28dp" android:layout_height="30dp" android:gravity="center" android:text="↻" android:contentDescription="Refresh bookings" android:textSize="20sp" android:textColor="#334155" />
+ </LinearLayout>
+ <LinearLayout android:layout_width="match_parent" android:layout_height="26dp" android:orientation="horizontal" android:gravity="center_vertical">
+  <TextView android:id="@+id/widget_total" android:layout_width="0dp" android:layout_weight="1" android:layout_height="22dp" android:gravity="center" android:text="BOOKINGS 0" android:background="@drawable/booking_widget_cell_muted" android:textStyle="bold" android:textSize="8sp" android:textColor="#475569" />
+  <TextView android:id="@+id/widget_confirmed" android:layout_width="0dp" android:layout_weight="1" android:layout_height="22dp" android:gravity="center" android:text="CONFIRMED 0" android:background="@drawable/booking_widget_confirmed" android:textStyle="bold" android:textSize="8sp" android:textColor="#047857" />
+  <TextView android:id="@+id/widget_pending" android:layout_width="0dp" android:layout_weight="1" android:layout_height="22dp" android:gravity="center" android:text="PENDING 0" android:background="@drawable/booking_widget_pending" android:textStyle="bold" android:textSize="8sp" android:textColor="#0369A1" />
+ </LinearLayout>
+ <LinearLayout android:id="@+id/widget_month_view" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="vertical">
+  <LinearLayout android:id="@+id/widget_weekdays" android:layout_width="match_parent" android:layout_height="20dp" android:orientation="horizontal" android:background="#F1F5F9" />
+  <LinearLayout android:id="@+id/widget_days" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="vertical" />
+ </LinearLayout>
+ <LinearLayout android:id="@+id/widget_day_view" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="vertical" android:visibility="gone">
+  <TextView android:id="@+id/widget_back" android:layout_width="match_parent" android:layout_height="28dp" android:text="← Back to month" android:gravity="center_vertical" android:textSize="11sp" android:textColor="#047857" />
+  <TextView android:id="@+id/widget_selected" android:layout_width="match_parent" android:layout_height="24dp" android:textSize="12sp" android:textStyle="bold" android:textColor="#334155" />
+  <TextView android:id="@+id/widget_empty" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="8dp" android:textSize="12sp" android:textColor="#64748B" />
+  <LinearLayout android:id="@+id/widget_bookings" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="vertical" />
+ </LinearLayout>
+ <TextView android:id="@+id/widget_updated" android:layout_width="match_parent" android:layout_height="16dp" android:singleLine="true" android:ellipsize="end" android:text="Open POS to connect · Philippine time" android:textSize="9sp" android:textColor="#64748B" />
 </LinearLayout>

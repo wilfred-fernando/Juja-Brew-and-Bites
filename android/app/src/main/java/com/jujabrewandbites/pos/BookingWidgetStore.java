@@ -58,7 +58,7 @@ final class BookingWidgetStore {
         JSONObject data = new JSONObject(); data.put("token", token); write(c, data);
     }
     static void request(Context c, String token, boolean revoke) throws Exception {
-        HttpURLConnection connection = (HttpURLConnection) new URL(ENDPOINT).openConnection();
+        HttpURLConnection connection = (HttpURLConnection) new URL(ENDPOINT + (revoke ? "" : "?calendar=1")).openConnection();
         try {
             connection.setConnectTimeout(10000); connection.setReadTimeout(10000); connection.setInstanceFollowRedirects(false);
             connection.setRequestMethod(revoke ? "DELETE" : "GET"); connection.setRequestProperty("Authorization", "Bearer " + token);

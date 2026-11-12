@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
 const supabase = getSupabaseClient();
-const WEEKDAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+const WEEKDAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
 function manilaMonthKey() {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -29,8 +29,8 @@ function addUtcDays(date, days) {
 function monthGrid(monthKey) {
   const [year, month] = monthKey.split("-").map(Number);
   const monthStart = new Date(Date.UTC(year, month - 1, 1));
-  const mondayOffset = (monthStart.getUTCDay() + 6) % 7;
-  const gridStart = addUtcDays(monthStart, -mondayOffset);
+  const sundayOffset = monthStart.getUTCDay();
+  const gridStart = addUtcDays(monthStart, -sundayOffset);
   const days = Array.from({ length: 42 }, (_, index) => addUtcDays(gridStart, index));
   return {
     year,

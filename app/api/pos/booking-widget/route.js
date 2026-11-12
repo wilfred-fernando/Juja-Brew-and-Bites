@@ -39,7 +39,8 @@ export async function GET(req) {
   try {
     const token = bearer(req);
     if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return json({ error: 'Open POS to reconnect the widget.' }, 401);
-    const { data, error } = await adminClient().rpc('read_pos_booking_widget', { p_token_hash: hash(token) });
+    const calendar = new URL(req.url).searchParams.get('calendar') === '1';
+    const { data, error } = await adminClient().rpc(calendar ? 'read_pos_booking_calendar_widget' : 'read_pos_booking_widget', { p_token_hash: hash(token) });
     if (error) throw error;
     return data ? json(data) : json({ error: 'Open POS to reconnect the widget.' }, 401);
   } catch { return json({ error: 'Booking refresh unavailable.' }, 503); }

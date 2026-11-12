@@ -1,5 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_booking" android:layout_width="match_parent" android:layout_height="38dp" android:orientation="vertical">
-    <TextView android:id="@+id/widget_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:singleLine="true" android:ellipsize="end" android:textStyle="bold" android:textSize="12sp" android:textColor="#142A3E" />
-    <TextView android:id="@+id/widget_time" android:layout_width="match_parent" android:layout_height="wrap_content" android:singleLine="true" android:ellipsize="end" android:textSize="10sp" android:textColor="#475569" />
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_booking" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="4dp" android:layout_marginBottom="4dp" android:background="@drawable/booking_widget_confirmed">
+ <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+  <TextView android:id="@+id/widget_name" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:singleLine="true" android:ellipsize="end" android:textStyle="bold" android:textSize="10sp" android:textColor="#334155" />
+  <TextView android:id="@+id/widget_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:padding="2dp" android:textStyle="bold" android:textSize="6sp" android:textColor="#047857" />
+ </LinearLayout>
+ <TextView android:id="@+id/widget_time" android:layout_width="match_parent" android:layout_height="wrap_content" android:singleLine="true" android:ellipsize="end" android:textSize="8sp" android:textColor="#475569" />
+ <TextView android:id="@+id/widget_package" android:layout_width="match_parent" android:layout_height="wrap_content" android:singleLine="true" android:ellipsize="end" android:textSize="8sp" android:textColor="#64748B" />
+ <TextView android:id="@+id/widget_event" android:layout_width="match_parent" android:layout_height="wrap_content" android:singleLine="true" android:ellipsize="end" android:textSize="7sp" android:textColor="#94A3B8" />
+ <TextView android:id="@+id/widget_payment" android:layout_width="match_parent" android:layout_height="wrap_content" android:singleLine="true" android:ellipsize="end" android:textSize="9sp" android:textColor="#475569" />
 </LinearLayout>
