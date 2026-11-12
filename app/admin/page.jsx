@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { Gift, Globe, Puzzle, Settings, ShieldAlert, Star, Users } from "lucide-react";
+import JujaStampBanner from "@/components/JujaStampBanner";
 
 const supabase = getSupabaseClient();
 
@@ -115,6 +116,12 @@ export default function AdminDashboard() {
         Juja Brew & Bites - {user?.email}
       </p>
     </header>
+
+    {role === "super_admin" && (
+      <section className="mb-10" aria-label="JUJA stamp campaign preview">
+        <JujaStampBanner userId={user.id} />
+      </section>
+    )}
 
     {/* GRID */}
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">

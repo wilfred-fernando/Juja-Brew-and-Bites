@@ -3245,6 +3245,7 @@ function ProfileTab({ user, onLogout }) {
 export default function Customer() {
   useEffect(() => maintainPortalSession(supabase, window, document), []);
   const [user, setUser] = useState(null);
+  const [accountRole, setAccountRole] = useState(null);
   const [member, setMember] = useState(null);
   const [tab, setTab] = useState("home");
   const [orderSection, setOrderSection] = useState("food");
@@ -3445,6 +3446,8 @@ export default function Customer() {
         }
 
         setUser(session.user);
+        const { data: accountProfile } = await supabase.from("profiles").select("role").eq("id", session.user.id).maybeSingle();
+        setAccountRole(accountProfile?.role || null);
         const cachedMemberSnapshot = await getLocalSnapshot("customer_profile", { userId: session.user.id });
         const cachedMember = cachedMemberSnapshot?.data;
         if (cachedMember) setMember(applyAnnualPointResetToMember(cachedMember));
@@ -3814,7 +3817,7 @@ export default function Customer() {
         </div>
       )}
 
-      {!member && user && (
+      {!member && user && accountRole !== "super_admin" && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center overflow-y-auto bg-slate-950/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="loyalty-setup-title">
           <div className="my-auto w-full max-w-3xl rounded-[28px] border border-rose-100 bg-[#FFF9FA] p-4 shadow-2xl sm:p-7">
             <div className="mb-4 text-center">
