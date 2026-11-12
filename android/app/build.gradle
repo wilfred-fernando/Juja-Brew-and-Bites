@@ -31,7 +31,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode appVersionCode
         versionName appVersionName
-        manifestPlaceholders = [appName: selectedAppName]
+        manifestPlaceholders = [appName: selectedAppName, posWidgetEnabled: (appTarget == 'pos').toString()]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

@@ -4,6 +4,8 @@
 
     <application
         android:allowBackup="true"
+        android:fullBackupContent="@xml/widget_backup_rules"
+        android:dataExtractionRules="@xml/widget_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="${appName}"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -37,6 +39,11 @@
             <intent-filter><action android:name="com.google.firebase.MESSAGING_EVENT" /></intent-filter>
         </service>
         <receiver android:name="com.jujabrewandbites.pos.CustomerOrderDismissReceiver" android:exported="false" />
+        <receiver android:name="com.jujabrewandbites.pos.BookingWidgetProvider" android:enabled="${posWidgetEnabled}" android:exported="false" android:label="JUJA Booking Calendar">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/booking_widget_info" />
+        </receiver>
+        <service android:name="com.jujabrewandbites.pos.BookingWidgetJob" android:enabled="${posWidgetEnabled}" android:permission="android.permission.BIND_JOB_SERVICE" android:exported="true" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

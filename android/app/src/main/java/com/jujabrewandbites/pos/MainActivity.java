@@ -7,6 +7,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(ClassicBluetoothPrinterPlugin.class);
+        if (getPackageName().equals("com.jujabrewandbites.pos")) registerPlugin(PosBookingWidgetPlugin.class);
         if (getPackageName().endsWith(".customer")) registerPlugin(CustomerOrderProgressPlugin.class);
         super.onCreate(savedInstanceState);
     }

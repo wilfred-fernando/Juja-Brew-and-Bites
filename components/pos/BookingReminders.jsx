@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
+import PosBookingWidget from './PosBookingWidget';
 import { createIncomingRingtone } from '@/lib/posIncomingRingtone';
 import { bookingReminderCandidates, claimBookingReminder, acknowledgeBookingReminder, releaseBookingReminder } from '@/lib/bookings/reminders.mjs';
 
@@ -11,6 +12,10 @@ const dateTime = value => new Intl.DateTimeFormat('en-PH', {
 }).format(new Date(value));
 
 export default function BookingReminders({ storeId, enabled }) {
+  return <><PosBookingWidget storeId={storeId} enabled={enabled} /><BookingReminderAlerts storeId={storeId} enabled={enabled} /></>;
+}
+
+function BookingReminderAlerts({ storeId, enabled }) {
   const [reminder, setReminder] = useState(null);
   const controls = useRef(null);
   const acknowledgeButton = useRef(null);
