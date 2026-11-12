@@ -1,7 +1,7 @@
 {
   "app": "pos",
-  "latestVersion": "2.3",
-  "latestBuild": 19,
-  "apkUrl": "https://files.jujabrewandbites.com/apk-downloads/juja-pos-v2.3.apk",
-  "releaseNotes": "Adds the Android home-screen Booking Calendar widget with monthly booking indicators, daily booking names/times/payment status, and background refresh. Open POS and sign in, then add JUJA Booking Calendar from Android Widgets."
+  "latestVersion": "2.4",
+  "latestBuild": 20,
+  "apkUrl": "https://files.jujabrewandbites.com/apk-downloads/juja-pos-v2.4.apk",
+  "releaseNotes": "Redesigns the home-screen widget to match Booking Calendar with green confirmed cards, blue pending cards, monthly totals and full day details. Both POS and widget calendars start on Sunday."
 }
