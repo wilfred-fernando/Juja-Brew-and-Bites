@@ -23,9 +23,40 @@ export default function AdminAccountsPage() {
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
   const [confirmingId, setConfirmingId] = useState("");
+  const [editing, setEditing] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [canManageAccounts, setCanManageAccounts] = useState(false);
+
+  async function saveAccount(event) {
+    event.preventDefault();
+    if (busy || !canManageAccounts) return;
+    setBusy(true); setEditError("");
+    try {
+      const res = await fetch("/api/admin/accounts", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...editing, action: "edit" }) });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Unable to update account.");
+      setAccounts((rows) => rows.map((row) => row.id === editing.id ? { ...row, ...json.account } : row));
+      setEditing(null); setNotice("Account updated.");
+    } catch (error) { setEditError(error.message); }
+    finally { setBusy(false); }
+  }
+
+  async function deleteAccount(account) {
+    if (busy || !canManageAccounts || !window.confirm(`Delete the account for ${accountName(account)} (${account.email})? This disables their sign-in. Historical transactions are retained.`)) return;
+    setBusy(true); setNotice("");
+    try {
+      const res = await fetch("/api/admin/accounts", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: account.id }) });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Unable to delete account.");
+      setAccounts((rows) => rows.filter((row) => row.id !== account.id));
+      setNotice("Account deleted.");
+    } catch (error) { setNotice(error.message); }
+    finally { setBusy(false); }
+  }
 
   async function confirmCustomer(account) {
-    if (confirmingId || !window.confirm(`Manually confirm ${account.email}? This lets the customer sign in without completing the email confirmation link.`)) return;
+    if (busy || confirmingId || !window.confirm(`Manually confirm ${account.email}? This lets the customer sign in without completing the email confirmation link.`)) return;
     setConfirmingId(account.id);
     setNotice("");
     try {
@@ -53,9 +84,11 @@ export default function AdminAccountsPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Unable to load accounts.");
       setAccounts(json.accounts || []);
+      setCanManageAccounts(json.can_manage_accounts === true);
     } catch (error) {
       setNotice(error.message || "Unable to load accounts.");
       setAccounts([]);
+      setCanManageAccounts(false);
     } finally {
       setLoading(false);
     }
@@ -72,6 +105,7 @@ export default function AdminAccountsPage() {
       [
         accountName(account),
         account.email,
+        account.contact_number,
         account.role,
         account.store_name,
       ]
@@ -139,7 +173,7 @@ export default function AdminAccountsPage() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search name, email, role, store..."
+            placeholder="Search name, email, contact, role, store..."
             className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-cyan-400/70 focus:ring-4 focus:ring-cyan-300/20 md:max-w-sm"
           />
         </div>
@@ -168,6 +202,7 @@ export default function AdminAccountsPage() {
                       <tr>
                         <th className="p-3">Full Name</th>
                         <th>Email Address</th>
+                        <th>Contact Number</th>
                         <th>Store</th>
                         <th>Date Created</th>
                         <th>Last Sign In</th>
@@ -180,6 +215,7 @@ export default function AdminAccountsPage() {
                         <tr key={account.id} className="border-t border-slate-100 transition hover:bg-cyan-50/45">
                           <td className="p-3 font-semibold text-slate-950">{accountName(account)}</td>
                           <td className="text-slate-700">{account.email || "-"}</td>
+                          <td className="text-slate-700">{account.contact_number || "-"}</td>
                           <td className="text-slate-700">{account.store_name || "All stores"}</td>
                           <td className="text-slate-700">{formatDateTime(account.created_at)}</td>
                           <td className="text-slate-700">{formatDateTime(account.last_sign_in_at)}</td>
@@ -187,12 +223,18 @@ export default function AdminAccountsPage() {
                             {account.email_confirmed_at ? account.manual_confirmation ? "Manually confirmed" : "Confirmed" : "Pending confirmation"}
                           </td>
                           <td className="p-3">
+                            <div className="flex items-center gap-2">
+                            {canManageAccounts && <>
+                            <button type="button" disabled={busy || !!confirmingId} onClick={() => { setEditError(""); setEditing({ id: account.id, full_name: account.full_name || "", email: account.email || "", contact_number: account.contact_number || "" }); }} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold disabled:opacity-50">Edit</button>
+                            <button type="button" disabled={busy || !!confirmingId} onClick={() => deleteAccount(account)} className="rounded-xl border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 disabled:opacity-50">Delete</button>
+                            </>}
                             {group.role === "customer" && !account.email_confirmed_at && account.email ? (
-                              <button type="button" disabled={!!confirmingId} onClick={() => confirmCustomer(account)}
+                              <button type="button" disabled={busy || !!confirmingId} onClick={() => confirmCustomer(account)}
                                 className="rounded-xl bg-slate-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">
                                 {confirmingId === account.id ? "Confirming..." : "Confirm account"}
                               </button>
-                            ) : "—"}
+                            ) : null}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -204,6 +246,23 @@ export default function AdminAccountsPage() {
           </div>
         )}
       </div>
+      {editing && canManageAccounts && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+        <section role="dialog" aria-modal="true" aria-labelledby="edit-account-title" className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+          <h2 id="edit-account-title" className="text-lg font-semibold">Edit account</h2>
+          <form onSubmit={saveAccount} className="mt-4 space-y-4">
+            <fieldset disabled={busy} className="space-y-4">
+              <label className="block text-sm">Name<input required maxLength={150} value={editing.full_name} onChange={(event) => setEditing({ ...editing, full_name: event.target.value })} className="mt-1 h-11 w-full rounded-xl border border-slate-300 px-3" /></label>
+              <label className="block text-sm">Email<input required type="email" maxLength={254} value={editing.email} onChange={(event) => setEditing({ ...editing, email: event.target.value })} className="mt-1 h-11 w-full rounded-xl border border-slate-300 px-3" /></label>
+              <label className="block text-sm">Contact number<input type="tel" maxLength={40} value={editing.contact_number} onChange={(event) => setEditing({ ...editing, contact_number: event.target.value })} className="mt-1 h-11 w-full rounded-xl border border-slate-300 px-3" /></label>
+            </fieldset>
+            {editError && <p role="alert" className="text-sm text-rose-700">{editError}</p>}
+            <div className="flex justify-end gap-2">
+              <button type="button" disabled={busy} onClick={() => setEditing(null)} className="rounded-xl border border-slate-300 px-4 py-2 text-sm">Cancel</button>
+              <button type="submit" disabled={busy} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Saving…" : "Save"}</button>
+            </div>
+          </form>
+        </section>
+      </div>}
     </div>
   );
 }

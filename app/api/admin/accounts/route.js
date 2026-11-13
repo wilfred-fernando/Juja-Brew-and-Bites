@@ -67,10 +67,11 @@ export async function GET() {
       return (usersData?.users || [])
         .map((user) => {
           const profile = profileById[user.id];
-          if (!profile) return null;
+          if (!profile || user.deleted_at) return null;
           return {
             id: user.id,
             email: user.email,
+            contact_number: user.user_metadata?.contact_number || "",
             full_name: profile.full_name,
             role: profile.role,
             store_id: profile.store_id,
@@ -86,7 +87,7 @@ export async function GET() {
     });
 
     return Response.json(
-      { accounts },
+      { accounts, can_manage_accounts: role === "super_admin" },
       { headers: { "Cache-Control": "private, no-store" } }
     );
   } catch (error) {
@@ -99,12 +100,36 @@ export async function PATCH(request) {
     const { admin, user: requester, response } = await requireAdminApi();
     if (response) return response;
     const body = await request.json().catch(() => null);
-    if (body?.action !== "confirm_customer" || typeof body.id !== "string" ||
+    if (!["confirm_customer", "edit"].includes(body?.action) || typeof body.id !== "string" ||
         !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.id)) {
       return Response.json({ error: "Select a valid customer account to confirm." }, { status: 400 });
     }
-    const { data: profile, error: profileError } = await admin.from("profiles").select("role").eq("id", body.id).maybeSingle();
+    const { data: profile, error: profileError } = await admin.from("profiles").select("role,full_name").eq("id", body.id).maybeSingle();
     if (profileError) throw profileError;
+    if (body.action === "edit") {
+      if (!profile) return Response.json({ error: "Account not found." }, { status: 404 });
+      const { data: actor, error: actorError } = await admin.from("profiles").select("role").eq("id", requester.id).single();
+      if (actorError) throw actorError;
+      if (actor.role !== "super_admin") return Response.json({ error: "Super Admin access required." }, { status: 403 });
+      const fullName = typeof body.full_name === "string" ? body.full_name.trim() : "";
+      const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+      const contact = typeof body.contact_number === "string" ? body.contact_number.trim() : "";
+      if (!fullName || fullName.length > 150 || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || contact.length > 40 || (contact && !/^[+\d\s().-]+$/.test(contact))) {
+        return Response.json({ error: "Enter a valid name, email, and contact number." }, { status: 400 });
+      }
+      const { data: current, error: lookupError } = await admin.auth.admin.getUserById(body.id);
+      if (lookupError) throw lookupError;
+      if (!current?.user || current.user.deleted_at) return Response.json({ error: "Account not found." }, { status: 404 });
+      const { data: updated, error: updateError } = await admin.auth.admin.updateUserById(body.id, {
+        email, user_metadata: { ...current.user.user_metadata, full_name: fullName, contact_number: contact },
+      });
+      if (updateError) throw updateError;
+      clearCached("admin:accounts:list");
+      const { data: saved, error: saveError } = await admin.from("profiles").update({ full_name: fullName }).eq("id", body.id).select("full_name").single();
+      if (saveError) throw new Error("Email and contact saved, but the profile name could not be saved. Refresh and retry.");
+      if (updated.user?.email !== email || saved.full_name !== fullName || updated.user?.user_metadata?.contact_number !== contact) throw new Error("Account changes could not be verified. Refresh and retry.");
+      return Response.json({ account: { id: body.id, full_name: saved.full_name, email: updated.user.email, contact_number: contact } }, { headers: { "Cache-Control": "private, no-store" } });
+    }
     if (String(profile?.role || "").toLowerCase() !== "customer") {
       return Response.json({ error: "Manual confirmation is available only for customer accounts." }, { status: 403 });
     }
@@ -132,5 +157,28 @@ export async function PATCH(request) {
     } }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return Response.json({ error: error?.message || "Unable to confirm customer account." }, { status: 500 });
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    const { admin, user, response } = await requireAdminApi();
+    if (response) return response;
+    const body = await request.json().catch(() => null);
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body?.id || "")) return Response.json({ error: "Select a valid account." }, { status: 400 });
+    if (body.id === user.id) return Response.json({ error: "You cannot delete your own account." }, { status: 400 });
+    const { data: profiles, error: profileError } = await admin.from("profiles").select("id,role").in("id", [user.id, body.id]);
+    if (profileError) throw profileError;
+    const target = profiles.find((row) => row.id === body.id);
+    const actor = profiles.find((row) => row.id === user.id);
+    if (actor?.role !== "super_admin") return Response.json({ error: "Super Admin access required." }, { status: 403 });
+    if (!target) return Response.json({ error: "Account not found." }, { status: 404 });
+    // Soft deletion disables sign-in while retaining IDs referenced by historical records.
+    const { error } = await admin.auth.admin.deleteUser(body.id, true);
+    if (error) throw error;
+    clearCached("admin:accounts:list");
+    return Response.json({ deleted: body.id }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) {
+    return Response.json({ error: error?.message || "Unable to delete account." }, { status: 500 });
   }
 }
