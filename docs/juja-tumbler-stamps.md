@@ -12,6 +12,10 @@ Drinks earning stamps do not also earn loyalty points. The POS and web award RPC
 
 The stamp ledger keeps archived receipts from erasing progress. Refunds of active receipts recalculate quantities and expire an unredeemed reward if the card no longer qualifies. Re-qualifying restores that same voucher. A redeemed voucher stays redeemed.
 
+Free, fully discounted, and voucher/reward-redeemed items are excluded even if a price is retained in metadata. Mixed-quantity lines count paid units only, after free/redemption quantities and refunds. Partial refund quantities use the discounted paid unit value. A web refund also invalidates stamps on its POS copies. Once normalized receipt items exist, deleting them cannot restore stamps from stale order JSON.
+
+Canonical purchase identities merge web/POS copies, offline checkout retries, and duplicate store/receipt numbers. Receipt-number edits retain the initial identity; a later web link merges the identities. Repeated cart-line IDs count once, while distinct lines of the same drink remain eligible. Ledger upserts, per-card locks, canonical advisory locks, and a unique active-owner index prevent duplicate awards across refreshes and accounts. Sources without any shared transaction identifier cannot be inferred to be duplicates purely from matching drink names or prices.
+
 The frontend and database migration must be released together later. Without the migration, the banner reports that the card is temporarily unavailable and cannot enroll customers.
 
 ## Local verification

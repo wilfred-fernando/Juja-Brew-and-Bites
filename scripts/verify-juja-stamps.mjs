@@ -38,9 +38,11 @@ await db.exec(`
     add column "Total visits" integer default 0, add column "Total spent" numeric default 0,
     add column "First visit" text, add column "Last visit" text, add column customer_name text;
   alter table orders add column loyalty_points_awarded numeric, add column loyalty_points_awarded_at timestamptz,
-    add column receipt_number text, add column customer_name text;
+    add column receipt_number text, add column customer_name text,add column store_id text,add column client_idempotency_key text,
+    add column refund_amount numeric,add column net_amount numeric,add column payment_method text;
   alter table web_orders add column loyalty_points_awarded numeric, add column loyalty_points_awarded_at timestamptz,
-    add column receipt_number text, add column customer_name text, add column loyalty_sale_total numeric;
+    add column receipt_number text, add column customer_name text, add column loyalty_sale_total numeric,
+    add column payment_status text,add column refund_amount numeric;
   create table loyalty_point_award_events(member_id uuid,source_type text,source_id uuid,receipt_number text,
     points_awarded numeric,sale_total numeric,points_balance_after numeric,available_points_after numeric,awarded_at timestamptz,
     unique(source_type,source_id));
@@ -48,6 +50,7 @@ await db.exec(`
 const awardMigration = await readFile(new URL('../supabase/migrations/20260801023000_loyalty_point_award_events.sql',import.meta.url),'utf8');
 await db.exec(awardMigration.slice(awardMigration.indexOf('create or replace function public.award_loyalty_points_for_order(')));
 await db.exec(await readFile(new URL('../supabase/migrations/20261113090000_stamp_drinks_no_loyalty_points.sql',import.meta.url),'utf8'));
+await db.exec(await readFile(new URL('../supabase/migrations/20261113100000_stamp_eligibility_refunds_duplicates.sql',import.meta.url),'utf8'));
 // Only this disposable database gets a controllable clock.
 await db.exec(`
   select set_config('test.clock_offset',(timestamptz '2026-11-15 00:00:01+08'-clock_timestamp())::text,false);
@@ -161,4 +164,72 @@ try {
   await db.exec(`create or replace function public.juja_stamp_now() returns timestamptz language sql volatile as $$ select timestamptz '2027-01-16 00:00:00+08' $$;`);
   await assert.rejects(db.query('select join_juja_stamp_card($1)',[other]),/runs November 15/);
   console.log('PASS: promo boundaries (Manila), opt-in, no backfill, ownership, permissions, category/quantity rules, web deduplication, automatic single voucher, retries, refunds, archival and redeemed reward protection');
+  // Isolated campaign member for redemption/refund/duplicate scenarios.
+  const strictMember='55555555-5555-4555-8555-555555555555';
+  await db.exec(`select set_config('test.uid','${strictMember}',false);
+    create or replace function public.juja_stamp_now() returns timestamptz language sql volatile as $$ select timestamptz '2026-11-16 12:00:00+08' $$;
+    insert into loyalty_members(id,user_id) values('${strictMember}','${strictMember}');`);
+  await db.query('select join_juja_stamp_card($1)',[strictMember]);
+  const strictCount=async()=>Number((await one('select drink_stamps n from juja_stamp_cards where member_id=$1',[strictMember])).n);
+  const strictSale=async(items,extra={})=>(await one(`insert into orders(loyalty_member_id,items,source_web_order_id,client_idempotency_key,receipt_number,store_id,payment_method)
+    values($1,$2,$3,$4,$5,'branch-a',$6) returning id`,[strictMember,JSON.stringify(items),extra.webId||null,extra.retry||null,extra.receipt||null,extra.payment||'Cash'])).id;
+  for(const excluded of [
+    {...line('MILK TEA (CLASSIC)',1),net_amount:0},
+    {...line('MILK TEA (CLASSIC)',1),discountAmount:100},
+    {...line('MILK TEA (CLASSIC)',1),isFree:true},
+    {...line('MILK TEA (CLASSIC)',1),isRedeemed:true},
+    {...line('MILK TEA (CLASSIC)',1),appliedVoucher:{id:'voucher',reward_type:'points'}},
+    {...line('MILK TEA (CLASSIC)',1),source_metadata:{pos_line_details:{appliedVoucher:{code:'REWARD'}}}},
+    {...line('MILK TEA (CLASSIC)',1),source_metadata:{pos_line_details:{isFree:true}}},
+    {...line('MILK TEA (CLASSIC)',1),redemption_id:'reward'}
+  ]) { await strictSale([excluded]); assert.equal(await strictCount(),0,'Free and redeemed items cannot earn stamps even with a positive price'); }
+  await strictSale([line('MILK TEA (CLASSIC)',1)],{payment:'No Payment Required'});
+  assert.equal(await strictCount(),0);
+  const partial=await strictSale([{...line('MILK TEA (CLASSIC)',4),freeQuantity:1,redeemedQuantity:1}]);
+  assert.equal(await strictCount(),2,'Count only paid, non-redeemed units');
+  await db.query("update orders set status='refunded',refund_amount=100 where id=$1",[partial]);
+  assert.equal(await strictCount(),0,'Full refund automatically reverses stamps before portal refresh');
+  await db.query("update orders set status='paid' where id=$1",[partial]);
+  assert.equal(await strictCount(),0,'A stale status retry cannot undo the recorded full refund');
+  const itemOrder=await strictSale([{...line('MILK TEA (CLASSIC)',2),net_amount:160}]);
+  await db.query("insert into order_items(order_id,category_name,quantity,unit_price,net_amount,refund_amount,status,refunded_at) values($1,'MILK TEA (CLASSIC)',2,100,160,80,'partial_refund',now())",[itemOrder]);
+  assert.equal(await strictCount(),1,'Partial refund uses the discounted paid unit value');
+  await db.query('delete from order_items where order_id=$1',[itemOrder]);
+  assert.equal(await strictCount(),0,'Deleting the final receipt item cannot resurrect stale JSON stamps');
+  const uncertain=await strictSale([line('MILK TEA (CLASSIC)',2)]);
+  await db.query("update orders set total=200,refund_amount=100,status='partial_refund' where id=$1",[uncertain]);
+  assert.equal(await strictCount(),0,'An unreconciled partial refund cannot keep all original stamps');
+  await db.query("insert into order_items(order_id,category_name,quantity,unit_price,net_amount,refund_amount,status) values($1,'MILK TEA (CLASSIC)',2,100,200,100,'partial_refund')",[uncertain]);
+  assert.equal(await strictCount(),1,'Reconciled partial refund retains exactly the paid non-refunded unit');
+  await db.query("update orders set status='refunded',refund_amount=200 where id=$1",[uncertain]);
+  const webStrict=(await one('insert into web_orders(loyalty_member_id,items) values($1,$2) returning id',[strictMember,JSON.stringify([line('MILK TEA (CLASSIC)',2)])])).id;
+  const webCopy=await strictSale([line('MILK TEA (CLASSIC)',2)],{webId:webStrict});
+  await strictSale([line('MILK TEA (CLASSIC)',2)],{webId:webStrict});
+  assert.equal(await strictCount(),2,'Multiple POS copies of one web sale cannot duplicate stamps');
+  await db.query("update web_orders set status='refunded',payment_status='refunded' where id=$1",[webStrict]);
+  assert.equal(await strictCount(),0,'Web refund reverses the shared stamps even while POS copies remain paid');
+  await db.query("update orders set status='paid' where id=$1",[webCopy]);
+  assert.equal(await strictCount(),0,'POS retry cannot restore stamps from a refunded web order');
+  const offline=await strictSale([line('MILK TEA (CLASSIC)',2)],{retry:'offline-checkout-1'});
+  await strictSale([line('MILK TEA (CLASSIC)',2)],{retry:'offline-checkout-1'});
+  assert.equal(await strictCount(),2,'Offline replay with a different receipt UUID is still one purchase');
+  await db.query('update orders set receipt_number=$1 where id=$2',['CORRECTED-123',offline]);
+  assert.equal(await strictCount(),2,'Receipt edits keep the original canonical identity');
+  await strictSale([line('MILK TEA (CLASSIC)',1)],{receipt:'DUP-123'});
+  await strictSale([line('MILK TEA (CLASSIC)',1)],{receipt:'DUP-123'});
+  assert.equal(await strictCount(),3,'Duplicate legacy store/receipt numbers cannot duplicate stamps');
+  await strictSale([{...line('MILK TEA (CLASSIC)',1),cartItemId:'same-line'},{...line('MILK TEA (CLASSIC)',1),cartItemId:'same-line'}]);
+  assert.equal(await strictCount(),4,'Repeated cart line identity counts once');
+  await strictSale([{...line('MILK TEA (CLASSIC)',1),cartItemId:'line-a'},{...line('MILK TEA (CLASSIC)',1),cartItemId:'line-b'}]);
+  assert.equal(await strictCount(),6,'Distinct legitimate lines of the same drink both count');
+  const lateWeb=(await one('insert into web_orders(loyalty_member_id,items) values($1,$2) returning id',[strictMember,JSON.stringify([line('MILK TEA (CLASSIC)',1)])])).id;
+  const lateCopy=await strictSale([line('MILK TEA (CLASSIC)',1)]);
+  await db.query('update orders set source_web_order_id=$1 where id=$2',[lateWeb,lateCopy]);
+  assert.equal(await strictCount(),7,'Linking a POS receipt to its web order later must merge the identities');
+  const repeatCount=await strictCount();
+  await Promise.all(Array.from({length:5},()=>db.query('select get_juja_stamp_card($1)',[strictMember])));
+  assert.equal(await strictCount(),repeatCount,'Repeated/concurrent refresh requests never increment the ledger');
+  const canonical=await one("select * from juja_stamp_purchases where member_id=$1 and drink_quantity>0 limit 1",[strictMember]);
+  await assert.rejects(db.query('insert into juja_stamp_purchases values($1,$2,$3,0,1)',[member,canonical.source_type,canonical.source_id]),/duplicate key/);
+  console.log('PASS: voucher/free/redemption exclusions, paid units, discounted partial refunds, full refund retries, web refund propagation, stale JSON protection, offline/receipt/web/line deduplication and one active owner');
 } finally { await db.close(); }

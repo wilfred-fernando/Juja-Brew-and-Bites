@@ -71,6 +71,7 @@ export default function JujaStampBanner({ userId, member, onViewVouchers, onLink
           <p className="mt-2 text-sm font-semibold text-rose-700">Promo period: {JUJA_STAMP_PERIOD} only</p>
           <p className="mt-2 text-xs leading-relaxed text-slate-500">Tap JOIN NOW before purchasing. Earn one juja stamp per purchased drink after joining. Signature drinks fill signature slots only. Your free tumbler voucher is created automatically when all stamps are complete.</p>
           <p className="mt-2 text-xs font-semibold text-rose-700">Drinks that earn JUJA stamps do not earn loyalty points.</p>
+          <p className="mt-1 text-xs text-slate-500">Free and redeemed items do not earn stamps. Refunded drinks have their stamps reversed.</p>
         </div>
         <figure className="m-0 flex shrink-0 flex-col items-center gap-2 self-center">
           <Image src="/promos/juja-tumbler-26oz.webp" alt="26oz JUJA tumbler with a faceted finish, matching lid and straw" width={180} height={360} sizes="(max-width: 639px) 120px, 144px" className="h-60 w-auto object-contain sm:h-72" />
