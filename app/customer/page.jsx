@@ -35,6 +35,7 @@ import CustomerApkUpdatePrompt from "@/components/CustomerApkUpdatePrompt";
 import ApkDownloadBanner from "@/components/ApkDownloadBanner";
 import CommunityPromoBanners from "@/components/CommunityPromoBanners";
 import JujaStampBanner from "@/components/JujaStampBanner";
+import { jujaStampPhase } from "@/lib/loyalty/jujaStampCampaign.mjs";
 import { getStableSession, maintainPortalSession } from "@/lib/supabase/session";
 import { uploadProofFile } from "@/lib/storage/uploadProof";
 import {
@@ -1325,6 +1326,17 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
   const [items, setItems] = useState([]);
   const [cats, setCategories] = useState([]);
   const [activeTab, setActiveTab] = useState("ALL");
+  const [stampEnrollment, setStampEnrollment] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    setStampEnrollment(null);
+    if (member?.id) {
+      supabase.rpc("get_juja_stamp_card", { p_member_id: member.id }).then(({ data }) => {
+        if (!cancelled) setStampEnrollment(data);
+      });
+    }
+    return () => { cancelled = true; };
+  }, [member?.id]);
   const [itemSearch, setItemSearch] = useState("");
 
   const [cart, setCart] = useState([]);
@@ -1672,8 +1684,13 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
 
   const subtotal = useMemo(() => cart.reduce((sum, line) => sum + customerLineNet(line), 0), [cart]);
   const loyaltyEligibleSubtotal = useMemo(
-    () => cart.reduce((sum, line) => sum + loyaltyEligibleLineTotal(line, customerLineNet(line)), 0),
-    [cart]
+    () => cart.reduce((sum, line) => {
+      const category = String(line.category || line.category_name || line.categoryName || "").trim().toLowerCase();
+      const earnsStamp = stampEnrollment?.joined_at && jujaStampPhase() === "active"
+        && Number(line.quantity) >= 1 && stampEnrollment.stamp_categories?.includes(category);
+      return sum + (earnsStamp ? 0 : loyaltyEligibleLineTotal(line, customerLineNet(line)));
+    }, 0),
+    [cart, stampEnrollment]
   );
   const itemCount = useMemo(() => cart.reduce((sum, i) => sum + i.quantity, 0), [cart]);
 

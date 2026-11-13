@@ -8,6 +8,8 @@ Each purchased drink earns one stamp. Five slots require **LATTE (SIGNATURE)**; 
 
 The card completes only at 5 signature + 20 other drink stamps (25 total). Checkout creates one free 26oz JUJA tumbler `juja_tumbler` voucher in the existing voucher wallet. Existing POS voucher redemption handles claiming the physical tumbler. This campaign awards one tumbler per loyalty member; it does not reset automatically. Stamps and the reward have no expiry, and no loyalty points are consumed.
 
+Drinks earning stamps do not also earn loyalty points. The POS and web award RPCs cap points to eligible non-stamp items in mixed baskets. Customers who have not joined, purchases before joining, and purchases outside the promo dates retain the usual point rules. Zero-point stamp purchases are recorded with an award timestamp so retries cannot issue points later. Customer checkout estimates apply the same category exclusion after enrollment. Historical awards are not recalculated.
+
 The stamp ledger keeps archived receipts from erasing progress. Refunds of active receipts recalculate quantities and expire an unredeemed reward if the card no longer qualifies. Re-qualifying restores that same voucher. A redeemed voucher stays redeemed.
 
 The frontend and database migration must be released together later. Without the migration, the banner reports that the card is temporarily unavailable and cannot enroll customers.

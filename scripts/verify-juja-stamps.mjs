@@ -33,6 +33,21 @@ await db.exec(`
 `);
 await db.exec((await readFile(new URL('../supabase/migrations/20261112090000_juja_tumbler_stamps.sql', import.meta.url),'utf8')));
 await db.exec((await readFile(new URL('../supabase/migrations/20261112100000_juja_tumbler_25_stamps.sql', import.meta.url),'utf8')));
+await db.exec(`
+  alter table loyalty_members add column "Points balance" numeric default 0, add column "Available points" numeric default 0,
+    add column "Total visits" integer default 0, add column "Total spent" numeric default 0,
+    add column "First visit" text, add column "Last visit" text, add column customer_name text;
+  alter table orders add column loyalty_points_awarded numeric, add column loyalty_points_awarded_at timestamptz,
+    add column receipt_number text, add column customer_name text;
+  alter table web_orders add column loyalty_points_awarded numeric, add column loyalty_points_awarded_at timestamptz,
+    add column receipt_number text, add column customer_name text, add column loyalty_sale_total numeric;
+  create table loyalty_point_award_events(member_id uuid,source_type text,source_id uuid,receipt_number text,
+    points_awarded numeric,sale_total numeric,points_balance_after numeric,available_points_after numeric,awarded_at timestamptz,
+    unique(source_type,source_id));
+`);
+const awardMigration = await readFile(new URL('../supabase/migrations/20260801023000_loyalty_point_award_events.sql',import.meta.url),'utf8');
+await db.exec(awardMigration.slice(awardMigration.indexOf('create or replace function public.award_loyalty_points_for_order(')));
+await db.exec(await readFile(new URL('../supabase/migrations/20261113090000_stamp_drinks_no_loyalty_points.sql',import.meta.url),'utf8'));
 // Only this disposable database gets a controllable clock.
 await db.exec(`
   select set_config('test.clock_offset',(timestamptz '2026-11-15 00:00:01+08'-clock_timestamp())::text,false);
@@ -108,6 +123,32 @@ try {
   await db.exec(`select set_config('test.uid','${other}',false);
     create or replace function public.juja_stamp_now() returns timestamptz language sql volatile as $$ select timestamptz '2026-11-14 23:59:59.999999+08' $$;`);
   await assert.rejects(db.query('select join_juja_stamp_card($1)',[other]),/runs November 15/);
+  const award = async (items,expected,requested=4,source='order',timestamp='2026-11-16 12:00:00+08',memberId=member) => {
+    const table=source==='order'?'orders':'web_orders',date=source==='order'?'paid_at':'created_at';
+    const row=await one(`insert into ${table}(loyalty_member_id,${date},items) values($1,$2,$3) returning id`,[memberId,timestamp,JSON.stringify(items)]);
+    const rpc=source==='order'?'award_loyalty_points_for_order':'award_loyalty_points_for_web_order';
+    await db.query(`select ${rpc}($1,$2,$3,100)`,[row.id,memberId,requested]);
+    const recorded = await one(`select loyalty_points_awarded n,loyalty_points_awarded_at awarded_at from ${table} where id=$1`,[row.id]);
+    assert.notEqual(recorded.n,null,'A zero-point stamp purchase must record an explicit award');
+    assert.ok(recorded.awarded_at,'A zero-point stamp purchase needs an idempotency timestamp');
+    assert.equal(Number(recorded.n),expected);
+    assert.equal(Number((await one('select points_awarded n from loyalty_point_award_events where source_id=$1',[row.id])).n),expected);
+    const before=Number((await one('select "Points balance" n from loyalty_members where id=$1',[memberId])).n);
+    await db.query(`select ${rpc}($1,$2,$3,100)`,[row.id,memberId,requested]);
+    assert.equal(Number((await one('select "Points balance" n from loyalty_members where id=$1',[memberId])).n),before,'Retry cannot add points again');
+  };
+  await award([line('LATTE (SIGNATURE)',1)],0);
+  await award([line('MILK TEA (CLASSIC)',1)],0,4,'web_order');
+  await award([line('LATTE (SIGNATURE)',1),{...line('WAFFLE',1),unitPrice:50}],2,6);
+  await award([line('LATTE (SIGNATURE)',1),{...line('WAFFLE',1),unitPrice:50}, {...line('PROMOS',1),unitPrice:50}],2,6);
+  await award([{...line('MILK TEA (CLASSIC)',1),discountBeneficiaryType:'qcid'}, {...line('WAFFLE',1),unitPrice:50}],2,2);
+  await award([{...line('MILK TEA (CLASSIC)',1),appliedVoucher:{reward_type:'welcome'}}, {...line('WAFFLE',1),unitPrice:50}],2,2);
+  await award([line('LATTE (SIGNATURE)',1)],4,4,'order','2026-11-14 12:00:00+08');
+  await award([line('LATTE (SIGNATURE)',1)],4,4,'order','2027-01-16 12:00:00+08');
+  const notJoined='44444444-4444-4444-8444-444444444444';
+  await db.query('insert into loyalty_members(id,user_id) values($1,$1)',[notJoined]);
+  await award([line('LATTE (SIGNATURE)',1)],4,4,'order','2026-11-16 12:00:00+08',notJoined);
+  console.log('PASS: stamp drinks earn zero points; mixed baskets retain food points; web awards, zero-point retries, QCID/welcome/promo exclusions, non-enrolled and out-of-period purchases');
   await db.exec(`create or replace function public.juja_stamp_now() returns timestamptz language sql volatile as $$ select timestamptz '2026-11-15 00:00:00+08' $$;`);
   await db.query('select join_juja_stamp_card($1)',[other]);
   for (const timestamp of ['2026-11-14 23:59:59.999999+08','2026-11-15 00:00:00+08','2027-01-15 23:59:59.999999+08','2027-01-16 00:00:00+08']) {

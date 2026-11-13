@@ -7993,12 +7993,15 @@ export default function POSPage() {
           );
 
           if (order?.id) {
-            const awardStamp = new Date().toISOString();
+            const { data: sourceAward, error: sourceAwardError } = await supabase.from("orders")
+              .select("loyalty_points_awarded,loyalty_points_awarded_at").eq("id", sourceOrderId).single();
+            if (sourceAwardError) throw new Error("Unable to verify the source receipt loyalty award.");
+            const awardStamp = sourceAward.loyalty_points_awarded_at || new Date().toISOString();
             const { error: webMarkerError } = await supabase
               .from("web_orders")
               .update({
                 loyalty_member_id: memberId,
-                loyalty_points_awarded: Number(pointsEarned.toFixed(2)),
+                loyalty_points_awarded: Number(sourceAward.loyalty_points_awarded ?? 0),
                 loyalty_points_awarded_at: awardStamp,
                 loyalty_sale_total: Number(order?.total || order?.subtotal || 0),
               })
