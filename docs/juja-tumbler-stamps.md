@@ -1,6 +1,6 @@
 # JUJA digital tumbler stamps
 
-Promo period: **November 15, 2026, 12:00 AM through January 15, 2027, 11:59:59 PM, Asia/Manila**. Enrollment and qualifying purchase timestamps are restricted server-side to this window. The banner shows the dates and changes to upcoming or ended messaging outside the period. Previously earned vouchers remain redeemable after the earning period ends.
+Promo period: **November 20, 2026, 12:00 AM through January 15, 2027, 11:59:59 PM, Asia/Manila**. Enrollment and qualifying purchase timestamps are restricted server-side to this window. The banner shows the dates and changes to upcoming or ended messaging outside the period. Previously earned vouchers remain redeemable after the earning period ends.
 
 The customer Home tab has a JUJA Digital Stamps banner. Customers must link a loyalty account and explicitly tap **Join now** before earning stamps. Enrollment is idempotent and is verified against the authenticated account on the server.
 

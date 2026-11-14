@@ -5,7 +5,7 @@ loadEnvConfig(process.cwd());
 
 async function main() {
   const apply = process.argv.includes('--apply');
-  const files = ['20261112090000_juja_tumbler_stamps.sql','20261112100000_juja_tumbler_25_stamps.sql','20261113090000_stamp_drinks_no_loyalty_points.sql','20261113100000_stamp_eligibility_refunds_duplicates.sql'];
+  const files = ['20261112090000_juja_tumbler_stamps.sql','20261112100000_juja_tumbler_25_stamps.sql','20261113090000_stamp_drinks_no_loyalty_points.sql','20261113100000_stamp_eligibility_refunds_duplicates.sql','20261114090000_reschedule_juja_stamps_nov20.sql'];
   const db = new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 10000 });
   await db.connect();
   try {
@@ -22,6 +22,7 @@ async function main() {
         when $1='20261112090000' then true
         when $1='20261113090000' then to_regprocedure('public.juja_points_after_stamp_exclusion(uuid,text,uuid,numeric)') is not null
         when $1='20261113100000' then to_regprocedure('public.juja_stamp_line_quantity(jsonb)') is not null
+        when $1='20261114090000' then position('2026-11-20' in pg_get_functiondef('public.join_juja_stamp_card(uuid)'::regprocedure))>0
         else position('signatures = 5 and drinks = 20' in pg_get_functiondef('public.refresh_juja_stamp_card(uuid)'::regprocedure))>0 end installed`,[version])).rows[0].installed;
     if (!installed) {
       const sql = fs.readFileSync('supabase/migrations/'+file,'utf8').replace(/^begin;\s*/,'').replace(/commit;\s*$/,'');

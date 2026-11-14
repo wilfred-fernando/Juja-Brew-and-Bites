@@ -51,9 +51,10 @@ const awardMigration = await readFile(new URL('../supabase/migrations/2026080102
 await db.exec(awardMigration.slice(awardMigration.indexOf('create or replace function public.award_loyalty_points_for_order(')));
 await db.exec(await readFile(new URL('../supabase/migrations/20261113090000_stamp_drinks_no_loyalty_points.sql',import.meta.url),'utf8'));
 await db.exec(await readFile(new URL('../supabase/migrations/20261113100000_stamp_eligibility_refunds_duplicates.sql',import.meta.url),'utf8'));
+await db.exec(await readFile(new URL('../supabase/migrations/20261114090000_reschedule_juja_stamps_nov20.sql',import.meta.url),'utf8'));
 // Only this disposable database gets a controllable clock.
 await db.exec(`
-  select set_config('test.clock_offset',(timestamptz '2026-11-15 00:00:01+08'-clock_timestamp())::text,false);
+  select set_config('test.clock_offset',(timestamptz '2026-11-20 00:00:01+08'-clock_timestamp())::text,false);
   create or replace function public.juja_stamp_now() returns timestamptz language sql volatile as $$
     select clock_timestamp()+current_setting('test.clock_offset')::interval $$;
   alter table orders alter column paid_at set default public.juja_stamp_now();
@@ -124,9 +125,9 @@ try {
   await db.query('update orders set loyalty_member_id=null,customer_id=null where id=$1',[signatures]);
   assert.equal((await card()).signature_stamps,0,'Removing a member from a receipt cannot leave its stamps behind');
   await db.exec(`select set_config('test.uid','${other}',false);
-    create or replace function public.juja_stamp_now() returns timestamptz language sql volatile as $$ select timestamptz '2026-11-14 23:59:59.999999+08' $$;`);
-  await assert.rejects(db.query('select join_juja_stamp_card($1)',[other]),/runs November 15/);
-  const award = async (items,expected,requested=4,source='order',timestamp='2026-11-16 12:00:00+08',memberId=member) => {
+    create or replace function public.juja_stamp_now() returns timestamptz language sql volatile as $$ select timestamptz '2026-11-19 23:59:59.999999+08' $$;`);
+  await assert.rejects(db.query('select join_juja_stamp_card($1)',[other]),/runs November 20/);
+  const award = async (items,expected,requested=4,source='order',timestamp='2026-11-21 12:00:00+08',memberId=member) => {
     const table=source==='order'?'orders':'web_orders',date=source==='order'?'paid_at':'created_at';
     const row=await one(`insert into ${table}(loyalty_member_id,${date},items) values($1,$2,$3) returning id`,[memberId,timestamp,JSON.stringify(items)]);
     const rpc=source==='order'?'award_loyalty_points_for_order':'award_loyalty_points_for_web_order';
@@ -146,15 +147,15 @@ try {
   await award([line('LATTE (SIGNATURE)',1),{...line('WAFFLE',1),unitPrice:50}, {...line('PROMOS',1),unitPrice:50}],2,6);
   await award([{...line('MILK TEA (CLASSIC)',1),discountBeneficiaryType:'qcid'}, {...line('WAFFLE',1),unitPrice:50}],2,2);
   await award([{...line('MILK TEA (CLASSIC)',1),appliedVoucher:{reward_type:'welcome'}}, {...line('WAFFLE',1),unitPrice:50}],2,2);
-  await award([line('LATTE (SIGNATURE)',1)],4,4,'order','2026-11-14 12:00:00+08');
+  await award([line('LATTE (SIGNATURE)',1)],4,4,'order','2026-11-19 12:00:00+08');
   await award([line('LATTE (SIGNATURE)',1)],4,4,'order','2027-01-16 12:00:00+08');
   const notJoined='44444444-4444-4444-8444-444444444444';
   await db.query('insert into loyalty_members(id,user_id) values($1,$1)',[notJoined]);
-  await award([line('LATTE (SIGNATURE)',1)],4,4,'order','2026-11-16 12:00:00+08',notJoined);
+  await award([line('LATTE (SIGNATURE)',1)],4,4,'order','2026-11-21 12:00:00+08',notJoined);
   console.log('PASS: stamp drinks earn zero points; mixed baskets retain food points; web awards, zero-point retries, QCID/welcome/promo exclusions, non-enrolled and out-of-period purchases');
-  await db.exec(`create or replace function public.juja_stamp_now() returns timestamptz language sql volatile as $$ select timestamptz '2026-11-15 00:00:00+08' $$;`);
+  await db.exec(`create or replace function public.juja_stamp_now() returns timestamptz language sql volatile as $$ select timestamptz '2026-11-20 00:00:00+08' $$;`);
   await db.query('select join_juja_stamp_card($1)',[other]);
-  for (const timestamp of ['2026-11-14 23:59:59.999999+08','2026-11-15 00:00:00+08','2027-01-15 23:59:59.999999+08','2027-01-16 00:00:00+08']) {
+  for (const timestamp of ['2026-11-19 23:59:59.999999+08','2026-11-20 00:00:00+08','2027-01-15 23:59:59.999999+08','2027-01-16 00:00:00+08']) {
     await db.query('insert into orders(loyalty_member_id,paid_at,items) values($1,$2,$3)',[other,timestamp,JSON.stringify([line('MILK TEA (CLASSIC)',1)])]);
     await db.query('insert into web_orders(loyalty_member_id,created_at,items) values($1,$2,$3)',[other,timestamp,JSON.stringify([line('LATTE (SIGNATURE)',1)])]);
   }
@@ -162,12 +163,12 @@ try {
   assert.equal(boundary.drink_stamps,2,'Only in-period POS purchases count, including both boundary days');
   assert.equal(boundary.signature_stamps,2,'Only in-period web purchases count');
   await db.exec(`create or replace function public.juja_stamp_now() returns timestamptz language sql volatile as $$ select timestamptz '2027-01-16 00:00:00+08' $$;`);
-  await assert.rejects(db.query('select join_juja_stamp_card($1)',[other]),/runs November 15/);
+  await assert.rejects(db.query('select join_juja_stamp_card($1)',[other]),/runs November 20/);
   console.log('PASS: promo boundaries (Manila), opt-in, no backfill, ownership, permissions, category/quantity rules, web deduplication, automatic single voucher, retries, refunds, archival and redeemed reward protection');
   // Isolated campaign member for redemption/refund/duplicate scenarios.
   const strictMember='55555555-5555-4555-8555-555555555555';
   await db.exec(`select set_config('test.uid','${strictMember}',false);
-    create or replace function public.juja_stamp_now() returns timestamptz language sql volatile as $$ select timestamptz '2026-11-16 12:00:00+08' $$;
+    create or replace function public.juja_stamp_now() returns timestamptz language sql volatile as $$ select timestamptz '2026-11-21 12:00:00+08' $$;
     insert into loyalty_members(id,user_id) values('${strictMember}','${strictMember}');`);
   await db.query('select join_juja_stamp_card($1)',[strictMember]);
   const strictCount=async()=>Number((await one('select drink_stamps n from juja_stamp_cards where member_id=$1',[strictMember])).n);

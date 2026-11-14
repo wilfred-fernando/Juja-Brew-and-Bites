@@ -114,7 +114,7 @@ export default function JujaStampBanner({ userId, member, onViewVouchers, onLink
           : loading ? <p role="status" className="text-sm text-slate-500">Loading your stamp card…</p>
           : error ? <><p role="alert" className="mb-2 text-sm text-red-700">{error}</p><button type="button" onClick={load} className="text-sm font-bold text-rose-700 underline">Try again</button></>
           : complete || redeemed ? <button type="button" onClick={onViewVouchers} className="rounded-full bg-rose-600 px-6 py-3 text-sm font-bold text-white">View tumbler voucher</button>
-          : phase === "upcoming" ? <p className="text-sm font-semibold text-rose-700">JOIN and START collecting on November 15, 2026</p>
+          : phase === "upcoming" ? <p className="text-sm font-semibold text-rose-700">JOIN and START collecting on November 20, 2026</p>
           : phase === "ended" ? <p className="text-sm font-semibold text-slate-600">This stamp promo ended on January 15, 2027.</p>
           : !member?.id ? <button type="button" onClick={onLinkAccount} className="rounded-full bg-rose-600 px-6 py-3 text-sm font-bold text-white">Link loyalty account to join</button>
           : !card?.joined_at ? <button type="button" onClick={join} disabled={joining} className="rounded-full bg-rose-600 px-6 py-3 text-sm font-bold text-white disabled:opacity-50">{joining ? "Joining…" : "JOIN NOW"}</button>
