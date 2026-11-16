@@ -417,9 +417,10 @@ export default function AdminBookingsDashboard() {
     return actionModal.gcChoice === "generate";
   }
   async function approveCancellationWithGiftCertificate(bookingId, action = "cancel", generateGc) {
+    const { data: sessionData } = await supabase.auth.getSession();
     const res = await fetch("/api/admin/booking-cancellation-gift-certificate", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(sessionData?.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}) },
       body: JSON.stringify({ bookingId, action, ...(typeof generateGc === "boolean" ? { generateGc } : {}) }),
     });
     const json = await res.json().catch(() => ({}));
@@ -427,6 +428,7 @@ export default function AdminBookingsDashboard() {
     return {
       status: json?.booking?.status || "cancelled",
       giftCertificate: json?.giftCertificate || null,
+      emailError: json?.emailSent === false ? json.emailError || "Cancellation email could not be sent." : "",
     };
   }
 
@@ -464,6 +466,10 @@ export default function AdminBookingsDashboard() {
   async function loadAll() {
     setLoading(true);
     const { data: auth } = await supabase.auth.getUser();
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (auth?.user) void fetch("/api/admin/booking-cancellation-gift-certificate", { method: "POST",
+      headers: { "Content-Type": "application/json", ...(sessionData?.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}) },
+      body: JSON.stringify({ action: "send_pending_cancellation_emails" }) }).catch(() => {});
     const { data: actor } = auth?.user
       ? await supabase.from("profiles").select("role").eq("id", auth.user.id).maybeSingle()
       : { data: null };
@@ -770,7 +776,7 @@ export default function AdminBookingsDashboard() {
             const booking = bookings.find((x) => x.id === id);
             if (booking?.status === "cancellation_requested" && type === "approve_bulk") {
               const result = await approveCancellationWithGiftCertificate(id, "cancel", selectedCancellationGc(booking));
-              return { id, payload: { status: result.status } };
+              return { id, payload: { status: result.status }, emailError: result.emailError };
             }
             if (type === "approve_bulk") {
               const result = await approveBookingAndSendConfirmation(id);
@@ -816,6 +822,7 @@ export default function AdminBookingsDashboard() {
           if (!canCancelBooking(booking)) throw new Error("Only upcoming active bookings can be cancelled.");
           const result = await approveCancellationWithGiftCertificate(booking.id, "admin_cancel", selectedCancellationGc(booking));
           setBookings(prev => prev.map(item => item.id === booking.id ? { ...item, status: result.status } : item));
+          if (result.emailError) alert(`Booking cancelled. ${result.emailError}`);
           setActionModal(null);
           return;
         }
@@ -830,6 +837,7 @@ export default function AdminBookingsDashboard() {
         const updatePayload = statusUpdatePayload(type, booking);
         if (booking?.status === "cancellation_requested" && type === "approve") {
           const result = await approveCancellationWithGiftCertificate(booking.id, "cancel", selectedCancellationGc(booking));
+          if (result.emailError) alert(`Booking cancelled. ${result.emailError}`);
           setBookings((prev) =>
             prev.map((x) => (x.id === booking.id ? { ...x, status: result.status } : x))
           );

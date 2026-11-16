@@ -5,6 +5,7 @@ import { cancellationGiftEmail } from "@/lib/bookings/cancellationGiftEmail";
 import { renderGiftCertificateImage } from "@/lib/bookings/giftCertificateImage";
 import { buildGiftCertificateDelivery } from "@/lib/bookings/giftCertificateDelivery";
 import { getEmailConfigStatus, sendNotificationEmail } from "@/lib/email/notifications";
+import { sendBookingCancellationEmail } from "@/lib/bookings/cancellationEmail";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -121,6 +122,14 @@ export async function POST(req) {
     const { admin, guard } = await context();
     if (!guard.allowed) return Response.json({ error: guard.error }, { status: guard.status });
     const { bookingId, batchId, action = "cancel", paymentVerified = false, reason = "", generateGc } = await req.json();
+    if (action === "send_pending_cancellation_emails") {
+      const { data: pending, error } = await admin.from("booking_cancellation_emails").select("booking_id")
+        .in("status", ["pending", "failed"]).order("created_at").limit(5);
+      if (error) throw error;
+      const results = [];
+      for (const item of pending || []) results.push(await sendBookingCancellationEmail(admin, item.booking_id));
+      return Response.json({ success: true, processed: results.length, sent: results.filter(item => item.emailSent).length });
+    }
     if (action === "cancel" || action === "admin_cancel") {
       if (!bookingId) return Response.json({ error: "Booking ID is required." }, { status: 400 });
       if (generateGc !== undefined) {
@@ -130,7 +139,7 @@ export async function POST(req) {
           p_booking_id: bookingId, p_generate_gc: generateGc, p_actor: guard.requester.id, p_only_requested: action === "cancel",
         });
         if (error) return Response.json({ error: error.message }, { status: 409 });
-        return Response.json({ success: true, booking });
+        return Response.json({ success: true, booking, ...await sendBookingCancellationEmail(admin, booking.id) });
       }
       // The database trigger queues the certificates in the same transaction.
       let cancellation = admin.from("function_room_bookings")
@@ -141,7 +150,7 @@ export async function POST(req) {
       const { data: booking, error } = await cancellation.select("*").maybeSingle();
       if (error) throw error;
       if (!booking) return Response.json({ error: "Booking is no longer eligible for cancellation. Refresh and check its status." }, { status: 409 });
-      return Response.json({ success: true, booking });
+      return Response.json({ success: true, booking, ...await sendBookingCancellationEmail(admin, booking.id) });
     }
     if (action === "reject_purchase" && batchId) {
       const { error } = await admin.rpc("review_gc_purchase", { p_batch_id: batchId, p_actor: guard.requester.id,
@@ -151,7 +160,7 @@ export async function POST(req) {
     if (action !== "approve_email" || !batchId) {
       return Response.json({ error: "A valid action and batch ID are required." }, { status: 400 });
     }
-    const { data: sourceBatch, error: sourceError } = await admin.from("booking_gc_batches").select("purchase_id,certificate_format,stock_request_key").eq("id", batchId).single();
+    const { data: sourceBatch, error: sourceError } = await admin.from("booking_gc_batches").select("booking_id,purchase_id,certificate_format,stock_request_key").eq("id", batchId).single();
     if (sourceError) throw sourceError;
     if (sourceBatch.stock_request_key && !sourceBatch.purchase_id) return Response.json({ error: "Record a paid physical stock sale before activation." }, { status: 409 });
     if (sourceBatch.certificate_format !== "physical" && !getEmailConfigStatus().ready) return Response.json({ error: "Email notification is not configured." }, { status: 503 });
@@ -160,6 +169,7 @@ export async function POST(req) {
       ...(sourceBatch.purchase_id ? { p_approve: true, p_payment_verified: paymentVerified === true } : {}),
     });
     if (approvalError) return Response.json({ error: approvalError.message }, { status: 409 });
+    if (sourceBatch.booking_id) await sendBookingCancellationEmail(admin, sourceBatch.booking_id);
     if (sourceBatch.certificate_format === "physical") return Response.json({ success: true, emailSent: false, physical: true });
     // A conditional claim prevents concurrent approval clicks from sending twice.
     const { data: batch, error: claimError } = await admin.from("booking_gc_batches")

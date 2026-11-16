@@ -31,7 +31,7 @@ process.env.NEXT_PUBLIC_SUPABASE_URL='https://example.invalid';process.env.NEXT_
 const mod={exports:{}};const js=ts.transpileModule(fs.readFileSync('app/api/admin/booking-cancellation-gift-certificate/route.js','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
 vm.runInThisContext('(function(require,module,exports){'+js+'\n})')(name=>{
   if(name==='@supabase/ssr')return{createServerClient:()=>({auth:{getUser:async()=>({data:{user:signedIn?user:null},error:null})}})};
-  if(name==='@supabase/supabase-js')return{createClient:()=>admin};if(name==='next/headers')return{cookies:async()=>({getAll:()=>[]}),headers:async()=>({get:()=>''})};if(name.startsWith('@/'))return{};return require(name);
+  if(name==='@supabase/supabase-js')return{createClient:()=>admin};if(name==='next/headers')return{cookies:async()=>({getAll:()=>[]}),headers:async()=>({get:()=>''})};if(name==='@/lib/bookings/cancellationEmail')return{sendBookingCancellationEmail:async()=>({emailSent:true,emailError:''})};if(name.startsWith('@/'))return{};return require(name);
 },mod,mod.exports);
 const request=body=>new Request('https://example.invalid/api/admin/booking-cancellation-gift-certificate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
 (async()=>{

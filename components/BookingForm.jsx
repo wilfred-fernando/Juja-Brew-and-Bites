@@ -1366,10 +1366,22 @@ export default function BookingForm({ user, member }) {
                   );
                   if (!ok) return;
 
-                  const { error } = await supabase
-                    .from("function_room_bookings")
-                    .update({ status: nextStatus })
-                    .eq("id", b.id);
+                  let error = null;
+                  let cancellationEmailError = "";
+                  if (isPending) {
+                    try {
+                      const { data } = await supabase.auth.getSession();
+                      const response = await fetch("/api/bookings/cancel", { method: "POST",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${data?.session?.access_token || ""}` },
+                        body: JSON.stringify({ bookingId: b.id }) });
+                      const result = await response.json();
+                      if (!response.ok) error = { message: result.error || "Unable to cancel booking." };
+                      else if (result.emailSent === false) cancellationEmailError = " Cancellation saved, but its email could not be sent. Please contact JUJA for assistance.";
+                    } catch { error = { message: "Unable to verify cancellation. Refresh the booking before retrying." }; }
+                  } else {
+                    const result = await supabase.from("function_room_bookings").update({ status: nextStatus }).eq("id", b.id);
+                    error = result.error;
+                  }
 
                   if (error) {
                     setNotice(error.message);
@@ -1387,11 +1399,11 @@ export default function BookingForm({ user, member }) {
                   }
 
                   setNotice(
-                    isDecemberBooking(b)
+                    (isDecemberBooking(b)
                       ? (isPending ? "Booking cancelled. The reservation fee is forfeited; no GC will be issued." : "Cancellation request sent. The reservation fee is forfeited; no GC will be issued.")
                       : isPending
                       ? "Booking cancelled."
-                      : "Cancellation request sent. Admin will review the gift certificate conversion."
+                      : "Cancellation request sent. Admin will review the gift certificate conversion.") + cancellationEmailError
                   );
                 }}
                 className="w-full py-2 rounded-lg text-xs font-bold bg-red-500 text-white hover:bg-red-600"
