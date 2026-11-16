@@ -4460,6 +4460,7 @@ export default function POSPage() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
   const [originalTicketId, setOriginalTicketId] = useState(null);
+  const diningSelectionVersionRef = useRef(0);
   const [savedTickets, setSavedTickets] = useState([]);
   const [savedTicketAuditLogs, setSavedTicketAuditLogs] = useState([]);
   const [savedTicketAuditLoading, setSavedTicketAuditLoading] = useState(false);
@@ -6907,8 +6908,17 @@ export default function POSPage() {
     return Boolean(key && occupiedTableKeys.has(key));
   }
 
-  async function loadDiningOptionOrder(optionName) {
+  async function loadDiningOptionOrder(optionName, selectionVersion = diningSelectionVersionRef.current) {
     if (!storeId) return false;
+    // Takeout is shared by unrelated orders. Only Saved Tickets can resume one;
+    // choosing its dining label must never attach the latest customer's ticket.
+    if (/^(?:online:\s*)?take[\s-]*out$/i.test(String(optionName || "").trim())) {
+      if (!originalTicketId || cart.length === 0) {
+        setOriginalTicketId(null);
+        clearActiveWebOrderContext();
+      }
+      return true;
+    }
     const { data, error } = await supabase
       .from("open_tickets")
       .select("*")
@@ -6917,6 +6927,7 @@ export default function POSPage() {
       .order("created_at", { ascending: false })
       .limit(1);
 
+    if (selectionVersion !== diningSelectionVersionRef.current) return false;
     if (error) {
       showToast("error", "Ticket Load Failed", error.message);
       return;
@@ -6949,6 +6960,7 @@ export default function POSPage() {
       }
 
       const lineItemsByTicket = await fetchOpenTicketLineItems([ticket.id], storeId);
+      if (selectionVersion !== diningSelectionVersionRef.current) return false;
       const ticketItems = lineItemsByTicket.get(String(ticket.id)) || ticket.items || [];
       setOriginalTicketId(ticket.id);
       setCart(ticketItems);
@@ -6982,8 +6994,9 @@ export default function POSPage() {
       return;
     }
 
-    const changed = await loadDiningOptionOrder(name);
-    if (!changed) return;
+    const selectionVersion = ++diningSelectionVersionRef.current;
+    const changed = await loadDiningOptionOrder(name, selectionVersion);
+    if (!changed || selectionVersion !== diningSelectionVersionRef.current) return;
 
     setDiningOption(optionId);
     if (!/grab|shopee/i.test(name) && !isVipRoomDiningOptionName(name) && name !== "VIP Booking") setGrabOrderNumber("");
@@ -7063,19 +7076,6 @@ export default function POSPage() {
         .maybeSingle();
 
       if (existingTicketError) throw existingTicketError;
-
-      if (!existingTicket) {
-        const { data: fallbackTicket, error: fallbackTicketError } = await supabase
-          .from("open_tickets")
-          .select("id, store_id, items, created_at")
-          .eq("order_type", name)
-          .eq("store_id", storeId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (fallbackTicketError) throw fallbackTicketError;
-        existingTicket = fallbackTicket;
-      }
 
       if (!existingTicket?.id) {
         throw new Error("Saved ticket was not updated. Please reopen the saved ticket and try again.");
@@ -9476,6 +9476,7 @@ export default function POSPage() {
 
   async function resumeTicket(t) {
     if (!requireOpenTicketShift()) return;
+    diningSelectionVersionRef.current += 1;
     try {
       assertTicketInCurrentStore(t, "resume it");
     } catch (err) {
@@ -10359,6 +10360,7 @@ export default function POSPage() {
   };
 
   const clearTicketSoft = ({ auditRemovalReason = "" } = {}) => {
+    diningSelectionVersionRef.current += 1;
     if (auditRemovalReason) {
       cart.forEach((line) => {
         void recordCartAuditEvent("item_removed", line, {
