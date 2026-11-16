@@ -3,6 +3,7 @@ import dynamic from "next/dynamic";
 import { excludesFunctionRoomLoyalty } from "@/lib/bookings/loyaltyEligibility.mjs";
 import { reservationBookingName, reservationReceiptItems } from "@/lib/bookings/receiptDisplay.mjs";
 import { bookingDisplayLabel, bookingReceiptLabel } from "@/lib/bookings/posBookingDisplay.mjs";
+import { bookingsForSavedTicket } from "@/lib/bookings/resumedBooking.mjs";
 import ChargedDiningOptionDialog from "@/components/pos/ChargedDiningOptionDialog";
 import { saveMenuAvailability, applyMenuAvailability, updateCatalogAvailability, updateCatalogOptionAvailability } from "@/lib/menuAvailability.mjs";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
@@ -5206,10 +5207,13 @@ export default function POSPage() {
     const version = ++bookingFetchVersionRef.current;
     setBookingsLoading(true);
     try {
-      const { data, error } = await supabase.rpc("list_pos_confirmed_bookings", { p_store_id: storeId });
+      const [listResult, ticketResult] = await Promise.all([
+        supabase.rpc("list_pos_confirmed_bookings", { p_store_id: storeId }),
+        originalTicketId ? supabase.rpc("get_pos_saved_ticket_booking", { p_store_id: storeId, p_ticket_id: originalTicketId }) : Promise.resolve({ data: null }),
+      ]);
       if (version !== bookingFetchVersionRef.current) return;
-      if (error) throw error;
-      setConfirmedBookings(data || []);
+      if (listResult.error || ticketResult.error) throw listResult.error || ticketResult.error;
+      setConfirmedBookings(bookingsForSavedTicket(listResult.data || [], ticketResult.data, Boolean(originalTicketId)));
       setBookingError("");
     } catch (error) {
       if (version === bookingFetchVersionRef.current) setBookingError(error.message || "Unable to load bookings. Tap Refresh to retry.");
@@ -5217,7 +5221,7 @@ export default function POSPage() {
     } finally {
       if (version === bookingFetchVersionRef.current) setBookingsLoading(false);
     }
-  }, [storeId, supabase]);
+  }, [storeId, supabase, originalTicketId]);
   useEffect(() => {
     if (isVipBooking) fetchConfirmedBookings().catch(() => {});
   }, [isVipBooking, originalTicketId, fetchConfirmedBookings]);
@@ -6880,19 +6884,16 @@ export default function POSPage() {
     const keys = new Set();
 
     (savedTickets || []).forEach((ticket) => {
-      if (originalTicketId && String(ticket.id) === String(originalTicketId)) return;
       const key = tableDiningKey(ticket.order_type || ticket.ticket_name);
       if (key) keys.add(key);
     });
 
     (activeKitchenTables || []).forEach((ticket) => {
-      if (originalTicketId && (String(ticket.source_id) === String(originalTicketId) ||
-        String(ticket.source_id).startsWith(`${originalTicketId}:batch:`))) return;
       if (ticket.key) keys.add(ticket.key);
     });
 
     return keys;
-  }, [savedTickets, activeKitchenTables, originalTicketId]);
+  }, [savedTickets, activeKitchenTables]);
 
   const occupiedDiningOptionIds = useMemo(() => {
     const ids = new Set();
@@ -6910,9 +6911,9 @@ export default function POSPage() {
 
   async function loadDiningOptionOrder(optionName, selectionVersion = diningSelectionVersionRef.current) {
     if (!storeId) return false;
-    // Takeout is shared by unrelated orders. Only Saved Tickets can resume one;
-    // choosing its dining label must never attach the latest customer's ticket.
-    if (/^(?:online:\s*)?take[\s-]*out$/i.test(String(optionName || "").trim())) {
+    // Shared destinations never identify a customer's saved ticket. Only
+    // numbered tables are exclusive; resume every other ticket explicitly.
+    if (!isTableDiningOption(optionName)) {
       if (!originalTicketId || cart.length === 0) {
         setOriginalTicketId(null);
         clearActiveWebOrderContext();

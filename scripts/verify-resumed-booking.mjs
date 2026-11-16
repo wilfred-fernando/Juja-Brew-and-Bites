@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import { bookingsForSavedTicket } from '../lib/bookings/resumedBooking.mjs';
+const upcoming=[{id:'today',business_date:'2026-11-17'}];
+const saved={id:'yesterday',business_date:'2026-11-16',customer_name:'Saved booking',voucher:{amount:1000}};
+assert.deepEqual(bookingsForSavedTicket(upcoming,saved,false),upcoming,'A new ticket cannot see past saved-ticket bookings');
+assert.deepEqual(bookingsForSavedTicket(upcoming,saved,true),[saved]);
+assert.deepEqual(bookingsForSavedTicket(upcoming,null,true),[],'An invalid/settled saved booking cannot fall back to another booking');
+assert.deepEqual(bookingsForSavedTicket(upcoming,upcoming[0],true),[upcoming[0]]);
+assert.equal(bookingsForSavedTicket(upcoming,saved,true)[0].voucher.amount,1000);
+console.log('PASS: exact resumed booking, past-date isolation, locked-selection safety and reservation-credit preservation.');

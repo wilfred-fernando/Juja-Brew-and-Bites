@@ -1,0 +1,33 @@
+const {loadEnvConfig}=require('@next/env');const {Client}=require('pg');
+const fs=require('node:fs'),assert=require('node:assert/strict'),{randomUUID}=require('node:crypto');
+loadEnvConfig(process.cwd());
+(async()=>{const db=new Client({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false},connectionTimeoutMillis:10000});await db.connect();
+ const one=async(sql,args=[])=>(await db.query(sql,args)).rows[0];
+ try{
+  await db.query('BEGIN');
+  if(!(await one("select to_regprocedure('public.get_pos_saved_ticket_booking(text,uuid)') installed")).installed)await db.query(fs.readFileSync('supabase/migrations/20261117090000_resolve_resumed_ticket_booking.sql','utf8').replace(/^begin;\s*/,'').replace(/commit;\s*$/,''));
+  const actor=await one("select id,store_id from profiles where lower(role)='cashier' and store_id::text='bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e' limit 1");
+  await db.query("select set_config('request.jwt.claim.sub',$1,true)",[actor.id]);
+  const before=(await one('select list_pos_confirmed_bookings($1) rows',[String(actor.store_id)])).rows;
+  const booking=await one("select b.id,v.amount from function_room_bookings b left join booking_reservation_vouchers v on v.booking_id=b.id where b.status='confirmed' and coalesce(b.payment_status,'') not in ('cancelled','expired') and (v.store_id is null or v.store_id=$1) and v.redeemed_order_id is null and not exists(select 1 from booking_pos_settlements s where s.booking_id=b.id) order by b.start_at limit 1",[String(actor.store_id)]);
+  assert.ok(booking);
+  const ticket=async(id,label='VIP Booking')=>{const key=randomUUID();await db.query("insert into open_tickets(id,ticket_name,order_type,store_id,items,total_amount) values($1,$2,$2,$3,'[]',0)",[key,label+' '+id,actor.store_id]);return key;};
+  const lookup=async(id,store=String(actor.store_id))=>(await one('select get_pos_saved_ticket_booking($1,$2) booking',[store,id])).booking;
+  const own=await ticket(booking.id),resolved=await lookup(own);
+  assert.equal(resolved.id,booking.id);assert.equal(Number(resolved.voucher?.amount||0),Number(booking.amount||0));
+  assert.equal(await lookup(randomUUID()),null);assert.equal(await lookup(await ticket(booking.id,'TAKEOUT')),null);
+  const settled=await one('select booking_id from booking_pos_settlements where store_id=$1 limit 1',[String(actor.store_id)]);
+  if(settled)assert.equal(await lookup(await ticket(settled.booking_id)),null);
+  const cancelled=await one("select b.id from function_room_bookings b left join booking_reservation_vouchers v on v.booking_id=b.id where b.status in ('cancelled','canceled') and (v.store_id is null or v.store_id=$1) limit 1",[String(actor.store_id)]);
+  if(cancelled)assert.equal(await lookup(await ticket(cancelled.id)),null);
+  const other=await one('select id from stores where id<>$1 limit 1',[actor.store_id]);
+  await db.query('savepoint branch_rejection');await assert.rejects(()=>lookup(own,String(other.id)));await db.query('rollback to savepoint branch_rejection');
+  const admin=await one("select id from profiles where lower(role) in ('admin','super_admin') limit 1");
+  await db.query("select set_config('request.jwt.claim.sub',$1,true)",[admin.id]);
+  assert.equal(await lookup(own,String(other.id)),null,'Even admins must resolve a ticket in the requested branch');
+  await db.query("select set_config('request.jwt.claim.sub',$1,true)",[actor.id]);
+  assert.deepEqual((await one('select list_pos_confirmed_bookings($1) rows',[String(actor.store_id)])).rows,before);
+  assert.equal((await one("select has_function_privilege('anon','public.get_pos_saved_ticket_booking(text,uuid)','execute') allowed")).allowed,false);
+  console.log('PASS: exact saved-ticket lookup, credit preserved, missing/non-booking tickets, cancelled/settled bookings, cashier/admin branch boundaries, unchanged normal picker and anonymous denial. All fixtures rolled back.');
+ }finally{await db.query('ROLLBACK');await db.end();}
+})().catch(error=>{console.error(error.message,error.where||'');process.exitCode=1});
