@@ -22,6 +22,7 @@ const reset=(changes={})=>{row={booking_id:booking.id,status:'pending',booking_s
   assert.match(html(booking,{status:'approved'}),/has been approved/);assert.doesNotMatch(html(booking,null),/has been approved/);
   reset();ready=false;assert.equal((await send(admin,booking.id)).emailSent,false);assert.equal(row.status,'failed');assert.equal(sends,0);ready=true;await send(admin,booking.id);assert.equal(row.status,'sent');assert.equal(sends,1);
   reset({email:''});await send(admin,booking.id);assert.equal(sends,0);assert.equal(row.status,'failed');
+  reset({email:'customer@example.invalid,other'});await send(admin,booking.id);assert.equal(sends,0);assert.equal(row.status,'failed');
   reset();throwSmtp=true;assert.equal((await send(admin,booking.id)).emailSent,false);assert.equal(row.status,'sending');await send(admin,booking.id);assert.equal(sends,1);
   for(const file of ['components/BookingForm.jsx','app/api/bookings/cancel/route.js','app/api/admin/booking-confirmation/route.js']){const result=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{jsx:ts.JsxEmit.ReactJSX},reportDiagnostics:true});assert.equal(result.diagnostics.filter(d=>d.category===ts.DiagnosticCategory.Error).length,0);}
   console.log('PASS: customer cancellation copy, escaped details, December/forfeit/GC messaging, concurrent claim and sent deduplication, known failure retry, uncertain delivery no-resend, and changed flow syntax. No real email sent.');
