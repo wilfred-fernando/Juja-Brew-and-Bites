@@ -1,0 +1,40 @@
+require('@next/env').loadEnvConfig(process.cwd());
+const fs=require('node:fs'),assert=require('node:assert/strict'),{Client}=require('pg'),{randomUUID}=require('node:crypto');
+(async()=>{
+  const db=new Client({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false}});await db.connect();
+  const one=async(q,p=[])=>(await db.query(q,p)).rows[0];
+  const rejected=async(q,p,re)=>{await db.query('savepoint rejected');let error;try{await db.query(q,p)}catch(e){error=e}await db.query('rollback to savepoint rejected');assert.ok(error,'Expected rejection');assert.match(error.message,re)};
+  try {
+    await db.query('begin');await db.query("set local lock_timeout='5s'");
+    if(!process.argv.includes('--installed'))await db.query(fs.readFileSync('supabase/migrations/20261116100000_super_admin_cancellation_gc_choice.sql','utf8').replace(/^begin;\s*/,'').replace(/commit;\s*$/,''));
+    await db.query('savepoint fixtures');
+    const before=await one('select (select count(*) from orders) orders,(select count(*) from function_room_bookings) bookings,(select count(*) from booking_gc_batches) batches');
+    const superAdmin=await one("select id from profiles where lower(role)='super_admin' limit 1"),admin=await one("select id from profiles where lower(role)='admin' limit 1");assert.ok(superAdmin&&admin);
+    await db.query("select set_config('request.jwt.claim.role','service_role',true),set_config('request.jwt.claims','{\"role\":\"service_role\"}',true)");
+    let day=10;
+    const seed=async(month='04',paid=true)=>{const id=randomUUID(),date='2089-'+month+'-'+day++;
+      await db.query("insert into function_room_bookings(id,customer_name,event_type,contact_number,email,package_id,guest_count,business_date,start_at,status,payment_status,payment_method,deposit_amount) values($1,'Rollback Cancellation','Test','0000000000','rollback@example.invalid',1,1,$2,$3,'confirmed','submitted','QRPH',1000)",[id,date,date+'T10:00:00+08:00']);
+      if(paid)await db.query("update function_room_bookings set payment_status='approved' where id=$1",[id]);return id;};
+    const cancel=async(id,generate,actor=superAdmin.id)=>(await one('select super_admin_cancel_booking($1,$2,$3) b',[id,generate,actor])).b;
+    const batch=async(id)=>one('select * from booking_gc_batches where booking_id=$1',[id]);
+    const noGc=await seed();const forfeited=await cancel(noGc,false);assert.equal(forfeited.cancellation_gc_choice,'forfeit');assert.equal(forfeited.cancellation_gc_decided_by,superAdmin.id);assert.equal(await batch(noGc),undefined);assert.equal((await cancel(noGc,false)).status,'cancelled');
+    await rejected('select super_admin_cancel_booking($1,true,$2)',[noGc,superAdmin.id],/already recorded/);
+    await db.query("update function_room_bookings set payment_status='approved' where id=$1",[noGc]);assert.equal(await batch(noGc),undefined);
+    await rejected("insert into booking_gc_batches(booking_id,amount) values($1,1000)",[noGc],/forfeited/);
+    await rejected("insert into booking_cancellation_gift_certificates(booking_id,code,amount) values($1,$2,1000)",[noGc,'ROLLBACK-'+randomUUID()],/forfeited/);
+    const generate=await seed();await cancel(generate,true);const generated=await batch(generate);assert.equal(generated.status,'pending_approval');assert.equal((await one('select count(*)::int n from booking_gc_certificates where batch_id=$1',[generated.id])).n,10);await cancel(generate,true);assert.equal((await batch(generate)).id,generated.id);
+    await one('select approve_booking_gc_batch($1,$2)',[generated.id,superAdmin.id]);assert.equal((await batch(generate)).status,'approved');
+    const request=await seed();await db.query("update function_room_bookings set status='cancellation_requested' where id=$1",[request]);const queued=await batch(request);assert.ok(queued);await cancel(request,false);assert.equal((await batch(request)).status,'rejected');
+    await rejected('select approve_booking_gc_batch($1,$2)',[queued.id,superAdmin.id],/forfeited/);
+    const issued=await seed();await db.query("update function_room_bookings set status='cancellation_requested' where id=$1",[issued]);const issuedBatch=await batch(issued);await db.query("update booking_gc_certificates set status='active' where batch_id=$1 and sequence_number=1",[issuedBatch.id]);await rejected('select super_admin_cancel_booking($1,false,$2)',[issued,superAdmin.id],/already been issued/);assert.equal((await batch(issued)).status,'pending_approval');
+    const december=await seed('12');await rejected('select super_admin_cancel_booking($1,true,$2)',[december,superAdmin.id],/December/);await cancel(december,false);assert.equal(await batch(december),undefined);
+    const unpaid=await seed('04',false);await rejected('select super_admin_cancel_booking($1,true,$2)',[unpaid,superAdmin.id],/approved reservation fee/);
+    await rejected('select super_admin_cancel_booking($1,false,$2)',[unpaid,admin.id],/Super Admin/);
+    const legacy=await seed();await db.query("update function_room_bookings set status='cancelled' where id=$1",[legacy]);assert.equal((await batch(legacy)).status,'pending_approval');
+    await db.query("select set_config('request.jwt.claim.role','authenticated',true),set_config('request.jwt.claims',$1,true)",[JSON.stringify({role:'authenticated',sub:superAdmin.id})]);
+    await rejected("update function_room_bookings set cancellation_gc_choice='forfeit',cancellation_gc_decided_by=$2 where id=$1",[unpaid,superAdmin.id],/Use the Super Admin cancellation action/);
+    assert.equal((await one("select has_function_privilege('authenticated','public.super_admin_cancel_booking(uuid,boolean,uuid,boolean)','execute') allowed")).allowed,false);
+    await db.query('set constraints all immediate');await db.query('rollback to savepoint fixtures');assert.deepEqual(await one('select (select count(*) from orders) orders,(select count(*) from function_room_bookings) bookings,(select count(*) from booking_gc_batches) batches'),before);
+    await db.query(process.argv.includes('--apply')?'commit':'rollback');console.log('PASS: Super Admin generate/forfeit, queued-GC rejection and blocked approval, issued-GC protection, December forfeiture, retry safety, role/field security and unchanged ordinary cancellation. All fixtures rolled back. '+(process.argv.includes('--apply')?'Migration installed.':''));
+  }catch(e){await db.query('rollback');throw e;}finally{await db.end();}
+})().catch(e=>{console.error(e.message,e.where||'');process.exitCode=1});

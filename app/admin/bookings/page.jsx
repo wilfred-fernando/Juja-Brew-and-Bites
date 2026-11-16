@@ -404,11 +404,23 @@ export default function AdminBookingsDashboard() {
         };
   }
 
-  async function approveCancellationWithGiftCertificate(bookingId, action = "cancel") {
+  function cancellationGcEligible(booking) {
+    return !isDecemberBooking(booking) && booking?.payment_status === "approved" && Number(booking?.deposit_amount) >= 100 && booking?.payment_method !== "Waived";
+  }
+  const choiceBookings = actionModal?.booking
+    ? ((actionModal.type === "cancel" || (actionModal.type === "approve" && actionModal.booking.status === "cancellation_requested")) ? [actionModal.booking] : [])
+    : actionModal?.type === "approve_bulk" ? bookings.filter(b => actionModal.ids?.includes(b.id) && b.status === "cancellation_requested") : [];
+  const showCancellationGcChoice = isSuperAdmin && choiceBookings.some(cancellationGcEligible);
+  const cancellationGcChoiceMissing = showCancellationGcChoice && !actionModal?.gcChoice;
+  function selectedCancellationGc(booking) {
+    if (!isSuperAdmin || !cancellationGcEligible(booking) || !actionModal?.gcChoice) return undefined;
+    return actionModal.gcChoice === "generate";
+  }
+  async function approveCancellationWithGiftCertificate(bookingId, action = "cancel", generateGc) {
     const res = await fetch("/api/admin/booking-cancellation-gift-certificate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bookingId, action }),
+      body: JSON.stringify({ bookingId, action, ...(typeof generateGc === "boolean" ? { generateGc } : {}) }),
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json?.error || "Unable to approve cancellation.");
@@ -757,7 +769,7 @@ export default function AdminBookingsDashboard() {
           eligibleIds.map(async (id) => {
             const booking = bookings.find((x) => x.id === id);
             if (booking?.status === "cancellation_requested" && type === "approve_bulk") {
-              const result = await approveCancellationWithGiftCertificate(id);
+              const result = await approveCancellationWithGiftCertificate(id, "cancel", selectedCancellationGc(booking));
               return { id, payload: { status: result.status } };
             }
             if (type === "approve_bulk") {
@@ -802,7 +814,7 @@ export default function AdminBookingsDashboard() {
 
         if (type === "cancel") {
           if (!canCancelBooking(booking)) throw new Error("Only upcoming active bookings can be cancelled.");
-          const result = await approveCancellationWithGiftCertificate(booking.id, "admin_cancel");
+          const result = await approveCancellationWithGiftCertificate(booking.id, "admin_cancel", selectedCancellationGc(booking));
           setBookings(prev => prev.map(item => item.id === booking.id ? { ...item, status: result.status } : item));
           setActionModal(null);
           return;
@@ -817,7 +829,7 @@ export default function AdminBookingsDashboard() {
 
         const updatePayload = statusUpdatePayload(type, booking);
         if (booking?.status === "cancellation_requested" && type === "approve") {
-          const result = await approveCancellationWithGiftCertificate(booking.id);
+          const result = await approveCancellationWithGiftCertificate(booking.id, "cancel", selectedCancellationGc(booking));
           setBookings((prev) =>
             prev.map((x) => (x.id === booking.id ? { ...x, status: result.status } : x))
           );
@@ -1933,7 +1945,21 @@ export default function AdminBookingsDashboard() {
               {actionModal.booking ? "this booking" : "the selected bookings"}?
             </p>
 
-            {actionModal.type === "cancel" && <p className="mb-4 text-sm text-slate-600">
+            {showCancellationGcChoice && <div className="mb-4">
+              <label htmlFor="cancellation-gc-choice" className="mb-2 block text-xs font-semibold text-slate-700">Reservation fee after cancellation</label>
+              <select id="cancellation-gc-choice" value={actionModal.gcChoice || ""} disabled={actionLoading}
+                onChange={event => setActionModal(current => ({ ...current, gcChoice: event.target.value }))}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm">
+                <option value="">Select an option</option>
+                <option value="generate">Generate GC</option>
+                <option value="forfeit">Do not generate GC</option>
+              </select>
+              <p className="mt-2 text-xs text-slate-500">{actionModal.gcChoice === "forfeit"
+                ? "The reservation fee will be forfeited. No GC will be issued; any unapproved cancellation GC batch will be rejected."
+                : "GCs will be generated for separate approval. Customer email is sent only after that approval."}</p>
+              {actionModal.type === "approve_bulk" && <p className="mt-1 text-xs text-slate-500">Applies to eligible cancellation requests only. December fees remain forfeited.</p>}
+            </div>}
+            {actionModal.type === "cancel" && !showCancellationGcChoice && <p className="mb-4 text-sm text-slate-600">
               {isDecemberBooking(actionModal.booking)
                 ? "December cancellation: the reservation fee is forfeited and will not be converted to a GC."
                 : actionModal.booking?.payment_status === "approved" && Number(actionModal.booking?.deposit_amount) >= 100
@@ -1950,13 +1976,14 @@ export default function AdminBookingsDashboard() {
               </button>
 
               <button
-                disabled={actionLoading}
+                disabled={actionLoading || cancellationGcChoiceMissing}
                 onClick={() => {
+                  if (cancellationGcChoiceMissing) return;
                   if (actionModal.type === "cancel") return runStatusUpdate("cancel", actionModal.booking);
                   if (actionModal.type === "approve") return runStatusUpdate("approve", actionModal.booking);
                   if (actionModal.type === "reject") return runStatusUpdate("reject", actionModal.booking);
-                  if (actionModal.type === "approve_bulk") return runStatusUpdate("approve", actionModal.ids || []);
-                  if (actionModal.type === "reject_bulk") return runStatusUpdate("reject", actionModal.ids || []);
+                  if (actionModal.type === "approve_bulk") return runStatusUpdate("approve_bulk", actionModal.ids || []);
+                  if (actionModal.type === "reject_bulk") return runStatusUpdate("reject_bulk", actionModal.ids || []);
                 }}
                 className={`flex-1 py-3 rounded-xl text-white text-[11px] uppercase tracking-widest active:scale-95 disabled:opacity-60 ${
                   actionModal.type.includes("approve") ? "bg-green-500" : "bg-red-500"

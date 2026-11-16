@@ -67,7 +67,7 @@ async function requireAdmin(adminClient) {
     return { allowed: false, error: "Admin access required.", status: 403 };
   }
 
-  return { allowed: true, requester };
+  return { allowed: true, requester, role };
 }
 
 async function context() {
@@ -120,9 +120,18 @@ export async function POST(req) {
   try {
     const { admin, guard } = await context();
     if (!guard.allowed) return Response.json({ error: guard.error }, { status: guard.status });
-    const { bookingId, batchId, action = "cancel", paymentVerified = false, reason = "" } = await req.json();
+    const { bookingId, batchId, action = "cancel", paymentVerified = false, reason = "", generateGc } = await req.json();
     if (action === "cancel" || action === "admin_cancel") {
       if (!bookingId) return Response.json({ error: "Booking ID is required." }, { status: 400 });
+      if (generateGc !== undefined) {
+        if (guard.role !== "super_admin") return Response.json({ error: "Super Admin access required." }, { status: 403 });
+        if (typeof generateGc !== "boolean" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(bookingId)) return Response.json({ error: "Select a valid booking and GC option." }, { status: 400 });
+        const { data: booking, error } = await admin.rpc("super_admin_cancel_booking", {
+          p_booking_id: bookingId, p_generate_gc: generateGc, p_actor: guard.requester.id, p_only_requested: action === "cancel",
+        });
+        if (error) return Response.json({ error: error.message }, { status: 409 });
+        return Response.json({ success: true, booking });
+      }
       // The database trigger queues the certificates in the same transaction.
       let cancellation = admin.from("function_room_bookings")
         .update({ status: "cancelled" }).eq("id", bookingId);
