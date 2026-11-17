@@ -878,9 +878,19 @@ export default function LoyaltyAdminPage() {
         await unlinkMemberConfirmed(member, { silent: true });
       }
 
-      const { error } = await supabase.from("loyalty_members").delete().eq("id", member.id);
-      if (error) throw error;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      const response = await fetch("/api/admin/loyalty-members", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ id: member.id }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.deleted !== member.id) throw new Error(result.error || "Member deletion could not be verified.");
 
+      setMembers((rows) => rows.filter((row) => row.id !== member.id));
+      if (selectedMember?.id === member.id) setSelectedMember(null);
+      setMemberOptions((rows) => rows.filter((row) => row.id !== member.id));
       await fetchMembers();
       setNotice("✅ Member deleted.");
     } catch (err) {
