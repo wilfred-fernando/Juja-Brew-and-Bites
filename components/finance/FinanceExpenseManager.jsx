@@ -399,6 +399,8 @@ export default function FinanceExpenseManager() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState("");
   const [notice, setNotice] = useState(null);
+  const referenceErrorRef = useRef(null);
+  useEffect(() => { if(referenceModalOpen && notice?.type === "error") referenceErrorRef.current?.scrollIntoView({block:"nearest"}); }, [referenceModalOpen, notice]);
   const [setupMissing, setSetupMissing] = useState(false);
 
   const userRole = String(currentProfile?.role || "").toLowerCase();
@@ -1447,6 +1449,7 @@ export default function FinanceExpenseManager() {
     }
 
     setSaving("reference");
+    try {
     const payload = {
       ref_type: referenceForm.ref_type,
       name: referenceForm.name.trim(),
@@ -1507,7 +1510,11 @@ export default function FinanceExpenseManager() {
         showNotice("success", referenceExpenseScope ? `${newRow.ref_type === "supplier" ? "Supplier" : "Item"} added to References and selected for this expense.` : "Reference added.");
       }
     }
-    setSaving("");
+    } catch(error) {
+      showNotice("error", error.message || "Unable to save item details. Please retry.");
+    } finally {
+      setSaving("");
+    }
   }
 
   async function deleteReference(row) {
@@ -2105,7 +2112,7 @@ export default function FinanceExpenseManager() {
     return (
       <form onSubmit={saveReference} className="space-y-4">
         {referenceExpenseScope ? <p className="text-sm text-slate-600">Save this {referenceForm.ref_type} to References and select it for your expense. Your expense details will be kept.</p> : null}
-        {referenceExpenseScope && notice?.type === "error" ? <p role="alert" className="text-sm text-red-600">{notice.message}</p> : null}
+        {notice?.type === "error" ? <p ref={referenceErrorRef} role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{notice.message}</p> : null}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Reference Type">
             <Select disabled={Boolean(referenceExpenseScope)} value={referenceForm.ref_type} onChange={(e) => setReferenceForm((prev) => ({ ...prev, ref_type: e.target.value }))}>
