@@ -1764,15 +1764,6 @@ export default function FinanceExpenseManager() {
               <Field label="Item Name">
                 <Input value={inventoryPreview.itemName || "-"} readOnly disabled className="cursor-not-allowed bg-slate-100 text-slate-700" />
               </Field>
-              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 sm:col-span-2">
-                <p className="mb-2 text-xs font-semibold text-slate-700">Bulk / Small Reference</p>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <Field label="Bulk Unit"><Select value={referenceForm.bulk_unit} onChange={(e) => setReferenceForm((prev) => ({ ...prev, bulk_unit: e.target.value }))}><option value="">None - small only</option>{INVENTORY_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}</Select></Field>
-                  <Field label="Small Units per Bulk"><Input type="number" min="0.001" step="0.001" required={Boolean(referenceForm.bulk_unit)} disabled={!referenceForm.bulk_unit} value={referenceForm.bulk_unit ? referenceForm.units_per_bulk : "1"} onChange={(e) => setReferenceForm((prev) => ({ ...prev, units_per_bulk: e.target.value }))} placeholder="Example: 100" /></Field>
-                  <Field label="Small Unit"><Select required value={referenceForm.small_unit} onChange={(e) => setReferenceForm((prev) => ({ ...prev, small_unit: e.target.value }))}><option value="">Select small unit</option>{INVENTORY_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}</Select></Field>
-                </div>
-                <p className="mt-2 text-xs text-slate-500">{referenceForm.bulk_unit && referenceForm.small_unit ? `1 ${referenceForm.bulk_unit} = ${referenceForm.units_per_bulk || "..."} ${referenceForm.small_unit}` : "Example: 1 pack = 100 pc. Small-only items go in the Small column."}</p>
-              </div>
               <Field label="Inventory Qty">
                 <Input value={inventoryPreview.quantity || "-"} readOnly disabled className="cursor-not-allowed bg-slate-100 text-slate-700" />
               </Field>
@@ -2123,6 +2114,15 @@ export default function FinanceExpenseManager() {
                   {uniqueOptions([referenceForm.item_category], itemCategoryOptions).filter(Boolean).map((category) => <option key={category} value={category}>{category}</option>)}
                 </Select>
               </Field>
+              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 sm:col-span-2">
+                <p className="mb-2 text-xs font-semibold text-slate-700">Bulk / Small Reference</p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Field label="Bulk Unit"><Select value={referenceForm.bulk_unit} onChange={(e) => setReferenceForm((prev) => ({ ...prev, bulk_unit: e.target.value }))}><option value="">None - small only</option>{INVENTORY_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}</Select></Field>
+                  <Field label="Small Units per Bulk"><Input type="number" min="0.001" step="0.001" required={Boolean(referenceForm.bulk_unit)} disabled={!referenceForm.bulk_unit} value={referenceForm.bulk_unit ? referenceForm.units_per_bulk : "1"} onChange={(e) => setReferenceForm((prev) => ({ ...prev, units_per_bulk: e.target.value }))} placeholder="Example: 100" /></Field>
+                  <Field label="Small Unit"><Select required value={referenceForm.small_unit} onChange={(e) => setReferenceForm((prev) => ({ ...prev, small_unit: e.target.value }))}><option value="">Select small unit</option>{INVENTORY_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}</Select></Field>
+                </div>
+                <p className="mt-2 text-xs text-slate-500">{referenceForm.bulk_unit && referenceForm.small_unit ? `1 ${referenceForm.bulk_unit} = ${referenceForm.units_per_bulk || "..."} ${referenceForm.small_unit}` : "Example: 1 pack = 100 pc. Small-only items go in the Small column."}</p>
+              </div>
               <Field label="Inventory Qty">
                 <Input
                   type="number"
@@ -2288,6 +2288,9 @@ export default function FinanceExpenseManager() {
                   <th className="px-4 py-3">TIN Number</th>
                   <th className="px-4 py-3">Qty</th>
                   <th className="px-4 py-3">Unit</th>
+                  <th className="px-4 py-3">Bulk Unit</th>
+                  <th className="px-4 py-3">Small / Bulk</th>
+                  <th className="px-4 py-3">Small Unit</th>
                   <th className="px-4 py-3">Notes</th>
                   <th className="px-4 py-3">Cashier</th>
                   <th className="px-4 py-3">Status</th>
@@ -2306,6 +2309,9 @@ export default function FinanceExpenseManager() {
                     <td className="px-4 py-3">{row.ref_type === "supplier" ? row.supplier_tin_number || "-" : "-"}</td>
                     <td className="px-4 py-3">{row.ref_type === "item" && row.reference_quantity != null ? Number(row.reference_quantity).toLocaleString("en-PH") : "-"}</td>
                     <td className="px-4 py-3">{row.ref_type === "item" ? row.reference_unit || "-" : "-"}</td>
+                    <td className="px-4 py-3">{row.ref_type === "item" && row.small_unit ? row.bulk_unit || "Small only" : "-"}</td>
+                    <td className="px-4 py-3 tabular-nums">{row.ref_type === "item" && row.small_unit ? Number(row.units_per_bulk || 1).toLocaleString("en-PH") : "-"}</td>
+                    <td className="px-4 py-3">{row.ref_type === "item" ? row.small_unit || "-" : "-"}</td>
                     <td className="px-4 py-3">{row.ref_type === "item" ? "-" : row.notes || "-"}</td>
                     <td className="px-4 py-3">
                       {["item", "item_category"].includes(row.ref_type) ? (
