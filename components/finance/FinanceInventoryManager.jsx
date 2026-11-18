@@ -630,15 +630,11 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
             <Save size={15} /> {saving ? "Saving..." : "Save Daily Inventory"}
           </button>
         </div>
-        {dailyReady && (sourceTotals.receivedRows === 0 ? (
-          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            No stock received for {storeNameById[String(selectedStoreId)] || "selected store"} on {inventoryDate}. Add stock manually, or record an Inventory Purchase expense for this store.
-          </div>
-        ) : (
+        {dailyReady && sourceTotals.receivedRows > 0 && (
           <div className="mt-3 rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-800">
             Found {sourceTotals.receivedRows} stock receipt{sourceTotals.receivedRows === 1 ? "" : "s"} for this store/date, including incoming branch transfers.
           </div>
-        ))}
+        )}
       </Card>
 
       {!dailyReady ? (
