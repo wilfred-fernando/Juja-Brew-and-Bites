@@ -24,6 +24,17 @@ function qty(value) {
   return amount.toLocaleString("en-PH", { maximumFractionDigits: 3 });
 }
 
+async function loadInventoryHistory(buildQuery) {
+  const pageSize = 500;
+  const rows = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await buildQuery().order("id").range(offset, offset + pageSize - 1);
+    if (error) return { data: null, error };
+    rows.push(...data);
+    if (data.length < pageSize) return { data: rows, error: null };
+  }
+}
+
 function addDays(date, days) {
   const [year, month, day] = String(date || "").split("-").map(Number);
   const next = new Date(Date.UTC(year, month - 1, day + days));
@@ -265,12 +276,12 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
 
       const [entriesRes, historicalEntriesRes, transfersRes, purchasesRes, txRes, historicalTransfersRes, shiftRes, reusableRes] = await Promise.all([
         supabase.from("finance_daily_inventory_entries").select("*").eq("store_id", selectedStoreId).eq("inventory_date", inventoryDate),
-        supabase.from("finance_daily_inventory_entries").select("*").eq("store_id", selectedStoreId).lte("inventory_date", previousDate).order("inventory_date").limit(10000),
+        loadInventoryHistory(() => supabase.from("finance_daily_inventory_entries").select("*").eq("store_id", selectedStoreId).lte("inventory_date", previousDate).order("inventory_date")),
         supabase.from("finance_inventory_transfers").select("*").eq("transfer_date", inventoryDate).or(`from_store_id.eq.${selectedStoreId},to_store_id.eq.${selectedStoreId}`),
         loadInventoryPurchases(supabase, selectedStoreId, inventoryDate),
-        supabase.from("inventory_transactions").select("*").in("transaction_type", ["pos_deduction", "correction"]).eq("reference_type", "pos_order").lt("created_at", addDays(inventoryDate, 2) + "T00:00:00+08:00").order("created_at").limit(10000),
-        supabase.from("finance_inventory_transfers").select("*").lte("transfer_date", previousDate).or(`from_store_id.eq.${selectedStoreId},to_store_id.eq.${selectedStoreId}`).order("transfer_date").limit(10000),
-        supabase.from("cashier_pos").select("*").lte("created_at", addDays(inventoryDate, 2) + "T00:00:00+08:00").order("created_at").limit(10000),
+        loadInventoryHistory(() => supabase.from("inventory_transactions").select("*").in("transaction_type", ["pos_deduction", "correction"]).eq("reference_type", "pos_order").lt("created_at", addDays(inventoryDate, 2) + "T00:00:00+08:00").order("created_at")),
+        loadInventoryHistory(() => supabase.from("finance_inventory_transfers").select("*").lte("transfer_date", previousDate).or(`from_store_id.eq.${selectedStoreId},to_store_id.eq.${selectedStoreId}`).order("transfer_date")),
+        loadInventoryHistory(() => supabase.from("cashier_pos").select("*").lte("created_at", addDays(inventoryDate, 2) + "T00:00:00+08:00").order("created_at")),
         supabase.rpc("list_inventory_reusable_cup_totals", { p_store_id: selectedStoreId, p_inventory_date: inventoryDate }),
       ]);
 
@@ -297,6 +308,8 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
         ...(historicalTransfersRes.data || []).map((row) => row.transfer_date),
         ...historicalTxRows.map((row) => shiftBusinessDate(row.created_at, selectedStoreId, shiftRows)),
       ].filter(Boolean))].sort();
+      // Saved Ending counts are authoritative. A day without a count or movement
+      // leaves the prior balance in place, even across several consecutive days.
       const runningByItem = Object.fromEntries(items.map((item) => [item.id, 0]));
 
       dates.forEach((date) => {
