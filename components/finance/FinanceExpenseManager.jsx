@@ -568,8 +568,10 @@ export default function FinanceExpenseManager() {
       const next = { ...prev, [key]: value };
       if (key === "description") {
         const itemRef = itemReferenceFor(value);
+        const savedUnit = normalizeUnit(itemRef?.bulk_unit || itemRef?.reference_unit || itemRef?.small_unit);
         const commonName = itemRef?.common_name || "";
         const inventoryItem = inventoryItemFor(value, commonName);
+        if (savedUnit) next.unit = savedUnit;
         if (commonName) next.item_common_name = commonName;
         if (inventoryItem) {
           next.inventory_item_id = inventoryItem.id;
@@ -1486,6 +1488,7 @@ export default function FinanceExpenseManager() {
           setter((prev) => newRow.ref_type === "supplier" ? { ...prev, supplier_name: newRow.name } : ({
             ...prev,
             description: newRow.name,
+            unit: normalizeUnit(newRow.bulk_unit || newRow.reference_unit || newRow.small_unit) || prev.unit,
             item_common_name: newRow.common_name || "",
             ...(inventoryItem ? {
               inventory_item_id: inventoryItem.id,
