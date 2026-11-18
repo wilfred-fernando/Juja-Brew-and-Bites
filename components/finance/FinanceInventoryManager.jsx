@@ -404,12 +404,6 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
     return rows.filter((row) => visibleIds.has(row.item.id));
   }, [rows, visibleItems]);
 
-  const summary = useMemo(() => rows.reduce((acc, row) => {
-    acc.reorder += row.reorder;
-    acc.deductions += row.posDeduction;
-    acc.manual += row.manual;
-    return acc;
-  }, { reorder: 0, deductions: 0, manual: 0 }), [rows]);
 
   function updateRow(item, field, value) {
     setEdits((prev) => {
@@ -644,12 +638,6 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
             : selectedStoreId ? "Loading inventory balances…" : "Select a store to view inventory."}
         </Card>
       ) : <>
-      <div data-finance-stats className="grid gap-4 md:grid-cols-3">
-        <Card data-finance-stat><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Stock Received</p><p className="mt-2 text-2xl font-semibold text-slate-950">{qty(summary.reorder)}</p></Card>
-        <Card data-finance-stat><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">POS Auto Deduct</p><p className="mt-2 text-2xl font-semibold text-slate-950">{qty(summary.deductions)}</p></Card>
-        <Card data-finance-stat><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Manual Adjustment</p><p className="mt-2 text-2xl font-semibold text-slate-950">{qty(summary.manual)}</p></Card>
-      </div>
-
       <Card>
         <div className="mb-4 flex items-center gap-2">
           <ArrowLeftRight className="h-5 w-5 text-sky-700" />
