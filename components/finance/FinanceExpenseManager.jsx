@@ -404,6 +404,7 @@ export default function FinanceExpenseManager() {
   const userRole = String(currentProfile?.role || "").toLowerCase();
   const isCashier = userRole === "cashier";
   const canManageAll = userRole === "admin" || userRole === "super_admin";
+  const canManagePayrollExpenses = userRole === "super_admin";
 
   const storeNameById = useMemo(() => {
     const map = {};
@@ -1265,7 +1266,9 @@ export default function FinanceExpenseManager() {
       return;
     }
 
-    const confirmed = window.confirm("Delete this finance record?");
+    const confirmed = window.confirm(row.payroll_entry_id
+      ? "Delete this expense from Overall Expenses? The paid payroll entry will remain in Payroll."
+      : "Delete this finance record?");
     if (!confirmed) return;
 
     if (table === "finance_petty_cash_entries") {
@@ -1276,9 +1279,9 @@ export default function FinanceExpenseManager() {
       await supabase.from("finance_petty_cash_entries").delete().eq("id", row.petty_cash_entry_id);
     }
 
-    const { error } = await supabase.from(table).delete().eq("id", rowId);
-    if (error) {
-      showNotice("error", error.message);
+    const { data, error } = await supabase.from(table).delete().eq("id", rowId).select("id").maybeSingle();
+    if (error || !data) {
+      showNotice("error", error?.message || "The record was not deleted. Refresh and try again.");
       return;
     }
 
@@ -1948,8 +1951,8 @@ export default function FinanceExpenseManager() {
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-2">
                       <button
-                        disabled={Boolean(row.payroll_entry_id)}
-                        title={row.payroll_entry_id ? "Managed by Payroll" : "Edit expense"}
+                        disabled={Boolean(row.payroll_entry_id) && !canManagePayrollExpenses}
+                        title={row.payroll_entry_id && !canManagePayrollExpenses ? "Managed by Payroll" : "Edit expense"}
                         onClick={() => openExpenseModal(tableName === "finance_petty_cash_entries" ? "petty" : "overall", row)}
                         className="inline-flex h-8 items-center justify-center gap-2 rounded-lg border border-cyan-100 bg-cyan-50 px-3 text-[10px] font-semibold uppercase text-cyan-700 transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-100"
                       >
@@ -1957,7 +1960,8 @@ export default function FinanceExpenseManager() {
                       </button>
                       <button
                         onClick={() => removeRow(tableName, row)}
-                        disabled={Boolean(row.payroll_entry_id) || saving === `delete_request_${row.id}`}
+                        disabled={(Boolean(row.payroll_entry_id) && !canManagePayrollExpenses) || saving === `delete_request_${row.id}`}
+                        aria-label="Delete expense"
                          className="inline-flex h-8 items-center justify-center gap-2 rounded-lg border border-red-100 bg-red-50 px-3 text-[10px] font-semibold uppercase text-red-600 transition duration-200 hover:-translate-y-0.5 hover:bg-red-100 disabled:bg-slate-100 disabled:text-slate-400"
                       >
                         <Trash2 size={13} className="shrink-0" />
