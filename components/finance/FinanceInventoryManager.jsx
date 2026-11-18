@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeftRight, Boxes, CalendarDays, Plus, RefreshCw, Save, Send, Table2 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { INVENTORY_UNITS, loadInventoryPurchases, loadInventoryRowsByIds, loadPurchasedInventoryItemIds, normalizeUnit, posInventoryConsumption } from "@/lib/inventory";
@@ -22,13 +22,6 @@ function normalizeText(value) {
 function qty(value) {
   const amount = numberValue(value);
   return amount.toLocaleString("en-PH", { maximumFractionDigits: 3 });
-}
-
-function dateRangeForManila(date) {
-  const start = new Date(`${date}T00:00:00+08:00`);
-  const end = new Date(start);
-  end.setUTCDate(end.getUTCDate() + 1);
-  return { start: start.toISOString(), end: end.toISOString() };
 }
 
 function addDays(date, days) {
@@ -82,6 +75,10 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
   const [categorySearch, setCategorySearch] = useState("");
   const [transferForm, setTransferForm] = useState({ inventory_item_id: "", from_store_id: "", to_store_id: "", bulk: "", small: "", note: "" });
   const [loading, setLoading] = useState(true);
+  const [dailyResult, setDailyResult] = useState(null);
+  const dailyRequest = useRef(0);
+  const dailyKey = selectedStoreId + ":" + inventoryDate;
+  const dailyReady = dailyResult?.key === dailyKey && !dailyResult.error;
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState(null);
   const [stockForm, setStockForm] = useState(null);
@@ -261,106 +258,100 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
 
   async function loadDailyData() {
     if (!selectedStoreId || !inventoryDate) return;
-    setLoading(true);
-    const previousDate = addDays(inventoryDate, -1);
-    const { start, end } = dateRangeForManila(inventoryDate);
+    const request = ++dailyRequest.current;
+    setDailyResult(null);
+    try {
+      const previousDate = addDays(inventoryDate, -1);
 
-    const [entriesRes, historicalEntriesRes, transfersRes, purchasesRes, txRes, historicalTransfersRes, historicalTxRes, shiftRes, reusableRes] = await Promise.all([
-      supabase.from("finance_daily_inventory_entries").select("*").eq("store_id", selectedStoreId).eq("inventory_date", inventoryDate),
-      supabase.from("finance_daily_inventory_entries").select("*").eq("store_id", selectedStoreId).lte("inventory_date", previousDate).order("inventory_date").limit(10000),
-      supabase.from("finance_inventory_transfers").select("*").eq("transfer_date", inventoryDate).or(`from_store_id.eq.${selectedStoreId},to_store_id.eq.${selectedStoreId}`),
-      loadInventoryPurchases(supabase, selectedStoreId, inventoryDate),
-      supabase.from("inventory_transactions").select("*").in("transaction_type", ["pos_deduction", "correction"]).eq("reference_type", "pos_order").lt("created_at", addDays(inventoryDate, 2) + "T00:00:00+08:00").order("created_at").limit(10000),
-      supabase.from("finance_inventory_transfers").select("*").lte("transfer_date", previousDate).or(`from_store_id.eq.${selectedStoreId},to_store_id.eq.${selectedStoreId}`).order("transfer_date").limit(10000),
-      supabase.from("inventory_transactions").select("*").in("transaction_type", ["pos_deduction", "correction"]).eq("reference_type", "pos_order").lt("created_at", start).order("created_at").limit(10000),
-      supabase.from("cashier_pos").select("*").lte("created_at", addDays(inventoryDate, 2) + "T00:00:00+08:00").order("created_at").limit(10000),
-      supabase.rpc("list_inventory_reusable_cup_totals", { p_store_id: selectedStoreId, p_inventory_date: inventoryDate }),
-    ]);
+      const [entriesRes, historicalEntriesRes, transfersRes, purchasesRes, txRes, historicalTransfersRes, shiftRes, reusableRes] = await Promise.all([
+        supabase.from("finance_daily_inventory_entries").select("*").eq("store_id", selectedStoreId).eq("inventory_date", inventoryDate),
+        supabase.from("finance_daily_inventory_entries").select("*").eq("store_id", selectedStoreId).lte("inventory_date", previousDate).order("inventory_date").limit(10000),
+        supabase.from("finance_inventory_transfers").select("*").eq("transfer_date", inventoryDate).or(`from_store_id.eq.${selectedStoreId},to_store_id.eq.${selectedStoreId}`),
+        loadInventoryPurchases(supabase, selectedStoreId, inventoryDate),
+        supabase.from("inventory_transactions").select("*").in("transaction_type", ["pos_deduction", "correction"]).eq("reference_type", "pos_order").lt("created_at", addDays(inventoryDate, 2) + "T00:00:00+08:00").order("created_at").limit(10000),
+        supabase.from("finance_inventory_transfers").select("*").lte("transfer_date", previousDate).or(`from_store_id.eq.${selectedStoreId},to_store_id.eq.${selectedStoreId}`).order("transfer_date").limit(10000),
+        supabase.from("cashier_pos").select("*").lte("created_at", addDays(inventoryDate, 2) + "T00:00:00+08:00").order("created_at").limit(10000),
+        supabase.rpc("list_inventory_reusable_cup_totals", { p_store_id: selectedStoreId, p_inventory_date: inventoryDate }),
+      ]);
 
-    const error = [entriesRes.error, historicalEntriesRes.error, transfersRes.error, purchasesRes.error, txRes.error, historicalTransfersRes.error, historicalTxRes.error, shiftRes.error, reusableRes.error].find(Boolean);
-    if (error) {
-      showNotice("error", `Daily inventory failed: ${error.message}`);
-      setLoading(false);
-      return;
-    }
+      const error = [entriesRes.error, historicalEntriesRes.error, transfersRes.error, purchasesRes.error, txRes.error, historicalTransfersRes.error, shiftRes.error, reusableRes.error].find(Boolean);
+      if (error) throw error;
 
-    const shiftRows = shiftRes.data || [];
-    const currentTxRows = (txRes.data || []).filter((tx) => (
-      shiftBusinessDate(tx.created_at, selectedStoreId, shiftRows) === inventoryDate
-    ));
-    const historicalTxRows = (historicalTxRes.data || []).filter((tx) => (
-      shiftBusinessDate(tx.created_at, selectedStoreId, shiftRows) <= previousDate
-    ));
-    const relevantExpenses = (purchasesRes.data || []).filter((row) => row.expense_date === inventoryDate);
-    const historicalRelevantExpenses = (purchasesRes.data || []).filter((row) => row.expense_date <= previousDate);
+      const shiftRows = shiftRes.data || [];
+      const currentTxRows = (txRes.data || []).filter((tx) => (
+        shiftBusinessDate(tx.created_at, selectedStoreId, shiftRows) === inventoryDate
+      ));
+      const historicalTxRows = (txRes.data || []).filter((tx) => (
+        shiftBusinessDate(tx.created_at, selectedStoreId, shiftRows) <= previousDate
+      ));
+      const relevantExpenses = (purchasesRes.data || []).filter((row) => row.expense_date === inventoryDate);
+      const historicalRelevantExpenses = (purchasesRes.data || []).filter((row) => row.expense_date <= previousDate);
 
-    const orderIds = [...new Set(currentTxRows
-      .filter((tx) => tx.reference_type === "pos_order" && tx.reference_id)
-      .map((tx) => tx.reference_id))];
-    const historicalOrderIds = [...new Set(historicalTxRows
-      .filter((tx) => tx.reference_type === "pos_order" && tx.reference_id)
-      .map((tx) => tx.reference_id))];
-    const [ordersRes, historicalOrdersRes] = await Promise.all([
-      loadInventoryRowsByIds(supabase, "orders", "id", orderIds, "id, store_id, branch_id"),
-      loadInventoryRowsByIds(supabase, "orders", "id", historicalOrderIds, "id, store_id, branch_id"),
-    ]);
+      const orderIds = [...currentTxRows, ...historicalTxRows].map((tx) => tx.reference_id);
+      const ordersRes = await loadInventoryRowsByIds(supabase, "orders", "id", orderIds, "id, store_id, branch_id");
+      if (ordersRes.error) throw ordersRes.error;
+      const ordersById = Object.fromEntries(ordersRes.data.map((row) => [String(row.id), row]));
+      const dates = [...new Set([
+        ...(historicalEntriesRes.data || []).map((row) => row.inventory_date),
+        ...historicalRelevantExpenses.map((row) => row.expense_date),
+        ...(historicalTransfersRes.data || []).map((row) => row.transfer_date),
+        ...historicalTxRows.map((row) => shiftBusinessDate(row.created_at, selectedStoreId, shiftRows)),
+      ].filter(Boolean))].sort();
+      const runningByItem = Object.fromEntries(items.map((item) => [item.id, 0]));
 
-    if (ordersRes.error || historicalOrdersRes.error) {
-      showNotice("error", (ordersRes.error || historicalOrdersRes.error).message);
-      setLoading(false);
-      return;
-    }
+      dates.forEach((date) => {
+        const savedByItem = Object.fromEntries((historicalEntriesRes.data || [])
+          .filter((row) => row.inventory_date === date)
+          .map((row) => [row.inventory_item_id, row]));
+        const dateSources = calculateSourceTotals({
+          expenseRows: historicalRelevantExpenses.filter((row) => row.expense_date === date),
+          transfers: (historicalTransfersRes.data || []).filter((row) => row.transfer_date === date),
+          posTransactions: historicalTxRows.filter((row) => shiftBusinessDate(row.created_at, selectedStoreId, shiftRows) === date),
+          ordersById,
+        });
 
-    const historicalOrdersById = Object.fromEntries((historicalOrdersRes.data || []).map((row) => [String(row.id), row]));
-    const dates = [...new Set([
-      ...(historicalEntriesRes.data || []).map((row) => row.inventory_date),
-      ...historicalRelevantExpenses.map((row) => row.expense_date),
-      ...(historicalTransfersRes.data || []).map((row) => row.transfer_date),
-      ...historicalTxRows.map((row) => shiftBusinessDate(row.created_at, selectedStoreId, shiftRows)),
-    ].filter(Boolean))].sort();
-    const runningByItem = Object.fromEntries(items.map((item) => [item.id, 0]));
-
-    dates.forEach((date) => {
-      const savedByItem = Object.fromEntries((historicalEntriesRes.data || [])
-        .filter((row) => row.inventory_date === date)
-        .map((row) => [row.inventory_item_id, row]));
-      const dateSources = calculateSourceTotals({
-        expenseRows: historicalRelevantExpenses.filter((row) => row.expense_date === date),
-        transfers: (historicalTransfersRes.data || []).filter((row) => row.transfer_date === date),
-        posTransactions: historicalTxRows.filter((row) => shiftBusinessDate(row.created_at, selectedStoreId, shiftRows) === date),
-        ordersById: historicalOrdersById,
+        items.forEach((item) => {
+          const saved = savedByItem[item.id];
+          if (saved) {
+            runningByItem[item.id] = numberValue(saved.ending_quantity);
+            return;
+          }
+          runningByItem[item.id] += numberValue(dateSources.purchases[item.id])
+            - numberValue(dateSources.transfers[item.id])
+            - numberValue(dateSources.deductions[item.id]);
+        });
       });
+      const previousComputedEntries = items.map((item) => ({
+        inventory_item_id: item.id,
+        ending_quantity: runningByItem[item.id] || 0,
+      }));
 
-      items.forEach((item) => {
-        const saved = savedByItem[item.id];
-        if (saved) {
-          runningByItem[item.id] = numberValue(saved.ending_quantity);
-          return;
-        }
-        runningByItem[item.id] += numberValue(dateSources.purchases[item.id])
-          - numberValue(dateSources.transfers[item.id])
-          - numberValue(dateSources.deductions[item.id]);
+      calculateSourceTotals({
+        expenseRows: relevantExpenses,
+        transfers: transfersRes.data || [],
+        posTransactions: currentTxRows,
+        ordersById,
       });
-    });
-    const previousComputedEntries = items.map((item) => ({
-      inventory_item_id: item.id,
-      ending_quantity: runningByItem[item.id] || 0,
-    }));
-
-    setDailyEntries(entriesRes.data || []);
-    setReusableCupTotals(reusableRes.data || []);
-    setPreviousEntries(previousComputedEntries);
-    setTransfers(transfersRes.data || []);
-    setExpenseRows(relevantExpenses);
-    setPosTransactions(currentTxRows);
-    setOrdersById(Object.fromEntries((ordersRes.data || []).map((row) => [String(row.id), row])));
-    setEdits({});
-    setTransferForm((prev) => ({
-      ...prev,
-      from_store_id: isCashier ? selectedStoreId : prev.from_store_id || selectedStoreId,
-      to_store_id: prev.to_store_id && String(prev.to_store_id) !== String(selectedStoreId) ? prev.to_store_id : "",
-    }));
-    setLoading(false);
+      if (request !== dailyRequest.current) return;
+      setDailyEntries(entriesRes.data || []);
+      setReusableCupTotals(reusableRes.data || []);
+      setPreviousEntries(previousComputedEntries);
+      setTransfers(transfersRes.data || []);
+      setExpenseRows(relevantExpenses);
+      setPosTransactions(currentTxRows);
+      setOrdersById(ordersById);
+      setEdits({});
+      setTransferForm((prev) => ({
+        ...prev,
+        from_store_id: isCashier ? selectedStoreId : prev.from_store_id || selectedStoreId,
+        to_store_id: prev.to_store_id && String(prev.to_store_id) !== String(selectedStoreId) ? prev.to_store_id : "",
+      }));
+      setDailyResult({ key: dailyKey });
+    } catch (error) {
+      if (request === dailyRequest.current) {
+        setDailyResult({ key: dailyKey, error: error.message || "Inventory could not load." });
+      }
+    }
   }
 
   useEffect(() => {
@@ -369,16 +360,18 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
 
   useEffect(() => {
     loadDailyData();
+    return () => { dailyRequest.current += 1; };
   }, [selectedStoreId, inventoryDate, items]);
 
   const sourceTotals = useMemo(() => {
+    if (!dailyReady) return calculateSourceTotals({});
     return calculateSourceTotals({
       expenseRows,
       transfers,
       posTransactions,
       ordersById,
     });
-  }, [expenseRows, items, ordersById, posTransactions, selectedStoreId, transfers]);
+  }, [dailyReady, expenseRows, items, ordersById, posTransactions, selectedStoreId, transfers]);
 
   const rows = useMemo(() => items.map((item) => {
     const saved = entriesByItem[item.id];
@@ -620,11 +613,11 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
               {stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
             </Select>
           </label>
-          <button onClick={saveDailyInventory} disabled={saving || !rows.length} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-400/78 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_16px_34px_rgba(3,105,161,0.22)] transition hover:-translate-y-0.5 hover:bg-slate-300/78 disabled:bg-slate-300">
+          <button onClick={saveDailyInventory} disabled={saving || !dailyReady || !rows.length} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-400/78 px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_16px_34px_rgba(3,105,161,0.22)] transition hover:-translate-y-0.5 hover:bg-slate-300/78 disabled:bg-slate-300">
             <Save size={15} /> {saving ? "Saving..." : "Save Daily Inventory"}
           </button>
         </div>
-        {sourceTotals.receivedRows === 0 ? (
+        {dailyReady && (sourceTotals.receivedRows === 0 ? (
           <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             No stock received for {storeNameById[String(selectedStoreId)] || "selected store"} on {inventoryDate}. Add stock manually, or record an Inventory Purchase expense for this store.
           </div>
@@ -632,9 +625,16 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
           <div className="mt-3 rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-800">
             Found {sourceTotals.receivedRows} stock receipt{sourceTotals.receivedRows === 1 ? "" : "s"} for this store/date, including incoming branch transfers.
           </div>
-        )}
+        ))}
       </Card>
 
+      {!dailyReady ? (
+        <Card role="status" className="text-sm text-slate-600">
+          {dailyResult?.key === dailyKey && dailyResult.error
+            ? `Unable to load inventory: ${dailyResult.error}`
+            : selectedStoreId ? "Loading inventory balances…" : "Select a store to view inventory."}
+        </Card>
+      ) : <>
       <div data-finance-stats className="grid gap-4 md:grid-cols-3">
         <Card data-finance-stat><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Stock Received</p><p className="mt-2 text-2xl font-semibold text-slate-950">{qty(summary.reorder)}</p></Card>
         <Card data-finance-stat><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">POS Auto Deduct</p><p className="mt-2 text-2xl font-semibold text-slate-950">{qty(summary.deductions)}</p></Card>
@@ -756,6 +756,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
           ) : null}
         </div>
       </Card>
+      </>}
     </div>
   );
 }
