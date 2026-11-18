@@ -434,6 +434,7 @@ export default function FinanceExpenseManager() {
   const supplierReferences = referencesByType.supplier || [];
   const paymentTypeOptions = referenceOptions(referencesByType.payment_type, PAYMENT_TYPES);
   const unitOptions = referenceOptions(referencesByType.unit, UNIT_OPTIONS);
+  const itemReferenceUnitOptions = uniqueOptions(unitOptions, INVENTORY_UNITS, [referenceForm.bulk_unit, referenceForm.small_unit, referenceForm.reference_unit]).filter(Boolean);
   const fundSourceOptions = referenceOptions(referencesByType.fund_source, FUND_SOURCES);
   const categoryOptions = referenceOptions(referencesByType.category, CATEGORY_OPTIONS);
   const taxTypeOptions = references.some((row) => row.ref_type === "tax_type") ? referenceOptions(referencesByType.tax_type) : EXPENSE_TAX_TYPES;
@@ -2135,9 +2136,9 @@ export default function FinanceExpenseManager() {
               <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 sm:col-span-2">
                 <p className="mb-2 text-xs font-semibold text-slate-700">Bulk / Small Reference</p>
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <Field label="Bulk Unit"><Select value={referenceForm.bulk_unit} onChange={(e) => setReferenceForm((prev) => ({ ...prev, bulk_unit: e.target.value }))}><option value="">None - small only</option>{INVENTORY_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}</Select></Field>
+                  <Field label="Bulk Unit"><Select value={referenceForm.bulk_unit} onChange={(e) => setReferenceForm((prev) => ({ ...prev, bulk_unit: e.target.value }))}><option value="">None - small only</option>{itemReferenceUnitOptions.map((unit) => <option key={unit} value={unit}>{unit}</option>)}</Select></Field>
                   <Field label="Small Units per Bulk"><Input type="number" min="0.001" step="0.001" required={Boolean(referenceForm.bulk_unit)} disabled={!referenceForm.bulk_unit} value={referenceForm.bulk_unit ? referenceForm.units_per_bulk : "1"} onChange={(e) => setReferenceForm((prev) => ({ ...prev, units_per_bulk: e.target.value }))} placeholder="Example: 100" /></Field>
-                  <Field label="Small Unit"><Select required value={referenceForm.small_unit} onChange={(e) => setReferenceForm((prev) => ({ ...prev, small_unit: e.target.value }))}><option value="">Select small unit</option>{INVENTORY_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}</Select></Field>
+                  <Field label="Small Unit"><Select required value={referenceForm.small_unit} onChange={(e) => setReferenceForm((prev) => ({ ...prev, small_unit: e.target.value }))}><option value="">Select small unit</option>{itemReferenceUnitOptions.map((unit) => <option key={unit} value={unit}>{unit}</option>)}</Select></Field>
                 </div>
                 <p className="mt-2 text-xs text-slate-500">{referenceForm.bulk_unit && referenceForm.small_unit ? `1 ${referenceForm.bulk_unit} = ${referenceForm.units_per_bulk || "..."} ${referenceForm.small_unit}` : "Example: 1 pack = 100 pc. Small-only items go in the Small column."}</p>
               </div>
@@ -2157,7 +2158,7 @@ export default function FinanceExpenseManager() {
                   onChange={(e) => setReferenceForm((prev) => ({ ...prev, reference_unit: e.target.value }))}
                 >
                   <option value="">Select unit</option>
-                  {uniqueOptions([referenceForm.reference_unit], INVENTORY_UNITS).filter(Boolean).map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+                  {itemReferenceUnitOptions.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
                 </Select>
               </Field>
               <p className="text-xs text-slate-500 sm:col-span-2">Inventory Qty/Unit define stock per purchased item. Bulk/Small Reference controls how that stock is displayed.</p>
