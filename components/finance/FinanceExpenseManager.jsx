@@ -86,6 +86,9 @@ const initialReferenceForm = {
   item_category: "",
   reference_quantity: "",
   reference_unit: "",
+  bulk_unit: "",
+  small_unit: "",
+  units_per_bulk: "",
   supplier_company_name: "",
   supplier_city_address: "",
   supplier_tin_number: "",
@@ -668,7 +671,7 @@ export default function FinanceExpenseManager() {
       fundsQuery,
       supabase.from("finance_references").select("*").order("ref_type", { ascending: true }).order("name", { ascending: true }),
       deleteRequestQuery,
-      supabase.from("inventory_items").select("id, item_name, common_name, common_name_id, unit, cost_per_unit, is_active").eq("is_active", true).order("item_name"),
+      supabase.from("inventory_items").select("id, item_name, common_name, common_name_id, unit, cost_per_unit, is_active, bulk_unit, small_unit, units_per_bulk").eq("is_active", true).order("item_name"),
       supabase.from("common_inventory_names").select("id, common_name, default_unit, is_active").eq("is_active", true).order("common_name"),
       ["admin","super_admin"].includes(profileRole) ? supabase.rpc("finance_cash_advance_options") : Promise.resolve({data:{employees:[],advances:[]}}),
     ]);
@@ -1359,6 +1362,7 @@ export default function FinanceExpenseManager() {
   function openReferenceModal(row = null) {
     setReferenceExpenseScope(null);
     if (row) {
+      const linkedItem = row.ref_type === "item" ? inventoryItemFor(row.name, row.common_name || "") : null;
       setEditingReferenceId(row.id);
       setReferenceForm({
         ref_type: row.ref_type || "item",
@@ -1367,6 +1371,9 @@ export default function FinanceExpenseManager() {
         item_category: row.item_category || "",
         reference_quantity: row.reference_quantity || "",
         reference_unit: row.reference_unit || "",
+        bulk_unit: row.small_unit ? row.bulk_unit || "" : linkedItem?.small_unit ? linkedItem.bulk_unit || "" : (linkedItem && row.reference_unit && normalizeUnit(linkedItem.unit) !== normalizeUnit(row.reference_unit) ? normalizeUnit(linkedItem.unit) : ""),
+        small_unit: row.small_unit || linkedItem?.small_unit || row.reference_unit || linkedItem?.unit || "",
+        units_per_bulk: row.units_per_bulk ?? linkedItem?.units_per_bulk ?? row.reference_quantity ?? "",
         supplier_company_name: row.supplier_company_name || "",
         supplier_city_address: row.supplier_city_address || "",
         supplier_tin_number: row.supplier_tin_number || "",
@@ -1430,6 +1437,9 @@ export default function FinanceExpenseManager() {
       item_category: referenceForm.ref_type === "item" ? referenceForm.item_category.trim() || null : null,
       reference_quantity: referenceForm.ref_type === "item" && referenceForm.reference_quantity !== "" ? numberValue(referenceForm.reference_quantity) : null,
       reference_unit: referenceForm.ref_type === "item" ? normalizeUnit(referenceForm.reference_unit) || null : null,
+      bulk_unit: referenceForm.ref_type === "item" ? normalizeUnit(referenceForm.bulk_unit) || null : null,
+      small_unit: referenceForm.ref_type === "item" ? normalizeUnit(referenceForm.small_unit) || null : null,
+      units_per_bulk: referenceForm.ref_type === "item" && referenceForm.small_unit ? (referenceForm.bulk_unit ? Number(referenceForm.units_per_bulk) : 1) : null,
       supplier_company_name: referenceForm.ref_type === "supplier" ? referenceForm.supplier_company_name.trim() || null : null,
       supplier_city_address: referenceForm.ref_type === "supplier" ? referenceForm.supplier_city_address.trim() || null : null,
       supplier_tin_number: referenceForm.ref_type === "supplier" ? referenceForm.supplier_tin_number.trim() || null : null,
@@ -1440,20 +1450,21 @@ export default function FinanceExpenseManager() {
     };
 
     if (editingReferenceId) {
-      const { error } = await supabase.from("finance_references").update(payload).eq("id", editingReferenceId);
+      const { data: savedReference, error } = await supabase.from("finance_references").update(payload).eq("id", editingReferenceId).select("*").single();
       if (error) {
         showNotice("error", error.message);
       } else {
-        setReferences((prev) => prev.map((row) => row.id === editingReferenceId ? { ...row, ...payload } : row));
+        setReferences((prev) => prev.map((row) => row.id === editingReferenceId ? savedReference : row));
         setReferenceModalOpen(false);
         showNotice("success", "Reference updated.");
       }
     } else {
       const newRow = { id: makeId("fin_ref"), ...payload };
-      const { error } = await supabase.from("finance_references").insert([newRow]);
+      const { data: savedReference, error } = await supabase.from("finance_references").insert([newRow]).select("*").single();
       if (error) {
         showNotice("error", error.message);
       } else {
+        Object.assign(newRow, savedReference);
         setReferences((prev) => [...prev, newRow].sort((a, b) => a.ref_type.localeCompare(b.ref_type) || a.name.localeCompare(b.name)));
         if (referenceExpenseScope) {
           const setter = referenceExpenseScope === "overall" ? setExpenseForm : setPettyForm;
@@ -1753,6 +1764,15 @@ export default function FinanceExpenseManager() {
               <Field label="Item Name">
                 <Input value={inventoryPreview.itemName || "-"} readOnly disabled className="cursor-not-allowed bg-slate-100 text-slate-700" />
               </Field>
+              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 sm:col-span-2">
+                <p className="mb-2 text-xs font-semibold text-slate-700">Bulk / Small Reference</p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Field label="Bulk Unit"><Select value={referenceForm.bulk_unit} onChange={(e) => setReferenceForm((prev) => ({ ...prev, bulk_unit: e.target.value }))}><option value="">None - small only</option>{INVENTORY_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}</Select></Field>
+                  <Field label="Small Units per Bulk"><Input type="number" min="0.001" step="0.001" required={Boolean(referenceForm.bulk_unit)} disabled={!referenceForm.bulk_unit} value={referenceForm.bulk_unit ? referenceForm.units_per_bulk : "1"} onChange={(e) => setReferenceForm((prev) => ({ ...prev, units_per_bulk: e.target.value }))} placeholder="Example: 100" /></Field>
+                  <Field label="Small Unit"><Select required value={referenceForm.small_unit} onChange={(e) => setReferenceForm((prev) => ({ ...prev, small_unit: e.target.value }))}><option value="">Select small unit</option>{INVENTORY_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}</Select></Field>
+                </div>
+                <p className="mt-2 text-xs text-slate-500">{referenceForm.bulk_unit && referenceForm.small_unit ? `1 ${referenceForm.bulk_unit} = ${referenceForm.units_per_bulk || "..."} ${referenceForm.small_unit}` : "Example: 1 pack = 100 pc. Small-only items go in the Small column."}</p>
+              </div>
               <Field label="Inventory Qty">
                 <Input value={inventoryPreview.quantity || "-"} readOnly disabled className="cursor-not-allowed bg-slate-100 text-slate-700" />
               </Field>
@@ -1898,7 +1918,8 @@ export default function FinanceExpenseManager() {
               const startsNewDay = index === 0 || row.expense_date !== rows[index - 1].expense_date;
               return (
                 <Fragment key={row.id}>
-                  {startsNewDay ? <tr><td colSpan={23 + Number(showSource) + Number(showStore)} className="p-0"><div style={{ borderTop: "1px solid #0891b2", background: "#ecfeff", padding: "8px 16px", color: "#155e75", fontWeight: 700 }}>{dateText(row.expense_date)}</div></td></tr> : null}                <tr className="text-slate-700 transition duration-200 hover:bg-cyan-50/45">
+                  {startsNewDay ? <tr><td colSpan={23 + Number(showSource) + Number(showStore)} className="p-0"><div style={{ borderTop: "1px solid #0891b2", background: "#ecfeff", padding: "8px 16px", color: "#155e75", fontWeight: 700 }}>{dateText(row.expense_date)}</div></td></tr> : null}
+                <tr className="text-slate-700 transition duration-200 hover:bg-cyan-50/45">
                   <td className="whitespace-nowrap px-4 py-3 font-semibold">{dateText(row.expense_date)}</td>
                   {showSource ? (
                     <td className="px-4 py-3">
@@ -2121,6 +2142,7 @@ export default function FinanceExpenseManager() {
                   {uniqueOptions([referenceForm.reference_unit], INVENTORY_UNITS).filter(Boolean).map((unit) => <option key={unit} value={unit}>{unit}</option>)}
                 </Select>
               </Field>
+              <p className="text-xs text-slate-500 sm:col-span-2">Inventory Qty/Unit define stock per purchased item. Bulk/Small Reference controls how that stock is displayed.</p>
             </>
           ) : null}
           {referenceForm.ref_type === "supplier" ? (
