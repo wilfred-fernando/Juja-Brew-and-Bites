@@ -469,14 +469,18 @@ export default function FinanceExpenseManager() {
     const itemRef = itemReferenceFor(form.description);
     const commonName = form.item_common_name || itemRef?.common_name || "";
     const item = inventoryItems.find((row) => row.id === form.inventory_item_id) || inventoryItemFor(form.description, commonName);
-    const referenceQty = referenceInventoryQuantity(itemRef, form.quantity);
+    const purchaseUnit = normalizeUnit(form.unit);
+    const usesBulkReference = Boolean(itemRef?.bulk_unit && normalizeUnit(itemRef.bulk_unit) === purchaseUnit && itemRef.small_unit && Number(itemRef.units_per_bulk) > 0);
+    const usesSmallUnit = Boolean(itemRef?.small_unit && normalizeUnit(itemRef.small_unit) === purchaseUnit);
+    const referenceQty = usesBulkReference ? String(numberValue(form.quantity) * Number(itemRef.units_per_bulk))
+      : usesSmallUnit ? String(numberValue(form.quantity)) : referenceInventoryQuantity(itemRef, form.quantity);
     return {
       commonName: commonName || item?.common_name || "",
       itemName: item?.item_name || form.description || "",
       inventoryItemId: item?.id || form.inventory_item_id || "",
       commonNameId: item?.common_name_id || form.inventory_common_name_id || "",
       quantity: referenceQty || String(numberValue(form.quantity) || ""),
-      unit: normalizeUnit(itemRef?.reference_unit || form.unit || item?.unit || ""),
+      unit: normalizeUnit((usesBulkReference || usesSmallUnit ? itemRef.small_unit : itemRef?.reference_unit) || form.unit || item?.unit || ""),
       unitCost: String(form.unit_price || item?.cost_per_unit || ""),
     };
   }
@@ -774,6 +778,12 @@ export default function FinanceExpenseManager() {
 
   async function syncExpenseInventoryIfNeeded(form, expenseId) {
     if (!form.is_inventory_purchase) return { synced: false, status: "not_inventory" };
+    const { data: referenceSync, error: referenceError } = await supabase.rpc("sync_referenced_inventory_purchase", { p_expense_id: expenseId });
+    if (referenceSync?.ok) return { synced: true, status: "synced" };
+    if (referenceError) {
+      await supabase.from("finance_expenses").update({ inventory_sync_status: "needs_mapping" }).eq("id", expenseId);
+      return { synced: false, status: "needs_mapping", message: referenceError.message };
+    }
     const inventoryForm = applyInventoryPurchaseCopy(form);
     if (!inventoryForm.inventory_item_id || !numberValue(inventoryForm.inventory_quantity || inventoryForm.quantity)) {
       await supabase
@@ -784,7 +794,7 @@ export default function FinanceExpenseManager() {
     }
 
     try {
-      await syncExpensePurchaseToInventory(supabase, {
+      const result = await syncExpensePurchaseToInventory(supabase, {
         expenseId,
         inventoryItemId: inventoryForm.inventory_item_id,
         commonNameId: inventoryForm.inventory_common_name_id || null,
@@ -794,6 +804,7 @@ export default function FinanceExpenseManager() {
         totalCost: lineMath(form).total,
         createdBy: currentUserId,
       });
+      if (!result?.ok) throw new Error(result?.message || "Inventory sync failed.");
       return { synced: true, status: "synced" };
     } catch (error) {
       await supabase
