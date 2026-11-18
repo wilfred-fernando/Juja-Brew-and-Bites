@@ -376,6 +376,8 @@ export default function FinanceExpenseManager() {
   const [fundForm, setFundForm] = useState(initialFundForm);
   const [referenceForm, setReferenceForm] = useState(initialReferenceForm);
   const [referenceFilter, setReferenceFilter] = useState("item");
+  const [referenceSearchInput, setReferenceSearchInput] = useState("");
+  const [referenceSearch, setReferenceSearch] = useState("");
   const [bulkReferenceText, setBulkReferenceText] = useState("");
   const [bulkReferenceType, setBulkReferenceType] = useState("item");
   const [editingReferenceId, setEditingReferenceId] = useState(null);
@@ -2266,18 +2268,28 @@ export default function FinanceExpenseManager() {
   }
 
   function renderReferenceSettings() {
-    const rows = references.filter((row) => referenceFilter === "all" || row.ref_type === referenceFilter);
+    const words = referenceSearch.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    const rows = references.filter((row) => {
+      if (referenceFilter !== "all" && row.ref_type !== referenceFilter) return false;
+      const text = [row.name, row.common_name, row.item_category, row.supplier_company_name, row.supplier_city_address, row.supplier_tin_number, row.reference_unit, row.bulk_unit, row.small_unit, row.notes].filter(Boolean).join(" ").toLocaleLowerCase();
+      return words.every(word => text.includes(word));
+    });
     const labelByType = Object.fromEntries(REF_TYPES);
 
     return (
       <div className="space-y-4">
         <div className="flex flex-col gap-3 rounded-2xl border border-white/70 bg-white/78 p-4 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-xl md:flex-row md:items-end md:justify-between">
+          <form onSubmit={event=>{event.preventDefault();setReferenceSearch(referenceSearchInput.trim());}} className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <Field label="Reference Type">
             <Select value={referenceFilter} onChange={(e) => setReferenceFilter(e.target.value)}>
               <option value="all">All references</option>
               {REF_TYPES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
             </Select>
           </Field>
+            <Field label="Search References"><Input type="search" value={referenceSearchInput} onChange={event=>setReferenceSearchInput(event.target.value)} placeholder="Name, category, common name, unit…" /></Field>
+            <button type="submit" className="h-10 rounded-xl bg-slate-800 px-4 text-xs font-semibold text-white">Search</button>
+            {(referenceSearchInput || referenceSearch) && <button type="button" onClick={()=>{setReferenceSearchInput("");setReferenceSearch("");}} className="h-10 rounded-xl border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-700">Clear</button>}
+          </form>
           <div className="flex flex-col gap-2 sm:flex-row">
             <button
               type="button"
@@ -2299,7 +2311,7 @@ export default function FinanceExpenseManager() {
         </div>
 
         {rows.length === 0 ? (
-          <EmptyState message="No references yet." />
+          <EmptyState message={referenceSearch ? "No references match your search." : "No references yet."} />
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-white/70 bg-white/88 shadow-[0_22px_55px_rgba(15,23,42,0.10)] backdrop-blur-xl">
             <table className="w-full min-w-[1200px] text-sm">
