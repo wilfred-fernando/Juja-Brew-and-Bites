@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeftRight, Boxes, CalendarDays, Plus, RefreshCw, Save, Send, Table2 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { INVENTORY_UNITS, convertQuantity, loadInventoryPurchases, loadInventoryRowsByIds, loadPurchasedInventoryItemIds, normalizeUnit, posInventoryConsumption } from "@/lib/inventory";
+import { INVENTORY_UNITS, loadInventoryPurchases, loadInventoryRowsByIds, loadPurchasedInventoryItemIds, normalizeUnit, posInventoryConsumption } from "@/lib/inventory";
+import { inventoryUnitReference, inventorySmallQuantity, inventoryStorageQuantity, splitInventoryQuantity, combineInventoryQuantity } from "@/lib/inventoryUnitReference.mjs";
 import { manilaDate, shiftBusinessDate } from "@/lib/businessDay";
 
 const supabase = getSupabaseClient();
@@ -85,6 +86,8 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
   const [notice, setNotice] = useState(null);
   const [stockForm, setStockForm] = useState(null);
   const [addingStock, setAddingStock] = useState(false);
+  const [referenceForm, setReferenceForm] = useState(null);
+  const [savingReference, setSavingReference] = useState(false);
 
   const isCashier = String(profile?.role || "").toLowerCase() === "cashier";
   const canChooseStore = !isCashier;
@@ -130,51 +133,25 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
     return item?.common_name || ref?.common_name || item?.item_name || "-";
   }
 
-  function smallUnit(item) {
-    const ref = itemReference(item);
-    return normalizeUnit(ref?.reference_unit || item?.unit || "");
+  function toBulk(item, amount, unit) { return inventoryStorageQuantity(item, numberValue(amount), unit, itemReference(item) || {}); }
+  function splitBulk(item, amount) { return splitInventoryQuantity(item, numberValue(amount), itemReference(item) || {}); }
+  function combineBulkSmall(item, bulk, small) { return combineInventoryQuantity(item, bulk, small, itemReference(item) || {}); }
+  function openReference(item) {
+    const ref = inventoryUnitReference(item, itemReference(item) || {});
+    setReferenceForm({ itemId: item.id, name: inventoryDisplayName(item), bulkUnit: ref.bulkUnit, smallUnit: ref.smallUnit, factor: String(ref.factor) });
   }
-
-  function referenceQuantity(item) {
-    return numberValue(itemReference(item)?.reference_quantity);
-  }
-
-  function toBulk(item, amount, unit) {
-    const value = numberValue(amount);
-    const itemUnit = normalizeUnit(item?.unit);
-    const fromUnit = normalizeUnit(unit);
-    if (!value) return 0;
-    if (!itemUnit || fromUnit === itemUnit) return value;
-    const refQty = referenceQuantity(item);
-    const refUnit = smallUnit(item);
-    if (refQty > 0 && fromUnit === refUnit) return value / refQty;
+  async function saveReference(e) {
+    e.preventDefault();
+    if (!referenceForm || savingReference) return;
+    setSavingReference(true);
     try {
-      return convertQuantity(value, fromUnit, itemUnit);
-    } catch {
-      return value;
-    }
-  }
-
-  function splitBulk(item, amount) {
-    const value = numberValue(amount);
-    const sign = value < 0 ? -1 : 1;
-    const absoluteValue = Math.abs(value);
-    const refQty = referenceQuantity(item);
-    const itemUnit = normalizeUnit(item?.unit);
-    const refUnit = smallUnit(item);
-    if (!refQty || !refUnit || refUnit === itemUnit) {
-      return { bulk: value, small: 0, bulkUnit: itemUnit || "", smallUnit: refUnit || itemUnit || "" };
-    }
-    const bulk = Math.trunc(absoluteValue) * sign;
-    const small = Math.round((absoluteValue - Math.trunc(absoluteValue)) * refQty * 1000) / 1000 * sign;
-    return { bulk, small, bulkUnit: itemUnit || "", smallUnit: refUnit };
-  }
-
-  function combineBulkSmall(item, bulk, small) {
-    const refQty = referenceQuantity(item);
-    const whole = numberValue(bulk);
-    const remainder = numberValue(small);
-    return refQty > 0 ? whole + (remainder / refQty) : whole + remainder;
+      const { error } = await supabase.rpc("save_inventory_item_reference", { p_item_id: referenceForm.itemId, p_bulk_unit: referenceForm.bulkUnit || null, p_small_unit: referenceForm.smallUnit, p_units_per_bulk: referenceForm.bulkUnit ? Number(referenceForm.factor) : 1 });
+      if (error) throw error;
+      setReferenceForm(null);
+      await loadBase();
+      showNotice("success", "Bulk and small reference saved.");
+    } catch (error) { showNotice("error", error.message); }
+    finally { setSavingReference(false); }
   }
 
   function calculateSourceTotals({ purchaseLinks: linkRows = [], expenseRows: expenseList = [], pettyRows: pettyList = [], transfers: transferList = [], posTransactions: txList = [], ordersById: orderMap = {} }) {
@@ -249,7 +226,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
 
     const [storesRes, itemsRes, refsRes, purchasedRes] = await Promise.all([
       supabase.from("stores").select("id, name, is_active, sort_order, created_at").order("sort_order").order("created_at"),
-      supabase.from("inventory_items").select("id, item_name, common_name, common_name_id, category, unit, is_active, is_manual").eq("is_active", true).order("item_name"),
+      supabase.from("inventory_items").select("id, item_name, common_name, common_name_id, category, unit, is_active, is_manual, bulk_unit, small_unit, units_per_bulk").eq("is_active", true).order("item_name"),
       supabase.from("finance_references").select("name, common_name, item_category, reference_quantity, reference_unit, show_to_cashier").eq("ref_type", "item").eq("is_active", true),
       loadPurchasedInventoryItemIds(supabase),
     ]);
@@ -552,6 +529,7 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
       <div className="relative mx-auto w-24">
         <Input
           type="number"
+          disabled={part === "bulk" && !unit}
           value={value || ""}
           onChange={(e) => updateRow(item, part === "small" ? "manualSmall" : "manualBulk", e.target.value)}
           className="h-8 min-w-0 pr-9 text-right"
@@ -562,6 +540,9 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
       </div>
     );
   }
+
+  const transferItem = items.find((item) => item.id === transferForm.inventory_item_id);
+  const transferUnits = transferItem ? splitBulk(transferItem, 0) : null;
 
   if (loading && !items.length) {
     return <div className="flex min-h-[50vh] items-center justify-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-sky-100 border-t-sky-600" /></div>;
@@ -593,6 +574,18 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
         </div>
       </section>
 
+      {referenceForm ? <Card>
+        <form onSubmit={saveReference}>
+          <h2 className="font-semibold text-slate-950">Bulk / Small Reference — {referenceForm.name}</h2>
+          <p className="mt-1 text-xs text-slate-600">Set the number of small units in one bulk unit. This item reference is shared across branches.</p>
+          <fieldset disabled={savingReference} className="mt-3 grid gap-3 sm:grid-cols-3">
+            <label className="text-xs font-semibold">Bulk unit<Select value={referenceForm.bulkUnit} onChange={(e) => setReferenceForm((f) => ({ ...f, bulkUnit: e.target.value }))}><option value="">None — small only</option>{INVENTORY_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}</Select></label>
+            <label className="text-xs font-semibold">Small units per bulk<Input type="number" min="0.001" step="0.001" required disabled={!referenceForm.bulkUnit} value={referenceForm.bulkUnit ? referenceForm.factor : "1"} onChange={(e) => setReferenceForm((f) => ({ ...f, factor: e.target.value }))} /></label>
+            <label className="text-xs font-semibold">Small unit<Select value={referenceForm.smallUnit} onChange={(e) => setReferenceForm((f) => ({ ...f, smallUnit: e.target.value }))}>{INVENTORY_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}</Select></label>
+          </fieldset>
+          <div className="mt-3 flex gap-2"><button disabled={savingReference} className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold text-white">{savingReference ? "Saving…" : "Save Reference"}</button><button type="button" disabled={savingReference} onClick={() => setReferenceForm(null)} className="rounded-lg border px-4 py-2 text-sm">Cancel</button></div>
+        </form>
+      </Card> : null}
       {stockForm ? <Card>
         <form onSubmit={addStock}>
           <h2 className="text-base font-semibold text-slate-950">Add Item / Stock</h2>
@@ -666,8 +659,8 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
             <option value="">To store</option>
             {stores.filter((store) => String(store.id) !== String(transferForm.from_store_id)).map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
           </Select>
-          <Input placeholder="Bulk qty" value={transferForm.bulk} onChange={(e) => setTransferForm((p) => ({ ...p, bulk: e.target.value }))} />
-          <Input placeholder="Small qty" value={transferForm.small} onChange={(e) => setTransferForm((p) => ({ ...p, small: e.target.value }))} />
+          <Input placeholder={transferUnits?.bulkUnit ? `Bulk qty (${transferUnits.bulkUnit})` : "No bulk unit"} disabled={!transferUnits?.bulkUnit} value={transferUnits?.bulkUnit ? transferForm.bulk : ""} onChange={(e) => setTransferForm((p) => ({ ...p, bulk: e.target.value }))} />
+          <Input placeholder={`Small qty${transferUnits ? ` (${transferUnits.smallUnit})` : ""}`} value={transferForm.small} onChange={(e) => setTransferForm((p) => ({ ...p, small: e.target.value }))} />
           <button className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-400/78 px-4 text-xs font-semibold uppercase tracking-wider text-white transition hover:-translate-y-0.5 hover:bg-slate-300/78"><Send size={14} /> Save Transfer</button>
           <Input placeholder="Transfer note" value={transferForm.note} onChange={(e) => setTransferForm((p) => ({ ...p, note: e.target.value }))} className="lg:col-span-6" />
         </form>
@@ -691,14 +684,14 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className={`w-full border-collapse text-sm ${isCashier ? "min-w-[1640px]" : "min-w-[1780px]"}`}>
+          <table className={`w-full border-collapse text-sm ${isCashier ? "min-w-[1740px]" : "min-w-[1880px]"}`}>
             <thead className="bg-slate-100 text-slate-800">
               <tr className="border-b border-slate-300 text-center text-[11px] font-semibold uppercase tracking-[0.12em]">
                 {!isCashier ? <th rowSpan={2} className="border-r border-slate-300 px-3 py-3 text-left">Item Name</th> : null}
                 <th rowSpan={2} className="border-r border-slate-300 px-3 py-3 text-left">Common Name</th>
                 <th colSpan={2} className="border-r border-slate-300 px-3 py-2">Reference</th>
                 <th colSpan={2} className="border-r border-slate-300 px-3 py-2">Beginning</th>
-                <th className="border-r border-slate-300 px-3 py-2">Reorder / Added</th>
+                <th colSpan={2} className="border-r border-slate-300 px-3 py-2">Reorder / Added</th>
                 <th colSpan={2} className="border-r border-slate-300 px-3 py-2">Total</th>
                 <th colSpan={2} className="border-r border-slate-300 px-3 py-2">Transfer Out</th>
                 <th className="w-[88px] border-r border-slate-300 px-2 py-2">POS Auto Deduct</th>
@@ -707,11 +700,12 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
                 <th colSpan={2} className="w-[170px] px-4 py-2">Ending</th>
               </tr>
               <tr className="border-b border-slate-300 text-center text-[10px] font-semibold uppercase tracking-[0.12em]">
-                <th className="border-r border-slate-300 px-3 py-2">Qty</th>
+                <th className="border-r border-slate-300 px-3 py-2">Bulk Reference</th>
                 <th className="border-r border-slate-300 px-3 py-2">Unit</th>
                 <th className="border-r border-slate-300 px-2 py-2">Bulk</th>
                 <th className="border-r border-slate-300 px-2 py-2">Small</th>
                 <th className="border-r border-slate-300 px-3 py-2">Bulk</th>
+                <th className="border-r border-slate-300 px-3 py-2">Small</th>
                 <th className="border-r border-slate-300 px-3 py-2">Bulk</th>
                 <th className="w-[88px] border-r border-slate-300 px-2 py-2">Small</th>
                 <th className="border-r border-slate-300 px-3 py-2">Bulk</th>
@@ -726,22 +720,23 @@ export default function FinanceInventoryManager({ initialStoreId = "" }) {
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white/82">
               {visibleRows.map((row) => {
-                const ref = itemReference(row.item);
-                const posSmall = splitBulk(row.item, row.posDeduction);
+                const ref = inventoryUnitReference(row.item, itemReference(row.item) || {});
+                const posSmall = inventorySmallQuantity(row.item, row.posDeduction, row.item.unit, itemReference(row.item) || {});
                 return (
                   <tr key={row.item.id} className="transition hover:bg-sky-50/55">
                     {!isCashier ? <td className="border-r border-slate-200 px-3 py-3 font-semibold text-slate-950">{row.item.item_name}</td> : null}
                     <td className="border-r border-slate-200 px-3 py-3 font-semibold text-slate-950">{inventoryDisplayName(row.item)}</td>
-                    <td className="border-r border-slate-200 px-3 py-3 text-right tabular-nums">{ref?.reference_quantity ? qty(ref.reference_quantity) : "1"}</td>
-                    <td className="border-r border-slate-200 px-3 py-3 text-slate-600">{normalizeUnit(ref?.reference_unit || row.item.unit)}</td>
+                    <td className="border-r border-slate-200 px-3 py-3 text-right tabular-nums"><button type="button" onClick={() => openReference(row.item)} className="text-sky-700 underline underline-offset-2">{ref.bulkUnit ? `1 ${ref.bulkUnit} = ${qty(ref.factor)}` : "Small only"}</button></td>
+                    <td className="border-r border-slate-200 px-3 py-3 text-slate-600">{ref.smallUnit}</td>
                     <td className="border-r border-slate-200 px-3 py-3"><QuantityCell item={row.item} value={row.beginning} part="bulk" muted /></td>
                     <td className="border-r border-slate-200 px-3 py-3"><QuantityCell item={row.item} value={row.beginning} part="small" muted /></td>
                     <td className="border-r border-slate-200 px-3 py-3"><QuantityCell item={row.item} value={row.reorder} part="bulk" /></td>
+                    <td className="border-r border-slate-200 px-3 py-3"><QuantityCell item={row.item} value={row.reorder} part="small" /></td>
                     <td className="border-r border-slate-200 px-3 py-3"><QuantityCell item={row.item} value={row.total} part="bulk" /></td>
                     <td className="border-r border-slate-200 px-3 py-3"><QuantityCell item={row.item} value={row.total} part="small" /></td>
                     <td className="border-r border-slate-200 px-3 py-3"><QuantityCell item={row.item} value={row.transfer} part="bulk" /></td>
                     <td className="border-r border-slate-200 px-3 py-3"><QuantityCell item={row.item} value={row.transfer} part="small" /></td>
-                    <td className="border-r border-slate-200 px-2 py-3 text-right text-xs tabular-nums text-red-700">{qty(posSmall.small || posSmall.bulk)} {posSmall.smallUnit}</td>
+                    <td className="border-r border-slate-200 px-2 py-3 text-right text-xs tabular-nums text-red-700">{qty(posSmall)} {ref.smallUnit}</td>
                     <td className="border-r border-slate-200 px-2 py-3 text-right text-xs tabular-nums text-slate-600">{qty(reusableCupTotals.find((total) => total.common_name_id === row.item.common_name_id)?.quantity)} pc</td>
                     <td className="border-r border-slate-200 px-1.5 py-2"><ManualInput item={row.item} row={row} part="bulk" /></td>
                     <td className="border-r border-slate-200 px-1.5 py-2"><ManualInput item={row.item} row={row} part="small" /></td>

@@ -17,6 +17,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase/client";
+import { inventoryUnitReference, inventorySmallQuantity, splitInventoryQuantity } from "@/lib/inventoryUnitReference.mjs";
 import { INVENTORY_UNITS, loadPurchasedInventoryItemIds, normalizeUnit } from "@/lib/inventory";
 import { formatDateTime } from "@/lib/dateFormat";
 
@@ -267,10 +268,8 @@ export default function AdminInventoryPage() {
     const grouped = itemsForCommonName(commonNameId).reduce((map, item) => {
       const stock = numberValue(item.current_stock);
       const ref = findFinanceReferenceForItem(item);
-      const referenceQuantity = numberValue(ref?.reference_quantity);
-      const referenceUnit = unitLabel(ref?.reference_unit);
-      const unit = referenceQuantity > 0 && referenceUnit ? referenceUnit : unitLabel(item.unit);
-      const quantity = referenceQuantity > 0 && referenceUnit ? stock * referenceQuantity : stock;
+      const unit = inventoryUnitReference(item, ref || {}).smallUnit;
+      const quantity = inventorySmallQuantity(item, stock, item.unit, ref || {});
       map[unit] = (map[unit] || 0) + quantity;
       return map;
     }, {});
@@ -283,27 +282,10 @@ export default function AdminInventoryPage() {
   }
 
   function formatStockDisplay(item) {
-    const stock = numberValue(item.current_stock);
-    const bulkUnit = normalizeUnit(item.unit);
-    const ref = findFinanceReferenceForItem(item);
-    const referenceQuantity = numberValue(ref?.reference_quantity);
-    const smallUnit = normalizeUnit(ref?.reference_unit);
-
-    if (!referenceQuantity || !smallUnit || !bulkUnit || bulkUnit === smallUnit) {
-      return {
-        value: `${formatQuantity(stock)} ${bulkUnit}`.trim(),
-        reference: null,
-      };
-    }
-
-    const sign = stock < 0 ? -1 : 1;
-    const absoluteStock = Math.abs(stock);
-    const bulkCount = Math.trunc(absoluteStock);
-    const smallRemainder = Math.round((absoluteStock - bulkCount) * referenceQuantity * 1000) / 1000;
-
+    const split = splitInventoryQuantity(item, numberValue(item.current_stock), findFinanceReferenceForItem(item) || {});
     return {
-      value: `${sign < 0 ? "-" : ""}${formatQuantity(bulkCount)} ${bulkUnit} ${formatQuantity(smallRemainder)} ${smallUnit}`,
-      reference: `1 ${bulkUnit} = ${formatQuantity(referenceQuantity)} ${smallUnit}`,
+      value: split.bulkUnit ? `${formatQuantity(split.bulk)} ${split.bulkUnit} ${formatQuantity(split.small)} ${split.smallUnit}` : `${formatQuantity(split.small)} ${split.smallUnit}`,
+      reference: split.bulkUnit ? `1 ${split.bulkUnit} = ${formatQuantity(split.factor)} ${split.smallUnit}` : null,
     };
   }
 

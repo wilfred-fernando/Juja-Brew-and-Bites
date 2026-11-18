@@ -155,11 +155,16 @@ export async function POST(req) {
     if (memberError) throw memberError;
     if (!member?.id) return Response.json({ rows: [] });
 
-    const name = cleanValue(member.customer_name || member.name);
-    const email = cleanValue(member.Email || member.email);
-    const phone = cleanValue(member.Phone || member.phone);
+    const { data: aliases, error: aliasError } = await admin.from("loyalty_member_merge_aliases")
+      .select("source_id,source_snapshot").eq("member_id", member.id);
+    if (aliasError && !["42P01", "PGRST205"].includes(aliasError.code)) throw aliasError;
+    const identities = [member, ...(aliases || []).map((row) => ({ ...row.source_snapshot, id: row.source_id }))];
+    const memberIds = identities.map((row) => row.id);
+
+    const names = uniqueValues(identities.map((row) => row.customer_name || row.name));
+    const contacts = uniqueValues(identities.flatMap((row) => [row.Email || row.email, row.Phone || row.phone]));
     const userId = cleanValue(member.user_id || member.profile_id);
-    const codes = uniqueValues([member.customer_code, member["Customer ID"], member.customer_id, member.id]);
+    const codes = uniqueValues(identities.flatMap((row) => [row.customer_code, row["Customer ID"], row.customer_id, row.id]));
 
     const posMapper = (row) => ({
       id: `pos-${row.id}`,
@@ -191,25 +196,25 @@ export async function POST(req) {
     const posQueries = [
       ...codes.map((value) => safeQuery(admin.from("orders").select(posSelect).eq("customer_id", value).order("created_at", { ascending: false }).limit(250), posMapper)),
       safeQuery(admin.from("orders").select(posSelect).eq("loyalty_member_id", member.id).order("created_at", { ascending: false }).limit(250), posMapper),
-      ...(name ? [safeQuery(admin.from("orders").select(posSelect).ilike("customer_name", `%${name}%`).order("created_at", { ascending: false }).limit(250), posMapper)] : []),
+      ...names.map((name) => safeQuery(admin.from("orders").select(posSelect).ilike("customer_name", `%${name}%`).order("created_at", { ascending: false }).limit(250), posMapper)),
       ...(userId ? [safeQuery(admin.from("orders").select(posSelect).eq("user_id", userId).order("created_at", { ascending: false }).limit(250), posMapper)] : []),
     ];
 
     const webQueries = [
-      ...(name ? [safeQuery(admin.from("web_orders").select(webSelect).ilike("customer_name", `%${name}%`).order("created_at", { ascending: false }).limit(250), webMapper)] : []),
-      ...uniqueValues([phone, email]).map((value) => safeQuery(admin.from("web_orders").select(webSelect).ilike("customer_contact", `%${value}%`).order("created_at", { ascending: false }).limit(250), webMapper)),
+      ...names.map((name) => safeQuery(admin.from("web_orders").select(webSelect).ilike("customer_name", `%${name}%`).order("created_at", { ascending: false }).limit(250), webMapper)),
+      ...contacts.map((value) => safeQuery(admin.from("web_orders").select(webSelect).ilike("customer_contact", `%${value}%`).order("created_at", { ascending: false }).limit(250), webMapper)),
       ...(userId ? [safeQuery(admin.from("web_orders").select(webSelect).eq("user_id", userId).order("created_at", { ascending: false }).limit(250), webMapper)] : []),
     ];
 
     const [liveRows, archivedRows] = await Promise.all([
       Promise.all([...posQueries, ...webQueries]),
-      fetchArchivedHistory({
-        memberId: member.id,
-        userId,
-        customerCode: codes[0] || "",
+      Promise.all(identities.map((identity) => fetchArchivedHistory({
+        memberId: identity.id,
+        userId: identity.user_id || userId,
+        customerCode: identity.customer_code || "",
         posMapper,
         webMapper,
-      }),
+      }))).then((rows) => rows.flat()),
     ]);
     // Corrections can move an archived receipt to a different member. Replace
     // matching old history and include receipts newly attached to this account.
@@ -222,7 +227,7 @@ export async function POST(req) {
       for (const entry of data || []) corrected.set(`${entry.source_type}:${entry.source_id}`, entry);
     }
     const { data: attachedCorrections, error: correctionsError } = await admin.from("admin_receipt_corrections").select("*")
-      .eq("receipt->>loyalty_member_id", member.id).order("receipt_at", { ascending: false }).limit(250);
+      .in("receipt->>loyalty_member_id", memberIds).order("receipt_at", { ascending: false }).limit(250);
     if (correctionsError && !["42P01", "PGRST205"].includes(correctionsError.code)) throw correctionsError;
     for (const entry of attachedCorrections || []) corrected.set(`${entry.source_type}:${entry.source_id}`, entry);
     const correctedRows = [];
@@ -230,7 +235,7 @@ export async function POST(req) {
     for (const entry of corrected.values()) {
       removedIds.add(`${entry.source_type === "order" ? "pos" : "web"}-${entry.source_id}`);
       if (entry.linked_web_receipt?.id) removedIds.add(`web-${entry.linked_web_receipt.id}`);
-      if (entry.receipt.loyalty_member_id === member.id) correctedRows.push(entry.source_type === "order" ? posMapper(entry.receipt) : webMapper(entry.receipt));
+      if (memberIds.includes(entry.receipt.loyalty_member_id)) correctedRows.push(entry.source_type === "order" ? posMapper(entry.receipt) : webMapper(entry.receipt));
     }
     const rows = dedupeRows([...correctedRows, ...candidates.filter((row) => !removedIds.has(row.id))]);
     return Response.json({ rows });

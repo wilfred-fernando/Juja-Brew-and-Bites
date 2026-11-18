@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {splitInventoryQuantity as split,combineInventoryQuantity as combine,inventorySmallQuantity as small,inventoryStorageQuantity as stored} from '../lib/inventoryUnitReference.mjs';
+const pc={unit:'pc',bulk_unit:'pack',small_unit:'pc',units_per_bulk:100};
+assert.equal(split(pc,250).bulk,2);assert.equal(split(pc,250).small,50);assert.equal(combine(pc,2,50),250);assert.equal(stored(pc,2,'pack'),200);assert.equal(small(pc,250,'pc'),250);
+const pack={...pc,unit:'pack'};assert.equal(split(pack,2.5).bulk,2);assert.equal(split(pack,2.5).small,50);assert.equal(combine(pack,2,50),2.5);assert.equal(stored(pack,7,'pc'),0.07);
+const metric={unit:'gram',bulk_unit:'kg',small_unit:'gram',units_per_bulk:1000};assert.equal(split(metric,1250).small,250);assert.equal(combine(metric,1,250),1250);
+assert.equal(split({unit:'pc'},250).bulk,0);assert.equal(split({unit:'pc'},250).small,250);
+assert.equal(split({unit:'pack'},2.5,{reference_unit:'pc',reference_quantity:100}).small,50);
+assert.equal(combine(pc,-2,-50),-250);assert.equal(split(pc,-250).small,-50);
+assert.equal(split(pc,299.999999).bulk,3);assert.equal(split(pc,299.999999).small,0);
+console.log('PASS: bulk/small placement, quantity round trips, small-only items, metric and legacy references, negative adjustments, full POS small-unit count.');
