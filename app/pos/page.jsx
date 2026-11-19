@@ -857,6 +857,28 @@ function wrapLabelCanvasText(ctx, text, maxWidth) {
   return lines;
 }
 
+function drawCupLabelDetails(ctx, { itemName, detailLines, x, y, width, bottom, itemSize, detailSize, fontFamily }) {
+  const values = [itemName, ...detailLines];
+  let ratio = 1, blocks;
+  while (ratio > 0) {
+    blocks = values.map((value, index) => {
+      const size = Math.max(1, Math.floor((index === 0 ? itemSize : detailSize) * ratio));
+      ctx.font = `${index === 0 ? 800 : 500} ${size}px ${fontFamily}`;
+      const lines = wrapLabelCanvasText(ctx, normalizeLabelLine(value), width);
+      return { size, lines, fits: lines.every(line => ctx.measureText(line).width <= width) };
+    });
+    const height = blocks.reduce((sum, block) => sum + block.lines.length * block.size * 1.2 + 3, 0);
+    if (height <= bottom - y && blocks.every(block => block.fits)) break;
+    ratio = Math.round((ratio - .05) * 100) / 100;
+  }
+  if (ratio <= 0) throw new Error("Too many cup label details. Use a larger sticker size.");
+  blocks.forEach((block, index) => {
+    ctx.font = `${index === 0 ? 800 : 500} ${block.size}px ${fontFamily}`;
+    block.lines.forEach(line => { ctx.fillText(line, x, y); y += block.size * 1.2; });
+    y += 3;
+  });
+}
+
 function createNiimbotCupLabelCanvas(text) {
   if (typeof document === "undefined") throw new Error("Label rendering is only available in the browser.");
   const canvas = document.createElement("canvas");
@@ -918,14 +940,8 @@ function createNiimbotCupLabelCanvas(text) {
   ctx.stroke();
   y += 20;
 
-  drawWrapped(itemName, "800 42px Arial, sans-serif", 48, 2);
-  y += 4;
-
-  detailLines.forEach((line) => {
-    const isNote = /^note:/i.test(line);
-    drawWrapped(line, `${isNote ? "700" : "500"} ${isNote ? 31 : 34}px Arial, sans-serif`, isNote ? 37 : 38, isNote ? 2 : 1);
-    y += isNote ? 4 : 0;
-  });
+  drawCupLabelDetails(ctx, { itemName, detailLines, x: margin, y, width, bottom: canvas.height - 72,
+    itemSize: 42, detailSize: 26, fontFamily: "Arial, sans-serif" });
 
   const footerY = canvas.height - 48;
   ctx.strokeStyle = "#000000";
@@ -1030,18 +1046,8 @@ function createCt221bCupLabelCanvas(text) {
   drawRule(y + 1);
   y += 12;
 
-  drawWrapped(itemName, '700 32px "Arial Narrow", Arial, sans-serif', 36, 2);
-  y += 3;
-  detailLines.forEach((line) => {
-    if (y > 260) return;
-    const isNote = /^note:/i.test(line);
-    drawWrapped(
-      line,
-      `${isNote ? 700 : 500} ${isNote ? 22 : 25}px "Arial Narrow", Arial, sans-serif`,
-      isNote ? 26 : 28,
-      isNote ? 2 : 1
-    );
-  });
+  drawCupLabelDetails(ctx, { itemName, detailLines, x: leftMargin, y, width: contentWidth, bottom: 278,
+    itemSize: 32, detailSize: 20, fontFamily: '"Arial Narrow", Arial, sans-serif' });
 
   const footerRuleY = 284;
   drawRule(footerRuleY);
