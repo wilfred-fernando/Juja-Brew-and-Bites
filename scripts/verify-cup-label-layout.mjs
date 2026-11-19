@@ -31,13 +31,16 @@ for (const kind of ['ct221b', 'niimbot']) {
     for (const note of ['Less ice', 'Please pack separately, no ice, extra black pearl and cheesecake. '.repeat(5)]) {
       const canvas = await createCupLabelCanvas(`Juja Brew & Bites\nSHOPEEFOOD 148\nCocoa Sea Salt Milk Tea\nLarge\n50% sugar, Black Pearl, Cheesecake\nNote: ${note}\n19/11/2026 11:19|P4767798`, getCupLabelSize({ label_size }, kind));
       const qr = calls.find(call => call.qr);
+      const safeRight = canvas.width - Math.ceil(getCupLabelSize({ label_size }, kind).dpi / 25.4 * 4.5);
+      assert(qr.x + qr.w <= safeRight, 'QR exceeds printer safe width');
       for (const call of calls.filter(call => !call.qr)) {
         assert(call.x + call.w <= qr.x || call.x >= qr.x + qr.w || call.y + call.h <= qr.y || call.y >= qr.y + qr.h, `Text overlaps QR: ${call.text}`);
-        assert(call.x >= 0 && call.x + call.w <= canvas.width + 1 && call.y + call.h <= canvas.height, 'Text exceeds label');
+        assert(call.x >= 0 && call.x + call.w <= safeRight + 1 && call.y + call.h <= canvas.height, 'Text exceeds printer safe area');
       }
       assert(calls.some(call => call.text === 'Customer Portal'));
       const itemCall = calls.find(call => call.text.startsWith('Cocoa'));
       assert(calls.find(call => call.text === 'Large').h < itemCall.h, 'Options must be smaller than item name');
+      assert(calls.find(call => call.text === 'Large').h >= Math.floor(itemCall.h * .8), 'Options should use enlarged font');
     }
   }
 }
