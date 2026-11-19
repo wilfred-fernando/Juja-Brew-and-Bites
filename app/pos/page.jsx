@@ -32,6 +32,7 @@ import { queueKdsAdditions, retryKdsAdditions } from "@/lib/kdsOutbox";
 import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib/loyalty/annualReset";
 import { isWelcomeVoucher, WELCOME_VOUCHER_REWARD_TEXT } from "@/lib/loyalty/welcomeVoucher";
 import { welcomeVoucherDiscount, welcomeVoucherSelectionError, welcomeVoucherSettlementError, welcomeVoucherPaidPartnerExclusions } from "@/lib/posWelcomeVoucher";
+import { createCupLabelCanvas } from "@/lib/cupLabelCanvas.mjs";
 import { loyaltyEligibleLineTotal } from "@/lib/menuPromos";
 import { ensureNativeNotificationPermission, isNativeApp, showNativeNotification } from "@/lib/nativeNotifications";
 import {
@@ -958,8 +959,8 @@ function createNiimbotCupLabelCanvas(text) {
   return canvas;
 }
 
-function renderNiimbotCupLabelImage(text, cfg = {}) {
-  const canvas = resizeLabelCanvas(createNiimbotCupLabelCanvas(text), getCupLabelSize(cfg));
+async function renderNiimbotCupLabelImage(text, cfg = {}) {
+  const canvas = await createCupLabelCanvas(text, getCupLabelSize(cfg));
   return canvas.toDataURL("image/png");
 }
 
@@ -1059,10 +1060,10 @@ function createCt221bCupLabelCanvas(text) {
   return canvas;
 }
 
-function buildCt221bCupLabelBytes(text, cfg = {}) {
+async function buildCt221bCupLabelBytes(text, cfg = {}) {
   const encoder = new TextEncoder();
   const size = getCupLabelSize(cfg, "ct221b");
-  const canvas = resizeLabelCanvas(createCt221bCupLabelCanvas(text), size);
+  const canvas = await createCupLabelCanvas(text, size);
   const { buf, stride, height } = niimbotCanvasToPacked(canvas);
   const invertedBitmap = new Uint8Array(buf.length);
   for (let index = 0; index < buf.length; index += 1) {
@@ -1088,7 +1089,7 @@ function buildCt221bCupLabelBytes(text, cfg = {}) {
 }
 
 async function printCt221bCupLabel(text, cfg) {
-  const bytes = buildCt221bCupLabelBytes(text, cfg);
+  const bytes = await buildCt221bCupLabelBytes(text, cfg);
   if (isNativeBluetoothApp()) {
     await printNativeClassicCt221b(bytes, cfg);
     return true;
@@ -1264,7 +1265,7 @@ async function printNativeNiimbotCupLabel(text, cfg) {
     }
   };
 
-  const canvas = resizeLabelCanvas(createNiimbotCupLabelCanvas(text), getCupLabelSize(cfg));
+  const canvas = await createCupLabelCanvas(text, getCupLabelSize(cfg));
   const packed = niimbotCanvasToPacked(canvas);
   const width = canvas.width;
   const height = canvas.height;
@@ -1323,7 +1324,7 @@ async function printNiimbotCupLabel(text, cfg) {
     return printNativeNiimbotCupLabel(text, cfg);
   }
   const Niimbot = await getNiimbotDriver();
-  const imageUrl = renderNiimbotCupLabelImage(text, cfg);
+  const imageUrl = await renderNiimbotCupLabelImage(text, cfg);
   await withRememberedNiimbotDevice(cfg, () =>
     Niimbot.printImage(imageUrl, {
       model: NIIMBOT_B1_PRO_MODEL,
