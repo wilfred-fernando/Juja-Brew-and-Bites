@@ -1797,14 +1797,14 @@ function buildReceiptText({
 }
 
 function buildOrderSlipText({ orderId, cart, diningOptionName, customerName, total, printedAt, slipTitle = "ORDER SLIP" }) {
+  const customer = normalizeLabelLine(customerName);
   const lines = [
     centerReceiptText(slipTitle),
-    centerReceiptText(normalizeLabelLine(diningOptionName || "POS ORDER").toUpperCase()),
+    ...(customer ? [centerReceiptText(customer)] : []),
     receiptLine(),
     `Order: ${orderId || "-"}`,
+    `Dining: ${normalizeLabelLine(diningOptionName || "POS ORDER").toUpperCase()}`,
   ];
-  const customer = normalizeLabelLine(customerName);
-  if (customer) lines.push(`Customer: ${customer}`);
   lines.push(receiptLine());
 
   (cart || []).forEach((x) => {
