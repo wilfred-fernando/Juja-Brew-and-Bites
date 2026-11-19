@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
-import { createCupLabelCanvas } from '../lib/cupLabelCanvas.mjs';
+import { createCupLabelCanvas, wrapCupLabelText } from '../lib/cupLabelCanvas.mjs';
 import { getCupLabelSize } from '../lib/printerLabelSize.mjs';
+
+const wordContext = { measureText: value => ({ width: value.length }) };
+assert.deepEqual(wrapCupLabelText(wordContext, 'Strawberry Vanilla Frappe', 22), ['Strawberry Vanilla', 'Frappe']);
+assert.deepEqual(wrapCupLabelText(wordContext, 'Cocoa Cheesecake Milk Tea', 19), ['Cocoa Cheesecake', 'Milk Tea']);
+assert.deepEqual(wrapCupLabelText(wordContext, 'Extraordinary', 5), ['Extraordinary']);
 
 globalThis.Image = class { set src(value) { queueMicrotask(() => this.onload()); } };
 let calls;
