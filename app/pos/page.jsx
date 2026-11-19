@@ -8,7 +8,7 @@ import ChargedDiningOptionDialog from "@/components/pos/ChargedDiningOptionDialo
 import { saveMenuAvailability, applyMenuAvailability, updateCatalogAvailability, updateCatalogOptionAvailability } from "@/lib/menuAvailability.mjs";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
 import PrinterSetupCard from "@/components/pos/PrinterSetupCard";
-import { getCupLabelSize, printerMediaKey } from "@/lib/printerLabelSize.mjs";
+import { getCupLabelSize, resizeLabelCanvas, printerMediaKey } from "@/lib/printerLabelSize.mjs";
 import AvailabilityCategoryNav from "@/components/pos/AvailabilityCategoryNav";
 import { receiptPointsEarned } from "@/lib/loyalty/receiptPoints.mjs";
 import { initialItemSelections } from "@/lib/posItemSelections.mjs";
@@ -32,7 +32,6 @@ import { queueKdsAdditions, retryKdsAdditions } from "@/lib/kdsOutbox";
 import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib/loyalty/annualReset";
 import { isWelcomeVoucher, WELCOME_VOUCHER_REWARD_TEXT } from "@/lib/loyalty/welcomeVoucher";
 import { welcomeVoucherDiscount, welcomeVoucherSelectionError, welcomeVoucherSettlementError, welcomeVoucherPaidPartnerExclusions } from "@/lib/posWelcomeVoucher";
-import { createCupLabelCanvas } from "@/lib/cupLabelCanvas.mjs";
 import { loyaltyEligibleLineTotal } from "@/lib/menuPromos";
 import { ensureNativeNotificationPermission, isNativeApp, showNativeNotification } from "@/lib/nativeNotifications";
 import {
@@ -858,8 +857,93 @@ function wrapLabelCanvasText(ctx, text, maxWidth) {
   return lines;
 }
 
-async function renderNiimbotCupLabelImage(text, cfg = {}) {
-  const canvas = await createCupLabelCanvas(text, getCupLabelSize(cfg));
+function createNiimbotCupLabelCanvas(text) {
+  if (typeof document === "undefined") throw new Error("Label rendering is only available in the browser.");
+  const canvas = document.createElement("canvas");
+  canvas.width = NIIMBOT_50X40_LABEL_SIZE.w_px;
+  canvas.height = NIIMBOT_50X40_LABEL_SIZE.h_px;
+  canvas.style.width = `${NIIMBOT_50X40_LABEL_SIZE.w_mm}mm`;
+  canvas.style.height = `${NIIMBOT_50X40_LABEL_SIZE.h_mm}mm`;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Unable to create cup label canvas.");
+
+  const margin = 24;
+  const width = canvas.width - margin * 2;
+  const lines = String(text || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const storeName = lines[0] || "JUJA BREW & BITES";
+  const dining = lines[1] || "ORDER";
+  const itemName = lines[2] || "Item";
+  const footerRaw = lines[lines.length - 1] || `#ORDER|${formatCupLabelDateTime(new Date())}`;
+  const [footerLeftRaw, footerRightRaw] = footerRaw.split("|");
+  const footerLeft = normalizeLabelLine(footerLeftRaw || "");
+  const footerRight = normalizeLabelLine(footerRightRaw || "");
+  const detailLines = lines.slice(3, -1).filter((line) => line !== "---");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#000000";
+  ctx.textBaseline = "top";
+
+  let y = 12;
+  const drawFitSingleLine = (value, weight, startSize, minSize, lineHeight) => {
+    const textValue = normalizeLabelLine(value);
+    let size = startSize;
+    do {
+      ctx.font = `${weight} ${size}px Arial, sans-serif`;
+      if (ctx.measureText(textValue).width <= width || size <= minSize) break;
+      size -= 2;
+    } while (size >= minSize);
+    const textWidth = ctx.measureText(textValue).width;
+    ctx.fillText(textValue, margin + Math.max(0, (width - textWidth) / 2), y);
+    y += lineHeight;
+  };
+
+  const drawWrapped = (value, font, lineHeight, maxLines = 4) => {
+    ctx.font = font;
+    const wrapped = wrapLabelCanvasText(ctx, value, width).slice(0, maxLines);
+    wrapped.forEach((line) => {
+      ctx.fillText(line, margin, y);
+      y += lineHeight;
+    });
+  };
+
+  drawFitSingleLine(storeName, 700, 26, 14, 31);
+  drawWrapped(dining, "800 49px Arial, sans-serif", 54, 1);
+  y += 5;
+
+  ctx.strokeStyle = "#000000";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(margin, y);
+  ctx.lineTo(canvas.width - margin, y);
+  ctx.stroke();
+  y += 20;
+
+  drawWrapped(itemName, "800 42px Arial, sans-serif", 48, 2);
+  y += 4;
+
+  detailLines.forEach((line) => {
+    const isNote = /^note:/i.test(line);
+    drawWrapped(line, `${isNote ? "700" : "500"} ${isNote ? 31 : 34}px Arial, sans-serif`, isNote ? 37 : 38, isNote ? 2 : 1);
+    y += isNote ? 4 : 0;
+  });
+
+  const footerY = canvas.height - 48;
+  ctx.strokeStyle = "#000000";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(margin, footerY - 16);
+  ctx.lineTo(canvas.width - margin, footerY - 16);
+  ctx.stroke();
+
+  ctx.font = "500 28px Arial, sans-serif";
+  ctx.fillText(footerLeft, margin, footerY);
+  const rightWidth = ctx.measureText(footerRight).width;
+  ctx.fillText(footerRight, canvas.width - margin - rightWidth, footerY);
+  return canvas;
+}
+
+function renderNiimbotCupLabelImage(text, cfg = {}) {
+  const canvas = resizeLabelCanvas(createNiimbotCupLabelCanvas(text), getCupLabelSize(cfg));
   return canvas.toDataURL("image/png");
 }
 
@@ -890,10 +974,89 @@ function fitTsplSingleLine(value, maxChars) {
   return `${clean.slice(0, Math.max(0, maxChars - 1)).trimEnd()}.`;
 }
 
-async function buildCt221bCupLabelBytes(text, cfg = {}) {
+function createCt221bCupLabelCanvas(text) {
+  if (typeof document === "undefined") throw new Error("Label rendering is only available in the browser.");
+  const canvas = document.createElement("canvas");
+  canvas.width = CT221B_53X40_LABEL_SIZE.w_dots;
+  canvas.height = CT221B_53X40_LABEL_SIZE.h_dots;
+  canvas.style.width = `${CT221B_53X40_LABEL_SIZE.w_mm}mm`;
+  canvas.style.height = `${CT221B_53X40_LABEL_SIZE.h_mm}mm`;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Unable to create Clabel cup label canvas.");
+
+  const lines = String(text || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const storeName = lines[0] || "JUJA BREW & BITES";
+  const dining = lines[1] || "ORDER";
+  const itemName = lines[2] || "Item";
+  const footerRaw = lines[lines.length - 1] || `#ORDER|${formatCupLabelDateTime(new Date())}`;
+  const [footerLeftRaw, footerRightRaw] = footerRaw.split("|");
+  const footerLeft = normalizeLabelLine(footerLeftRaw || "");
+  const footerRight = normalizeLabelLine(footerRightRaw || "");
+  const detailLines = lines.slice(3, -1).filter((line) => line !== "---");
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#000000";
+  ctx.textBaseline = "top";
+
+  const leftMargin = CT221B_53X40_LABEL_SIZE.left_margin_dots;
+  const rightMargin = CT221B_53X40_LABEL_SIZE.right_margin_dots;
+  const contentWidth = canvas.width - leftMargin - rightMargin;
+  let y = 5;
+  const fitSingleLine = (value, weight, startSize, minSize, lineHeight) => {
+    const clean = normalizeLabelLine(value);
+    let size = startSize;
+    do {
+      ctx.font = `${weight} ${size}px "Arial Narrow", Arial, sans-serif`;
+      if (ctx.measureText(clean).width <= contentWidth || size <= minSize) break;
+      size -= 1;
+    } while (size >= minSize);
+    ctx.fillText(clean, leftMargin, y);
+    y += lineHeight;
+  };
+  const drawWrapped = (value, font, lineHeight, maxLines = 1) => {
+    ctx.font = font;
+    wrapLabelCanvasText(ctx, normalizeLabelLine(value), contentWidth).slice(0, maxLines).forEach((line) => {
+      ctx.fillText(line, leftMargin, y);
+      y += lineHeight;
+    });
+  };
+  const drawRule = (ruleY) => {
+    ctx.fillRect(leftMargin, ruleY, contentWidth, 2);
+  };
+
+  fitSingleLine(storeName, 500, 18, 13, 22);
+  fitSingleLine(dining, 700, 36, 26, 40);
+  drawRule(y + 1);
+  y += 12;
+
+  drawWrapped(itemName, '700 32px "Arial Narrow", Arial, sans-serif', 36, 2);
+  y += 3;
+  detailLines.forEach((line) => {
+    if (y > 260) return;
+    const isNote = /^note:/i.test(line);
+    drawWrapped(
+      line,
+      `${isNote ? 700 : 500} ${isNote ? 22 : 25}px "Arial Narrow", Arial, sans-serif`,
+      isNote ? 26 : 28,
+      isNote ? 2 : 1
+    );
+  });
+
+  const footerRuleY = 284;
+  drawRule(footerRuleY);
+  ctx.font = '500 20px "Arial Narrow", Arial, sans-serif';
+  ctx.fillText(footerLeft, leftMargin, 289);
+  const footerRightWidth = ctx.measureText(footerRight).width;
+  const footerDateOffset = 16;
+  ctx.fillText(footerRight, canvas.width - rightMargin - footerRightWidth - footerDateOffset, 289);
+  return canvas;
+}
+
+function buildCt221bCupLabelBytes(text, cfg = {}) {
   const encoder = new TextEncoder();
   const size = getCupLabelSize(cfg, "ct221b");
-  const canvas = await createCupLabelCanvas(text, size);
+  const canvas = resizeLabelCanvas(createCt221bCupLabelCanvas(text), size);
   const { buf, stride, height } = niimbotCanvasToPacked(canvas);
   const invertedBitmap = new Uint8Array(buf.length);
   for (let index = 0; index < buf.length; index += 1) {
@@ -919,7 +1082,7 @@ async function buildCt221bCupLabelBytes(text, cfg = {}) {
 }
 
 async function printCt221bCupLabel(text, cfg) {
-  const bytes = await buildCt221bCupLabelBytes(text, cfg);
+  const bytes = buildCt221bCupLabelBytes(text, cfg);
   if (isNativeBluetoothApp()) {
     await printNativeClassicCt221b(bytes, cfg);
     return true;
@@ -1095,7 +1258,7 @@ async function printNativeNiimbotCupLabel(text, cfg) {
     }
   };
 
-  const canvas = await createCupLabelCanvas(text, getCupLabelSize(cfg));
+  const canvas = resizeLabelCanvas(createNiimbotCupLabelCanvas(text), getCupLabelSize(cfg));
   const packed = niimbotCanvasToPacked(canvas);
   const width = canvas.width;
   const height = canvas.height;
@@ -1154,7 +1317,7 @@ async function printNiimbotCupLabel(text, cfg) {
     return printNativeNiimbotCupLabel(text, cfg);
   }
   const Niimbot = await getNiimbotDriver();
-  const imageUrl = await renderNiimbotCupLabelImage(text, cfg);
+  const imageUrl = renderNiimbotCupLabelImage(text, cfg);
   await withRememberedNiimbotDevice(cfg, () =>
     Niimbot.printImage(imageUrl, {
       model: NIIMBOT_B1_PRO_MODEL,
