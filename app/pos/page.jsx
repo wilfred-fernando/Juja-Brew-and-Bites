@@ -10890,7 +10890,7 @@ export default function POSPage() {
                     </div>
                     <div className="space-y-2">
                       {selectedReceiptItems.map((row, idx) => {
-                        const rowRefunded = row.refunded_at || String(row.status || "").toLowerCase().includes("refund");
+                        const rowRefunded = String(selectedReceipt.status || "").toLowerCase() === "refunded" || row.refunded_at || String(row.status || "").toLowerCase().includes("refund");
                         return (
                           <div key={`${row.receipt_number}-${row.item}-${idx}`} className={`flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-xl border p-2 ${rowRefunded ? "border-red-100 bg-red-50" : "border-slate-100 bg-white"}`}>
                             <div className="min-w-0">
@@ -10907,7 +10907,7 @@ export default function POSPage() {
                                   {line}
                                 </p>
                               ))}
-                              <p className="text-[12px] font-semibold italic text-slate-400">Qty {row.quantity} · {peso2(row.net_sales || row.gross_sales || 0)} · {row.status || "Closed"}</p>
+                              <p className="text-[12px] font-semibold italic text-slate-400">Qty {row.quantity} · {peso2(row.net_sales || row.gross_sales || 0)} · {rowRefunded ? "Refunded" : row.status || "Closed"}</p>
                             </div>
                           </div>
                         );
