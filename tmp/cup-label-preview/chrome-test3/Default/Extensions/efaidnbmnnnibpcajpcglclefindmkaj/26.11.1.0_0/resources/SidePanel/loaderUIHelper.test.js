@@ -1,0 +1,18 @@
+/*************************************************************************
+* ADOBE CONFIDENTIAL
+* ___________________
+*
+*  Copyright 2015 Adobe Systems Incorporated
+*  All Rights Reserved.
+*
+* NOTICE:  All information contained herein is, and remains
+* the property of Adobe Systems Incorporated and its suppliers,
+* if any.  The intellectual and technical concepts contained
+* herein are proprietary to Adobe Systems Incorporated and its
+* suppliers and are protected by all applicable intellectual property laws,
+* including trade secret and or copyright laws.
+* Dissemination of this information or reproduction of this material
+* is strictly forbidden unless prior written permission is obtained
+* from Adobe Systems Incorporated.
+**************************************************************************/
+import{getGenAiPrerenderState as e,isPanelTourEligible as o,shouldLogPanelTourUnsupportedBrowser as n,supportsPanelTourPositioning as t,shouldShowTrefoilLoader as s}from"./loaderUIHelper.js";describe("Panel Tour loader selection",()=>{beforeEach(()=>{jest.clearAllMocks()}),it.each(["#/home","#/home?source=menu","#/all-tools","#/home/recent","#/"])("keeps the normal trefoil available on non-GenAI route %s",async o=>{const n=await e(o);expect(n).toBeNull(),expect(s(n)).toBe(!0)}),it("keeps the GenAI trefoil unless its existing snapshot replaces it",()=>{expect(s({showPreRendered:!1})).toBe(!0),expect(s({showPreRendered:!0})).toBe(!1)}),it.each(["extensionPDFViewer","acrobatWeb"])("does not select the Home intro when #/home resolves to Viewer Home for %s",e=>{expect(o({isHomeOnboardingEnabled:!0,isSidePanelHomeEnabled:!0,isHomeRoute:!0,homeOnboardingTourShown:"",supportsPanelTourPositioning:!0,hostPageType:e})).toBe(!1)}),it("requires both anchor naming and position fallbacks",()=>{const e=jest.fn(e=>"anchor-name"===e);expect(t({supports:e})).toBe(!1),expect(e).toHaveBeenCalledWith("position-try-fallbacks","flip-block")}),it("supports the tour when both required CSS capabilities are available",()=>{expect(t({supports:jest.fn(()=>!0)})).toBe(!0)}),it.each([["onboarding disabled",!1,!0,!0,"",!0],["Home disabled",!0,!1,!0,"",!0],["non-Home route",!0,!0,!1,"",!0],["unsupported browser",!0,!0,!0,"",!1],["tour already shown",!0,!0,!0,!0,!0],["malformed history",!0,!0,!0,"unexpected",!0]])("fails closed for %s",(e,n,t,s,i,a)=>{expect(o({isHomeOnboardingEnabled:n,isSidePanelHomeEnabled:t,isHomeRoute:s,homeOnboardingTourShown:i,supportsPanelTourPositioning:a})).toBe(!1)}),it.each(["",!1,"false"])("shows for an eligible first Home load with %p tour history",e=>{expect(o({isHomeOnboardingEnabled:!0,isSidePanelHomeEnabled:!0,isHomeRoute:!0,homeOnboardingTourShown:e,supportsPanelTourPositioning:!0,hostPageType:"default"})).toBe(!0)}),it("logs an unsupported-browser diagnostic only when every other tour gate passes",()=>{expect(n({isHomeOnboardingEnabled:!0,isSidePanelHomeEnabled:!0,isHomeRoute:!0,homeOnboardingTourShown:"",supportsPanelTourPositioning:!1})).toBe(!0)}),it.each([["browser supported",!0,!0,!0,"",!0],["onboarding disabled",!1,!0,!0,"",!1],["Home disabled",!0,!1,!0,"",!1],["non-Home route",!0,!0,!1,"",!1],["tour already shown",!0,!0,!0,!0,!1]])("does not log an unsupported-browser diagnostic when %s",(e,o,t,s,i,a)=>{expect(n({isHomeOnboardingEnabled:o,isSidePanelHomeEnabled:t,isHomeRoute:s,homeOnboardingTourShown:i,supportsPanelTourPositioning:a})).toBe(!1)})});

@@ -1,0 +1,18 @@
+/*************************************************************************
+* ADOBE CONFIDENTIAL
+* ___________________
+*
+*  Copyright 2015 Adobe Systems Incorporated
+*  All Rights Reserved.
+*
+* NOTICE:  All information contained herein is, and remains
+* the property of Adobe Systems Incorporated and its suppliers,
+* if any.  The intellectual and technical concepts contained
+* herein are proprietary to Adobe Systems Incorporated and its
+* suppliers and are protected by all applicable intellectual property laws,
+* including trade secret and or copyright laws.
+* Dissemination of this information or reproduction of this material
+* is strictly forbidden unless prior written permission is obtained
+* from Adobe Systems Incorporated.
+**************************************************************************/
+import{getUpsellUrlStateIdentifier as e,normalizeUpsellUrlState as t}from"./upsell-url-state.js";const s=["email","edit","error","password","accountchooser","business","chooser","faq","id","plans"];describe("upsell URL state",()=>{it.each([["https://example.com/store/payment","payment"],["https://example.com/store/payment?items=example","payment-items"],["https://example.com/store/confirmation","confirmation"],["https://example.com/paywall.html","paywall"],["https://example.com/deeplink.htm","deeplink"],["https://example.com/sign-in.html?main_op=ims_modal_signin_success","sign-in"],["chrome-extension://example/viewer.html","viewer"],["https://example.com/#/susi?ctx=example","susi"],["https://example.com/#/store/payment?access_token=fake","payment"],["https://example.com/#/susi?next=/access_token=fake","susi"],["https://example.com/#/susi#access_token=fake","susi"],["https://example.com/sign-in.html?access_token=fake","sign-in"],["https://example.com/sign-in.html#access_token=fake&refresh_token=fake","sign-in"],["https://example.com/sign-in.html?main_op=validate&pdfUrl=https%3A%2F%2Fexample.com%2Fsign-in.html%3Fmain_op%3Dims_modal_signin_success#old_hash=main_op=signin&from_ims=true&scope=AdobeID,openid#access_token=eyJ.fake.signature&token_type=bearer&state=%7B%22nonce%22%3A%22fake%22%7D","sign-in"]])("maps %s to the static label %s",(t,s)=>{expect(e(t)).toBe(s)}),it.each(s)("recognizes the reviewed route %s without retaining its payload",s=>{const a=`https://example.com/#/auth/${s}?next=/access_token=fake#refresh_token=fake`;expect(e(`https://example.com/auth/${s}.html?email=fake@example.com#access_token=fake`)).toBe(s),expect(e(a)).toBe(s),expect(e(`https://example.com/auth/${s}=fake`)).toBe("unknown"),expect(t(`${s}?access_token=fake`)).toBe("unknown")}),it.each(["https://example.com/access_token=fake","https://example.com/fake-token-in-path","https://example.com/#/access_token=fake","https://example.com/#/id_token=fake","https://example.com/#/refresh_token=fake/part","https://example.com/#/%61ccess_token%3Dfake","https://example.com/#/unrecognized-route?access_token=fake","https://example.com/","about:blank","invalid-url","",null,void 0,{}])("returns unknown without retaining unrecognized input (%s)",t=>{expect(e(t)).toBe("unknown")}),it.each(["payment","payment-items","confirmation","paywall","deeplink","sign-in","susi","viewer","unknown",...s])("preserves the approved label %s",e=>{expect(t(e)).toBe(e)}),it.each(["#access_token=fake","payment?access_token=fake","fake","",null,void 0,{}])("rejects unapproved state (%s)",e=>{expect(t(e)).toBe("unknown")})});

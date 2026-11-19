@@ -1,0 +1,18 @@
+/*************************************************************************
+* ADOBE CONFIDENTIAL
+* ___________________
+*
+*  Copyright 2015 Adobe Systems Incorporated
+*  All Rights Reserved.
+*
+* NOTICE:  All information contained herein is, and remains
+* the property of Adobe Systems Incorporated and its suppliers,
+* if any.  The intellectual and technical concepts contained
+* herein are proprietary to Adobe Systems Incorporated and its
+* suppliers and are protected by all applicable intellectual property laws,
+* including trade secret and or copyright laws.
+* Dissemination of this information or reproduction of this material
+* is strictly forbidden unless prior written permission is obtained
+* from Adobe Systems Incorporated.
+**************************************************************************/
+import{contractView as e}from"./catalog-views.js";export const remainingReceiverRuntimeLegs=[e("html_menu","panel_op","runtime-message","ch-content-script:panel",["op","discriminatorField","schema","targetEndpoint","allowedSenderTiers"]),e("pdf_menu","panel_op","runtime-message","ch-content-script:panel",["op","discriminatorField","schema","targetEndpoint","allowedSenderTiers"]),e("status","panel_op","runtime-message","ch-content-script:panel",["op","discriminatorField","schema","targetEndpoint","allowedSenderTiers"]),e("test","panel_op","runtime-message","ch-content-script:panel",["op","discriminatorField","schema","targetEndpoint","allowedSenderTiers"]),e("load-frictionless","panel_op","runtime-message","ch-content-script:panel",["op","discriminatorField","schema","targetEndpoint","allowedSenderTiers"]),e("load-downloadBanner","panel_op","runtime-message","ch-content-script:panel",["op","discriminatorField","schema","targetEndpoint","allowedSenderTiers"]),e("OPTIONS_HIGHLIGHT_SECTION","requestType","runtime-message","legacy-options:runtime",["op","discriminatorField","schema","targetEndpoint","allowedSenderTiers"]),e("OPTIONS_UPDATE_TOGGLE","requestType","runtime-message","legacy-options:runtime",["op","discriminatorField","schema","targetEndpoint","allowedSenderTiers"]),e("test","panel_op","runtime-message","legacy-options:runtime",["op","discriminatorField","schema","targetEndpoint","allowedSenderTiers"]),e("search-widget-init","frame_op","runtime-message","search-widget:init",["op","discriminatorField","schema","targetEndpoint","allowedSenderTiers"]),e("load-frictionless","panel_op","runtime-message","search-widget:runtime",["op","schema","discriminatorField","targetEndpoint","allowedSenderTiers"]),e("show-frictionless-error","panel_op","runtime-message","search-widget:runtime",["op","schema","discriminatorField","targetEndpoint","allowedSenderTiers"]),e("clear-frictionless-error","panel_op","runtime-message","search-widget:runtime",["op","schema","discriminatorField","targetEndpoint","allowedSenderTiers"]),e("send-external-msg","panel_op","runtime-message","search-widget:runtime",["op","schema","discriminatorField","targetEndpoint","allowedSenderTiers"]),e("emit-perf-data","main_op","runtime-message","add-webpage-to-project",["op","discriminatorField","schema","targetEndpoint","allowedSenderTiers"]),e("complete_conversion","content_op","runtime-message","ch-content-script",["op","discriminatorField","targetEndpoint","schema","allowedSenderTiers"]),e("update-height","content_op","runtime-message","ch-content-script",["op","discriminatorField","targetEndpoint","schema","allowedSenderTiers"]),e("clearRenderPrompt","action","runtime-message","show-one-child",["op","discriminatorField","targetEndpoint","schema","allowedSenderTiers"]),e("scan-session-update","content_op","runtime-message","magic-scan-core",["op","discriminatorField","targetEndpoint","schema","allowedSenderTiers"])];

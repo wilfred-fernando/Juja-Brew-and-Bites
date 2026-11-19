@@ -1,0 +1,18 @@
+/*************************************************************************
+* ADOBE CONFIDENTIAL
+* ___________________
+*
+*  Copyright 2015 Adobe Systems Incorporated
+*  All Rights Reserved.
+*
+* NOTICE:  All information contained herein is, and remains
+* the property of Adobe Systems Incorporated and its suppliers,
+* if any.  The intellectual and technical concepts contained
+* herein are proprietary to Adobe Systems Incorporated and its
+* suppliers and are protected by all applicable intellectual property laws,
+* including trade secret and or copyright laws.
+* Dissemination of this information or reproduction of this material
+* is strictly forbidden unless prior written permission is obtained
+* from Adobe Systems Incorporated.
+**************************************************************************/
+import{contractView as e}from"./catalog-views.js";export const legacyMainOpContracts=[e("setupOffscreenDocument","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("getEnvironment","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("uploadToGoogleDrive","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("isUserSignedIn","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("relay_to_content","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("check-cookie","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("set-cookie","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("addExperimentCodeForAnalytics","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("isStudySpaceContextMenuEnabled","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("add-webpage-to-project","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("extnStorageSetKey","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("extnStorageRemoveKey","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("extnStorageGetKey","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("perf-start","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("dismiss","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("fgResponseFromCDN","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("fillsign","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("flickr","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("get-frictionless-url","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("goto_acom","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("ok","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("open_in_acrobat","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("resolve-has-pdf-promise","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("updateSignInStatus","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("userSubscriptions","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"]),e("get-acrobat-tools-url","main_op","runtime-message","communicate",["op","allowedSenderTiers","schema"])];

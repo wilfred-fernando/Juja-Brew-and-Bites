@@ -1,0 +1,18 @@
+/*************************************************************************
+* ADOBE CONFIDENTIAL
+* ___________________
+*
+*  Copyright 2015 Adobe Systems Incorporated
+*  All Rights Reserved.
+*
+* NOTICE:  All information contained herein is, and remains
+* the property of Adobe Systems Incorporated and its suppliers,
+* if any.  The intellectual and technical concepts contained
+* herein are proprietary to Adobe Systems Incorporated and its
+* suppliers and are protected by all applicable intellectual property laws,
+* including trade secret and or copyright laws.
+* Dissemination of this information or reproduction of this material
+* is strictly forbidden unless prior written permission is obtained
+* from Adobe Systems Incorporated.
+**************************************************************************/
+import e from"../CacheStore.js";import{common as t}from"../common.js";import{forceResetService as r}from"../force-reset-service.js";import{loggingApi as n}from"../../common/loggingApi.js";const s="lms-study-tools-config",o="lms-study-tools-v4",i=new e(s);let a=null;class l extends Error{constructor(e,t){super(e),this.reason=e,this.status=t}}const c=e=>["TimeoutError","AbortError"].includes(e?.name)?"timeout":"network_failure",u={actionsMenu:["menuSelector","triggerAttribute","rowSelector","linkSelector","pdfIconSelector"],pdfPreviewToolbar:["modalSelector","toolbarAnchorSelector","anchorContainerSelector","fileNameSelector","downloadLinkSelector"]};function f(e){if(!e?.surfaces||!1===e.enabled)return null;const t=e.eligibility,r=["includedDomains","excludedDomains"],n=/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;if(!t||"object"!=typeof t||Array.isArray(t)||!Array.isArray(t.includedDomains)||!r.every(e=>{const r=t[e];return void 0===r||Array.isArray(r)&&r.length<=1024&&r.every(e=>"string"==typeof e&&e.trim().length<=253&&n.test(e.trim().toLowerCase()))}))return null;const s=Object.fromEntries(r.filter(e=>void 0!==t?.[e]).map(e=>[e,t[e].map(e=>e.trim().toLowerCase())])),o={};return Object.entries(u).forEach(([t,r])=>{const n=e.surfaces[t];if(!n||!1===n.enabled||!r.every(e=>"string"==typeof n[e]&&n[e].length>0&&n[e].length<=1024))return;if("actionsMenu"===t&&!/^[a-z][a-z0-9-]*$/.test(n.triggerAttribute))return;const s="actionsMenu"===t?["prepend","append"]:["before","after"],i=n.placement||s[0];s.includes(i)&&(o[t]={...Object.fromEntries(r.map(e=>[e,n[e]])),placement:i})}),Object.keys(o).length?{eligibility:s,surfaces:o}:null}export function parseLmsConfig(e){if(2!==e?.version||!e.sites||"object"!=typeof e.sites||Array.isArray(e.sites))return null;const t=Object.fromEntries(Object.entries(e.sites).filter(([e])=>/^[a-z][a-z0-9-]{0,31}$/.test(e)).map(([e,t])=>[e,f(t)]).filter(([,e])=>e));return Object.keys(t).length?{version:2,sites:t}:null}export function getLmsConfig(e){return a||(a=async function(){const e=async()=>{let e,r;await i.set(o,null);try{e=await fetch(t.getLmsStudyToolsConfigUri(),{signal:AbortSignal.timeout(1e4)})}catch(e){throw new l(c(e))}if(!e.ok)throw new l("http_failure",e.status);try{r=await e.json()}catch(e){throw new l(e instanceof SyntaxError?"invalid_json":c(e))}const n=parseLmsConfig(r);if(!n)throw new l("invalid_schema");return await i.set(o,n),n},{executionResult:n}=await r.executeFeature(s,e);return n||parseLmsConfig(await i.get(o))||e()}().catch(e=>(n.warn({message:"LMS study tools configuration unavailable",reason:e instanceof l?e.reason:"unexpected_failure",...e instanceof l&&Number.isInteger(e.status)&&e.status>=100&&e.status<=599?{status:e.status}:{}}),null)).finally(()=>{a=null})),a.then(t=>t&&Object.hasOwn(t.sites,e)?{version:t.version,...t.sites[e]}:null)}
