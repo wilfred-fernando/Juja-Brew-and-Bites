@@ -959,8 +959,15 @@ function createNiimbotCupLabelCanvas(text) {
   return canvas;
 }
 
+async function createConfiguredCupLabelCanvas(text, cfg = {}, kind = "niimbot") {
+  const size = getCupLabelSize(cfg, kind);
+  if (size.key === "50x40") return createCupLabelCanvas(text, size);
+  const legacyCanvas = kind === "ct221b" ? createCt221bCupLabelCanvas(text) : createNiimbotCupLabelCanvas(text);
+  return resizeLabelCanvas(legacyCanvas, size);
+}
+
 async function renderNiimbotCupLabelImage(text, cfg = {}) {
-  const canvas = await createCupLabelCanvas(text, getCupLabelSize(cfg));
+  const canvas = await createConfiguredCupLabelCanvas(text, cfg);
   return canvas.toDataURL("image/png");
 }
 
@@ -1063,7 +1070,7 @@ function createCt221bCupLabelCanvas(text) {
 async function buildCt221bCupLabelBytes(text, cfg = {}) {
   const encoder = new TextEncoder();
   const size = getCupLabelSize(cfg, "ct221b");
-  const canvas = await createCupLabelCanvas(text, size);
+  const canvas = await createConfiguredCupLabelCanvas(text, cfg, "ct221b");
   const { buf, stride, height } = niimbotCanvasToPacked(canvas);
   const invertedBitmap = new Uint8Array(buf.length);
   for (let index = 0; index < buf.length; index += 1) {
@@ -1265,7 +1272,7 @@ async function printNativeNiimbotCupLabel(text, cfg) {
     }
   };
 
-  const canvas = await createCupLabelCanvas(text, getCupLabelSize(cfg));
+  const canvas = await createConfiguredCupLabelCanvas(text, cfg);
   const packed = niimbotCanvasToPacked(canvas);
   const width = canvas.width;
   const height = canvas.height;
