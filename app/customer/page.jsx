@@ -18,7 +18,7 @@ import { webDiningOptionLabel } from "@/lib/kds";
 import { applyAnnualPointResetToMember, resetMemberPointsIfExpired } from "@/lib/loyalty/annualReset";
 import { isBirthdayVoucher } from "@/lib/loyalty/birthdayVoucher";
 import { isWelcomeVoucher, WELCOME_VOUCHER_REWARD_TEXT } from "@/lib/loyalty/welcomeVoucher";
-import { findVoucherForMenuItem, isPromoCategoryName, isPromoMenuItem, isVoucherAvailable, loyaltyEligibleLineTotal } from "@/lib/menuPromos";
+import { findVoucherForMenuItem, isPromoMenuItem, isVoucherAvailable, loyaltyEligibleLineTotal } from "@/lib/menuPromos";
 import { menuCardPrice } from "@/lib/menuPricing";
 import { isMenuCategoryVisibleToCustomers, isMenuItemVisibleToCustomers } from "@/lib/menuVisibility";
 import {
@@ -1535,21 +1535,21 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
     [selectedBranch, cats, itemStoreAvailability, categoryStoreAvailability]
   );
 
+  const branchMenuItems = useMemo(() => items
+    .filter(isMenuItemVisibleToCustomers)
+    .filter(availableAtBranch)
+    .filter(item => !isPromoMenuItem(item) || !!findVoucherForMenuItem(activeVouchers, item)),
+  [items, availableAtBranch, activeVouchers]);
+
   const visibleCategories = useMemo(() => {
+    const categoriesWithItems = new Set(branchMenuItems.map(item => item.category));
     return cats
-      .filter((cat) => {
+      .filter(cat => {
         const isGroupTrayCategory = ["group tray", "bento"].includes(String(cat.name || "").trim().toLowerCase());
-        if (groupTrayOnly !== isGroupTrayCategory) return false;
-        if (!selectedBranch) return true;
-        if (!isPromoCategoryName(cat.name)) return true;
-        return items.some(
-          (item) =>
-            String(item.category || "").toLowerCase() === String(cat.name || "").toLowerCase() &&
-            findVoucherForMenuItem(activeVouchers, item)
-        );
+        return groupTrayOnly === isGroupTrayCategory && categoriesWithItems.has(cat.name);
       })
       .sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" }));
-  }, [cats, selectedBranch, items, activeVouchers, groupTrayOnly]);
+  }, [cats, branchMenuItems, groupTrayOnly]);
 
   useEffect(() => {
     if (activeTab === "ALL") return;
@@ -1557,15 +1557,11 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
   }, [activeTab, visibleCategories]);
 
   const filteredItems = useMemo(() => {
-    return items
-      .filter(isMenuItemVisibleToCustomers)
-      .filter((i) => visibleCategories.some((cat) => cat.name === i.category))
-      .filter((i) => groupTrayOnly
-        ? ["group tray", "bento"].includes(String(i.category || "").trim().toLowerCase())
-        : activeTab === "ALL" || i.category === activeTab)
-      .filter((i) => (!isPromoMenuItem(i) ? true : !!findVoucherForMenuItem(activeVouchers, i)))
-      .filter((i) => (q ? (i.name || "").toLowerCase().includes(q) : true));
-  }, [items, visibleCategories, activeTab, q, activeVouchers, groupTrayOnly]);
+    const visibleCategoryNames = new Set(visibleCategories.map(cat => cat.name));
+    return branchMenuItems.filter(item => visibleCategoryNames.has(item.category)
+      && (activeTab === "ALL" || item.category === activeTab)
+      && (!q || (item.name || "").toLowerCase().includes(q)));
+  }, [branchMenuItems, visibleCategories, activeTab, q]);
 
   const filteredItemGroups = useMemo(() => {
     if (groupTrayOnly) {
