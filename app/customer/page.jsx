@@ -1585,12 +1585,9 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
       .filter((group) => group.items.length > 0);
   }, [activeTab, filteredItems, q, visibleCategories, groupTrayOnly]);
 
-  const isItemAvailableForSelectedStore = (item) =>
-    item.is_available !== false && item.available !== false && availableAtBranch(item);
-
   const isItemOrderable = (item) =>
     isMenuItemVisibleToCustomers(item) &&
-    isItemAvailableForSelectedStore(item) &&
+    availableAtBranch(item) &&
     (!isPromoMenuItem(item) || !!findVoucherForMenuItem(activeVouchers, item));
 
   const findUnavailableCartLine = () => cart.find(line => {

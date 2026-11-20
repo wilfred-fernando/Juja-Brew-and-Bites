@@ -1,4 +1,5 @@
 "use client";
+import { menuItemEnabledForBranch } from "@/lib/menuAvailability.mjs";
 import { optionTemplateKey } from "@/lib/optionGroupTemplates";
 
 import { useState, useEffect, useRef } from "react";
@@ -129,7 +130,7 @@ export default function MenuAdminPage() {
         const row = itemStoreAvailability.find(
           (entry) => String(entry.item_id) === String(item.id) && String(entry.store_id) === String(store.id)
         );
-        nextStoreAvailability[store.id] = row ? row.is_available !== false : true;
+        nextStoreAvailability[store.id] = menuItemEnabledForBranch(item, row?.is_available);
       });
       setStoreAvailability(nextStoreAvailability);
       storeAvailabilityAtOpen.current = { ...nextStoreAvailability };
@@ -614,7 +615,7 @@ export default function MenuAdminPage() {
                           const row = itemStoreAvailability.find(
                             (entry) => String(entry.item_id) === String(item.id) && String(entry.store_id) === String(store.id)
                           );
-                          return row ? row.is_available !== false : true;
+                          return menuItemEnabledForBranch(item, row?.is_available);
                         }).length}/{stores.length} stores
                       </span>
                     )}

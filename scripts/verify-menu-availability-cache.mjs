@@ -23,7 +23,8 @@ assert.equal(availableInDiliman({ id: 'item', category: 'Food' }), true);
 assert.equal(availableInPasongTamo({ id: 'other', category: 'Drinks' }), true);
 assert.equal(availableInDiliman({ id: 'other', category: 'Drinks' }), false);
 assert.equal(isMenuItemAvailableAtBranch({ is_available: true, store_is_available: false }), false);
-assert.equal(isMenuItemAvailableAtBranch({ is_available: false, store_is_available: true }), false);
+assert.equal(isMenuItemAvailableAtBranch({ is_available: false, store_is_available: true }), true);
+assert.equal(isMenuItemAvailableAtBranch({ is_available: false }), false);
 assert.equal(isMenuItemAvailableAtBranch({ is_available: true, store_is_available: true }), true);
 const branchSaved = { store_id: 'diliman', item_id: 'item', is_available: true };
 const branchUpdated = updateCatalogBranchAvailability({
@@ -35,6 +36,9 @@ assert.deepEqual(branchUpdated.rawItems, [old]);
 assert.equal(branchUpdated.items[0].is_available, false);
 assert.equal(branchUpdated.items[0].item_store_is_available, true);
 assert.equal(branchUpdated.items[0].store_is_available, false);
+const legacyDisabled = { ...old, category: 'Food' };
+assert.equal(branchMenuAvailability('diliman', categories, [branchSaved], categoryRules)(legacyDisabled), true);
+assert.equal(branchMenuAvailability('pasong-tamo', categories, [branchSaved], categoryRules)(legacyDisabled), false);
 const client = { from: table => {
   assert.equal(table, 'menu_item_store_availability');
   return { upsert: row => {
