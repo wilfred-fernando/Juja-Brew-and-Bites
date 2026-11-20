@@ -1,7 +1,7 @@
 "use client";
 import { optionTemplateKey } from "@/lib/optionGroupTemplates";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
 const supabase = getSupabaseClient();
@@ -37,6 +37,8 @@ export default function MenuAdminPage() {
   const [categories, setCategories] = useState([]);
   const [stores, setStores] = useState([]);
   const [itemStoreAvailability, setItemStoreAvailability] = useState([]);
+  const [storeAvailability, setStoreAvailability] = useState({});
+  const storeAvailabilityAtOpen = useRef({});
   const [availabilityNotice, setAvailabilityNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -122,6 +124,16 @@ export default function MenuAdminPage() {
 
     if (item) {
       setEditingItem(item);
+      const nextStoreAvailability = {};
+      stores.forEach((store) => {
+        const row = itemStoreAvailability.find(
+          (entry) => String(entry.item_id) === String(item.id) && String(entry.store_id) === String(store.id)
+        );
+        nextStoreAvailability[store.id] = row ? row.is_available !== false : true;
+      });
+      setStoreAvailability(nextStoreAvailability);
+      storeAvailabilityAtOpen.current = { ...nextStoreAvailability };
+
       // ✅ ADD: pos_only prefill
       setForm({
         name: item.name || "",
@@ -147,6 +159,8 @@ export default function MenuAdminPage() {
       );
     } else {
       setEditingItem(null);
+      setStoreAvailability(Object.fromEntries(stores.map(store => [store.id, true])));
+      storeAvailabilityAtOpen.current = {};
 
       // ✅ ADD: pos_only default false
       setForm({
@@ -201,6 +215,7 @@ export default function MenuAdminPage() {
       };
 
       let responseError = null;
+      let savedItemId = editingItem?.id;
 
       if (editingItem) {
         if (!editingItem.updated_at) throw new Error("Reload the item list before editing this item.");
@@ -213,11 +228,28 @@ export default function MenuAdminPage() {
         if (!error && !saved) throw new Error("This item changed on another device. Reopen the item editor before saving.");
         responseError = error;
       } else {
-        const { error } = await supabase.from("menu_items").insert([{ ...finalPayload, is_available: true }]);
+        const { data, error } = await supabase.from("menu_items").insert([{ ...finalPayload, is_available: true }]).select("id").single();
         responseError = error;
+        savedItemId = data?.id;
       }
 
       if (responseError) throw responseError;
+      if (savedItemId && stores.length > 0) {
+        const changedStores = stores.filter(store =>
+          (storeAvailability[store.id] !== false) !== (storeAvailabilityAtOpen.current[store.id] !== false)
+        );
+        const rows = changedStores.map((store) => ({
+          item_id: String(savedItemId),
+          store_id: String(store.id),
+          is_available: storeAvailability[store.id] !== false,
+          updated_at: new Date().toISOString(),
+        }));
+        const { error: availabilityError } = rows.length ? await supabase
+          .from("menu_item_store_availability")
+          .upsert(rows, { onConflict: "item_id,store_id" }) : { error: null };
+        if (availabilityError) throw availabilityError;
+      }
+
       await fetchData();
       setIsModalOpen(false);
     } catch (error) {
@@ -1059,6 +1091,45 @@ export default function MenuAdminPage() {
                     </div>
                   </div>
 
+                  <div className="rounded-xl border border-cyan-100 bg-cyan-50/40 p-4">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-cyan-800">Store Availability</p>
+                        <p className="mt-1 text-xs text-slate-500">Unchecked stores mark this item unavailable for ordering at that store.</p>
+                      </div>
+                      {stores.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setStoreAvailability(Object.fromEntries(stores.map((store) => [store.id, true])))}
+                          className="rounded-lg border border-cyan-200 bg-white/80 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-cyan-800"
+                        >
+                          All Stores
+                        </button>
+                      )}
+                    </div>
+                    {stores.length === 0 ? (
+                      <p className="text-xs text-slate-500">No active stores found.</p>
+                    ) : (
+                      <div className="grid gap-2 md:grid-cols-2">
+                        {stores.map((store) => (
+                          <label key={store.id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-white bg-white/85 p-3">
+                            <input
+                              type="checkbox"
+                              checked={storeAvailability[store.id] !== false}
+                              onChange={(e) =>
+                                setStoreAvailability((current) => ({
+                                  ...current,
+                                  [store.id]: e.target.checked,
+                                }))
+                              }
+                              className="h-4 w-4 accent-cyan-600"
+                            />
+                            <span className="text-xs font-medium text-slate-700">{store.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </form>
               ) : (
                 <div className="flex flex-col h-full animate-in fade-in duration-300 pb-2">
