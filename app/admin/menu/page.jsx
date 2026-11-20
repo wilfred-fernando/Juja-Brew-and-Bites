@@ -1,9 +1,7 @@
 "use client";
-import AvailabilityToggle from "@/components/AvailabilityToggle";
-import { saveMenuAvailability, applyMenuAvailability } from "@/lib/menuAvailability.mjs";
 import { optionTemplateKey } from "@/lib/optionGroupTemplates";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
 const supabase = getSupabaseClient();
@@ -36,15 +34,9 @@ function normalizeOptionForSave(option) {
 
 export default function MenuAdminPage() {
   const [items, setItems] = useState([]);
-  const [availabilityBusy, setAvailabilityBusy] = useState(false);
   const [categories, setCategories] = useState([]);
   const [stores, setStores] = useState([]);
   const [itemStoreAvailability, setItemStoreAvailability] = useState([]);
-  const [categoryStoreAvailability, setCategoryStoreAvailability] = useState([]);
-  const [storeAvailability, setStoreAvailability] = useState({});
-  const storeAvailabilityAtOpen = useRef({});
-  const [categoryAvailability, setCategoryAvailability] = useState({});
-  const categoryAvailabilityAtOpen = useRef({});
   const [availabilityNotice, setAvailabilityNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -62,7 +54,6 @@ export default function MenuAdminPage() {
     price: "",
     description: "",
     image_url: "",
-    is_available: true,
     is_featured: false,
     pos_only: false, ...visibilityFields(),
     grab_price: "",
@@ -102,13 +93,12 @@ export default function MenuAdminPage() {
   async function fetchData() {
     setLoading(true);
 
-    const [itemRes, catRes, templateRes, storeRes, availabilityRes, categoryAvailabilityRes] = await Promise.all([
+    const [itemRes, catRes, templateRes, storeRes, availabilityRes] = await Promise.all([
       supabase.from("menu_items").select("*").order("name"),
       supabase.from("menu_categories").select("*").order("name", { ascending: true }),
       supabase.from("option_group_templates").select("*").order("name"),
       supabase.from("stores").select("id, name, is_active").eq("is_active", true).order("name"),
       supabase.from("menu_item_store_availability").select("item_id, store_id, is_available"),
-      supabase.from("menu_category_store_availability").select("category_id, store_id, is_available"),
     ]);
 
     if (itemRes.data) setItems(itemRes.data);
@@ -116,13 +106,12 @@ export default function MenuAdminPage() {
     if (templateRes.data) setGroupTemplates(templateRes.data.filter((group) => !group.is_required && !/^variants?$/i.test(String(group.name || "").trim())));
     if (storeRes.data) setStores(storeRes.data);
     if (availabilityRes.error) {
-      setAvailabilityNotice("Run the new Supabase SQL setup to save store availability per item.");
+      setAvailabilityNotice("Branch availability could not be loaded.");
       setItemStoreAvailability([]);
     } else {
       setAvailabilityNotice("");
       setItemStoreAvailability(availabilityRes.data || []);
     }
-    setCategoryStoreAvailability(categoryAvailabilityRes.error ? [] : categoryAvailabilityRes.data || []);
 
     setLoading(false);
   }
@@ -133,16 +122,6 @@ export default function MenuAdminPage() {
 
     if (item) {
       setEditingItem(item);
-      const nextStoreAvailability = {};
-      stores.forEach((store) => {
-        const row = itemStoreAvailability.find(
-          (entry) => String(entry.item_id) === String(item.id) && String(entry.store_id) === String(store.id)
-        );
-        nextStoreAvailability[store.id] = row ? row.is_available !== false : true;
-      });
-      setStoreAvailability(nextStoreAvailability);
-      storeAvailabilityAtOpen.current = { ...nextStoreAvailability };
-
       // ✅ ADD: pos_only prefill
       setForm({
         name: item.name || "",
@@ -150,7 +129,6 @@ export default function MenuAdminPage() {
         price: item.price ?? "",
         description: item.description || "",
         image_url: item.image_url || "",
-        is_available: item.is_available !== false,
         is_featured: !!item.is_featured,
         pos_only: !!item.pos_only, ...visibilityFields(item),
         grab_price: item.grab_price ?? "",
@@ -169,7 +147,6 @@ export default function MenuAdminPage() {
       );
     } else {
       setEditingItem(null);
-      setStoreAvailability(Object.fromEntries(stores.map((store) => [store.id, true])));
 
       // ✅ ADD: pos_only default false
       setForm({
@@ -178,7 +155,6 @@ export default function MenuAdminPage() {
         price: "",
         description: "",
         image_url: "",
-        is_available: true,
         is_featured: false,
         pos_only: false, ...visibilityFields(),
         grab_price: "",
@@ -225,10 +201,8 @@ export default function MenuAdminPage() {
       };
 
       let responseError = null;
-      let savedItemId = editingItem?.id;
 
       if (editingItem) {
-        delete finalPayload.is_available;
         if (!editingItem.updated_at) throw new Error("Reload the item list before editing this item.");
         const { data: saved, error } = await supabase
           .from("menu_items")
@@ -239,25 +213,11 @@ export default function MenuAdminPage() {
         if (!error && !saved) throw new Error("This item changed on another device. Reopen the item editor before saving.");
         responseError = error;
       } else {
-        const { data, error } = await supabase.from("menu_items").insert([finalPayload]).select("id").maybeSingle();
+        const { error } = await supabase.from("menu_items").insert([{ ...finalPayload, is_available: true }]);
         responseError = error;
-        savedItemId = data?.id;
       }
 
       if (responseError) throw responseError;
-      if (savedItemId && stores.length > 0) {
-        const rows = stores.filter(store => !editingItem || (storeAvailability[store.id] !== false) !== (storeAvailabilityAtOpen.current[store.id] !== false)).map((store) => ({
-          item_id: String(savedItemId),
-          store_id: String(store.id),
-          is_available: storeAvailability[store.id] !== false,
-          updated_at: new Date().toISOString(),
-        }));
-        const { error: availabilityError } = rows.length ? await supabase
-          .from("menu_item_store_availability")
-          .upsert(rows, { onConflict: "item_id,store_id" }) : { error: null };
-        if (availabilityError) throw availabilityError;
-      }
-
       await fetchData();
       setIsModalOpen(false);
     } catch (error) {
@@ -267,25 +227,6 @@ export default function MenuAdminPage() {
       setSaving(false);
     }
   };
-
-  useEffect(() => {
-    const channel = supabase.channel("admin-menu-availability")
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "menu_items" }, ({ new: row }) => {
-        setItems((items) => items.map((item) => applyMenuAvailability(item, row)));
-      }).subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, []);
-
-  async function toggleAvailability(item) {
-    if (availabilityBusy) return;
-    setAvailabilityBusy(true);
-    try {
-      const available = item.is_available === false;
-      const saved = await saveMenuAvailability(supabase, item, available, "admin");
-      setItems((rows) => rows.map((row) => applyMenuAvailability(row, saved)));
-    } catch (error) { alert(error.message); await fetchData(); }
-    finally { setAvailabilityBusy(false); }
-  }
 
   // --- DELETE HANDLERS ---
   const confirmDeleteItem = (item) => setItemToDelete(item);
@@ -381,15 +322,6 @@ export default function MenuAdminPage() {
   const openCategoryModal = (cat = null) => {
     if (cat) {
       setEditingCategory(cat);
-      const nextCategoryAvailability = {};
-      stores.forEach((store) => {
-        const row = categoryStoreAvailability.find(
-          (entry) => String(entry.category_id) === String(cat.id) && String(entry.store_id) === String(store.id)
-        );
-        nextCategoryAvailability[store.id] = row ? row.is_available !== false : true;
-      });
-      setCategoryAvailability(nextCategoryAvailability);
-      categoryAvailabilityAtOpen.current = { ...nextCategoryAvailability };
       setCatForm({
         name: cat.name,
         is_active: cat.is_active,
@@ -398,7 +330,6 @@ export default function MenuAdminPage() {
       });
     } else {
       setEditingCategory(null);
-      setCategoryAvailability(Object.fromEntries(stores.map((store) => [store.id, true])));
       setCatForm({ name: "", is_active: true, pos_only: false, ...visibilityFields(), discount_entitlement_group: "" });
     }
     setIsCatModalOpen(true);
@@ -418,16 +349,14 @@ export default function MenuAdminPage() {
       if (editingCategory) {
         const { error } = await supabase.from("menu_categories").update(categoryPayload).eq("id", editingCategory.id);
         if (error) throw error;
-        await saveCategoryStoreAvailability(editingCategory.id);
 
         if (editingCategory.name !== catForm.name) {
           await supabase.from("menu_items").update({ category: catForm.name }).eq("category", editingCategory.name);
           if (catFilter === editingCategory.name) setCatFilter(catForm.name);
         }
       } else {
-        const { data, error } = await supabase.from("menu_categories").insert([categoryPayload]).select("id").maybeSingle();
+        const { error } = await supabase.from("menu_categories").insert([categoryPayload]);
         if (error) throw error;
-        if (data?.id) await saveCategoryStoreAvailability(data.id);
       }
 
       await fetchData();
@@ -439,21 +368,6 @@ export default function MenuAdminPage() {
       setCatSaving(false);
     }
   };
-
-  async function saveCategoryStoreAvailability(categoryId) {
-    if (!categoryId || stores.length === 0) return;
-    const rows = stores.filter(store => !editingCategory || (categoryAvailability[store.id] !== false) !== (categoryAvailabilityAtOpen.current[store.id] !== false)).map((store) => ({
-      category_id: String(categoryId),
-      store_id: String(store.id),
-      is_available: categoryAvailability[store.id] !== false,
-      updated_at: new Date().toISOString(),
-    }));
-    if (!rows.length) return;
-    const { error } = await supabase
-      .from("menu_category_store_availability")
-      .upsert(rows, { onConflict: "category_id,store_id" });
-    if (error) throw error;
-  }
 
   const filteredItems = items
     .filter((i) => catFilter === "All" || i.category === catFilter)
@@ -677,7 +591,6 @@ export default function MenuAdminPage() {
               </div>
 
               <div className="flex items-center justify-between md:justify-end w-full md:w-auto gap-3 md:gap-6 pt-3 md:pt-0 border-t md:border-none border-slate-50">
-                <AvailabilityToggle available={item.is_available !== false} busy={availabilityBusy} name={item.name} scope="Shared status" onChange={() => toggleAvailability(item)} />
 
                 <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300">
                   <button
@@ -814,46 +727,6 @@ export default function MenuAdminPage() {
               </div>
 
               <MenuVisibilitySelection value={catForm} onChange={setCatForm} />
-
-              <div className="rounded-xl border border-cyan-100 bg-cyan-50/40 p-4">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-cyan-800">Store Availability</p>
-                    <p className="mt-1 text-xs text-slate-500">Unchecked stores will not show this category in that store&apos;s customer menu.</p>
-                  </div>
-                  {stores.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setCategoryAvailability(Object.fromEntries(stores.map((store) => [store.id, true])))}
-                      className="rounded-lg border border-cyan-200 bg-white/80 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-cyan-800"
-                    >
-                      All Stores
-                    </button>
-                  )}
-                </div>
-                {stores.length === 0 ? (
-                  <p className="text-xs text-slate-500">No active stores found.</p>
-                ) : (
-                  <div className="grid gap-2 md:grid-cols-2">
-                    {stores.map((store) => (
-                      <label key={store.id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-white bg-white/85 p-3">
-                        <input
-                          type="checkbox"
-                          checked={categoryAvailability[store.id] !== false}
-                          onChange={(e) =>
-                            setCategoryAvailability((current) => ({
-                              ...current,
-                              [store.id]: e.target.checked,
-                            }))
-                          }
-                          className="h-4 w-4 accent-cyan-600"
-                        />
-                        <span className="text-xs font-medium text-slate-700">{store.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
 
               <div className="grid grid-cols-2 gap-3 pt-4 mt-2 border-t border-slate-100">
                 <button
@@ -1116,20 +989,6 @@ export default function MenuAdminPage() {
                       <div className="relative flex items-center justify-center">
                         <input
                           type="checkbox"
-                          checked={editingItem ? (items.find(item => item.id === editingItem.id)?.is_available ?? editingItem.is_available) !== false : form.is_available}
-                          disabled={Boolean(editingItem)}
-                          onChange={(e) => setForm({ ...form, is_available: e.target.checked })}
-                          className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-sky-500 checked:bg-slate-600 transition-all cursor-pointer"
-                        />
-                        <span className="absolute text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-xs font-bold">✓</span>
-                      </div>
-                      <span className="text-xs md:text-sm font-medium text-slate-700">{editingItem ? "Use the item list switch to change availability" : "Available to Order"}</span>
-                    </label>
-
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                      <div className="relative flex items-center justify-center">
-                        <input
-                          type="checkbox"
                           checked={form.is_featured}
                           onChange={(e) => setForm({ ...form, is_featured: e.target.checked })}
                           className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:border-sky-500 checked:bg-slate-600 transition-all cursor-pointer"
@@ -1200,45 +1059,6 @@ export default function MenuAdminPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-cyan-100 bg-cyan-50/40 p-4">
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-cyan-800">Store Availability</p>
-                        <p className="mt-1 text-xs text-slate-500">Unchecked stores will not show this item in that store&apos;s customer menu.</p>
-                      </div>
-                      {stores.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setStoreAvailability(Object.fromEntries(stores.map((store) => [store.id, true])))}
-                          className="rounded-lg border border-cyan-200 bg-white/80 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-cyan-800"
-                        >
-                          All Stores
-                        </button>
-                      )}
-                    </div>
-                    {stores.length === 0 ? (
-                      <p className="text-xs text-slate-500">No active stores found.</p>
-                    ) : (
-                      <div className="grid gap-2 md:grid-cols-2">
-                        {stores.map((store) => (
-                          <label key={store.id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-white bg-white/85 p-3">
-                            <input
-                              type="checkbox"
-                              checked={storeAvailability[store.id] !== false}
-                              onChange={(e) =>
-                                setStoreAvailability((current) => ({
-                                  ...current,
-                                  [store.id]: e.target.checked,
-                                }))
-                              }
-                              className="h-4 w-4 accent-cyan-600"
-                            />
-                            <span className="text-xs font-medium text-slate-700">{store.name}</span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                 </form>
               ) : (
                 <div className="flex flex-col h-full animate-in fade-in duration-300 pb-2">

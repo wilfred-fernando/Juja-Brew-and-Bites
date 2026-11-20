@@ -1,7 +1,7 @@
 "use client";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
 import { bookingReceiptLabel } from "@/lib/bookings/posBookingDisplay.mjs";
-import { saveMenuAvailability, applyMenuAvailability } from "@/lib/menuAvailability.mjs";
+import { saveBranchMenuAvailability } from "@/lib/menuAvailability.mjs";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Clock3, Download, History, LogOut, Maximize2, PackageCheck, RefreshCcw, Trash2, Utensils, X } from "lucide-react";
@@ -414,7 +414,7 @@ export default function KitchenDisplay() {
     const [itemsRes, availabilityRes, groupAvailabilityRes, optionAvailabilityRes] = await Promise.all([
       supabase
         .from("menu_items")
-        .select("id, name, category, is_available, variants, updated_at")
+        .select("id, name, category, variants")
         .order("category", { ascending: true })
         .order("name", { ascending: true }),
       supabase
@@ -457,8 +457,7 @@ export default function KitchenDisplay() {
       });
     const rows = kitchenItems.map((item) => ({
         ...item,
-        global_is_available: item.is_available !== false,
-        is_available: item.is_available !== false,
+        is_available: availabilityByItem.get(String(item.id)) !== false,
       }));
     const groupsByName = new Map();
     kitchenItems.forEach((item) => {
@@ -534,8 +533,9 @@ export default function KitchenDisplay() {
     const nextAvailable = item.is_available === false;
     setAvailabilitySavingId(String(item.id));
     try {
-      const saved = await saveMenuAvailability(supabase, item, nextAvailable, "kds");
-      setAvailabilityItems(prev => prev.map(row => applyMenuAvailability(row, saved)));
+      const saved = await saveBranchMenuAvailability(supabase, assignedStoreId, item.id, nextAvailable);
+      setAvailabilityItems(prev => prev.map(row => String(row.id) === String(saved.item_id)
+        ? { ...row, is_available: saved.is_available } : row));
       setAlertMessage(`${item.name} is now ${nextAvailable ? "available" : "unavailable"}.`);
       setTimeout(() => setAlertMessage(""), 4000);
     } catch (error) {
@@ -1257,7 +1257,7 @@ export default function KitchenDisplay() {
                             {saving ? "Saving" : available ? "Available" : "Unavailable"}
                           </span>
                         </div>
-                        <AvailabilityToggle available={available} busy={saving} disabled={!!availabilitySavingId} name={item.name} scope="Shared status" onChange={() => toggleKitchenItemAvailability(item)} />
+                        <AvailabilityToggle available={available} busy={saving} disabled={!!availabilitySavingId} name={item.name} onChange={() => toggleKitchenItemAvailability(item)} />
                       </div>
                     );
                   })}
