@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { branchMenuAvailability, applyMenuAvailability, updateCatalogAvailability, updateCatalogOptionAvailability, saveMenuAvailability } from '../lib/menuAvailability.mjs';
+import { branchMenuAvailability, isMenuItemAvailableAtBranch, applyMenuAvailability, updateCatalogAvailability, updateCatalogOptionAvailability, saveMenuAvailability } from '../lib/menuAvailability.mjs';
 
 const old={id:'item',is_available:false,global_is_available:false,updated_at:'2026-11-12T01:00:00Z',variants:[{name:'Size'}]};
 const saved={id:'item',is_available:true,updated_at:'2026-11-12T02:00:00Z'};
@@ -22,6 +22,9 @@ assert.equal(availableInPasongTamo({ id: 'item', category: 'Food' }), false);
 assert.equal(availableInDiliman({ id: 'item', category: 'Food' }), true);
 assert.equal(availableInPasongTamo({ id: 'other', category: 'Drinks' }), true);
 assert.equal(availableInDiliman({ id: 'other', category: 'Drinks' }), false);
+assert.equal(isMenuItemAvailableAtBranch({ is_available: true, store_is_available: false }), false);
+assert.equal(isMenuItemAvailableAtBranch({ is_available: false, store_is_available: true }), false);
+assert.equal(isMenuItemAvailableAtBranch({ is_available: true, store_is_available: true }), true);
 const optionSnapshot={rawItems:[old],items:[{id:'item',variants:[{name:'Add on',options:[{name:'Pearl',isAvailable:false}]}]}],optionSelectionStoreAvailability:[]};
 const optionSaved={group_key:'add on',option_key:'pearl',is_available:true,updated_at:saved.updated_at};
 const optionsUpdated=updateCatalogOptionAvailability(optionSnapshot,optionSaved,value=>String(value).toLowerCase(),value=>String(value).toLowerCase());

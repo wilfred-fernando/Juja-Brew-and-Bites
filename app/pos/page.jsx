@@ -5,7 +5,7 @@ import { reservationBookingName, reservationReceiptItems } from "@/lib/bookings/
 import { bookingDisplayLabel, bookingReceiptLabel } from "@/lib/bookings/posBookingDisplay.mjs";
 import { bookingsForSavedTicket } from "@/lib/bookings/resumedBooking.mjs";
 import ChargedDiningOptionDialog from "@/components/pos/ChargedDiningOptionDialog";
-import { branchMenuAvailability, saveMenuAvailability, applyMenuAvailability, updateCatalogAvailability, updateCatalogOptionAvailability } from "@/lib/menuAvailability.mjs";
+import { branchMenuAvailability, isMenuItemAvailableAtBranch, saveMenuAvailability, applyMenuAvailability, updateCatalogAvailability, updateCatalogOptionAvailability } from "@/lib/menuAvailability.mjs";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
 import PrinterSetupCard from "@/components/pos/PrinterSetupCard";
 import { getCupLabelSize, resizeLabelCanvas, printerMediaKey } from "@/lib/printerLabelSize.mjs";
@@ -4585,7 +4585,7 @@ export default function POSPage() {
     return true;
   };
   const isItemOrderable = (item) =>
-    item.is_available !== false && item.store_is_available !== false && itemAvailableForChannel(item);
+    isMenuItemAvailableAtBranch(item) && itemAvailableForChannel(item);
   const itemForActiveChannel = (item) => {
     const price = itemPriceForChannel(item);
     const variants = Array.isArray(item?.variants)
@@ -5511,7 +5511,7 @@ export default function POSPage() {
     const categoryNames = (categories || []).map((cat) => cat?.name || cat?.label || cat).filter(Boolean);
     categoryNames.forEach((name) => map.set(name, []));
     (items || [])
-      .filter((item) => !itemsUnavailableOnly || item.is_available === false)
+      .filter((item) => !itemsUnavailableOnly || !isMenuItemAvailableAtBranch(item))
       .filter((item) => !search || `${item.name || ""} ${item.category || ""}`.toLowerCase().includes(search))
       .forEach((item) => {
         const key = item.category || "Uncategorized";
@@ -11133,8 +11133,11 @@ export default function POSPage() {
                             <div className="pos-availability-row flex items-center justify-between gap-3">
                               <div className="min-w-0">
                                 <p className="text-xs font-bold text-slate-800 truncate">{item.name}</p>
+                                <p className="mt-1 text-xs font-semibold text-slate-700">
+                                  {isMenuItemAvailableAtBranch(item) ? "Available at this branch" : "Unavailable at this branch"}
+                                </p>
                               </div>
-                              <AvailabilityToggle available={item.is_available !== false} busy={availabilityBusy} name={item.name} scope="Shared status" onChange={() => toggleMenuItemAvailability(item)} />
+                              <AvailabilityToggle available={item.is_available !== false} busy={availabilityBusy} name={item.name} scope="All branches" availableLabel="Shared on" unavailableLabel="Shared off" onChange={() => toggleMenuItemAvailability(item)} />
                             </div>
                           </div>
                         ))}
