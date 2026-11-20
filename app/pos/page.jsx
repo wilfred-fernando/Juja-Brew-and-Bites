@@ -11134,11 +11134,8 @@ export default function POSPage() {
                             <div className="pos-availability-row flex items-center justify-between gap-3">
                               <div className="min-w-0">
                                 <p className="text-xs font-bold text-slate-800 truncate">{item.name}</p>
-                                <p className="mt-1 text-xs font-semibold text-slate-700">
-                                  {isMenuItemAvailableAtBranch(item) ? "Available at this branch" : "Unavailable at this branch"}
-                                </p>
                               </div>
-                              <AvailabilityToggle available={item.item_store_is_available !== false} busy={availabilityBusy} disabled={!assignedAvailabilityStoreId} name={item.name} scope="This branch only" availableLabel="Branch on" unavailableLabel="Branch off" onChange={() => toggleMenuItemAvailability(item)} />
+                              <AvailabilityToggle available={item.item_store_is_available !== false} busy={availabilityBusy} disabled={!assignedAvailabilityStoreId} name={item.name} onChange={() => toggleMenuItemAvailability(item)} />
                             </div>
                           </div>
                         ))}
