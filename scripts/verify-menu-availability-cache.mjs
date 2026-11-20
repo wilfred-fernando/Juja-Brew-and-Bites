@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { branchMenuAvailability, withBranchMenuAvailability, saveBranchMenuAvailability, updateCatalogBranchAvailability, isMenuItemAvailableAtBranch, applyMenuAvailability, updateCatalogAvailability, updateCatalogOptionAvailability, saveMenuAvailability } from '../lib/menuAvailability.mjs';
+import { branchMenuAvailability, branchMenuStock, withBranchMenuAvailability, saveBranchMenuStock, updateCatalogBranchStock, isMenuItemAvailableAtBranch, applyMenuAvailability, updateCatalogAvailability, updateCatalogOptionAvailability, saveMenuAvailability } from '../lib/menuAvailability.mjs';
 
 const old={id:'item',is_available:false,global_is_available:false,updated_at:'2026-11-12T01:00:00Z',variants:[{name:'Size'}]};
 const saved={id:'item',is_available:true,updated_at:'2026-11-12T02:00:00Z'};
@@ -24,30 +24,42 @@ assert.equal(availableInPasongTamo({ id: 'other', category: 'Drinks' }), true);
 assert.equal(availableInDiliman({ id: 'other', category: 'Drinks' }), false);
 assert.equal(isMenuItemAvailableAtBranch({ is_available: true, store_is_available: false }), false);
 assert.equal(isMenuItemAvailableAtBranch({ is_available: false, store_is_available: true }), true);
-assert.equal(isMenuItemAvailableAtBranch({ is_available: false }), false);
+assert.equal(isMenuItemAvailableAtBranch({ is_available: false }), true);
 assert.equal(isMenuItemAvailableAtBranch({ is_available: true, store_is_available: true }), true);
 const branchSaved = { store_id: 'diliman', item_id: 'item', is_available: true };
-const branchUpdated = updateCatalogBranchAvailability({
+const branchUpdated = updateCatalogBranchStock({
   items: [{ ...old, category: 'Drinks' }], rawItems: [old], categories,
   itemStoreAvailability: itemRules, categoryStoreAvailability: categoryRules,
 }, branchSaved);
-assert.deepEqual(branchUpdated.itemStoreAvailability, [...itemRules, branchSaved]);
+assert.deepEqual(branchUpdated.itemStoreAvailability, itemRules);
+assert.deepEqual(branchUpdated.itemStoreStock, [branchSaved]);
 assert.deepEqual(branchUpdated.rawItems, [old]);
 assert.equal(branchUpdated.items[0].is_available, false);
-assert.equal(branchUpdated.items[0].item_store_is_available, true);
+assert.equal(branchUpdated.items[0].item_stock_is_available, true);
 assert.equal(branchUpdated.items[0].store_is_available, false);
+const outOfStock = { ...branchSaved, is_available: false };
+const carriedItem = { ...saved, category: 'Food' };
+const carriedAtBranch = branchMenuAvailability('diliman', categories, itemRules, categoryRules);
+const inStock = branchMenuStock('diliman', [outOfStock]);
+assert.equal(carriedAtBranch(carriedItem), true, 'Stock status must not hide an item carried by a store');
+assert.equal(inStock(carriedItem), false, 'A visible item can be unavailable to order');
+assert.equal(branchMenuStock('pasong-tamo', [outOfStock])(carriedItem), true);
+const [soldOutItem] = withBranchMenuAvailability([carriedItem], 'diliman', categories, itemRules, categoryRules, [outOfStock]);
+assert.equal(soldOutItem.store_is_available, true);
+assert.equal(soldOutItem.item_stock_is_available, false);
+assert.equal(isMenuItemAvailableAtBranch(soldOutItem), false);
 const legacyDisabled = { ...old, category: 'Food' };
 assert.equal(branchMenuAvailability('diliman', categories, [branchSaved], categoryRules)(legacyDisabled), true);
-assert.equal(branchMenuAvailability('pasong-tamo', categories, [branchSaved], categoryRules)(legacyDisabled), false);
+assert.equal(branchMenuAvailability('pasong-tamo', categories, [branchSaved], categoryRules)(legacyDisabled), true);
 const client = { from: table => {
-  assert.equal(table, 'menu_item_store_availability');
+  assert.equal(table, 'menu_item_store_stock');
   return { upsert: row => {
     assert.deepEqual(row, branchSaved);
     return { select: () => ({ single: async () => ({ data: branchSaved }) }) };
   } };
 } };
-assert.deepEqual(await saveBranchMenuAvailability(client, 'diliman', 'item', true), branchSaved);
-await assert.rejects(() => saveBranchMenuAvailability(client, '', 'item', true), /assigned branch/);
+assert.deepEqual(await saveBranchMenuStock(client, 'diliman', 'item', true), branchSaved);
+await assert.rejects(() => saveBranchMenuStock(client, '', 'item', true), /assigned branch/);
 const optionSnapshot={rawItems:[old],items:[{id:'item',variants:[{name:'Add on',options:[{name:'Pearl',isAvailable:false}]}]}],optionSelectionStoreAvailability:[]};
 const optionSaved={group_key:'add on',option_key:'pearl',is_available:true,updated_at:saved.updated_at};
 const optionsUpdated=updateCatalogOptionAvailability(optionSnapshot,optionSaved,value=>String(value).toLowerCase(),value=>String(value).toLowerCase());

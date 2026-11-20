@@ -1,5 +1,5 @@
 "use client";
-import { branchMenuAvailability } from "@/lib/menuAvailability.mjs";
+import { branchMenuAvailability, branchMenuStock } from "@/lib/menuAvailability.mjs";
 import { isOptionGroupVisibleOn } from "@/lib/menuVisibility";
 import { bookingReceiptLabel } from "@/lib/bookings/posBookingDisplay.mjs";
 
@@ -1346,6 +1346,7 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
   const [selectedBranch, setSelectedBranch] = useState("bcfa9d8f-f2e5-4573-b3e3-635901ec7a4e");
   const [stores, setStores] = useState([]);
   const [itemStoreAvailability, setItemStoreAvailability] = useState([]);
+  const [itemStoreStock, setItemStoreStock] = useState([]);
   const [categoryStoreAvailability, setCategoryStoreAvailability] = useState([]);
   const [optionGroupStoreAvailability, setOptionGroupStoreAvailability] = useState([]);
   const [optionSelectionStoreAvailability, setOptionSelectionStoreAvailability] = useState([]);
@@ -1396,6 +1397,7 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
       setSelectedBranch(current => activeStores.some(store => String(store.id) === String(current))
         ? current : activeStores[0]?.id || "");
       setItemStoreAvailability(json.itemStoreAvailability || []);
+      setItemStoreStock(json.itemStoreStock || []);
       setCategoryStoreAvailability(json.categoryStoreAvailability || []);
       setOptionGroupStoreAvailability(json.optionGroupStoreAvailability || []);
       setOptionSelectionStoreAvailability(json.optionSelectionStoreAvailability || []);
@@ -1449,7 +1451,7 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
 
     const channel = supabase.channel("customer-menu-item-availability");
     for (const table of [
-      "menu_items", "menu_categories", "menu_item_store_availability",
+      "menu_items", "menu_categories", "menu_item_store_availability", "menu_item_store_stock",
       "menu_category_store_availability", "option_group_store_availability", "option_selection_store_availability",
     ]) {
       channel.on("postgres_changes", { event: "*", schema: "public", table }, refreshWhenVisible);
@@ -1530,16 +1532,18 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
     };
   }, [selectedBranch, selectedStore?.customer_ordering_status]);
 
-  const availableAtBranch = useMemo(
+  const carriedAtBranch = useMemo(
     () => branchMenuAvailability(selectedBranch, cats, itemStoreAvailability, categoryStoreAvailability),
     [selectedBranch, cats, itemStoreAvailability, categoryStoreAvailability]
   );
 
+  const inStock = useMemo(() => branchMenuStock(selectedBranch, itemStoreStock), [selectedBranch, itemStoreStock]);
+
   const branchMenuItems = useMemo(() => items
     .filter(isMenuItemVisibleToCustomers)
-    .filter(availableAtBranch)
+    .filter(carriedAtBranch)
     .filter(item => !isPromoMenuItem(item) || !!findVoucherForMenuItem(activeVouchers, item)),
-  [items, availableAtBranch, activeVouchers]);
+  [items, carriedAtBranch, activeVouchers]);
 
   const visibleCategories = useMemo(() => {
     const categoriesWithItems = new Set(branchMenuItems.map(item => item.category));
@@ -1583,7 +1587,7 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
 
   const isItemOrderable = (item) =>
     isMenuItemVisibleToCustomers(item) &&
-    availableAtBranch(item) &&
+    carriedAtBranch(item) && inStock(item) &&
     (!isPromoMenuItem(item) || !!findVoucherForMenuItem(activeVouchers, item));
 
   const findUnavailableCartLine = () => cart.find(line => {

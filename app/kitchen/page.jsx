@@ -1,7 +1,7 @@
 "use client";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
 import { bookingReceiptLabel } from "@/lib/bookings/posBookingDisplay.mjs";
-import { menuItemEnabledForBranch, saveBranchMenuAvailability } from "@/lib/menuAvailability.mjs";
+import { branchMenuStock, saveBranchMenuStock } from "@/lib/menuAvailability.mjs";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Clock3, Download, History, LogOut, Maximize2, PackageCheck, RefreshCcw, Trash2, Utensils, X } from "lucide-react";
@@ -414,11 +414,11 @@ export default function KitchenDisplay() {
     const [itemsRes, availabilityRes, groupAvailabilityRes, optionAvailabilityRes] = await Promise.all([
       supabase
         .from("menu_items")
-        .select("id, name, category, is_available, variants")
+        .select("id, name, category, variants")
         .order("category", { ascending: true })
         .order("name", { ascending: true }),
       supabase
-        .from("menu_item_store_availability")
+        .from("menu_item_store_stock")
         .select("item_id, store_id, is_available")
         .eq("store_id", storeId),
       supabase
@@ -438,9 +438,7 @@ export default function KitchenDisplay() {
       return;
     }
 
-    const availabilityByItem = new Map(
-      (availabilityRes.data || []).map((row) => [String(row.item_id), row.is_available !== false])
-    );
+    const inStock = branchMenuStock(storeId, availabilityRes.data || []);
     const groupAvailabilityByKey = new Map(
       (groupAvailabilityRes.data || []).map((row) => [row.group_key || optionGroupKey(row.group_name), row.is_available !== false])
     );
@@ -457,7 +455,7 @@ export default function KitchenDisplay() {
       });
     const rows = kitchenItems.map((item) => ({
         ...item,
-        is_available: menuItemEnabledForBranch(item, availabilityByItem.get(String(item.id))),
+        is_available: inStock(item),
       }));
     const groupsByName = new Map();
     kitchenItems.forEach((item) => {
@@ -533,7 +531,7 @@ export default function KitchenDisplay() {
     const nextAvailable = item.is_available === false;
     setAvailabilitySavingId(String(item.id));
     try {
-      const saved = await saveBranchMenuAvailability(supabase, assignedStoreId, item.id, nextAvailable);
+      const saved = await saveBranchMenuStock(supabase, assignedStoreId, item.id, nextAvailable);
       setAvailabilityItems(prev => prev.map(row => String(row.id) === String(saved.item_id)
         ? { ...row, is_available: saved.is_available } : row));
       setAlertMessage(`${item.name} is now ${nextAvailable ? "available" : "unavailable"}.`);

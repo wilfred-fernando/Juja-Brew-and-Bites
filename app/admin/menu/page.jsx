@@ -1,5 +1,4 @@
 "use client";
-import { menuItemEnabledForBranch } from "@/lib/menuAvailability.mjs";
 import { optionTemplateKey } from "@/lib/optionGroupTemplates";
 
 import { useState, useEffect, useRef } from "react";
@@ -130,7 +129,7 @@ export default function MenuAdminPage() {
         const row = itemStoreAvailability.find(
           (entry) => String(entry.item_id) === String(item.id) && String(entry.store_id) === String(store.id)
         );
-        nextStoreAvailability[store.id] = menuItemEnabledForBranch(item, row?.is_available);
+        nextStoreAvailability[store.id] = row?.is_available !== false;
       });
       setStoreAvailability(nextStoreAvailability);
       storeAvailabilityAtOpen.current = { ...nextStoreAvailability };
@@ -615,7 +614,7 @@ export default function MenuAdminPage() {
                           const row = itemStoreAvailability.find(
                             (entry) => String(entry.item_id) === String(item.id) && String(entry.store_id) === String(store.id)
                           );
-                          return menuItemEnabledForBranch(item, row?.is_available);
+                          return row?.is_available !== false;
                         }).length}/{stores.length} stores
                       </span>
                     )}
@@ -1096,7 +1095,7 @@ export default function MenuAdminPage() {
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-wider text-cyan-800">Store Availability</p>
-                        <p className="mt-1 text-xs text-slate-500">Unchecked stores mark this item unavailable for ordering at that store.</p>
+                        <p className="mt-1 text-xs text-slate-500">Checked stores carry this item on their customer menu.</p>
                       </div>
                       {stores.length > 0 && (
                         <button
