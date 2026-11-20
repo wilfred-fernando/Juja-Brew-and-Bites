@@ -1,4 +1,5 @@
 "use client";
+import { branchMenuAvailability } from "@/lib/menuAvailability.mjs";
 import { isOptionGroupVisibleOn } from "@/lib/menuVisibility";
 import { bookingReceiptLabel } from "@/lib/bookings/posBookingDisplay.mjs";
 
@@ -1381,50 +1382,88 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
   }, [cart, selectedBranch, cartHydrated, user?.id]);
 
   useEffect(() => {
-    async function fetchMenu() {
-      setLoading(true);
-      const applyMenu = (json) => {
-        setItems((json.items || []).filter(isMenuItemVisibleToCustomers));
-        setCategories(
-          (json.categories || [])
-            .filter(isMenuCategoryVisibleToCustomers)
-            .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
-        );
-        const activeStores = json.stores || [];
-        setStores(activeStores);
-        setSelectedBranch((current) => (activeStores.some((store) => String(store.id) === String(current)) ? current : activeStores[0]?.id || current));
-        setItemStoreAvailability(json.itemStoreAvailability || []);
-        setCategoryStoreAvailability(json.categoryStoreAvailability || []);
-        setOptionGroupStoreAvailability(json.optionGroupStoreAvailability || []);
-        setOptionSelectionStoreAvailability(json.optionSelectionStoreAvailability || []);
-      };
-      const cachedSnapshot = await getLocalSnapshot("customer_menu", { userId: user?.id || "guest" });
-      if (cachedSnapshot?.data) {
-        applyMenu(cachedSnapshot.data);
-        setLoading(false);
-      }
-      const { session } = await getStableSession(supabase);
-      const accessToken = session?.access_token;
-      const res = await fetch("/api/menu-data?mode=customer", {
-        cache: "no-store",
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setAvailabilityNotice(json.error || "Store availability is being synced. Showing all available menu items for now.");
-        setLoading(false);
-        return;
-      }
+    let cancelled = false;
+    let refreshing = false;
+    const snapshotScope = { userId: user?.id || "guest" };
 
-      applyMenu(json);
-      setAvailabilityNotice("");
-      await setLocalSnapshot("customer_menu", json, { userId: user?.id || "guest" });
-      setLoading(false);
+    function applyMenu(json) {
+      setItems((json.items || []).filter(isMenuItemVisibleToCustomers));
+      setCategories((json.categories || [])
+        .filter(isMenuCategoryVisibleToCustomers)
+        .sort((a, b) => (a.name || "").localeCompare(b.name || "")));
+      const activeStores = json.stores || [];
+      setStores(activeStores);
+      setSelectedBranch(current => activeStores.some(store => String(store.id) === String(current))
+        ? current : activeStores[0]?.id || "");
+      setItemStoreAvailability(json.itemStoreAvailability || []);
+      setCategoryStoreAvailability(json.categoryStoreAvailability || []);
+      setOptionGroupStoreAvailability(json.optionGroupStoreAvailability || []);
+      setOptionSelectionStoreAvailability(json.optionSelectionStoreAvailability || []);
     }
-    fetchMenu().catch((error) => {
-      console.warn("Unable to refresh menu:", error);
-      setLoading(false);
-    });
+
+    async function refreshMenu({ initial = false } = {}) {
+      if (refreshing || cancelled) return;
+      refreshing = true;
+      try {
+        if (initial) {
+          setLoading(true);
+          const cached = await getLocalSnapshot("customer_menu", snapshotScope).catch(() => null);
+          if (cancelled) return;
+          if (cached?.data) {
+            applyMenu(cached.data);
+            setLoading(false);
+          }
+        }
+        const { session } = await getStableSession(supabase);
+        const res = await fetch("/api/menu-data?mode=customer", {
+          cache: "no-store",
+          headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+        });
+        const json = await res.json();
+        if (cancelled) return;
+        if (!res.ok) throw new Error(json.error || "Unable to load menu data.");
+
+        applyMenu(json);
+        setAvailabilityNotice("");
+        await setLocalSnapshot("customer_menu", json, snapshotScope).catch(error => {
+          console.warn("Unable to cache refreshed menu:", error);
+        });
+      } catch (error) {
+        console.warn("Unable to refresh menu:", error);
+        if (!cancelled) setAvailabilityNotice("Availability could not be refreshed. Displayed stock may be out of date.");
+      } finally {
+        refreshing = false;
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    function refreshWhenVisible() {
+      if (document.visibilityState === "visible") void refreshMenu();
+    }
+
+    void refreshMenu({ initial: true });
+    const timer = window.setInterval(refreshWhenVisible, 60_000);
+    window.addEventListener("focus", refreshWhenVisible);
+    window.addEventListener("online", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
+    const channel = supabase.channel("customer-menu-item-availability");
+    for (const table of [
+      "menu_items", "menu_categories", "menu_item_store_availability",
+      "menu_category_store_availability", "option_group_store_availability", "option_selection_store_availability",
+    ]) {
+      channel.on("postgres_changes", { event: "*", schema: "public", table }, refreshWhenVisible);
+    }
+    channel.subscribe();
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshWhenVisible);
+      window.removeEventListener("online", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      supabase.removeChannel(channel);
+    };
   }, [user?.id]);
 
   useEffect(() => {
@@ -1457,86 +1496,6 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
       cancelled = true;
     };
   }, [member?.id, user?.id]);
-
-  useEffect(() => {
-    const upsertRealtimeRow = (setter, payload, keyOf) => {
-      const incoming = payload.new || {};
-      const previous = payload.old || {};
-      const key = keyOf(incoming) || keyOf(previous);
-      if (!key) return;
-      setter((current) => {
-        if (payload.eventType === "DELETE") return current.filter((row) => keyOf(row) !== key);
-        return current.some((row) => keyOf(row) === key)
-          ? current.map((row) => (keyOf(row) === key ? { ...row, ...incoming } : row))
-          : [...current, incoming];
-      });
-    };
-    const channel = supabase
-      .channel("customer-menu-item-availability")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "menu_items" },
-        (payload) => {
-          const nextItem = payload.new || {};
-          const previousItem = payload.old || {};
-          const rowId = nextItem.id || previousItem.id;
-          if (!rowId) return;
-
-          if (payload.eventType === "DELETE" || !isMenuItemVisibleToCustomers(nextItem)) {
-            setItems((prev) => prev.filter((item) => item.id !== rowId));
-            setSelectedItemForModal((current) => (current?.id === rowId ? null : current));
-            return;
-          }
-
-          setItems((prev) => (prev.some((item) => item.id === rowId) ? prev.map((item) => (item.id === rowId ? nextItem : item)) : [...prev, nextItem]));
-          setSelectedItemForModal((current) => (current?.id === rowId && (!isMenuItemVisibleToCustomers(nextItem) || nextItem.is_available === false || nextItem.available === false) ? null : current));
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "menu_item_store_availability" },
-        (payload) => upsertRealtimeRow(setItemStoreAvailability, payload, (row) => row?.item_id && row?.store_id ? `${row.store_id}:${row.item_id}` : "")
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "menu_category_store_availability" },
-        (payload) => upsertRealtimeRow(setCategoryStoreAvailability, payload, (row) => row?.category_id && row?.store_id ? `${row.store_id}:${row.category_id}` : "")
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "option_group_store_availability" },
-        (payload) => upsertRealtimeRow(setOptionGroupStoreAvailability, payload, (row) => row?.store_id && (row?.group_key || row?.group_name) ? `${row.store_id}:${row.group_key || row.group_name}` : "")
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "option_selection_store_availability" },
-        (payload) => upsertRealtimeRow(setOptionSelectionStoreAvailability, payload, (row) => row?.store_id && (row?.group_key || row?.group_name) && (row?.option_key || row?.option_name) ? `${row.store_id}:${row.group_key || row.group_name}:${row.option_key || row.option_name}` : "")
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (loading || items.length === 0) return;
-    const timer = window.setTimeout(() => {
-      setLocalSnapshot("customer_menu", {
-        items,
-        categories: cats,
-        stores,
-        itemStoreAvailability,
-        categoryStoreAvailability,
-        optionGroupStoreAvailability,
-        optionSelectionStoreAvailability,
-        generatedAt: new Date().toISOString(),
-      }, { userId: user?.id || "guest" }).catch((error) => {
-        console.warn("Unable to persist live menu changes:", error);
-      });
-    }, 500);
-    return () => window.clearTimeout(timer);
-  }, [loading, items, cats, stores, itemStoreAvailability, categoryStoreAvailability, optionGroupStoreAvailability, optionSelectionStoreAvailability, user?.id]);
 
   const q = itemSearch.trim().toLowerCase();
   const selectedStore = useMemo(
@@ -1571,14 +1530,10 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
     };
   }, [selectedBranch, selectedStore?.customer_ordering_status]);
 
-  const unavailableItemIds = useMemo(() => new Set(
-    itemStoreAvailability
-      .filter((entry) => (
-        String(entry.store_id) === String(selectedBranch)
-        && entry.is_available === false
-      ))
-      .map((entry) => String(entry.item_id))
-  ), [itemStoreAvailability, selectedBranch]);
+  const availableAtBranch = useMemo(
+    () => branchMenuAvailability(selectedBranch, cats, itemStoreAvailability, categoryStoreAvailability),
+    [selectedBranch, cats, itemStoreAvailability, categoryStoreAvailability]
+  );
 
   const visibleCategories = useMemo(() => {
     return cats
@@ -1630,21 +1585,18 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
       .filter((group) => group.items.length > 0);
   }, [activeTab, filteredItems, q, visibleCategories, groupTrayOnly]);
 
-  const isItemAvailableForSelectedStore = (item) => {
-    const category = cats.find((cat) => cat.name === item.category);
-    const categoryAvailable = !categoryStoreAvailability.some((entry) =>
-      String(entry.category_id) === String(category?.id)
-      && String(entry.store_id) === String(selectedBranch)
-      && entry.is_available === false
-    );
-    return item.is_available !== false && item.available !== false
-      && categoryAvailable && !unavailableItemIds.has(String(item.id));
-  };
+  const isItemAvailableForSelectedStore = (item) =>
+    item.is_available !== false && item.available !== false && availableAtBranch(item);
 
   const isItemOrderable = (item) =>
     isMenuItemVisibleToCustomers(item) &&
     isItemAvailableForSelectedStore(item) &&
     (!isPromoMenuItem(item) || !!findVoucherForMenuItem(activeVouchers, item));
+
+  const findUnavailableCartLine = () => cart.find(line => {
+    const item = items.find(entry => entry.id === line.id);
+    return !item || !isItemOrderable(item);
+  });
 
   const itemWithStoreOptionGroupAvailability = (item) => {
     if (!selectedBranch || !Array.isArray(item?.variants)) return item;
@@ -1695,6 +1647,12 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
   const itemCount = useMemo(() => cart.reduce((sum, i) => sum + i.quantity, 0), [cart]);
 
   const onAddToCart = (line) => {
+    const currentItem = items.find(item => item.id === line.id);
+    if (!currentItem || !isItemOrderable(currentItem)) {
+      setSelectedItemForModal(null);
+      alert("This item is no longer available at the selected store.");
+      return;
+    }
     setCart((prev) => {
       const editIndex = selectedItemForModal?.editIndex;
       if (editIndex !== undefined && editIndex !== null) {
@@ -1723,6 +1681,8 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
     if (!user?.id) return alert("❌ Session expired: Sign in to submit orders.");
     if (cart.length === 0) return alert("❌ Basket selection empty.");
     if (!selectedBranch) return alert("Please select a store before sending your order.");
+    const unavailableLine = findUnavailableCartLine();
+    if (unavailableLine) return alert(`${unavailableLine.name} is unavailable at the selected store. Remove it from your basket to continue.`);
     try {
       const status = await fetchStoreOrderingStatus(selectedBranch);
       setOrderingStatus(status);
@@ -1738,6 +1698,8 @@ function OrderTab({ user, member, onCheckoutSuccess, groupTrayOnly = false }) {
 
   const gcCheckoutRef = useRef(null);
   const executeOrderSubmission = async (fulfillmentMetadata) => {
+    const unavailableLine = findUnavailableCartLine();
+    if (unavailableLine) return alert(`${unavailableLine.name} is unavailable at the selected store. Remove it from your basket to continue.`);
     setIsSubmitting(true);
 
     try {

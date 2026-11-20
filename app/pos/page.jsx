@@ -5,7 +5,7 @@ import { reservationBookingName, reservationReceiptItems } from "@/lib/bookings/
 import { bookingDisplayLabel, bookingReceiptLabel } from "@/lib/bookings/posBookingDisplay.mjs";
 import { bookingsForSavedTicket } from "@/lib/bookings/resumedBooking.mjs";
 import ChargedDiningOptionDialog from "@/components/pos/ChargedDiningOptionDialog";
-import { saveMenuAvailability, applyMenuAvailability, updateCatalogAvailability, updateCatalogOptionAvailability } from "@/lib/menuAvailability.mjs";
+import { branchMenuAvailability, saveMenuAvailability, applyMenuAvailability, updateCatalogAvailability, updateCatalogOptionAvailability } from "@/lib/menuAvailability.mjs";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
 import PrinterSetupCard from "@/components/pos/PrinterSetupCard";
 import { getCupLabelSize, resizeLabelCanvas, printerMediaKey } from "@/lib/printerLabelSize.mjs";
@@ -4584,6 +4584,8 @@ export default function POSPage() {
     if (channel === "panda") return item?.panda_available !== false;
     return true;
   };
+  const isItemOrderable = (item) =>
+    item.is_available !== false && item.store_is_available !== false && itemAvailableForChannel(item);
   const itemForActiveChannel = (item) => {
     const price = itemPriceForChannel(item);
     const variants = Array.isArray(item?.variants)
@@ -6559,6 +6561,16 @@ export default function POSPage() {
     const showLoadingState = opts.showLoading !== false;
     if (showLoadingState) setLoading(true);
     let cachedSnapshot = null;
+    const restoreCachedItems = (snapshot) => {
+      const availableAtBranch = branchMenuAvailability(
+        sid, snapshot.categories || [], snapshot.itemStoreAvailability || [], snapshot.categoryStoreAvailability || []
+      );
+      return (snapshot.items || []).map(item => ({
+        ...item,
+        is_available: (item.global_is_available ?? item.is_available) !== false,
+        store_is_available: availableAtBranch(item),
+      }));
+    };
     try {
       const [durableSnapshot, loyaltySnapshot] = await Promise.all([
         getLocalSnapshot("pos_catalog", { storeId: sid }),
@@ -6569,7 +6581,7 @@ export default function POSPage() {
         setCustomers(loyaltySnapshot.data.slice(-100));
       }
       if (showLoadingState && !items.length && cachedSnapshot?.items?.length && availabilityRevision === catalogAvailabilityRevision.current) {
-        setItems((cachedSnapshot.items || []).map((item) => ({ ...item, is_available: item.global_is_available !== false && item.is_available !== false })));
+        setItems(restoreCachedItems(cachedSnapshot));
         setCategories(cachedSnapshot.categories || []);
         setRecipeRows(cachedSnapshot.recipeRows || []);
         setRecipeInventoryItems(cachedSnapshot.recipeInventoryItems || []);
@@ -6604,10 +6616,11 @@ export default function POSPage() {
         return Array.from(rows.values());
       };
 
-      const [iRes, catRes, itemStoreAvailabilityRes, optionGroupAvailabilityRes, optionSelectionAvailabilityRes] = await Promise.all([
+      const [iRes, catRes, itemStoreAvailabilityRes, categoryStoreAvailabilityRes, optionGroupAvailabilityRes, optionSelectionAvailabilityRes] = await Promise.all([
         reuseMenu ? Promise.resolve({ data: cachedSnapshot.rawItems }) : supabase.from("menu_items").select("*").order("name"),
         reuseMenu ? Promise.resolve({ data: cachedSnapshot.categories }) : supabase.from("menu_categories").select("*").order("name", { ascending: true }),
-        changed(supabase.from("menu_item_store_availability").select("item_id, store_id, is_available, updated_at").eq("store_id", sid)),
+        supabase.from("menu_item_store_availability").select("item_id, store_id, is_available").eq("store_id", sid),
+        supabase.from("menu_category_store_availability").select("category_id, store_id, is_available").eq("store_id", sid),
         changed(supabase.from("option_group_store_availability").select("store_id, group_key, group_name, is_available, updated_at").eq("store_id", sid)),
         changed(supabase.from("option_selection_store_availability").select("store_id, group_key, option_key, group_name, option_name, is_available, updated_at").eq("store_id", sid)),
       ]);
@@ -6626,6 +6639,7 @@ export default function POSPage() {
         iRes.error,
         catRes.error,
         itemStoreAvailabilityRes.error,
+        categoryStoreAvailabilityRes.error,
         optionGroupAvailabilityRes.error,
         optionSelectionAvailabilityRes.error,
       ].find(Boolean);
@@ -6637,7 +6651,8 @@ export default function POSPage() {
       const rawItems = iRes.data || [];
       const cats = (catRes.data || [])
         .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
-      const itemStoreAvailability = mergeRows(cachedSnapshot?.itemStoreAvailability, itemStoreAvailabilityRes.data, (row) => `${row.store_id}:${row.item_id}`);
+      const itemStoreAvailability = itemStoreAvailabilityRes.data || [];
+      const categoryStoreAvailability = categoryStoreAvailabilityRes.data || [];
       const optionGroupStoreAvailability = mergeRows(cachedSnapshot?.optionGroupStoreAvailability, optionGroupAvailabilityRes.data, (row) => `${row.store_id}:${row.group_key || optionGroupKey(row.group_name)}`);
       const optionSelectionStoreAvailability = mergeRows(cachedSnapshot?.optionSelectionStoreAvailability, optionSelectionAvailabilityRes.data, (row) => `${row.store_id}:${row.group_key || optionGroupKey(row.group_name)}:${row.option_key || optionSelectionKey(row.option_name)}`);
       const recipeRows = mergeRows(cachedSnapshot?.recipeRows, recipeRes.data, (row) => String(row.id));
@@ -6654,9 +6669,7 @@ export default function POSPage() {
       } else {
         setRecipeInventoryItems(recipeInventoryItems);
       }
-      const storeAvailabilityByItem = new Map(
-        itemStoreAvailability.map((row) => [String(row.item_id), row.is_available !== false])
-      );
+      const availableAtBranch = branchMenuAvailability(sid, cats, itemStoreAvailability, categoryStoreAvailability);
       const optionGroupAvailabilityByGroup = new Map(
         optionGroupStoreAvailability.map((row) => [row.group_key || optionGroupKey(row.group_name), row.is_available !== false])
       );
@@ -6667,7 +6680,6 @@ export default function POSPage() {
         ])
       );
       const itemRows = rawItems.map((item) => {
-        const storeAvailable = item.is_available !== false;
         const variants = Array.isArray(item.variants)
           ? item.variants.map((group) => {
               const key = optionGroupKey(group.name || group.groupName || group.label || group.id);
@@ -6689,8 +6701,7 @@ export default function POSPage() {
           ...item,
           variants,
           global_is_available: item.is_available !== false,
-          is_available: storeAvailable,
-          store_is_available: storeAvailable,
+          store_is_available: availableAtBranch(item),
         };
       });
       setItems(itemRows);
@@ -6710,6 +6721,7 @@ export default function POSPage() {
         items: itemRows,
         categories: cats,
         itemStoreAvailability,
+        categoryStoreAvailability,
         optionGroupStoreAvailability,
         optionSelectionStoreAvailability,
         customers: customers.length > 0 ? customers.slice(0, 100) : cachedCustomers.slice(0, 100),
@@ -6727,7 +6739,7 @@ export default function POSPage() {
       if (availabilityRevision !== catalogAvailabilityRevision.current) return;
       const cached = cachedSnapshot || (await getLocalSnapshot("pos_catalog", { storeId: sid }))?.data;
       if (cached?.items?.length) {
-        if (!items.length) setItems((cached.items || []).map((item) => ({ ...item, is_available: item.global_is_available !== false && item.is_available !== false })));
+        if (!items.length) setItems(restoreCachedItems(cached));
         setCategories(cached.categories || []);
         setCustomers(cached.customers || []);
         setRecipeRows(cached.recipeRows || []);
@@ -7444,6 +7456,7 @@ export default function POSPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "menu_items" }, queueCatalogRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "menu_categories" }, queueCatalogRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "menu_item_store_availability" }, queueCatalogRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "menu_category_store_availability" }, queueCatalogRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "option_group_store_availability" }, queueCatalogRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "option_selection_store_availability" }, queueCatalogRefresh)
       .subscribe();
@@ -10242,7 +10255,8 @@ export default function POSPage() {
 
     const matchItem = items.find((i) => i.sku?.toLowerCase() === q || i.name?.toLowerCase() === q);
     if (matchItem) {
-      setSelectedItemForModal(matchItem);
+      if (!isItemOrderable(matchItem)) return showToast("warn", "Item Unavailable", matchItem.name);
+      setSelectedItemForModal(itemForActiveChannel(matchItem));
       setCustomerSearch("");
       return;
     }
@@ -10556,6 +10570,12 @@ export default function POSPage() {
     if (!requireOpenTicketShift()) return;
     const editIndex = selectedItemForModal?.editData ? selectedItemForModal.editIndex : null;
     const previousLine = editIndex === null || editIndex === undefined ? null : cart[editIndex];
+    const currentItem = items.find(item => item.id === selectedItemForModal?.id);
+    if ((!previousLine || Number(addedLineItem.quantity) > Number(previousLine.quantity))
+      && (!currentItem || !isItemOrderable(currentItem))) {
+      setSelectedItemForModal(null);
+      return showToast("warn", "Item Unavailable", selectedItemForModal?.name);
+    }
     setCart((prevCart) => addPosCartLine(
       prevCart,
       addedLineItem,
@@ -11338,7 +11358,7 @@ export default function POSPage() {
                       {activeCategory ? "No available items found in this category." : "No featured menu items found."}
                     </div>
                   ) : visibleMenuItems.map((item) => {
-                    const orderable = item.is_available !== false && itemAvailableForChannel(item);
+                    const orderable = isItemOrderable(item);
                     return (
                       <button
                         key={item.id}
