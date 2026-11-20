@@ -5,7 +5,7 @@ import { reservationBookingName, reservationReceiptItems } from "@/lib/bookings/
 import { bookingDisplayLabel, bookingReceiptLabel } from "@/lib/bookings/posBookingDisplay.mjs";
 import { bookingsForSavedTicket } from "@/lib/bookings/resumedBooking.mjs";
 import ChargedDiningOptionDialog from "@/components/pos/ChargedDiningOptionDialog";
-import { branchMenuAvailability, isMenuItemAvailableAtBranch, saveMenuAvailability, applyMenuAvailability, updateCatalogAvailability, updateCatalogOptionAvailability } from "@/lib/menuAvailability.mjs";
+import { isMenuItemAvailableAtBranch, saveBranchMenuAvailability, updateCatalogBranchAvailability, withBranchMenuAvailability, updateCatalogOptionAvailability } from "@/lib/menuAvailability.mjs";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
 import PrinterSetupCard from "@/components/pos/PrinterSetupCard";
 import { getCupLabelSize, resizeLabelCanvas, printerMediaKey } from "@/lib/printerLabelSize.mjs";
@@ -4386,6 +4386,7 @@ export default function POSPage() {
   const supabase = getSupabaseClient();
   useEffect(() => maintainPortalSession(supabase, window, document), [supabase]);
   const [storeId, setStoreId] = useState(null);
+  const [assignedAvailabilityStoreId, setAssignedAvailabilityStoreId] = useState(null);
   const [currentStore, setCurrentStore] = useState(null);
   const [storeOrderingStatusSaving, setStoreOrderingStatusSaving] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -6260,6 +6261,7 @@ export default function POSPage() {
       localStorage.setItem("pos_store_id", activeStoreId);
       if (profile?.full_name) localStorage.setItem("cashier_name", profile.full_name);
       setStoreId(activeStoreId);
+      if (String(profile.store_id) === String(activeStoreId)) setAssignedAvailabilityStoreId(activeStoreId);
 
       await fetchPendingCount(activeStoreId); 
       await loadShiftState(activeStoreId, session.user.id);
@@ -6561,16 +6563,13 @@ export default function POSPage() {
     const showLoadingState = opts.showLoading !== false;
     if (showLoadingState) setLoading(true);
     let cachedSnapshot = null;
-    const restoreCachedItems = (snapshot) => {
-      const availableAtBranch = branchMenuAvailability(
-        sid, snapshot.categories || [], snapshot.itemStoreAvailability || [], snapshot.categoryStoreAvailability || []
-      );
-      return (snapshot.items || []).map(item => ({
+    const restoreCachedItems = (snapshot) => withBranchMenuAvailability(
+      (snapshot.items || []).map(item => ({
         ...item,
         is_available: (item.global_is_available ?? item.is_available) !== false,
-        store_is_available: availableAtBranch(item),
-      }));
-    };
+      })),
+      sid, snapshot.categories || [], snapshot.itemStoreAvailability || [], snapshot.categoryStoreAvailability || []
+    );
     try {
       const [durableSnapshot, loyaltySnapshot] = await Promise.all([
         getLocalSnapshot("pos_catalog", { storeId: sid }),
@@ -6669,7 +6668,6 @@ export default function POSPage() {
       } else {
         setRecipeInventoryItems(recipeInventoryItems);
       }
-      const availableAtBranch = branchMenuAvailability(sid, cats, itemStoreAvailability, categoryStoreAvailability);
       const optionGroupAvailabilityByGroup = new Map(
         optionGroupStoreAvailability.map((row) => [row.group_key || optionGroupKey(row.group_name), row.is_available !== false])
       );
@@ -6679,7 +6677,7 @@ export default function POSPage() {
           row.is_available !== false,
         ])
       );
-      const itemRows = rawItems.map((item) => {
+      const itemRows = withBranchMenuAvailability(rawItems.map((item) => {
         const variants = Array.isArray(item.variants)
           ? item.variants.map((group) => {
               const key = optionGroupKey(group.name || group.groupName || group.label || group.id);
@@ -6701,9 +6699,8 @@ export default function POSPage() {
           ...item,
           variants,
           global_is_available: item.is_available !== false,
-          store_is_available: availableAtBranch(item),
         };
-      });
+      }), sid, cats, itemStoreAvailability, categoryStoreAvailability);
       setItems(itemRows);
       setCategories(cats);
       const cachedCustomers = Array.isArray(cachedSnapshot?.customers) ? cachedSnapshot.customers : [];
@@ -8763,18 +8760,22 @@ export default function POSPage() {
     catalogAvailabilityRevision.current += 1;
     setAvailabilityBusy(true);
     try {
-    if (!item?.id) return;
-    const sid = getResolvedBranchId();
-    if (!sid) return showToast("error", "Store Required", "POS store is not loaded yet.");
-    const nextAvailable = item.is_available === false;
-    const saved = await saveMenuAvailability(supabase, item, nextAvailable, "pos");
-    setItems((prev) => prev.map(row => applyMenuAvailability(row, saved)));
-    let cacheError = null;
-    await serializeCatalogCache(async () => {
-      const snapshot = (await getLocalSnapshot("pos_catalog", { storeId: sid }))?.data;
-      if (snapshot) await setLocalSnapshot("pos_catalog", updateCatalogAvailability(snapshot, saved), { storeId: sid });
-    }).catch(error => { cacheError = error; });
-    showToast(cacheError ? "warn" : "success", "Shared Availability Saved", `${item.name || "Item"} is now ${nextAvailable ? "available" : "unavailable"} across Admin, POS and KDS.${cacheError ? " Local cache could not be updated; refresh while online before reopening POS." : ""}`);
+      const sid = assignedAvailabilityStoreId;
+      if (!sid) return showToast("error", "Assigned Branch Required", "Ask an administrator to assign this POS account to this branch.");
+      const nextAvailable = item.item_store_is_available === false;
+      const saved = await saveBranchMenuAvailability(supabase, sid, item.id, nextAvailable);
+      await serializeCatalogCache(async () => {
+        const snapshot = (await getLocalSnapshot("pos_catalog", { storeId: sid }))?.data;
+        if (!snapshot) return;
+        const updated = updateCatalogBranchAvailability(snapshot, saved);
+        setItems(current => withBranchMenuAvailability(current, sid, updated.categories || [],
+          updated.itemStoreAvailability, updated.categoryStoreAvailability || []));
+        await setLocalSnapshot("pos_catalog", updated, { storeId: sid });
+      }).catch(error => console.warn("Unable to update the POS branch availability cache:", error));
+      menuAvailabilitySaving.current = false;
+      await catalogSyncsRef.current.get(sid);
+      await fetchData(sid, { showLoading: false });
+      showToast("success", "Branch Availability Saved", `${item.name} was updated for this branch.`);
     } catch (error) { showToast("error", "Availability update failed", error.message); }
     finally { menuAvailabilitySaving.current = false; setAvailabilityBusy(false); }
   }
@@ -8787,8 +8788,8 @@ export default function POSPage() {
     try {
     const row = optionSelectionGroups.flatMap((group) => group.options).find((option) => option.groupName === groupName && option.optionName === optionName);
     const nextAvailable = !row?.enabled;
-    const sid = getResolvedBranchId();
-    if (!sid) return showToast("error", "Store Required", "Select a store first.");
+    const sid = assignedAvailabilityStoreId;
+    if (!sid) return showToast("error", "Assigned Branch Required", "Ask an administrator to assign this POS account to this branch.");
     const { data: savedAvailability, error } = await supabase.from("option_selection_store_availability").upsert({
       store_id: String(sid), group_key: optionGroupKey(groupName), option_key: optionSelectionKey(optionName),
       group_name: groupName, option_name: optionName, is_available: nextAvailable,
@@ -11137,7 +11138,7 @@ export default function POSPage() {
                                   {isMenuItemAvailableAtBranch(item) ? "Available at this branch" : "Unavailable at this branch"}
                                 </p>
                               </div>
-                              <AvailabilityToggle available={item.is_available !== false} busy={availabilityBusy} name={item.name} scope="All branches" availableLabel="Shared on" unavailableLabel="Shared off" onChange={() => toggleMenuItemAvailability(item)} />
+                              <AvailabilityToggle available={item.item_store_is_available !== false} busy={availabilityBusy} disabled={!assignedAvailabilityStoreId} name={item.name} scope="This branch only" availableLabel="Branch on" unavailableLabel="Branch off" onChange={() => toggleMenuItemAvailability(item)} />
                             </div>
                           </div>
                         ))}
@@ -11165,7 +11166,7 @@ export default function POSPage() {
                             <p className="text-xs font-semibold text-slate-700 truncate">{option.optionName}</p>
                             <p className="text-[10px] font-semibold text-slate-400">{option.count} item link(s)</p>
                           </div>
-                          <AvailabilityToggle available={option.enabled} busy={availabilityBusy} name={option.optionName} scope="This branch" onChange={() => toggleOptionSelectionAvailability(option.groupName, option.optionName)} />
+                          <AvailabilityToggle available={option.enabled} busy={availabilityBusy} disabled={!assignedAvailabilityStoreId} name={option.optionName} scope="This branch" onChange={() => toggleOptionSelectionAvailability(option.groupName, option.optionName)} />
                         </div>
                       ))}
                     </div>

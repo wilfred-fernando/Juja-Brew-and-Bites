@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { branchMenuAvailability, isMenuItemAvailableAtBranch, applyMenuAvailability, updateCatalogAvailability, updateCatalogOptionAvailability, saveMenuAvailability } from '../lib/menuAvailability.mjs';
+import { branchMenuAvailability, withBranchMenuAvailability, saveBranchMenuAvailability, updateCatalogBranchAvailability, isMenuItemAvailableAtBranch, applyMenuAvailability, updateCatalogAvailability, updateCatalogOptionAvailability, saveMenuAvailability } from '../lib/menuAvailability.mjs';
 
 const old={id:'item',is_available:false,global_is_available:false,updated_at:'2026-11-12T01:00:00Z',variants:[{name:'Size'}]};
 const saved={id:'item',is_available:true,updated_at:'2026-11-12T02:00:00Z'};
@@ -25,6 +25,25 @@ assert.equal(availableInDiliman({ id: 'other', category: 'Drinks' }), false);
 assert.equal(isMenuItemAvailableAtBranch({ is_available: true, store_is_available: false }), false);
 assert.equal(isMenuItemAvailableAtBranch({ is_available: false, store_is_available: true }), false);
 assert.equal(isMenuItemAvailableAtBranch({ is_available: true, store_is_available: true }), true);
+const branchSaved = { store_id: 'diliman', item_id: 'item', is_available: true };
+const branchUpdated = updateCatalogBranchAvailability({
+  items: [{ ...old, category: 'Drinks' }], rawItems: [old], categories,
+  itemStoreAvailability: itemRules, categoryStoreAvailability: categoryRules,
+}, branchSaved);
+assert.deepEqual(branchUpdated.itemStoreAvailability, [...itemRules, branchSaved]);
+assert.deepEqual(branchUpdated.rawItems, [old]);
+assert.equal(branchUpdated.items[0].is_available, false);
+assert.equal(branchUpdated.items[0].item_store_is_available, true);
+assert.equal(branchUpdated.items[0].store_is_available, false);
+const client = { from: table => {
+  assert.equal(table, 'menu_item_store_availability');
+  return { upsert: row => {
+    assert.deepEqual(row, branchSaved);
+    return { select: () => ({ single: async () => ({ data: branchSaved }) }) };
+  } };
+} };
+assert.deepEqual(await saveBranchMenuAvailability(client, 'diliman', 'item', true), branchSaved);
+await assert.rejects(() => saveBranchMenuAvailability(client, '', 'item', true), /assigned branch/);
 const optionSnapshot={rawItems:[old],items:[{id:'item',variants:[{name:'Add on',options:[{name:'Pearl',isAvailable:false}]}]}],optionSelectionStoreAvailability:[]};
 const optionSaved={group_key:'add on',option_key:'pearl',is_available:true,updated_at:saved.updated_at};
 const optionsUpdated=updateCatalogOptionAvailability(optionSnapshot,optionSaved,value=>String(value).toLowerCase(),value=>String(value).toLowerCase());
@@ -57,7 +76,7 @@ async function refreshScenario({reject=false,changeRevision=true}={}) {
    POS_OFFLINE_CACHE_KEY:'cache',POS_CATALOG_FULL_RECONCILE_MS:1000,
    setItems:value=>writes.push(value),setCategories:()=>{},setCustomers:()=>{},setLoading:()=>{},setRecipeRows:()=>{},setRecipeInventoryItems:()=>{},setIsOfflineMode:()=>{},
    setLocalSnapshot:async(...args)=>cacheWrites.push(args),serializeCatalogCache:async work=>work(),
-   branchMenuAvailability,optionGroupKey:String,optionSelectionKey:String,showToast:()=>{},formatReceiptDateTime:String,
+   withBranchMenuAvailability,optionGroupKey:String,optionSelectionKey:String,showToast:()=>{},formatReceiptDateTime:String,
    localStorage:{removeItem:()=>{}},loadPosSettings:async()=>{},loadPrinters:async()=>{},loadBarPrinterCategories:async()=>{},
  };
  const refresh=vm.runInNewContext(`(${source.trim()})`,context);
