@@ -38,6 +38,11 @@ for (const kind of ['ct221b', 'niimbot']) {
         assert(call.x >= 0 && call.x + call.w <= safeRight + 1 && call.y + call.h <= canvas.height, 'Text exceeds printer safe area');
       }
       assert(calls.some(call => call.text === 'Customer Portal'));
+      const website = calls.find(call => call.text === 'www.jujabrewandbites.com');
+      const caption = calls.find(call => call.text === 'Customer Portal');
+      assert(website && website.y >= caption.y + caption.h, 'Website must be below QR caption');
+      const date = calls.find(call => call.text?.startsWith('19/11'));
+      assert(website.y + website.h < date.y, 'Website must be above footer');
       const itemCall = calls.find(call => call.text.startsWith('Cocoa'));
       assert(calls.find(call => call.text === 'Large').h < itemCall.h, 'Options must be smaller than item name');
       assert(calls.find(call => call.text === 'Large').h >= Math.floor(itemCall.h * .8), 'Options should use enlarged font');
