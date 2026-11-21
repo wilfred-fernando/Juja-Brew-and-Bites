@@ -43,6 +43,7 @@ for (const kind of ['ct221b', 'niimbot']) {
       assert(website && website.y >= caption.y + caption.h, 'Website must be below QR caption');
       const date = calls.find(call => call.text?.startsWith('19/11'));
       assert(website.y + website.h < date.y, 'Website must be above footer');
+      assert(website.h > date.h, 'Website should be larger than footer text');
       const itemCall = calls.find(call => call.text.startsWith('Cocoa'));
       assert(calls.find(call => call.text === 'Large').h < itemCall.h, 'Options must be smaller than item name');
       assert(calls.find(call => call.text === 'Large').h >= Math.floor(itemCall.h * .8), 'Options should use enlarged font');
