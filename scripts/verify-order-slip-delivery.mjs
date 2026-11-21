@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { deliverOrderSlips, withCustomerOrderSlip } from '../lib/orderSlipDelivery.js';
+import { deliverOrderSlips, withCustomerOrderSlip, enabledOrderSlipJobs } from '../lib/orderSlipDelivery.js';
 let saved = {};
 let failure = true;
 const writes = [];
@@ -39,3 +39,11 @@ for (const dining of ['Takeout', 'ONLINE: TAKEOUT', 'GRABFOOD', 'GRAB - 123', 'F
   assert.equal(withCustomerOrderSlip([bar], bar.items, dining).length, 1, dining);
 }
 console.log('PASS: customer copy limited to dine-in tables and VIP room');
+
+const combined = withCustomerOrderSlip([kitchen, bar], [...kitchen.items, ...bar.items], 'Table 1');
+assert.deepEqual(enabledOrderSlipJobs(combined).map(job => job.key), ['bar','customer-copy']);
+assert.deepEqual(enabledOrderSlipJobs(combined, true).map(job => job.key), ['kitchen','bar','customer-copy']);
+assert.deepEqual(enabledOrderSlipJobs(withCustomerOrderSlip([kitchen,bar], [...kitchen.items,...bar.items], 'Takeout')).map(job=>job.key), ['bar']);
+assert.deepEqual(enabledOrderSlipJobs([{key:'unassigned',groupName:'Order Slip',items:kitchen.items}, ...combined]).map(job=>job.key), ['bar','customer-copy']);
+assert.deepEqual(enabledOrderSlipJobs(combined).at(-1).items, [...kitchen.items,...bar.items]);
+console.log('PASS: kitchen off by default, toggle on restores kitchen, customer copy retains all items, no unassigned kitchen bypass');

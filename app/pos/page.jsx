@@ -54,7 +54,7 @@ import GiftCertificatePaymentDialog from "@/components/pos/GiftCertificatePaymen
 import { gcPaymentBreakdown } from "@/lib/posGiftCertificates";
 import OfflineSyncNotice from "@/components/pos/OfflineSyncNotice";
 import { addPosCartLine } from "@/lib/posCart";
-import { deliverOrderSlips, withCustomerOrderSlip } from "@/lib/orderSlipDelivery";
+import { deliverOrderSlips, withCustomerOrderSlip, enabledOrderSlipJobs } from "@/lib/orderSlipDelivery";
 import { mergeReceiptCache, preferredReceiptNumber } from "@/lib/posReceiptCache";
 import { loyaltySearchFilter, normalizeLoyaltySearch } from "@/lib/posLoyaltySearch";
 import { ensurePosBeneficiarySession } from "@/lib/posBeneficiarySession";
@@ -6864,11 +6864,14 @@ export default function POSPage() {
 
     const routedItems = new Set(configuredJobs.flatMap(job => job.items));
     const unmatchedItems = cartRows.filter(line => !routedItems.has(line));
-    const printJobs = withCustomerOrderSlip([...configuredJobs, ...(unmatchedItems.length
+    const allPrintJobs = withCustomerOrderSlip([...configuredJobs, ...(unmatchedItems.length
       ? [{ key: "unassigned", groupName: "Order Slip", items: unmatchedItems }]
       : [])], cartRows, slipDining);
 
     try {
+      const { data: slipSettings, error: slipSettingsError } = await supabase.from("pos_receipt_settings")
+        .select("print_kitchen_order_slips").eq("store_id", storeId).maybeSingle();
+      const printJobs = enabledOrderSlipJobs(allPrintJobs, !slipSettingsError && slipSettings?.print_kitchen_order_slips === true);
       const print = async (job) => {
         const groupTitle = job.groupName.toUpperCase();
         const slipText = buildOrderSlipText({
@@ -8943,6 +8946,7 @@ export default function POSPage() {
       auto_print: !!receiptSettings?.auto_print,
       updated_at: new Date().toISOString(),
     };
+    delete receiptPayload.print_kitchen_order_slips;
     const { error: receiptError } = await supabase
       .from("pos_receipt_settings")
       .upsert(receiptPayload, { onConflict: "store_id" });
@@ -8960,13 +8964,22 @@ export default function POSPage() {
     showToast("success", "Printers Saved", "Receipt, order slip, and cup label printers were updated.");
   }
 
+  async function updateKitchenOrderSlipSetting(enabled) {
+    if (!storeId) return;
+    const { error } = await supabase.from("pos_receipt_settings").upsert({ store_id: storeId,
+      print_kitchen_order_slips: enabled, updated_at: new Date().toISOString() }, { onConflict: "store_id" });
+    if (error) { showToast("error", "Order Slip Setting Not Saved", error.message); return; }
+    setReceiptSettings(previous => ({ ...previous, print_kitchen_order_slips: enabled }));
+    showToast("success", "Order Slip Setting Saved", enabled ? "Kitchen slips enabled." : "Only bar and eligible customer copies will print.");
+  }
+
   async function updateAutoPrintSetting(enabled) {
     const nextSettings = { ...(receiptSettings || {}), store_id: storeId, auto_print: enabled };
     setReceiptSettings(nextSettings);
     if (!storeId) return;
     const { error } = await supabase
       .from("pos_receipt_settings")
-      .upsert({ ...nextSettings, updated_at: new Date().toISOString() }, { onConflict: "store_id" });
+      .upsert({ store_id: storeId, auto_print: enabled, updated_at: new Date().toISOString() }, { onConflict: "store_id" });
     if (error) showToast("error", "Auto Print Save Failed", error.message);
   }
 
@@ -11286,6 +11299,7 @@ export default function POSPage() {
               </div>
 
               <div className="border-b border-slate-200 bg-slate-50 px-4 py-1">
+                <PrinterSwitch label="Print kitchen order slips" checked={!!receiptSettings?.print_kitchen_order_slips} onChange={updateKitchenOrderSlipSetting} />
                 <PrinterSwitch label="Automatically print receipt" checked={!!receiptSettings?.auto_print} onChange={updateAutoPrintSetting} />
               </div>
 

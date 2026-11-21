@@ -30,6 +30,7 @@ export default function ReceiptSettingsPage() {
     show_datetime: true,
     show_payment_type: true,
     auto_print: false,
+    print_kitchen_order_slips: false,
   });
 
   useEffect(() => {
@@ -59,6 +60,7 @@ export default function ReceiptSettingsPage() {
         show_datetime: !!data.show_datetime,
         show_payment_type: !!data.show_payment_type,
         auto_print: !!data.auto_print,
+        print_kitchen_order_slips: !!data.print_kitchen_order_slips,
       });
     }
 
@@ -137,6 +139,13 @@ export default function ReceiptSettingsPage() {
           checked={form.auto_print}
           onChange={(v) => setForm((p) => ({ ...p, auto_print: v }))}
         />
+
+        <Toggle
+          label="Print kitchen order slips"
+          checked={form.print_kitchen_order_slips}
+          onChange={(value) => setForm(previous => ({ ...previous, print_kitchen_order_slips: value }))}
+        />
+        <p className="text-sm text-slate-600">Off: print bar slips and eligible customer copies only. This setting also applies in POS.</p>
 
         <button
           onClick={save}
